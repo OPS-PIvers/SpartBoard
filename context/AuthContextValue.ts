@@ -249,6 +249,8 @@ export interface AuthContextType {
   spartyEnabled: boolean;
   /** Teacher's own alignment guides switch; also needs the `alignment-guides` feature. */
   alignmentGuidesEnabled: boolean;
+  /** Teacher's own spell check switch; only turns it off where `spell-check-setting` allows. */
+  spellCheckEnabled: boolean;
   /**
    * The Collection the teacher was most recently in. Restored from the
    * userProfile doc on sign-in so the app can re-open the correct Collection
@@ -273,6 +275,7 @@ export interface AuthContextType {
     quizGraderAutoAdvance?: boolean;
     spartyEnabled?: boolean;
     alignmentGuidesEnabled?: boolean;
+    spellCheckEnabled?: boolean;
   }) => Promise<void>;
   /**
    * The organization this user belongs to, derived from their membership doc.

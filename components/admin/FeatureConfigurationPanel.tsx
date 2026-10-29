@@ -409,8 +409,7 @@ export const FeatureConfigurationPanel: React.FC<
                   <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
                     Update Frequency (Minutes)
                   </label>
-                  <input
-                    type="number"
+                  <DraftNumberField
                     min="5"
                     max="1440"
                     {...tourFieldAttr(
@@ -419,15 +418,11 @@ export const FeatureConfigurationPanel: React.FC<
                       'updateFrequencyMinutes'
                     )}
                     value={config.updateFrequencyMinutes ?? 15}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
+                    onCommit={(val) =>
                       updatePermission(tool.type, {
-                        config: {
-                          ...config,
-                          updateFrequencyMinutes: isNaN(val) ? 15 : val,
-                        },
-                      });
-                    }}
+                        config: { ...config, updateFrequencyMinutes: val },
+                      })
+                    }
                     className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
                   />
                 </div>

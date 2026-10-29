@@ -975,6 +975,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
                 quizMode
                 allowWindowShift={false}
                 readAloudAvailable={readAloudAvailable}
+                pageProtectionsAvailable
                 peers={peers}
                 onChange={(next) =>
                   onChange(setRosterDefaultOverride(overrides, s.id, next))

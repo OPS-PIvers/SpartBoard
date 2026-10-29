@@ -399,20 +399,20 @@
     },
     "C2": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/concept-web/default__typical__settings.png"
         ],
-        "runId": "after-concept-web"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings-open screenshot shows no organized drawer at all, only the face with the selection ring.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "gradedAt": "2026-10-28T20:49:14.684Z",
       "stale": false
     },
     "C3": {

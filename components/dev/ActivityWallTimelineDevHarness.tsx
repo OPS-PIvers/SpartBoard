@@ -1,7 +1,7 @@
 /**
  * ActivityWallTimelineDevHarness — DEV-only fixtures for the Activity Wall timeline,
  * old list next to the dated axis at several sizes. Mounted at /activity-wall-timeline-dev.
- * `?view=editor` shows the groups and time periods lists; `?view=composer` shows the post composer (`&groups=1` adds the group picker); `?view=groups` shows group lanes and hidden dates; `?posts=60` pads the wall for load checks.
+ * `?view=editor` shows the groups and time periods lists; `?view=composer` shows the post composer (`&groups=1` adds the group picker); `?view=groups` shows group lanes and hidden dates; `?view=student` shows the student page with a long prompt (`&composer=1` opens the composer); `?posts=60` pads the wall for load checks.
  */
 
 import React from 'react';
@@ -12,6 +12,7 @@ import {
   makeSubmission,
 } from '@/components/activityWall/render/fixtures';
 import { ComposerSheet } from '@/components/activityWall/submission/ComposerSheet';
+import { WallShell } from '@/components/activityWall/submission/WallShell';
 import { SectionsEditor } from '@/components/widgets/ActivityWall/editor/SectionsEditor';
 import type { WallStructure } from '@/components/widgets/ActivityWall/editor/constants';
 
@@ -279,6 +280,8 @@ const PeriodsEditorPreview: React.FC = () => {
     </div>
   );
 };
+const LONG_PROMPT =
+  "Pick one cause of World War I from the reading: militarism, alliances, imperialism, or nationalism. Post a short explanation of how it pushed Europe toward war, and include one specific event or country as evidence. Then read two classmates' posts and reply to one with a question or a connection to a different cause.";
 const WHITE_CARDS = { background: 'rgba(255,255,255,1)', color: '#0f172a' };
 
 const Frame: React.FC<{
@@ -308,6 +311,37 @@ export const ActivityWallTimelineDevHarness: React.FC = () => {
       <div className="h-screen bg-slate-100 p-6">
         <PeriodsEditorPreview />
       </div>
+    );
+  }
+
+  if (view === 'student') {
+    const session = {
+      ...legacySession,
+      title: 'Causes of World War I',
+      prompt: LONG_PROMPT,
+    };
+    return (
+      <WallShell title={session.title} prompt={session.prompt} open>
+        <LayoutRouter
+          session={session}
+          submissions={submissions.length ? submissions : posts()}
+          mode="student"
+          showNames
+          onAddAt={() => undefined}
+          onEdit={() => undefined}
+        />
+        {params.get('composer') && (
+          <ComposerSheet
+            session={session}
+            editing={undefined}
+            onSubmit={() => undefined}
+            onClose={() => undefined}
+            busy={false}
+            progress={null}
+            error={null}
+          />
+        )}
+      </WallShell>
     );
   }
 

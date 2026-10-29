@@ -392,20 +392,20 @@
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/hotspot-image/default__typical__settings.png"
         ],
-        "runId": "after-hotspot-image"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The schema puts the Content group (base image, hotspots) ahead of a small Display group, and the hotspot fields stay hidden until an image exists, though the settings screenshot does not show the drawer.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "gradedAt": "2026-10-28T20:50:05.603Z",
       "stale": false
     },
     "C3": {

@@ -40,7 +40,6 @@ import {
   type ShuffleConstraints,
   resetAllAssignments,
   resetStation,
-  stationCount,
 } from './hooks/stationsActions';
 import { tourAttr } from '@/config/tourAnchors';
 
@@ -219,12 +218,11 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
         const stationId = overId.slice(STATION_DROP_PREFIX.length);
         const station = orderedStations.find((s) => s.id === stationId);
         if (!station) return;
-        // Capacity guard: refuse and toast if full (and the student isn't
-        // already there — moving within the same station is a no-op).
+        // Capacity guard counts the chips the card shows, so absent or hidden students don't fill it.
         if (currentAssignment === stationId) return;
         if (
           station.maxStudents != null &&
-          stationCount(assignments, stationId) >= station.maxStudents
+          (grouped.byStation[stationId]?.length ?? 0) >= station.maxStudents
         ) {
           addToast(`${station.title || 'Station'} is full.`, 'info');
           return;
@@ -233,7 +231,14 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
         persistAssignments(next);
       }
     },
-    [assignments, activeRoster, orderedStations, persistAssignments, addToast]
+    [
+      assignments,
+      activeRoster,
+      orderedStations,
+      grouped,
+      persistAssignments,
+      addToast,
+    ]
   );
 
   const handleSelectPoolGroup = useCallback(

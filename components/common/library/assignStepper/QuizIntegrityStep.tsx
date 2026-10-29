@@ -1,4 +1,5 @@
 import React from 'react';
+import type { BaseSessionOptions } from '@/types';
 import {
   DEFAULT_TAB_WARNING_THRESHOLD,
   TAB_WARNING_THRESHOLD_MAX,
@@ -21,24 +22,33 @@ import {
 } from './QuizStepRows';
 import { tourFieldAttr } from '@/config/tourAnchors';
 
-/** "Quiz integrity": focus mode with its sub-settings, block copy and paste (D8). */
-export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
-  value,
-  onChange,
-}) => {
-  const { tabAwayTimerOn, stimulusQuotesOn } = useQuizRuleGates();
-  const o = value.sessionOptions;
+export interface FocusModeOptions extends Pick<
+  BaseSessionOptions,
+  | 'tabWarningsEnabled'
+  | 'tabAwayLimitSeconds'
+  | 'tabAwayAutoSubmit'
+  | 'focusLevel'
+  | 'blockCopyPaste'
+  | 'blockPrint'
+> {
+  tabWarningThreshold?: number | 'off';
+}
+
+/** Focus mode with its auto-submit sub-rows, shared by the Quiz and Video Activity integrity steps. */
+export const FocusModeRows: React.FC<{
+  options: FocusModeOptions;
+  patch: (next: Partial<FocusModeOptions>) => void;
+}> = ({ options: o, patch }) => {
+  const { tabAwayTimerOn, pageProtectionsOn } = useQuizRuleGates();
   const focus = o.tabWarningsEnabled ?? true;
   const threshold = o.tabWarningThreshold ?? DEFAULT_TAB_WARNING_THRESHOLD;
   const awaySeconds = clampTabAwaySeconds(
     o.tabAwayLimitSeconds ?? DEFAULT_TAB_AWAY_LIMIT_SECONDS
   );
   const awayOn = o.tabAwayAutoSubmit === true;
-  const patch = (next: Parameters<typeof patchQuizSessionOptions>[1]) =>
-    onChange(patchQuizSessionOptions(value, next));
 
   return (
-    <div className="space-y-1.5">
+    <>
       <StepToggleRow
         label="Focus mode"
         anchor={tourFieldAttr('assign-rule.toggle', 'assign', 'focus-mode')}
@@ -115,18 +125,65 @@ export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
               }
             />
           )}
+          {pageProtectionsOn && (
+            <StepToggleRow
+              sub
+              label="Require fullscreen"
+              anchor={tourFieldAttr(
+                'assign-rule.toggle',
+                'assign',
+                'require-fullscreen'
+              )}
+              checked={o.focusLevel === 'lock'}
+              onChange={(on) => patch({ focusLevel: on ? 'lock' : undefined })}
+            />
+          )}
         </StepSubRows>
       )}
-      <StepToggleRow
-        label="Block copy and paste"
-        anchor={tourFieldAttr(
-          'assign-rule.toggle',
-          'assign',
-          'block-copy-paste'
-        )}
-        checked={o.blockCopyPaste ?? false}
-        onChange={(blockCopyPaste) => patch({ blockCopyPaste })}
-      />
+    </>
+  );
+};
+
+/** Block copy and paste; with the focus-sessions flag it also blocks printing. */
+export const BlockCopyPasteRow: React.FC<{
+  options: FocusModeOptions;
+  patch: (next: Partial<FocusModeOptions>) => void;
+}> = ({ options: o, patch }) => {
+  const { pageProtectionsOn } = useQuizRuleGates();
+  return (
+    <StepToggleRow
+      label={
+        pageProtectionsOn
+          ? 'Block copy, paste and print'
+          : 'Block copy and paste'
+      }
+      anchor={tourFieldAttr('assign-rule.toggle', 'assign', 'block-copy-paste')}
+      checked={o.blockCopyPaste ?? false}
+      onChange={(blockCopyPaste) =>
+        patch(
+          pageProtectionsOn
+            ? { blockCopyPaste, blockPrint: blockCopyPaste }
+            : { blockCopyPaste }
+        )
+      }
+    />
+  );
+};
+
+/** "Quiz integrity": focus mode with its sub-settings, block copy and paste (D8). */
+export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
+  value,
+  onChange,
+}) => {
+  const { stimulusQuotesOn } = useQuizRuleGates();
+  const o = value.sessionOptions;
+  const patch = (next: Parameters<typeof patchQuizSessionOptions>[1]) =>
+    onChange(patchQuizSessionOptions(value, next));
+
+  return (
+    <div className="space-y-1.5">
+      <FocusModeRows options={o} patch={patch} />
+      <BlockCopyPasteRow options={o} patch={patch} />
       {stimulusQuotesOn && (
         <StepToggleRow
           label="Let students quote from passages"

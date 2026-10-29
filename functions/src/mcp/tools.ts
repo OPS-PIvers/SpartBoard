@@ -64,7 +64,15 @@ import {
 import { isAdmin } from './glTools';
 import { registerMeetingTools } from './meetingTools';
 import { registerStandardsTools } from './standardsTools';
-import { BOARD_TOOLS, boardsOn, registerBoardTools } from './boardTools';
+import {
+  BOARD_TOOLS,
+  assertBoardAccess,
+  boardsOn,
+  editResultOf,
+  registerBoardTools,
+} from './boardTools';
+import { restoreBoard } from './boardWrite';
+import { resolveBoardScreen } from './boardStore';
 
 export const SERVER_INSTRUCTIONS = [
   "SpartBoard is a classroom dashboard. These tools read and write the signed-in teacher's own library.",
@@ -77,6 +85,7 @@ export const SERVER_INSTRUCTIONS = [
   "Meeting notes are saved as a draft that a group editor reviews in SpartBoard; Claude never edits a group's notes directly.",
   "Quiz, question bank, video and Guided Learning questions have a Learning Targets field. Tag Minnesota standards first: find codes with search_standards and save them in each question's standards. Use learning_targets only when the teacher gives their own or PLC targets.",
   'Admins writing a live tour read get_live_tour_guide first. For a live tour, skip the plan: build it, check it with dry_run, save it and report back as the guide says.',
+  "When the board tools are available, read get_board_guide before building or changing a board: ask only for what you can't infer, state a short plan, then build, and check the wireframe picture each board tool returns. Small tweaks after that need no new plan. Claude never deletes a board and can't change boards another teacher shares with this teacher.",
 ].join(' ');
 
 function summarizeSet(set: FlashcardSet) {
@@ -614,6 +623,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         const snap = await db
           .collection(`users/${uid}/claude_revisions`)
           .orderBy('createdAt', 'desc')
+          // A board revision holds the whole board; the list needs only these.
+          .select('itemType', 'itemId', 'title', 'createdAt')
           .limit(100)
           .get();
         const revisions = snap.docs
@@ -666,6 +677,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           return restoreWebTourRevision(ctx, rev);
         if (itemType === 'guided_learning')
           return restoreGuidedLearningRevision(ctx, rev);
+        if (itemType === 'board') {
+          await assertBoardAccess(ctx);
+          const edit = await restoreBoard(ctx, rev);
+          return editResultOf(edit, await resolveBoardScreen(ctx)).result;
+        }
         if (itemType !== 'flashcard_set') {
           throw new ToolError('That revision cannot be restored.');
         }

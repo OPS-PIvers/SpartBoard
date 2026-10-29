@@ -3877,6 +3877,8 @@ describe('index barrel — deployed export set', () => {
     'webToursListV1',
     'webTourLoadV1',
     'webTourRunV1',
+    'focusStatusV1',
+    'focusReportV1',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
     'gradebookDemoV1',
@@ -3895,6 +3897,14 @@ describe('index barrel — deployed export set', () => {
     // Admin analytics snapshot + maintenance
     'recomputeAdminAnalytics',
     'expireSubShares',
+    // Focus sessions (Chrome extension FS3)
+    'focusStartV1',
+    'focusExtendV1',
+    'focusReleaseV1',
+    'focusAddSiteV1',
+    'focusEndV1',
+    'focusOpenV1',
+    'focusSweepSessions',
     'expireActivityWallShares',
     'finalizeIdleQuizAttempts',
     // Google / Spotify OAuth

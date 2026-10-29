@@ -372,12 +372,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/clock/default__typical__settings.png"
         ],
-        "runId": "norming-1"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:59:23.920Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-28T20:49:01.333Z",
       "stale": false
     },
     "C3": {

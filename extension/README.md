@@ -11,6 +11,25 @@ Web tours now, focus sessions later. The contract is [docs/plans/CHROME_EXTENSIO
 - `manifest.json`: the base manifest. Bump `version` here to publish (D7). `src/listings.ts` holds each listing's name and exact page origins (D5).
 - `src/serviceWorker.ts`: refuses senders that aren't a top frame on a listed origin (`src/sender.ts`), checks every message against `components/tours/web/extensionProtocol.ts` and answers it in `src/handler.ts`. Page ports are refused until a protocol version defines one.
 - `src/overlay/`: the tour overlay (`TourSpotlight`, `TourBar` without Autopilot, `TourTip`) in a closed Shadow DOM with its own i18n instance. Its CSS is compiled with the app's Tailwind theme and every `rem` rewritten to `px`, so the host page's font size can't rescale it.
+- `src/focus/`: focus sessions on student profiles (`@students.orono.k12.mn.us` only; staff never enforce). `focusClient.ts` pulls `focusStatusV1` every 5 minutes, at browser start, on sign-in and on a data-free Web Push, keeps the session in `chrome.storage.session`, counts down on the badge and reports On task or Away to `focusReportV1` on each change and at most once a minute. `page/` is the focus page the student sees. Push subscribes only once the listing has a `vapidPublicKey`; until then devices poll. The server sends a data-free push to the class after each teacher change (`functions/src/focus/push.ts`); `node scripts/focus-vapid-keygen.mjs --project dev|prod` makes a project's key, stores the private half in Secret Manager and writes the public half here.
+
+## Publishing
+
+`.github/workflows/extension-publish.yml` publishes a listing whenever `version` in `manifest.json` goes up (D7):
+
+- **Dev listing:** a `dev-paul` push that raises the version builds `dist/dev`, uploads it to the item in the `SPART_EXTENSION_ID_DEV` repository variable and submits it, using the `chrome-web-store-dev` environment.
+- **Prod listing:** the `main` push that carries a raised version does the same for `SPART_EXTENSION_ID` through the `chrome-web-store-prod` environment, and waits for Paul to approve the run. It refuses to run at all if that environment has no required reviewer, since GitHub would otherwise create it unprotected.
+- Either listing can be re-run by hand (Actions > Publish Chrome Extension > Run workflow, from `dev-paul` or `main`). The Web Store refuses a version it already has, so a re-run only helps when the last upload never reached it.
+- Both still go through Web Store review before Chrome updates installs, which can take days. The run's summary keeps the uploaded zip for 90 days.
+- `scripts/publish.ts` does the upload with the Chrome Web Store API v2 (`scripts/webStore.ts`) and stops with a plain message naming anything that isn't set up.
+
+One-time setup (Paul):
+
+1. In a Google Cloud project, enable the Chrome Web Store API, set the OAuth consent screen to **Internal** (an External app in testing loses its refresh token after 7 days), and create an OAuth client ID.
+2. With that client, get a refresh token for the scope `https://www.googleapis.com/auth/chromewebstore` while signed in as the Web Store developer account (it needs 2-step verification), for example from the OAuth 2.0 Playground with "Use your own OAuth credentials".
+3. Copy the publisher ID from the Developer Dashboard (Publisher > Settings).
+4. Create two environments under Settings > Environments: `chrome-web-store-dev` (deployment branch `dev-paul`) and `chrome-web-store-prod` (deployment branch `main`, Paul as a required reviewer, "Prevent self-review" off so he can approve his own release). Give each the secrets `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN` and `CWS_PUBLISHER_ID`, and nothing else.
+5. The API keeps each listing's visibility, so each listing needs one manual publish from the dashboard as Private first.
 
 ## Adding a message type
 

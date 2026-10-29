@@ -280,6 +280,8 @@
       "showSparty": "Sparty anzeigen",
       "alignmentGuides": "Ausrichtungshilfen",
       "alignmentGuidesHint": "Linien erscheinen, wenn ein Widget an anderen ausgerichtet oder gleichmäßig verteilt ist.",
+      "spellCheck": "Rechtschreibprüfung",
+      "spellCheckHint": "Falsch geschriebene Wörter beim Tippen unterstreichen.",
       "googleDriveDescription": "Deine Tafeln werden in deinem \"{{appName}}\"-Ordner in Drive gesichert.",
       "connectedSynced": "Verbunden",
       "disconnected": "Getrennt",
@@ -2010,10 +2012,15 @@
       "tabAway": "Abwesenheitslimit: {{seconds}} s",
       "windowShifted": "Zeitfenster verschoben",
       "readAloud": "Vorlesen",
-      "language": "{{language}}"
+      "language": "{{language}}",
+      "copyPastePrintBlocked": "Kein Kopieren, Einfügen oder Drucken",
+      "copyPastePrintAllowed": "Kopieren, Einfügen und Drucken erlaubt"
     },
     "language": "Sprache",
-    "noChanges": "Keine Änderungen"
+    "noChanges": "Keine Änderungen",
+    "copyPastePrint": "Kopieren, Einfügen und Drucken",
+    "copyPastePrintBlock": "Sperren",
+    "copyPastePrintAllow": "Erlauben"
   },
   "assignTargeting": {
     "expandAffordance": "Anpassungen bearbeiten oder hinzufügen",

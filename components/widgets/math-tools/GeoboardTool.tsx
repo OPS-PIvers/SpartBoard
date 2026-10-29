@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 const COLS = 5;
 const ROWS = 5;
@@ -93,6 +94,7 @@ export const GeoboardTool: React.FC = () => {
             'Click pegs to stretch a band. Click the first peg again to close.'}
         </p>
         <button
+          {...tourTypeAttr('math-tool.clear', 'mathTool')}
           onClick={clearAll}
           className="text-xxs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg font-black uppercase tracking-wider transition-colors"
         >

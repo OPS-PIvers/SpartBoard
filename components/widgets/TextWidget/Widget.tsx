@@ -412,7 +412,6 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   // single source of truth.
                   contentEditable={!isActiveBoardReadOnly}
                   suppressContentEditableWarning
-                  spellCheck={true}
                   onFocus={handleFocus}
                   onBlur={handleBlur}
                   onInput={handleInput}

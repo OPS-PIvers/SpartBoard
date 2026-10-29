@@ -135,7 +135,7 @@ export const SNAP_ZONE_LAYOUTS: readonly SnapZoneLayout[] = [
   },
 ];
 
-// Activity templates for AI boards (docs/plans/AI_BOARDS.md D9); every zone is a snap zone.
+// Activity templates for AI boards (docs/plans/shipped/AI_BOARDS.md D9); every zone is a snap zone.
 export interface BoardTemplateSlot {
   zoneId: string;
   role: string;
@@ -515,7 +515,7 @@ export interface ChromeBand extends Rect {
 
 export const DEFAULT_SCREEN: ScreenShape = { w: 1920, h: 1080 };
 
-// Mirrors utils/layoutMath.ts SNAP_LAYOUT_CONSTANTS and the fixed app chrome measured in docs/plans/AI_BOARDS.md.
+// Mirrors utils/layoutMath.ts SNAP_LAYOUT_CONSTANTS and the fixed app chrome measured in docs/plans/shipped/AI_BOARDS.md.
 export const BOARD_LAYOUT = {
   PADDING: 16,
   GAP: 12,

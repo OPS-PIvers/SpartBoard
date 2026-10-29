@@ -2032,6 +2032,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "behavior.spell-check-toggle",
+    "label": "Spell check switch",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.profile-behavior",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.profile-settings",
+          "profile.tab-behavior"
+        ]
+      }
+    ]
+  },
+  {
     "id": "language.options",
     "label": "Language choices",
     "scope": "board",
@@ -3413,6 +3431,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.video",
+    "label": "Video step header in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.check",
     "label": "Check step header in the Assign dialog",
     "scope": "board",
@@ -3583,6 +3614,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "keys": [
+      "assign#allow-skipping",
+      "assign#autoplay",
       "assign#away-auto-submit",
       "assign#block-copy-paste",
       "assign#focus-mode",
@@ -3590,7 +3623,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#mini-app-show-results",
       "assign#raise-hand",
       "assign#read-aloud",
+      "assign#require-fullscreen",
       "assign#reveal-correct",
+      "assign#rewind-on-wrong",
       "assign#score-on-submit",
       "assign#show-right-wrong",
       "assign#shuffle-answers",
@@ -18056,6 +18091,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.random.save-as-groups",
+    "label": "Save as class groups button in Random Picker settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.random.settings",
+        "kind": "settings-drawer",
+        "widget_type": "random",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.random.send-stations",
     "label": "Send to Stations button in Random Picker settings",
     "scope": "widget",
@@ -20968,6 +21023,85 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Station choice in Music settings",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song",
+    "label": "One of the teacher's own songs in Music settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song-remove",
+    "label": "Remove button on one of the teacher's own songs in Music settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song-link",
+    "label": "YouTube link field for adding a song in Music settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song-add",
+    "label": "Add button for a YouTube song in Music settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.music.settings",
@@ -35393,6 +35527,83 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.previews.focus-hours-start",
+    "label": "Start time field in Focus session hours",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.focus-hours-end",
+    "label": "End time field in Focus session hours",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.focus-hours-day",
+    "label": "Day button in Focus session hours",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.focus-hours-save",
+    "label": "Save button in Focus session hours",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.previews.graduate",
     "label": "Graduate button on a Previews row",
     "scope": "field",
@@ -45932,8 +46143,172 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "video-activity.editor-draft-ai",
-    "label": "Draft with AI button in the video activity editor footer",
+    "label": "Draft with AI button in the video activity editor",
     "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-add-question",
+    "label": "Add question button in the video activity editor question list",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-select",
+    "label": "Select checkbox on a question in the video activity editor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-duplicate",
+    "label": "Duplicate button on a question in the video activity editor",
+    "scope": "field",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-tag",
+    "label": "Tag button for selected questions in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-delete",
+    "label": "Delete button for selected questions in the video activity editor",
+    "scope": "board",
+    "destructive": true,
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-clear",
+    "label": "Clear selection button in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-targets-edit",
+    "label": "Learning targets Add or Edit button in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-type-select",
+    "label": "Question type menu in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-use-current-time",
+    "label": "Use current time button for a video activity question",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -46505,6 +46880,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "video-activity.selection-toggle",
     "label": "Select toggle in the video activity library",
     "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.archive-settings",
+    "label": "Settings item in a video activity assignment row menu",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "library.video-activity",
@@ -54863,6 +55255,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "override-row.copy-paste-print",
+    "label": "Copy, paste and print choice in the override editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.override-row",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "override-row.language",
     "label": "Language picker in the override editor",
     "scope": "board",
@@ -58199,6 +58604,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "music.launch-timer",
+    "label": "Button on the Music widget that opens a linked Timer",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.music.face",
+        "kind": "widget",
+        "widget_type": "music",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "music.spotify-shuffle",
     "label": "Shuffle button in the Music Spotify player",
     "scope": "widget type",
@@ -58570,6 +58992,167 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "math-tool.rotate",
     "label": "Rotation grip on a Math Tool",
+    "scope": "widget type",
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.add-piece",
+    "label": "Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.clear",
+    "label": "Clear button on a Math Tool (coordinate plane, geoboard, place value)",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.rotate-piece",
+    "label": "Rotate 30° button for the selected piece in Pattern Blocks",
+    "scope": "widget type",
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.remove-piece",
+    "label": "Remove button for the selected piece in Pattern Blocks",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.calculator-key",
+    "label": "Calculator key, by label (digits, operators, AC, =)",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.denominator",
+    "label": "Denominator toggle in Fraction Tiles, by denominator",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.number-line-mode",
+    "label": "Number line mode button (integers, decimals, fractions), by mode",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.number-line-min",
+    "label": "Minimum value box on the Number Line tool",
+    "scope": "widget type",
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.number-line-max",
+    "label": "Maximum value box on the Number Line tool",
     "scope": "widget type",
     "keys": [
       "mathTool"

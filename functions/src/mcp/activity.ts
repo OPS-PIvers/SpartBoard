@@ -1,6 +1,6 @@
 // Write log, daily write cap and pre-edit snapshots for Claude writes (CC-D9, CC-D16).
 import * as admin from 'firebase-admin';
-import { DAILY_WRITE_LIMIT, LOG_TTL_MS } from './config';
+import { DAILY_BOARD_OP_LIMIT, DAILY_WRITE_LIMIT, LOG_TTL_MS } from './config';
 
 type Firestore = admin.firestore.Firestore;
 type WriteBatch = admin.firestore.WriteBatch;
@@ -15,7 +15,8 @@ export type ItemType =
   | 'activity_wall'
   | 'mini_app'
   | 'guided_learning'
-  | 'meeting_notes';
+  | 'meeting_notes'
+  | 'board';
 
 export interface ToolContext {
   db: Firestore;
@@ -29,24 +30,22 @@ export class ToolError extends Error {}
 const utcDay = (now: number): string =>
   new Date(now).toISOString().slice(0, 10);
 
-/** Reserve one write against today's cap; throws ToolError once the cap is reached. */
-export async function reserveWrite(
+async function reserve(
   ctx: ToolContext,
-  now = Date.now()
+  field: 'writes' | 'boardOps',
+  limit: number,
+  message: string,
+  now: number
 ): Promise<void> {
   const ref = ctx.db.doc(`users/${ctx.uid}/claude_usage/${utcDay(now)}`);
   await ctx.db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    const count = snap.exists ? Number(snap.get('writes') ?? 0) : 0;
-    if (count >= DAILY_WRITE_LIMIT) {
-      throw new ToolError(
-        `Daily limit of ${DAILY_WRITE_LIMIT} Claude changes reached. It resets at midnight UTC.`
-      );
-    }
+    const count = snap.exists ? Number(snap.get(field) ?? 0) : 0;
+    if (count >= limit) throw new ToolError(message);
     tx.set(
       ref,
       {
-        writes: count + 1,
+        [field]: count + 1,
         updatedAt: now,
         expireAt: admin.firestore.Timestamp.fromMillis(now + LOG_TTL_MS),
       },
@@ -54,6 +53,26 @@ export async function reserveWrite(
     );
   });
 }
+
+/** Reserve one write against today's cap; throws ToolError once the cap is reached. */
+export const reserveWrite = (ctx: ToolContext, now = Date.now()) =>
+  reserve(
+    ctx,
+    'writes',
+    DAILY_WRITE_LIMIT,
+    `Daily limit of ${DAILY_WRITE_LIMIT} Claude changes reached. It resets at midnight UTC.`,
+    now
+  );
+
+/** Board calls have their own daily allowance; one create_board or edit_board call is one (AI_BOARDS D22). */
+export const reserveBoardOp = (ctx: ToolContext, now = Date.now()) =>
+  reserve(
+    ctx,
+    'boardOps',
+    DAILY_BOARD_OP_LIMIT,
+    `Daily limit of ${DAILY_BOARD_OP_LIMIT} Claude board changes reached. It resets at midnight UTC.`,
+    now
+  );
 
 export interface ActivityEntry {
   action: 'create' | 'update' | 'restore';

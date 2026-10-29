@@ -53,6 +53,10 @@ import {
   STUDENT_CONTEXT_MENU_SETTINGS_DOC,
   normalizeStudentContextMenuSettings,
 } from '@/config/studentContextMenu';
+import {
+  FOCUS_SESSIONS_SETTINGS_DOC,
+  normalizeFocusLiveSiteSettings,
+} from '@/config/focusSessions';
 
 export interface RolloutSwitch {
   docId: string;
@@ -168,5 +172,14 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     title: 'Block right-click for students',
     description: 'Turns off the right-click menu on student pages.',
     normalize: normalizeStudentContextMenuSettings,
+  },
+  {
+    docId: FOCUS_SESSIONS_SETTINGS_DOC,
+    field: 'showLiveSite',
+    title: "Show each student's current site in Focus",
+    description:
+      'During a focus session, the roster shows the site each student is on.',
+    superAdminOnly: true,
+    normalize: normalizeFocusLiveSiteSettings,
   },
 ];

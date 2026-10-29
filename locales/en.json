@@ -284,6 +284,8 @@
       "showSparty": "Show Sparty",
       "alignmentGuides": "Alignment guides",
       "alignmentGuidesHint": "Lines show when a widget lines up with others or is evenly spaced.",
+      "spellCheck": "Spell check",
+      "spellCheckHint": "Underline misspelled words as you type.",
       "googleDriveDescription": "Your boards back up to your \"{{appName}}\" folder in Drive.",
       "connectedSynced": "Connected",
       "disconnected": "Disconnected",
@@ -1540,6 +1542,16 @@
       "selectStation": "Select a station",
       "loadingStations": "Loading stations…",
       "noStations": "No stations are available. An admin needs to add them in Admin Settings.",
+      "mySongs": "My songs",
+      "mySongsLinkPlaceholder": "Paste a YouTube link",
+      "mySongsAdd": "Add",
+      "mySongsRemove": "Remove song",
+      "mySongsInvalidLink": "Enter a link to a YouTube video.",
+      "mySongsLimit": "You can save up to 50 songs. Remove one to add another.",
+      "mySongsSaveError": "Couldn’t save the song. Try again.",
+      "mySongsUntitled": "YouTube video",
+      "mySongsRemoveError": "Couldn’t remove the song. Try again.",
+      "mySongsUnavailable": "This video can’t be played outside YouTube. Try a different one.",
       "personalSpotify": "Personal Spotify",
       "connections": "Connections",
       "syncWithTimeTool": "Sync with Time Tool",
@@ -2572,6 +2584,9 @@
       "emptyStateFreeform": "Add furniture from the sidebar.",
       "emptyStateTemplate": "Pick a template and click Apply Layout."
     },
+    "music": {
+      "launchTimer": "Add a linked timer"
+    },
     "schedule": {
       "startTimer": "Start Timer",
       "startTimerUntil": "Start countdown timer until {{time}}"
@@ -3266,10 +3281,15 @@
       "tabAway": "Away limit: {{seconds}}s",
       "windowShifted": "Window shifted",
       "readAloud": "Read aloud",
-      "language": "{{language}}"
+      "language": "{{language}}",
+      "copyPastePrintBlocked": "No copy, paste or print",
+      "copyPastePrintAllowed": "Copy, paste and print allowed"
     },
     "language": "Language",
-    "noChanges": "No changes"
+    "noChanges": "No changes",
+    "copyPastePrint": "Copy, paste and print",
+    "copyPastePrintBlock": "Block",
+    "copyPastePrintAllow": "Allow"
   },
   "assignTargeting": {
     "expandAffordance": "Edit or add modifications",

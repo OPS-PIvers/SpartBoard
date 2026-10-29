@@ -72,8 +72,17 @@ vi.mock('./glLiveTour', () => ({
 vi.mock('./meetingTools', () => ({ registerMeetingTools: vi.fn() }));
 vi.mock('./standardsTools', () => ({ registerStandardsTools: vi.fn() }));
 vi.mock('./boardTools', () => ({
-  BOARD_TOOLS: new Set(['list_boards', 'get_board', 'get_board_guide']),
+  BOARD_TOOLS: new Set([
+    'list_boards',
+    'get_board',
+    'get_board_guide',
+    'create_board',
+    'edit_board',
+    'tidy_board',
+  ]),
   boardsOn: mocks.boardsOn,
+  assertBoardAccess: vi.fn(),
+  editResultOf: vi.fn(),
   registerBoardTools: vi.fn(),
 }));
 
@@ -97,6 +106,7 @@ function fakeDb(seed: Record<string, Data> = {}) {
   const collection = (path: string): Data => {
     const query: Data = {
       orderBy: () => query,
+      select: () => query,
       startAfter: () => query,
       limit: () => query,
       where: () => ({
@@ -1102,7 +1112,9 @@ describe('hiddenToolsFor', () => {
     mocks.boardsOn.mockResolvedValue(false);
     const hidden = await hiddenToolsFor(ctxFor(fakeDb().db));
     expect([...hidden].sort()).toEqual([
+      'create_board',
       'create_live_tour',
+      'edit_board',
       'get_board',
       'get_board_guide',
       'get_live_tour',
@@ -1112,6 +1124,7 @@ describe('hiddenToolsFor', () => {
       'get_web_tour_step_picture',
       'list_boards',
       'list_web_tours',
+      'tidy_board',
       'update_web_tour_text',
     ]);
   });

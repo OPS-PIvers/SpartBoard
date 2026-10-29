@@ -23,6 +23,8 @@ import {
   within,
 } from '@testing-library/react';
 import { httpsCallable } from 'firebase/functions';
+import { getDoc } from 'firebase/firestore';
+import { resetLastVideoAssignSettingsCache } from '@/hooks/useLastVideoAssignSettings';
 
 import { VideoActivityWidget } from '@/components/widgets/VideoActivityWidget/Widget';
 import type {
@@ -482,5 +484,142 @@ describe('VideoActivityWidget onAssign — assign stepper', () => {
       ownerUid: 'teacher-1',
       status: 'active',
     });
+  });
+});
+
+describe('VideoActivityWidget onAssign — rules on the assignment (va-quiz-alignment)', () => {
+  const sessionArgs = () => ({
+    settings: createSession.mock.calls[0][3] as Record<string, unknown>,
+    options: createSession.mock.calls[0][10] as Record<string, unknown>,
+  });
+
+  it('flag off: keeps the activity behavior and board rules, no stamp', async () => {
+    const dialog = await openAssignModal();
+    expect(
+      within(dialog).queryByRole('button', { name: /^\dVideo/ })
+    ).toBeNull();
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    const { settings, options } = sessionArgs();
+    expect(options).not.toHaveProperty('answerRulesSet');
+    expect(options.showResultToStudent).toBe(false);
+    expect(settings).toEqual({
+      autoPlay: false,
+      requireCorrectAnswer: true,
+      allowSkipping: false,
+    });
+  });
+
+  it('flag on: writes the stepper rules, stamps the session and remembers them', async () => {
+    flags.add('va-quiz-alignment');
+    const dialog = await openAssignModal();
+    fireEvent.click(within(dialog).getByRole('button', { name: /^\dVideo/ }));
+    fireEvent.click(
+      within(dialog).getByRole('switch', { name: /Autoplay after a question/ })
+    );
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    const { settings, options } = sessionArgs();
+    expect(settings).toEqual({
+      autoPlay: true,
+      requireCorrectAnswer: true,
+      allowSkipping: false,
+    });
+    expect(options).toMatchObject({
+      answerRulesSet: true,
+      attemptLimit: 1,
+      tabWarningsEnabled: true,
+      showResultToStudent: true,
+      showCorrectAnswerToStudent: true,
+      shuffleAnswerOptions: true,
+    });
+    const assignmentDoc = mockSetDoc.mock.calls.find(
+      (c) => (c[1] as Record<string, unknown>).activityId === 'va-1'
+    )?.[1] as Record<string, unknown>;
+    expect(assignmentDoc.sessionSettings).toEqual(settings);
+    await waitFor(() =>
+      expect(
+        mockSetDoc.mock.calls.some(
+          (c) => 'lastVideoAssignSettings' in (c[1] as object)
+        )
+      ).toBe(true)
+    );
+  });
+
+  it('flag on: prefills from the last-used rules once they load', async () => {
+    flags.add('va-quiz-alignment');
+    resetLastVideoAssignSettingsCache();
+    vi.mocked(getDoc).mockResolvedValueOnce({
+      exists: () => true,
+      get: (field: string) =>
+        field === 'lastVideoAssignSettings'
+          ? {
+              behavior: {
+                attemptLimit: 3,
+                sessionOptions: { tabWarningsEnabled: false },
+              },
+              player: {
+                autoPlay: false,
+                requireCorrectAnswer: false,
+                allowSkipping: true,
+              },
+            }
+          : undefined,
+    } as never);
+    const dialog = await openAssignModal();
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    const { settings, options } = sessionArgs();
+    expect(options).toMatchObject({
+      attemptLimit: 3,
+      tabWarningsEnabled: false,
+      answerRulesSet: true,
+    });
+    expect(settings).toEqual({
+      autoPlay: false,
+      requireCorrectAnswer: false,
+      allowSkipping: true,
+    });
+    resetLastVideoAssignSettingsCache();
+  });
+
+  it('flag on: rewind is written off when right and wrong is hidden', async () => {
+    flags.add('va-quiz-alignment');
+    const dialog = await openAssignModal();
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /^\dWhat students see/ })
+    );
+    fireEvent.click(
+      within(dialog).getByRole('switch', {
+        name: /Show right and wrong to students/,
+      })
+    );
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    const { settings, options } = sessionArgs();
+    expect(options.showResultToStudent).toBe(false);
+    expect(settings.requireCorrectAnswer).toBe(false);
+  });
+
+  it('flag on: a live run keeps today’s rules and no stamp', async () => {
+    flags.add('va-quiz-alignment');
+    flags.add('video-activity-live');
+    const dialog = await openAssignModal();
+    fireEvent.click(
+      within(
+        within(dialog).getByRole('radiogroup', { name: 'Pacing' })
+      ).getByRole('radio', { name: /live/i })
+    );
+    expect(
+      within(dialog).queryByRole('button', { name: /^\dVideo/ })
+    ).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: /Start live/ }));
+
+    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    expect(sessionArgs().options).not.toHaveProperty('answerRulesSet');
   });
 });

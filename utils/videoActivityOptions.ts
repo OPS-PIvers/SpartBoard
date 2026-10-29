@@ -1,4 +1,5 @@
 import type { VideoActivityPublicQuestion } from '@/types';
+import { seededShuffle } from '@/utils/quizShuffle';
 
 /** Deterministic Fisher–Yates shuffle keyed by the question id. */
 export function shuffleByQuestionId<T>(arr: T[], questionId: string): T[] {
@@ -15,10 +16,14 @@ export function shuffleByQuestionId<T>(arr: T[], questionId: string): T[] {
   return out;
 }
 
-/** MC/MA options in the order every student sees them. */
+/** MC/MA options in display order: one order for the class, or per student when `studentSeed` is set. */
 export const questionOptions = (
-  question: VideoActivityPublicQuestion
-): string[] =>
-  (question.type ?? 'MC') === 'FIB'
-    ? []
-    : shuffleByQuestionId(question.options ?? [], question.id);
+  question: VideoActivityPublicQuestion,
+  studentSeed?: string | null
+): string[] => {
+  if ((question.type ?? 'MC') === 'FIB') return [];
+  const options = question.options ?? [];
+  return studentSeed
+    ? seededShuffle(options, `${studentSeed}:${question.id}`)
+    : shuffleByQuestionId(options, question.id);
+};

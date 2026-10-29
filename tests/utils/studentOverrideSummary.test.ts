@@ -73,6 +73,15 @@ describe('summarizeOverride', () => {
     }
   });
 
+  it('adds a chip for a copy, paste and print override', () => {
+    expect(summarizeOverride({ blockCopyPaste: true }, t)).toEqual([
+      'No copy, paste or print',
+    ]);
+    expect(summarizeOverride({ blockCopyPaste: false }, t)).toEqual([
+      'Copy, paste and print allowed',
+    ]);
+  });
+
   it('adds a Read aloud chip', () => {
     expect(summarizeOverride({ readAloud: true, openAt: 1 }, t)).toEqual([
       'Read aloud',

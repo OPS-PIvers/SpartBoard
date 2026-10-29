@@ -1,5 +1,6 @@
 import type { QuizBehaviorSettings, QuizSessionOptions } from '@/types';
 import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
+import { sessionRequiresFullscreen } from '@/utils/pageProtections';
 
 /** Feature gates shared by the legacy Quiz settings panel and the stepper's Quiz rule steps. */
 export interface QuizRuleGates {
@@ -8,6 +9,7 @@ export interface QuizRuleGates {
   scoreOnSubmitOn: boolean;
   stimulusQuotesOn?: boolean;
   finalScoreOn?: boolean;
+  pageProtectionsOn?: boolean;
 }
 
 export interface QuizRuleStepContext extends Partial<QuizRuleGates> {
@@ -51,11 +53,17 @@ export function formatQuizAttemptsValue(
 }
 
 /** Collapsed value for "Quiz integrity". */
-export function formatQuizIntegrityValue(value: QuizBehaviorSettings): string {
+export function formatQuizIntegrityValue(
+  value: QuizBehaviorSettings,
+  context: Pick<QuizRuleGates, 'pageProtectionsOn'> = {}
+): string {
   const o = value.sessionOptions;
+  const on = context.pageProtectionsOn === true;
   const parts: string[] = [];
   if (o.tabWarningsEnabled ?? true) parts.push('Focus mode');
-  if (o.blockCopyPaste ?? false) parts.push('No copy and paste');
+  if (on && sessionRequiresFullscreen(o)) parts.push('Fullscreen');
+  if (o.blockCopyPaste ?? false)
+    parts.push(on ? 'No copy, paste or print' : 'No copy and paste');
   return parts.join(', ') || 'Off';
 }
 

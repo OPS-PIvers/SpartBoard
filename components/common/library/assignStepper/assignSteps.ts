@@ -7,6 +7,7 @@ export type AssignStepId =
   | 'attempts'
   | 'integrity'
   | 'feedback'
+  | 'video'
   | 'check'
   | 'speak'
   | 'sharing';
@@ -21,6 +22,10 @@ export interface AssignStepContext {
   inPlc?: boolean;
   /** Flashcards Study: Speak is available for this set (flag and language). */
   speak?: boolean;
+  /** Video Activity: the rule steps belong to the assignment (`va-quiz-alignment`); self-paced only. */
+  rules?: boolean;
+  /** Video Activity: the player honors shuffle and answer feedback (slice 5). */
+  videoAnswerRows?: boolean;
 }
 
 export interface AssignStepDef {
@@ -47,6 +52,10 @@ export function getAssignSteps(
     return steps;
   }
   if (activity === 'quiz') steps.push('attempts', 'integrity', 'feedback');
+  if (activity === 'video' && ctx.rules && !ctx.live) {
+    steps.push('attempts', 'video', 'integrity');
+    if (ctx.videoAnswerRows) steps.push('feedback');
+  }
   if (activity === 'flashcards') steps.push('check');
   if ((activity === 'quiz' || activity === 'video') && ctx.inPlc) {
     steps.push('sharing');
@@ -60,6 +69,7 @@ const TITLES: Record<AssignStepId, string> = {
   attempts: 'Attempts and order',
   integrity: 'Quiz integrity',
   feedback: 'What students see',
+  video: 'Video',
   check: 'How students are checked',
   speak: 'Speak',
   sharing: 'Sharing',
@@ -71,6 +81,7 @@ export function getAssignStepTitle(
   ctx: AssignStepContext
 ): string {
   if (id === 'classes' && activity === 'video' && ctx.live) return 'Class';
+  if (id === 'integrity' && activity === 'video') return 'Integrity';
   if (id === 'when' && effectiveKind(activity, ctx.kind) === 'resource') {
     return 'Available';
   }

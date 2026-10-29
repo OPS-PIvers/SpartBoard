@@ -31,6 +31,12 @@ vi.mock('firebase/firestore', () => ({
   deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
   doc: vi.fn(),
   documentId: vi.fn(() => '__documentId'),
+  FieldPath: class {
+    segments: string[];
+    constructor(...segments: string[]) {
+      this.segments = segments;
+    }
+  },
   getDoc: vi.fn(),
   getDocs: vi.fn(),
   limit: vi.fn(),
@@ -376,6 +382,62 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
       periodNames: ['Period 3', 'Period 4'],
       updatedBy: TEACHER_UID,
     });
+  });
+
+  it('writes changed rules by field path and the window on both docs', async () => {
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+
+    await act(async () => {
+      await result.current.updateAssignmentSettings('assignment-1', {
+        sessionOptionEdits: { attemptLimit: 3, showResultToStudent: false },
+        openAt: 100,
+        dueAt: null,
+      });
+    });
+
+    expect(batchUpdate).toHaveBeenCalledTimes(2);
+    const assignmentPatch = batchUpdate.mock.calls[0][1] as Record<
+      string,
+      unknown
+    >;
+    expect(assignmentPatch).toMatchObject({
+      'sessionOptions.attemptLimit': 3,
+      'sessionOptions.showResultToStudent': false,
+      openAt: 100,
+      dueAt: null,
+    });
+    expect(assignmentPatch).not.toHaveProperty('sessionOptions');
+    expect(batchUpdate.mock.calls[1][1]).toEqual({
+      'sessionOptions.attemptLimit': 3,
+      'sessionOptions.showResultToStudent': false,
+      openAt: 100,
+      dueAt: null,
+      updatedBy: TEACHER_UID,
+    });
+  });
+
+  it('writes per-period window edits as row field paths on both docs', async () => {
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+
+    await act(async () => {
+      await result.current.updateAssignmentSettings('assignment-1', {
+        periodAccessEdits: { 'cl.1': { closeAt: 500 } },
+      });
+    });
+
+    expect(batchUpdate).toHaveBeenCalledTimes(2);
+    for (const call of batchUpdate.mock.calls) {
+      const pathArg = call.find(
+        (arg: unknown) =>
+          typeof arg === 'object' && arg !== null && 'segments' in arg
+      ) as { segments: string[] } | undefined;
+      expect(pathArg?.segments).toEqual(['periodAccess', 'cl.1', 'closeAt']);
+      expect(call[call.indexOf(pathArg) + 1]).toBe(500);
+    }
   });
 
   it('does not touch the session doc when no student-visible field changes', async () => {

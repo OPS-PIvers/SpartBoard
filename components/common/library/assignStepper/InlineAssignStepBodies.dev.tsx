@@ -1,4 +1,4 @@
-// DEV-only: the LTI / Classroom add-on Assignment settings card, with the step bodies (D22).
+// DEV-only: the LTI / Classroom add-on Assignment settings card, with the step bodies (D22); `&activity=video` (`&flag=off` for the old summary).
 /* eslint-disable react-refresh/only-export-components -- the harness reads a default { title, render } export */
 import React, { useState } from 'react';
 import type { QuizBehaviorSettings } from '@/types';
@@ -6,13 +6,28 @@ import { AddonCard } from '@/components/classroomAddon/AddonShell';
 import { AssignTargetingSection } from '../AssignTargetingSection';
 import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
+import {
+  DEFAULT_VA_BEHAVIOR,
+  formatVideoActivityBehaviorSummary,
+} from '@/utils/videoActivityBehavior';
+import {
+  videoRulesPrefill,
+  type VideoAssignRules,
+} from './VideoRuleStepValues';
 import { InlineAssignStepBodies } from './InlineAssignStepBodies';
 import { defaultWhenValue } from './assignWhenValue';
 import { SAMPLE_ROSTERS } from './assignStepperTestRosters';
 
 const ROSTERS = SAMPLE_ROSTERS.slice(0, 1);
 
+const params = new URLSearchParams(window.location.search);
+const VIDEO = params.get('activity') === 'video';
+const FLAG_OFF = params.get('flag') === 'off';
+
 const Preview: React.FC = () => {
+  const [videoRules, setVideoRules] = useState<VideoAssignRules>(() =>
+    videoRulesPrefill(DEFAULT_VA_BEHAVIOR, null)
+  );
   const [behavior, setBehavior] = useState<QuizBehaviorSettings>(() =>
     structuredClone(DEFAULT_QUIZ_BEHAVIOR)
   );
@@ -31,6 +46,14 @@ const Preview: React.FC = () => {
         <h2 className="text-sm font-semibold text-slate-900">
           Assignment settings
         </h2>
+        {VIDEO && FLAG_OFF && (
+          <p className="text-xs text-slate-500">
+            Inherits this activity&rsquo;s settings:{' '}
+            <span className="font-medium text-slate-700">
+              {formatVideoActivityBehaviorSummary(DEFAULT_VA_BEHAVIOR)}
+            </span>
+          </p>
+        )}
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700">
             Your name{' '}
@@ -44,12 +67,14 @@ const Preview: React.FC = () => {
         </div>
         <div className="space-y-3 border-t border-slate-200 pt-4">
           <InlineAssignStepBodies
-            activity="quiz"
+            activity={VIDEO ? 'video' : 'quiz'}
             when={when}
             onWhenChange={setWhen}
             rosters={ROSTERS}
             behavior={behavior}
             onBehaviorChange={setBehavior}
+            videoRules={VIDEO && !FLAG_OFF ? videoRules : null}
+            onVideoRulesChange={setVideoRules}
           />
           <AssignTargetingSection
             rosters={ROSTERS}
@@ -57,7 +82,7 @@ const Preview: React.FC = () => {
             value={targeting}
             onChange={setTargeting}
             scheduleHidden
-            kind="quiz"
+            kind={VIDEO ? 'video-activity' : 'quiz'}
           />
         </div>
       </AddonCard>

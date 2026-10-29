@@ -53,6 +53,7 @@ import {
 import { studentQuestionsFromSession } from '@/utils/videoActivityPublicQuestions';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
+import { videoActivityAnswerRules } from '@/utils/videoActivityAnswerRules';
 import { VideoActivityLiveStudent } from './VideoActivityLiveStudent';
 import {
   isLiveVideoActivitySession,
@@ -74,6 +75,8 @@ import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { isAnonymousJoinBlocked } from '@/utils/anonymousJoin';
 import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
+import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
+import { effectivePageProtections } from '@/utils/pageProtections';
 import {
   VideoActivityPeriodLockedScreen,
   VideoActivityPeriodPausedOverlay,
@@ -377,7 +380,6 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     sessionId || null,
     isStudentRole
   );
-  void pointer?.override;
 
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. Best-effort and
@@ -556,6 +558,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     [sessionQuestions, sessionPublicQuestions]
   );
 
+  const answerRules = videoActivityAnswerRules(session);
+  // Stable per student and attempt, as Quiz seeds its answer shuffle.
+  const optionSeed = answerRules.shuffleForEachStudent
+    ? `${myResponse?.studentUid ?? authedUid ?? 'anonymous-student'}:attempt-${myResponse?.completedAttempts ?? 0}`
+    : null;
+
   const handleAnswer = useCallback(
     async (answer: string, isCorrect: boolean, graded: boolean) => {
       if (!activeQuestion) return;
@@ -565,8 +573,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         freezeForPeriod();
         return;
       }
-      const requireCorrect = session?.settings?.requireCorrectAnswer ?? true;
-      if (requireCorrect && !isCorrect) {
+      if (answerRules.requireCorrectAnswer && !isCorrect) {
         const activeIdx = sortedQuestions.findIndex(
           (q) => q.id === activeQuestion.id
         );
@@ -596,7 +603,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     },
     [
       activeQuestion,
-      session?.settings?.requireCorrectAnswer,
+      answerRules.requireCorrectAnswer,
       sortedQuestions,
       submitAnswer,
       isViewOnly,
@@ -1132,8 +1139,26 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const answeredCount = myResponse?.answers.length ?? 0;
   const totalQuestions = sortedQuestions.length;
 
+  const working =
+    joinStatus === 'joined' &&
+    session?.status === 'active' &&
+    !isViewOnly &&
+    !periodHold &&
+    (myResponse == null || !isVaResponseCompleted(myResponse));
+  const protections = effectivePageProtections(
+    session?.sessionOptions ?? {},
+    pointer?.override
+  );
   const shellOverlays = (
     <>
+      <PageProtectionGuards
+        protections={{
+          blockClipboard: protections.blockClipboard && working,
+          blockPrint: protections.blockPrint && working,
+          fullscreen: protections.fullscreen && working,
+        }}
+        wholePage
+      />
       {/* Resume prompt — covers the player on first render after a teacher
           unlock so the student knows what happened before they touch
           anything. */}
@@ -1305,9 +1330,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                       ) + 1
                     }
                     totalQuestions={totalQuestions}
-                    requireCorrectAnswer={
-                      session?.settings?.requireCorrectAnswer ?? true
-                    }
+                    requireCorrectAnswer={answerRules.requireCorrectAnswer}
+                    showResult={answerRules.showResult}
+                    revealAnswer={answerRules.revealAnswer}
+                    optionSeed={optionSeed}
                   />
                 </div>
               )}

@@ -32,6 +32,7 @@ import {
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
+import { VideoAssignmentSettingsModal } from './components/VideoAssignmentSettingsModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import {
@@ -100,6 +101,7 @@ import { VideoActivityLiveMonitor } from './components/VideoActivityLiveMonitor'
 import { VideoActivityLivePlayer } from './components/VideoActivityLivePlayer';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
+import { videoRulesSessionFields } from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { AlertTriangle, Loader2, LogIn } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -218,9 +220,12 @@ const TeacherVideoActivityWidget: React.FC<{
     publishAssignmentScores,
     unpublishAssignmentScores,
     setAssignmentClasses,
+    updateAssignmentSettings,
   } = useVideoActivityAssignments(user?.uid);
 
   const [editingClasses, setEditingClasses] =
+    useState<VideoActivityAssignment | null>(null);
+  const [editingSettings, setEditingSettings] =
     useState<VideoActivityAssignment | null>(null);
   const [publishingAssignment, setPublishingAssignment] =
     useState<VideoActivityAssignment | null>(null);
@@ -703,6 +708,7 @@ const TeacherVideoActivityWidget: React.FC<{
         rosters={rosters}
         periodAccess={assignPeriodCtx}
         plcs={plcs}
+        boardPlayerSettings={defaultSessionSettings}
         onAssign={async (
           meta,
           rosterIds,
@@ -721,14 +727,19 @@ const TeacherVideoActivityWidget: React.FC<{
           const blocker = videoActivityAssignBlocker(data);
           if (blocker)
             throw new Error(`This activity can't be assigned yet: ${blocker}.`);
-          // Source behavior (sessionOptions, attemptLimit) from the activity
-          // itself now that it lives on the activity (VA Task 9 parity).
+          // The stepper's rules win (va-quiz-alignment); otherwise the activity's behavior and the board's player rules.
+          const rules = isLive ? null : (extras?.rules ?? null);
           const behavior = getVideoActivityBehavior(meta);
+          const fromRules = rules ? videoRulesSessionFields(rules) : null;
           const sessionOptions: VideoActivitySessionOptions = {
-            ...behavior.sessionOptions,
-            attemptLimit: behavior.attemptLimit,
+            ...(fromRules?.sessionOptions ?? {
+              ...behavior.sessionOptions,
+              attemptLimit: behavior.attemptLimit,
+            }),
             ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
           };
+          const sessionSettings: VideoActivitySessionSettings =
+            fromRules?.sessionSettings ?? defaultSessionSettings;
           // Auto-generate the assignment name from the activity title.
           const assignmentName = `${meta.title} - ${new Date().toLocaleString(
             [],
@@ -768,7 +779,7 @@ const TeacherVideoActivityWidget: React.FC<{
             data,
             user.uid,
             [],
-            defaultSessionSettings,
+            sessionSettings,
             assignmentName,
             derived.classIds,
             derived.periodNames,
@@ -822,7 +833,7 @@ const TeacherVideoActivityWidget: React.FC<{
             createdAt: nowTs,
             updatedAt: nowTs,
             className: assignmentName,
-            sessionSettings: defaultSessionSettings,
+            sessionSettings,
             ...(sessionOptions ? { sessionOptions } : {}),
             ...(derived.periodNames.length > 0
               ? { periodNames: derived.periodNames }
@@ -1259,6 +1270,7 @@ const TeacherVideoActivityWidget: React.FC<{
           }
         }}
         onArchiveEditClasses={setEditingClasses}
+        onArchiveEditSettings={setEditingSettings}
         onShareWithPlc={(meta) => {
           if (plcs.length === 0) {
             addToast(
@@ -1284,6 +1296,24 @@ const TeacherVideoActivityWidget: React.FC<{
                 assignmentId: editingClasses.id,
               });
               addToast("Couldn't save classes.", 'error');
+              throw err;
+            }
+          }}
+        />
+      )}
+      {editingSettings && (
+        <VideoAssignmentSettingsModal
+          rosters={rosters}
+          assignment={editingSettings}
+          onClose={() => setEditingSettings(null)}
+          onSave={async (patch) => {
+            try {
+              await updateAssignmentSettings(editingSettings.id, patch);
+            } catch (err) {
+              logError('VideoActivityWidget.editSettings', err, {
+                assignmentId: editingSettings.id,
+              });
+              addToast("Couldn't save settings.", 'error');
               throw err;
             }
           }}

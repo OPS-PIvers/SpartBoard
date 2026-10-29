@@ -2,6 +2,8 @@
 
 Grilled and settled 2026-10-27 against `dev-paul` at `f088bd3ed`. Two PRs to `dev-paul`, behind one preview flag.
 
+Shipped 2026-10-28 as ten slices (`/mnt/project-files/ai-boards/SLICES.md`): #4770, #4771, #4772, #4773, #4774, #4775, #4776, #4781, #4782, and S10 (connector instructions, `spartboard` skill, this move). Remaining step: Paul opens `ai-boards` (TODO.md).
+
 ## Goal
 
 A teacher asks Claude, through the SpartBoard connector, to build or change a board, and watches it happen on the board open in SpartBoard. Boards come out aligned and professional: placed on snap zones from a library of activity templates, tuned to the teacher's own screen shape, with real widget content and library items wired in. In-app Magic Board moves onto the same layout engine.

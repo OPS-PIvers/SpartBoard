@@ -864,6 +864,21 @@ service cloud.firestore {
       allow read, write: if ownsUser(userId);
     }
 
+    // Music widget: a teacher's own YouTube songs. Owner-only; the URL and thumbnail
+    // are the canonical YouTube forms the client builds from the video id.
+    match /users/{userId}/music_stations/{songId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId) && mySongOk(incoming());
+    }
+    function mySongOk(d) {
+      return d.keys().hasOnly(['title', 'channel', 'url', 'thumbnail', 'createdAt'])
+             && isStr('title') && d.title.size() <= 200
+             && isStr('channel') && d.channel.size() <= 200
+             && isStr('url') && d.url.matches('https://www[.]youtube[.]com/watch[?]v=[A-Za-z0-9_-]{11}')
+             && isStr('thumbnail') && d.thumbnail.matches('https://img[.]youtube[.]com/vi/[A-Za-z0-9_-]{11}/hqdefault[.]jpg')
+             && d.createdAt is int;
+    }
+
     // Notebooks - users can only access their own notebooks in their subcollection
     match /users/{userId}/notebooks/{notebookId} {
       allow read, write: if ownsUser(userId);
@@ -1007,7 +1022,7 @@ service cloud.firestore {
     match /admin_settings/{document=**} {
       allow read: if isAdmin();
       allow write: if notDomainsPath(document) &&
-                      ((isAdmin() && !string(document).matches('(.*/)?(user_roles|view_as|lti_config|sub_launch_as_teacher|classlink_sync)(/.*)?')) ||
+                      ((isAdmin() && !string(document).matches('(.*/)?(user_roles|view_as|lti_config|sub_launch_as_teacher|classlink_sync|focus_sessions)(/.*)?')) ||
                        isSuperAdmin());
     }
 
@@ -1132,6 +1147,11 @@ service cloud.firestore {
     match /admin_settings/student_context_menu {
       allow read: if signedIn();
       allow write: if isAdmin();
+    }
+
+    // Focus session hours and the live-site switch (CHROME_EXTENSION.md F4, F6): staff read; super admins write (in the list above).
+    match /admin_settings/focus_sessions {
+      allow read: if signedIn() && notAnon() && !isStudentRoleUser();
     }
 
     // Admin audit log — admin-only read; create-only (append-only so an admin
@@ -7212,6 +7232,24 @@ service cloud.firestore {
                         && existing().get('released', false) == true
                         && authUid() in pjGroupMembers());
         allow write: if pjIsRunTeacher();
+      }
+    }
+
+    // Focus sessions (CHROME_EXTENSION.md F1, F8, F11): server-written; the class's teachers and a stamped sub monitor read, students never.
+    match /focus_sessions/{sessionId} {
+      function focusReader(s) {
+        return signedIn() && notAnon() && !isStudentRoleUser() &&
+               (authUid() in s.get('teacherUids', []) || isSubMonitor(s));
+      }
+      allow get: if focusReader(existing());
+      // Only the teacher query where('teacherUids', 'array-contains', uid) is provable; a sub reads by id.
+      allow list: if signedIn() && notAnon() && !isStudentRoleUser() &&
+                     authUid() in existing().teacherUids;
+      allow write: if false;
+
+      match /students/{studentUid} {
+        allow read: if focusReader(get(/databases/$(database)/documents/focus_sessions/$(sessionId)).data);
+        allow write: if false;
       }
     }
 

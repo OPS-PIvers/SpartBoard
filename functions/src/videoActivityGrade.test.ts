@@ -5,6 +5,7 @@ import {
   gradeVaAnswer,
   hasEmbeddedKey,
   toVaPublicQuestion,
+  vaAnswerRules,
   type VaKeyQuestion,
 } from './videoActivityGrade';
 
@@ -90,4 +91,31 @@ describe('toVaPublicQuestion shared cases', () => {
       { ...expected, options: expected.options }
     );
   });
+});
+
+interface AnswerRulesCase {
+  name: string;
+  settings: unknown;
+  sessionOptions: unknown;
+  expected: Record<string, boolean>;
+}
+
+const answerRulesCases = JSON.parse(
+  readFileSync(
+    resolve(__dirname, 'videoActivityAnswerRules.cases.json'),
+    'utf8'
+  )
+) as AnswerRulesCase[];
+
+describe('vaAnswerRules shared cases', () => {
+  it.each(answerRulesCases)(
+    '$name',
+    ({ settings, sessionOptions, expected }) => {
+      expect(vaAnswerRules(settings, sessionOptions)).toEqual({
+        showResult: expected.showResult,
+        revealAnswer: expected.revealAnswer,
+        requireCorrectAnswer: expected.requireCorrectAnswer,
+      });
+    }
+  );
 });

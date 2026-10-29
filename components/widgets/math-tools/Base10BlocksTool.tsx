@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const UNIT_SIZE = 18; // px
 const GAP = 2;
@@ -138,6 +139,11 @@ export const Base10BlocksTool: React.FC = () => {
         ).map(({ type, label, color }) => (
           <button
             key={type}
+            {...tourFieldAttr(
+              'math-tool.add-piece',
+              'mathTool',
+              `base-10.${type}`
+            )}
             onClick={() => addBlock(type)}
             className={`${color} text-white font-black rounded-lg shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap`}
             style={{

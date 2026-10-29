@@ -114,3 +114,34 @@ export function dedupeById<T extends { id: string }>(questions: T[]): T[] {
     return true;
   });
 }
+
+export interface VaAnswerRules {
+  showResult: boolean;
+  revealAnswer: boolean;
+  requireCorrectAnswer: boolean;
+}
+
+const asRecord = (v: unknown): Record<string, unknown> =>
+  typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {};
+
+/** Port of videoActivityAnswerRules (utils/videoActivityAnswerRules.ts); videoActivityAnswerRules.cases.json pins both. */
+export function vaAnswerRules(
+  settings: unknown,
+  sessionOptions: unknown
+): VaAnswerRules {
+  const requireCorrect = asRecord(settings).requireCorrectAnswer !== false;
+  const o = asRecord(sessionOptions);
+  if (o.answerRulesSet !== true)
+    return {
+      showResult: true,
+      revealAnswer: true,
+      requireCorrectAnswer: requireCorrect,
+    };
+  const showResult = o.showResultToStudent !== false;
+  return {
+    showResult,
+    revealAnswer: showResult && o.showCorrectAnswerToStudent !== false,
+    requireCorrectAnswer:
+      requireCorrect && showResult && o.showCorrectAnswerToStudent !== false,
+  };
+}

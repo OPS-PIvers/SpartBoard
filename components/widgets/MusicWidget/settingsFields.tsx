@@ -9,6 +9,8 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { PersonalSpotifyPanel } from './PersonalSpotifyPanel';
 import { buildSpotifyEmbedUrl } from './utils';
 import { canUsePersonal } from './canUsePersonal';
+import { MySongsSection } from './MySongsSection';
+import { resolveActiveStation } from './mySongs';
 
 const SOURCE_OPTIONS: ReadonlyArray<{
   value: MusicSource;
@@ -105,6 +107,9 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
   const config = ctx.config as unknown as MusicConfig;
   const { stations, isLoading } = useMusicStations();
   const t = (leaf: string) => ctx.t(`widgetSettings.music.${leaf}`);
+  const mySongs = ctx.canAccessFeature('music-my-songs') ? (
+    <MySongsSection ctx={ctx} />
+  ) : null;
 
   if ((config.source ?? 'curated') === 'personal' && canUsePersonal(ctx)) {
     return (
@@ -132,7 +137,7 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
   }
 
   if (stations.length === 0) {
-    return (
+    const empty = (
       <p
         id={ctx.id}
         aria-labelledby={ctx.labelId}
@@ -141,9 +146,22 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
         {t('noStations')}
       </p>
     );
+    return mySongs ? (
+      <div>
+        {empty}
+        {mySongs}
+      </div>
+    ) : (
+      empty
+    );
   }
 
-  return (
+  const anyCuratedActive = stations.some(
+    (station) => station.id === config.stationId
+  );
+  const clearMySong = config.mySong ? { mySong: null } : {};
+
+  const grid = (
     <div
       id={ctx.id}
       role="radiogroup"
@@ -158,6 +176,7 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
             if (!station) return;
             ctx.updateConfig({
               stationId,
+              ...clearMySong,
               ...(buildSpotifyEmbedUrl(station.url) !== null &&
               config.syncWithTimeTool
                 ? { syncWithTimeTool: false }
@@ -177,11 +196,12 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
             role="radio"
             aria-checked={active}
             tabIndex={
-              active || (!config.stationId && station === stations[0]) ? 0 : -1
+              active || (!anyCuratedActive && station === stations[0]) ? 0 : -1
             }
             onClick={() =>
               ctx.updateConfig({
                 stationId: station.id,
+                ...clearMySong,
                 ...(buildSpotifyEmbedUrl(station.url) !== null &&
                 config.syncWithTimeTool
                   ? { syncWithTimeTool: false }
@@ -223,14 +243,21 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
       })}
     </div>
   );
+
+  return mySongs ? (
+    <div>
+      {grid}
+      {mySongs}
+    </div>
+  ) : (
+    grid
+  );
 };
 
 export const MusicSyncField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
   const config = ctx.config as unknown as MusicConfig;
   const { stations } = useMusicStations();
-  const activeStation = stations.find(
-    (station) => station.id === config.stationId
-  );
+  const activeStation = resolveActiveStation(stations, config);
   const spotifySource =
     config.source === 'personal' ||
     (activeStation?.url

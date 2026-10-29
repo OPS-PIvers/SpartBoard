@@ -35,6 +35,7 @@ import {
   ListChecks,
   ListOrdered,
   Mic,
+  Music,
   Music2,
   Printer,
   RefreshCw,
@@ -734,7 +735,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // docs/plans/AI_BOARDS.md D26: connector board tools and the new Magic Board engine.
+  // docs/plans/shipped/AI_BOARDS.md D26: connector board tools and the new Magic Board engine.
   'ai-boards': {
     label: 'AI boards',
     icon: LayoutDashboard,
@@ -831,6 +832,20 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
+  },
+  // Video Activity editor and assign rules on the Quiz versions (docs/plans/VA_QUIZ_ALIGNMENT.md).
+  'va-quiz-alignment': {
+    label: 'Video Activity matches Quiz',
+    icon: ListChecks,
+    description: 'Video Activity questions and assign rules work like Quiz.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'video-activity',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: false,
+    missingDocPublic: false,
+    // Closed for admins too until LTI, Classroom and PLC assigns read the new rules (slices 6 and 7).
+    failClosedForAdmins: true,
   },
   // Quiz library "Student view": the real student player with focus-mode toggles, local-only.
   'quiz-student-view': {
@@ -1367,6 +1382,53 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
       'Lines show when a widget lines up with or is evenly spaced from others.',
     stage: 'preview',
     afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // The flag only hides the Behavior switch; teachers turn spell check off themselves.
+  'spell-check-setting': {
+    label: 'Spell check switch',
+    icon: SpellCheck,
+    description:
+      'Teachers can turn off browser spell check in their own text boxes.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'music-my-songs': {
+    label: 'My songs in Music',
+    icon: Music,
+    description: 'Teachers add their own YouTube songs to the Music widget.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'music',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'music-timer-link': {
+    label: 'Music: linked timer',
+    icon: Timer,
+    description:
+      'A timer button on the Music widget opens a Timer that the music plays with.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Focus on SpartBoard pages (CHROME_EXTENSION.md F14, F15). Admin-only until Paul has tested it in prod.
+  'focus-sessions': {
+    label: 'Focus: page protections',
+    icon: Target,
+    description:
+      'Block copy, paste and print, and require fullscreen, on quizzes and video activities.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

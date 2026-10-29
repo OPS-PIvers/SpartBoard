@@ -419,6 +419,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'behavior.spell-check-toggle': {
+    label: 'Spell check switch',
+    persists: true,
+    panel: true,
+  },
   'language.options': {
     label: 'Language choices',
     persists: true,
@@ -753,6 +758,10 @@ export const TOUR_ANCHORS = {
   },
   'assign-step.feedback': {
     label: 'Feedback step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.video': {
+    label: 'Video step header in the Assign dialog',
     panel: true,
   },
   'assign-step.check': {
@@ -4335,6 +4344,12 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'widget-settings.random.save-as-groups': {
+    label: 'Save as class groups button in Random Picker settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
   'widget-settings.random.send-stations': {
     label: 'Send to Stations button in Random Picker settings',
     perWidget: true,
@@ -5054,6 +5069,29 @@ export const TOUR_ANCHORS = {
   'widget-settings.music.station': {
     label: 'Station choice in Music settings',
     perField: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song': {
+    label: "One of the teacher's own songs in Music settings",
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-remove': {
+    label: "Remove button on one of the teacher's own songs in Music settings",
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-link': {
+    label: 'YouTube link field for adding a song in Music settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-add': {
+    label: 'Add button for a YouTube song in Music settings',
+    perWidget: true,
+    persists: true,
     panel: true,
   },
   'widget-settings.custom-widget.definition-input': {
@@ -7899,6 +7937,24 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.previews.focus-hours-start': {
+    label: 'Start time field in Focus session hours',
+    panel: true,
+  },
+  'admin.previews.focus-hours-end': {
+    label: 'End time field in Focus session hours',
+    panel: true,
+  },
+  'admin.previews.focus-hours-day': {
+    label: 'Day button in Focus session hours',
+    perField: true,
+    panel: true,
+  },
+  'admin.previews.focus-hours-save': {
+    label: 'Save button in Focus session hours',
+    persists: true,
+    panel: true,
+  },
   'admin.previews.graduate': {
     label: 'Graduate button on a Previews row',
     perField: true,
@@ -10314,7 +10370,47 @@ export const TOUR_ANCHORS = {
     sandboxed: true,
   },
   'video-activity.editor-draft-ai': {
-    label: 'Draft with AI button in the video activity editor footer',
+    label: 'Draft with AI button in the video activity editor',
+  },
+  'video-activity.editor-add-question': {
+    label: 'Add question button in the video activity editor question list',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-question-select': {
+    label: 'Select checkbox on a question in the video activity editor',
+    perField: true,
+  },
+  'video-activity.editor-question-duplicate': {
+    label: 'Duplicate button on a question in the video activity editor',
+    perField: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-bulk-tag': {
+    label: 'Tag button for selected questions in the video activity editor',
+  },
+  'video-activity.editor-bulk-delete': {
+    label: 'Delete button for selected questions in the video activity editor',
+    destructive: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-bulk-clear': {
+    label: 'Clear selection button in the video activity editor',
+  },
+  'video-activity.editor-targets-edit': {
+    label: 'Learning targets Add or Edit button in the video activity editor',
+  },
+  'video-activity.editor-type-select': {
+    label: 'Question type menu in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-question-use-current-time': {
+    label: 'Use current time button for a video activity question',
+    persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-tab': {
     label: 'Questions and Settings tabs in the video activity editor',
@@ -10438,6 +10534,10 @@ export const TOUR_ANCHORS = {
   },
   'video-activity.selection-toggle': {
     label: 'Select toggle in the video activity library',
+  },
+  'video-activity.archive-settings': {
+    label: 'Settings item in a video activity assignment row menu',
+    panel: true,
   },
   'video-activity.settings-score-visibility': {
     label: 'Score visibility option in video activity behavior settings',
@@ -12115,6 +12215,10 @@ export const TOUR_ANCHORS = {
     label: 'Read aloud checkbox in the override editor',
     panel: true,
   },
+  'override-row.copy-paste-print': {
+    label: 'Copy, paste and print choice in the override editor',
+    panel: true,
+  },
   'override-row.language': {
     label: 'Language picker in the override editor',
     panel: true,
@@ -13010,6 +13114,11 @@ export const TOUR_ANCHORS = {
     label: 'Play or pause button on the Music widget',
     perWidget: true,
   },
+  'music.launch-timer': {
+    label: 'Button on the Music widget that opens a linked Timer',
+    perWidget: true,
+    persists: true,
+  },
   'music.spotify-shuffle': {
     label: 'Shuffle button in the Music Spotify player',
     perWidgetType: true,
@@ -13100,6 +13209,46 @@ export const TOUR_ANCHORS = {
   },
   'math-tool.rotate': {
     label: 'Rotation grip on a Math Tool',
+    perWidgetType: true,
+  },
+  'math-tool.add-piece': {
+    label:
+      'Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece',
+    perField: true,
+  },
+  'math-tool.clear': {
+    label:
+      'Clear button on a Math Tool (coordinate plane, geoboard, place value)',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'math-tool.rotate-piece': {
+    label: 'Rotate 30° button for the selected piece in Pattern Blocks',
+    perWidgetType: true,
+  },
+  'math-tool.remove-piece': {
+    label: 'Remove button for the selected piece in Pattern Blocks',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'math-tool.calculator-key': {
+    label: 'Calculator key, by label (digits, operators, AC, =)',
+    perField: true,
+  },
+  'math-tool.denominator': {
+    label: 'Denominator toggle in Fraction Tiles, by denominator',
+    perField: true,
+  },
+  'math-tool.number-line-mode': {
+    label: 'Number line mode button (integers, decimals, fractions), by mode',
+    perField: true,
+  },
+  'math-tool.number-line-min': {
+    label: 'Minimum value box on the Number Line tool',
+    perWidgetType: true,
+  },
+  'math-tool.number-line-max': {
+    label: 'Maximum value box on the Number Line tool',
     perWidgetType: true,
   },
   'smart-notebook.view-mode': {

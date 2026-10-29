@@ -280,6 +280,8 @@
       "showSparty": "Mostrar a Sparty",
       "alignmentGuides": "Guías de alineación",
       "alignmentGuidesHint": "Aparecen líneas cuando un widget se alinea con otros o queda espaciado por igual.",
+      "spellCheck": "Corrector ortográfico",
+      "spellCheckHint": "Subraya las palabras mal escritas mientras escribes.",
       "googleDriveDescription": "Tus tableros se guardan en tu carpeta \"{{appName}}\" en Drive.",
       "connectedSynced": "Conectado",
       "disconnected": "Desconectado",
@@ -2010,10 +2012,15 @@
       "tabAway": "Límite fuera: {{seconds}} s",
       "windowShifted": "Horario ajustado",
       "readAloud": "Lectura en voz alta",
-      "language": "{{language}}"
+      "language": "{{language}}",
+      "copyPastePrintBlocked": "Sin copiar, pegar ni imprimir",
+      "copyPastePrintAllowed": "Copiar, pegar e imprimir permitido"
     },
     "language": "Idioma",
-    "noChanges": "Sin cambios"
+    "noChanges": "Sin cambios",
+    "copyPastePrint": "Copiar, pegar e imprimir",
+    "copyPastePrintBlock": "Bloquear",
+    "copyPastePrintAllow": "Permitir"
   },
   "assignTargeting": {
     "expandAffordance": "Editar o añadir adaptaciones",

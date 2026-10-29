@@ -1,10 +1,12 @@
-// DEV-only: Video Activity on the assign stepper, for /assign-stepper-dev?view=VideoAssignStepper.
+// DEV-only: Video Activity on the assign stepper, for /assign-stepper-dev?view=VideoAssignStepper (`&flag=off` hides the rule steps).
 /* eslint-disable react-refresh/only-export-components -- default export is a harness preview record */
 import React, { useState } from 'react';
 import type { Plc } from '@/types';
 import type { AssignPeriodAccessContext } from '../AssignPeriodAccessSection';
 import { VideoAssignStepper } from './VideoAssignStepper';
 import { SAMPLE_ROSTERS } from './assignStepperTestRosters';
+import { videoRulesFromBehavior } from './VideoRuleStepValues';
+import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
 
 const PLCS = [
   { id: 'plc-a', name: 'Grade 8 Science PLC' },
@@ -44,6 +46,11 @@ const Preview: React.FC = () => {
       canAssignLive={params.get('live') !== '0'}
       lastPacing={params.get('pacing') === 'teacher' ? 'teacher' : null}
       initialClassIds={SAMPLE_ROSTERS.map((r) => r.id)}
+      initialRules={
+        params.get('flag') === 'off'
+          ? undefined
+          : videoRulesFromBehavior(DEFAULT_VA_BEHAVIOR)
+      }
       onSubmit={() => Promise.resolve()}
     />
   );

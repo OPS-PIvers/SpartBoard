@@ -15,6 +15,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { getOpenModalCount } from '@/components/common/modalStore';
 import { useServerNow } from '@/hooks/useServerNow';
 import { summarizePeriods } from '@/utils/periodAccess';
 import { AssignmentDetailPane } from './AssignmentDetailPane';
@@ -247,6 +248,8 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(event)) return;
+      // A stacked Modal owns this Escape.
+      if (getOpenModalCount() > 0) return;
       onClose();
     };
     document.addEventListener('keydown', handleEscape);

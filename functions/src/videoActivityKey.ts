@@ -11,6 +11,7 @@ import {
   gradeVaAnswer,
   hasEmbeddedKey,
   toVaPublicQuestion,
+  vaAnswerRules,
   type VaKeyQuestion,
 } from './videoActivityGrade';
 import { assertViewAsAllowed } from './viewAsGuard';
@@ -29,7 +30,8 @@ export interface CheckVideoActivityAnswerInput {
 }
 
 export interface CheckVideoActivityAnswerResult {
-  isCorrect: boolean;
+  /** Null when right and wrong is hidden from this caller. */
+  isCorrect: boolean | null;
   correctAnswer: string;
 }
 
@@ -153,13 +155,18 @@ export async function handleCheckVideoActivityAnswer(
     allowSkipping?: boolean;
     requireCorrectAnswer?: boolean;
   };
+  const rules = vaAnswerRules(session.settings, session.sessionOptions);
   const responseDoc = responseSnap.docs[0];
   const isLive = session.sessionMode === 'teacher';
   const isStudent = !isTeacher && !isViewOnly && !!responseDoc;
-  // A live student waits for the board's reveal, so the key stays server-side.
+  // A live student waits for the board's reveal, and a hidden answer never leaves the server.
+  const withholdKey =
+    (isLive && isStudent) || (!isTeacher && !rules.revealAnswer);
+  // Hidden right and wrong never leaves the server either, so the key can't be probed one answer at a time.
+  const withholdResult = !isTeacher && !isLive && !rules.showResult;
   const result = (answer: string): CheckVideoActivityAnswerResult => ({
-    isCorrect: gradeVaAnswer(question, answer),
-    correctAnswer: isLive && isStudent ? '' : (question.correctAnswer ?? ''),
+    isCorrect: withholdResult ? null : gradeVaAnswer(question, answer),
+    correctAnswer: withholdKey ? '' : (question.correctAnswer ?? ''),
   });
   if (!isStudent) return result(input.answer);
   if (isPeriodFrozen(session, responseDoc.data(), nowMs))
@@ -181,8 +188,7 @@ export async function handleCheckVideoActivityAnswer(
       'Answer the earlier questions first.'
     );
   // Require-correct mode only ever records correct answers, so revealing the key can't change a score.
-  if (!isLive && settings.requireCorrectAnswer !== false)
-    return result(input.answer);
+  if (!isLive && rules.requireCorrectAnswer) return result(input.answer);
   // Otherwise the checked answer is the graded one: record it first, so probing spends the attempt.
   const closeAt: unknown = session.closeAt;
   return db.runTransaction(async (tx) => {
@@ -206,7 +212,10 @@ export async function handleCheckVideoActivityAnswer(
             questionId: question.id,
             answer: input.answer,
             answeredAt: nowMs,
-            isCorrect: gradeVaAnswer(question, input.answer),
+            // The student can read their own response, so a hidden verdict stays off it until Publish re-grades.
+            ...(withholdResult
+              ? {}
+              : { isCorrect: gradeVaAnswer(question, input.answer) }),
           },
         ],
       });

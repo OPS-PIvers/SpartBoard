@@ -5,6 +5,7 @@ import {
   type LastAssignSettings,
   type LastAssignSettingsSpec,
 } from '@/hooks/useLastAssignSettings';
+import { isFocusLevel } from '@/utils/pageProtections';
 
 /** Profile field holding this teacher's last-used Quiz assign settings (plan D11). */
 export const LAST_QUIZ_ASSIGN_SETTINGS_FIELD = 'lastQuizAssignSettings';
@@ -33,7 +34,8 @@ export function parseLastQuizAssignSettings(
     if (
       typeof value === 'boolean' ||
       (typeof value === 'number' && Number.isFinite(value)) ||
-      (key === 'tabWarningThreshold' && value === 'off')
+      (key === 'tabWarningThreshold' && value === 'off') ||
+      (key === 'focusLevel' && isFocusLevel(value))
     ) {
       sessionOptions[key] = value;
     }
