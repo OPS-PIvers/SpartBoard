@@ -33,4 +33,22 @@ describe('TimeToolConfigurationPanel — cleared duration fields', () => {
       expect(input.value).toBe('');
     }
   );
+
+  it('saves a whole-second duration when a fraction is typed', () => {
+    const onChange = vi.fn();
+    render(
+      <TimeToolConfigurationPanel
+        config={{} as TimeToolGlobalConfig}
+        onChange={onChange}
+      />
+    );
+    const input = document.querySelector<HTMLInputElement>(
+      '[data-tour-widget-type="time-tool"][data-tour-field="durationSeconds"]'
+    );
+    if (!input) throw new Error('field not found');
+    fireEvent.change(input, { target: { value: '30.5' } });
+    const saved = onChange.mock.calls[0][0] as TimeToolGlobalConfig;
+    const duration = Object.values(saved.buildingDefaults ?? {})[0]?.duration;
+    expect(Number.isInteger(duration)).toBe(true);
+  });
 });

@@ -173,7 +173,7 @@ export const TimeToolConfigurationPanel: React.FC<
                 max="999"
                 value={durationMinutes}
                 onCommit={(n) =>
-                  handleDurationChange(n, durationRemainingSeconds)
+                  handleDurationChange(Math.trunc(n), durationRemainingSeconds)
                 }
                 className="w-16 px-2 py-1.5 text-xs text-center border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
               />
@@ -191,7 +191,10 @@ export const TimeToolConfigurationPanel: React.FC<
                 max="59"
                 value={durationRemainingSeconds}
                 onCommit={(n) =>
-                  handleDurationChange(durationMinutes, Math.min(59, n))
+                  handleDurationChange(
+                    durationMinutes,
+                    Math.min(59, Math.trunc(n))
+                  )
                 }
                 className="w-16 px-2 py-1.5 text-xs text-center border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
               />
