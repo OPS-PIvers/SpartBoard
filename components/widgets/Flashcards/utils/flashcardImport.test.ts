@@ -73,7 +73,8 @@ describe('flashcard import', () => {
     const result = parseFlashcardSheetRows([
       ['a'.repeat(499) + '😀', 'd'.repeat(999) + '😀'],
     ]);
-    const { term, definition } = result.cards[0]!;
+    const term = result.cards[0]?.term;
+    const definition = result.cards[0]?.definition;
     expect(term).toBe('a'.repeat(499));
     expect(definition).toBe('d'.repeat(999));
   });
