@@ -7,14 +7,7 @@ on:
     branches:
       - dev-paul
       - main
-    paths:
-      - extension/manifest.json
   workflow_dispatch:
-
-# One upload per listing at a time. GitHub keeps only the newest waiting run, so a bump replaced in the queue needs a manual run.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref_name }}
-  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -54,7 +47,7 @@ jobs:
               echo "::notice::Couldn't read the previous version, so nothing was published. If $version is new, run this workflow by hand."
             elif ! node -e 'const p=v=>v.split(".").map(Number),[a,b]=[p(process.argv[1]),p(process.argv[2])];for(let i=0;i<4;i++){const d=(a[i]??0)-(b[i]??0);if(d)process.exit(d>0?0:1)}process.exit(1)' "$version" "$previous"; then
               publish=false
-              echo "extension/manifest.json changed but its version went from $previous to $version, not up; nothing to publish."
+              echo "The extension version is $version (was $previous); nothing to publish."
             fi
           fi
           echo "listing=$listing" >> "$GITHUB_OUTPUT"
@@ -85,6 +78,10 @@ jobs:
     runs-on: ubuntu-24.04
     name: Publish ${{ needs.plan.outputs.listing }} listing ${{ needs.plan.outputs.version }}
     environment: chrome-web-store-${{ needs.plan.outputs.listing }}
+    # Only real bumps queue here, so a newer one replacing a waiting one is still the later version.
+    concurrency:
+      group: ${{ github.workflow }}-${{ needs.plan.outputs.listing }}
+      cancel-in-progress: false
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
