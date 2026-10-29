@@ -4966,3 +4966,19 @@ rather than "no data") is also still open.
     - #4782: optionally comment that a share with no `intendedMode` counts as live, and add a test for the `tidy_board` case where widgets are left unplaced.
     - #4778: no test checks that a plain Escape with nothing stacked still closes the hub, and `AssignmentsHubModal` has no test of its own.
 - Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-10-29
+
+- PRs reviewed: #4832 css-scaling: scale QuizResults badge margins with cqmin; #4831 docs(debugger): run 111 log; #4830 fix(flashcards): import no longer splits an emoji at the field limit; #4829 Fix folder moves into one parent sharing an order; #4828 Keep half-typed Time Tool duration fields instead of saving 0; #4827 fix(dialogs): ignore IME composition keys in alert and confirm dialogs; #4826 Widget loop: record #4742 as accepted; #4825 Chrome extension: Focus Redirect and Lock (FS7); #4818 docs(unifier): run 130 log
+- Comments processed: 9 total. 0 fixed, 0 needing a reply.
+  - None of the open PRs had inline review threads.
+  - The comments were `claude[bot]` summaries.
+  - #4828's fraction finding was already fixed by the author in b14e525e. Its remaining note (an over-max value shows until blur) is cosmetic and marked non-blocking.
+- Fixes pushed: none
+- Reviews posted: 9
+  - Ready: #4832, #4831, #4830, #4829, #4828, #4827, #4826, #4818.
+  - Ready with minor notes: #4825.
+    - The `restoring` map only loses entries when a tab closes.
+    - `onBoundsChanged` queues a `cover()` on every resize step.
+    - The PR body says version 0.1.18, but the manifest is 0.1.19.
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
