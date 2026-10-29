@@ -4621,7 +4621,8 @@ const StudentsScreen: React.FC<{
                         </p>
                         {awaitingGrade && (
                           <span
-                            className="mt-0.5 inline-flex"
+                            className="inline-flex"
+                            style={{ marginTop: 'min(2px, 0.5cqmin)' }}
                             title="Provisional. This total changes once you grade the written response."
                           >
                             <SessionBadge tone="warn" label="Provisional" />
@@ -4636,7 +4637,8 @@ const StudentsScreen: React.FC<{
                         {typeof r.preSyncVersion === 'number' &&
                           r.preSyncVersion > 0 && (
                             <span
-                              className="mt-0.5 inline-flex"
+                              className="inline-flex"
+                              style={{ marginTop: 'min(2px, 0.5cqmin)' }}
                               title="This response was started on an earlier version of the quiz. The teacher synced new content after the student began."
                             >
                               <SessionBadge
