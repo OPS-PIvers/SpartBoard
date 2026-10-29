@@ -68,6 +68,12 @@ import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { InlineAssignStepBodies } from '@/components/common/library/assignStepper/InlineAssignStepBodies';
+import { useLastVideoAssignSettings } from '@/hooks/useLastVideoAssignSettings';
+import {
+  videoRulesPrefill,
+  videoRulesSessionFields,
+  type VideoAssignRules,
+} from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import {
   defaultWhenValue,
   type AssignWhenValue,
@@ -185,7 +191,15 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // already-created attachment (no addOnToken in that iframe).
   const existingAttachmentId = params.get('attachmentId') ?? '';
 
-  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
+    useAuth();
+  // va-quiz-alignment: VA rules are edited here, prefilled from last-used else the activity (V3).
+  const vaRulesOn = canAccessFeature('va-quiz-alignment');
+  const lastVaRules = useLastVideoAssignSettings(user?.uid, vaRulesOn);
+  const [editedVaRules, setEditedVaRules] = useState<{
+    activityId: string;
+    rules: VideoAssignRules;
+  } | null>(null);
   // Classroom owns the due date: the When step sets a window only with Schedule on.
   const [windowOn, setWindowOn] = useState(false);
   const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
@@ -378,18 +392,28 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     () => activities.find((a) => a.id === selectedActivityId),
     [activities, selectedActivityId]
   );
+  const vaRules: VideoAssignRules | null =
+    vaRulesOn && selectedActivity
+      ? editedVaRules?.activityId === selectedActivity.id
+        ? editedVaRules.rules
+        : videoRulesPrefill(
+            getVideoActivityBehavior(selectedActivity),
+            lastVaRules.lastUsed,
+            VA_SESSION_SETTINGS
+          )
+      : null;
 
   // Read-only summary of the configured behavior the attachment will inherit —
   // surfaces the parity (the quiz/VA's own session mode, attempts, etc.) so the
   // teacher can see what students will get before attaching.
   const behaviorSummary = useMemo(() => {
-    if (kind === 'quiz') return null;
+    if (kind === 'quiz' || vaRulesOn) return null;
     return selectedActivity
       ? formatVideoActivityBehaviorSummary(
           getVideoActivityBehavior(selectedActivity)
         )
       : null;
-  }, [kind, selectedActivity]);
+  }, [kind, selectedActivity, vaRulesOn]);
 
   const signIn = useCallback(async () => {
     setBusy(true);
@@ -828,9 +852,13 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
     const windowTargeting = resolveWindow();
     const dueAt = windowOn ? (windowTargeting.dueAt ?? null) : null;
+    // The assignment's rules (va-quiz-alignment) replace the activity's behavior and the player defaults.
+    const fromRules = vaRules ? videoRulesSessionFields(vaRules) : null;
     const sessionOptions: VideoActivitySessionOptions = {
-      ...behavior.sessionOptions,
-      attemptLimit: behavior.attemptLimit,
+      ...(fromRules?.sessionOptions ?? {
+        ...behavior.sessionOptions,
+        attemptLimit: behavior.attemptLimit,
+      }),
       ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
     };
 
@@ -860,7 +888,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       },
       {
         className: 'Google Classroom',
-        sessionSettings: VA_SESSION_SETTINGS,
+        sessionSettings: fromRules?.sessionSettings ?? VA_SESSION_SETTINGS,
         sessionOptions,
         ...(effectiveTeacherName ? { teacherName: effectiveTeacherName } : {}),
         ...(plcLinkage ? { plc: plcLinkage } : {}),
@@ -874,6 +902,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       targeting.rosterIds
     );
     append(`Video-activity session created (sessionId ${sessionId}).`);
+    if (vaRules) lastVaRules.save(vaRules);
 
     // VA's createAssignment has no targeting/window channel, so the M17 fields
     // are written post-create — the same pattern the in-app VA assign path
@@ -1054,6 +1083,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     windowOn,
     resolveWindow,
     setAssignmentTargets,
+    vaRules,
+    lastVaRules,
   ]);
 
   const runAttach = useCallback(async () => {
@@ -1273,6 +1304,14 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   )}
                   behavior={splitAssignSettings}
                   onBehaviorChange={setEditedAssignSettings}
+                  videoRules={vaRules}
+                  onVideoRulesChange={(rules) =>
+                    selectedActivity &&
+                    setEditedVaRules({
+                      activityId: selectedActivity.id,
+                      rules,
+                    })
+                  }
                   disabled={busy}
                 />
                 <AssignTargetingSection
@@ -1340,7 +1379,11 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           <AddonButton
             onClick={() => void runAttach()}
             loading={busy}
-            disabled={!canAttach || windowBackwards}
+            disabled={
+              !canAttach ||
+              windowBackwards ||
+              (kind !== 'quiz' && vaRulesOn && !lastVaRules.loaded)
+            }
             title={windowBackwards ? 'Closes before it opens.' : undefined}
             icon={Paperclip}
           >
