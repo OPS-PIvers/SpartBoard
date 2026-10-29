@@ -4,6 +4,7 @@ import {
   FEATURE_DEFAULTS,
 } from '@/config/featureDefaults';
 import { ROLLOUT_SWITCHES, type RolloutSwitch } from '@/config/rolloutSwitches';
+import { FOCUS_HOURS_SEARCH_FIELDS } from '@/config/focusSessions';
 import type { GlobalFeature } from '@/types';
 
 export type AccessTabId = 'widgets' | 'features' | 'previews';
@@ -113,6 +114,7 @@ const rowsFor = (
   previews: [
     ...previewFeatures(graduated).map(featureSearchFields),
     ...ROLLOUT_ONLY_SWITCHES.map(rolloutSearchFields),
+    FOCUS_HOURS_SEARCH_FIELDS,
   ],
 });
 

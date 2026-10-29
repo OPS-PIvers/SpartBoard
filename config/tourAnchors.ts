@@ -7937,6 +7937,24 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.previews.focus-hours-start': {
+    label: 'Start time field in Focus session hours',
+    panel: true,
+  },
+  'admin.previews.focus-hours-end': {
+    label: 'End time field in Focus session hours',
+    panel: true,
+  },
+  'admin.previews.focus-hours-day': {
+    label: 'Day button in Focus session hours',
+    perField: true,
+    panel: true,
+  },
+  'admin.previews.focus-hours-save': {
+    label: 'Save button in Focus session hours',
+    persists: true,
+    panel: true,
+  },
   'admin.previews.graduate': {
     label: 'Graduate button on a Previews row',
     perField: true,

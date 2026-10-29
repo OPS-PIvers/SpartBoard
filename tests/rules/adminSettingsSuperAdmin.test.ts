@@ -34,6 +34,7 @@ const PROTECTED_DOCS = [
   'admin_settings/lti_config',
   'admin_settings/sub_launch_as_teacher',
   'admin_settings/classlink_sync',
+  'admin_settings/focus_sessions',
 ];
 
 let testEnv: RulesTestEnvironment;

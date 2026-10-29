@@ -3,42 +3,14 @@ import {
   DEFAULT_FOCUS_WINDOW,
   FOCUS_EXTEND_MINUTES,
   FOCUS_MAX_MINUTES,
+  focusMinutesOf as minutesOf,
+  validFocusWindow,
   type FocusWindow,
 } from './shared.gen';
 
-const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
-
-const minutesOf = (hhmm: string): number => {
-  const m = HHMM.exec(hhmm);
-  return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
-};
-
-function isTimeZone(value: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** Reads `admin_settings/focus_sessions.window`, falling back to the default for anything malformed. */
 export function parseFocusWindow(raw: unknown): FocusWindow {
-  if (!raw || typeof raw !== 'object') return DEFAULT_FOCUS_WINDOW;
-  const { start, end, days, timeZone } = raw as Record<string, unknown>;
-  if (
-    typeof start !== 'string' ||
-    typeof end !== 'string' ||
-    !(minutesOf(start) < minutesOf(end)) ||
-    !Array.isArray(days) ||
-    days.length === 0 ||
-    !days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6) ||
-    typeof timeZone !== 'string' ||
-    !isTimeZone(timeZone)
-  ) {
-    return DEFAULT_FOCUS_WINDOW;
-  }
-  return { start, end, days: [...new Set(days as number[])], timeZone };
+  return validFocusWindow(raw) ?? DEFAULT_FOCUS_WINDOW;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

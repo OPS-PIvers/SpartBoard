@@ -30,7 +30,10 @@ export const SURFACES: TourSurfaceMap = {
   'admin.previews': {
     label: 'Admin Settings > Previews',
     kind: 'panel',
-    files: ['components/admin/access/PreviewsPanel.tsx'],
+    files: [
+      'components/admin/access/PreviewsPanel.tsx',
+      'components/admin/access/FocusHoursRow.tsx',
+    ],
     opensWith: 'admin.settings.tab:admin#previews',
     needs: ['admin'],
   },
