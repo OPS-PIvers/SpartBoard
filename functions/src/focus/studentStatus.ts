@@ -138,17 +138,23 @@ export interface SessionCandidate {
 const byStart = (a: SessionCandidate, b: SessionCandidate) =>
   a.session.startedAt - b.session.startedAt || (a.id < b.id ? -1 : 1);
 
-/** F7: the earliest running session holding the student, else the earliest that left them waiting (`promote`). */
+/** F7: the earliest running session holding the student (not released), else the earliest that left them waiting (`promote`). */
 export function pickSession(
   candidates: SessionCandidate[],
   now: number
 ): { pick: SessionCandidate; promote: boolean } | null {
   const running = candidates.filter((c) => isSessionRunning(c.session, now));
   const holding = running
-    .filter((c) => c.student?.status !== 'other-session')
+    .filter(
+      (c) =>
+        c.student?.status !== 'other-session' &&
+        c.student?.status !== 'released'
+    )
     .sort(byStart);
   if (holding.length) return { pick: holding[0], promote: false };
-  const waiting = running.sort(byStart);
+  const waiting = running
+    .filter((c) => c.student?.status === 'other-session')
+    .sort(byStart);
   return waiting.length ? { pick: waiting[0], promote: true } : null;
 }
 

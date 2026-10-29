@@ -201,6 +201,14 @@ describe('pickSession (F7)', () => {
     ).toBe(first);
   });
 
+  it('skips a session that released the student and hands them to the waiting one', () => {
+    const next = c('b', { startedAt: NOW - 50 }, 'other-session');
+    expect(
+      pickSession([c('a', { startedAt: NOW - 100 }, 'released'), next], NOW)
+    ).toEqual({ pick: next, promote: true });
+    expect(pickSession([c('a', {}, 'released')], NOW)).toBeNull();
+  });
+
   it('hands the student to the earliest waiting session once the first ends', () => {
     const next = c('b', { startedAt: NOW - 100 }, 'other-session');
     const r = pickSession(
@@ -405,11 +413,20 @@ describe('focusStatus', () => {
     });
   });
 
+  it('returns no session once the student is released from it', async () => {
+    const store = new MemoryStore();
+    store.sessions.set('s1', session());
+    store.students.set('s1/' + UID, student({ status: 'released' }));
+    expect(
+      (await focusStatus({ protocol: 9 }, UID, store, NOW)).session
+    ).toBeNull();
+  });
+
   it('returns the running session as the extension sees it', async () => {
     const store = new MemoryStore();
     store.live = true;
     store.sessions.set('s1', session());
-    store.students.set('s1/' + UID, student({ status: 'released' }));
+    store.students.set('s1/' + UID, student({ status: 'away' }));
     expect(await focusStatus({ protocol: 9 }, UID, store, NOW)).toEqual({
       session: {
         sessionId: 's1',
@@ -417,7 +434,7 @@ describe('focusStatus', () => {
         level: 'redirect',
         sites: [{ host: 'desmos.com', path: '' }],
         endsAt: NOW + 20 * 60_000,
-        released: true,
+        released: false,
         showLiveSite: true,
       },
       serverNow: NOW,
