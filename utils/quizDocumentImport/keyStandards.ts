@@ -33,9 +33,3 @@ export function matchStandardCodes(
   }
   return { matched, unmatched };
 }
-
-/** The review note for codes the catalog doesn't hold. */
-export const unmatchedStandardsNote = (codes: readonly string[]): string =>
-  codes.length === 1
-    ? `Key lists standard ${codes[0]}, which isn’t in the standards list.`
-    : `Key lists standards ${codes.join(', ')}, which aren’t in the standards list.`;
