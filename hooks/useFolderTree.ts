@@ -148,22 +148,30 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
 
   const lastIssuedOrder = useRef(new Map<string, number>());
 
+  // Next order = max(snapshot siblings, last order issued here) + 1, so rapid creates/moves don't collide.
+  const issueSiblingOrder = useCallback(
+    (parentId: string | null, excludeId?: string): number => {
+      const issuedKey = `${folderKey}|${parentId ?? ''}`;
+      const siblingOrders = folders
+        .filter((f) => f.parentId === parentId && f.id !== excludeId)
+        .map((f) => f.order);
+      const issued = lastIssuedOrder.current.get(issuedKey);
+      if (issued !== undefined) siblingOrders.push(issued);
+      const next =
+        siblingOrders.length === 0 ? 0 : Math.max(...siblingOrders) + 1;
+      lastIssuedOrder.current.set(issuedKey, next);
+      return next;
+    },
+    [folderKey, folders]
+  );
+
   const createFolder = useCallback(
     async (name: string, parentId: string | null): Promise<string> => {
       if (!folderKey) throw new Error('Not authenticated');
       const trimmed = name.trim();
       if (!trimmed) throw new Error('Folder name is required');
 
-      // Next order = max(snapshot siblings, last order issued here) + 1, so rapid creates don't collide.
-      const issuedKey = `${folderKey}|${parentId ?? ''}`;
-      const siblingOrders = folders
-        .filter((f) => f.parentId === parentId)
-        .map((f) => f.order);
-      const issued = lastIssuedOrder.current.get(issuedKey);
-      if (issued !== undefined) siblingOrders.push(issued);
-      const nextOrder =
-        siblingOrders.length === 0 ? 0 : Math.max(...siblingOrders) + 1;
-      lastIssuedOrder.current.set(issuedKey, nextOrder);
+      const nextOrder = issueSiblingOrder(parentId);
 
       const now = Date.now();
       const ref = await addDoc(collection(db, folderKey), {
@@ -175,7 +183,7 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
       });
       return ref.id;
     },
-    [folderKey, folders]
+    [folderKey, issueSiblingOrder]
   );
 
   const renameFolder = useCallback(
@@ -237,13 +245,7 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
         throw new Error('Cannot move a folder into one of its own subfolders');
       }
 
-      // New order = max(siblings under nextParent) + 1 so the moved folder
-      // appears at the end of its new parent's list.
-      const siblingOrders = folders
-        .filter((f) => f.parentId === nextParentId && f.id !== folderId)
-        .map((f) => f.order);
-      const nextOrder =
-        siblingOrders.length === 0 ? 0 : Math.max(...siblingOrders) + 1;
+      const nextOrder = issueSiblingOrder(nextParentId, folderId);
 
       const batch = writeBatch(db);
       batch.update(doc(db, folderKey, folderId), {
@@ -253,7 +255,7 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
       });
       await batch.commit();
     },
-    [folderKey, folders, isDescendantOrSelf]
+    [folderKey, folders, isDescendantOrSelf, issueSiblingOrder]
   );
 
   const reorderSiblings = useCallback(
