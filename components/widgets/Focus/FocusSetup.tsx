@@ -209,6 +209,7 @@ export const FocusSetup: React.FC<{
             {...tourAttr('focus.level', widget.id)}
           >
             {FOCUS_LEVELS.map((l, i) => (
+              // no-tour-anchor: tours point at the whole group (focus.level)
               <button
                 key={l}
                 type="button"
