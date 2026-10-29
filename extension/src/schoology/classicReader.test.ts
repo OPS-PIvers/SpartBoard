@@ -77,7 +77,7 @@ describe('readClassicQuiz on the Sample Test/Quiz', () => {
       'Fill in the blank question text with one ___ that has two possibilities.'
     );
     expect(q[4].correctAnswer).toBe('answer');
-    expect(q[4].blankAlternates).toEqual([['response']]);
+    expect(q[4].blankAlternates).toEqual([{ answers: ['response'] }]);
     expect(toQuizQuestion(q[4]).alternateAnswers).toEqual(['response']);
   });
 
@@ -174,7 +174,7 @@ describe('classic reader edges', () => {
     });
     expect(read.quiz.questions[0]).toMatchObject({
       correctAnswer: 'first',
-      blankAlternates: [['second', 'tenth']],
+      blankAlternates: [{ answers: ['second', 'tenth'] }],
     });
   });
 

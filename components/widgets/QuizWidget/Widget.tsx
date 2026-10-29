@@ -529,9 +529,10 @@ const TeacherQuizWidget: React.FC<{
   const [schoologyReviewOpen, setSchoologyReviewOpen] = useState(false);
   // The extension opens SpartBoard with `?schoologyImport=1` after a send; the URL is outside React.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- runs once on mount after reading the page URL
-    if (claimSchoologyReviewParam()) setSchoologyReviewOpen(true);
-  }, []);
+    if (!canImportFromSchoology || !claimSchoologyReviewParam()) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- runs once the flag resolves, after reading the page URL
+    setSchoologyReviewOpen(true);
+  }, [canImportFromSchoology]);
   const [editingBankMeta, setEditingBankMeta] =
     useState<QuestionBankMetadata | null>(null);
   const [shareBankTarget, setShareBankTarget] =

@@ -82,9 +82,11 @@ function parseQuestion(v: unknown, index: number): ExtractedQuestion | null {
     : [];
   const points = num(v.points);
   const distractors = strs(v.matchingDistractors);
-  // Stored as `{answers}` maps because Firestore has no nested arrays.
+  // `{answers}` maps, the shape ExtractedQuestion and QuizQuestion share.
   const blankAlternates = Array.isArray(v.blankAlternates)
-    ? v.blankAlternates.map((b) => (isObj(b) ? strs(b.answers) : []))
+    ? v.blankAlternates.map((b) => ({
+        answers: isObj(b) ? strs(b.answers) : [],
+      }))
     : undefined;
   return {
     number: num(v.number) ?? index + 1,
@@ -97,7 +99,9 @@ function parseQuestion(v: unknown, index: number): ExtractedQuestion | null {
     ...(points !== undefined ? { points } : {}),
     ...(distractors.length ? { matchingDistractors: distractors } : {}),
     ...(v.allowPartialCredit === true ? { allowPartialCredit: true } : {}),
-    ...(blankAlternates?.some((b) => b.length) ? { blankAlternates } : {}),
+    ...(blankAlternates?.some((b) => b.answers.length)
+      ? { blankAlternates }
+      : {}),
   };
 }
 
