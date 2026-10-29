@@ -23,12 +23,14 @@ const SECRET = 'FOCUS_VAPID_PRIVATE_KEY';
 const PROJECTS = { dev: 'spartboard-dev', prod: 'spartboard' };
 
 const args = process.argv.slice(2);
-const listing = args[args.indexOf('--project') + 1];
+const arg = args[args.indexOf('--project') + 1];
 const rotate = args.includes('--rotate');
-if (!args.includes('--project') || !(listing in PROJECTS)) {
+if (!args.includes('--project') || !Object.hasOwn(PROJECTS, arg)) {
   console.error('Usage: node scripts/focus-vapid-keygen.mjs --project dev|prod [--rotate]');
   process.exit(1);
 }
+// A literal, not the argument, so the listing regex below is never built from user input.
+const listing = arg === 'prod' ? 'prod' : 'dev';
 const project = PROJECTS[listing];
 
 function gcloud(gcloudArgs, input) {
