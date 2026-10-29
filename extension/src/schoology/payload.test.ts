@@ -137,7 +137,12 @@ describe('inboxRequest', () => {
       imageUrls: [],
       unsupported: [],
       settings: {},
-      folderPath: ['MCAs', ' ', 'x'.repeat(250), ...Array<string>(12).fill('Deep')],
+      folderPath: [
+        'MCAs',
+        ' ',
+        'x'.repeat(250),
+        ...Array<string>(12).fill('Deep'),
+      ],
     };
     const request = inboxRequest(
       {
