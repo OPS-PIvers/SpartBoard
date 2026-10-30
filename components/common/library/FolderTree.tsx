@@ -272,6 +272,17 @@ const FolderRow: React.FC<FolderRowProps> = ({
     draggingSibling && drag?.hint?.folderId === folder.id
       ? drag.hint.place
       : null;
+  // dragend never reaches a row that unmounts or loses draggable mid-drag, so clear on that.
+  const setDraggingId = drag?.setDraggingId;
+  const setDragHint = drag?.setHint;
+  const dragActive = draggable && drag?.draggingId === folder.id;
+  useEffect(() => {
+    if (!dragActive) return undefined;
+    return () => {
+      setDraggingId?.(null);
+      setDragHint?.(null);
+    };
+  }, [dragActive, setDraggingId, setDragHint]);
   const dragHandlers: React.HTMLAttributes<HTMLDivElement> = draggable
     ? {
         draggable: true,
