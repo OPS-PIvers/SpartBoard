@@ -552,16 +552,6 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'toggle',
     },
     {
-      anchor: 'settings.toggle:weather#detail_rainDaily',
-      label: 'Daily rain',
-      kind: 'toggle',
-    },
-    {
-      anchor: 'settings.toggle:weather#detail_rainMonthly',
-      label: 'Monthly rain',
-      kind: 'toggle',
-    },
-    {
       anchor: 'settings.toggle:weather#detail_windAvg',
       label: 'Average wind',
       kind: 'toggle',

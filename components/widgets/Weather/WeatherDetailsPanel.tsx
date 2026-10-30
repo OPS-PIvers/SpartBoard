@@ -22,11 +22,7 @@ const GROUPS: {
 }[] = [
   { id: 'sun', lines: ['sunrise', 'sunset', 'uvIndex'] },
   { id: 'wind', headline: 'windAvg', lines: ['windGust'] },
-  {
-    id: 'wet',
-    headline: 'humidity',
-    lines: ['dewPoint', 'rainDaily', 'rainMonthly'],
-  },
+  { id: 'wet', headline: 'humidity', lines: ['dewPoint'] },
   { id: 'air', headline: 'pressure', lines: ['highLow', 'feelsLike'] },
   { id: 'moon', headline: 'moon', lines: [] },
 ];

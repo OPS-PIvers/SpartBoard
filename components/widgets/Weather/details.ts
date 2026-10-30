@@ -1,4 +1,8 @@
-import type { WeatherDetailField, WeatherDetails } from '@/types';
+import {
+  WEATHER_DETAIL_FIELDS,
+  type WeatherDetailField,
+  type WeatherDetails,
+} from '@/types';
 import type { EarthNetworksResponse, OpenWeatherData } from './constants';
 
 const RAD = Math.PI / 180;
@@ -20,8 +24,6 @@ export function parseEarthNetworksDetails(
     dewPoint: num(o?.dp),
     humidity: num(o?.h),
     pressure: num(o?.psl),
-    rainDaily: num(o?.rd),
-    rainMonthly: num(o?.rm),
     windSpeedAvg: num(o?.wsa),
     windDirectionAvg: num(o?.wda),
     windGust: num(o?.wgh),
@@ -38,8 +40,6 @@ export function parseOpenWeatherDetails(data: OpenWeatherData): WeatherDetails {
     low: null,
     humidity: num(data.main.humidity),
     pressure: hpa === null ? null : hpa * 0.02953,
-    rainDaily: null,
-    rainMonthly: null,
     windSpeedAvg: num(data.wind?.speed),
     windDirectionAvg: num(data.wind?.deg),
     windGust: num(data.wind?.gust),
@@ -113,7 +113,7 @@ export const UV_LEVELS = [
   [0, 'low'],
 ] as const;
 
-/** Sunrise and sunset (epoch ms) for the given day and place, after the NOAA/suncalc formulas. */
+/** Sunrise and sunset (epoch ms) for the given local day and place, after the NOAA/suncalc formulas. */
 export function sunTimes(
   date: Date,
   lat: number,
@@ -121,7 +121,10 @@ export function sunTimes(
 ): { sunrise: number; sunset: number } | null {
   const lw = RAD * -lon;
   const phi = RAD * lat;
-  const d = date.getTime() / DAY_MS - 0.5 + J1970 - J2000;
+  // From local noon, so the nearest solar transit is today's even just after midnight.
+  const noon = new Date(date);
+  noon.setHours(12, 0, 0, 0);
+  const d = noon.getTime() / DAY_MS - 0.5 + J1970 - J2000;
   const n = Math.round(d - 0.0009 - lw / (2 * Math.PI));
   const ds = 0.0009 + lw / (2 * Math.PI) + n;
   const m = RAD * (357.5291 + 0.98560028 * ds);
@@ -222,6 +225,9 @@ const COMPASS = [
 export const compassPoint = (degrees: number): string =>
   COMPASS[Math.round((((degrees % 360) + 360) % 360) / 22.5) % 16];
 
+const isDetailField = (field: string): field is WeatherDetailField =>
+  (WEATHER_DETAIL_FIELDS as readonly string[]).includes(field);
+
 export interface DetailRow {
   field: WeatherDetailField;
   value: string;
@@ -298,10 +304,6 @@ export function buildDetailRows(
           : null;
       case 'pressure':
         return num(details.pressure) ? inches(details.pressure) : null;
-      case 'rainDaily':
-        return num(details.rainDaily) ? inches(details.rainDaily) : null;
-      case 'rainMonthly':
-        return num(details.rainMonthly) ? inches(details.rainMonthly) : null;
       case 'windAvg': {
         const speed = details.windSpeedAvg;
         if (!num(speed)) return null;
@@ -345,7 +347,8 @@ export function buildDetailRows(
     }
   };
   // A reading the source didn't send still keeps its place, so a teacher sees the toggle worked.
-  return fields.map((field) => ({
+  // Drops fields saved before a reading was retired.
+  return fields.filter(isDetailField).map((field) => ({
     field,
     ...(parts(field) ?? { value: '--' }),
   }));
