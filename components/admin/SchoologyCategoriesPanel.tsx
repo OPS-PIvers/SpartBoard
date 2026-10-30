@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Loader2, Plus, School, X } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { DraftNumberField } from './DraftNumberField';
 
 const SCHOOLOGY_CATEGORIES_DOC = 'schoology_categories';
 const DEFAULT_SCHOOLOGY_CATEGORIES = [
@@ -130,31 +131,24 @@ export const SchoologyCategoriesPanel: React.FC = () => {
                 }
                 className={`${inputClass} flex-1 min-w-0`}
               />
-              <input
+              <DraftNumberField
                 {...tourFieldAttr(
                   'admin.schoology.category-weight',
                   'admin',
                   String(i)
                 )}
                 aria-label={`Category ${i + 1} weight`}
-                type="number"
                 min={0}
                 max={100}
                 step={1}
                 value={r.weight}
-                onChange={(e) =>
+                onCommit={(n) =>
                   update(
                     rows.map((x) =>
                       x.key === r.key
                         ? {
                             ...x,
-                            weight: Math.max(
-                              0,
-                              Math.min(
-                                100,
-                                Math.round(Number(e.target.value) || 0)
-                              )
-                            ),
+                            weight: Math.max(0, Math.min(100, Math.round(n))),
                           }
                         : x
                     )
