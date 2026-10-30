@@ -67,6 +67,7 @@ async function sendItem(
 
 const STYLE = `
 :host { all: initial; }
+[hidden] { display: none !important; }
 .wrap { position: fixed; right: 20px; bottom: 20px; z-index: 2147483000; font: 14px/1.4 Lexend, system-ui, sans-serif; color: #0f172a; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 button { font: inherit; cursor: pointer; border-radius: 10px; border: 0; min-height: 44px; padding: 0 16px; }
 button:disabled { cursor: default; opacity: .6; }
@@ -187,13 +188,16 @@ function checklist(
   };
   for (const b of boxes) b.box.onchange = count;
   count();
+  const hide = () => {
+    if (panel.hidden || close.disabled) return;
+    panel.hidden = true;
+    opener.hidden = false;
+    opener.focus();
+  };
   const close = el('button', {
     className: 'ghost',
     textContent: 'Close',
-    onclick: () => {
-      panel.hidden = true;
-      opener.hidden = false;
-    },
+    onclick: hide,
   });
   const footer = el('footer', {}, close, send, review);
   panel.append(
@@ -205,6 +209,19 @@ function checklist(
     opener.hidden = true;
     panel.hidden = false;
   };
+  // Escape or a click elsewhere on the page closes the list; clicks inside the closed shadow root reach the document as the host.
+  const host = (wrap.getRootNode() as ShadowRoot).host;
+  const listening = new AbortController();
+  const outside = (event: Event) => {
+    if (!host.isConnected) return listening.abort();
+    if (event instanceof KeyboardEvent && event.key !== 'Escape') return;
+    if (event.type === 'pointerdown' && event.target === host) return;
+    hide();
+  };
+  document.addEventListener('keydown', outside, { signal: listening.signal });
+  document.addEventListener('pointerdown', outside, {
+    signal: listening.signal,
+  });
   send.onclick = async () => {
     const chosen = boxes.filter((b) => b.box.checked && !b.sent);
     send.disabled = true;
