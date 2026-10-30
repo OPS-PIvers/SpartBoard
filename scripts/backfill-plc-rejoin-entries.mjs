@@ -11,7 +11,13 @@ export function staleRejoinUids(plc) {
   const memberUids = Array.isArray(plc?.memberUids) ? plc.memberUids : [];
   const members =
     plc?.members && typeof plc.members === 'object' ? plc.members : {};
-  return memberUids.filter((uid) => members[uid]?.status === 'removed');
+  // A lead never leaves or is removed; skip one rather than demote it.
+  return memberUids.filter(
+    (uid) =>
+      members[uid]?.status === 'removed' &&
+      members[uid]?.role !== 'lead' &&
+      uid !== plc.leadUid
+  );
 }
 
 /** The reset entry: role member, status active, every other key kept. */
@@ -80,17 +86,20 @@ async function main() {
     console.log('Dry run: nothing changed. Re-run with --apply to apply.');
     return;
   }
+  let reset = 0;
   for (const p of plans) {
-    await db.runTransaction(async (tx) => {
+    const wrote = await db.runTransaction(async (tx) => {
       const fresh = (await tx.get(p.ref)).data();
-      if (!staleRejoinUids(fresh).includes(p.uid)) return;
+      if (!staleRejoinUids(fresh).includes(p.uid)) return false;
       tx.update(p.ref, {
         [`members.${p.uid}`]: resetEntry(fresh.members[p.uid]),
         updatedAt: Date.now(),
       });
+      return true;
     });
+    if (wrote) reset++;
   }
-  console.log(`Reset ${plans.length} member entries.`);
+  console.log(`Reset ${reset} of ${plans.length} member entries.`);
 }
 
 if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {

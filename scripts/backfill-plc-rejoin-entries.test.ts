@@ -14,6 +14,18 @@ describe('staleRejoinUids', () => {
     expect(staleRejoinUids(plc)).toEqual(['a']);
   });
 
+  it('never selects the lead', () => {
+    const plc = {
+      leadUid: 'l',
+      memberUids: ['l', 'x'],
+      members: {
+        l: { role: 'member', status: 'removed' },
+        x: { role: 'lead', status: 'removed' },
+      },
+    };
+    expect(staleRejoinUids(plc)).toEqual([]);
+  });
+
   it('tolerates legacy array-only and empty PLCs', () => {
     expect(staleRejoinUids({ memberUids: ['a'] })).toEqual([]);
     expect(staleRejoinUids({})).toEqual([]);
