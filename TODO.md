@@ -463,7 +463,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md`
 
-- [ ] Flip sessionListScoping.test.ts quiz_sessions case to assertFails. (S)
+- [ ] Release after the security release: drop the transitional `o == null` in firestore.rules `ownsJoinCode` (old-client tabs have reloaded by then), after backfill run 2, and flip the "lets staff use a code nobody has claimed yet" case in tests/rules/quizJoinCodeLookup.test.ts to assertFails. (S)
 
 #### `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`
 
