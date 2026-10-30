@@ -69,7 +69,7 @@ export interface FetchedResponse {
 export interface ImportPageDeps {
   isBlocked: (url: string) => Promise<boolean>;
   // Resolves, validates and fetches one hop; throws on private hosts.
-  fetchOnce: (url: URL) => Promise<FetchedResponse>;
+  fetchOnce: (url: URL, timeoutMs: number) => Promise<FetchedResponse>;
 }
 
 const SIGN_IN_PATH =
@@ -97,18 +97,23 @@ const DROP_WITH_CONTENT = new Set([
   'svg',
   'iframe',
   'object',
-  'form',
   'textarea',
   'select',
+  'option',
+  'datalist',
   'button',
   'nav',
   'header',
   'footer',
   'aside',
   'head',
+  'title',
 ]);
-// Void form fields carry values in attributes; they are skipped too.
-const FORM_FIELDS = new Set(['input', 'option']);
+// Kept inside an article or main, where they hold its headline and byline.
+const PAGE_CHROME = new Set(['header', 'footer']);
+// Their bodies are raw text in HTML, so a `<` inside them never starts a tag.
+const RAW_TEXT = new Set(['script', 'style', 'textarea', 'title', 'xmp']);
+const MAX_TOKENS = 300_000;
 const BLOCK_TAGS = new Set([
   'h1',
   'h2',
@@ -158,8 +163,9 @@ const TAG_NAME = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)/y;
 function tokenize(html: string): Token[] {
   const tokens: Token[] = [];
   const len = html.length;
+  let lower: string | null = null;
   let i = 0;
-  while (i < len) {
+  while (i < len && tokens.length < MAX_TOKENS) {
     const lt = html.indexOf('<', i);
     if (lt < 0) {
       tokens.push({ kind: 'text', text: html.slice(i) });
@@ -174,9 +180,9 @@ function tokenize(html: string): Token[] {
     TAG_NAME.lastIndex = lt;
     const m = TAG_NAME.exec(html);
     if (!m) {
-      // A `<!doctype`, `<?xml` or stray `<`: skip to its `>` without reading it as text.
-      const gt = html.indexOf('>', lt);
+      // A `<!doctype` or `<?xml` is skipped to its `>`; a stray `<` is text.
       if (html[lt + 1] === '!' || html[lt + 1] === '?') {
+        const gt = html.indexOf('>', lt);
         i = gt < 0 ? len : gt + 1;
       } else {
         tokens.push({ kind: 'text', text: '<' });
@@ -197,19 +203,27 @@ function tokenize(html: string): Token[] {
         quote = c;
       }
       if (c === '=') afterEquals = true;
-      else if (c !== ' ' && c !== '\t' && c !== '\n' && c !== '\r')
-        afterEquals = false;
+      else if (!/\s/.test(c)) afterEquals = false;
     }
     if (j >= len) break;
+    const name = m[2].toLowerCase();
+    const closing = m[1] === '/';
     tokens.push({
       kind: 'tag',
-      name: m[2].toLowerCase(),
-      closing: m[1] === '/',
+      name,
+      closing,
       raw: html.slice(lt, j + 1),
       start: lt,
       end: j + 1,
     });
     i = j + 1;
+    if (!closing && RAW_TEXT.has(name)) {
+      lower ??= html.toLowerCase();
+      const close = lower.indexOf(`</${name}`, i);
+      const end = close < 0 ? len : close;
+      if (end > i) tokens.push({ kind: 'text', text: html.slice(i, end) });
+      i = end;
+    }
   }
   return tokens;
 }
@@ -228,21 +242,28 @@ function attrsOf(raw: string): Map<string, string> {
   return out;
 }
 
-/** Tokens inside the first element of `tag`, matched by depth; null when there is none. */
-function elementTokens(tokens: Token[], tag: string): Token[] | null {
-  const open = tokens.findIndex(
-    (t) => t.kind === 'tag' && t.name === tag && !t.closing
-  );
-  if (open < 0) return null;
-  let depth = 1;
-  for (let k = open + 1; k < tokens.length; k += 1) {
+/** Tokens inside each outermost `tag` element, matched by depth; an unclosed one runs to the end. */
+function elementsOf(tokens: Token[], tag: string): Token[][] {
+  const found: Token[][] = [];
+  let open = -1;
+  let depth = 0;
+  for (let k = 0; k < tokens.length; k += 1) {
     const t = tokens[k];
     if (t.kind !== 'tag' || t.name !== tag) continue;
-    depth += t.closing ? -1 : 1;
-    if (depth === 0) return tokens.slice(open + 1, k);
+    if (!t.closing) {
+      if (depth === 0) open = k;
+      depth += 1;
+    } else if (depth > 0) {
+      depth -= 1;
+      if (depth === 0) found.push(tokens.slice(open + 1, k));
+    }
   }
-  return tokens.slice(open + 1);
+  if (depth > 0) found.push(tokens.slice(open + 1));
+  return found;
 }
+
+const textLength = (blocks: FetchedBlock[]): number =>
+  blocks.reduce((n, b) => n + ('text' in b ? b.text.length : 0), 0);
 
 interface Read {
   blocks: FetchedBlock[];
@@ -250,7 +271,7 @@ interface Read {
 }
 
 /** Reads blocks and images from tokens, skipping dropped elements (an unclosed one runs to the end). */
-function readTokens(tokens: Token[], base: URL): Read {
+function readTokens(tokens: Token[], base: URL, inContent: boolean): Read {
   const blocks: FetchedBlock[] = [];
   const images: FetchedPage['images'] = [];
   const seen = new Set<string>();
@@ -262,7 +283,7 @@ function readTokens(tokens: Token[], base: URL): Read {
   };
   let buffer: string[] = [];
   const flush = () => {
-    const text = decodeHtmlEntities(buffer.join(' '))
+    const text = decodeHtmlEntities(buffer.join(''))
       .replace(/\s+/g, ' ')
       .trim();
     buffer = [];
@@ -302,17 +323,29 @@ function readTokens(tokens: Token[], base: URL): Read {
   let skipDepth = 0;
   for (const t of tokens) {
     if (skip !== null) {
-      if (t.kind === 'tag' && t.name === skip) {
-        skipDepth += t.closing ? -1 : 1;
-        if (skipDepth === 0) skip = null;
+      // `</head>` is optional, so the body or any block tag ends the head.
+      const headEnds =
+        skip === 'head' &&
+        t.kind === 'tag' &&
+        !t.closing &&
+        (t.name === 'body' || BLOCK_TAGS.has(t.name));
+      if (!headEnds) {
+        if (t.kind === 'tag' && t.name === skip) {
+          skipDepth += t.closing ? -1 : 1;
+          if (skipDepth === 0) skip = null;
+        }
+        continue;
       }
-      continue;
+      skip = null;
     }
     if (t.kind === 'text') {
       buffer.push(t.text);
       continue;
     }
-    if (DROP_WITH_CONTENT.has(t.name)) {
+    if (
+      DROP_WITH_CONTENT.has(t.name) &&
+      !(inContent && PAGE_CHROME.has(t.name))
+    ) {
       if (!t.closing) {
         flush();
         skip = t.name;
@@ -320,7 +353,8 @@ function readTokens(tokens: Token[], base: URL): Read {
       }
       continue;
     }
-    if (FORM_FIELDS.has(t.name)) continue;
+    // Field values live in attributes, which are never read; form labels stay.
+    if (t.name === 'input') continue;
     if (t.name === 'img') {
       if (!t.closing) addImage(t.raw);
       continue;
@@ -377,14 +411,22 @@ const hasPasswordField = (tokens: Token[]): boolean =>
 /** The generic read of a fetched HTML page: title, main-content blocks and image URLs, never form values. */
 export function htmlToPage(html: string, pageUrl: URL): FetchedPage {
   const tokens = tokenize(html);
-  let read: Read = { blocks: [], images: [] };
-  for (const tag of ['article', 'main', 'body']) {
-    const inner = elementTokens(tokens, tag);
-    if (!inner) continue;
-    read = readTokens(inner, pageUrl);
-    if (read.blocks.length > 0) break;
-  }
-  if (read.blocks.length === 0) read = readTokens(tokens, pageUrl);
+  // The article or main with the most text, unless it is a small card on a bigger page.
+  let best: Read = { blocks: [], images: [] };
+  for (const tag of ['article', 'main'])
+    for (const inner of elementsOf(tokens, tag)) {
+      const read = readTokens(inner, pageUrl, true);
+      if (textLength(read.blocks) > textLength(best.blocks)) best = read;
+    }
+  const whole = readTokens(
+    elementsOf(tokens, 'body')[0] ?? tokens,
+    pageUrl,
+    false
+  );
+  const read =
+    textLength(best.blocks) >= Math.min(500, textLength(whole.blocks) / 3)
+      ? best
+      : whole;
   return {
     url: pageUrl.href,
     title: (readTitle(tokens) || pageUrl.hostname).slice(0, MAX_TITLE_CHARS),
@@ -397,11 +439,7 @@ export function htmlToPage(html: string, pageUrl: URL): FetchedPage {
 
 /** True for a page whose only job is signing in: a password box and little else. */
 export function looksLikeSignInPage(html: string, page: FetchedPage): boolean {
-  const textLength = page.blocks.reduce(
-    (n, b) => n + ('text' in b ? b.text.length : 0),
-    0
-  );
-  return textLength < 600 && hasPasswordField(tokenize(html));
+  return textLength(page.blocks) < 600 && hasPasswordField(tokenize(html));
 }
 
 /** Follows redirects hop by hop, checking the block list and sign-in pages at every hop. */
@@ -434,7 +472,10 @@ export async function fetchImportPage(
 
     let response: FetchedResponse;
     try {
-      response = await deps.fetchOnce(current);
+      response = await deps.fetchOnce(
+        current,
+        Math.max(1, Math.min(FETCH_TIMEOUT_MS, deadline - Date.now()))
+      );
     } catch (error) {
       if (error instanceof HttpsError) throw error;
       return { status: 'use-extension', reason: 'unreachable' };
@@ -477,11 +518,24 @@ export async function fetchImportPage(
   return { status: 'use-extension', reason: 'unreachable' };
 }
 
-async function fetchOnceGuarded(url: URL): Promise<FetchedResponse> {
+async function fetchOnceGuarded(
+  url: URL,
+  timeoutMs: number
+): Promise<FetchedResponse> {
+  const signal = AbortSignal.timeout(timeoutMs);
+  const aborted = new Promise<never>((_, reject) =>
+    signal.addEventListener('abort', () => reject(new Error('timeout')))
+  );
+  aborted.catch(() => undefined);
   let addresses: ResolvedAddress[];
   try {
-    addresses = await resolveAndValidateHost(url.hostname);
-  } catch {
+    addresses = await Promise.race([
+      resolveAndValidateHost(url.hostname),
+      aborted,
+    ]);
+  } catch (error) {
+    // A slow resolver is unreachable, not a private host.
+    if (signal.aborted) throw error;
     throw new HttpsError(
       'invalid-argument',
       'That address points to a private or reserved host.'
@@ -493,7 +547,7 @@ async function fetchOnceGuarded(url: URL): Promise<FetchedResponse> {
     maxRedirects: 0,
     timeout: FETCH_TIMEOUT_MS,
     // A total cap per hop; `timeout` alone resets on every slow byte.
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    signal,
     responseType: 'text',
     validateStatus: () => true,
     headers: {

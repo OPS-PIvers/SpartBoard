@@ -107,7 +107,10 @@ describe('htmlToPage', () => {
     );
     const text = JSON.stringify(page);
     expect(text).not.toMatch(/Ada Lovelace|secret answer|Period 3|token-123/);
-    expect(page.blocks).toEqual([{ type: 'paragraph', text: 'Quiz intro' }]);
+    expect(page.blocks).toEqual([
+      { type: 'paragraph', text: 'Quiz intro' },
+      { type: 'paragraph', text: 'Name' },
+    ]);
   });
 
   it('keeps form text out even when the markup is broken', () => {
@@ -134,6 +137,73 @@ describe('htmlToPage', () => {
     ]);
   });
 
+  it('reads past a script that compares with <', () => {
+    const page = htmlToPage(
+      '<body><script>for(var i=0;i<n;i++)f(i)</script><style>a<b{}</style><p>Real content</p></body>',
+      new URL('https://example.org/')
+    );
+    expect(page.blocks).toEqual([{ type: 'paragraph', text: 'Real content' }]);
+  });
+
+  it('keeps inline markup from splitting words', () => {
+    const page = htmlToPage(
+      '<p>Hello, <a href=x>world</a>. Sp<b>art</b>Board</p>',
+      new URL('https://example.org/')
+    );
+    expect(page.blocks).toEqual([
+      { type: 'paragraph', text: 'Hello, world. SpartBoard' },
+    ]);
+  });
+
+  it('reads a page wrapped in one big form, without its fields', () => {
+    const page = htmlToPage(
+      '<body><form id=f><div><h1>Page</h1><p>Content</p><input value=SECRET><select><option>OPT</option></select></div></form></body>',
+      new URL('https://example.org/')
+    );
+    expect(page.blocks).toEqual([
+      { type: 'heading', level: 1, text: 'Page' },
+      { type: 'paragraph', text: 'Content' },
+    ]);
+  });
+
+  it('keeps an article headline and a page with no </head>', () => {
+    expect(
+      htmlToPage(
+        '<article><header><h1>Title</h1></header><p>Body</p></article>',
+        new URL('https://example.org/')
+      ).blocks
+    ).toEqual([
+      { type: 'heading', level: 1, text: 'Title' },
+      { type: 'paragraph', text: 'Body' },
+    ]);
+    expect(
+      htmlToPage(
+        '<html><head><title>T</title><p>Real</p>',
+        new URL('https://example.org/')
+      ).blocks
+    ).toEqual([{ type: 'paragraph', text: 'Real' }]);
+  });
+
+  it('prefers the main content over a small teaser card', () => {
+    const long = 'Long text. '.repeat(30);
+    const page = htmlToPage(
+      `<body><article><p>teaser</p></article><main><p>${long}</p><p>more</p></main></body>`,
+      new URL('https://example.org/')
+    );
+    expect(page.blocks.map((b) => ('text' in b ? b.text : ''))).toEqual([
+      long.trim(),
+      'more',
+    ]);
+  });
+
+  it('drops orphan options and treats form feed as space in tags', () => {
+    const page = htmlToPage(
+      '<body><option>OPT</option><input value=\f"a>LEAK"><p>after</p></body>',
+      new URL('https://example.org/')
+    );
+    expect(JSON.stringify(page)).not.toMatch(/OPT|LEAK/);
+  });
+
   it('drops scripts and styles and prefers og:title', () => {
     const page = htmlToPage(
       html(
@@ -158,6 +228,9 @@ describe('hostile HTML stays linear', () => {
     ['unclosed articles', '<article>'],
     ['unclosed inputs', '<input type=text '],
     ['stray brackets', '<'],
+    ['stray brackets before digits', '<1'],
+    ['stray brackets before space', '< a'],
+    ['unclosed scripts', '<script>'],
     ['open quotes', '<p title="'],
     ['unclosed paragraphs', '<p '],
   ])('%s', (_label, unit) => {
@@ -167,9 +240,9 @@ describe('hostile HTML stays linear', () => {
     expect(performance.now() - started).toBeLessThan(1_500);
   });
 
-  it('still cuts an unclosed form to the end of the page', () => {
+  it('still cuts an unclosed textarea to the end of the page', () => {
     const page = htmlToPage(
-      '<body><p>Keep</p><form><p>Secret</p></body>',
+      '<body><p>Keep</p><textarea><p>Secret</p></body>',
       new URL('https://example.org/')
     );
     expect(page.blocks).toEqual([{ type: 'paragraph', text: 'Keep' }]);
