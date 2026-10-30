@@ -36,10 +36,10 @@ firebase deploy --only firestore:rules
 
 ### 3. Install Firebase Admin SDK
 
-If not already installed:
+It's a root dev dependency, so the normal install covers it:
 
 ```bash
-npm install firebase-admin
+pnpm run install:all
 ```
 
 ### 4. Run the Admin Setup Script
