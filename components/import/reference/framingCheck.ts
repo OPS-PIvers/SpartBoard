@@ -5,7 +5,11 @@ import { TRUSTED_EMBED_HOSTNAMES } from '@/components/widgets/Embed/trustedHostn
 
 export type FramingVerdict =
   | { status: 'ok' }
-  | { status: 'refused'; reason?: string }
+  | {
+      status: 'refused';
+      reason?: string;
+      cause: 'blocked' | 'insecure' | 'invalid';
+    }
   | { status: 'unknown' };
 
 interface CompatibilityResult {
@@ -37,7 +41,7 @@ export function isAllowListedEmbedHost(
   }
   return (
     TRUSTED_EMBED_HOSTNAMES.includes(host) ||
-    allowListedHosts.some((h) => h.toLowerCase() === host)
+    allowListedHosts.some((h) => h.trim().toLowerCase() === host)
   );
 }
 
@@ -54,10 +58,12 @@ export async function checkReferenceFraming(
   try {
     parsed = new URL(full);
   } catch {
-    return { status: 'refused' };
+    return { status: 'refused', cause: 'invalid' };
   }
   // An http page inside the https app is mixed content, which the browser never shows.
-  if (parsed.protocol !== 'https:') return { status: 'refused' };
+  if (parsed.protocol !== 'https:') {
+    return { status: 'refused', cause: 'insecure' };
+  }
   if (isAllowListedEmbedHost(full, options.allowListedHosts)) {
     return { status: 'ok' };
   }
@@ -65,7 +71,7 @@ export async function checkReferenceFraming(
     const result = await (options.check ?? callCheckUrlCompatibility)(full);
     if (result.uncertain) return { status: 'unknown' };
     if (result.isEmbeddable) return { status: 'ok' };
-    return { status: 'refused', reason: result.reason };
+    return { status: 'refused', cause: 'blocked', reason: result.reason };
   } catch (err) {
     console.warn('[import] framing check failed', err);
     return { status: 'unknown' };

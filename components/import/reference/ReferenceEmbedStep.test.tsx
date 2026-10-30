@@ -31,6 +31,28 @@ const renderStep = (isEmbeddable: boolean) => {
 };
 
 describe('ReferenceEmbedStep', () => {
+  it('places once even when the parent re-renders with a new check function', async () => {
+    const onPlace = vi.fn();
+    const props = { onConvert: vi.fn(), onCancel: vi.fn(), onPlace };
+    const { rerender } = render(
+      <ReferenceEmbedStep
+        url="https://a.example.com"
+        check={vi.fn().mockResolvedValue({ isEmbeddable: true })}
+        {...props}
+      />
+    );
+    await waitFor(() => expect(onPlace).toHaveBeenCalledTimes(1));
+    rerender(
+      <ReferenceEmbedStep
+        url="https://a.example.com"
+        check={vi.fn().mockResolvedValue({ isEmbeddable: true })}
+        {...props}
+      />
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(onPlace).toHaveBeenCalledTimes(1);
+  });
+
   it('places the Embed straight away when the page can be framed', async () => {
     const { onPlace } = renderStep(true);
     await waitFor(() => expect(onPlace).toHaveBeenCalledTimes(1));

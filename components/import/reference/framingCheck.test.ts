@@ -13,7 +13,11 @@ describe('checkReferenceFraming', () => {
     });
     await expect(
       checkReferenceFraming('https://news.example.com/a', { check })
-    ).resolves.toEqual({ status: 'refused', reason: 'X-Frame-Options: DENY' });
+    ).resolves.toEqual({
+      status: 'refused',
+      cause: 'blocked',
+      reason: 'X-Frame-Options: DENY',
+    });
   });
 
   it('allows a page the server can frame', async () => {
@@ -58,7 +62,10 @@ describe('checkReferenceFraming', () => {
     const check = vi.fn();
     await expect(
       checkReferenceFraming('http://old.example.com', { check })
-    ).resolves.toEqual({ status: 'refused' });
+    ).resolves.toEqual({ status: 'refused', cause: 'insecure' });
+    await expect(
+      checkReferenceFraming('javascript:alert(1)', { check })
+    ).resolves.toEqual({ status: 'refused', cause: 'invalid' });
     expect(check).not.toHaveBeenCalled();
   });
 });

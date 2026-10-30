@@ -45,28 +45,36 @@ export const ReferenceEmbedStep: React.FC<ReferenceEmbedStepProps> = ({
   check,
 }) => {
   const { config: embedConfig, isLoading } = useEmbedConfig();
-  const [verdict, setVerdict] = useState<FramingVerdict | null>(null);
+  const [checked, setChecked] = useState<{
+    url: string;
+    verdict: FramingVerdict;
+  } | null>(null);
+  // Only the verdict for the current url counts, so a url change shows the check again.
+  const verdict = checked?.url === url ? checked.verdict : null;
   // A string key so a fresh array from the permissions listener doesn't re-run the check.
   const allowKey = (embedConfig?.whitelistUrls ?? []).join('\n');
 
-  const place = useEffectEvent((next: FramingVerdict) => {
-    setVerdict(next);
-    if (next.status !== 'refused') onPlace(buildEmbedReference(url, title));
+  const runCheck = useEffectEvent((allowListedHosts: string[]) =>
+    checkReferenceFraming(url, { allowListedHosts, check })
+  );
+  const place = useEffectEvent((checkedUrl: string, next: FramingVerdict) => {
+    // The first verdict for a url wins, so a later allowlist update never places a second Embed.
+    if (checked?.url === checkedUrl) return;
+    setChecked({ url: checkedUrl, verdict: next });
+    if (next.status !== 'refused')
+      onPlace(buildEmbedReference(checkedUrl, title));
   });
 
   useEffect(() => {
     if (isLoading) return;
     let cancelled = false;
-    const allowListedHosts = allowKey ? allowKey.split('\n') : [];
-    void checkReferenceFraming(url, { allowListedHosts, check }).then(
-      (next) => {
-        if (!cancelled) place(next);
-      }
-    );
+    void runCheck(allowKey ? allowKey.split('\n') : []).then((next) => {
+      if (!cancelled) place(url, next);
+    });
     return () => {
       cancelled = true;
     };
-  }, [url, allowKey, check, isLoading]);
+  }, [url, allowKey, isLoading]);
 
   if (verdict?.status !== 'refused') {
     return (
@@ -87,8 +95,11 @@ export const ReferenceEmbedStep: React.FC<ReferenceEmbedStepProps> = ({
         This page can&apos;t show inside SpartBoard
       </h3>
       <p className="max-w-sm text-sm leading-relaxed text-slate-600">
-        {hostOf(url)} blocks other sites from showing its pages, so an Embed
-        would stay blank.
+        {verdict.cause === 'blocked' &&
+          `${hostOf(url)} blocks other sites from showing its pages, so an Embed would stay blank.`}
+        {verdict.cause === 'insecure' &&
+          'This page uses an older, unsecured address, so browsers won’t show it inside SpartBoard.'}
+        {verdict.cause === 'invalid' && 'This doesn’t look like a web address.'}
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
         <Button
@@ -98,13 +109,15 @@ export const ReferenceEmbedStep: React.FC<ReferenceEmbedStepProps> = ({
         >
           Convert instead
         </Button>
-        <Button
-          variant="secondary"
-          {...tourAttr('import.reference.add-link')}
-          onClick={() => onPlace(buildLinkReference(url, title))}
-        >
-          Add as a link
-        </Button>
+        {verdict.cause !== 'invalid' && (
+          <Button
+            variant="secondary"
+            {...tourAttr('import.reference.add-link')}
+            onClick={() => onPlace(buildLinkReference(url, title))}
+          >
+            Add as a link
+          </Button>
+        )}
         <Button
           variant="ghost"
           {...tourAttr('import.reference.cancel')}
