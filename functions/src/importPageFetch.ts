@@ -8,11 +8,7 @@ import {
   resolveAndValidateHost,
   type ResolvedAddress,
 } from './ssrfGuard';
-import {
-  decodeHtmlEntities,
-  extractMetaContent,
-  extractTitleTag,
-} from './linkPreview';
+import { decodeHtmlEntities } from './linkPreview';
 import { isDistrictStaffToken } from './districtStaff';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import { isUrlBlocked, resolveBlockPatterns } from './sendBlockList';
@@ -23,8 +19,8 @@ const FEATURE_ID = 'universal-import';
 const BLOCK_LIST_DOC = 'import_send_block_list';
 const MAX_REDIRECTS = 3;
 const MAX_RESPONSE_BYTES = 1_048_576;
-// Title tags are read from the head only; a page without one gets this much.
-const HEAD_SCAN_CHARS = 65_536;
+// Whole-call budget across redirect hops, under the 40 s function timeout.
+const TOTAL_FETCH_MS = 25_000;
 const FETCH_TIMEOUT_MS = 8_000;
 // Under the importInboxV1 caps, so a fetched page can be sent on as-is.
 const MAX_BLOCKS = 1_500;
@@ -81,7 +77,7 @@ const SIGN_IN_HOSTS = new Set([
   'launchpad.classlink.com',
 ]);
 
-/** True when a redirect target is a sign-in page rather than content. */
+/** True when a URL is a sign-in page rather than content. */
 export function looksLikeSignInUrl(url: URL): boolean {
   return (
     SIGN_IN_HOSTS.has(url.hostname.toLowerCase()) ||
@@ -89,8 +85,8 @@ export function looksLikeSignInUrl(url: URL): boolean {
   );
 }
 
-// Elements whose contents never reach a Source; forms go whole so no field value can leak.
-const DROP_WITH_CONTENT = [
+// Elements whose contents never reach a page; forms go whole so no field value can leak.
+const DROP_WITH_CONTENT = new Set([
   'script',
   'style',
   'noscript',
@@ -107,128 +103,166 @@ const DROP_WITH_CONTENT = [
   'footer',
   'aside',
   'head',
-];
-const BLOCK_TAG =
-  /<(\/?)(h[1-6]|p|div|section|article|main|li|ul|ol|dl|blockquote|pre|tr|td|th|dt|dd|figure|figcaption|br|hr|table)\b[^>]*>/gi;
+]);
+// Void form fields carry values in attributes; they are skipped too.
+const FORM_FIELDS = new Set(['input', 'option']);
+const BLOCK_TAGS = new Set([
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'p',
+  'div',
+  'section',
+  'article',
+  'main',
+  'li',
+  'ul',
+  'ol',
+  'dl',
+  'blockquote',
+  'pre',
+  'tr',
+  'td',
+  'th',
+  'dt',
+  'dd',
+  'figure',
+  'figcaption',
+  'br',
+  'hr',
+  'table',
+]);
 
-const isNameEnd = (ch: string | undefined): boolean =>
-  ch === undefined || !/[a-z0-9-]/i.test(ch);
-
-/** Linear scan for `<tag` (whole name) at or after `from` in a lower-cased copy. */
-function findOpen(lower: string, tag: string, from: number): number {
-  let at = lower.indexOf(`<${tag}`, from);
-  while (at >= 0 && !isNameEnd(lower[at + tag.length + 1]))
-    at = lower.indexOf(`<${tag}`, at + 1);
-  return at;
+interface TagToken {
+  kind: 'tag';
+  name: string;
+  closing: boolean;
+  raw: string;
+  start: number;
+  end: number;
 }
+type Token = TagToken | { kind: 'text'; text: string };
+
+const TAG_NAME = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)/y;
 
 /**
- * Cuts every `<tag ...>...</tag>` with plain indexOf, so hostile HTML costs one pass per tag name.
- * An element with no closer runs to the end of the page and is cut whole.
+ * One left-to-right pass over the HTML, so hostile markup costs linear time. Quotes are honoured only
+ * after `=`, a tag with no `>` ends the page, and comments are skipped. Text never comes from attributes.
  */
-function dropElements(html: string, tags: readonly string[]): string {
-  let out = html;
-  for (const tag of tags) {
-    const lower = out.toLowerCase();
-    const parts: string[] = [];
-    let pos = 0;
-    for (let at = findOpen(lower, tag, 0); at >= 0;) {
-      parts.push(out.slice(pos, at), ' ');
-      const close = lower.indexOf(`</${tag}`, at);
-      if (close < 0) {
-        pos = out.length;
-        break;
-      }
-      const end = lower.indexOf('>', close);
-      pos = end < 0 ? out.length : end + 1;
-      at = findOpen(lower, tag, pos);
+function tokenize(html: string): Token[] {
+  const tokens: Token[] = [];
+  const len = html.length;
+  let i = 0;
+  while (i < len) {
+    const lt = html.indexOf('<', i);
+    if (lt < 0) {
+      tokens.push({ kind: 'text', text: html.slice(i) });
+      break;
     }
-    parts.push(out.slice(pos));
-    out = parts.join('');
+    if (lt > i) tokens.push({ kind: 'text', text: html.slice(i, lt) });
+    if (html.startsWith('<!--', lt)) {
+      const end = html.indexOf('-->', lt + 4);
+      i = end < 0 ? len : end + 3;
+      continue;
+    }
+    TAG_NAME.lastIndex = lt;
+    const m = TAG_NAME.exec(html);
+    if (!m) {
+      // A `<!doctype`, `<?xml` or stray `<`: skip to its `>` without reading it as text.
+      const gt = html.indexOf('>', lt);
+      if (html[lt + 1] === '!' || html[lt + 1] === '?') {
+        i = gt < 0 ? len : gt + 1;
+      } else {
+        tokens.push({ kind: 'text', text: '<' });
+        i = lt + 1;
+      }
+      continue;
+    }
+    let j = lt + m[0].length;
+    let quote: string | null = null;
+    let afterEquals = false;
+    for (; j < len; j += 1) {
+      const c = html[j];
+      if (quote) {
+        if (c === quote) quote = null;
+      } else if (c === '>') {
+        break;
+      } else if ((c === '"' || c === "'") && afterEquals) {
+        quote = c;
+      }
+      if (c === '=') afterEquals = true;
+      else if (c !== ' ' && c !== '\t' && c !== '\n' && c !== '\r')
+        afterEquals = false;
+    }
+    if (j >= len) break;
+    tokens.push({
+      kind: 'tag',
+      name: m[2].toLowerCase(),
+      closing: m[1] === '/',
+      raw: html.slice(lt, j + 1),
+      start: lt,
+      end: j + 1,
+    });
+    i = j + 1;
+  }
+  return tokens;
+}
+
+const ATTR = /([^\s"'<>/=]+)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+
+/** Attributes of one tag token; its quotes are balanced by tokenize, so this stays linear. */
+function attrsOf(raw: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const inner = raw.replace(/^<\/?[a-zA-Z][a-zA-Z0-9-]*/, '').replace(/>$/, '');
+  for (const m of inner.matchAll(ATTR)) {
+    const name = m[1].toLowerCase();
+    if (!out.has(name))
+      out.set(name, decodeHtmlEntities(m[2] ?? m[3] ?? m[4] ?? '').trim());
   }
   return out;
 }
 
-function stripComments(html: string): string {
-  const parts: string[] = [];
-  let pos = 0;
-  for (let at = html.indexOf('<!--'); at >= 0;) {
-    parts.push(html.slice(pos, at), ' ');
-    const end = html.indexOf('-->', at + 4);
-    pos = end < 0 ? html.length : end + 3;
-    at = end < 0 ? -1 : html.indexOf('<!--', pos);
+/** Tokens inside the first element of `tag`, matched by depth; null when there is none. */
+function elementTokens(tokens: Token[], tag: string): Token[] | null {
+  const open = tokens.findIndex(
+    (t) => t.kind === 'tag' && t.name === tag && !t.closing
+  );
+  if (open < 0) return null;
+  let depth = 1;
+  for (let k = open + 1; k < tokens.length; k += 1) {
+    const t = tokens[k];
+    if (t.kind !== 'tag' || t.name !== tag) continue;
+    depth += t.closing ? -1 : 1;
+    if (depth === 0) return tokens.slice(open + 1, k);
   }
-  parts.push(html.slice(pos));
-  return parts.join('');
+  return tokens.slice(open + 1);
 }
 
-function stripElements(html: string): string {
-  const out = dropElements(stripComments(html), DROP_WITH_CONTENT);
-  // Void form fields carry values in attributes; drop them too.
-  return out.replace(/<(?:input|option)\b[^>]*>/gi, ' ');
+interface Read {
+  blocks: FetchedBlock[];
+  images: FetchedPage['images'];
 }
 
-/** Inner HTML of the first article, main or body with text in it; linear like dropElements. */
-function pickRegion(html: string): string {
-  const lower = html.toLowerCase();
-  for (const tag of ['article', 'main', 'body']) {
-    const at = findOpen(lower, tag, 0);
-    if (at < 0) continue;
-    const start = lower.indexOf('>', at);
-    if (start < 0) continue;
-    const close = lower.indexOf(`</${tag}`, start);
-    const inner = html.slice(start + 1, close < 0 ? html.length : close);
-    if (inner.replace(/<[^>]*>/g, '').trim()) return inner;
-  }
-  return html;
-}
-
-const attr = (tag: string, name: string): string | null => {
-  const m = new RegExp(
-    `\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`,
-    'i'
-  ).exec(tag);
-  return m ? decodeHtmlEntities(m[1] ?? m[2] ?? m[3] ?? '').trim() : null;
-};
-
-function extractImages(region: string, base: URL): FetchedPage['images'] {
+/** Reads blocks and images from tokens, skipping dropped elements (an unclosed one runs to the end). */
+function readTokens(tokens: Token[], base: URL): Read {
+  const blocks: FetchedBlock[] = [];
   const images: FetchedPage['images'] = [];
   const seen = new Set<string>();
-  for (const [tag] of region.matchAll(/<img\b[^>]*>/gi)) {
-    const raw = attr(tag, 'src');
-    if (!raw) continue;
-    let url: URL;
-    try {
-      url = new URL(raw, base);
-    } catch {
-      continue;
-    }
-    if (url.protocol !== 'https:' || seen.has(url.href)) continue;
-    if (url.href.length > 2_048) continue;
-    seen.add(url.href);
-    const alt = attr(tag, 'alt')?.slice(0, 500);
-    images.push(alt ? { url: url.href, alt } : { url: url.href });
-    if (images.length >= MAX_IMAGES) break;
-  }
-  return images;
-}
-
-const cleanText = (html: string): string =>
-  decodeHtmlEntities(html.replace(/<[^>]*>/g, ' '))
-    .replace(/\s+/g, ' ')
-    .trim();
-
-/** Splits the region at block tags; headings, list items and quotes keep their type. */
-function extractBlocks(region: string): FetchedBlock[] {
-  const blocks: FetchedBlock[] = [];
   let total = 0;
   let quoteDepth = 0;
   let current: { type: FetchedBlock['type']; level: number } = {
     type: 'paragraph',
     level: 0,
   };
-  const flush = (chunk: string) => {
-    const text = cleanText(chunk);
+  let buffer: string[] = [];
+  const flush = () => {
+    const text = decodeHtmlEntities(buffer.join(' '))
+      .replace(/\s+/g, ' ')
+      .trim();
+    buffer = [];
     const room = Math.min(MAX_BLOCK_CHARS, MAX_TEXT_CHARS - total);
     if (!text || room <= 0 || blocks.length >= MAX_BLOCKS) return;
     const kept = text.slice(0, room);
@@ -244,50 +278,128 @@ function extractBlocks(region: string): FetchedBlock[] {
         text: kept,
       });
   };
-  let last = 0;
-  for (const m of region.matchAll(BLOCK_TAG)) {
-    flush(region.slice(last, m.index));
-    last = (m.index ?? 0) + m[0].length;
-    const closing = m[1] === '/';
-    const tag = m[2].toLowerCase();
-    if (tag === 'blockquote') {
-      quoteDepth = Math.max(0, quoteDepth + (closing ? -1 : 1));
+  const addImage = (raw: string) => {
+    const attrs = attrsOf(raw);
+    const src = attrs.get('src');
+    if (!src || images.length >= MAX_IMAGES) return;
+    let url: URL;
+    try {
+      url = new URL(src, base);
+    } catch {
+      return;
+    }
+    if (url.protocol !== 'https:' || seen.has(url.href)) return;
+    if (url.href.length > 2_048) return;
+    seen.add(url.href);
+    const alt = attrs.get('alt')?.slice(0, 500);
+    images.push(alt ? { url: url.href, alt } : { url: url.href });
+  };
+
+  let skip: string | null = null;
+  let skipDepth = 0;
+  for (const t of tokens) {
+    if (skip !== null) {
+      if (t.kind === 'tag' && t.name === skip) {
+        skipDepth += t.closing ? -1 : 1;
+        if (skipDepth === 0) skip = null;
+      }
+      continue;
+    }
+    if (t.kind === 'text') {
+      buffer.push(t.text);
+      continue;
+    }
+    if (DROP_WITH_CONTENT.has(t.name)) {
+      if (!t.closing) {
+        flush();
+        skip = t.name;
+        skipDepth = 1;
+      }
+      continue;
+    }
+    if (FORM_FIELDS.has(t.name)) continue;
+    if (t.name === 'img') {
+      if (!t.closing) addImage(t.raw);
+      continue;
+    }
+    if (!BLOCK_TAGS.has(t.name)) continue;
+    flush();
+    if (t.name === 'blockquote') {
+      quoteDepth = Math.max(0, quoteDepth + (t.closing ? -1 : 1));
       current = { type: 'paragraph', level: 0 };
-    } else if (!closing && /^h[1-6]$/.test(tag)) {
-      current = { type: 'heading', level: Number(tag[1]) };
-    } else if (!closing && tag === 'li') {
+    } else if (!t.closing && /^h[1-6]$/.test(t.name)) {
+      current = { type: 'heading', level: Number(t.name[1]) };
+    } else if (!t.closing && t.name === 'li') {
       current = { type: 'listItem', level: 0 };
-    } else if (closing || tag !== 'br') {
+    } else if (t.closing || t.name !== 'br') {
       current = { type: 'paragraph', level: 0 };
     }
   }
-  flush(region.slice(last));
-  return blocks;
+  flush();
+  return { blocks, images };
 }
 
+function readTitle(tokens: Token[]): string {
+  let title = '';
+  for (let k = 0; k < tokens.length; k += 1) {
+    const t = tokens[k];
+    if (t.kind !== 'tag' || t.closing) continue;
+    if (t.name === 'body') break;
+    if (t.name === 'meta') {
+      const attrs = attrsOf(t.raw);
+      const key = (
+        attrs.get('property') ??
+        attrs.get('name') ??
+        ''
+      ).toLowerCase();
+      const content = attrs.get('content');
+      if (key === 'og:title' && content) return content;
+    } else if (t.name === 'title' && !title) {
+      const next = tokens[k + 1];
+      if (next?.kind === 'text')
+        title = decodeHtmlEntities(next.text).replace(/\s+/g, ' ').trim();
+    }
+  }
+  return title;
+}
+
+const hasPasswordField = (tokens: Token[]): boolean =>
+  tokens.some(
+    (t) =>
+      t.kind === 'tag' &&
+      t.name === 'input' &&
+      attrsOf(t.raw).get('type')?.toLowerCase() === 'password'
+  );
+
 /** The generic read of a fetched HTML page: title, main-content blocks and image URLs, never form values. */
-export function htmlToPage(rawHtml: string, pageUrl: URL): FetchedPage {
-  // Every `<` now has a `>` after it, so the `<[^>]*>` scans below never rescan to the end.
-  const html = rawHtml.slice(0, rawHtml.lastIndexOf('>') + 1);
-  const headEnd = html.toLowerCase().indexOf('</head');
-  const head = html.slice(0, headEnd < 0 ? HEAD_SCAN_CHARS : headEnd);
-  const title =
-    extractMetaContent(head, 'og:title') ?? extractTitleTag(head) ?? '';
-  const region = pickRegion(stripElements(html));
+export function htmlToPage(html: string, pageUrl: URL): FetchedPage {
+  const tokens = tokenize(html);
+  let read: Read = { blocks: [], images: [] };
+  for (const tag of ['article', 'main', 'body']) {
+    const inner = elementTokens(tokens, tag);
+    if (!inner) continue;
+    read = readTokens(inner, pageUrl);
+    if (read.blocks.length > 0) break;
+  }
+  if (read.blocks.length === 0) read = readTokens(tokens, pageUrl);
   return {
     url: pageUrl.href,
-    title: (title || pageUrl.hostname).slice(0, MAX_TITLE_CHARS),
+    title: (readTitle(tokens) || pageUrl.hostname).slice(0, MAX_TITLE_CHARS),
     platform: 'generic',
     selectionOnly: false,
-    blocks: extractBlocks(region),
-    images: extractImages(region, pageUrl),
+    blocks: read.blocks,
+    images: read.images,
   };
 }
 
-const hasPasswordField = (html: string): boolean =>
-  /<input\b[^>]*type\s*=\s*["']?password/i.test(
-    html.slice(0, html.lastIndexOf('>') + 1)
+/** True for a page whose only job is signing in: a password box and little else. */
+export function looksLikeSignInPage(html: string, page: FetchedPage): boolean {
+  const textLength = page.blocks.reduce(
+    (n, b) => n + ('text' in b ? b.text.length : 0),
+    0
   );
+  return textLength < 600 && hasPasswordField(tokenize(html));
+}
 
 /** Follows redirects hop by hop, checking the block list and sign-in pages at every hop. */
 export async function fetchImportPage(
@@ -304,11 +416,18 @@ export async function fetchImportPage(
     throw new HttpsError('invalid-argument', 'Only web addresses are allowed.');
   // Plain http is upgraded; the fetch itself is always https.
   if (current.protocol === 'http:') current.protocol = 'https:';
+  const deadline = Date.now() + TOTAL_FETCH_MS;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    // Credentials and fragments never travel or come back.
+    current.username = '';
+    current.password = '';
+    current.hash = '';
     if (await deps.isBlocked(current.href)) return { status: 'blocked' };
-    if (hop > 0 && looksLikeSignInUrl(current))
+    if (looksLikeSignInUrl(current))
       return { status: 'use-extension', reason: 'sign-in' };
+    if (Date.now() >= deadline)
+      return { status: 'use-extension', reason: 'unreachable' };
 
     let response: FetchedResponse;
     try {
@@ -346,11 +465,7 @@ export async function fetchImportPage(
       };
 
     const page = htmlToPage(response.body, current);
-    const textLength = page.blocks.reduce(
-      (n, b) => n + ('text' in b ? b.text.length : 0),
-      0
-    );
-    if (hasPasswordField(response.body) && textLength < 600)
+    if (looksLikeSignInPage(response.body, page))
       return { status: 'use-extension', reason: 'sign-in' };
     if (page.blocks.length === 0 && page.images.length === 0)
       return { status: 'use-extension', reason: 'no-content' };
@@ -374,6 +489,8 @@ async function fetchOnceGuarded(url: URL): Promise<FetchedResponse> {
     maxBodyLength: MAX_RESPONSE_BYTES,
     maxRedirects: 0,
     timeout: FETCH_TIMEOUT_MS,
+    // A total cap per hop; `timeout` alone resets on every slow byte.
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     responseType: 'text',
     validateStatus: () => true,
     headers: {
@@ -411,7 +528,13 @@ function isRateLimited(uid: string, now: number): boolean {
 }
 
 export const fetchImportPageV1 = onCall(
-  { memory: '256MiB', timeoutSeconds: 40, cors: ALLOWED_ORIGINS },
+  {
+    memory: '256MiB',
+    timeoutSeconds: 40,
+    // The rate limit is per instance, so few instances keep it meaningful.
+    maxInstances: 5,
+    cors: ALLOWED_ORIGINS,
+  },
   async (request): Promise<ImportPageFetchResult> => {
     assertViewAsAllowed(request, { read: true });
     if (!request.auth)
@@ -429,14 +552,14 @@ export const fetchImportPageV1 = onCall(
       ));
     if (!granted)
       throw new HttpsError('permission-denied', 'Import is not turned on.');
+    const url = (request.data as { url?: unknown } | null)?.url;
+    if (typeof url !== 'string' || !url || url.length > 2_048)
+      throw new HttpsError('invalid-argument', 'A url string is required.');
     if (isRateLimited(request.auth.uid, Date.now()))
       throw new HttpsError(
         'resource-exhausted',
         'Too many pages imported. Try again in a few minutes.'
       );
-    const url = (request.data as { url?: unknown } | null)?.url;
-    if (typeof url !== 'string' || !url || url.length > 2_048)
-      throw new HttpsError('invalid-argument', 'A url string is required.');
 
     const blockSnap = await db
       .collection('admin_settings')

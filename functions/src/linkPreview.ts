@@ -115,10 +115,7 @@ export function decodeHtmlEntities(value: string): string {
   );
 }
 
-export function extractMetaContent(
-  html: string,
-  propOrName: string
-): string | null {
+function extractMetaContent(html: string, propOrName: string): string | null {
   const want = propOrName.toLowerCase();
   // Quote-aware tag and attribute scan, so `'` in a "..." value (and `>` in either) survives.
   const tagRe = /<meta\b((?:"[^"]*"|'[^']*'|[^>"'])*)>/gi;
@@ -142,7 +139,7 @@ export function extractMetaContent(
   return null;
 }
 
-export function extractTitleTag(html: string): string | null {
+function extractTitleTag(html: string): string | null {
   const match = /<title[^>]*>([^<]*)<\/title>/i.exec(html);
   return match ? decodeHtmlEntities(match[1]).trim() : null;
 }

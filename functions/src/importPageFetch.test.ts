@@ -110,6 +110,30 @@ describe('htmlToPage', () => {
     expect(page.blocks).toEqual([{ type: 'paragraph', text: 'Quiz intro' }]);
   });
 
+  it('keeps form text out even when the markup is broken', () => {
+    const page = htmlToPage(
+      `<body><p>Keep</p><input value="a > SECRETVAL"><p title="x>ATTR">Shown</p>
+       <textarea>TAREA secret after`,
+      new URL('https://example.org/')
+    );
+    expect(JSON.stringify(page)).not.toMatch(/SECRETVAL|ATTR|TAREA|secret/);
+    expect(page.blocks).toEqual([
+      { type: 'paragraph', text: 'Keep' },
+      { type: 'paragraph', text: 'Shown' },
+    ]);
+  });
+
+  it('reads text after an apostrophe in an unquoted attribute', () => {
+    const page = htmlToPage(
+      "<body><p class=it's>One</p><p>Two</p></body>",
+      new URL('https://example.org/')
+    );
+    expect(page.blocks.map((b) => ('text' in b ? b.text : ''))).toEqual([
+      'One',
+      'Two',
+    ]);
+  });
+
   it('drops scripts and styles and prefers og:title', () => {
     const page = htmlToPage(
       html(
@@ -133,6 +157,9 @@ describe('hostile HTML stays linear', () => {
     ['unclosed meta quotes', '<meta "'],
     ['unclosed articles', '<article>'],
     ['unclosed inputs', '<input type=text '],
+    ['stray brackets', '<'],
+    ['open quotes', '<p title="'],
+    ['unclosed paragraphs', '<p '],
   ])('%s', (_label, unit) => {
     const body = unit.repeat(Math.floor(MB / unit.length));
     const started = performance.now();
@@ -159,6 +186,21 @@ describe('fetchImportPage', () => {
       status: 'ok',
       page: { url: 'https://example.org/a', title: 'Cells' },
     });
+  });
+
+  it('never sends or returns credentials or a fragment', async () => {
+    const d = deps({ 'https://example.org/a': ok(html('<p>Hi</p>')) });
+    const result = await fetchImportPage('https://u:p@example.org/a#x', d);
+    expect(d.fetched).toEqual(['https://example.org/a']);
+    expect(result).toMatchObject({ page: { url: 'https://example.org/a' } });
+  });
+
+  it('says to use the extension for a pasted sign-in link', async () => {
+    const d = deps({});
+    expect(
+      await fetchImportPage('https://accounts.google.com/signin', d)
+    ).toEqual({ status: 'use-extension', reason: 'sign-in' });
+    expect(d.fetched).toEqual([]);
   });
 
   it('upgrades http to https', async () => {
