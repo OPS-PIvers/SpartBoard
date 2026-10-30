@@ -89,7 +89,7 @@ ${describeWidgets(allowed)}
 
           Return JSON: { "templateId": "...", "slots": [{ "zoneId": "...", "widgetType": "...", "config": {} }] }
 
-          Example Payload for a 'Review Game':
+          Example Payload for a 'Review Game' (shows the format only; use only the widgets listed above):
           {
             "templateId": "review-game",
             "slots": [
@@ -100,6 +100,12 @@ ${describeWidgets(allowed)}
         `;
 
 const KNOWN_WIDGETS = new Set(WIDGET_TYPE_LIST);
+
+// Every widget the prompt can name, in its list or in a zone's suggestions.
+const OFFERED_WIDGETS = new Set<string>([
+  ...PROMPT_WIDGETS.map(([type]) => type),
+  ...BOARD_TEMPLATES.flatMap((t) => t.slots.flatMap((s) => s.suggestedWidgets)),
+]);
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
@@ -117,7 +123,7 @@ export const readAllowedWidgets = (raw: unknown): Set<string> | null => {
   for (const type of raw as unknown[]) {
     if (typeof type === 'string' && KNOWN_WIDGETS.has(type)) allowed.add(type);
   }
-  if (allowed.size === 0) {
+  if (![...allowed].some((type) => OFFERED_WIDGETS.has(type))) {
     throw new HttpsError(
       'failed-precondition',
       'No widgets are available to build a board with.'

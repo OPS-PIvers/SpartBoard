@@ -633,6 +633,12 @@ export const generateWithAI = onCall(
       .toLowerCase()
       .trim();
     const specificFeatureId = specificFeatureIdFor(genType, data?.source);
+    const templateLayout =
+      genType === 'dashboard-layout' && data?.layoutMode === 'templates';
+    // Checked before usage is charged, so a bad list costs no generation.
+    const allowedWidgets = templateLayout
+      ? readAllowedWidgets(data?.allowedWidgets)
+      : null;
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -834,12 +840,6 @@ export const generateWithAI = onCall(
               maxInputChars
             )
           : null;
-      const templateLayout =
-        genType === 'dashboard-layout' && data?.layoutMode === 'templates';
-      const allowedWidgets = templateLayout
-        ? readAllowedWidgets(data?.allowedWidgets)
-        : null;
-
       const promptMap: Record<
         string,
         () => { systemPrompt: string; userPrompt: string }

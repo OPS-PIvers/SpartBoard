@@ -107,6 +107,7 @@ describe('readAllowedWidgets', () => {
   it('refuses a list with no usable widget', () => {
     expect(() => readAllowedWidgets([])).toThrow();
     expect(() => readAllowedWidgets(['made-up'])).toThrow();
+    expect(() => readAllowedWidgets(['soundboard'])).toThrow();
   });
 });
 
