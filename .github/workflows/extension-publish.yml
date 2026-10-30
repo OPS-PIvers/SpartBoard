@@ -27,13 +27,7 @@ jobs:
       group: ${{ github.workflow }}-prod
       cancel-in-progress: false
     timeout-minutes: 30
-    env:
-      CWS_ENVIRONMENT: chrome-web-store-dev
-      SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID }}
-      CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
-      CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
-      CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
-      CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+    # Only the steps that call the Web Store get the secrets (step env below), not the install or build.
     steps:
       - name: Refuse any ref but main
         if: github.ref != 'refs/heads/main'
@@ -56,6 +50,12 @@ jobs:
         working-directory: extension
         env:
           BEFORE: ${{ github.event.before }}
+          CWS_ENVIRONMENT: chrome-web-store-dev
+          SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" == push && -n "$BEFORE" && ! "$BEFORE" =~ ^0+$ ]] && git fetch -q --depth=1 origin "$BEFORE"; then
             export PREVIOUS_VERSION=$(git show "$BEFORE:extension/manifest.json" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).version??"")}catch{console.log("")}})')
@@ -75,11 +75,25 @@ jobs:
         if: steps.check.outputs.publish == 'true'
         continue-on-error: true
         working-directory: extension
+        env:
+          CWS_ENVIRONMENT: chrome-web-store-dev
+          SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
         run: node scripts/publish.ts prod
 
       - name: Try once more after two minutes
         if: steps.upload.outcome == 'failure'
         working-directory: extension
+        env:
+          CWS_ENVIRONMENT: chrome-web-store-dev
+          SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
         run: |
           sleep 120
           node scripts/publish.ts prod --check
