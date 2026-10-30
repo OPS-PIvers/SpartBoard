@@ -94,7 +94,8 @@ async function tokenEmail(
         return info;
       },
     },
-    FOCUS_STUDENT_EMAIL_DOMAIN,
+    // Staff-domain accounts pass here only to reach a mock class; studentUid refuses them anything else.
+    [FOCUS_STUDENT_EMAIL_DOMAIN, DISTRICT_DOMAIN],
     SIGN_IN
   );
   tokenCache.set(key, {
@@ -104,7 +105,9 @@ async function tokenEmail(
   return email;
 }
 
-/** The student's pseudonym uid, or null when they aren't on a roster or a mock class. */
+const isStaffEmail = (email: string) => email.endsWith(`@${DISTRICT_DOMAIN}`);
+
+/** The student's pseudonym uid, or null when they aren't on a roster or a mock class; a staff-domain test account only through a mock class. */
 async function studentUid(
   db: Firestore,
   email: string,
@@ -131,7 +134,8 @@ async function studentUid(
         // Access-token tokeninfo has no `hd`; students sit in the district Workspace, which studentLoginV1 sees as `hd`.
         { email, hd: DISTRICT_DOMAIN },
         secrets,
-        'focusStudent'
+        'focusStudent',
+        isStaffEmail(email)
       )
     ).uid;
   } catch (err) {
@@ -301,6 +305,9 @@ const studentEndpoint = (handler: Handler) =>
           now
         );
         const uid = await studentUid(db, email, now);
+        // A staff profile is never a student unless an admin put it in a mock class (F3).
+        if (!uid && isStaffEmail(email))
+          throw new FocusCallError(403, "You aren't in a focus session.");
         res.json(await handler(req.body, uid, firestoreStore(db), now));
       } catch (error) {
         if (

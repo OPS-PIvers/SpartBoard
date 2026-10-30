@@ -1,10 +1,11 @@
-// The student endpoints' outer checks: method, Chrome token, student domain, roster lookup and error bodies.
+// The student endpoints' outer checks: method, Chrome token, student or mock-class staff domain, roster lookup and error bodies.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 interface Hoisted {
   tokenInfo: Record<string, unknown> | null;
   lookups: number;
-  lookup: 'roster' | 'not-in-roster' | 'roster-unavailable';
+  lookup: 'roster' | 'test' | 'not-in-roster' | 'roster-unavailable';
+  mockOnly: boolean[];
   sessions: Array<{ id: string; data: Record<string, unknown> }>;
   errors: unknown[][];
 }
@@ -13,6 +14,7 @@ const h = vi.hoisted((): Hoisted => ({
   tokenInfo: null,
   lookups: 0,
   lookup: 'roster',
+  mockOnly: [],
   sessions: [],
   errors: [],
 }));
@@ -48,8 +50,25 @@ vi.mock('../studentEmailIdentity', async () => {
   >('../studentEmailIdentity');
   return {
     ...actual,
-    resolveStudentByEmail: () => {
+    resolveStudentByEmail: (
+      _db: unknown,
+      _verified: unknown,
+      _secrets: unknown,
+      _tag: string,
+      mockClassesOnly = false
+    ) => {
       h.lookups++;
+      h.mockOnly.push(mockClassesOnly);
+      if (h.lookup === 'test')
+        return Promise.resolve({
+          kind: 'test',
+          orgId: 'orono',
+          uid: 'test-uid',
+          mockClassIds: ['mock-period-1'],
+        });
+      // Mock classes only: a roster student is never looked up in ClassLink.
+      if (mockClassesOnly)
+        return Promise.reject(new actual.StudentLookupError('not-in-roster'));
       if (h.lookup !== 'roster')
         return Promise.reject(new actual.StudentLookupError(h.lookup));
       return Promise.resolve({
@@ -121,6 +140,12 @@ const call = async (
 
 let tokenCounter = 0;
 const freshToken = () => `Bearer tok-${++tokenCounter}`;
+const reportBody = {
+  sessionId: 's1',
+  protocol: 9,
+  status: 'on-task',
+  blockedTries: 0,
+};
 
 beforeEach(() => {
   process.env.GCLOUD_PROJECT = 'spartboard-dev';
@@ -132,6 +157,7 @@ beforeEach(() => {
   };
   h.lookup = 'roster';
   h.lookups = 0;
+  h.mockOnly = [];
   h.sessions = [];
   h.errors = [];
   vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
@@ -177,8 +203,55 @@ describe('focusStatusV1', () => {
     });
   });
 
-  it('refuses a staff token, another listing, and a missing token', async () => {
+  it('refuses a staff token outside a mock class without asking ClassLink', async () => {
     h.tokenInfo = { ...h.tokenInfo, email: 'teacher@orono.k12.mn.us' };
+    expect(
+      (await call(focusStatusV1, { protocol: 9 }, { auth: freshToken() }))
+        .status
+    ).toBe(403);
+    expect(
+      (await call(focusReportV1, reportBody, { auth: freshToken() })).status
+    ).toBe(403);
+    expect(h.mockOnly).toEqual([true]);
+  });
+
+  it('serves a staff-domain test account in a mock class', async () => {
+    h.lookup = 'test';
+    h.tokenInfo = { ...h.tokenInfo, email: 'sstudent25@orono.k12.mn.us' };
+    const now = Date.now();
+    h.sessions = [
+      {
+        id: 's1',
+        data: {
+          teacherName: 'Ms. Rivera',
+          level: 'redirect',
+          sites: [],
+          studentUids: ['test-uid'],
+          startedAt: now - 1000,
+          endsAt: now + 600_000,
+          endedAt: null,
+        },
+      },
+    ];
+    const r = await call(
+      focusStatusV1,
+      { protocol: 9 },
+      { auth: freshToken() }
+    );
+    expect(r).toMatchObject({
+      status: 200,
+      body: { session: { sessionId: 's1' } },
+    });
+    expect(h.mockOnly).toEqual([true]);
+  });
+
+  it('asks ClassLink for a student-domain account', async () => {
+    await call(focusStatusV1, { protocol: 9 }, { auth: freshToken() });
+    expect(h.mockOnly).toEqual([false]);
+  });
+
+  it('refuses another domain, another listing, and a missing token', async () => {
+    h.tokenInfo = { ...h.tokenInfo, email: 'kid@gmail.com' };
     expect(
       (await call(focusStatusV1, { protocol: 9 }, { auth: freshToken() }))
         .status

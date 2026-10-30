@@ -1,7 +1,7 @@
 // Chrome's side of the focus client: storage, alarms, badge, push and tabs.
 import type { FocusPushSubscription } from '@/utils/focus/contract';
 import { FOCUS_CHECK_MINUTES } from '@/utils/focus/contract';
-import type { FocusClientDeps, PushSent } from './focusClient';
+import type { FocusClientDeps, PushSent, StaffRefused } from './focusClient';
 import { ownPageUrls } from './chromeEnforce';
 import {
   FOCUS_ENDED_KEY,
@@ -13,6 +13,7 @@ export const FOCUS_CHECK_ALARM = 'focus-check';
 export const FOCUS_TICK_ALARM = 'focus-tick';
 export const FOCUS_PAGE_PATH = 'focus/index.html';
 const PUSH_SENT_KEY = 'focusPushSent';
+const STAFF_REFUSED_KEY = 'focusStaffRefused';
 const TRIES_KEY = 'focusTries';
 
 const keyBytes = (base64url: string) =>
@@ -73,6 +74,8 @@ export const chromeFocusDeps: Pick<
   | 'save'
   | 'loadPushSent'
   | 'savePushSent'
+  | 'loadStaffRefused'
+  | 'saveStaffRefused'
   | 'activeUrl'
   | 'openFocusPage'
   | 'setBadge'
@@ -98,6 +101,13 @@ export const chromeFocusDeps: Pick<
     (await chrome.storage.local.get(PUSH_SENT_KEY))[PUSH_SENT_KEY] as
       PushSent | undefined,
   savePushSent: (sent) => chrome.storage.local.set({ [PUSH_SENT_KEY]: sent }),
+  loadStaffRefused: async () =>
+    (await chrome.storage.local.get(STAFF_REFUSED_KEY))[STAFF_REFUSED_KEY] as
+      StaffRefused | undefined,
+  saveStaffRefused: (refused) =>
+    refused
+      ? chrome.storage.local.set({ [STAFF_REFUSED_KEY]: refused })
+      : chrome.storage.local.remove(STAFF_REFUSED_KEY),
   activeUrl: async () => {
     const [tab] = await chrome.tabs.query({
       active: true,

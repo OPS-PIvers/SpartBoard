@@ -229,7 +229,7 @@ chrome.webNavigation.onReferenceFragmentUpdated.addListener(
   }
 );
 
-// Focus sessions (CHROME_EXTENSION.md F3, F5): student profiles pull their session; staff never enforce.
+// Focus sessions (CHROME_EXTENSION.md F3, F5): student profiles pull their session; staff only as a mock-class test account.
 const scope = self as unknown as PushScope & {
   addEventListener(
     type: 'push' | 'pushsubscriptionchange',
@@ -419,6 +419,8 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   if (sender.id !== chrome.runtime.id || sender.tab) return false;
   const msg = parseFocusPanelMessage(message);
   if (!msg) return false;
+  // Opening the panel also pulls this profile's own session, so a student needn't wait for the 5-minute check.
+  if (msg.body.action === 'list') void focus.check();
   const answer = async (): Promise<FocusPanelReply> =>
     (await getChromeProfile()) === 'staff'
       ? // Only a button press may show Chrome's sign-in prompt; opening the panel lists quietly.
@@ -444,11 +446,11 @@ void chrome.alarms.get(TOUR_LIST_ALARM).then((alarm) => {
 });
 chrome.runtime.onStartup.addListener(() => {
   void tourList.refresh();
-  void focus.check();
+  void focus.check(true);
 });
 chrome.runtime.onInstalled.addListener(() => {
   void tourList.refresh();
-  void focus.check();
+  void focus.check(true);
 });
 chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   if (change.url !== undefined || change.status === 'complete')
@@ -470,7 +472,7 @@ scope.addEventListener('push', (event) => event.waitUntil(focus.check()));
 scope.addEventListener('pushsubscriptionchange', (event) =>
   event.waitUntil(focus.check())
 );
-chrome.identity.onSignInChanged.addListener(() => void focus.check());
+chrome.identity.onSignInChanged.addListener(() => void focus.check(true));
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   void focus.observe();
   void enforcer.tabShown(tabId);

@@ -9,6 +9,7 @@ import type { ApiResult } from '../spartboardApi';
 import {
   badgeText,
   isEnforcing,
+  isStaffEmail,
   isStudentEmail,
   liveHostFor,
   parseStatusReply,
@@ -22,8 +23,17 @@ export const TRIES_REPORT_GAP_MS = 5_000;
 /** A subscription already sent is sent again after this long, in case the server dropped it. */
 export const PUSH_RESEND_MS = 24 * 60 * 60_000;
 
+/** A staff profile the server refused is asked again after this long, or at once on start-up or sign-in. */
+export const STAFF_RECHECK_MS = 6 * 60 * 60_000;
+
 export interface PushSent {
   endpoint: string;
+  at: number;
+}
+
+/** The staff profile the server last said is no test student, and when. */
+export interface StaffRefused {
+  email: string;
   at: number;
 }
 
@@ -41,6 +51,8 @@ export interface FocusClientDeps {
   pushSubscription(): Promise<FocusPushSubscription | null>;
   loadPushSent(): Promise<PushSent | undefined>;
   savePushSent(sent: PushSent): Promise<void>;
+  loadStaffRefused(): Promise<StaffRefused | undefined>;
+  saveStaffRefused(refused: StaffRefused | null): Promise<void>;
   /** The address of the active tab in the last focused window. */
   activeUrl(): Promise<string | undefined>;
   /** Whether the student's window is fullscreen; Lock counts time outside it as away. */
@@ -133,8 +145,21 @@ export function createFocusClient(deps: FocusClientDeps) {
     if (recheck && isActiveFalse(res.value)) await check();
   };
 
-  const check = async () => {
-    if (!isStudentEmail(await deps.email().catch(() => undefined))) {
+  // A staff profile asks only now and then: the server answers for it only as a mock-class test account.
+  const mayAsk = async (email: string | undefined, fresh: boolean) => {
+    if (isStudentEmail(email)) return true;
+    if (!email || !isStaffEmail(email)) return false;
+    if (fresh) return true;
+    const refused = await deps.loadStaffRefused().catch(() => undefined);
+    return (
+      refused?.email !== email.toLowerCase() ||
+      deps.now() - refused.at >= STAFF_RECHECK_MS
+    );
+  };
+
+  const check = async (fresh = false) => {
+    const email = await deps.email().catch(() => undefined);
+    if (!(await mayAsk(email, fresh))) {
       if (await deps.load()) await clear();
       return;
     }
@@ -151,8 +176,14 @@ export function createFocusClient(deps: FocusClientDeps) {
         (res.why === 'signed-out' && !isEnforcing(prev, deps.now()));
       if (refused) await clear();
       else await redraw(prev);
+      if (res.why === 'no-access' && email && isStaffEmail(email))
+        await deps
+          .saveStaffRefused({ email: email.toLowerCase(), at: deps.now() })
+          .catch(() => undefined);
       return;
     }
+    if (isStaffEmail(email))
+      await deps.saveStaffRefused(null).catch(() => undefined);
     const reply = parseStatusReply(res.value);
     if (!reply) {
       await redraw(prev);
@@ -190,8 +221,8 @@ export function createFocusClient(deps: FocusClientDeps) {
   };
 
   return {
-    /** Pulls the session: on the 5-minute alarm, at browser start, on sign-in and on a push (F5). */
-    check: () => serial(check),
+    /** Pulls the session: on the 5-minute alarm, at browser start, on sign-in and on a push (F5); `fresh` asks for a refused staff profile too. */
+    check: (fresh = false) => serial(() => check(fresh)),
     /** Reports on a status change, or when a minute has passed since the last report. */
     observe: () => serial(() => observe(false)),
     /** Redirect or Lock sent a blocked navigation back (F4 Blocked tries). */
