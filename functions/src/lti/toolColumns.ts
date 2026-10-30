@@ -227,7 +227,6 @@ type ColumnResult =
     }
   | { kind: 'skip'; status: SectionStatus; reason: string };
 
-/** Find or create the section's column, keeping its total equal to `maxPoints`. */
 /** Publishes a linked section's shared column there (it starts hidden); true once done. */
 async function publishLinkedColumn(
   deps: ToolColumnDeps,
@@ -247,6 +246,7 @@ async function publishLinkedColumn(
   }
 }
 
+/** Find or create the section's column, keeping its total equal to `maxPoints`. */
 async function ensureColumn(
   deps: ToolColumnDeps,
   input: PushSectionInput,
@@ -266,7 +266,9 @@ async function ensureColumn(
         !existing.published &&
         (await publishLinkedColumn(deps, contextId, existing.lineitemUrl))
       ) {
-        await deps.store.markPublished(contextId);
+        await deps.store.markPublished(contextId).catch((err: unknown) => {
+          console.warn('[toolColumns] saving the publish flag failed:', err);
+        });
       }
       return { kind: 'ready', record: existing, created: false };
     }
