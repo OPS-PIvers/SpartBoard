@@ -50,6 +50,14 @@ Prod moved to the OPSTech billing account on 2026-10-01; a $30/mo budget and Big
 
 Each item names the plan it came from; the plan holds the detail.
 
+#### `docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md`
+
+- [ ] Upload extension 0.1.23 to the Chrome Web Store and stage it without auto-publish; publish after the `main` promotion that carries the inbox, banks and PR 5. (S)
+- [ ] Ask IT to force-install the extension once the store item is Published. (S)
+- [ ] Test in prod with `schoology-quiz-import` (admin): send a classic Test/Quiz, an Assessment, a classic bank and an item bank, the Materials/Resources checklists, and the From Schoology tile in both Import wizards; check the export-step wording against Schoology. (S)
+- [ ] Open Admin Settings > Access > Previews > "Send quizzes from Schoology" > Public; then add the changelog entry and retire `quiz-imscc-import` and `question-bank-imscc-import`. (S)
+- [ ] Tests/Quizzes saved in Resources get no Send button yet; probe one real Resources quiz page first (Paul sends a link). (M)
+
 #### `docs/plans/shipped/LIVE_TOUR_EDITOR.md`
 
 - [x] After the `main` release that carries PR 1: `node scripts/convert-tour-slides.mjs --project prod` (dry run), then with `--write --confirm-prod`. Moves each tour step's slide into its thumbnail. (S)

@@ -1,4 +1,4 @@
-// Firestore and Storage security-rules regression for the Schoology quiz import inbox (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8).
+// Firestore and Storage security-rules regression for the Schoology quiz import inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8).
 // Requires the Firestore and Storage emulators: `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';

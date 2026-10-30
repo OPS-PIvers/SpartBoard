@@ -345,6 +345,26 @@ describe('generateDashboardLayout with board templates', () => {
     expect(result.map((w) => w.type)).toEqual(['poll']);
   });
 
+  it('sends only the widget types the teacher can use', async () => {
+    const call = vi.fn().mockResolvedValue({
+      data: {
+        templateId: 'review-game',
+        slots: [{ zoneId: 'main', widgetType: 'poll', config: {} }],
+      },
+    });
+    vi.mocked(httpsCallable).mockImplementationOnce(() => call as never);
+    await generateDashboardLayout('Review', {
+      screen,
+      canUseWidget: (type) => type !== 'clock',
+    });
+    expect(call).toHaveBeenCalledWith({
+      type: 'dashboard-layout',
+      prompt: 'Review',
+      layoutMode: 'templates',
+      allowedWidgets: ['poll'],
+    });
+  });
+
   it('falls back to grid cells when the server answers the old way', async () => {
     const result = await generateDashboardLayout('old-server', { screen });
     expect(result).toEqual([{ type: 'clock', config: {} }]);

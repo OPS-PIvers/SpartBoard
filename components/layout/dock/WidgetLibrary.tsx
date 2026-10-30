@@ -347,13 +347,19 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               : window.innerHeight - r.top;
         setDockClearancePx(Math.max(0, Math.ceil(edge)) + 16);
       };
+      // The dock collapses and springs back with a transform transition, which ResizeObserver never sees.
+      const onTransitionEnd = (e: TransitionEvent) => {
+        if (e.target === dock) measure();
+      };
       measure();
       const observer = new ResizeObserver(measure);
       observer.observe(dock);
       window.addEventListener('resize', measure);
+      dock.addEventListener('transitionend', onTransitionEnd);
       return () => {
         observer.disconnect();
         window.removeEventListener('resize', measure);
+        dock.removeEventListener('transitionend', onTransitionEnd);
       };
     }, [large, dockPosition, triggerRef]);
 

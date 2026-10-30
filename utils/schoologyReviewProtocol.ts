@@ -1,4 +1,4 @@
-// What the Chrome extension uses to open SpartBoard's Schoology review (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8).
+// What the Chrome extension uses to open SpartBoard's Schoology review (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8).
 
 /** The URL parameter a new SpartBoard tab opens with. */
 export const SCHOOLOGY_REVIEW_PARAM = 'schoologyImport';

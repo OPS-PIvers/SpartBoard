@@ -33,6 +33,7 @@ import { isAiIntegrationId } from './aiIntegrations';
 import { DEFAULT_MAX_INPUT_CHARS, maxInputCharsFor } from './aiLimits';
 import {
   normalizeTemplateLayout,
+  readAllowedWidgets,
   templateLayoutSystemPrompt,
 } from './boardTemplateLayout';
 
@@ -60,6 +61,8 @@ interface AIData {
   html?: string;
   /** `dashboard-layout` only: answer with a board template instead of 12x12 grid cells. */
   layoutMode?: 'templates';
+  /** `dashboard-layout` template mode only: widget types the teacher can use. */
+  allowedWidgets?: unknown;
 }
 
 type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA';
@@ -630,6 +633,12 @@ export const generateWithAI = onCall(
       .toLowerCase()
       .trim();
     const specificFeatureId = specificFeatureIdFor(genType, data?.source);
+    const templateLayout =
+      genType === 'dashboard-layout' && data?.layoutMode === 'templates';
+    // Checked before usage is charged, so a bad list costs no generation.
+    const allowedWidgets = templateLayout
+      ? readAllowedWidgets(data?.allowedWidgets)
+      : null;
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -831,9 +840,6 @@ export const generateWithAI = onCall(
               maxInputChars
             )
           : null;
-      const templateLayout =
-        genType === 'dashboard-layout' && data?.layoutMode === 'templates';
-
       const promptMap: Record<
         string,
         () => { systemPrompt: string; userPrompt: string }
@@ -935,7 +941,7 @@ Worked example (flashcards app with a "Done" button):
         'dashboard-layout': () =>
           templateLayout
             ? {
-                systemPrompt: templateLayoutSystemPrompt(),
+                systemPrompt: templateLayoutSystemPrompt(allowedWidgets),
                 userPrompt: `Lesson/Activity Description: <lesson_description>${sanitizedUserInput}</lesson_description>`,
               }
             : {
@@ -1197,7 +1203,7 @@ Output JSON ONLY in this exact shape:
       }
 
       if (templateLayout) {
-        const layout = normalizeTemplateLayout(parsed);
+        const layout = normalizeTemplateLayout(parsed, allowedWidgets);
         if (!layout) {
           throw new HttpsError(
             'internal',

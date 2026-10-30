@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BOARD_TEMPLATES } from './mcp/boardEngine.gen';
 import {
   normalizeTemplateLayout,
+  readAllowedWidgets,
   templateLayoutSystemPrompt,
 } from './boardTemplateLayout';
 
@@ -42,6 +43,24 @@ describe('normalizeTemplateLayout', () => {
     });
   });
 
+  it('drops widgets the teacher cannot use', () => {
+    expect(
+      normalizeTemplateLayout(
+        {
+          templateId: 'review-game',
+          slots: [
+            { zoneId: 'side', widgetType: 'scoreboard', config: {} },
+            { zoneId: 'main', widgetType: 'poll', config: {} },
+          ],
+        },
+        new Set(['poll'])
+      )
+    ).toEqual({
+      templateId: 'review-game',
+      slots: [{ zoneId: 'main', widgetType: 'poll', config: {} }],
+    });
+  });
+
   it('refuses unknown templates and answers with nothing usable', () => {
     expect(normalizeTemplateLayout({ templateId: 'nope', slots: [] })).toBe(
       null
@@ -65,5 +84,46 @@ describe('templateLayoutSystemPrompt', () => {
         expect(prompt).toContain(`zoneId "${slot.zoneId}"`);
       }
     }
+  });
+});
+
+describe('readAllowedWidgets', () => {
+  it('is null when the caller sends no list', () => {
+    expect(readAllowedWidgets(undefined)).toBe(null);
+    expect(readAllowedWidgets(null)).toBe(null);
+  });
+
+  it('keeps known widget types only', () => {
+    expect(readAllowedWidgets(['poll', 'made-up', 7, 'clock'])).toEqual(
+      new Set(['poll', 'clock'])
+    );
+  });
+
+  it('refuses a list that is not an array or is too long', () => {
+    expect(() => readAllowedWidgets('poll')).toThrow();
+    expect(() => readAllowedWidgets(Array(201).fill('poll'))).toThrow();
+  });
+
+  it('refuses a list with no usable widget', () => {
+    expect(() => readAllowedWidgets([])).toThrow();
+    expect(() => readAllowedWidgets(['made-up'])).toThrow();
+    expect(() => readAllowedWidgets(['soundboard'])).toThrow();
+  });
+});
+
+describe('templateLayoutSystemPrompt with allowed widgets', () => {
+  it('offers only the allowed widgets and suggestions', () => {
+    const prompt = templateLayoutSystemPrompt(new Set(['poll', 'text']));
+    expect(prompt).toContain('- poll: Multiple choice poll');
+    expect(prompt).not.toContain('- clock: Digital/analog clock');
+    expect(prompt).not.toContain('scoreboard,');
+    expect(prompt).not.toMatch(/suggested: [^)]*time-tool/);
+    expect(prompt).toMatch(/suggested: [^)]*poll/);
+  });
+
+  it('offers every widget without a list', () => {
+    expect(templateLayoutSystemPrompt()).toContain(
+      '- clock: Digital/analog clock'
+    );
   });
 });
