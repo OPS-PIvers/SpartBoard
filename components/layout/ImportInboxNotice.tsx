@@ -5,18 +5,21 @@ import type { ImportInboxItem } from '@/utils/import/contract';
 
 interface ImportInboxNoticeProps {
   items: ImportInboxItem[];
+  /** True while the Add to board window is open. */
+  suppressed: boolean;
   onOpen: () => void;
 }
 
 /** Corner notice for pages the extension sent that haven't been added yet. */
 export const ImportInboxNotice: React.FC<ImportInboxNoticeProps> = ({
   items,
+  suppressed,
   onOpen,
 }) => {
   // Hiding lasts until another page arrives.
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const waiting = items.filter((item) => !hidden.has(item.id));
-  if (waiting.length === 0) return null;
+  if (suppressed || waiting.length === 0) return null;
   const count = items.length;
   return (
     <div

@@ -57,20 +57,23 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
     window.addEventListener(IMPORT_INBOX_EVENT, onRequest);
     return () => window.removeEventListener(IMPORT_INBOX_EVENT, onRequest);
   }, []);
-  if (!request)
-    return (
+  // The notice stays mounted under the window, so a hidden notice stays hidden.
+  return (
+    <>
       <ImportInboxNotice
         items={inbox.items}
+        suppressed={!!request}
         onOpen={() => openImportScreen()}
       />
-    );
-  return (
-    <OpenImportScreen
-      key={request.openId}
-      request={request}
-      inbox={inbox}
-      {...props}
-    />
+      {request && (
+        <OpenImportScreen
+          key={request.openId}
+          request={request}
+          inbox={inbox}
+          {...props}
+        />
+      )}
+    </>
   );
 };
 

@@ -2,7 +2,11 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { ImportScreenHost } from '@/components/import/ImportScreenHost';
-import { resetImportHandoffsForTest } from '@/components/import/importHandoff';
+import {
+  closeImportScreen,
+  openImportScreen,
+  resetImportHandoffsForTest,
+} from '@/components/import/importHandoff';
 import {
   IMPORT_INBOX_EVENT,
   type ImportInboxItem,
@@ -64,10 +68,15 @@ describe('ImportScreenHost', () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
     expect(screen.queryByText('1 page sent from your browser')).toBeNull();
+    act(() => openImportScreen());
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    act(() => closeImportScreen());
+    expect(screen.queryByText('1 page sent from your browser')).toBeNull();
     unmount();
     renderHost();
     fireEvent.click(screen.getByRole('button', { name: 'Add to board' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByText('1 page sent from your browser')).toBeNull();
   });
 
   it('opens Import when the extension fires the inbox event, and cancels it', () => {
