@@ -43,9 +43,10 @@ const ANON_UID = 'anon-pin-uid';
 const CLASS_A = 'class-A';
 const CLASS_Z = 'class-Z';
 
-// The four collections this PR scopes. quiz_sessions is deliberately excluded:
-// its PIN join flow lists by join code, which a list rule cannot prove.
+// Every session collection. quiz_sessions joined once its PIN join stopped
+// listing by code (it resolves codes through quiz_join_codes instead).
 const SCOPED_COLLECTIONS = [
+  'quiz_sessions',
   'video_activity_sessions',
   'guided_learning_sessions',
   'mini_app_sessions',
@@ -332,10 +333,10 @@ describe('widget teacher list queries', () => {
   });
 });
 
-// ---- quiz_sessions is deliberately still permissive ----------------------
+// ---- quiz_sessions: the old join-by-code query is an enumeration ----------
 
-describe('quiz_sessions (intentionally unscoped)', () => {
-  it('still allows the anonymous PIN join code lookup', async () => {
+describe('quiz_sessions join-code query', () => {
+  it('denies an anonymous student listing sessions by code', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'quiz_sessions', 'quiz-1'), {
         teacherUid: TEACHER_UID,
@@ -343,13 +344,19 @@ describe('quiz_sessions (intentionally unscoped)', () => {
         status: 'active',
       });
     });
-    await assertSucceeds(
+    await assertFails(
       getDocs(
         query(
           collection(asAnonStudent(), 'quiz_sessions'),
           where('code', '==', 'ABC123')
         )
       )
+    );
+  });
+
+  it('still lets an anonymous student get the session by id', async () => {
+    await assertSucceeds(
+      getDoc(doc(asAnonStudent(), 'quiz_sessions', 'quiz-1'))
     );
   });
 });

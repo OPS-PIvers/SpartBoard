@@ -8691,6 +8691,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import.reference.convert",
+    "label": "Convert instead button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import.reference.add-link",
+    "label": "Add as a link button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import.reference.cancel",
+    "label": "Cancel button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-import.cartridge-close",
     "label": "Close in Quiz import",
     "scope": "widget type",
@@ -38890,6 +38930,106 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#sub-presets"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.add",
+    "label": "Add button in Import block list",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.new-pattern",
+    "label": "New blocked address field in Import block list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.remove",
+    "label": "Remove button in an Import block list row",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.restore-defaults",
+    "label": "Restore defaults button in Import block list",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.test-url",
+    "label": "Test an address field in Import block list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
         ],
         "needs": [
           "admin"

@@ -2115,6 +2115,19 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'import.reference.convert': {
+    label: 'Convert instead button when a page refuses to show in an Embed',
+    panel: true,
+  },
+  'import.reference.add-link': {
+    label: 'Add as a link button when a page refuses to show in an Embed',
+    panel: true,
+  },
+  'import.reference.cancel': {
+    label: 'Cancel button when a page refuses to show in an Embed',
+    panel: true,
+    closes: 'own',
+  },
   'quiz-import.cartridge-close': {
     label: 'Close in Quiz import',
     perWidgetType: true,
@@ -8743,6 +8756,32 @@ export const TOUR_ANCHORS = {
   'admin.sub-presets.save': {
     label: 'Save button in Preset sub emails',
     persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.add': {
+    label: 'Add button in Import block list',
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.new-pattern': {
+    label: 'New blocked address field in Import block list',
+    panel: true,
+  },
+  'admin.import-block-list.remove': {
+    label: 'Remove button in an Import block list row',
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.restore-defaults': {
+    label: 'Restore defaults button in Import block list',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.test-url': {
+    label: 'Test an address field in Import block list',
     panel: true,
   },
   'admin.subjects.add': {

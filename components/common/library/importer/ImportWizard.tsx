@@ -112,21 +112,30 @@ export function ImportWizard<TData>({
   adapter,
   defaultTitle,
   onSaved,
+  initialParse,
   initialSource,
 }: ImportWizardProps<TData>): React.ReactElement | null {
-  const [step, setStep] = useState<Step>('source');
+  const [step, setStep] = useState<Step>(initialParse ? 'preview' : 'source');
   const [sheetUrl, setSheetUrl] = useState('');
   const [pasteText, setPasteText] = useState('');
-  const [parsed, setParsed] = useState<TData | null>(null);
+  const [parsed, setParsed] = useState<TData | null>(
+    initialParse?.data ?? null
+  );
+  const [warnings, setWarnings] = useState<string[]>(
+    initialParse?.warnings ?? []
+  );
   // True when what is under review came from the Source Import handed over.
   const [parsedFromInitial, setParsedFromInitial] = useState(false);
-  const [warnings, setWarnings] = useState<string[]>([]);
   const [note, setNote] = useState('');
   // The plain read that can be redone with AI from the preview step.
   const [aiRetrySource, setAiRetrySource] =
     useState<ImportSourcePayload | null>(null);
   const [title, setTitle] = useState(
-    defaultTitle ?? initialSource?.title ?? ''
+    () =>
+      defaultTitle ??
+      (initialParse && adapter.suggestTitle?.(initialParse.data)?.trim()) ??
+      initialSource?.title ??
+      ''
   );
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -164,15 +173,20 @@ export function ImportWizard<TData>({
     // eslint-disable-next-line react-hooks/refs -- session counter bumped with the open/close reset
     sessionRef.current += 1;
     if (isOpen) {
-      setStep('source');
+      setStep(initialParse ? 'preview' : 'source');
       setSheetUrl('');
       setPasteText('');
-      setParsed(null);
+      setParsed(initialParse?.data ?? null);
       setParsedFromInitial(false);
-      setWarnings([]);
-      setNote('');
+      setWarnings(initialParse?.warnings ?? []);
+      setNote(initialParse?.note ?? '');
       setAiRetrySource(null);
-      setTitle(defaultTitle ?? initialSource?.title ?? '');
+      setTitle(
+        defaultTitle ??
+          (initialParse && adapter.suggestTitle?.(initialParse.data)?.trim()) ??
+          initialSource?.title ??
+          ''
+      );
       setParseError(null);
       setValidationErrors([]);
       setSaveError(null);
@@ -198,11 +212,16 @@ export function ImportWizard<TData>({
   const supportsKeyFile = supportsDocument && adapter.supportsKeyFile === true;
   const supportsAiReader =
     supportsDocument && adapter.supportsAiReader === true;
+  const extraUpload = adapter.extraUpload;
   const supportsAnyUpload =
-    supportsCsv || supportsJson || supportsHtml || supportsFile;
+    supportsCsv ||
+    supportsJson ||
+    supportsHtml ||
+    supportsFile ||
+    !!extraUpload;
   const supportsJsonPaste = supportsJson && adapter.supportsJsonPaste === true;
   const canPickSheet = supportsSheet && !!adapter.pickSheet;
-  const uploadHint =
+  const baseUploadHint =
     supportsHtml && !supportsCsv && !supportsJson && !supportsFile
       ? '.html or .htm'
       : supportsCsv && supportsJson
@@ -212,6 +231,11 @@ export function ImportWizard<TData>({
           : supportsJson
             ? 'JSON'
             : 'File';
+  const uploadHint = extraUpload
+    ? supportsCsv || supportsJson || supportsHtml || supportsFile
+      ? `${baseUploadHint}, ${extraUpload.hint}`
+      : extraUpload.hint
+    : baseUploadHint;
 
   const runParse = async (
     payload: ImportSourcePayload,
@@ -325,6 +349,10 @@ export function ImportWizard<TData>({
     // A collection export picked or dropped on the main zone goes to the bulk import.
     if (bulkSource && matchesAccept(file.name, bulkSource.accept)) {
       bulkSource.onFile(file);
+      return;
+    }
+    if (extraUpload && matchesAccept(file.name, extraUpload.accept)) {
+      await runParse({ kind: 'file', file });
       return;
     }
     const uploadAccept = acceptExtensionsForSources(adapter.supportedSources);
@@ -714,6 +742,7 @@ export function ImportWizard<TData>({
                   ref={fileInputRef}
                   accept={[
                     acceptExtensionsForSources(adapter.supportedSources),
+                    extraUpload?.accept,
                     adapter.bulkSource?.accept,
                   ]
                     .filter(Boolean)

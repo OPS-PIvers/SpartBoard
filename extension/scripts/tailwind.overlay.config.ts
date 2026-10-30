@@ -18,5 +18,6 @@ export default {
     `${root}components/tours/Tour{Bar,Spotlight,Tip}.tsx`,
     `${root}components/common/lightChrome.ts`,
     `${root}components/tours/web/BlurBoxes.tsx`,
+    `${root}components/common/Toggle.tsx`,
   ],
 } satisfies Config;

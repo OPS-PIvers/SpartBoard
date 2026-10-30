@@ -20,6 +20,7 @@ import {
   setDoc,
   where,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-mixed-targeting';
 const TEACHER_UID = 'mt-teacher';
@@ -41,6 +42,7 @@ const asTeacher = (uid: string) =>
   testEnv
     .authenticatedContext(uid, {
       email: `${uid}@example.com`,
+      email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
@@ -121,6 +123,13 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  // Quiz sessions are created only by staff (an active, non-student member doc).
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [
+      `${TEACHER_UID}@example.com`,
+      `${OTHER_TEACHER_UID}@example.com`,
+    ])
+  );
 });
 
 describe('mixed targeting — teacher session writes', () => {

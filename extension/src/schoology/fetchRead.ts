@@ -26,13 +26,14 @@ async function getOk(deps: ReadDeps, path: string): Promise<Response> {
   try {
     res = await deps.get(path);
   } catch {
-    throw new SchoologyReadError('Schoology did not answer.');
+    throw new SchoologyReadError('Schoology did not answer.', true);
   }
   if (!res.ok)
     throw new SchoologyReadError(
       res.status === 403
         ? 'you can only send quizzes you can edit.'
-        : `Schoology answered ${res.status}.`
+        : `Schoology answered ${res.status}.`,
+      true
     );
   return res;
 }

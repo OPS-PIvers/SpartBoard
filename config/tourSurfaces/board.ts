@@ -6,6 +6,12 @@ const BOARDS_MENU = 'board-nav.select-board';
 const GROUP_WIZARD = 'roster-groups.new';
 
 export const SURFACES: TourSurfaceMap = {
+  // Import's Reference material step; the Import screen that opens it lands separately.
+  'import.reference': {
+    label: 'Import: page refused to show in an Embed',
+    kind: 'shared',
+    files: ['components/import/reference/'],
+  },
   board: {
     label: 'Board',
     kind: 'board',
