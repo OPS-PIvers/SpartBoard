@@ -42,7 +42,6 @@ export const SURFACES: TourSurfaceMap = {
       'sidebar.boards': MENU,
       'sidebar.backgrounds': MENU,
       'sidebar.gradebook': MENU,
-      'sidebar.import': MENU,
       'sidebar.assignments': MENU,
       'sidebar.classes': MENU,
       'sidebar.profile-settings': MENU,
@@ -126,7 +125,7 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Import window (file, link, text or a page sent from the browser)',
     kind: 'modal',
     files: ['components/import/'],
-    opensWith: 'sidebar.import',
+    opensWith: 'library-shell.new-menu-item',
   },
   'board.assignments-hub': {
     label: 'Assignments hub',

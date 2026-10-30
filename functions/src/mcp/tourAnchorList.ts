@@ -53473,22 +53473,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "sidebar.import",
-    "label": "Import item in the menu",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board",
-        "kind": "board",
-        "path": [
-          "sidebar.open-menu"
-        ],
-        "reveal": "sidebar.open-menu"
-      }
-    ]
-  },
-  {
     "id": "sidebar.google-drive",
     "label": "Google Drive item in the menu",
     "scope": "board",
@@ -67599,8 +67583,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67615,8 +67599,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67631,8 +67615,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67647,8 +67631,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67663,8 +67647,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67679,8 +67663,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67695,8 +67679,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67712,8 +67696,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67728,8 +67712,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67744,8 +67728,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67760,8 +67744,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]
@@ -67776,8 +67760,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.import",
         "kind": "modal",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.import"
+          "library-shell.new",
+          "library-shell.new-menu-item"
         ]
       }
     ]

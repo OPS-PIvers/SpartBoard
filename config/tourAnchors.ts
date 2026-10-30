@@ -11756,7 +11756,6 @@ export const TOUR_ANCHORS = {
   'sidebar.quick-link': { label: 'Shorten URL button in the top bar' },
   'sidebar.back': { label: 'Back button in the menu', panel: true },
   'sidebar.gradebook': { label: 'Gradebook item in the menu', panel: true },
-  'sidebar.import': { label: 'Import item in the menu', panel: true },
   'sidebar.google-drive': {
     label: 'Google Drive item in the menu',
     panel: true,

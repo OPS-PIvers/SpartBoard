@@ -2826,7 +2826,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'sidebar.quick-link': ['board'],
     'sidebar.back': ['board'],
     'sidebar.gradebook': ['board'],
-    'sidebar.import': ['board'],
     'sidebar.google-drive': ['board'],
     'sidebar.sign-out': ['board'],
     'sidebar.board-item': ['board.sidebar'],
