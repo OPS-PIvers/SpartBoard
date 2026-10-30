@@ -53476,7 +53476,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "sidebar.import",
     "label": "Import item in the menu",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": [
+          "sidebar.open-menu"
+        ],
+        "reveal": "sidebar.open-menu"
+      }
+    ]
   },
   {
     "id": "sidebar.google-drive",
@@ -67583,68 +67593,178 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "import-screen.close",
     "label": "Close button in the Import window",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-screen.choose-file",
     "label": "Choose file button in the Import window",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-screen.link",
     "label": "Paste a link field in the Import window",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-screen.link-next",
     "label": "Next button beside the link field in the Import window",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-screen.text",
     "label": "Paste text field in the Import window",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-screen.text-next",
     "label": "Next button under the text field in the Import window",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-screen.sent-item",
     "label": "A page sent from the browser, in the Import window",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-screen.sent-remove",
     "label": "Remove button on a page sent from the browser, in the Import window",
     "scope": "board",
     "panel": true,
-    "destructive": true
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-screen.target",
     "label": "A Make it into choice in the Import window",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-screen.back",
     "label": "Back button in the Import window",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-screen.continue",
     "label": "Continue button in the Import window",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.import"
+        ]
+      }
+    ]
   },
   {
     "id": "import-wizard.close",
