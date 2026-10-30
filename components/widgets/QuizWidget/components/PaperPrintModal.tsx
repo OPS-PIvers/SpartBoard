@@ -538,7 +538,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const changedBoxSizes = Object.fromEntries(
     Object.entries(boxSizes).filter(([id, size]) => {
       const q = savedQuiz.questions.find((sq) => sq.id === id);
-      return !!q && paperBoxSizeOf(q) !== size;
+      return !!q && paperBoxLines(paperBoxSizeOf(q)) !== paperBoxLines(size);
     })
   );
   const boxSizesChanged = Object.keys(changedBoxSizes).length > 0;

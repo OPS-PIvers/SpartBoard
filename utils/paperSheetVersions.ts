@@ -50,7 +50,7 @@ export interface PaperVersionPlan {
   records: PaperBatchVersion[];
   /** Every question any version prints, by id. */
   questionsById: Map<string, QuizQuestion>;
-  /** Template question ids whose box gets a prompt page, because some version's question needs one. */
+  /** Template question ids whose box prints the whole prompt above it, because some version's question needs it. */
   promptIds: Set<string>;
   stimuli: QuizStimulus[];
 }

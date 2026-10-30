@@ -522,7 +522,8 @@ function writtenItemHtml(
   if (prompt) {
     parts.push(promptHeaderHtml(prompt, h, pointsW));
   } else if (stem?.trim() && lines >= 2) {
-    const shown = Math.min(lines, 3);
+    // A reprint of a prompt-above-box page fills its taller header with the whole stem.
+    const shown = lines;
     const x = grid === 'questions' ? QUESTION_STEM_X_MM : h.x + NUMBER_WIDTH_MM;
     parts.push(
       `<div class="qt-stem wr-stem" style="left:${mm(x)};top:${mm(h.y)};width:${mm(

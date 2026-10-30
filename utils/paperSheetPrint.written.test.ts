@@ -215,6 +215,23 @@ describe('buildPaperSheetsHtml with page maps', () => {
     expect(printed[1].match(/class="wr-rule"/g)).toHaveLength(26 - 9);
   });
 
+  it('reprints a prompt-above-box stem in full when no prompt is passed', () => {
+    const text = 'Read the passage and explain your answer. '.repeat(8);
+    const plan = planPaperPages({
+      entries: [wr(1, 'full')],
+      grid: 2,
+      stems: true,
+      promptRows: { q1: 9 },
+    });
+    if (!plan.ok) throw new Error('plan refused');
+    const html = buildPaperSheetsHtml(
+      job(plan.pageMaps, { writtenTexts: { q1: text } })
+    );
+    expect(html).toMatch(/-webkit-line-clamp:(\d+)/);
+    const clamp = Number(/-webkit-line-clamp:(\d+)/.exec(html)?.[1]);
+    expect(clamp).toBeGreaterThan(3);
+  });
+
   it('draws a sheet with no written boxes exactly where the arithmetic layout does', () => {
     const entries = Array.from({ length: 60 }, (_, i) => mc(i + 1));
     for (const grid of [1, 2] as const) {
