@@ -256,13 +256,18 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
     void convert(batch[0]);
   };
 
-  const nextReview = (rowId: string, wasSaved: boolean): void => {
+  // Closing a review pauses the batch; the pages after it stay queued for the next Review pages.
+  const nextReview = (
+    rowId: string,
+    outcome: 'saved' | 'skipped' | 'closed'
+  ): void => {
     if (phase.kind !== 'reviewing' || reviewing.current !== rowId) return;
     reviewing.current = null;
-    if (wasSaved) setAiSaved((n) => n + 1);
+    if (outcome === 'saved') setAiSaved((n) => n + 1);
     const index = phase.index + 1;
-    if (index >= phase.batch.length) {
-      setAiQueue(aiQueue.filter((r) => !phase.batch.includes(r)));
+    if (outcome === 'closed' || index >= phase.batch.length) {
+      const done = phase.batch.slice(0, index);
+      setAiQueue(aiQueue.filter((r) => !done.includes(r)));
       setPhase({ kind: 'finished' });
       return;
     }
@@ -295,15 +300,15 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
           isOpen
           adapter={api.reviewAdapter(row, target, courseName)}
           initialParse={aiParse.result}
-          onClose={() => nextReview(row.id, false)}
-          onSaved={() => nextReview(row.id, true)}
+          onClose={() => nextReview(row.id, 'closed')}
+          onSaved={() => nextReview(row.id, 'saved')}
         />
       );
     }
     return (
       <Modal
         isOpen
-        onClose={() => nextReview(row.id, false)}
+        onClose={() => nextReview(row.id, 'closed')}
         title={`Page ${phase.index + 1} of ${phase.batch.length}`}
         maxWidth="max-w-md"
         zIndex="z-dialog"
@@ -330,7 +335,7 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
             <div className="flex justify-center gap-2">
               <button
                 type="button"
-                onClick={() => nextReview(row.id, false)}
+                onClick={() => nextReview(row.id, 'skipped')}
                 {...tourAttr('import-course.review-skip')}
                 className="rounded-xl px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
               >

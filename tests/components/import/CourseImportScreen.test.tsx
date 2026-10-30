@@ -230,4 +230,35 @@ describe('CourseImportScreen', () => {
       await screen.findByText(/2 items couldn’t be saved/)
     ).toBeInTheDocument();
   });
+
+  it('stops the batch when a review is closed, keeping later pages queued', async () => {
+    const parse = vi.fn(() => new Promise(() => undefined));
+    const api = makeApi({
+      reviewAdapter: vi.fn(() => ({ ...adapter, parse })),
+    });
+    readCourse.mockResolvedValueOnce({
+      ...course,
+      materials: [
+        ...course.materials,
+        { id: 'p2', kind: 'page', title: 'More', folderPath: [], text: 'x' },
+      ],
+    });
+    render(<CourseImportScreen file={file} api={api} onClose={vi.fn()} />);
+    fireEvent.change(await screen.findByLabelText('Import Reading as'), {
+      target: { value: 'flashcards' },
+    });
+    fireEvent.change(screen.getByLabelText('Import More as'), {
+      target: { value: 'flashcards' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Import 5 items/ }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Review pages' })
+    );
+    await screen.findByText(/Reading “Reading” with AI/);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(
+      await screen.findByText(/1 page to make with AI/)
+    ).toBeInTheDocument();
+    expect(parse).toHaveBeenCalledTimes(1);
+  });
 });

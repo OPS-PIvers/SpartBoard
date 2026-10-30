@@ -241,6 +241,8 @@ export const CourseImportHost: React.FC<{
         const existing = collectionsApi.collections.find(
           (c) =>
             !c.parentCollectionId &&
+            // A live shared folder would share the new board with its members.
+            (!c.linkedCollectionId || c.linkedCollectionEnded) &&
             c.name.trim().toLowerCase() === name.toLowerCase()
         );
         let collectionId: string | null = existing?.id ?? null;
