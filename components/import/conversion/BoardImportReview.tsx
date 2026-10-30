@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useLayoutEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useDashboard } from '@/context/useDashboard';
@@ -10,6 +10,11 @@ import {
   AI_CONVERSION_TRUNCATED_NOTE,
 } from '@/utils/import/aiConversion';
 import type { BoardPlan } from '@/utils/import/boardConversion';
+
+const BOARD_WAIT_MS = 2000;
+
+const nextFrame = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 const toolLabel = (type: string): string =>
   TOOLS.find((tool) => tool.type === type)?.label ?? type;
@@ -24,36 +29,43 @@ export const BoardImportReview: React.FC<BoardImportReviewProps> = ({
   plan,
   onClose,
 }) => {
-  const { createNewDashboard, addWidgets, activeDashboard, addToast } =
-    useDashboard();
+  const dashboard = useDashboard();
   const outward = useViewAsOutward();
   const nameId = useId();
   const [name, setName] = useState(plan.title);
   const [creating, setCreating] = useState(false);
-  const [pendingBoardId, setPendingBoardId] = useState<string | null>(null);
-  const placedRef = useRef(false);
-
-  // addWidgets targets the active board, so wait for the new board to become active.
-  const activeId = activeDashboard?.id;
-  useEffect(() => {
-    if (!pendingBoardId || activeId !== pendingBoardId || placedRef.current)
-      return;
-    placedRef.current = true;
-    addWidgets(plan.widgets);
-    onClose();
-  }, [pendingBoardId, activeId, addWidgets, plan.widgets, onClose]);
+  // addWidgets targets the active board, so the handler reads the latest context after the switch.
+  const latest = useRef(dashboard);
+  useLayoutEffect(() => {
+    latest.current = dashboard;
+  });
 
   const handleCreate = async () => {
     if (!name.trim() || outward.locked) return;
     if (outward.active && !(await outward.confirm('Create a board'))) return;
     setCreating(true);
-    const id = await createNewDashboard(name.trim());
-    if (id) {
-      setPendingBoardId(id);
-    } else {
-      setCreating(false);
-      addToast('The board could not be created. Try again.', 'error');
+    const id = await latest.current.createNewDashboard(name.trim());
+    const deadline = performance.now() + BOARD_WAIT_MS;
+    while (
+      id &&
+      latest.current.activeDashboard?.id !== id &&
+      performance.now() < deadline
+    ) {
+      await nextFrame();
     }
+    if (!id || latest.current.activeDashboard?.id !== id) {
+      setCreating(false);
+      // createNewDashboard already reported a failed save.
+      if (id) {
+        latest.current.addToast(
+          'The board could not be opened. Try again.',
+          'error'
+        );
+      }
+      return;
+    }
+    latest.current.addWidgets(plan.widgets);
+    onClose();
   };
 
   const footer = (

@@ -30,7 +30,8 @@ vi.mock('./districtStaff', () => ({ isDistrictStaffToken: vi.fn() }));
 
 import type * as admin from 'firebase-admin';
 import {
-  adminPassesImportFlags,
+  importFlagsOn,
+  layoutFlagAllows,
   runConversion,
   type ConversionDeps,
 } from './importConversion';
@@ -43,6 +44,7 @@ import {
   parseBoardResponse,
   parseConversionRequest,
   parseFlashcardsResponse,
+  safeBoardConfig,
   type ConversionRequest,
 } from './importConversionAi';
 import { BOARD_TEMPLATES } from './mcp/boardEngine.gen';
@@ -66,6 +68,8 @@ function deps(over: Partial<ConversionDeps> = {}): ConversionDeps {
     db: {} as admin.firestore.Firestore,
     switchOn: vi.fn(() => Promise.resolve(true)),
     isAdmin: vi.fn(() => Promise.resolve(false)),
+    flagsOn: vi.fn(() => Promise.resolve(true)),
+    layoutAllowed: vi.fn(() => Promise.resolve(true)),
     isStaff: vi.fn(() => Promise.resolve(true)),
     charge: vi.fn(() => Promise.resolve(CHARGE)),
     refund: vi.fn(() => Promise.resolve(undefined)),
@@ -331,8 +335,8 @@ describe('runConversion', () => {
   });
 });
 
-describe('adminPassesImportFlags', () => {
-  const db = (docs: Record<string, { enabled?: boolean } | undefined>) =>
+describe('flag helpers', () => {
+  const db = (docs: Record<string, Record<string, unknown> | undefined>) =>
     ({
       collection: () => ({
         doc: (id: string) => ({
@@ -341,22 +345,87 @@ describe('adminPassesImportFlags', () => {
       }),
     }) as unknown as admin.firestore.Firestore;
 
-  it('passes an admin unless a flag is switched off', async () => {
-    const yes = vi.fn(() => Promise.resolve(true));
-    expect(await adminPassesImportFlags(db({}), TOKEN, yes)).toBe(true);
+  it('reports the import flags off when either is switched off', async () => {
+    expect(await importFlagsOn(db({}))).toBe(true);
     expect(
-      await adminPassesImportFlags(
-        db({ 'universal-import': { enabled: false } }),
+      await importFlagsOn(db({ 'universal-import': { enabled: false } }))
+    ).toBe(false);
+    expect(
+      await importFlagsOn(db({ 'gemini-functions': { enabled: false } }))
+    ).toBe(false);
+  });
+
+  it('follows the Magic Layout flag for boards', async () => {
+    const layout = (perm?: Record<string, unknown>) =>
+      db(perm ? { 'dashboard-layout': perm } : {});
+    expect(await layoutFlagAllows(layout(), TOKEN, false)).toBe(true);
+    expect(
+      await layoutFlagAllows(layout({ enabled: false }), TOKEN, true)
+    ).toBe(false);
+    expect(
+      await layoutFlagAllows(
+        layout({ enabled: true, accessLevel: 'admin' }),
         TOKEN,
-        yes
+        false
       )
     ).toBe(false);
     expect(
-      await adminPassesImportFlags(
-        db({}),
+      await layoutFlagAllows(
+        layout({ enabled: true, accessLevel: 'beta', betaUsers: ['T@x.org'] }),
         TOKEN,
-        vi.fn(() => Promise.resolve(false))
+        false
       )
-    ).toBe(false);
+    ).toBe(true);
+  });
+});
+
+describe('board safety', () => {
+  it('keeps only plain text settings and never links', () => {
+    expect(safeBoardConfig('embed', { url: 'https://evil.example' })).toEqual(
+      {}
+    );
+    expect(safeBoardConfig('qr', { text: 'https://evil.example' })).toEqual({});
+    expect(
+      safeBoardConfig('text', { content: 'Learning target', bgColor: 'x' })
+    ).toEqual({ content: 'Learning target' });
+    expect(
+      safeBoardConfig('text', { content: 'Visit www.evil.example now' })
+    ).toEqual({});
+  });
+
+  it('strips settings from the parsed board', () => {
+    const out = parseBoardResponse(
+      JSON.stringify({
+        templateId: template.id,
+        slots: [
+          {
+            zoneId: template.zones[0].id,
+            widgetType: 'text',
+            config: { content: 'Hi', fontSize: 99 },
+          },
+        ],
+      }),
+      SOURCE,
+      null
+    );
+    expect(out.slots[0].config).toEqual({ content: 'Hi' });
+  });
+
+  it('refuses a board when Magic Layout is off for the caller, before charging', async () => {
+    const d = deps({ layoutAllowed: vi.fn(() => Promise.resolve(false)) });
+    await expect(
+      runConversion(req('board'), 'u', TOKEN, d)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(d.charge).not.toHaveBeenCalled();
+  });
+
+  it('tells an admin the feature is off rather than asking for staff', async () => {
+    const d = deps({
+      isAdmin: vi.fn(() => Promise.resolve(true)),
+      flagsOn: vi.fn(() => Promise.resolve(false)),
+    });
+    await expect(
+      runConversion(req('flashcards'), 'u', TOKEN, d)
+    ).rejects.toThrow(/turned off/);
   });
 });

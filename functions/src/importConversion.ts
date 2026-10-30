@@ -48,6 +48,10 @@ export interface ConversionDeps {
   /** The AI Conversion kill switch is on (`admin_settings/import_conversion.enabled`). */
   switchOn: () => Promise<boolean>;
   isAdmin: (token: Token) => Promise<boolean>;
+  /** Neither `gemini-functions` nor `universal-import` is switched off. */
+  flagsOn: () => Promise<boolean>;
+  /** Board only: the Magic Layout (`dashboard-layout`) flag lets this caller in. */
+  layoutAllowed: (token: Token, isAdmin: boolean) => Promise<boolean>;
   isStaff: (token: Token) => Promise<boolean>;
   charge: (token: Token, uid: string) => Promise<AiUsageCharge>;
   refund: (charge: AiUsageCharge) => Promise<void>;
@@ -73,6 +77,12 @@ export async function runConversion(
     );
   }
   const isAdmin = await deps.isAdmin(token);
+  if (isAdmin && !(await deps.flagsOn())) {
+    throw new HttpsError(
+      'permission-denied',
+      'Import with AI is turned off by an administrator.'
+    );
+  }
   if (!isAdmin && !(await deps.isStaff(token))) {
     throw new HttpsError(
       'permission-denied',
@@ -82,6 +92,12 @@ export async function runConversion(
   // Checked before the charge, so a bad widget list costs nothing.
   const allowed =
     req.target === 'board' ? readAllowedWidgets(req.allowedWidgets) : null;
+  if (req.target === 'board' && !(await deps.layoutAllowed(token, isAdmin))) {
+    throw new HttpsError(
+      'permission-denied',
+      'Building boards with AI is turned off by an administrator.'
+    );
+  }
   const integration = CONVERSION_INTEGRATION[req.target];
   const charge = isAdmin
     ? await deps.record(token, uid)
@@ -131,18 +147,35 @@ export async function runConversion(
 }
 
 /** Admins skip the quota, but a flag switched off still stops them. */
-export async function adminPassesImportFlags(
-  db: Firestore,
-  token: Token,
-  isAdmin: (db: Firestore, token: Token) => Promise<boolean>
-): Promise<boolean> {
-  if (!(await isAdmin(db, token))) return false;
+export async function importFlagsOn(db: Firestore): Promise<boolean> {
   const flags = await Promise.all(
     ['gemini-functions', UNIVERSAL_IMPORT_FEATURE_ID].map((id) =>
       db.collection('global_permissions').doc(id).get()
     )
   );
   return flags.every((d) => d.data()?.enabled !== false);
+}
+
+/** The Magic Layout flag for this caller: open when no doc is saved, as its default is public. */
+export async function layoutFlagAllows(
+  db: Firestore,
+  token: Token,
+  isAdmin: boolean
+): Promise<boolean> {
+  const perm = (
+    await db.collection('global_permissions').doc('dashboard-layout').get()
+  ).data();
+  if (!perm) return true;
+  if (perm.enabled === false) return false;
+  if (isAdmin) return true;
+  if (perm.accessLevel === 'admin') return false;
+  if (perm.accessLevel === 'beta') {
+    const email =
+      token.email_verified === true ? token.email?.toLowerCase() : '';
+    const beta = Array.isArray(perm.betaUsers) ? perm.betaUsers : [];
+    return !!email && beta.some((u) => String(u).toLowerCase() === email);
+  }
+  return true;
 }
 
 function defaultDeps(): ConversionDeps {
@@ -156,7 +189,9 @@ function defaultDeps(): ConversionDeps {
           .doc(IMPORT_CONVERSION_SETTINGS_DOC)
           .get()
       ).data()?.enabled === true,
-    isAdmin: (token) => adminPassesImportFlags(db, token, resolveCallerIsAdmin),
+    isAdmin: (token) => resolveCallerIsAdmin(db, token),
+    flagsOn: () => importFlagsOn(db),
+    layoutAllowed: (token, isAdmin) => layoutFlagAllows(db, token, isAdmin),
     isStaff: (token) => isDistrictStaffToken(db, token),
     charge: (token, uid) =>
       enforceAiFeatureAccess(

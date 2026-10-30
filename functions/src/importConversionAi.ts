@@ -284,6 +284,25 @@ export function parseActivityWallResponse(
   };
 }
 
+// Page text steers the board, so only plain text settings survive; links (embed, qr) start blank for the teacher to fill.
+const BOARD_CONFIG_KEYS: Readonly<Record<string, readonly string[]>> = {
+  text: ['content'],
+  poll: ['question'],
+};
+const MAX_BOARD_TEXT_CHARS = 2_000;
+
+export function safeBoardConfig(
+  widgetType: string,
+  config: Record<string, unknown>
+): Record<string, unknown> {
+  const safe: Record<string, unknown> = {};
+  for (const key of BOARD_CONFIG_KEYS[widgetType] ?? []) {
+    const value = clean(config[key], MAX_BOARD_TEXT_CHARS);
+    if (value && !/(?:https?:|www\.)/i.test(value)) safe[key] = value;
+  }
+  return safe;
+}
+
 export function parseBoardResponse(
   text: string,
   source: ConversionSource,
@@ -299,5 +318,12 @@ export function parseBoardResponse(
       'No board could be planned from this. Try a page with more teaching content.'
     );
   }
-  return { ...layout, title: fallbackTitle(undefined, source) };
+  return {
+    templateId: layout.templateId,
+    slots: layout.slots.map((slot) => ({
+      ...slot,
+      config: safeBoardConfig(slot.widgetType, slot.config),
+    })),
+    title: fallbackTitle(undefined, source),
+  };
 }
