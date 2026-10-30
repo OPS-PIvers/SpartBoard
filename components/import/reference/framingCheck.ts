@@ -8,7 +8,7 @@ export type FramingVerdict =
   | {
       status: 'refused';
       reason?: string;
-      cause: 'blocked' | 'insecure' | 'invalid';
+      cause: 'blocked' | 'insecure' | 'invalid' | 'policy';
     }
   | { status: 'unknown' };
 
