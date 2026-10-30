@@ -15193,6 +15193,11 @@ export const TOUR_ANCHORS = {
     label: 'A Make it into choice in the Import window',
     panel: true,
   },
+  'import-screen.widget-options': {
+    label:
+      'More import options link in the Import window, opened from a widget Import button',
+    panel: true,
+  },
   'import-screen.back': {
     label: 'Back button in the Import window',
     panel: true,

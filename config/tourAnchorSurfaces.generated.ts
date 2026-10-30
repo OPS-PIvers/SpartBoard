@@ -3662,6 +3662,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'import-screen.sent-item': ['board.import'],
     'import-screen.sent-remove': ['board.import'],
     'import-screen.target': ['board.import'],
+    'import-screen.widget-options': ['board.import'],
     'import-screen.back': ['board.import'],
     'import-screen.continue': ['board.import'],
     'import-wizard.close': ['library.import-wizard'],

@@ -82,6 +82,7 @@ import { SchoologyInboxModal } from './components/SchoologyInboxModal';
 import { useSchoologyInbox } from '@/hooks/useSchoologyInbox';
 import {
   openImportScreen,
+  completeImportHandoff,
   takeImportHandoff,
   useImportHandoff,
 } from '@/components/import/importHandoff';
@@ -1970,13 +1971,15 @@ const TeacherQuizWidget: React.FC<{
       : baseAdapter;
     return (
       <ImportWizard
+        key={importHandoff?.id ?? 'bank-import'}
         isOpen
         onClose={closeBankImport}
         adapter={adapter}
         initialSource={importHandoff?.source}
         onSaved={() => {
           addToast('Question bank saved to Drive!', 'success');
-          closeBankImport();
+          completeImportHandoff(widget.id);
+          setBankImportOpen(false);
         }}
       />
     );
@@ -2040,13 +2043,15 @@ const TeacherQuizWidget: React.FC<{
       : adapter;
     return (
       <ImportWizard
+        key={importHandoff?.id ?? 'quiz-import'}
         isOpen
         onClose={closeQuizImport}
         adapter={quizAdapter}
         initialSource={importHandoff?.source}
         onSaved={() => {
           addToast('Quiz saved to Drive!', 'success');
-          closeQuizImport();
+          if (importHandoff) completeImportHandoff(widget.id);
+          else setView('manager');
         }}
       />
     );
@@ -2408,7 +2413,10 @@ const TeacherQuizWidget: React.FC<{
         }}
         onImport={() =>
           universalImport
-            ? openImportScreen({ presetTarget: 'quiz', fromWidgetId: widget.id })
+            ? openImportScreen({
+                presetTarget: 'quiz',
+                fromWidgetId: widget.id,
+              })
             : setView('import')
         }
         onPrintPaperSheets={

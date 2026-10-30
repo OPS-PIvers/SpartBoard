@@ -118,12 +118,16 @@ export function ImportWizard<TData>({
   const [sheetUrl, setSheetUrl] = useState('');
   const [pasteText, setPasteText] = useState('');
   const [parsed, setParsed] = useState<TData | null>(null);
+  // True when what is under review came from the Source Import handed over.
+  const [parsedFromInitial, setParsedFromInitial] = useState(false);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [note, setNote] = useState('');
   // The plain read that can be redone with AI from the preview step.
   const [aiRetrySource, setAiRetrySource] =
     useState<ImportSourcePayload | null>(null);
-  const [title, setTitle] = useState(defaultTitle ?? '');
+  const [title, setTitle] = useState(
+    defaultTitle ?? initialSource?.title ?? ''
+  );
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -164,6 +168,7 @@ export function ImportWizard<TData>({
       setSheetUrl('');
       setPasteText('');
       setParsed(null);
+      setParsedFromInitial(false);
       setWarnings([]);
       setNote('');
       setAiRetrySource(null);
@@ -208,7 +213,10 @@ export function ImportWizard<TData>({
             ? 'JSON'
             : 'File';
 
-  const runParse = async (payload: ImportSourcePayload): Promise<void> => {
+  const runParse = async (
+    payload: ImportSourcePayload,
+    fromInitial = false
+  ): Promise<void> => {
     const session = sessionRef.current;
     setLoadingLabel(
       payload.kind === 'document' ? 'Importing…' : 'Importing your file…'
@@ -220,6 +228,7 @@ export function ImportWizard<TData>({
       // Stale session — wizard closed/reopened while this parse was in flight.
       if (session !== sessionRef.current) return;
       setParsed(result.data);
+      setParsedFromInitial(fromInitial);
       setWarnings(result.warnings);
       setNote(result.note ?? '');
       setAiRetrySource(result.aiRetry ? payload : null);
@@ -311,7 +320,7 @@ export function ImportWizard<TData>({
     bulkSource.onFile(file);
   };
 
-  const importFile = async (file: File): Promise<void> => {
+  const importFile = async (file: File, fromInitial = false): Promise<void> => {
     const session = sessionRef.current;
     // A collection export picked or dropped on the main zone goes to the bulk import.
     if (bulkSource && matchesAccept(file.name, bulkSource.accept)) {
@@ -334,23 +343,26 @@ export function ImportWizard<TData>({
     }
     const kind = inferKindFromFileName(file.name, adapter.supportedSources);
     if (kind === 'file') {
-      await runParse({ kind: 'file', file });
+      await runParse({ kind: 'file', file }, fromInitial);
       return;
     }
     if (kind === 'document') {
       // A test document is bytes, never text — the reader opens it itself.
-      await runParse({
-        kind: 'document',
-        file,
-        fileName: file.name,
-        ...(supportsAiReader ? { useAi: false } : {}),
-      });
+      await runParse(
+        {
+          kind: 'document',
+          file,
+          fileName: file.name,
+          ...(supportsAiReader ? { useAi: false } : {}),
+        },
+        fromInitial
+      );
       return;
     }
     try {
       const text = await file.text();
       if (session !== sessionRef.current) return;
-      await runParse({ kind, text, fileName: file.name });
+      await runParse({ kind, text, fileName: file.name }, fromInitial);
     } catch (err) {
       if (session !== sessionRef.current) return;
       setParseError(
@@ -376,15 +388,18 @@ export function ImportWizard<TData>({
     if (!initialSource) return;
     const { file, url, text } = initialSource;
     if (file) {
-      void importFile(file);
+      void importFile(file, true);
     } else if (text && supportsCsv) {
-      void runParse({ kind: 'csv', text });
+      void runParse({ kind: 'csv', text }, true);
     } else if (url && supportsSheet && GOOGLE_SHEET_URL_PATTERN.test(url)) {
-      void runParse({ kind: 'sheet', url });
+      void runParse({ kind: 'sheet', url }, true);
     }
   });
+  // The session the initial Source was read in; guards StrictMode's second effect run.
+  const initialReadSession = useRef(-1);
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || initialReadSession.current === sessionRef.current) return;
+    initialReadSession.current = sessionRef.current;
     // Starts the async read after this commit, like a picked file would.
     void Promise.resolve().then(readInitial);
   }, [isOpen]);
@@ -448,6 +463,7 @@ export function ImportWizard<TData>({
       const data = await adapter.aiAssist.generate({ prompt: aiPrompt.trim() });
       if (session !== sessionRef.current) return;
       setParsed(data);
+      setParsedFromInitial(false);
       setWarnings([]);
       setAiOpen(false);
       setAiPrompt('');
@@ -481,7 +497,9 @@ export function ImportWizard<TData>({
     setSaveError(null);
     setSaving(true);
     try {
-      await adapter.save(parsed, trimmed);
+      await adapter.save(parsed, trimmed, {
+        fromInitialSource: parsedFromInitial,
+      });
       // Stale session — don't close or report "saved" against a freshly-reopened wizard.
       if (session !== sessionRef.current) return;
       onSaved?.(trimmed);

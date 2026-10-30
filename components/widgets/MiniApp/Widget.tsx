@@ -92,6 +92,7 @@ import { useSavedWidgets } from '@/context/useSavedWidgets';
 import { ImportWizard } from '@/components/common/library/importer';
 import {
   openImportScreen,
+  completeImportHandoff,
   takeImportHandoff,
   useImportHandoff,
 } from '@/components/import/importHandoff';
@@ -1852,11 +1853,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       {/* Import wizard (Wave 2 shared primitive) */}
       {importAdapter && (
         <ImportWizard<MiniAppImportData>
+          key={miniAppHandoff?.id ?? 'import'}
           isOpen={showImportWizard || !!miniAppHandoff}
           onClose={closeImportWizard}
           initialSource={miniAppHandoff?.source}
           adapter={importAdapter}
-          onSaved={handleImportSaved}
+          onSaved={() => {
+            if (miniAppHandoff) completeImportHandoff(widget.id);
+            handleImportSaved();
+          }}
         />
       )}
       <WidgetLayout

@@ -898,6 +898,34 @@ describe('DashboardView Gestures & Navigation', () => {
     act(() => closeImportScreen());
   });
 
+  it('leaves text dropped into a dialog field to that field when universal-import is on', () => {
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { uid: 'teacher-1' },
+      canAccessFeature: vi.fn().mockReturnValue(true),
+      canAccessWidget: vi.fn().mockReturnValue(true),
+    });
+    const request = renderHook(() => useImportScreenRequest());
+    const { container } = renderView();
+    const dashboardRoot = container.querySelector('#dashboard-root');
+    if (!dashboardRoot) throw new Error('Dashboard root not found');
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    const field = document.createElement('textarea');
+    dialog.appendChild(field);
+    dashboardRoot.appendChild(dialog);
+    const dropEvent = Object.assign(new Event('drop', { bubbles: true }), {
+      clientX: 10,
+      clientY: 10,
+      dataTransfer: {
+        files: [],
+        types: ['text/plain'],
+        getData: vi.fn((t: string) => (t === 'text/plain' ? 'moved text' : '')),
+      },
+    });
+    fireEvent(field, dropEvent);
+    expect(request.result.current).toBeNull();
+  });
+
   it('ignores swipe gestures that occur while a widget drag is active', () => {
     const mockUpdateWidget = vi.fn();
     const mockMinimizeAllWidgets = vi.fn();

@@ -53,6 +53,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ImportWizard } from '@/components/common/library/importer';
 import {
   openImportScreen,
+  completeImportHandoff,
   takeImportHandoff,
   useImportHandoff,
 } from '@/components/import/importHandoff';
@@ -293,11 +294,16 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     [importSource]
   );
   const saveImportedSet = useCallback(
-    async (cards: FlashcardCard[], title: string): Promise<void> => {
+    async (
+      cards: FlashcardCard[],
+      title: string,
+      fromInitialSource: boolean
+    ): Promise<void> => {
+      // Only cards read from the handed-over page carry its attribution.
       const imported = {
         ...makeSet(cards),
         title: title.trim(),
-        ...(importedFrom ? { importedFrom } : {}),
+        ...(importedFrom && fromInitialSource ? { importedFrom } : {}),
       };
       await flashcardSets.saveSet(imported);
     },
@@ -760,13 +766,15 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       />
 
       <ImportWizard
+        key={importHandoff?.id ?? 'import'}
         isOpen={importOpen || importHandoff?.target === 'flashcards'}
         onClose={closeImport}
         adapter={importAdapter}
         initialSource={importHandoff?.source}
         onSaved={(title) => {
           addToast(`“${title}” imported.`, 'success');
-          closeImport();
+          completeImportHandoff(widget.id);
+          setImportOpen(false);
         }}
       />
 

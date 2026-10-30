@@ -1331,7 +1331,10 @@ export const DashboardView: React.FC = () => {
     )
       return false;
     const target = e.target as HTMLElement | null;
-    return !target?.closest?.('[data-widget-id]');
+    // Portaled dialogs and fields bubble here too; their own drops stay theirs.
+    return !target?.closest?.(
+      '[data-widget-id], [data-widget-portal], [role="dialog"], input, textarea, [contenteditable="true"]'
+    );
   };
 
   const openImportFromDrop = (

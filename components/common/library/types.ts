@@ -680,7 +680,11 @@ export interface ImportAdapter<TData> {
    */
   suggestTitle?: (data: TData) => string | undefined;
   /** Persist to the widget's library. Consumer owns Firestore/Drive writes. */
-  save: (data: TData, title: string) => Promise<void>;
+  save: (
+    data: TData,
+    title: string,
+    context?: { fromInitialSource: boolean }
+  ) => Promise<void>;
   /** Optional AI-assist path (e.g. Quiz's Gemini generator). */
   aiAssist?: {
     promptPlaceholder: string;

@@ -6,6 +6,7 @@ import { targetChoices } from '@/components/import/importTargets';
 import { attributionFor } from '@/components/import/attribution';
 import { sourceFromInboxItem } from '@/components/import/sourceFromInbox';
 import {
+  completeImportHandoff,
   offerImportHandoff,
   resetImportHandoffsForTest,
   takeImportHandoff,
@@ -88,6 +89,20 @@ describe('targetChoices', () => {
     );
     expect(c.targets).toEqual(['questionBank']);
     expect(c.guess).toBe('questionBank');
+  });
+
+  it('does not offer Quiz for a photo, which only the quiz picture picker reads', () => {
+    expect(
+      targetChoices({ file: file('worksheet.jpg', 'image/jpeg') }).targets
+    ).toEqual([]);
+  });
+
+  it('asks the gate per Source, so a closed import is never offered', () => {
+    const c = targetChoices(
+      { file: file('notes.pdf', 'application/pdf') },
+      (t, s) => !(t === 'quiz' && s.file?.name.endsWith('.pdf'))
+    );
+    expect(c.targets).toEqual(['pdf']);
   });
 
   it('offers nothing for a file no route reads', () => {
@@ -214,15 +229,35 @@ describe('import handoff into a review screen', () => {
     expect(takeImportHandoff('w1')).toBeNull();
   });
 
+  it('runs onSaved only when the widget saves, not when it is closed', () => {
+    const onSaved = vi.fn();
+    const offer = () =>
+      offerImportHandoff({
+        widgetId: 'w2',
+        widgetType: 'flashcards',
+        target: 'flashcards',
+        source: { text: 'a\tb' },
+        onSaved,
+      });
+    offer();
+    takeImportHandoff('w2');
+    expect(onSaved).not.toHaveBeenCalled();
+    offer();
+    completeImportHandoff('w2');
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(takeImportHandoff('w2')).toBeNull();
+  });
+
   it('the wizard reads the handed-over Source on open and skips to review', async () => {
     const parse = vi.fn().mockResolvedValue({ data: { n: 1 }, warnings: [] });
+    const save = vi.fn().mockResolvedValue(undefined);
     const adapter: ImportAdapter<{ n: number }> = {
       widgetLabel: 'Flashcards',
       supportedSources: ['csv'],
       parse,
       validate: () => ({ ok: true, errors: [] }),
       renderPreview: () => <p>preview ready</p>,
-      save: vi.fn(),
+      save,
     };
     render(
       <ImportWizard
@@ -236,5 +271,32 @@ describe('import handoff into a review screen', () => {
       expect(parse).toHaveBeenCalledWith({ kind: 'csv', text: 'a\tb' })
     );
     expect(await screen.findByText('preview ready')).toBeInTheDocument();
+    expect(parse).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: /Save to library/ }));
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith({ n: 1 }, 'Vocab', {
+        fromInitialSource: true,
+      })
+    );
+  });
+
+  it('offers the widget its own import options from its Import button', () => {
+    const open = vi.fn();
+    render(
+      <ImportScreen
+        isOpen
+        onClose={vi.fn()}
+        inboxItems={[]}
+        onRemoveInboxItem={vi.fn()}
+        allowed={() => true}
+        widgetOptions={{ label: 'Quiz', open }}
+        onContinue={vi.fn()}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'More Quiz import options' })
+    );
+    expect(open).toHaveBeenCalled();
   });
 });

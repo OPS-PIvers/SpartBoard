@@ -25,8 +25,10 @@ interface ImportScreenProps {
   /** Pages the extension sent (S1 inbox), newest first. */
   inboxItems: readonly ImportInboxItem[];
   onRemoveInboxItem: (id: string) => void;
-  /** Targets this teacher may use (widget access). */
-  allowed: (target: ImportTarget) => boolean;
+  /** Targets this teacher may use for this Source (widget access and import gates). */
+  allowed: (target: ImportTarget, source: PendingSource) => boolean;
+  /** From a widget's own Import button: opens that widget's import options instead. */
+  widgetOptions?: { label: string; open: () => void };
   onContinue: (source: PendingSource, target: ImportTarget) => void;
 }
 
@@ -92,6 +94,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   inboxItems,
   onRemoveInboxItem,
   allowed,
+  widgetOptions,
   onContinue,
 }) => {
   const [source, setSource] = useState<PendingSource | null>(
@@ -279,6 +282,16 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
           </button>
         </div>
       </div>
+      {widgetOptions && (
+        <button
+          type="button"
+          onClick={widgetOptions.open}
+          {...tourAttr('import-screen.widget-options')}
+          className="text-sm font-bold text-brand-blue-primary hover:underline"
+        >
+          More {widgetOptions.label} import options
+        </button>
+      )}
     </div>
   );
 
@@ -349,6 +362,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
         onClick={() => {
           setSource(null);
           setPicked(null);
+          setError(null);
         }}
         {...tourAttr('import-screen.back')}
         className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"

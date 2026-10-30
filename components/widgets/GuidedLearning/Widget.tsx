@@ -90,6 +90,7 @@ import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
 import {
   openImportScreen,
+  completeImportHandoff,
   takeImportHandoff,
   useImportHandoff,
 } from '@/components/import/importHandoff';
@@ -1259,7 +1260,7 @@ const TeacherGuidedLearningWidget: React.FC<{
   const openGlHandoff = useEffectEvent(openImportWizard);
   // The handoff store lives outside React; open the review when a Source arrives.
   useEffect(() => {
-    if (glHandoff) openGlHandoff();
+    if (glHandoff) void Promise.resolve().then(openGlHandoff);
   }, [glHandoff]);
 
   // Best-effort deletion of uploads whose save never succeeded.
@@ -1939,6 +1940,7 @@ const TeacherGuidedLearningWidget: React.FC<{
       )}
 
       <ImportWizard<GuidedLearningSet>
+        key={glHandoff?.id ?? 'import'}
         isOpen={showImportWizard}
         initialSource={glHandoff?.source}
         onClose={() => {
@@ -1955,6 +1957,7 @@ const TeacherGuidedLearningWidget: React.FC<{
             'success'
           );
           setImportFocusCounter((c) => c + 1);
+          if (glHandoff) completeImportHandoff(widget.id);
         }}
       />
 

@@ -17,10 +17,14 @@ export interface PendingSource {
 
 /** A Source waiting for a widget to open its own review screen with it. */
 export interface ImportHandoff {
+  /** Unique per offer, so a widget remounts its review for a new Source. */
+  id: string;
   widgetId: string;
   widgetType: WidgetType;
   target: ImportTarget;
   source: PendingSource;
+  /** Runs once the widget saves the Library item. */
+  onSaved?: () => void;
 }
 
 /** Board-space point an Import started from a drop lands at. */
@@ -74,7 +78,8 @@ export function useImportScreenRequest():
 }
 
 /** Queues a Source for a widget; the widget opens its review screen when it sees it. */
-export function offerImportHandoff(handoff: ImportHandoff): void {
+export function offerImportHandoff(offer: Omit<ImportHandoff, 'id'>): void {
+  const handoff: ImportHandoff = { ...offer, id: crypto.randomUUID() };
   handoffs = [
     ...handoffs.filter((h) => h.widgetId !== handoff.widgetId),
     handoff,
@@ -89,6 +94,11 @@ export function takeImportHandoff(widgetId: string): ImportHandoff | null {
   handoffs = handoffs.filter((h) => h !== found);
   emit();
   return found;
+}
+
+/** The widget saved what the handoff brought; clears it and runs its onSaved. */
+export function completeImportHandoff(widgetId: string): void {
+  takeImportHandoff(widgetId)?.onSaved?.();
 }
 
 export function useImportHandoff(widgetId: string): ImportHandoff | null {

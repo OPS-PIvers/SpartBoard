@@ -14,7 +14,7 @@ export interface ImportRoute {
 }
 
 const GOOGLE_SHEET = /^https:\/\/docs\.google\.com\/spreadsheets\//i;
-const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst|imscc|zip)$/i;
+const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst|imscc)$/i;
 
 const hasExt = (s: PendingSource, re: RegExp): boolean =>
   re.test(s.file?.name ?? '');
@@ -26,8 +26,6 @@ const isWebUrl = (s: PendingSource): boolean =>
   !!s.url &&
   /^https?:\/\//i.test(s.url) &&
   !s.inboxItem?.selectionOnly;
-const isImage = (s: PendingSource): boolean =>
-  !!s.file && s.file.type.startsWith('image/');
 const hasTabbedRows = (s: PendingSource): boolean =>
   !s.file && !!s.text && /\t|,/.test(s.text);
 
@@ -37,14 +35,14 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     label: 'Quiz',
     widgetType: 'quiz',
     landing: 'review',
-    accepts: (s) =>
-      hasExt(s, QUIZ_DOCUMENT) || isCsv(s) || isSheet(s) || isImage(s),
+    // Photos are read only through the wizard's own picture picker, so they aren't offered here yet.
+    accepts: (s) => hasExt(s, QUIZ_DOCUMENT) || isCsv(s) || isSheet(s),
   },
   questionBank: {
     label: 'Question bank',
     widgetType: 'quiz',
     landing: 'review',
-    accepts: (s) => isCsv(s) || isSheet(s) || hasExt(s, /\.(imscc|zip)$/i),
+    accepts: (s) => isCsv(s) || isSheet(s) || hasExt(s, /\.imscc$/i),
   },
   flashcards: {
     label: 'Flashcards',
@@ -118,17 +116,17 @@ export interface TargetChoices {
 /** Feasible targets (D2) that a route can read today, with the no-AI guess preselected. */
 export function targetChoices(
   source: PendingSource,
-  allowed: (target: ImportTarget) => boolean = () => true
+  allowed: (target: ImportTarget, source: PendingSource) => boolean = () => true
 ): TargetChoices {
   const { targets: feasible, guess } = guessTargets(toGuessSource(source));
   const targets = feasible.filter((t) => {
     const route = IMPORT_ROUTES[t];
-    return !!route && allowed(t) && route.accepts(source);
+    return !!route && allowed(t, source) && route.accepts(source);
   });
   // .imscc reads as both, but the guess only names the quiz; a sheet can also be a bank.
   if (
     IMPORT_ROUTES.questionBank?.accepts(source) &&
-    allowed('questionBank') &&
+    allowed('questionBank', source) &&
     !targets.includes('questionBank') &&
     targets.includes('quiz')
   )
