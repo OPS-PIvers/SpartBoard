@@ -76,6 +76,7 @@ describe('AI integrations registry', () => {
       'paperTranscribe.ts',
       'quizTranslation.ts',
       'webTourWriting.ts',
+      'importConversionAi.ts',
     ]
       .map(serverSource)
       .join('\n');

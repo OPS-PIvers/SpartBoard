@@ -3862,6 +3862,7 @@ describe('index barrel — deployed export set', () => {
     'resolvePlcMeetingNotesDraftV1',
     'runPlcMeetingNotesJob',
     'plcGoalCoachV1',
+    'importConvertV1',
     'writeWebTourTextV1',
     'webToursListV1',
     'webTourLoadV1',

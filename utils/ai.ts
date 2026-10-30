@@ -352,7 +352,9 @@ const isInternalTool = (
 ): type is InternalToolType => type in INTERNAL_TOOLS;
 
 /** The widget types the teacher can use, sent so Magic Board only picks from them. */
-function allowedWidgetTypes(canUseWidget: (type: WidgetType) => boolean) {
+export function allowedWidgetTypes(
+  canUseWidget: (type: WidgetType) => boolean
+) {
   return TOOLS.flatMap(({ type }) =>
     isInternalTool(type) || !canUseWidget(type) ? [] : [type]
   );

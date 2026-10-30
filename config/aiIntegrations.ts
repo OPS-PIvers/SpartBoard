@@ -148,6 +148,23 @@ export const AI_INTEGRATIONS: readonly AiIntegration[] = [
     inputs: ['text'],
   },
   {
+    id: 'flashcards-import',
+    label: 'Flashcards from an import',
+    description: 'Makes flashcards from an imported page or document.',
+    group: 'Import',
+    tier: 'standard',
+    inputs: ['text'],
+  },
+  {
+    id: 'activity-wall-import',
+    label: 'Activity Wall from an import',
+    description:
+      'Writes an Activity Wall prompt from an imported page or document.',
+    group: 'Import',
+    tier: 'standard',
+    inputs: ['text'],
+  },
+  {
     id: 'mini-app',
     label: 'Mini apps',
     description: 'Writes the code for a mini app from a description.',
