@@ -67809,6 +67809,71 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import-review.wall-prompt",
+    "label": "Prompt box when reviewing an imported Activity Wall",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wall-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.wall-layout",
+    "label": "Layout menu when reviewing an imported Activity Wall",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wall-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.board-name",
+    "label": "Board name box when reviewing an imported board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-board-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.board-cancel",
+    "label": "Cancel button when reviewing an imported board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-board-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.board-create",
+    "label": "Create board button when reviewing an imported board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-board-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "import-wizard.cancel",
     "label": "Cancel button in the Import wizard",
     "scope": "board",
