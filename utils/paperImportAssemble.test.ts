@@ -3,6 +3,7 @@ import type { PaperBatch } from '@/types';
 import {
   assemblePaperScan,
   sheetRowOf,
+  skipSheetPage,
   type ScannedPage,
 } from './paperImportAssemble';
 import { QUESTIONS_PER_PAGE, ROWS_PER_COLUMN } from './paperSheetLayout';
@@ -360,6 +361,41 @@ describe('assemblePaperScan on a page-map batch (layoutVersion 2)', () => {
   it('adds no written list to an older batch', () => {
     const result = assemblePaperScan(batch, [page(0, 1, 1, [row(0, 1)])]);
     expect(result.sheets[0]).not.toHaveProperty('written');
+  });
+
+  it('skipping a page drops its bubbles and boxes as if it were never printed', () => {
+    const { sheets } = assemblePaperScan(v2, [
+      v2Page(0, 1, 1, [mapRow(0, 0, 1)], [box('q2', 'ink')]),
+      v2Page(1, 1, 2, [mapRow(0, 1, 2), mapRow(1, 2, null)], []),
+    ]);
+    const [skipped] = skipSheetPage(v2, sheets, 1);
+    expect(skipped.answers.map((a) => a.question)).toEqual([1, 2]);
+    expect(skipped.written).toEqual([]);
+    expect(skipped.pagesSeen).toEqual([2]);
+    expect(skipped.isBlank).toBe(false);
+    expect(skipSheetPage(v2, sheets, null)).toEqual(sheets);
+  });
+
+  it('a sheet whose only ink was on the skipped page is blank, and its missing page is no warning', () => {
+    const { sheets } = assemblePaperScan(v2, [
+      v2Page(0, 1, 1, [mapRow(0, 0, 3)], [box('q2', 'ink')]),
+    ]);
+    expect(sheets[0].missingPages).toEqual([2]);
+    const [skipped] = skipSheetPage(v2, sheets, 1);
+    expect(skipped.isBlank).toBe(true);
+    const [other] = skipSheetPage(v2, sheets, 2);
+    expect(other.missingPages).toEqual([]);
+    expect(other.flags).not.toContain('missing-page');
+  });
+
+  it('skips by page arithmetic on a batch without maps', () => {
+    const { sheets } = assemblePaperScan(batch, [
+      page(0, 1, 1, [row(0, 1)]),
+      page(1, 1, 2, [row(0, 2, 'multiple')]),
+    ]);
+    const [skipped] = skipSheetPage(batch, sheets, 2);
+    expect(skipped.answers.map((a) => a.question)).toEqual([0]);
+    expect(skipped.flags).not.toContain('doubtful-rows');
   });
 
   it('sheetRowOf prefers the map’s row and falls back to page arithmetic', () => {

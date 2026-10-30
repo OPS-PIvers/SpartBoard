@@ -9,6 +9,7 @@ import {
   questionsPerPage,
   type PaperGrid,
 } from './paperSheetLayout';
+import { mcItemsOf } from './paperPageMap';
 import { paperBatchTag } from './paperSheetMarker';
 import { seatQuestionId } from './paperSheetVersions';
 import type {
@@ -231,4 +232,48 @@ export function assemblePaperScan(
     foreignPages,
     unknownPages,
   };
+}
+
+/** Page each sheet row printed on, by row index. */
+function rowPages(batch: PaperBatch): (row: number) => number {
+  if (batch.layoutVersion === 2 && batch.pageMaps) {
+    const byRow = new Map<number, number>();
+    for (const map of batch.pageMaps) {
+      for (const item of mcItemsOf(map)) byRow.set(item.sheetRow, map.page);
+    }
+    return (row) => byRow.get(row) ?? 0;
+  }
+  const perPage = questionsPerPage(paperGridOf(batch));
+  return (row) => Math.floor(row / perPage) + 1;
+}
+
+/** The sheets as if `page` were never printed, for a page the teacher is not importing. */
+export function skipSheetPage(
+  batch: PaperBatch,
+  sheets: readonly AssembledSheet[],
+  page: number | null
+): AssembledSheet[] {
+  if (page === null) return [...sheets];
+  const pageOf = rowPages(batch);
+  return sheets.map((sheet) => {
+    const answers = sheet.answers.filter((a) => pageOf(a.question) !== page);
+    const written = sheet.written?.filter((w) => w.page !== page);
+    const missingPages = sheet.missingPages.filter((p) => p !== page);
+    const flags = sheet.flags.filter(
+      (f) =>
+        (f !== 'missing-page' || missingPages.length > 0) &&
+        (f !== 'doubtful-rows' || answers.some((a) => a.doubt))
+    );
+    return {
+      ...sheet,
+      answers,
+      ...(written ? { written } : {}),
+      pagesSeen: sheet.pagesSeen.filter((p) => p !== page),
+      missingPages,
+      isBlank:
+        answers.every((a) => a.choice === null && !a.doubt) &&
+        (written ?? []).every((w) => w.state === 'blank'),
+      flags,
+    };
+  });
 }
