@@ -102,7 +102,7 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   'self-paced': 'Self-paced (present)',
   timed: 'Timed (monitor)',
   'per-period': 'Per-class assessment (monitor)',
-  'multi-class': 'Several classes (VA monitor)',
+  'multi-class': 'Several classes',
   'no-answer-key': 'Answer key unread (VA monitor)',
   stop: 'Stop checkpoint (monitor)',
   paused: 'Paused',

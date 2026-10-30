@@ -86,7 +86,9 @@ export function useMonitorData(
   config: QuizConfig,
   rosters: ClassRoster[],
   /** Translated FIB answer keys + served-locale overrides from the assignment. */
-  fibGrading?: FibGradingContext | null
+  fibGrading?: FibGradingContext | null,
+  /** Start on every class instead of the first one. */
+  openOnAllClasses = false
 ): MonitorData {
   const { orgId } = useAuth();
 
@@ -130,7 +132,11 @@ export function useMonitorData(
     [session.periodNames]
   );
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>(() =>
-    periodNames.length > 1 ? [periodNames[0]] : periodNames
+    periodNames.length > 1
+      ? openOnAllClasses
+        ? []
+        : [periodNames[0]]
+      : periodNames
   );
 
   // 30s ticker drives the stuck heuristic and hand-raise ages.

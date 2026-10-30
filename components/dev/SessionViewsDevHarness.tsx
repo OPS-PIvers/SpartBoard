@@ -236,7 +236,13 @@ const SessionView: React.FC<{
           }
         : state === 'stop'
           ? makeStopQuizSession(status)
-          : makeQuizSession(status);
+          : state === 'multi-class'
+            ? {
+                ...makeQuizSession(status),
+                sessionMode: 'student' as const,
+                periodNames: ['Period 1', 'Period 3'],
+              }
+            : makeQuizSession(status);
     return (
       <QuizMonitorDev
         session={session}
