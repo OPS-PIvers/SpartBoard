@@ -720,6 +720,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // the widget changes in place and doesn't otherwise hint at the action).
   const [isRotating, setIsRotating] = useState(false);
   const rotateAnimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // In-flight pick timers, cleared on unmount so a closed widget stops ticking and writing.
+  const spinTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
 
   // Rotate students one group forward (Group N's unlocked members go to
   // Group N+1; wraps around). Group IDs / names / colors stay put, so
@@ -751,8 +753,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Clean up the rotate-animation timer on unmount so it doesn't fire into
   // a dead component.
   useEffect(() => {
+    const spinTimers = spinTimersRef.current;
     return () => {
       if (rotateAnimTimer.current) clearTimeout(rotateAnimTimer.current);
+      spinTimers.forEach((id) => {
+        clearTimeout(id);
+        clearInterval(id);
+      });
+      spinTimers.clear();
     };
   }, []);
 
@@ -1004,6 +1012,22 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       spinningRef.current = false;
       setIsSpinning(false);
     };
+    const timers = spinTimersRef.current;
+    const schedule = (fn: () => void, ms: number) => {
+      const id = setTimeout(() => {
+        timers.delete(id);
+        fn();
+      }, ms);
+      timers.add(id);
+    };
+    const repeat = (fn: () => void, ms: number) => {
+      const id = setInterval(fn, ms);
+      timers.add(id);
+      return () => {
+        clearInterval(id);
+        timers.delete(id);
+      };
+    };
 
     // CRITICAL: Resume AudioContext within the click handler to unlock sound
     const ctx = getAudioCtx();
@@ -1130,7 +1154,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       if (visualStyle === 'flash') {
         let count = 0;
-        const interval = setInterval(() => {
+        const stop = repeat(() => {
           // Read from refs so we always have the current students list and
           // soundEnabled flag — config/props can change between the time
           // setInterval fires and when it was created (stale-closure fix).
@@ -1141,7 +1165,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (soundEnabledRef.current) playTick(150 + Math.random() * 50);
           count++;
           if (count > 20) {
-            clearInterval(interval);
+            stop();
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
             endSpin();
@@ -1177,7 +1201,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (soundEnabledRef.current) playTick(150);
           const progress = elapsed / duration;
           const nextInterval = 50 + Math.pow(progress, 2) * 400;
-          setTimeout(() => {
+          schedule(() => {
             tickSequence(count + 1);
           }, nextInterval);
         };
@@ -1185,7 +1209,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       } else if (visualStyle === 'slots') {
         let count = 0;
         const max = 25;
-        const interval = setInterval(() => {
+        const stop = repeat(() => {
           // Read from refs so we always have the current students list and
           // soundEnabled flag — config/props can change between the time
           // setInterval fires and when it was created (stale-closure fix).
@@ -1196,7 +1220,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (soundEnabledRef.current) playTick(150, 0.05);
           count++;
           if (count > max) {
-            clearInterval(interval);
+            stop();
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
             endSpin();
@@ -1206,7 +1230,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
     } else if (mode === 'jigsaw') {
       const myGen = ++spinGenRef.current;
-      setTimeout(() => {
+      schedule(() => {
         // Bail if the user reset / cycled mode / changed class while the
         // 500 ms timeout was pending — otherwise we'd write home/expert
         // groups for a mode the user already moved away from.
@@ -1396,7 +1420,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }, 500);
     } else {
       const myGen = ++spinGenRef.current;
-      setTimeout(() => {
+      schedule(() => {
         if (myGen !== spinGenRef.current) {
           endSpin();
           return;
