@@ -76,21 +76,24 @@ service cloud.firestore {
              (viewAsLive() && isReadMethod());
     }
 
-    // A signed-in district address, verified. email_verified is required because
-    // email/password sign-in is enabled, so an unverified self-reported address
-    // could otherwise claim an @orono one. Written once for the substitute and
-    // shared-board read rules that all gate on it.
-    function isVerifiedDistrictEmail() {
+    // District staff: a verified @orono address (email/password sign-in allows a
+    // self-reported one) that holds an active, non-student Orono member doc.
+    // Students share the domain, so the address alone never proves staff.
+    function isDistrictStaff() {
       return request.auth.token.get('email_verified', false) == true &&
-             request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$');
+             request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$') &&
+             !isStudentRoleUser() && staffMemberOk(operatorMember());
     }
-    // Staff audience: a session with audience 'staff' takes only verified district
+    function staffMemberOk(m) {
+      return m != null && m.data.get('status', 'active') != 'inactive' && m.data.get('roleId', '') != 'student';
+    }
+    // Staff audience: a session with audience 'staff' takes only district
     // staff, whose response names them from their own token; any other session's
     // responses carry no staff fields, so a student cannot pose as staff.
     function staffJoinOk(s, d) {
       return s.get('audience', '') != 'staff'
         ? !d.keys().hasAny(['staffEmail', 'staffName'])
-        : isVerifiedDistrictEmail() && !isStudentRoleUser() &&
+        : isDistrictStaff() &&
           d.get('staffEmail', '') == request.auth.token.email.lower() &&
           d.get('staffName', '') == request.auth.token.get('name', '');
     }
@@ -1392,8 +1395,8 @@ service cloud.firestore {
     // A list can't rule out web snapshots, so only district staff list.
     match /building_guided_learning_tours/{setId} {
       function staff() { return signedIn() && notAnon() && !isStudentRoleUser(); }
-      allow get: if staff() && (resource == null || existing().get('surface', 'spartboard') == 'spartboard' || isVerifiedDistrictEmail() || isAdmin());
-      allow list: if staff() && isVerifiedDistrictEmail();
+      allow get: if staff() && (resource == null || existing().get('surface', 'spartboard') == 'spartboard' || isDistrictStaff() || isAdmin());
+      allow list: if staff() && (isDistrictStaff() || isAdmin());
       allow create, delete: if isAdmin();
       // The read gate rests on surface, so a republish never changes it.
       allow update: if isAdmin() && incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
@@ -1486,7 +1489,7 @@ service cloud.firestore {
         || existing().get('originalAuthor', null) == authUid()
         || isAdmin()
         || (
-          isVerifiedDistrictEmail()
+          isDistrictStaff()
           && existing().get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -1509,7 +1512,7 @@ service cloud.firestore {
         || existing().get('originalAuthor', null) == authUid()
         || (
           existing().get('intendedMode', null) == 'substitute'
-          && isVerifiedDistrictEmail()
+          && isDistrictStaff()
         )
         || (
           existing().get('plcId', null) != null
@@ -1675,7 +1678,7 @@ service cloud.firestore {
         }
         // The owner must still belong to the share too, so a share recreated at an old id can't read
         // copies the deleted share left behind.
-        allow get: if signedIn() && notAnon() && !isStudentRoleUser() && isVerifiedDistrictEmail()
+        allow get: if signedIn() && notAnon() && !isStudentRoleUser() && isDistrictStaff()
           && sbItemMember(authUid())
           && (resource == null || sbItemMember(existing().get('ownerUid', '')));
         allow create: if signedIn() && sbItemWriteOk();
@@ -1718,7 +1721,7 @@ service cloud.firestore {
         || existing().get('hostUid', null) == authUid()
         || isAdmin()
         || (
-          isVerifiedDistrictEmail()
+          isDistrictStaff()
           && existing().get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -1734,7 +1737,7 @@ service cloud.firestore {
         || existing().get('hostUid', null) == authUid()
         || (
           existing().get('intendedMode', null) == 'substitute'
-          && isVerifiedDistrictEmail()
+          && isDistrictStaff()
         )
       );
 
@@ -1817,7 +1820,7 @@ service cloud.firestore {
           || shareData().get('hostUid', null) == authUid()
           || isAdmin()
           || (
-            isVerifiedDistrictEmail()
+            isDistrictStaff()
             && shareData().get('expiresAt', 0) > request.time.toMillis()
           )
         );
@@ -1847,7 +1850,7 @@ service cloud.firestore {
           isShareHost()
           || isAdmin()
           || (
-            isVerifiedDistrictEmail()
+            isDistrictStaff()
             && shareData().get('expiresAt', 0) > request.time.toMillis()
             && request.auth.token.get('email', '').lower()
                in shareData().get('subEmails', [])
@@ -6292,7 +6295,7 @@ service cloud.firestore {
       // Verified district accounts only (the /subs rule): Synced and View-Only links self-join.
       function awBoardMemberOk(mod) {
         let ids = get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)/boardAccess/boards).data.get('boardShareIds', []);
-        return isVerifiedDistrictEmail() && !isStudentRoleUser() && ids is list && ids.size() <= 3
+        return isDistrictStaff() && ids is list && ids.size() <= 3
           && ((ids.size() > 0 && awBoardShareOk(ids[0], mod))
               || (ids.size() > 1 && awBoardShareOk(ids[1], mod))
               || (ids.size() > 2 && awBoardShareOk(ids[2], mod)));
@@ -6426,7 +6429,9 @@ service cloud.firestore {
         // unbounded-field-injection gap: without it a caller could smuggle arbitrary extra
         // keys - incl. a large junk string toward the 1MB cap - past every per-field check,
         // and every gallery viewer's onSnapshot would pay to download it on each emission.
+        // authorRole first: a teacher post fails here before the class gate spends the 1,000-expression budget.
         allow create: if signedIn() && viewAsOk() &&
+          !('authorRole' in incoming()) &&
           exists(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)) &&
           passesStudentClassGateCompat(awSessionClassIds(), awSessionClassId()) &&
           incoming().keys().hasOnly([
@@ -6442,7 +6447,6 @@ service cloud.firestore {
           incoming().content.size() <= 5000 &&
           isInt('submittedAt') &&
           incoming().status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
-          !('authorRole' in incoming()) &&
           awFieldTypesOk() &&
           // authorUid is an ownership claim on every session shape, not just padlet ones.
           (!('authorUid' in incoming()) ||
@@ -6930,7 +6934,7 @@ service cloud.firestore {
         isSubMonitor(existing()) ||
         fcInSessionClass(existing().get('classIds', [])) ||
         (isStudentRoleUser() && fcHasPointer()) ||
-        (existing().get('audience', '') == 'staff' && isVerifiedDistrictEmail())
+        (existing().get('audience', '') == 'staff' && isDistrictStaff())
       );
       // No pointer branch here: exists() per returned doc would blow the
       // per-query document-access cap. Pointer-targeted sessions are hydrated

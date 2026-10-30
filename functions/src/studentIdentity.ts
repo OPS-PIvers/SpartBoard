@@ -27,12 +27,12 @@ import { normalizeQuizCode } from './quizCode';
 import {
   STUDENT_LOGIN_CLASS_IDS_MAX,
   StudentLookupError,
+  isOneRosterStaff,
   resolveStudentByEmail,
   type OneRosterUserWithRole,
 } from './studentEmailIdentity';
 import {
   MAX_TARGET_REFS,
-  isOnlyOneRosterStudent,
   loadTargetDirectory,
   resolveTargets,
   targetRefsFromAssignment,
@@ -905,7 +905,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
         teacherUrl,
         { params: teacherParams, headers: { ...teacherHeaders } }
       );
-      const teacherUser = (teacherResp.data.users ?? [])[0];
+      const teacherUser = (teacherResp.data.users ?? []).find(isOneRosterStaff);
       if (!teacherUser) {
         throw new HttpsError(
           'not-found',
@@ -1099,8 +1099,8 @@ export async function loadTaughtClassEnrollment(
         timeout: CLASSLINK_TIMEOUT_MS,
       }
     );
-    const teacher = (userResp.data.users ?? [])[0];
-    if (!teacher?.sourcedId || isOnlyOneRosterStudent(teacher)) return null;
+    const teacher = (userResp.data.users ?? []).find(isOneRosterStaff);
+    if (!teacher?.sourcedId) return null;
 
     // Unpaged, like getClassLinkRosterV1, so any class the import dialog listed is found here.
     const classesUrl = `${base}/users/${encodeURIComponent(teacher.sourcedId)}/classes`;

@@ -37,7 +37,7 @@ export const FOCUS_ENFORCE_PROTOCOL = 10;
 /** Protocol 11: `schoology/signed-in` and `schoology/connect` let a page get the extension signed in, so its Schoology button can check the flag. */
 export const SCHOOLOGY_CONNECT_PROTOCOL = 11;
 
-/** The district Google domain, shared by staff and students; the server tells them apart. */
+/** The district Google domain; students share it, so the server checks a staff member doc too. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
 
 /** Which Chrome profile the extension runs under; `none` is a browser with no signed-in profile. */

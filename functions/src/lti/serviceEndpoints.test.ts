@@ -26,6 +26,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Mocks (hoisted) ─────────────────────────────────────────────────────────
+// Staff is decided by an org member doc (districtStaff.ts); here any verified non-student token is staff.
+const districtStaffMock = vi.hoisted(() =>
+  vi.fn(
+    (
+      _db: unknown,
+      token: { email_verified?: boolean; studentRole?: unknown }
+    ): Promise<boolean> =>
+      Promise.resolve(
+        token.email_verified === true && token.studentRole !== true
+      )
+  )
+);
+vi.mock('../districtStaff', () => ({
+  isDistrictStaffToken: districtStaffMock,
+}));
+
 vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     code: string;
@@ -202,6 +218,21 @@ describe('ltiResolveNamesForAssignmentV1 — security gate', () => {
     await expectCode(
       callResolve({
         auth: { uid: 'teacher-1', token: {} },
+        data: { sessionId: 's1' },
+      }),
+      'permission-denied'
+    );
+  });
+
+  it('rejects a verified district Google account with no staff member doc', async () => {
+    // Students share the staff domain, so only the member doc check stops them.
+    districtStaffMock.mockResolvedValueOnce(false);
+    await expectCode(
+      callResolve({
+        auth: {
+          uid: 'teacher-1',
+          token: { email: '704522@orono.k12.mn.us', email_verified: true },
+        },
         data: { sessionId: 's1' },
       }),
       'permission-denied'

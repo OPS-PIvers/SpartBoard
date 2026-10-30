@@ -29,6 +29,12 @@ import {
   ref,
   uploadBytes,
 } from 'firebase/storage';
+import {
+  INACTIVE_STAFF_EMAIL,
+  LEGACY_STUDENT_MEMBER_EMAIL,
+  STUDENT_GOOGLE_EMAIL,
+  seedDistrictStaff,
+} from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-web-tours-rules-test';
 const ADMIN_EMAIL = 'admin@orono.k12.mn.us';
@@ -70,11 +76,24 @@ const asUnverifiedStaff = () =>
     email_verified: false,
     firebase: { sign_in_provider: 'password' },
   });
+// Students and staff share the district domain, so only the member doc tells them apart.
 const asStudentGoogle = () =>
   testEnv.authenticatedContext(
     'student-google-uid',
-    google('kid@students.orono.k12.mn.us')
+    google(STUDENT_GOOGLE_EMAIL)
   );
+const asStudentNamedGoogle = () =>
+  testEnv.authenticatedContext(
+    'student-named-uid',
+    google('jordan.kid@orono.k12.mn.us')
+  );
+const asLegacyStudentMember = () =>
+  testEnv.authenticatedContext(
+    'legacy-student-uid',
+    google(LEGACY_STUDENT_MEMBER_EMAIL)
+  );
+const asInactiveStaff = () =>
+  testEnv.authenticatedContext('inactive-uid', google(INACTIVE_STAFF_EMAIL));
 const asAnon = () =>
   testEnv.authenticatedContext('anon-uid', {
     firebase: { sign_in_provider: 'anonymous' },
@@ -91,6 +110,9 @@ const notStaff = (): RulesTestContext[] => [
   asOutsideTeacher(),
   asUnverifiedStaff(),
   asStudentGoogle(),
+  asStudentNamedGoogle(),
+  asLegacyStudentMember(),
+  asInactiveStaff(),
   asAnon(),
   asStudentRole(),
   asSignedOut(),
@@ -152,6 +174,7 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { addedAt: 1 });
     await setDoc(doc(db, 'admins/outside-admin@example.com'), { addedAt: 1 });
+    await seedDistrictStaff(db, ['teacher@orono.k12.mn.us']);
     await setDoc(doc(db, `${DRAFTS}/w1`), draft);
     await setDoc(doc(db, `${TOURS}/w1`), webSnapshot);
     await setDoc(doc(db, `${TOURS}/s1`), boardSnapshot);
@@ -202,7 +225,7 @@ describe('web tour snapshots', () => {
     await assertSucceeds(getDoc(doc(db, `${TOURS}/w1`)));
   });
 
-  it('denies a web snapshot to every account that is not verified district staff', async () => {
+  it('denies a web snapshot to every account that is not district staff, students on the staff domain included', async () => {
     for (const ctx of notStaff()) {
       await assertFails(getDoc(doc(ctx.firestore(), `${TOURS}/w1`)));
     }
@@ -224,10 +247,11 @@ describe('web tour snapshots', () => {
 
   it('lets district staff list snapshots and denies the list to others', async () => {
     await assertSucceeds(getDocs(collection(asStaff().firestore(), TOURS)));
+    await assertSucceeds(getDocs(collection(asAdmin().firestore(), TOURS)));
     await assertFails(
       getDocs(collection(asOutsideTeacher().firestore(), TOURS))
     );
-    for (const ctx of [asStudentGoogle(), asAnon(), asStudentRole()]) {
+    for (const ctx of notStaff()) {
       await assertFails(getDocs(collection(ctx.firestore(), TOURS)));
     }
   });
@@ -276,10 +300,19 @@ describe('web tour snapshots', () => {
 });
 
 describe('web_tour_pictures storage', () => {
-  it('lets district staff and admins get a picture', async () => {
-    const path = await seedPicture();
-    await assertSucceeds(getBytes(ref(asStaff().storage(), path)));
-    await assertSucceeds(getBytes(ref(asAdmin().storage(), path)));
+  // The emulator cannot resolve storage's firestore.get() member lookup either, so the staff allow is pinned by source.
+  it('lets only staff with an active, non-student member doc get a picture', () => {
+    const rules = readFileSync(STORAGE_RULES, 'utf8');
+    expect(rules).toContain(
+      'districtStaffMember(firestore.get(/databases/(default)/documents/organizations/orono/members/$(request.auth.token.email.lower())))'
+    );
+    expect(rules).toContain(
+      "request.auth.token.get('studentRole', false) != true"
+    );
+    expect(rules).toContain(
+      "member.data.get('status', 'active') != 'inactive'"
+    );
+    expect(rules).toContain("member.data.get('roleId', '') != 'student'");
   });
 
   it('denies a picture to everyone else', async () => {
@@ -311,7 +344,7 @@ describe('web_tour_pictures storage', () => {
         rules
       )?.[1] ?? '';
     expect(body).toContain(
-      'allow get: if (isVerifiedDistrictEmail() && viewAsReadOk()) || isAdmin();'
+      'allow get: if (isDistrictStaff() && viewAsReadOk()) || isAdmin();'
     );
     expect(body).toContain('allow list, delete: if isAdmin();');
     expect(body).toContain('allow create: if isAdmin() &&');
