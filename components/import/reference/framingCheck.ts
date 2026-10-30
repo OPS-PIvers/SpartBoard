@@ -1,6 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
-import { ensureProtocol } from '@/utils/urlHelpers';
+import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
 import { TRUSTED_EMBED_HOSTNAMES } from '@/components/widgets/Embed/trustedHostnames';
 
 export type FramingVerdict =
@@ -16,6 +16,26 @@ interface CompatibilityResult {
   isEmbeddable: boolean;
   reason?: string;
   uncertain?: boolean;
+  headers?: { 'x-frame-options'?: string; 'content-security-policy'?: string };
+}
+
+// Hosts the Embed widget frames without asking the server, beyond the trusted provider list.
+const EXTRA_EMBED_HOSTNAMES = ['carriderpro.com', 'www.carriderpro.com'];
+
+/** The server's CSP test is coarse, so a refusal stands only for X-Frame-Options or a frame-ancestors that truly blocks us. */
+function framingDefinitelyBlocked(result: CompatibilityResult): boolean {
+  const headers = result.headers;
+  if (!headers) return true;
+  const xfo = (headers['x-frame-options'] ?? '').trim().toLowerCase();
+  if (xfo === 'deny' || xfo === 'sameorigin') return true;
+  const directive = (headers['content-security-policy'] ?? '')
+    .toLowerCase()
+    .split(';')
+    .map((d) => d.trim().split(/\s+/))
+    .find((parts) => parts[0] === 'frame-ancestors');
+  if (!directive) return false;
+  const sources = directive.slice(1);
+  return sources.every((src) => src === "'none'" || src === "'self'");
 }
 
 export type CompatibilityCheck = (url: string) => Promise<CompatibilityResult>;
@@ -41,6 +61,7 @@ export function isAllowListedEmbedHost(
   }
   return (
     TRUSTED_EMBED_HOSTNAMES.includes(host) ||
+    EXTRA_EMBED_HOSTNAMES.includes(host) ||
     allowListedHosts.some((h) => h.trim().toLowerCase() === host)
   );
 }
@@ -53,7 +74,8 @@ export async function checkReferenceFraming(
     check?: CompatibilityCheck;
   } = {}
 ): Promise<FramingVerdict> {
-  const full = ensureProtocol(url);
+  // Check the address the Embed will actually load, so wrapped or http provider links pass like the widget's own check.
+  const full = convertToEmbedUrl(ensureProtocol(url));
   let parsed: URL;
   try {
     parsed = new URL(full);
@@ -71,6 +93,7 @@ export async function checkReferenceFraming(
     const result = await (options.check ?? callCheckUrlCompatibility)(full);
     if (result.uncertain) return { status: 'unknown' };
     if (result.isEmbeddable) return { status: 'ok' };
+    if (!framingDefinitelyBlocked(result)) return { status: 'unknown' };
     return { status: 'refused', cause: 'blocked', reason: result.reason };
   } catch (err) {
     console.warn('[import] framing check failed', err);

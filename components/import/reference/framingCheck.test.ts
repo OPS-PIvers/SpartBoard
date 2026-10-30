@@ -10,6 +10,7 @@ describe('checkReferenceFraming', () => {
     const check = vi.fn().mockResolvedValue({
       isEmbeddable: false,
       reason: 'X-Frame-Options: DENY',
+      headers: { 'x-frame-options': 'deny', 'content-security-policy': '' },
     });
     await expect(
       checkReferenceFraming('https://news.example.com/a', { check })
@@ -66,6 +67,45 @@ describe('checkReferenceFraming', () => {
     await expect(
       checkReferenceFraming('javascript:alert(1)', { check })
     ).resolves.toEqual({ status: 'refused', cause: 'invalid' });
+    expect(check).not.toHaveBeenCalled();
+  });
+});
+
+describe('checkReferenceFraming edge cases', () => {
+  it('only treats a frame-ancestors that blocks us as a refusal', async () => {
+    const csp = (policy: string) =>
+      vi.fn().mockResolvedValue({
+        isEmbeddable: false,
+        headers: { 'x-frame-options': '', 'content-security-policy': policy },
+      });
+    await expect(
+      checkReferenceFraming('https://a.example.com', {
+        check: csp("default-src 'self'; frame-ancestors *"),
+      })
+    ).resolves.toEqual({ status: 'unknown' });
+    await expect(
+      checkReferenceFraming('https://a.example.com', {
+        check: csp("frame-ancestors 'self'"),
+      })
+    ).resolves.toMatchObject({ status: 'refused', cause: 'blocked' });
+  });
+
+  it('checks the address the Embed loads, so http and wrapped provider links pass', async () => {
+    const check = vi.fn();
+    await expect(
+      checkReferenceFraming('http://www.youtube.com/watch?v=dQw4w9WgXcQ', {
+        check,
+      })
+    ).resolves.toEqual({ status: 'ok' });
+    await expect(
+      checkReferenceFraming(
+        'https://www.google.com/url?q=https://drive.google.com/file/d/abc123/view',
+        { check }
+      )
+    ).resolves.toEqual({ status: 'ok' });
+    await expect(
+      checkReferenceFraming('https://www.carriderpro.com/x', { check })
+    ).resolves.toEqual({ status: 'ok' });
     expect(check).not.toHaveBeenCalled();
   });
 });

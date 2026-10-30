@@ -49,10 +49,16 @@ export const ReferenceEmbedStep: React.FC<ReferenceEmbedStepProps> = ({
     url: string;
     verdict: FramingVerdict;
   } | null>(null);
-  // Only the verdict for the current url counts, so a url change shows the check again.
-  const verdict = checked?.url === url ? checked.verdict : null;
   // A string key so a fresh array from the permissions listener doesn't re-run the check.
   const allowKey = (embedConfig?.whitelistUrls ?? []).join('\n');
+  const hideUrlField = embedConfig?.hideUrlField ?? false;
+  // The building only allows code embeds, so a page Embed would render empty; otherwise only the current url's verdict counts.
+  const verdict: FramingVerdict | null =
+    !isLoading && hideUrlField
+      ? { status: 'refused', cause: 'policy' }
+      : checked?.url === url
+        ? checked.verdict
+        : null;
 
   const runCheck = useEffectEvent((allowListedHosts: string[]) =>
     checkReferenceFraming(url, { allowListedHosts, check })
@@ -66,7 +72,7 @@ export const ReferenceEmbedStep: React.FC<ReferenceEmbedStepProps> = ({
   });
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || hideUrlField) return;
     let cancelled = false;
     void runCheck(allowKey ? allowKey.split('\n') : []).then((next) => {
       if (!cancelled) place(url, next);
@@ -74,7 +80,7 @@ export const ReferenceEmbedStep: React.FC<ReferenceEmbedStepProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [url, allowKey, isLoading]);
+  }, [url, allowKey, isLoading, hideUrlField]);
 
   if (verdict?.status !== 'refused') {
     return (
@@ -100,6 +106,8 @@ export const ReferenceEmbedStep: React.FC<ReferenceEmbedStepProps> = ({
         {verdict.cause === 'insecure' &&
           'This page uses an older, unsecured address, so browsers won’t show it inside SpartBoard.'}
         {verdict.cause === 'invalid' && 'This doesn’t look like a web address.'}
+        {verdict.cause === 'policy' &&
+          'Your building has turned off showing web pages in an Embed.'}
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
         <Button

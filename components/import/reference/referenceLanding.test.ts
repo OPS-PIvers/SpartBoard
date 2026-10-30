@@ -6,14 +6,14 @@ import {
 } from './referenceLanding';
 
 describe('referenceLanding', () => {
-  it('rewrites provider links to their embed form and keeps the page title', () => {
+  it('stores the link as given, so the widget can keep a linked slide', () => {
     expect(
       buildEmbedReference('https://youtu.be/dQw4w9WgXcQ', '  Song  ')
     ).toEqual({
       type: 'embed',
       overrides: {
         config: {
-          url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+          url: 'https://youtu.be/dQw4w9WgXcQ',
           mode: 'url',
           isEmbeddable: true,
           blockedReason: '',

@@ -4,9 +4,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('@/config/firebase', () => ({ functions: {} }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
+const embedPolicy = { hideUrlField: false };
 vi.mock('@/components/widgets/Embed/hooks/useEmbedConfig', () => ({
   useEmbedConfig: () => ({
-    config: { buildingId: '', hideUrlField: false, whitelistUrls: [] },
+    config: {
+      buildingId: '',
+      hideUrlField: embedPolicy.hideUrlField,
+      whitelistUrls: [],
+    },
     isLoading: false,
   }),
 }));
@@ -78,5 +83,19 @@ describe('ReferenceEmbedStep', () => {
     expect(onPlace).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'url' })
     );
+  });
+
+  it('never places a page Embed when the building only allows code embeds', async () => {
+    embedPolicy.hideUrlField = true;
+    try {
+      const { onPlace, check } = renderStep(true);
+      expect(
+        await screen.findByText(/turned off showing web pages/)
+      ).toBeInTheDocument();
+      expect(check).not.toHaveBeenCalled();
+      expect(onPlace).not.toHaveBeenCalled();
+    } finally {
+      embedPolicy.hideUrlField = false;
+    }
   });
 });

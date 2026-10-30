@@ -1,5 +1,5 @@
 import type { AddWidgetOverrides, WidgetType } from '@/types';
-import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
+import { ensureProtocol } from '@/utils/urlHelpers';
 import { computeWidgetSizeForImage } from '@/utils/imageProcessing';
 
 export interface ReferenceWidget {
@@ -12,7 +12,7 @@ const titleOrUndefined = (title?: string) => {
   return trimmed ? { customTitle: trimmed.slice(0, 120) } : {};
 };
 
-/** An Embed of a page, slide deck or document, with provider links rewritten to their embed form (D12). */
+/** An Embed of a page, slide deck or document; the widget rewrites provider links at render, keeping a linked slide (D12). */
 export function buildEmbedReference(
   url: string,
   title?: string
@@ -21,7 +21,7 @@ export function buildEmbedReference(
     type: 'embed',
     overrides: {
       config: {
-        url: convertToEmbedUrl(ensureProtocol(url)),
+        url: ensureProtocol(url),
         mode: 'url',
         isEmbeddable: true,
         blockedReason: '',
