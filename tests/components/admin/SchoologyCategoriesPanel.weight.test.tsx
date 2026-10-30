@@ -23,4 +23,14 @@ describe('SchoologyCategoriesPanel weight field', () => {
     fireEvent.blur(input);
     expect(input.value).toBe('30');
   });
+
+  it('shows the clamped, rounded weight that Total uses while typing', async () => {
+    render(<SchoologyCategoriesPanel />);
+    const input =
+      await screen.findByLabelText<HTMLInputElement>('Category 1 weight');
+    fireEvent.change(input, { target: { value: '150' } });
+    expect(input.value).toBe('100');
+    fireEvent.change(input, { target: { value: '20.5' } });
+    expect(input.value).toBe('21');
+  });
 });
