@@ -67,7 +67,7 @@ import {
   SEND_STATUS_KEY,
   type SendStatusCache,
 } from './send/worker';
-import { SEND_CONTENT_FILE } from './send/messages';
+import { IMPORT_INBOX_EVENT, SEND_CONTENT_FILE } from './send/messages';
 import { parseSendSettings, SEND_SETTINGS_KEY } from './send/settings';
 
 // The listing's exact origins, inlined at build time so a bundle carries only its own.
@@ -212,11 +212,23 @@ const send = createSendWorker({
         id: t.id as number,
         windowId: t.windowId,
         origin: new URL(t.url as string).origin,
+        ready: t.status === 'complete' && !t.discarded,
       }));
   },
   focus: async ({ id, windowId }) => {
     await chrome.tabs.update(id, { active: true });
     await chrome.windows.update(windowId, { focused: true });
+  },
+  askForInbox: async (tabId) => {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      // The board cancels the event when it opens the Import screen.
+      func: (name: string) =>
+        !window.dispatchEvent(new CustomEvent(name, { cancelable: true })),
+      args: [IMPORT_INBOX_EVENT],
+    });
+    return result?.result === true;
   },
   navigate: async (tabId, url) => {
     await chrome.tabs.update(tabId, { url, active: true });
@@ -274,8 +286,10 @@ const schoology = createSchoologyWorker({
       { enabled: boolean; at: number } | undefined,
   saveStatus: (status) => chrome.storage.session.set({ [STATUS_KEY]: status }),
   inject: async (tabId) => {
-    // With Send to SpartBoard on, its one button reads single quizzes and this script keeps only the checklists (IMPORT D14).
-    const universal = (await send.status()).enabled;
+    // With the Send edge tab showing, it reads single quizzes and this script keeps only the checklists (IMPORT D14).
+    const url = (await chrome.tabs.get(tabId).catch(() => null))?.url;
+    // Only when the edge tab shows there, so hiding it brings back the quiz button.
+    const universal = !!url && (await send.stateFor(url)).show;
     await chrome.scripting
       .executeScript({
         target: { tabId },

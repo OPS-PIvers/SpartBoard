@@ -74,6 +74,7 @@ function setup(
     syncMenu: vi.fn(() => Promise.resolve(undefined)),
     boardTabs: () => Promise.resolve([]),
     focus: () => Promise.resolve(undefined),
+    askForInbox: vi.fn(() => Promise.resolve(false)),
     navigate: vi.fn(() => Promise.resolve(undefined)),
     openTab: vi.fn(() => Promise.resolve(undefined)),
     now: () => 1_000_000,
@@ -352,6 +353,26 @@ describe('send worker', () => {
     const { worker, deps } = setup();
     await worker.message({ type: 'send/open' }, ARTICLE);
     expect(deps.openTab).toHaveBeenCalledWith(`${ORIGIN}/?importInbox=1`);
+  });
+
+  it('shows the inbox in an open board without reloading, and reloads one that did not answer', async () => {
+    const board = { id: 3, windowId: 1, origin: ORIGIN, ready: true };
+    const heard = setup({
+      boardTabs: () => Promise.resolve([board]),
+      askForInbox: vi.fn(() => Promise.resolve(true)),
+    });
+    await heard.worker.openInbox();
+    expect(heard.deps.askForInbox).toHaveBeenCalledWith(3);
+    expect(heard.deps.navigate).not.toHaveBeenCalled();
+    const loading = setup({
+      boardTabs: () => Promise.resolve([{ ...board, ready: false }]),
+    });
+    await loading.worker.openInbox();
+    expect(loading.deps.askForInbox).not.toHaveBeenCalled();
+    expect(loading.deps.navigate).toHaveBeenCalledWith(
+      3,
+      `${ORIGIN}/?importInbox=1`
+    );
   });
 });
 

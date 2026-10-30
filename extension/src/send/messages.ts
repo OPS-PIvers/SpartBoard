@@ -5,6 +5,8 @@ import type { ImportSendRequest } from '@/utils/import/contract';
 
 export const SEND_CONTENT_FILE = 'send.js';
 export const SEND_HOST_ID = 'spartboard-send';
+// Same name as IMPORT_INBOX_EVENT in utils/import/contract.ts (import S2); the board cancels it when it opens the Import screen.
+export const IMPORT_INBOX_EVENT = 'spartboard:import-inbox';
 
 /** From the Send content script in a page. */
 export type SendPageMessage =

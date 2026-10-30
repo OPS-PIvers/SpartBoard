@@ -34,6 +34,8 @@ export interface SendBoardTab {
   id: number;
   windowId: number;
   origin: string;
+  /** Loaded and not discarded, so it can hear the inbox event. */
+  ready: boolean;
 }
 
 export interface SendWorkerDeps {
@@ -56,6 +58,8 @@ export interface SendWorkerDeps {
   schoologyEnabled: () => Promise<boolean>;
   boardTabs: () => Promise<SendBoardTab[]>;
   focus: (tab: SendBoardTab) => Promise<void>;
+  /** Fires the inbox event in the board; true when the board opened the Import screen itself. */
+  askForInbox: (tabId: number) => Promise<boolean>;
   navigate: (tabId: number, url: string) => Promise<void>;
   openTab: (url: string) => Promise<void>;
   now: () => number;
@@ -181,7 +185,11 @@ export function createSendWorker(deps: SendWorkerDeps) {
       return;
     }
     await deps.focus(tab);
-    await deps.navigate(tab.id, `${tab.origin}/?${INBOX_PARAM}=1`);
+    // An open board shows the inbox in place; anything else reloads onto it.
+    const handled =
+      tab.ready && (await deps.askForInbox(tab.id).catch(() => false));
+    if (!handled)
+      await deps.navigate(tab.id, `${tab.origin}/?${INBOX_PARAM}=1`);
   }
 
   async function sendPage(
