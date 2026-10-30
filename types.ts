@@ -10744,7 +10744,9 @@ export type GlobalFeature =
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
-  | 'staff-audience';
+  | 'staff-audience'
+  /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
+  | 'universal-import';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
