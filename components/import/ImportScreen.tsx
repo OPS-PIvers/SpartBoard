@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FileText, Globe, Link2, Type, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
+import { TOOLS } from '@/config/tools';
 import type { ImportInboxItem, ImportTarget } from '@/utils/import/contract';
 import type { PendingSource } from './importHandoff';
 import { importRoute, targetChoices } from './importTargets';
@@ -140,6 +141,32 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   );
 };
 
+const toolFor = (widgetType: string) =>
+  TOOLS.find((tool) => tool.type === widgetType);
+
+const Thumbnail: React.FC<{ source: PendingSource; icon: React.ReactNode }> = ({
+  source,
+  icon,
+}) => {
+  const [broken, setBroken] = useState(false);
+  const image = source.inboxItem?.images[0]?.url;
+  if (image && !broken)
+    return (
+      <img
+        src={image}
+        alt=""
+        referrerPolicy="no-referrer"
+        onError={() => setBroken(true)}
+        className="h-12 w-12 shrink-0 rounded-lg border border-slate-200 object-cover"
+      />
+    );
+  return (
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 [&>svg]:h-5 [&>svg]:w-5">
+      {icon}
+    </span>
+  );
+};
+
 const SourceRow: React.FC<{
   source: PendingSource;
   allowed: ImportScreenProps['allowed'];
@@ -149,56 +176,67 @@ const SourceRow: React.FC<{
   const described = describeSource(source);
   const { targets, guess } = targetChoices(source, allowed);
   return (
-    <li className="space-y-2.5 py-4">
-      <div className="flex items-center gap-3">
-        <span className="shrink-0 text-slate-400">{described.icon}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-bold text-slate-800">
-            {described.title}
-          </span>
-          <span className="block truncate text-xs text-slate-500">
-            {described.detail}
-          </span>
-        </span>
-        {onRemove && (
-          <button
-            type="button"
-            onClick={onRemove}
-            aria-label={`Remove ${described.title}`}
-            {...tourAttr('import-screen.sent-remove')}
-            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-      {targets.length === 0 ? (
-        <p className="pl-7 text-sm text-slate-600" role="status">
-          SpartBoard can’t import this yet.
-        </p>
-      ) : (
-        <div className="flex flex-wrap gap-2 pl-7">
-          {targets.map((target) => {
-            const route = importRoute(target);
-            if (!route) return null;
-            return (
+    <li className="py-4">
+      <div className="flex items-start gap-3">
+        <Thumbnail source={source} icon={described.icon} />
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <div className="flex items-start gap-2">
+            <span className="min-w-0 flex-1 pt-0.5">
+              <span className="block truncate text-sm font-bold text-slate-800">
+                {described.title}
+              </span>
+              <span className="block truncate text-xs text-slate-500">
+                {described.detail}
+              </span>
+            </span>
+            {onRemove && (
               <button
-                key={target}
                 type="button"
-                onClick={() => onPick(target)}
-                {...tourAttr('import-screen.target')}
-                className={
-                  target === guess
-                    ? 'rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-bold text-white hover:bg-brand-blue-dark'
-                    : 'rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary'
-                }
+                onClick={onRemove}
+                aria-label={`Remove ${described.title}`}
+                {...tourAttr('import-screen.sent-remove')}
+                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
-                {route.label}
+                <X className="h-4 w-4" />
               </button>
-            );
-          })}
+            )}
+          </div>
+          {targets.length === 0 ? (
+            <p className="text-sm text-slate-600" role="status">
+              SpartBoard can’t import this yet.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {targets.map((target) => {
+                const route = importRoute(target);
+                if (!route) return null;
+                const tool = toolFor(route.widgetType);
+                const Icon = tool?.icon ?? Globe;
+                return (
+                  <button
+                    key={target}
+                    type="button"
+                    onClick={() => onPick(target)}
+                    {...tourAttr('import-screen.target')}
+                    className={`inline-flex items-center gap-2 rounded-lg border py-1 pl-1 pr-3 text-sm font-bold transition-colors ${
+                      target === guess
+                        ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary hover:bg-brand-blue-lighter/70'
+                        : 'border-slate-300 bg-white text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary'
+                    }`}
+                  >
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-md text-white ${tool?.color ?? 'bg-slate-500'}`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    {route.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </li>
   );
 };
