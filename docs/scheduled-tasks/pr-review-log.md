@@ -4982,3 +4982,16 @@ rather than "no data") is also still open.
     - `onBoundsChanged` queues a `cover()` on every resize step.
     - The PR body says version 0.1.18, but the manifest is 0.1.19.
 - Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-10-30
+
+- PRs reviewed: #4884 docs(debugger): run 112 log; #4883 fix(mcp): match the client's weak-entry parsing in web tour suggested fixes; #4882 fix(admin): let the Schoology category weight be cleared and retyped; #4881 fix(library): clear folder drag state when the dragged row loses its handlers; #4880 fix(random): stop pick timers when the widget unmounts mid-spin; #4879 Widget loop: record #4743 as accepted; #4878 Release 2026.10.30; #4877 docs(unifier): run 131 log; #4876 Weather details: fix review issues; #4873 Add PLC rejoin entry backfill script (F54)
+- Comments processed: 7 total. 0 fixed, 0 needing a reply.
+  - Three inline threads (two on #4876, one on #4873) were already resolved, with author fixes in 653f3f97 and 3e7f34f4.
+  - The rest were `claude[bot]` summaries on #4878, #4883 and #4876. None asked for changes.
+- Fixes pushed: none
+- Reviews posted: 10
+  - Ready: #4884, #4883, #4882, #4881, #4880, #4879, #4877, #4876, #4873.
+  - Ready with minor notes: #4878. The Import plan and the ADR edit need Paul's read.
+  - Optional notes: #4881 has a theoretical case where its cleanup could null another row's drag. #4883 could add a `weakStepId`/`parseWeak` parity assertion. #4884 has a table row missing its closing pipe.
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
