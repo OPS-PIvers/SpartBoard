@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-10-21_
+_Last audited: 2026-10-30_
 _Last action: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap resolved: `generateWithAI`'s `specificFeatureId` branch now enforces `enabled`/`accessLevel`/`betaUsers` server-side, mirroring the existing global `gemini-functions` check, so a disabled/admin-only/beta-restricted feature (e.g. `embed-mini-app`) can no longer be reached by calling the Cloud Function directly. Moved to Completed._
 
 ---
@@ -25,6 +25,8 @@ _Last action: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap re
 | `transcription`            | `transcribeVideoWithGemini` | utils/ai.ts `transcribeVideoWithGemini`             | per-function rate limit                    | ✓                  | ✓                  | feature perm checked                                                                           |
 | `guided-learning`          | `generateGuidedLearning`    | GuidedLearning/components/GuidedLearningAIGenerator | None — admin-exempt by design (documented) | ✓                  | ✓                  | `isAdmin` check in Widget.tsx (not perm)                                                       |
 | `video-activity-recommend` | `generateWithAI`            | utils/ai.ts `recommendVideoForActivity`             | global only                                | ✓                  | ✓                  | ✗ **AIData interface gap (see LOW item)**                                                      |
+
+_2026-10-30: Friday weekly audit (E2), light pass. Model ids are centralized in `functions/src/aiModels.ts`/`aiModelConfig.ts` (Gemini defaults `gemini-3.7-flash` advanced, `gemini-3.5-flash-lite` standard; Claude ids `claude-*-5-x`); no hard-coded model strings elsewhere in `functions/src`. 18 integrations in `functions/src/aiIntegrations.ts` with server and client registries kept in parity by test. Every callable still reads the `gemini-functions` permission doc. No client AI response is hand-parsed outside JSON mode. 0 new issues._
 
 _2026-10-21: Wednesday weekly audit (E2), light pass. Model strings in `functions/src`: Gemini ids limited to `gemini-3.5-flash-lite`/`3.7-flash`/`3.8-flash`/`2.5-*` and Claude `sonnet-5-5`/`opus-5-5`/`haiku-5-5`, all resolved through the router; `gemini-1.`/`gemini-2.0-` are only in the `RETIRED_MODEL_ID_PREFIXES` guard (`shared.ts:50`). Generation-type table and AI-opportunity items not re-audited. 0 new issues._
 

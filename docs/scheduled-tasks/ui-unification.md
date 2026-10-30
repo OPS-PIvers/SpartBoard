@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-10-23_
+_Last audited: 2026-10-30_
 _Last action: 2026-09-25 — MEDIUM dead appearance fields: removed `cardColor`/`cardOpacity`/`fontFamily`/`fontColor` from `StickerBookConfig` and `fontFamily`/`fontColor` from `TalkingToolConfig` (types.ts) — none were read by their widgets, matching the `CarRiderProConfig` precedent. `pnpm run type-check` exit 0; 88 targeted tests passed. Moved to Completed. PR opened to dev-paul._
 
 _2026-10-23: Friday weekly audit (C2), light pass. No hand-written `components/widgets/*/Settings.tsx` remain (schema-driven drawer); 47 admin `*ConfigurationPanel.tsx` files present; 0 hardcoded hex colors in widget Settings files. 0 new issues._
@@ -17,6 +17,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-30: Friday weekly audit (C2), light pass. No hand-written `components/widgets/*/Settings.tsx` (schema-driven drawer); 47 admin `*ConfigurationPanel.tsx` files; `WIDGET_APPEARANCE_COMPONENTS` is an empty map by design. Hex colors appear in 58 widget files (mostly widget content palettes), not re-audited line by line. 0 new issues._
 
 _2026-10-14: Audit C2 (Wednesday), spot-check pass. `WIDGET_APPEARANCE_COMPONENTS`/`WIDGET_SETTINGS_COMPONENTS` still empty and no `components/widgets/*/Settings.tsx` files remain (45 admin `*ConfigurationPanel.tsx` files). Re-counted: 34 files with `type="range"`, 66 with `type="checkbox"` under `components/` (non-test). Extended the hand-rolled toggle item with two new `role="switch"` sites (`StudioWelcomeCard`, `TourBar`). No other new findings; older appearance-panel items citing missing `WIDGET_APPEARANCE_COMPONENTS` entries remain obsolete and still need a schema-based re-check by the action pass._
 
