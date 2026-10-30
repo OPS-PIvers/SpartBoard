@@ -175,11 +175,14 @@ describe('synced_question_banks/{groupId}', () => {
     );
   });
 
-  it('any authed user gets by id; anonymous cannot; list is closed', async () => {
+  it('owner gets by id; a non-staff outsider, student and anonymous cannot; list is closed', async () => {
+    // Staff and admin reads are covered in syncedContentReads.test.ts.
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), syncedPath), syncedDoc());
     });
-    await assertSucceeds(getDoc(doc(as(OUTSIDER_UID), syncedPath)));
+    await assertSucceeds(getDoc(doc(as(OWNER_UID), syncedPath)));
+    await assertFails(getDoc(doc(as(OUTSIDER_UID), syncedPath)));
+    await assertFails(getDoc(doc(asStudent(), syncedPath)));
     await assertFails(
       getDoc(doc(testEnv.unauthenticatedContext().firestore(), syncedPath))
     );

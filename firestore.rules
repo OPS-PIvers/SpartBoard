@@ -2167,14 +2167,23 @@ service cloud.firestore {
       ]);
     }
 
+    // Synced quiz/bank/video content holds answer keys: verified staff (members of the
+    // owning PLC are staff), admins, or the doc's own people. A missing doc reads so a
+    // create can probe first. Anonymous and studentRole tokens never pass.
+    function syncedContentReader() {
+      return signedIn() && notAnon() && !isStudentRoleUser();
+    }
+
     // Synced quiz groups - canonical mutable record of a quiz shared across PLC peers.
-    // Group id is an unguessable v4 UUID, so reads are auth-only. Content writes
+    // It holds the answer key and its id sits on student-readable sessions, so reads
+    // need participation, verified staff or admin (see syncedContentReader). Content writes
     // require existing participation; version increments monotonically so a
     // non-participant can't overwrite. The participants map is client-immutable
     // (joins/leaves go through CFs); create is open iff participants carries only the
     // caller's uid.
     match /synced_quizzes/{groupId} {
-      allow get: if signedIn();
+      allow get: if syncedContentReader() && (resource == null ||
+        authUid() in existing().get('participants', {}) || isDistrictStaff() || isAdmin());
       // list closed: it would let any authed user enumerate every synced quiz
       // (defeating the unguessable-id gate on get). Clients always know the
       // groupId via their quiz_metadata or a share URL, so get suffices.
@@ -2264,11 +2273,12 @@ service cloud.firestore {
 
     // ---- Synced QUESTION BANKS (plan §4.2, decision 1) ----
     // Read-only PLC share of a personal bank: only the owner writes (the bank
-    // editor republishes on every save); any authed user may get by id (ids are
-    // unguessable uuids, handed out via plcs/{plcId}/question_banks headers).
+    // editor republishes on every save); the owner, verified staff and admins get
+    // by id (handed out via plcs/{plcId}/question_banks headers).
     // No participants/join function - members never co-edit.
     match /synced_question_banks/{groupId} {
-      allow get: if signedIn();
+      allow get: if syncedContentReader() && (resource == null ||
+        existing().get('ownerUid', '') == authUid() || isDistrictStaff() || isAdmin());
       allow list: if false;
 
       allow create: if signedIn()
@@ -2333,7 +2343,8 @@ service cloud.firestore {
     }
 
     match /synced_video_activities/{groupId} {
-      allow get: if signedIn();
+      allow get: if syncedContentReader() && (resource == null ||
+        authUid() in existing().get('participants', {}) || isDistrictStaff() || isAdmin());
       // list closed (see synced_quizzes): would let any authed user enumerate
       // every synced activity. Clients know the groupId via their
       // video_activity_metadata or a share URL.
