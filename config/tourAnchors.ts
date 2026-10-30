@@ -8758,6 +8758,32 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.import-block-list.add': {
+    label: 'Add button in Import block list',
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.new-pattern': {
+    label: 'New blocked address field in Import block list',
+    panel: true,
+  },
+  'admin.import-block-list.remove': {
+    label: 'Remove button in an Import block list row',
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.restore-defaults': {
+    label: 'Restore defaults button in Import block list',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.test-url': {
+    label: 'Test an address field in Import block list',
+    panel: true,
+  },
   'admin.subjects.add': {
     label: 'Add content area button in Subjects',
     persists: true,

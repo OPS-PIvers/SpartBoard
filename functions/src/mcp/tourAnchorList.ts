@@ -38938,6 +38938,106 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.import-block-list.add",
+    "label": "Add button in Import block list",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.new-pattern",
+    "label": "New blocked address field in Import block list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.remove",
+    "label": "Remove button in an Import block list row",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.restore-defaults",
+    "label": "Restore defaults button in Import block list",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.test-url",
+    "label": "Test an address field in Import block list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.subjects.add",
     "label": "Add content area button in Subjects",
     "scope": "board",
