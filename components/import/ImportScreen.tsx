@@ -202,6 +202,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
           <FileUp className="h-3.5 w-3.5" />
           Choose file
         </button>
+        {/* no-tour-anchor: hidden input; tours point at the Choose file button */}
         <input
           type="file"
           ref={fileInputRef}
