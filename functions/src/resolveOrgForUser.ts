@@ -25,14 +25,21 @@
  * backfill (scripts/backfill-org-members.js) or invite acceptance, so a
  * registered-domain teacher signing in for the first time silently landed in
  * the free tier with ClassLink and every org surface hidden. Guards mirror the
- * backfill: numeric-local (student-ID) emails are skipped, existing docs are
- * never touched (admin roles and 'inactive' lockouts survive), the email claim
- * must be verified, and an org can opt out via `autoEnrollDomainUsers: false`
+ * backfill: numeric-local (student-ID) emails are skipped, so is any address
+ * ClassLink or a mock class lists as a student, existing docs are never
+ * touched (admin roles and 'inactive' lockouts survive), the email claim must
+ * be verified, and an org can opt out via `autoEnrollDomainUsers: false`
  * on its org doc. Enrollment failures are logged but never fail resolution.
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { normalizeEmailDomain, resolveOrgIdForDomain } from './classlinkShared';
+import { isKnownStudentEmail } from './districtStaff';
+import {
+  CLASSLINK_CLIENT_ID,
+  CLASSLINK_CLIENT_SECRET,
+  CLASSLINK_TENANT_URL,
+} from './secrets';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 if (!admin.apps.length) {
@@ -107,6 +114,13 @@ async function autoEnrollMember(
   // Per-org opt-out: only read the org doc on the rare doc-missing path.
   const orgSnap = await db.doc(`organizations/${orgId}`).get();
   if (orgSnap.get('autoEnrollDomainUsers') === false) return;
+  // A student must never get a member doc; a ClassLink failure throws, so the next load retries.
+  const isStudent = await isKnownStudentEmail(db, orgId, email, {
+    classlinkClientId: CLASSLINK_CLIENT_ID.value(),
+    classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
+    tenantUrl: CLASSLINK_TENANT_URL.value(),
+  });
+  if (isStudent) return;
 
   try {
     await memberRef.create({
@@ -133,6 +147,11 @@ export const resolveOrgForUser = onCall(
     // codebase standard and leaves comfortable headroom.
     memory: '256MiB',
     timeoutSeconds: 15,
+    secrets: [
+      CLASSLINK_CLIENT_ID,
+      CLASSLINK_CLIENT_SECRET,
+      CLASSLINK_TENANT_URL,
+    ],
   },
   async (request): Promise<ResolveOrgForUserResponse> => {
     const viewAs = assertViewAsAllowed(request, { read: true });

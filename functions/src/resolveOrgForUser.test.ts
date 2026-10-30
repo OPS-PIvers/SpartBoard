@@ -45,6 +45,21 @@ vi.mock('./classlinkShared', () => ({
     resolveOrgIdForDomainMock(...args) as Promise<string | null>,
 }));
 
+// Students share the staff domain; auto-enroll asks ClassLink and the mock classes first.
+const isKnownStudentEmailMock = vi.fn();
+vi.mock('./districtStaff', () => ({
+  isKnownStudentEmail: (...args: unknown[]): Promise<boolean> =>
+    isKnownStudentEmailMock(...args) as Promise<boolean>,
+}));
+vi.mock('./secrets', () => {
+  const secret = (v: string) => ({ value: () => v });
+  return {
+    CLASSLINK_CLIENT_ID: secret('cl-id'),
+    CLASSLINK_CLIENT_SECRET: secret('cl-secret'),
+    CLASSLINK_TENANT_URL: secret('https://tenant.example'),
+  };
+});
+
 import {
   isAutoEnrollableEmail,
   resolveDomainCandidates,
@@ -247,6 +262,8 @@ describe('resolveOrgForUser auto-enrollment', () => {
     docCreateMock.mockReset();
     docMock.mockClear();
     resolveOrgIdForDomainMock.mockResolvedValue('orono');
+    isKnownStudentEmailMock.mockReset();
+    isKnownStudentEmailMock.mockResolvedValue(false);
   });
 
   const scriptDocs = (opts: {
@@ -286,6 +303,32 @@ describe('resolveOrgForUser auto-enrollment', () => {
       uid: 'uid-1',
       addedBySource: 'auto-enroll:resolveOrgForUser',
     });
+  });
+
+  it('never enrolls a ClassLink or mock-class student, but still resolves', async () => {
+    scriptDocs({ memberExists: false });
+    isKnownStudentEmailMock.mockResolvedValue(true);
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(isKnownStudentEmailMock).toHaveBeenCalledWith(
+      expect.anything(),
+      'orono',
+      'new.teacher@orono.k12.mn.us',
+      {
+        classlinkClientId: 'cl-id',
+        classlinkClientSecret: 'cl-secret',
+        tenantUrl: 'https://tenant.example',
+      }
+    );
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('skips enrollment when ClassLink cannot answer, so the next load retries', async () => {
+    scriptDocs({ memberExists: false });
+    isKnownStudentEmailMock.mockRejectedValue(new Error('roster down'));
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
   });
 
   it('resolves but never enrolls from a View as tab', async () => {

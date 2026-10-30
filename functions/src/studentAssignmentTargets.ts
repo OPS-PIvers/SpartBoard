@@ -82,17 +82,19 @@ import {
   STUDENT_PSEUDONYM_HMAC_SECRET,
 } from './secrets';
 import {
+  isOneRosterStaff,
+  type OneRosterUserWithRole,
+} from './studentEmailIdentity';
+import {
   ALLOWED_ORIGINS,
   ONEROSTER_BASE,
   computeStudentUid,
   getOAuthHeaders,
   isSafeEmailForOneRosterFilter,
-  isStudentDomainEmail,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
   type ClassLinkClass,
   type ClassLinkStudent,
-  type ClassLinkUser,
 } from './classlinkShared';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
@@ -1272,22 +1274,6 @@ export async function handleSetAssignmentTargets(
 
 // ── ClassLink-backed authorization context ─────────────────────────────────
 
-interface OneRosterUserWithRole extends ClassLinkUser {
-  role?: string;
-  roles?: Array<{ role?: string; roleType?: string }>;
-}
-
-/** True only for a OneRoster user whose every role is student. */
-export function isOnlyOneRosterStudent(user: OneRosterUserWithRole): boolean {
-  if (typeof user.role === 'string') {
-    return user.role.toLowerCase() === 'student';
-  }
-  if (Array.isArray(user.roles) && user.roles.length > 0) {
-    return user.roles.every((r) => (r.role ?? '').toLowerCase() === 'student');
-  }
-  return false;
-}
-
 /**
  * Candidate classes = classes on the caller's OWN roster docs. Roster docs are
  * client-writable, so this is a narrowing hint only; ClassLink re-verification
@@ -1450,8 +1436,8 @@ export async function loadClassLinkMembership(
     usersUrl,
     { params: userParams, headers: { ...userHeaders } }
   );
-  const teacher = (userResp.data.users ?? [])[0];
-  if (!teacher || isOnlyOneRosterStudent(teacher)) return out;
+  const teacher = (userResp.data.users ?? []).find(isOneRosterStaff);
+  if (!teacher) return out;
 
   const classesUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacher.sourcedId}/classes`;
   const classesHeaders = getOAuthHeaders(
@@ -1584,11 +1570,8 @@ export const setAssignmentTargetsV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
     const teacherEmail = request.auth.token.email;
-    if (
-      !teacherEmail ||
-      request.auth.token.studentRole === true ||
-      isStudentDomainEmail(teacherEmail)
-    ) {
+    // Students share the staff domain; the ClassLink staff-role lookup below is what keeps them out.
+    if (!teacherEmail || request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
     // teacherEmail drives org/test-class resolution below, so it must be verified (same rail as isAdmin()).
