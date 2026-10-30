@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 130_
-_Last run: 2026-10-29_
+_Run count: 131_
+_Last run: 2026-10-30_
 _Base branch: dev-paul_
 
 ---
@@ -577,6 +577,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-30 | `claude/kind-johnson-vzcxrw` | D1/D2/D3/D4/D5 | Aligned (run 131) — light probe of 26 commits / 88 non-test client files since run 130 (`fdcf752c..dev-paul`: Magic Board allowed widgets, Schoology extension, Blooms/quiz cross-out). Diff-scoped greps over added lines: `'../spartboardApi'` imports are all in `extension/src/schoology/` (separate package, no `@/` alias, outside D4); no `<Toast`, `#2d3f89`/`#ad2122` or hand-rolled `text-xxs font-black/bold uppercase` labels; the new `aria-pressed` sites (`CrossOutChoiceButton.tsx`, `BloomsTaxonomy/QuestionStarters.tsx`) are non-exclusive toggles, not radiogroup cases. No subagents dispatched, no code shipped; `validate` not run (docs-only; CLAUDE.md forbids full-repo runs). | — |
 | 2026-10-29 | `claude/kind-johnson-uqvgfa` | D1/D2/D3/D4/D5 | Aligned (run 130) — light probe of 25 commits / 61 non-test client files since run 129 (`fa937fee..dev-paul`: Video Activity matches Quiz slices 6-7, Focus sessions contract). Diff-scoped greps over added lines: `'../'` imports are `VideoRuleSteps.tsx` -> `../AssignmentSettingsToggleGroup` (parent peer) and `VideoAssignmentSettingsModal.tsx` -> `../videoAssignmentSettings` (own-widget), both single-level D4-E2/E3 gray zone; the 2 `text-xxs font-bold uppercase tracking-wider` hits in `VideoActivityQuizLayout.tsx` are type/status badges, not form labels (not a SettingsLabel case); no `<Toast`, `#2d3f89`/`#ad2122` or new empty states. No subagents dispatched, no code shipped; baseline `validate` started then stopped (docs-only; CLAUDE.md forbids full-repo runs). | — |
 | 2026-10-28 | `nightly/unifier-log-2026-10-28` | D1/D2/D3/D4/D5 | Aligned (run 129) — light probe of 44 commits / 110 client `.tsx` files since run 128 (`a66aeb69..dev-paul`: Poll upgrades, PLC teams data, dev-deploy CI). Diff-scoped greps over added lines for `#2d3f89`/`#ad2122`, hand-rolled `text-xxs font-black text-slate-400 uppercase tracking-widest` labels and `common/Toast` imports returned nothing; one single-level `../DataOverviewSections` import in the `TeamsPlcDataDevHarness` dev harness (D4-E2 gray zone, left). No subagents dispatched, no code shipped, `validate` not run (docs-only change; CLAUDE.md forbids full-repo runs). | — |
 | 2026-10-27 | `nightly/unifier-log-2026-10-27` | D1/D2/D3/D4/D5 | Aligned (run 128) — light probe of 22 commits / ~90 non-test client files since run 127 (`a66aeb69..dev-paul`: class-picking on in-progress assignments, PIN sign-in hardening, PLC/team layout, web tours TourTip, Need Do Put Then / TimeTool hotfixes). Diff-scoped greps over added lines for `'../'` imports, `#2d3f89`/`#ad2122` in inline styles, hand-rolled `text-xxs font-black text-slate-400 uppercase tracking-widest` labels, ad-hoc empty-state copy and `common/Toast` imports all returned nothing. No subagents dispatched, no code shipped; `validate` baseline started then stopped (no code changes to protect; CLAUDE.md forbids full-repo runs). | — |
