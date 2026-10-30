@@ -77,6 +77,7 @@ export type ImportBlock =
   | { type: 'paragraph' | 'listItem' | 'quote'; text: string }
   | { type: 'table'; rows: { cells: string[] }[] };
 
+/** Untrusted: any server fetch of `url` must go through the SSRF guards (`ssrfGuard.ts`). */
 export interface ImportImage {
   url: string;
   alt?: string;

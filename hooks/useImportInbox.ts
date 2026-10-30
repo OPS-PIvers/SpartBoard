@@ -28,7 +28,10 @@ export function useImportInbox(
   uid: string | undefined,
   enabled: boolean
 ): ImportInbox {
-  const [items, setItems] = useState<ImportInboxItem[]>([]);
+  const [loaded, setLoaded] = useState<{
+    uid: string;
+    items: ImportInboxItem[];
+  } | null>(null);
   const active = enabled && !!uid;
 
   useEffect(() => {
@@ -36,16 +39,17 @@ export function useImportInbox(
     return onSnapshot(
       collection(db, 'users', uid, IMPORT_INBOX_COLLECTION),
       (snap) =>
-        setItems(
-          snap.docs
+        setLoaded({
+          uid,
+          items: snap.docs
             .filter((d) => !isExpired(d.get('expireAt')))
             .map((d) => parseImportInboxItem(d.id, d.data()))
             .filter((item): item is ImportInboxItem => item !== null)
-            .sort((a, b) => b.receivedAt - a.receivedAt)
-        ),
+            .sort((a, b) => b.receivedAt - a.receivedAt),
+        }),
       (err) => {
         console.error('[useImportInbox] listener failed', err);
-        setItems([]);
+        setLoaded(null);
       }
     );
   }, [active, uid]);
@@ -58,5 +62,7 @@ export function useImportInbox(
     [uid]
   );
 
-  return { items: active ? items : [], remove };
+  // Another account's list never shows while the new one loads.
+  const items = active && loaded?.uid === uid ? loaded.items : [];
+  return { items, remove };
 }

@@ -78,10 +78,39 @@ describe('isUrlBlocked', () => {
     expect(isUrlBlocked('https://x.org/a/b/c', ['x.org/a/b*'])).toBe(true);
   });
 
+  it('sees through encoded and padded paths', () => {
+    for (const url of [
+      'https://x.schoology.com/course/1/gr%61debook',
+      'https://x.schoology.com/%67rades/grades',
+      'https://x.schoology.com/course/1/gr%2561debook',
+      'https://x.schoology.com/course/1;x=1/gradebook',
+      'https://x.schoology.com//course/1/members',
+      'https://x.schoology.com/course/1/%E0%A4%A/gradebook',
+    ])
+      expect(blocked(url)).toBe(true);
+  });
+
   it('treats unreadable and non-web URLs as blocked', () => {
     expect(blocked('not a url')).toBe(true);
     expect(blocked('chrome://settings')).toBe(true);
     expect(blocked('file:///C:/grades.pdf')).toBe(true);
+  });
+
+  it('matches a star-heavy pattern in linear time', () => {
+    const started = Date.now();
+    expect(
+      isUrlBlocked(`https://x.org/${'a'.repeat(2000)}`, [
+        `x.org/${'*a'.repeat(100)}*b`,
+      ])
+    ).toBe(false);
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+
+  it('blocks a root dropbox and a host with trailing dots', () => {
+    expect(blocked('https://orono.schoology.com/dropbox')).toBe(true);
+    expect(blocked('https://orono.schoology.com../course/1/gradebook')).toBe(
+      true
+    );
   });
 
   it('ignores an invalid saved pattern instead of blocking everything', () => {

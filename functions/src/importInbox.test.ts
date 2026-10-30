@@ -313,10 +313,41 @@ describe('receiveSend', () => {
   });
 });
 
+describe('blocked pictures', () => {
+  it('drops a picture from a blocked site and keeps the rest', async () => {
+    const { s, writes } = store();
+    const reply = await receiveSend(
+      body({
+        images: [
+          { url: 'https://www.example.org/a.png' },
+          { url: 'https://mn.infinitecampus.org/personPicture.jpg' },
+        ],
+      }),
+      ME,
+      s
+    );
+    expect(reply.images).toBe(1);
+    expect(writes[0].doc).toMatchObject({
+      images: [{ url: 'https://www.example.org/a.png' }],
+    });
+  });
+
+  it('counts empty table cells toward the text cap', () => {
+    const rows = Array.from({ length: 500 }, () => ({
+      cells: Array(20).fill(''),
+    }));
+    const blocks = Array.from({ length: 50 }, () => ({ type: 'table', rows }));
+    expect(() => parseSendRequest(body({ blocks }))).toThrow(
+      ExtensionCallError
+    );
+  });
+});
+
 describe('failureUrl', () => {
   it('keeps origin and path only', () => {
-    expect(failureUrl('https://a.example/x/y?student=1#h')).toBe(
-      'https://a.example/x/y'
+    expect(failureUrl('https://a.example/x/12345?student=1#h')).toBe(
+      'https://a.example/x'
     );
+    expect(failureUrl('https://a.example/')).toBe('https://a.example/');
   });
 });

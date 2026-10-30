@@ -110,9 +110,13 @@ function parseBlock(v: unknown, i: number): ImportBlock {
   throw malformed(what);
 }
 
+// An empty cell still counts one, so a page of empty tables can't dodge the cap.
 const blockChars = (b: ImportBlock) =>
   b.type === 'table'
-    ? b.rows.reduce((n, r) => n + r.cells.reduce((m, c) => m + c.length, 0), 0)
+    ? b.rows.reduce(
+        (n, r) => n + 1 + r.cells.reduce((m, c) => m + 1 + c.length, 0),
+        0
+      )
     : b.text.length;
 
 function parseImage(v: unknown, i: number): ImportImage {
@@ -175,10 +179,11 @@ export const sendId = (send: ImportSendRequest): string =>
     .digest('hex')
     .slice(0, 40);
 
-/** Origin and path only: a query or hash can carry ids, so the admin log drops them. */
+/** Origin and first path segment only: the rest of a URL can carry student ids. */
 export function failureUrl(url: string): string {
   const u = new URL(url);
-  return `${u.origin}${u.pathname}`;
+  const first = u.pathname.split('/').find((s) => s) ?? '';
+  return `${u.origin}/${first}`;
 }
 
 export interface Importer {
@@ -246,10 +251,14 @@ export async function receiveSend(
   const uid = importer.uid;
   const send = parseSendRequest(body);
   // D16: refused here too, so an out-of-date extension can't send a blocked page.
-  if (isUrlBlocked(send.url, await store.blockPatterns()))
+  const patterns = await store.blockPatterns();
+  if (isUrlBlocked(send.url, patterns))
     throw fail(403, "Your district doesn't allow sending this page.");
-  const id = sendId(send);
-  const { readerFailure, ...stored } = send;
+  // A picture hosted on a blocked site (a student photo in the SIS) is dropped, not stored.
+  const images = send.images.filter((img) => !isUrlBlocked(img.url, patterns));
+  const id = sendId({ ...send, images });
+  const { readerFailure, ...rest } = send;
+  const stored = { ...rest, images };
   const doc = { ...stored, receivedAt: now };
   if (Buffer.byteLength(JSON.stringify(stored)) > MAX_DOC_BYTES)
     throw fail(413, 'This page is too long to send at once.');
@@ -274,7 +283,7 @@ export async function receiveSend(
       .catch((error: unknown) =>
         console.error('[importInbox] failure log write failed', error)
       );
-  return { id, blocks: send.blocks.length, images: send.images.length };
+  return { id, blocks: send.blocks.length, images: images.length };
 }
 
 const inboxRef = (db: Firestore, uid: string) =>

@@ -1109,6 +1109,21 @@
       "indexes": []
     },
     {
+      "collectionGroup": "import_inbox",
+      "fieldPath": "blocks",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "import_inbox",
+      "fieldPath": "images",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "import_inbox",
+      "fieldPath": "title",
+      "indexes": []
+    },
+    {
       "collectionGroup": "import_reader_failures",
       "fieldPath": "expireAt",
       "ttl": true,

@@ -104,7 +104,12 @@ function guessFile(fileName: string, mimeType: string, text = ''): TargetGuess {
     return { targets: ['miniApp'], guess: 'miniApp' };
   if (ext === 'notebook' || ext === 'olf' || ext === 'spartnb')
     return { targets: ['notebook'], guess: 'notebook' };
-  if (ext === 'csv' || ext === 'tsv')
+  if (
+    ext === 'csv' ||
+    ext === 'tsv' ||
+    mimeType === 'text/csv' ||
+    mimeType === 'text/tab-separated-values'
+  )
     return byContent(
       ['quiz', 'flashcards', 'rubric'],
       lines.map((l) => (l.split(',').length === 2 ? l.replace(',', '\t') : l)),

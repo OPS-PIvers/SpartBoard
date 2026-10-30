@@ -132,6 +132,27 @@ describe('Import inbox', () => {
   });
 });
 
+describe('Import AI Conversion switch', () => {
+  const SWITCH = 'admin_settings/import_conversion';
+
+  it('lets any signed-in teacher read it, and nobody signed out', async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(OWNER_UID).firestore(), SWITCH)));
+    await assertFails(getDoc(doc(asUnauth().firestore(), SWITCH)));
+  });
+
+  it('lets only an admin write it', async () => {
+    await assertFails(
+      setDoc(doc(asTeacher(OWNER_UID).firestore(), SWITCH), { enabled: true })
+    );
+    await assertFails(
+      setDoc(doc(asUnverifiedAdmin().firestore(), SWITCH), { enabled: true })
+    );
+    await assertSucceeds(
+      setDoc(doc(asTeacher(ADMIN_UID).firestore(), SWITCH), { enabled: true })
+    );
+  });
+});
+
 describe('Import reader failures', () => {
   it('lets only a verified admin read or list them', async () => {
     await assertSucceeds(

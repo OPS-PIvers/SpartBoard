@@ -1070,6 +1070,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Import AI Conversion kill switch (docs/plans/IMPORT.md D28): teachers read it to offer AI; admins flip it.
+    match /admin_settings/import_conversion {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Curated translation languages + org caps — teachers read the language list
     // for the quiz Languages tab; admins edit. Deliberately a SEPARATE doc from
     // quiz_read_aloud, which stays admin-only.
