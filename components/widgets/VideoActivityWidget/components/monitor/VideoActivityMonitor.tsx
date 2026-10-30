@@ -109,8 +109,10 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
     () => [...new Set(session.periodNames ?? [])],
     [session.periodNames]
   );
-  // '' is All classes, so the shared Pause and every class show on open.
-  const [selected, setSelected] = useState<string>('');
+  // Shared-Pause sessions open on All classes ('') with Pause in reach; per-period ones on the first class's Start.
+  const openOn = (s: typeof session) =>
+    hasPeriodAccess(s) ? (periodNames[0] ?? '') : '';
+  const [selected, setSelected] = useState<string>(() => openOn(session));
 
   // Reset local navigation when the monitored session changes.
   const [prevSessionId, setPrevSessionId] = useState(session.id);
@@ -118,7 +120,7 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
     setPrevSessionId(session.id);
     setScreen({ name: 'home' });
     setOpenBucket(null);
-    setSelected('');
+    setSelected(openOn(session));
   } else if (selected && !periodNames.includes(selected)) setSelected('');
 
   // Per-period sessions get each class's own Start and Pause.

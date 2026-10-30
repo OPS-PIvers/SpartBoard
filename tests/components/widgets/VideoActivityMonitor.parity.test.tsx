@@ -283,10 +283,6 @@ describe('VideoActivityLiveMonitor — monitor-parity layout', () => {
         response({ studentUid: 'u3', pin: '3333', classId: 'cl-3' }),
       ]
     );
-    expect(bucket('Not started')).toHaveTextContent('2');
-    fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
-      target: { value: 'cl-1' },
-    });
     expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
     fireEvent.click(bucket('Not started'));
