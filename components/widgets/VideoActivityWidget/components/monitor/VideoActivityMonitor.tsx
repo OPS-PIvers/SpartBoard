@@ -111,7 +111,7 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
   );
   // Shared-Pause sessions open on All classes ('') with Pause in reach; per-period ones on the first class's Start.
   const openOn = (s: typeof session) =>
-    hasPeriodAccess(s) ? (periodNames[0] ?? '') : '';
+    hasPeriodAccess(s) && s.status !== 'ended' ? (periodNames[0] ?? '') : '';
   const [selected, setSelected] = useState<string>(() => openOn(session));
 
   // Reset local navigation when the monitored session changes.

@@ -303,6 +303,21 @@ describe('VideoActivityLiveMonitor — monitor-parity layout', () => {
     ).toBeNull();
   });
 
+  it('opens a paused per-period session on All classes with Resume in reach', () => {
+    renderMonitor(
+      session({
+        status: 'ended',
+        accessMode: 'assessment',
+        periodAccess: {
+          'cl-1': period({ label: 'P1' }),
+          'cl-3': period({ label: 'P3' }),
+        },
+      })
+    );
+    expect(screen.getByRole('combobox', { name: 'Class' })).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Resume' })).toBeVisible();
+  });
+
   it('shows every class when a per-period class has no class control', () => {
     renderMonitor(
       session({
