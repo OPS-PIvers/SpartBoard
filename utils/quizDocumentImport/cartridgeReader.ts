@@ -1129,7 +1129,11 @@ export function courseFileReader(
 ): (material: CourseMaterial, maxBytes: number) => Promise<File> {
   let opened: Promise<JSZip> | null = null;
   return async (material, maxBytes) => {
-    opened ??= new JSZip().loadAsync(file);
+    // A failed open is forgotten, so Retry opens the zip again.
+    opened ??= new JSZip().loadAsync(file).catch((err: unknown) => {
+      opened = null;
+      throw err;
+    });
     const zip = await opened;
     const entry = material.zipPath ? zip.file(material.zipPath) : null;
     if (!entry) throw new Error('That file is missing from the export.');

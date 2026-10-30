@@ -84,7 +84,7 @@ describe('planCourseImport', () => {
       [
         material({
           id: 'p',
-          text: 'cell\tunit of life\natom\tsmallest part\nion\tcharged atom',
+          text: 'cell | unit of life\natom | smallest part\nion | charged atom',
         }),
       ],
       ALL

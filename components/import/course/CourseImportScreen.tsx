@@ -138,6 +138,8 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
   );
   const [aiParse, setAiParse] = useState<AiParse>({ kind: 'reading' });
   const savedNow = useRef(new Set<string>());
+  // The row under review; late AI results and a second close for another row are ignored.
+  const reviewing = useRef<string | null>(null);
 
   // Reading the zip is async work outside React, so it runs in an effect.
   useEffect(() => {
@@ -213,11 +215,12 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
       setPhase({ kind: 'saving', done, total: targets.length });
     });
     setSaved(new Set(savedNow.current));
-    setFailed(planned.filter((r) => failures.includes(r)));
+    setFailed(targets.filter((r) => failures.includes(r)));
     setPhase({ kind: 'finished' });
   };
 
-  const start = (): void => {
+  const start = async (): Promise<void> => {
+    if (!(await api.confirm('Import course'))) return;
     setAiQueue(ai);
     setLinks(parser.filter((r) => targetOf(r, picks) === 'links'));
     void runSave(parser);
@@ -225,6 +228,7 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
 
   // AI rows convert one at a time, each landing in its own review.
   const convert = async (row: CourseRow): Promise<void> => {
+    reviewing.current = row.id;
     setAiParse({ kind: 'reading' });
     try {
       const target = targetOf(row, picks) as 'flashcards' | 'activityWall';
@@ -233,8 +237,10 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
         kind: 'conversion',
         input: { title: row.title, url: '', text: row.material?.text ?? '' },
       });
+      if (reviewing.current !== row.id) return;
       setAiParse({ kind: 'ready', result });
     } catch (err) {
+      if (reviewing.current !== row.id) return;
       setAiParse({
         kind: 'error',
         message:
@@ -244,14 +250,15 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
   };
 
   const startReviews = async (): Promise<void> => {
-    if (!(await api.confirmAi())) return;
+    if (!(await api.confirm('Import with AI'))) return;
     const batch = nextAiBatch(aiQueue);
     setPhase({ kind: 'reviewing', batch, index: 0 });
     void convert(batch[0]);
   };
 
-  const nextReview = (wasSaved: boolean): void => {
-    if (phase.kind !== 'reviewing') return;
+  const nextReview = (rowId: string, wasSaved: boolean): void => {
+    if (phase.kind !== 'reviewing' || reviewing.current !== rowId) return;
+    reviewing.current = null;
     if (wasSaved) setAiSaved((n) => n + 1);
     const index = phase.index + 1;
     if (index >= phase.batch.length) {
@@ -264,6 +271,7 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
   };
 
   const makeLinksBoard = async (): Promise<void> => {
+    if (!(await api.confirm('Create a board'))) return;
     setLinksBoard('making');
     const ok = await api.createLinksBoard(
       courseName,
@@ -287,15 +295,15 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
           isOpen
           adapter={api.reviewAdapter(row, target, courseName)}
           initialParse={aiParse.result}
-          onClose={() => nextReview(false)}
-          onSaved={() => nextReview(true)}
+          onClose={() => nextReview(row.id, false)}
+          onSaved={() => nextReview(row.id, true)}
         />
       );
     }
     return (
       <Modal
         isOpen
-        onClose={() => nextReview(false)}
+        onClose={() => nextReview(row.id, false)}
         title={`Page ${phase.index + 1} of ${phase.batch.length}`}
         maxWidth="max-w-md"
         zIndex="z-dialog"
@@ -322,7 +330,7 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
             <div className="flex justify-center gap-2">
               <button
                 type="button"
-                onClick={() => nextReview(false)}
+                onClick={() => nextReview(row.id, false)}
                 {...tourAttr('import-course.review-skip')}
                 className="rounded-xl px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
               >
@@ -451,7 +459,7 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
       {read.kind === 'ready' && phase.kind === 'checklist' && (
         <button
           type="button"
-          onClick={start}
+          onClick={() => void start()}
           disabled={chosen === 0 || !courseName}
           {...tourAttr('import-course.import')}
           className={footerButton}
@@ -631,7 +639,7 @@ const CourseRowItem: React.FC<{
       disabled={row.options.length < 2}
       aria-label={`Import ${row.title} as`}
       {...tourAttr('import-course.row-target')}
-      className="w-44 shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm font-medium text-slate-700 focus:border-brand-blue-primary focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+      className="w-52 shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm font-medium text-slate-700 focus:border-brand-blue-primary focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
     >
       {row.options.map((option) => (
         <option key={option} value={option}>

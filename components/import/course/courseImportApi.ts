@@ -29,8 +29,8 @@ export interface CourseImportApi {
     target: 'flashcards' | 'activityWall',
     courseName: string
   ) => ImportAdapter<unknown>;
-  /** View as: asks before AI runs as someone else; false stops it. */
-  confirmAi: () => Promise<boolean>;
+  /** View as: asks before writing or running AI as someone else; false stops it. */
+  confirm: (label: string) => Promise<boolean>;
   /** Makes a board named after the course holding one Links widget. */
   createLinksBoard: (
     courseName: string,

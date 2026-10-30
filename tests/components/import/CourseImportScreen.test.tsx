@@ -43,8 +43,9 @@ const course: ReadCourse = {
   ],
 };
 
+const readCourse = vi.hoisted(() => vi.fn());
 vi.mock('@/components/import/course/readCourse', () => ({
-  readCourseExport: () => Promise.resolve(course),
+  readCourseExport: readCourse,
 }));
 
 import { CourseImportScreen } from '@/components/import/course/CourseImportScreen';
@@ -60,13 +61,14 @@ const adapter: ImportAdapter<unknown> = {
     }),
   validate: () => ({ ok: true, errors: [] }),
   renderPreview: () => <p>AI preview</p>,
+  suggestTitle: () => 'Cell set',
   save: vi.fn().mockResolvedValue(undefined),
 };
 
 const makeApi = (over: Partial<CourseImportApi> = {}): CourseImportApi => ({
   save: vi.fn().mockResolvedValue(undefined),
   reviewAdapter: vi.fn(() => adapter),
-  confirmAi: vi.fn().mockResolvedValue(true),
+  confirm: vi.fn().mockResolvedValue(true),
   createLinksBoard: vi.fn().mockResolvedValue(true),
   isDuplicate: () => false,
   canUploadPictures: true,
@@ -77,7 +79,10 @@ const makeApi = (over: Partial<CourseImportApi> = {}): CourseImportApi => ({
 const file = new File(['x'], 'biology.imscc');
 
 describe('CourseImportScreen', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    readCourse.mockResolvedValue(course);
+  });
 
   it('lists items under their folders with a guessed target each', async () => {
     render(
@@ -169,5 +174,60 @@ describe('CourseImportScreen', () => {
     await waitFor(() =>
       expect(screen.queryByText(/couldn’t be saved/)).not.toBeInTheDocument()
     );
+  });
+
+  it('reads each AI page once, even though a save also closes the review', async () => {
+    const parse = vi.fn().mockResolvedValue({
+      data: { cards: [] },
+      warnings: [],
+    });
+    const api = makeApi({
+      reviewAdapter: vi.fn(() => ({ ...adapter, parse })),
+    });
+    const twoPages: ReadCourse = {
+      ...course,
+      materials: [
+        ...course.materials,
+        { id: 'p2', kind: 'page', title: 'More', folderPath: [], text: 'x' },
+      ],
+    };
+    readCourse.mockResolvedValueOnce(twoPages);
+    render(<CourseImportScreen file={file} api={api} onClose={vi.fn()} />);
+    fireEvent.change(await screen.findByLabelText('Import Reading as'), {
+      target: { value: 'flashcards' },
+    });
+    fireEvent.change(screen.getByLabelText('Import More as'), {
+      target: { value: 'flashcards' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Import 5 items/ }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Review pages' })
+    );
+    await screen.findByText('AI preview');
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Save to library/ })
+    );
+    await waitFor(() => expect(parse).toHaveBeenCalledTimes(2));
+    await screen.findByText('AI preview');
+    expect(parse).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps listing a row that fails again on retry', async () => {
+    const save = vi.fn().mockRejectedValue(new Error('Drive down'));
+    render(
+      <CourseImportScreen
+        file={file}
+        api={makeApi({ save })}
+        onClose={vi.fn()}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Import 3/ }));
+    await screen.findByText(/2 items couldn’t be saved/);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(4));
+    expect(
+      await screen.findByText(/2 items couldn’t be saved/)
+    ).toBeInTheDocument();
   });
 });

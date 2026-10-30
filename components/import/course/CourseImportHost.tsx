@@ -58,6 +58,8 @@ export const CourseImportHost: React.FC<{
     selectedBuildings,
   } = useAuth();
   const dashboard = useDashboard();
+  // The same gates the Quiz widget puts on its own Schoology import.
+  const schoology = canAccessFeature('schoology-quiz-import');
   const uid = user?.uid;
   const { driveService } = useGoogleDrive();
   const { quizzes, saveQuiz } = useQuiz(uid);
@@ -167,18 +169,25 @@ export const CourseImportHost: React.FC<{
         const path = pathFor(row, courseName);
         if (target === 'quiz' || target === 'questionBank') {
           if (!row.bank) throw new Error('Nothing to save.');
+          // The folder comes first, so a folder that can't be made leaves no pictures behind in Drive.
+          const folderId = await folderFor(
+            target === 'quiz' ? 'quiz' : 'question_bank',
+            path
+          );
           const quiz = await attachDocumentImages(
             quizFromBank(row.bank),
             withPictures ? row.bank.images : [],
             uploader
           );
           if (target === 'quiz') {
-            const folderId = await folderFor('quiz', path);
             const meta = await saveQuiz(quiz);
-            if (folderId) await quizFolders.moveItem(meta.id, folderId);
+            // The quiz is saved by now, so a failed move leaves it at the top rather than failing the row.
+            if (folderId)
+              await quizFolders.moveItem(meta.id, folderId).catch((err) => {
+                console.error('[CourseImport] quiz folder move failed', err);
+              });
             return;
           }
-          const folderId = await folderFor('question_bank', path);
           await saveBank(
             {
               id: crypto.randomUUID(),
@@ -222,10 +231,8 @@ export const CourseImportHost: React.FC<{
           save: saveActivity,
         }) as ImportAdapter<unknown>;
       },
-      confirmAi: () =>
-        outward.active
-          ? outward.confirm('Import with AI')
-          : Promise.resolve(true),
+      confirm: (label) =>
+        outward.active ? outward.confirm(label) : Promise.resolve(true),
       createLinksBoard: async (courseName, links) => {
         const { collectionsApi, createNewDashboard } = latest.current.dashboard;
         const name = courseName.trim();
@@ -240,6 +247,10 @@ export const CourseImportHost: React.FC<{
             collectionId = await collectionsApi.createCollection(name, null);
           } catch (err) {
             console.error('[CourseImport] collection create failed', err);
+            latest.current.dashboard.addToast(
+              `The “${name}” folder couldn’t be made, so the board is at the top of your boards.`,
+              'warning'
+            );
           }
         }
         const id = await createNewDashboard(name, undefined, {
@@ -291,8 +302,15 @@ export const CourseImportHost: React.FC<{
         target: (target) => {
           switch (target) {
             case 'quiz':
+              return (
+                canAccessWidget('quiz') &&
+                (schoology || canAccessFeature('quiz-imscc-import'))
+              );
             case 'questionBank':
-              return canAccessWidget('quiz');
+              return (
+                canAccessWidget('quiz') &&
+                (schoology || canAccessFeature('question-bank-imscc-import'))
+              );
             case 'flashcards':
               return canAccessWidget('flashcards');
             case 'activityWall':
@@ -327,6 +345,7 @@ export const CourseImportHost: React.FC<{
     canAccessWidget,
     canAccessFeature,
     quizFolders,
+    schoology,
   ]);
 
   return <CourseImportScreen file={file} api={api} onClose={onClose} />;

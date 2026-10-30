@@ -93,7 +93,10 @@ function guessFor(
   material?: CourseMaterial
 ): CourseRowTarget {
   if (kind === 'page') {
-    const lines = (material?.text ?? '').split('\n');
+    // The reader writes a table row as `cell | cell`.
+    const lines = (material?.text ?? '')
+      .split('\n')
+      .map((l) => l.split(' | ').join('\t'));
     return options.includes('flashcards') && looksLikeTwoColumns(lines)
       ? 'flashcards'
       : 'skip';
