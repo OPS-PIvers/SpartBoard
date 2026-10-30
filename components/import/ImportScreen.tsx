@@ -114,6 +114,9 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
               droppedPage?.status === 'read'
                 ? {
                     ...sourceFromInboxItem(droppedPage.item),
+                    // Embed and Link keep the exact link dropped, not the server's final address.
+                    url: initialSource.url,
+                    sourceUrl: initialSource.url,
                     readFromLink: true,
                   }
                 : initialSource,

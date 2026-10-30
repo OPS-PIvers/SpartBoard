@@ -258,12 +258,15 @@ describe('ImportScreen', () => {
     cleanup();
     const read = renderScreen({
       initialSource: link,
-      droppedPage: { status: 'read', item: sent },
+      droppedPage: {
+        status: 'read',
+        item: { ...sent, url: 'https://example.org/after-redirect' },
+      },
     });
     expect(screen.getByText('Cell vocabulary')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Flashcards' }));
     expect(read.onContinue).toHaveBeenCalledWith(
-      expect.objectContaining({ inboxItem: sent, readFromLink: true }),
+      expect.objectContaining({ url: sent.url, readFromLink: true }),
       'flashcards'
     );
     expect(onContinue).not.toHaveBeenCalled();
