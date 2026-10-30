@@ -42,6 +42,8 @@ const includeEnded = args.includes('--all');
 const JOINABLE = new Set(['waiting', 'active', 'paused']);
 const PAGE_SIZE = 500;
 const BATCH_LIMIT = 400;
+// gRPC status a create() gets when the doc already exists.
+const ALREADY_EXISTS = 6;
 
 function loadCredentials() {
   const fromEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -201,13 +203,19 @@ for (const [code, seen] of codes) {
   const teacherUid = firstJoinable
     ? firstJoinable[0]
     : seen.newest.teacherUid;
-  report.ownersWritten += 1;
-  // create, not set: never overwrite an owner a live client claimed meanwhile.
-  batch.create(ownerRef, { teacherUid, createdAt: Date.now() });
-  batched += 1;
-  if (batched >= BATCH_LIMIT) await flush();
+  if (!apply) {
+    report.ownersWritten += 1;
+    continue;
+  }
+  // Per-code create: a code a live tab claims meanwhile skips only itself.
+  try {
+    await ownerRef.create({ teacherUid, createdAt: Date.now() });
+    report.ownersWritten += 1;
+  } catch (err) {
+    if (err?.code !== ALREADY_EXISTS) throw err;
+    report.ownersPresent += 1;
+  }
 }
-await flush();
 
 report.finishedAt = new Date().toISOString();
 const outDir = join(__dirname, 'output');
