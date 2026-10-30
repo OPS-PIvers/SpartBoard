@@ -419,8 +419,8 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   if (sender.id !== chrome.runtime.id || sender.tab) return false;
   const msg = parseFocusPanelMessage(message);
   if (!msg) return false;
-  // Opening the panel also pulls this profile's own session, so a student needn't wait for the 5-minute check.
-  if (msg.body.action === 'list') void focus.check();
+  // Opening the panel pulls this profile's own session at once, even for a staff profile refused earlier.
+  if (msg.body.action === 'list') void focus.check(true);
   const answer = async (): Promise<FocusPanelReply> =>
     (await getChromeProfile()) === 'staff'
       ? // Only a button press may show Chrome's sign-in prompt; opening the panel lists quietly.
