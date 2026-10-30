@@ -1,7 +1,7 @@
 // The Import inbox: token and flag checks, Send validation, the block list and the reader-failure log.
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(),
