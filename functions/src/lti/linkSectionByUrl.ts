@@ -39,7 +39,7 @@ const MAX_CANDIDATE_CLASSES = 60;
 const FETCH_CONCURRENCY = 5;
 const ROSTER_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
-/** The section id in a pasted Schoology course link, or null for anything else. */
+/** The section id in a pasted Schoology course link (a linked section's `csm_section_nid` wins), or null. */
 export function parseSchoologyCourseUrl(raw: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed || trimmed.length > 500) return null;
@@ -61,7 +61,11 @@ export function parseSchoologyCourseUrl(raw: string): string | null {
     return null;
   }
   const m = /^\/course\/(\d{1,20})(?:\/|$)/.exec(url.pathname);
-  return m ? m[1] : null;
+  if (!m) return null;
+  const section =
+    /(?:^|[#&])csm_section_nid=(\d{1,20})(?:&|$)/.exec(url.hash) ??
+    /(?:^|[?&])csm_section_nid=(\d{1,20})(?:&|$)/.exec(url.search);
+  return section ? section[1] : m[1];
 }
 
 const isActive = (m: NrpsMember): boolean =>

@@ -122,6 +122,10 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
           Check
         </button>
       </div>
+      <p className="text-xs text-slate-500">
+        For a linked section, choose it in the Schoology Gradebook and paste
+        that page&rsquo;s link.
+      </p>
       {linkedTitle && (
         <p className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600">
           <Check size={14} /> Linked “{linkedTitle}”.
