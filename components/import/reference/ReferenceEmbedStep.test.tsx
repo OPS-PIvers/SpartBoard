@@ -1,0 +1,60 @@
+import React from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
+vi.mock('@/config/firebase', () => ({ functions: {} }));
+vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
+vi.mock('@/components/widgets/Embed/hooks/useEmbedConfig', () => ({
+  useEmbedConfig: () => ({
+    config: { buildingId: '', hideUrlField: false, whitelistUrls: [] },
+    isLoading: false,
+  }),
+}));
+
+import { ReferenceEmbedStep } from './ReferenceEmbedStep';
+
+const renderStep = (isEmbeddable: boolean) => {
+  const props = {
+    onPlace: vi.fn(),
+    onConvert: vi.fn(),
+    onCancel: vi.fn(),
+    check: vi.fn().mockResolvedValue({ isEmbeddable }),
+  };
+  render(
+    <ReferenceEmbedStep
+      url="https://www.news.example.com/story"
+      title="Story"
+      {...props}
+    />
+  );
+  return props;
+};
+
+describe('ReferenceEmbedStep', () => {
+  it('places the Embed straight away when the page can be framed', async () => {
+    const { onPlace } = renderStep(true);
+    await waitFor(() => expect(onPlace).toHaveBeenCalledTimes(1));
+    expect(onPlace.mock.calls[0][0]).toMatchObject({ type: 'embed' });
+  });
+
+  it('never places a blank Embed when the page refuses framing', async () => {
+    const { onPlace, onConvert } = renderStep(false);
+    expect(
+      await screen.findByText(/can.t show inside SpartBoard/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/news\.example\.com blocks/)).toBeInTheDocument();
+    expect(onPlace).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Convert instead' }));
+    expect(onConvert).toHaveBeenCalled();
+  });
+
+  it('offers the page as a link instead', async () => {
+    const { onPlace } = renderStep(false);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Add as a link' })
+    );
+    expect(onPlace).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'url' })
+    );
+  });
+});
