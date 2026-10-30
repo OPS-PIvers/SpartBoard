@@ -2,8 +2,8 @@
  * One-off cleanup for PR #4895: students share @orono.k12.mn.us, and before it
  * resolveOrgForUser auto-enrolled any non-numeric address as a teacher. Rules
  * now treat an active, non-student member doc as staff, so every such student
- * doc still passes. This lists auto-enrolled orono members that ClassLink or a
- * mock class says are students and, with --apply, sets roleId 'student'
+ * doc still passes. This lists orono teacher members (auto-enroll, the April
+ * backfill or setup-organization) that ClassLink or a mock class says are students and, with --apply, sets roleId 'student'
  * (App.tsx then sends them to the student sign-in, and rules deny them staff).
  *
  * Read-only by default. Prod data: run only with Paul's OK.
@@ -108,14 +108,13 @@ const mockEmails = new Set(
 
 const members = await db
   .collection(`organizations/${ORG_ID}/members`)
-  .where('addedBySource', '==', 'auto-enroll:resolveOrgForUser')
+  .where('roleId', '==', 'teacher')
   .get();
 
 let checked = 0;
 let failed = 0;
 const students = [];
 for (const doc of members.docs) {
-  if (doc.get('roleId') !== 'teacher') continue;
   const email = doc.id.toLowerCase();
   checked += 1;
   if (email.includes("'")) continue;
@@ -133,7 +132,7 @@ for (const doc of members.docs) {
   }
 }
 
-console.log(`Auto-enrolled teacher docs checked: ${checked}`);
+console.log(`Teacher docs checked: ${checked}`);
 console.log(`ClassLink lookups that failed: ${failed}`);
 console.log(`Student docs found: ${students.length}`);
 for (const { ref, why } of students) console.log(`  ${ref.id} (${why})`);

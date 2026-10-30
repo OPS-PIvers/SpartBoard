@@ -90,7 +90,12 @@ export async function isKnownStudentEmail(
     ) {
       throw new Error('ClassLink is not configured.');
     }
-    const users = await fetchOneRosterUsersByEmail(emailLower, secrets);
+    const users = await fetchOneRosterUsersByEmail(
+      emailLower,
+      secrets,
+      // Under resolveOrgForUser's 15 s limit; student login keeps the 20 s default.
+      8000
+    );
     if (users.some(isOneRosterStaff)) return false;
     return !mock.empty || users.some(isOneRosterStudent);
   } catch (err) {
