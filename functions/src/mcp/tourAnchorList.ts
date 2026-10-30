@@ -67773,6 +67773,200 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import-screen.course",
+    "label": "Whole course button for a Schoology course export in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.close",
+    "label": "Close button in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.folder-name",
+    "label": "Folder name field in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.row-target",
+    "label": "What an item becomes (Quiz, PDF library, Skip…) in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.share-pictures",
+    "label": "Copy pictures to Drive checkbox in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.cancel",
+    "label": "Cancel or Done button in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.import",
+    "label": "Import button in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.retry",
+    "label": "Retry failed button in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.review",
+    "label": "Review pages button for AI pages in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.review-skip",
+    "label": "Skip button when AI could not read a page in the course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.review-retry",
+    "label": "Try again button when AI could not read a page in the course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.links-board",
+    "label": "Put these links on a new board button in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
     "id": "import-wizard.close",
     "label": "Close button in the Import wizard",
     "scope": "board",
