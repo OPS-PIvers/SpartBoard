@@ -9,8 +9,10 @@ import type { ApiResult } from '../spartboardApi';
 import {
   createFocusClient,
   PUSH_RESEND_MS,
+  REFUSED_RECHECK_MS,
   type FocusClientDeps,
   type PushSent,
+  type ProfileRefused,
 } from './focusClient';
 import type { FocusLocalState } from './focusState';
 
@@ -32,6 +34,7 @@ const PUSH = {
 function setup(over: Partial<FocusClientDeps> = {}) {
   let state: FocusLocalState | undefined;
   let pushSent: PushSent | undefined;
+  let refused: ProfileRefused | undefined;
   let now = 0;
   let url: string | undefined = 'https://www.desmos.com/calculator';
   let fullscreen = true;
@@ -49,7 +52,7 @@ function setup(over: Partial<FocusClientDeps> = {}) {
   const deps = {
     origins: ['https://spartboard.web.app'],
     protocol: 9,
-    email: vi.fn(() => Promise.resolve('kid@students.orono.k12.mn.us')),
+    email: vi.fn(() => Promise.resolve('kid@orono.k12.mn.us')),
     status: vi.fn((body: FocusStatusRequest) => {
       statusCalls.push(body);
       return Promise.resolve(statusReply);
@@ -69,6 +72,11 @@ function setup(over: Partial<FocusClientDeps> = {}) {
     loadPushSent: () => Promise.resolve(pushSent),
     savePushSent: (s: PushSent) => {
       pushSent = s;
+      return Promise.resolve();
+    },
+    loadRefused: () => Promise.resolve(refused),
+    saveRefused: (r: ProfileRefused | null) => {
+      refused = r ?? undefined;
       return Promise.resolve();
     },
     activeUrl: () => Promise.resolve(url),
@@ -97,6 +105,7 @@ function setup(over: Partial<FocusClientDeps> = {}) {
     reports,
     state: () => state,
     pushSent: () => pushSent,
+    refused: () => refused,
     setNow: (t: number) => {
       now = t;
     },
@@ -116,13 +125,53 @@ function setup(over: Partial<FocusClientDeps> = {}) {
 }
 
 describe('createFocusClient check', () => {
-  it('never calls SpartBoard for a staff profile', async () => {
+  it('never calls SpartBoard for a profile outside the district', async () => {
+    for (const email of ['kid@gmail.com', undefined]) {
+      const t = setup({ email: () => Promise.resolve(email) });
+      await t.client.check(true);
+      expect(t.deps.status).not.toHaveBeenCalled();
+      expect(t.state()).toBeUndefined();
+    }
+  });
+
+  it('asks again for a refused profile only after a while, or when fresh', async () => {
     const t = setup({
-      email: () => Promise.resolve('teacher@orono.k12.mn.us'),
+      email: () => Promise.resolve('Teacher@orono.k12.mn.us'),
+    });
+    t.setStatus({ ok: false, why: 'no-access' });
+    await t.client.check();
+    expect(t.refused()).toEqual({ email: 'teacher@orono.k12.mn.us', at: 0 });
+    await t.client.check();
+    expect(t.deps.status).toHaveBeenCalledTimes(1);
+    await t.client.check(true);
+    expect(t.deps.status).toHaveBeenCalledTimes(2);
+    t.setNow(REFUSED_RECHECK_MS);
+    t.setStatus({
+      ok: true,
+      value: { session, serverNow: REFUSED_RECHECK_MS },
     });
     await t.client.check();
-    expect(t.deps.status).not.toHaveBeenCalled();
-    expect(t.state()).toBeUndefined();
+    expect(t.deps.status).toHaveBeenCalledTimes(3);
+    expect(t.refused()).toBeUndefined();
+  });
+
+  it('keeps asking for a student with no session', async () => {
+    const t = setup();
+    t.setStatus({ ok: true, value: { session: null, serverNow: 0 } });
+    await t.client.check();
+    await t.client.check();
+    expect(t.deps.status).toHaveBeenCalledTimes(2);
+    expect(t.refused()).toBeUndefined();
+  });
+
+  it('asks again for another profile signed in after a refusal', async () => {
+    let email = 'teacher@orono.k12.mn.us';
+    const t = setup({ email: () => Promise.resolve(email) });
+    t.setStatus({ ok: false, why: 'no-access' });
+    await t.client.check();
+    email = 'kid@orono.k12.mn.us';
+    await t.client.check();
+    expect(t.deps.status).toHaveBeenCalledTimes(2);
   });
 
   it('stores a new session, opens the focus page once, reports and counts down', async () => {

@@ -78,18 +78,21 @@ import {
 import { browserStemMeasure, stemLinesById } from '@/utils/paperStemLines';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
-  PAPER_BOX_SIZES,
+  PAPER_BOX_LINES,
+  PAPER_CUSTOM_MAX_LINES,
+  PAPER_CUSTOM_MIN_LINES,
+  paperBoxLines,
   PAPER_HANDWRITTEN_FEATURE,
   paperBoxSizeOf,
   withPaperBoxSizes,
 } from '@/utils/paperWritten';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import {
-  addPromptPages,
   planPaperVersions,
   printVersionsFor,
   promptAnalysis,
   promptPagesFor,
+  promptRowsFor,
   promptQuestionIds,
   versionSheetQuestions,
   versionStemLines,
@@ -180,11 +183,74 @@ interface StubWritten {
   points: number;
 }
 
-const BOX_SIZE_LABELS: Record<PaperBoxSize, string> = {
-  S: 'Small',
-  M: 'Medium',
-  L: 'Large',
-  full: 'Full page',
+const BOX_SIZE_OPTIONS = [
+  { value: 'S', label: `Short answer (${PAPER_BOX_LINES.S} lines)` },
+  { value: 'M', label: `1 paragraph (${PAPER_BOX_LINES.M} lines)` },
+  { value: 'full', label: '1 page' },
+  { value: 'custom', label: 'Custom' },
+] as const;
+
+/** A box size as the menu shows it: a named size, or Custom for a line count (and the older Large). */
+const boxSizeOption = (size: PaperBoxSize): string =>
+  size === 'S' || size === 'M' || size === 'full' ? size : 'custom';
+
+/** Box size menu, with a line count beside it once Custom is picked. */
+const BoxSizeSelect: React.FC<{
+  size: PaperBoxSize;
+  onChange: (size: PaperBoxSize) => void;
+  ariaLabel: string;
+  anchor: string;
+}> = ({ size, onChange, ariaLabel, anchor }) => {
+  const option = boxSizeOption(size);
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <select
+        aria-label={ariaLabel}
+        {...tourFieldAttr('quiz-print.written-box-size', 'quiz', anchor)}
+        value={option}
+        onChange={(e) => {
+          const next = e.target.value;
+          onChange(
+            next === 'custom'
+              ? Math.min(paperBoxLines(size), PAPER_CUSTOM_MAX_LINES)
+              : (next as PaperBoxSize)
+          );
+        }}
+        className="rounded-lg border border-slate-200 px-2 py-1 text-sm"
+      >
+        {BOX_SIZE_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {option === 'custom' && (
+        <>
+          <input
+            type="number"
+            aria-label={`${ariaLabel}, lines`}
+            {...tourFieldAttr('quiz-print.written-box-lines', 'quiz', anchor)}
+            min={PAPER_CUSTOM_MIN_LINES}
+            max={PAPER_CUSTOM_MAX_LINES}
+            value={paperBoxLines(size)}
+            onChange={(e) =>
+              onChange(
+                Math.max(
+                  PAPER_CUSTOM_MIN_LINES,
+                  Math.min(
+                    PAPER_CUSTOM_MAX_LINES,
+                    Math.round(Number(e.target.value)) || PAPER_CUSTOM_MIN_LINES
+                  )
+                )
+              )
+            }
+            className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+          />
+          <span className="text-xs text-slate-500">lines</span>
+        </>
+      )}
+    </div>
+  );
 };
 
 /** A stub's sheet in number order; `idOf` names each number's question. */
@@ -275,9 +341,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   }, [versionsOn, banks, quiz, writtenOn, boxSizes]);
   const analysis = useMemo(() => {
     if (versionPlan) return versionPlan.template;
-    const base = analyzePaperQuiz(quiz, { written: writtenOn });
-    return versionsOn ? promptAnalysis(quiz, base) : base;
-  }, [versionPlan, quiz, writtenOn, versionsOn]);
+    return promptAnalysis(quiz, analyzePaperQuiz(quiz, { written: writtenOn }));
+  }, [versionPlan, quiz, writtenOn]);
   const isStub = isPaperStubAnalysis(analysis);
   const [stubTitle, setStubTitle] = useState(quiz.title);
 
@@ -319,18 +384,31 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     () => versionPlan?.stimuli ?? quiz.stimuli ?? [],
     [versionPlan, quiz.stimuli]
   );
-  // A written question's full prompt and figures print on a page before its box (V25).
+  // A long written prompt and its figures print whole above its box, on the box's page.
   const promptIds = useMemo(
     () =>
       versionPlan?.promptIds ??
-      (versionsOn
-        ? promptQuestionIds(analysis, questionsById, quizStimuli)
-        : new Set<string>()),
-    [versionPlan, versionsOn, analysis, questionsById, quizStimuli]
+      promptQuestionIds(analysis, questionsById, quizStimuli),
+    [versionPlan, analysis, questionsById, quizStimuli]
   );
   const promptPages = useMemo(
     () => promptPagesFor(promptIds, questionsById, quizStimuli),
     [promptIds, questionsById, quizStimuli]
+  );
+  // Every prompt set a sheet can print: the quiz's own, then each version's.
+  const promptSets = useMemo(
+    () => [
+      promptPages,
+      ...(versionPlan
+        ? printVersionsFor(versionPlan, {}, false).map((v) => v.prompts ?? {})
+        : []),
+    ],
+    [promptPages, versionPlan]
+  );
+  // Each prompt prints above its box on one page, so the box page reserves its height.
+  const promptRows = useMemo(
+    () => promptRowsFor(promptSets, !!versionPlan),
+    [promptSets, versionPlan]
   );
   const sheetQuestions = useMemo(
     () =>
@@ -401,17 +479,16 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       : stemLinesById(sheetQuestions, measure);
   }, [questionTextLayout, sheetQuestions, versionPlan]);
   const planPages = useCallback(
-    (entries: readonly PaperSheetEntry[]): PlanPaperPagesResult => {
-      const plan = planPaperPages({
+    (entries: readonly PaperSheetEntry[]): PlanPaperPagesResult =>
+      planPaperPages({
         entries,
         grid,
         stems: !isStub,
         choiceCount,
         ...(stemLines ? { stemLines } : {}),
-      });
-      return plan.ok ? addPromptPages(plan.pageMaps, promptIds) : plan;
-    },
-    [grid, isStub, choiceCount, stemLines, promptIds]
+        ...(Object.keys(promptRows).length > 0 ? { promptRows } : {}),
+      }),
+    [grid, isStub, choiceCount, stemLines, promptRows]
   );
   // Only a sheet with written boxes, question text or versions prints by page map; every other sheet keeps today's layout.
   const pagePlan = useMemo((): PlanPaperPagesResult | null => {
@@ -433,18 +510,15 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   ]);
   const tooManyPages = pagePlan?.ok === false;
   const imageStimuli = useMemo(() => {
-    const prompts = [
-      promptPages,
-      ...(versionPlan
-        ? printVersionsFor(versionPlan, {}, false).map((v) => v.prompts ?? {})
-        : []),
-    ].flatMap((p) => Object.values(p).flatMap((x) => x.stimuli));
+    const prompts = promptSets.flatMap((p) =>
+      Object.values(p).flatMap((x) => x.stimuli)
+    );
     const seen = new Set(sheetStimuli.map((s) => s.id));
     return [
       ...sheetStimuli,
       ...prompts.filter((s) => !seen.has(s.id) && !!seen.add(s.id)),
     ];
-  }, [sheetStimuli, promptPages, versionPlan]);
+  }, [sheetStimuli, promptSets]);
   const sheetImages = usePaperSheetStimulusImages(imageStimuli);
   const sharing = usePaperSheetImageSharing(sheetStimuli, inPlcGroup);
   /** Set once the teacher has answered the sharing ask, either way. */
@@ -464,7 +538,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const changedBoxSizes = Object.fromEntries(
     Object.entries(boxSizes).filter(([id, size]) => {
       const q = savedQuiz.questions.find((sq) => sq.id === id);
-      return !!q && paperBoxSizeOf(q) !== size;
+      return !!q && paperBoxLines(paperBoxSizeOf(q)) !== paperBoxLines(size);
     })
   );
   const boxSizesChanged = Object.keys(changedBoxSizes).length > 0;
@@ -1535,25 +1609,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                         <span className="w-8 shrink-0 text-right text-sm font-semibold text-slate-700">
                           {n}.
                         </span>
-                        <select
-                          aria-label={`Question ${n} box size`}
-                          {...tourFieldAttr(
-                            'quiz-print.written-box-size',
-                            'quiz',
-                            String(n)
-                          )}
-                          value={w.size}
-                          onChange={(e) =>
-                            update({ size: e.target.value as PaperBoxSize })
-                          }
-                          className="rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                        >
-                          {PAPER_BOX_SIZES.map((size) => (
-                            <option key={size} value={size}>
-                              {BOX_SIZE_LABELS[size]}
-                            </option>
-                          ))}
-                        </select>
+                        <BoxSizeSelect
+                          size={w.size}
+                          onChange={(size) => update({ size })}
+                          ariaLabel={`Question ${n} box size`}
+                          anchor={String(n)}
+                        />
                         <input
                           type="number"
                           aria-label={`Question ${n} points`}
@@ -1619,28 +1680,17 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   <span className="min-w-0 flex-1 pt-1 text-sm text-slate-700">
                     {row.text || 'Untitled question'}
                   </span>
-                  <select
-                    aria-label={`${row.label ? `Question ${row.label}` : row.text} box size`}
-                    {...tourFieldAttr(
-                      'quiz-print.written-box-size',
-                      'quiz',
-                      row.label ?? row.questionId
-                    )}
-                    value={row.size}
-                    onChange={(e) =>
+                  <BoxSizeSelect
+                    size={row.size}
+                    onChange={(size) =>
                       setBoxSizes((prev) => ({
                         ...prev,
-                        [row.questionId]: e.target.value as PaperBoxSize,
+                        [row.questionId]: size,
                       }))
                     }
-                    className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                  >
-                    {PAPER_BOX_SIZES.map((size) => (
-                      <option key={size} value={size}>
-                        {BOX_SIZE_LABELS[size]}
-                      </option>
-                    ))}
-                  </select>
+                    ariaLabel={`${row.label ? `Question ${row.label}` : row.text} box size`}
+                    anchor={row.label ?? row.questionId}
+                  />
                 </li>
               ))}
             </ul>

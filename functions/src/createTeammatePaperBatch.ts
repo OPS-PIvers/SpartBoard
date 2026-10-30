@@ -26,6 +26,7 @@ import {
 } from './getTeammatePrintContext';
 import {
   analyzePaperQuiz,
+  isPaperBoxSize,
   planPaperBatch,
   planPaperPages,
   type PaperBatchDoc,
@@ -295,10 +296,7 @@ function toPaperQuestion(raw: unknown): PaperQuestion | null {
       : [],
     ...(raw.recording ? { recording: true } : {}),
     ...(typeof raw.maxWords === 'number' ? { maxWords: raw.maxWords } : {}),
-    ...(raw.paperBoxSize === 'S' ||
-    raw.paperBoxSize === 'M' ||
-    raw.paperBoxSize === 'L' ||
-    raw.paperBoxSize === 'full'
+    ...(isPaperBoxSize(raw.paperBoxSize)
       ? { paperBoxSize: raw.paperBoxSize }
       : {}),
   };

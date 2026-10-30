@@ -217,19 +217,27 @@ const questionChoiceCount = (question: PaperQuestion): number =>
   clampChoices(1 + (question.incorrectAnswers?.length ?? 0));
 
 /** Mirrors `PAPER_BOX_LINES` / `PAPER_FULL_PAGE_LINES` in `utils/paperWritten.ts`. */
-const PAPER_BOX_LINES: Record<Exclude<PaperBoxSize, 'full'>, number> = {
+const PAPER_BOX_LINES: Record<
+  Exclude<PaperBoxSize, 'full' | number>,
+  number
+> = {
   S: 3,
-  M: 6,
+  M: 8,
   L: 12,
 };
 const PAPER_FULL_PAGE_LINES = 24;
 const PAPER_WORDS_PER_LINE = 10;
 
-const paperBoxLines = (size: PaperBoxSize): number =>
-  size === 'full' ? PAPER_FULL_PAGE_LINES : PAPER_BOX_LINES[size];
+const paperBoxLines = (size: PaperBoxSize): number => {
+  if (typeof size === 'number') return size;
+  return size === 'full' ? PAPER_FULL_PAGE_LINES : PAPER_BOX_LINES[size];
+};
 
-const isPaperBoxSize = (value: unknown): value is PaperBoxSize =>
-  value === 'S' || value === 'M' || value === 'L' || value === 'full';
+/** Mirrors `isPaperBoxSize`; a number is a custom line count up to a page. */
+export const isPaperBoxSize = (value: unknown): value is PaperBoxSize =>
+  typeof value === 'number'
+    ? Number.isInteger(value) && value >= 1 && value <= PAPER_FULL_PAGE_LINES
+    : value === 'S' || value === 'M' || value === 'L' || value === 'full';
 
 /** Mirrors `defaultPaperBoxSize` in `utils/paperWritten.ts`. */
 export function defaultPaperBoxSize(maxWords?: number): PaperBoxSize {
@@ -435,7 +443,8 @@ const FULL_WIDTH = { x: WRITTEN_BOX_X_MM, w: WRITTEN_BOX_W_MM };
 const ONE_COLUMN = { x: WRITTEN_ONE_COLUMN_X_MM, w: WRITTEN_ONE_COLUMN_W_MM };
 
 const ownsPage = (size: PaperBoxSize, grid: PaperGrid): boolean =>
-  size === 'full' || (size === 'L' && grid === 1);
+  paperBoxLines(size) >= PAPER_FULL_PAGE_LINES ||
+  (grid === 1 && paperBoxLines(size) >= PAPER_BOX_LINES.L);
 
 function questionSlotLines(slots: number): number {
   return Math.floor(
@@ -446,7 +455,7 @@ function questionSlotLines(slots: number): number {
   );
 }
 
-function questionSlotsFor(size: Exclude<PaperBoxSize, 'full'>): number {
+function questionSlotsFor(size: PaperBoxSize): number {
   const want = paperBoxLines(size);
   let slots = 1;
   while (questionSlotLines(slots) < want) slots += 1;
@@ -517,7 +526,7 @@ function planQuestionTextPages(
       y = Number.POSITIVE_INFINITY;
       continue;
     }
-    const size = entry.size as Exclude<PaperBoxSize, 'full'>;
+    const size = entry.size;
     const lines = questionSlotLines(questionSlotsFor(size));
     const top = place(QUESTION_CHOICE_TOP_MM + lines * WRITTEN_LINE_PITCH_MM);
     current().push({
@@ -577,8 +586,7 @@ export function planPaperPages(
   });
   const placeOwnPage = (entry: WrittenEntry): void => {
     if (current().length > 0) newPage();
-    const lines =
-      entry.size === 'full' ? PAPER_FULL_PAGE_LINES : paperBoxLines(entry.size);
+    const lines = Math.min(paperBoxLines(entry.size), PAPER_FULL_PAGE_LINES);
     current().push(writtenBlock(entry, GRID_TOP_MM, lines, stems, FULL_WIDTH));
     cursor = Number.POSITIVE_INFINITY;
   };
@@ -599,7 +607,7 @@ export function planPaperPages(
         placeOwnPage(entry);
         continue;
       }
-      const size = entry.size as Exclude<PaperBoxSize, 'full'>;
+      const size = entry.size;
       const lines = paperBoxLines(size);
       const rows = headerRows(stems) + lines;
       const fits = (at: number): boolean =>

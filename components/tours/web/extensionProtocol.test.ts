@@ -65,9 +65,8 @@ describe('isOpenableUrl', () => {
 });
 
 describe('profileFromEmail', () => {
-  it('treats only the staff domain as staff', () => {
+  it('treats only the district domain as staff', () => {
     expect(profileFromEmail('Teacher@Orono.K12.MN.US')).toBe('staff');
-    expect(profileFromEmail('kid@students.orono.k12.mn.us')).toBe('other');
     expect(profileFromEmail('x@orono.k12.mn.us.evil.example')).toBe('other');
     expect(profileFromEmail('x@evilorono.k12.mn.us')).toBe('other');
     expect(profileFromEmail('someone@gmail.com')).toBe('other');

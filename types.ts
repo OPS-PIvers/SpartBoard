@@ -5807,8 +5807,8 @@ export interface QuizResponseAnswer {
   paperTranscript?: PaperTranscriptState;
 }
 
-/** Size of a handwritten answer box on a paper sheet; S/M/L are line counts, full is a page. */
-export type PaperBoxSize = 'S' | 'M' | 'L' | 'full';
+/** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page. */
+export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
 
 /** Public transcription state on a paper written answer. */
 export type PaperTranscriptState = 'pending' | 'done' | 'blank';

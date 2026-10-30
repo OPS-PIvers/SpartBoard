@@ -4,6 +4,7 @@ import {
   isStimulusFreePage,
   mcItemsOf,
   planPaperPages,
+  promptHeaderRows,
   questionSlotLines,
   questionSlotsFor,
   writtenItemsOf,
@@ -19,6 +20,7 @@ import {
   MARKER_CELL_COUNT,
   MAX_CHOICE_COUNT,
   PAGE_HEIGHT_MM,
+  PROMPT_MAX_ROWS,
   QUESTION_GRID_BOTTOM_MM,
   QUESTION_GRID_TOP_MM,
   QUESTION_ROW_GAP_MM,
@@ -397,5 +399,69 @@ describe('planPaperPages packing', () => {
       reason: 'too-many-pages',
       pageCount: MAX_PAGE + 1,
     });
+  });
+});
+
+describe('custom box sizes and prompts on the box page', () => {
+  it('rules a custom line count, and gives a page-tall one its own page', () => {
+    const maps = plan(sheet(3, { 2: 15 }), 2);
+    expect(writtenItemsOf(maps[0])[0].lines).toBe(15);
+    const tall = plan(sheet(3, { 2: 24 }), 2);
+    expect(tall).toHaveLength(3);
+    expect(writtenItemsOf(tall[1])[0].lines).toBe(24);
+  });
+
+  it.each(GRIDS)(
+    'puts a prompt above its box on one page on grid %s',
+    (grid) => {
+      const maps = mapsOf(
+        planPaperPages({
+          entries: sheet(3, { 2: 'full' }),
+          grid,
+          stems: true,
+          promptRows: { q2: 6 },
+        })
+      );
+      expect(maps).toHaveLength(3);
+      const [box] = writtenItemsOf(maps[1]);
+      expect(maps[1].items).toHaveLength(1);
+      expect(box.headerMm.y).toBe(58);
+      expect(box.headerMm.h).toBe(6 * 8 - 3);
+      expect(box.boxMm.y).toBe(58 + 6 * 8 - 3);
+      // A 1 page box takes every row the prompt leaves.
+      expect(box.lines).toBe(26 - 6);
+    }
+  );
+
+  it('keeps a short box short under a prompt, and caps a long prompt', () => {
+    const short = mapsOf(
+      planPaperPages({
+        entries: [wr(1, 'S')],
+        grid: 2,
+        stems: true,
+        promptRows: { q1: 6 },
+      })
+    );
+    expect(writtenItemsOf(short[0])[0].lines).toBe(3);
+    const long = mapsOf(
+      planPaperPages({
+        entries: [wr(1, 'full')],
+        grid: 2,
+        stems: true,
+        promptRows: { q1: 40 },
+      })
+    );
+    expect(writtenItemsOf(long[0])[0].lines).toBe(26 - PROMPT_MAX_ROWS);
+  });
+
+  it('sizes a prompt header from its text and figures', () => {
+    expect(promptHeaderRows('Short prompt', 0, false)).toBe(2);
+    const long = 'word '.repeat(120);
+    expect(promptHeaderRows(long, 0, false)).toBeGreaterThan(2);
+    // Figures need room of their own even beside a short prompt.
+    expect(promptHeaderRows('Short prompt', 1, false)).toBe(8);
+    expect(promptHeaderRows('word '.repeat(2000), 0, true)).toBe(
+      PROMPT_MAX_ROWS
+    );
   });
 });

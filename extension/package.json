@@ -17,6 +17,6 @@
     "lint:fix": "node ../node_modules/eslint/bin/eslint.js . --fix"
   },
   "devDependencies": {
-    "@types/chrome": "0.3.6"
+    "@types/chrome": "0.3.7"
   }
 }
