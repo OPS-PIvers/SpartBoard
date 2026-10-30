@@ -1,6 +1,13 @@
-const { initializeApp, cert } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
-const serviceAccount = require('../.temp-service-account.json');
+import { readFileSync } from 'node:fs';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+const serviceAccount = JSON.parse(
+  readFileSync(
+    new URL('../.temp-service-account.json', import.meta.url),
+    'utf8'
+  )
+);
 
 // Initialize Admin SDK
 initializeApp({
