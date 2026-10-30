@@ -24,7 +24,9 @@ const detailsVisible = (ctx: FieldCtx) =>
   });
 const enabledDetails = (ctx: FieldCtx): WeatherDetailField[] =>
   Array.isArray(ctx.config.detailFields)
-    ? (ctx.config.detailFields as WeatherDetailField[])
+    ? WEATHER_DETAIL_FIELDS.filter((f) =>
+        (ctx.config.detailFields as unknown[]).includes(f)
+      )
     : [];
 // Details already replace the recess gear card.
 const detailsShown = (ctx: FieldCtx) =>

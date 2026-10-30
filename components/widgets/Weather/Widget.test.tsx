@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { WeatherWidget } from './Widget';
 import { WidgetData, WeatherGlobalConfig } from '@/types';
@@ -69,6 +70,23 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('@/config/firebase', () => ({
   db: {},
+}));
+
+vi.mock('./WeatherDetailsPanel', () => ({
+  WeatherDetailsLayout: ({
+    rows,
+    children,
+  }: {
+    rows: { field: string; value: string }[];
+    children: ReactNode;
+  }) => (
+    <div data-testid="weather-details">
+      {rows.map((r) => (
+        <span key={r.field}>{`${r.field}:${r.value}`}</span>
+      ))}
+      {children}
+    </div>
+  ),
 }));
 
 describe('WeatherWidget', () => {
@@ -217,6 +235,27 @@ describe('WeatherWidget', () => {
       mockAuth.detailsFlag = true;
       render(<WeatherWidget widget={detailWidget} />);
       expect(screen.getByTestId('weather-details')).toBeInTheDocument();
+    });
+
+    it('hides saved station readings in manual mode', () => {
+      mockAuth.detailsFlag = true;
+      render(<WeatherWidget widget={detailWidget} />);
+      expect(screen.getByText('dewPoint:--')).toBeInTheDocument();
+      expect(screen.getByText('humidity:--')).toBeInTheDocument();
+    });
+
+    it('shows station readings in automatic mode', () => {
+      mockAuth.detailsFlag = true;
+      render(
+        <WeatherWidget
+          widget={{
+            ...detailWidget,
+            config: { ...detailWidget.config, isAuto: true },
+          }}
+        />
+      );
+      expect(screen.getByText('dewPoint:40°')).toBeInTheDocument();
+      expect(screen.getByText('humidity:92')).toBeInTheDocument();
     });
   });
 });

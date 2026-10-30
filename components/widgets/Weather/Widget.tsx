@@ -310,8 +310,9 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const detailRows =
     detailsOn && detailFields
       ? buildDetailRows(detailFields, {
-          details,
-          feelsLike,
+          // Manual mode shows no station readings, even ones saved by an earlier sync.
+          details: isAuto ? details : undefined,
+          feelsLike: isAuto ? feelsLike : undefined,
           now: new Date(now),
           lat: STATION_CONFIG.lat,
           lon: STATION_CONFIG.lon,
@@ -347,7 +348,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               fontSize: noGear
                 ? 'min(65cqh, 30cqw)'
                 : hasDetails
-                  ? 'min(30cqw, 45cqh)'
+                  ? '34cqmin'
                   : '22cqmin',
             }}
           >
@@ -359,7 +360,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               fontSize: noGear
                 ? `min(75cqh, 40cqw, calc(68cqw / ${tempWidthEm}))`
                 : hasDetails
-                  ? `min(48cqw, 72cqh, calc((100cqw - min(44cqw, 66cqh)) / ${tempWidthEm}))`
+                  ? `min(60cqmin, calc((100cqw - 40cqmin) / ${tempWidthEm}))`
                   : `min(35cqmin, calc((100cqw - 34cqmin) / ${tempWidthEm}))`,
               color: fontColor,
             }}
@@ -375,7 +376,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               fontSize: noGear
                 ? 'min(12cqh, 10cqw)'
                 : hasDetails
-                  ? 'min(7cqw, 10cqh)'
+                  ? '8cqmin'
                   : '5cqmin',
               marginTop: noGear ? '1cqh' : 'min(2px, 0.5cqmin)',
               color: secondaryColor ?? fontColor,

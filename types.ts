@@ -3109,8 +3109,6 @@ export const WEATHER_DETAIL_FIELDS = [
   'dewPoint',
   'humidity',
   'pressure',
-  'rainDaily',
-  'rainMonthly',
   'windAvg',
   'windGust',
   'sunrise',
@@ -3128,8 +3126,6 @@ export interface WeatherDetails {
   humidity?: number | null;
   /** Sea-level pressure in inches of mercury. */
   pressure?: number | null;
-  rainDaily?: number | null;
-  rainMonthly?: number | null;
   windSpeedAvg?: number | null;
   /** Degrees clockwise from north. */
   windDirectionAvg?: number | null;
