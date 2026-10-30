@@ -16,7 +16,7 @@ import {
 import { useImportBlockList, useReaderFailures } from './useImportBlockList';
 
 const inputClass =
-  'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 
 const formatWhen = (ms: number | null): string =>
   ms === null
@@ -188,7 +188,7 @@ export const ImportBlockListPanel: React.FC = () => {
                     }
                     disabled={saving}
                     aria-label={`Remove ${pattern}`}
-                    className="relative touch-target-expand p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                    className="relative touch-target-expand p-1.5 rounded-sm text-slate-500 hover:bg-slate-100 disabled:opacity-40"
                   >
                     <X className="w-4 h-4" />
                   </button>

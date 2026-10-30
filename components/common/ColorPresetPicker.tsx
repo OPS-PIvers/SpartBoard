@@ -131,7 +131,7 @@ export const ColorPresetPicker: React.FC<ColorPresetPickerProps> = ({
               onClick={() => select(o)}
               title={o.name}
               aria-label={isClear ? o.name : `Select ${noun} ${o.name}`}
-              className={`h-7 w-7 rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
+              className={`h-7 w-7 rounded-full transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
                 checked
                   ? 'ring-2 ring-brand-blue-primary ring-offset-2 ring-offset-slate-50'
                   : 'hover:scale-110'
@@ -185,7 +185,7 @@ export const ColorPresetPicker: React.FC<ColorPresetPickerProps> = ({
           }}
           spellCheck={false}
           maxLength={7}
-          className="h-7 w-[4.75rem] rounded-md border border-slate-200 bg-white px-2 font-mono text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
+          className="h-7 w-19 rounded-md border border-slate-200 bg-white px-2 font-mono text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-hidden focus:ring-1 focus:ring-brand-blue-primary"
           aria-label={`${label} hex value`}
         />
       </div>

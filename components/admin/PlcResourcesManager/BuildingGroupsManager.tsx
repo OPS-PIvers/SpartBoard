@@ -19,7 +19,7 @@ import {
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const inputClass =
-  'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary';
+  'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary';
 const labelClass =
   'block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5';
 

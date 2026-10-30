@@ -680,7 +680,7 @@ const QuestionRow = React.memo(function QuestionRow({
         </span>
       )}
       <span
-        className={`shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type]}`}
+        className={`shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type]}`}
       >
         {question.type === 'free-response' ? 'FRQ' : question.type}
         {isFreeResponseType(question.type) && question.recording && (
@@ -691,7 +691,7 @@ const QuestionRow = React.memo(function QuestionRow({
         )}
       </span>
       {questionNeedsKey(question) && (
-        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
+        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
           <AlertCircle className="w-2.5 h-2.5" aria-hidden />
           Needs answer
         </span>
@@ -726,7 +726,7 @@ const QuestionRow = React.memo(function QuestionRow({
           'quiz',
           String(index + 1)
         )}
-        className="text-slate-300 hover:text-brand-blue-primary hover:bg-slate-100 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        className="text-slate-300 hover:text-brand-blue-primary hover:bg-slate-100 rounded-sm p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
       >
         <Copy className="w-3.5 h-3.5" />
       </button>
@@ -743,7 +743,7 @@ const QuestionRow = React.memo(function QuestionRow({
           'quiz',
           String(index + 1)
         )}
-        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100"
+        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-sm p-1 transition-colors opacity-0 group-hover:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>
@@ -964,7 +964,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               : 'grid grid-cols-3 gap-3'
           }
         >
-          <div className={compactRow ? 'min-w-[10rem] flex-1' : undefined}>
+          <div className={compactRow ? 'min-w-40 flex-1' : undefined}>
             <label className={labelClass}>Type</label>
             <QuestionTypeSelect
               question={q}
@@ -981,7 +981,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             />
           </div>
           {compactRow && isFreeResponseType(q.type) && (
-            <div className="min-w-[8rem] flex-1">
+            <div className="min-w-32 flex-1">
               <ResponseFormatControl
                 question={q}
                 onChange={handleRecordingChange}
@@ -1045,7 +1045,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
 
         {/* Only an import writes a printed number, so only those questions show the field. */}
         {q.sourceLabel !== undefined && (
-          <div className="max-w-[12rem]">
+          <div className="max-w-48">
             <label className={labelClass} htmlFor="question-source-label">
               Printed number
             </label>
@@ -1324,7 +1324,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
         value={aiPrompt}
         onChange={(e) => setAiPrompt(e.target.value)}
         placeholder="e.g. A quiz about the solar system for 3rd graders."
-        className={`${AI_PROMPT_TEXTAREA_CLASS} !h-24`}
+        className={`${AI_PROMPT_TEXTAREA_CLASS} h-24!`}
         autoFocus
         aria-label="Describe your quiz"
         {...tourTypeAttr('quiz-editor.ai-prompt', 'quiz')}

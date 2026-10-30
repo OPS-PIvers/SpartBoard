@@ -90,7 +90,7 @@ export const BoardImportReview: React.FC<BoardImportReviewProps> = ({
         disabled={creating || !name.trim() || outward.locked}
         title={outward.lockedTitle}
         {...tourAttr('import-review.board-create')}
-        className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {creating && <Loader2 className="w-4 h-4 animate-spin" />}
         Create board
@@ -119,7 +119,7 @@ export const BoardImportReview: React.FC<BoardImportReviewProps> = ({
             {...tourAttr('import-review.board-name')}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           />
         </div>
         <div

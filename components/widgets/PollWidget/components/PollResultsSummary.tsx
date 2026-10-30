@@ -18,7 +18,7 @@ export const PollResultsSummary: React.FC<{
       {summaries.map((s, qi) => (
         <li key={qi} className="py-2.5 space-y-1">
           <div className="flex items-baseline justify-between gap-3">
-            <p className="min-w-0 text-xs font-bold text-slate-700 [overflow-wrap:anywhere]">
+            <p className="min-w-0 text-xs font-bold text-slate-700 wrap-anywhere">
               {qi + 1}. {s.question}
             </p>
             <span className="shrink-0 text-xxs font-bold text-slate-500 tabular-nums">
@@ -32,7 +32,7 @@ export const PollResultsSummary: React.FC<{
                   key={oi}
                   className="flex items-baseline justify-between gap-3 text-xs text-slate-600"
                 >
-                  <span className="min-w-0 flex items-center gap-1 [overflow-wrap:anywhere]">
+                  <span className="min-w-0 flex items-center gap-1 wrap-anywhere">
                     {o.label}
                     {o.correct && (
                       <CircleCheck
@@ -62,9 +62,7 @@ export const PollResultsSummary: React.FC<{
                   key={xi}
                   className="flex items-baseline justify-between gap-3 text-xs text-slate-600"
                 >
-                  <span className="min-w-0 [overflow-wrap:anywhere]">
-                    {x.text}
-                  </span>
+                  <span className="min-w-0 wrap-anywhere">{x.text}</span>
                   {x.count > 1 && (
                     <span className="shrink-0 font-mono tabular-nums">
                       {x.count}

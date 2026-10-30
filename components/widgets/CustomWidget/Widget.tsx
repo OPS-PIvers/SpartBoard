@@ -293,7 +293,7 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
   return (
     <WidgetStateContext.Provider value={contextValue}>
       <div
-        className="w-full h-full [overflow-wrap:anywhere]"
+        className="w-full h-full wrap-anywhere"
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${activeGrid.columns}, minmax(0, 1fr))`,
@@ -319,7 +319,7 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
               className={
                 fixedSize
                   ? undefined
-                  : '[&>*]:!h-auto [&>*]:min-h-full [&>*]:!overflow-visible'
+                  : '*:h-auto! *:min-h-full *:overflow-visible!'
               }
               style={{
                 gridColumn: `${cell.colStart} / span ${cell.colSpan}`,

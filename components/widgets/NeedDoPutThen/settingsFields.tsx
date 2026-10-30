@@ -114,7 +114,7 @@ const TileEditor: React.FC<{
                   onChange={(event) =>
                     updateItem(index, { checked: event.target.checked })
                   }
-                  className="h-4 w-4 shrink-0 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary"
+                  className="h-4 w-4 shrink-0 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary"
                   aria-label={`${translate(ctx, 'showItem')} ${item.label}`}
                   title={translate(ctx, checked ? 'hideItem' : 'showItem')}
                 />
@@ -130,12 +130,12 @@ const TileEditor: React.FC<{
                 onChange={(event) =>
                   updateItem(index, { label: event.target.value })
                 }
-                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                 placeholder={translate(ctx, 'itemLabel')}
                 maxLength={80}
               />
               <label
-                className="relative h-7 w-7 shrink-0 cursor-pointer rounded-lg border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-brand-blue-primary"
+                className="relative h-7 w-7 shrink-0 cursor-pointer rounded-lg border border-slate-200 shadow-xs focus-within:ring-2 focus-within:ring-brand-blue-primary"
                 style={{ backgroundColor: item.color, color: textColor }}
                 title={`${translate(ctx, 'pickColor')} ${item.label || translate(ctx, 'item')}`}
               >
@@ -252,7 +252,7 @@ const ListField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
               placeholder={translate(ctx, 'stepPlaceholder', {
                 number: index + 1,
               })}
-              className="min-w-0 flex-1 resize-none rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+              className="min-w-0 flex-1 resize-none rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
             />
             {items.length > MIN_LIST_ITEMS && (
               // no-tour-anchor: per-item row, generated from the list

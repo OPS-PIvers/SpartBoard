@@ -174,7 +174,7 @@ const NumberedList: React.FC<NumberedListProps> = ({
             {idx + 1}
           </span>
           <span
-            className="border-b border-slate-300 flex-1 break-words whitespace-normal leading-snug"
+            className="border-b border-slate-300 flex-1 wrap-break-word whitespace-normal leading-snug"
             style={{
               fontSize: `min(${22 * sizeMultiplier}px, ${9 * sizeMultiplier}cqmin)`,
               paddingBottom: 'min(4px, 1.5cqmin)',
@@ -231,7 +231,7 @@ const IconHero: React.FC<IconHeroProps> = ({
         })}
       </span>
       <span
-        className="font-bold text-center leading-tight break-words w-full"
+        className="font-bold text-center leading-tight wrap-break-word w-full"
         style={{
           fontSize: `min(${28 * sizeMultiplier}px, ${13 * sizeMultiplier}cqmin)`,
           color: item.label ? fontColor : '#94a3b8',
@@ -317,7 +317,7 @@ const IconList: React.FC<IconListProps> = ({
               />
             </span>
             <span
-              className="border-b border-slate-300 flex-1 break-words whitespace-normal leading-snug"
+              className="border-b border-slate-300 flex-1 wrap-break-word whitespace-normal leading-snug"
               style={{
                 fontSize: `min(${20 * sizeMultiplier}px, ${14 * sizeMultiplier}cqmin)`,
                 paddingBottom: 'min(4px, 2cqmin)',
@@ -640,7 +640,7 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
       content={
         <div
           ref={setCentralRef}
-          className={`h-full w-full flex flex-col rounded-[var(--window-radius,0px)] overflow-hidden ${fontClass}`}
+          className={`h-full w-full flex flex-col rounded-(--window-radius,0px) overflow-hidden ${fontClass}`}
           style={{
             background,
             padding: 'min(10px, 2.5cqmin)',

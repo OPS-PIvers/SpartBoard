@@ -28,7 +28,7 @@ export const FooterOverflow: React.FC<Props> = ({ children }) => {
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative flex-shrink-0">
+    <div ref={rootRef} className="relative shrink-0">
       <button
         {...tourAttr('gl-player.more')}
         ref={buttonRef}

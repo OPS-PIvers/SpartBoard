@@ -58,7 +58,7 @@ const FullPageSpinner: React.FC = () => (
 
 const AuthShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="relative h-screen w-screen flex items-center justify-center bg-slate-50 overflow-hidden font-sans">
-    <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-50" />
+    <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[16px_16px] opacity-50" />
     <div className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] rounded-full blur-[100px] bg-brand-blue-primary/20" />
     <div className="absolute -bottom-1/4 -right-1/4 w-[500px] h-[500px] bg-brand-red-primary/10 rounded-full blur-[100px]" />
     <div className="relative z-10 bg-white/90 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/60 ring-1 ring-slate-900/5 max-w-md w-full mx-4">

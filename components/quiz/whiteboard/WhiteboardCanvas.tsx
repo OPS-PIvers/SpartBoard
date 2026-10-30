@@ -398,7 +398,7 @@ export const WhiteboardCanvas = forwardRef<
 
     return (
       <div
-        className={`flex min-h-0 w-full min-w-0 items-center justify-center gap-3 [container-type:size] ${className}`}
+        className={`flex min-h-0 w-full min-w-0 items-center justify-center gap-3 @container-size ${className}`}
         data-testid="whiteboard-canvas"
       >
         <WhiteboardToolbar

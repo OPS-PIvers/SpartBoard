@@ -651,7 +651,7 @@ export const MasteryView: React.FC<MasteryViewProps> = ({
                       {m.code}
                     </span>
                   )}
-                  <span className="min-w-0 break-words">{m.label}</span>
+                  <span className="min-w-0 wrap-break-word">{m.label}</span>
                 </span>
               ),
               segments: [{ value: pct, bg: swatch }],
@@ -660,7 +660,7 @@ export const MasteryView: React.FC<MasteryViewProps> = ({
                   <span className="w-9 shrink-0 text-right text-sm font-bold tabular-nums text-slate-800">
                     {pct}%
                   </span>
-                  <span className="min-w-0 break-words">
+                  <span className="min-w-0 wrap-break-word">
                     {band ? `${band} · ` : ''}
                     {questionsLabel(questions)}
                   </span>
@@ -761,7 +761,7 @@ export const RecentAssessmentsView: React.FC<{
                 r.assessmentId
               )}
               onClick={() => onOpen(r.assessmentId)}
-              className="text-left font-semibold text-brand-blue-primary hover:text-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+              className="text-left font-semibold text-brand-blue-primary hover:text-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
             >
               {r.title}
             </button>,

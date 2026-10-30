@@ -20,7 +20,7 @@ export const RowActionButton: FC<{
       e.stopPropagation();
       onClick();
     }}
-    className="flex h-7 w-7 items-center justify-center rounded-md text-white/70 hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+    className="flex h-7 w-7 items-center justify-center rounded-md text-white/70 hover:bg-white/15 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/50"
   >
     <Icon className="w-3.5 h-3.5" aria-hidden="true" />
   </button>
@@ -39,7 +39,7 @@ export const RowDragHandle: FC<{
     aria-label={label}
     title={label}
     onClick={(e) => e.stopPropagation()}
-    className="flex h-7 w-6 touch-none items-center justify-center rounded-md text-white/50 hover:bg-white/15 hover:text-white cursor-grab active:cursor-grabbing focus-visible:outline-none"
+    className="flex h-7 w-6 touch-none items-center justify-center rounded-md text-white/50 hover:bg-white/15 hover:text-white cursor-grab active:cursor-grabbing focus-visible:outline-hidden"
   >
     <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
   </button>
@@ -119,7 +119,7 @@ export const InlineNameInput: FC<InlineNameInputProps> = ({
           }
         }}
         onBlur={() => finish(commitOnBlur)}
-        className="min-w-0 flex-1 rounded-lg border border-white/30 bg-slate-800 px-2 py-1.5 text-sm text-white placeholder:text-slate-400 selection:bg-white/30 selection:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+        className="min-w-0 flex-1 rounded-lg border border-white/30 bg-slate-800 px-2 py-1.5 text-sm text-white placeholder:text-slate-400 selection:bg-white/30 selection:text-white focus:outline-hidden focus:ring-2 focus:ring-white/50"
       />
     </div>
   );

@@ -41,7 +41,7 @@ const Surface: React.FC<{ dark: boolean }> = ({ dark }) => (
 );
 
 export const SpartyDevGallery: React.FC = () => (
-  <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100 px-6 pt-6 pb-16 font-sans">
+  <div className="h-screen h-dvh overflow-y-auto bg-slate-100 px-6 pt-6 pb-16 font-sans">
     <h1 className="mb-6 text-2xl font-bold text-brand-blue-primary">Sparty</h1>
     <div className="grid gap-6">
       <Surface dark={false} />

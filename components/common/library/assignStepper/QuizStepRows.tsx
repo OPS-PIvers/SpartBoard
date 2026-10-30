@@ -25,7 +25,7 @@ export const StepRow: React.FC<{
   children: React.ReactNode;
 }> = ({ label, sub, hint, children }) => (
   <div>
-    <div className="flex min-h-[2rem] items-center justify-between gap-3">
+    <div className="flex min-h-8 items-center justify-between gap-3">
       <StepRowLabel text={label} sub={sub} />
       {children}
     </div>
@@ -108,7 +108,7 @@ export const StepNumberField: React.FC<{
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !isImeComposing(e)) commit();
         }}
-        className={`${widthClass} rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-blue-primary`}
+        className={`${widthClass} rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 tabular-nums focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary`}
       />
       {unit && <span className="text-xs text-slate-500">{unit}</span>}
     </span>

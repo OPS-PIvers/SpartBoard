@@ -95,7 +95,7 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
           ? 'opacity-40'
           : selected
             ? light
-              ? 'bg-brand-blue-primary border-brand-blue-light text-white shadow-sm ring-2 ring-brand-blue-light/40'
+              ? 'bg-brand-blue-primary border-brand-blue-light text-white shadow-xs ring-2 ring-brand-blue-light/40'
               : 'bg-violet-500 border-violet-400 text-white shadow-lg ring-2 ring-violet-300'
             : light
               ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-brand-blue-light/60'
@@ -435,7 +435,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
             return (
               <div key={term} className="flex items-center gap-3">
                 <span
-                  className={`flex w-1/2 items-center gap-2 rounded-xl text-sm font-bold break-words ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
+                  className={`flex w-1/2 items-center gap-2 rounded-xl text-sm font-bold wrap-break-word ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
                   title={term}
                 >
                   <span className="min-w-0 flex-1">{term}</span>

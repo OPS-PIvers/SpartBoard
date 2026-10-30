@@ -34,7 +34,7 @@ const TICK_MS = 15_000;
 const REFRESH_MS = 60_000;
 const ARM_MS = 5_000;
 
-const card = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
+const card = 'rounded-2xl border border-slate-200 bg-white shadow-xs';
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
 
 export const FOCUS_FAILURE_TEXT: Record<ApiFailure, string> = {
@@ -92,12 +92,10 @@ const SessionRow: React.FC<{
   return (
     <li className={`flex flex-col gap-2 p-3 ${card}`}>
       <span className="min-w-0">
-        <span className="block font-semibold [overflow-wrap:anywhere]">
+        <span className="block font-semibold wrap-anywhere">
           {session.className}
         </span>
-        <span
-          className={`block text-xs ${chromeMuted} [overflow-wrap:anywhere]`}
-        >
+        <span className={`block text-xs ${chromeMuted} wrap-anywhere`}>
           {minutesLeft(session.endsAt, now)} · {sites}
         </span>
       </span>
@@ -274,7 +272,7 @@ export const FocusTab: React.FC<{
                         key={siteLabel(site)}
                         className="flex items-center gap-2 py-1"
                       >
-                        <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                        <span className="min-w-0 flex-1 wrap-anywhere">
                           {siteLabel(site)}
                         </span>
                         <button

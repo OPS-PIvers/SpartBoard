@@ -51,7 +51,7 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
           <button
             {...tourAttr('classes-widget.manage', _widget.id, _widget.type)}
             onClick={openManageSidebar}
-            className="bg-brand-blue-primary text-white font-black uppercase tracking-widest rounded-xl hover:bg-brand-blue-dark shadow-sm transition-colors"
+            className="bg-brand-blue-primary text-white font-black uppercase tracking-widest rounded-xl hover:bg-brand-blue-dark shadow-xs transition-colors"
             style={{
               padding: 'min(10px, 2.5cqmin) min(16px, 4cqmin)',
               fontSize: 'min(12px, 3.5cqmin)',
@@ -86,7 +86,7 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
               })}
             </span>
             <div
-              className="bg-white border-2 border-brand-blue-primary rounded-2xl flex items-center shadow-sm"
+              className="bg-white border-2 border-brand-blue-primary rounded-2xl flex items-center shadow-xs"
               style={{
                 padding: 'min(14px, 3.5cqmin)',
                 gap: 'min(12px, 3cqmin)',
@@ -183,7 +183,7 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
                       r.id
                     )}
                     onClick={() => setActiveRoster(r.id)}
-                    className="flex items-center bg-white border border-slate-200 rounded-xl hover:border-brand-blue-primary hover:shadow-sm transition-all text-left group"
+                    className="flex items-center bg-white border border-slate-200 rounded-xl hover:border-brand-blue-primary hover:shadow-xs transition-all text-left group"
                     style={{
                       padding: 'min(10px, 2.5cqmin)',
                       gap: 'min(10px, 2.5cqmin)',

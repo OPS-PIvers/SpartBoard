@@ -130,7 +130,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
           Math Tools
         </span>
         <div
-          className="ml-auto flex items-center bg-white/60 rounded-md border border-brand-blue-lighter/50 shadow-sm"
+          className="ml-auto flex items-center bg-white/60 rounded-md border border-brand-blue-lighter/50 shadow-xs"
           style={{
             gap: 'min(6px, 1.2cqmin)',
             padding: 'min(2px, 0.5cqmin) min(6px, 1.2cqmin)',
@@ -148,7 +148,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
             onChange={(e) =>
               setGradeFilter(e.target.value as GradeLevel | 'all')
             }
-            className="bg-transparent text-brand-blue-dark font-black outline-none cursor-pointer appearance-none text-right"
+            className="bg-transparent text-brand-blue-dark font-black outline-hidden cursor-pointer appearance-none text-right"
             style={{
               fontSize: 'min(10px, 3.5cqmin)',
               paddingRight: 'min(8px, 2cqmin)',
@@ -266,7 +266,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
                       ? handleSpawnSticker(tool.type)
                       : handleSpawnInteractive(tool.type)
                   }
-                  className={`flex flex-col items-center justify-center bg-white border border-slate-100 rounded-2xl shadow-sm transition-all group active:scale-95 hover:-translate-y-1 ${
+                  className={`flex flex-col items-center justify-center bg-white border border-slate-100 rounded-2xl shadow-xs transition-all group active:scale-95 hover:-translate-y-1 ${
                     activeSection.mode === 'sticker-whole'
                       ? 'hover:border-purple-300 hover:shadow-[0_8px_16px_-6px_rgba(147,51,234,0.15)]'
                       : 'hover:border-indigo-300 hover:shadow-[0_8px_16px_-6px_rgba(79,70,229,0.15)]'
@@ -278,7 +278,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
                   title={tool.description}
                 >
                   <span
-                    className="group-hover:scale-125 transition-transform duration-300 leading-none drop-shadow-sm"
+                    className="group-hover:scale-125 transition-transform duration-300 leading-none drop-shadow-xs"
                     style={{ fontSize: 'min(36px, 12cqmin)' }}
                   >
                     {tool.emoji}
@@ -309,7 +309,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
                 return (
                   <div
                     key={tool.type}
-                    className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm flex flex-col"
+                    className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-xs flex flex-col"
                   >
                     <div
                       className="flex flex-col items-center justify-center bg-slate-50/50 border-b border-slate-100/50"
@@ -355,7 +355,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
                           )}
                           onClick={() => handleSpawnPiece(tool.type, item)}
                           title={item.description ?? item.label}
-                          className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-xl font-black text-slate-600 hover:bg-brand-blue-lighter hover:border-brand-blue-light hover:text-brand-blue-dark transition-all active:scale-95 shadow-sm hover:shadow"
+                          className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-xl font-black text-slate-600 hover:bg-brand-blue-lighter hover:border-brand-blue-light hover:text-brand-blue-dark transition-all active:scale-95 shadow-xs hover:shadow-sm"
                           style={{
                             fontSize: 'min(9px, 3.3cqmin)',
                             padding: 'min(8px, 1.5cqmin) min(4px, 1cqmin)',

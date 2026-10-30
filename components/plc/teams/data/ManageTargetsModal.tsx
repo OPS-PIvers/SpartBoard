@@ -330,7 +330,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
                   <span className="w-8 shrink-0 text-sm font-bold tabular-nums text-slate-800">
                     Q{i + 1}
                   </span>
-                  <span className="min-w-0 flex-1 break-words text-sm text-slate-700">
+                  <span className="min-w-0 flex-1 wrap-break-word text-sm text-slate-700">
                     {q.text}
                   </span>
                   <span

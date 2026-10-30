@@ -63,7 +63,7 @@ const callAuthorize = async (
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="relative min-h-screen w-full flex items-center justify-center bg-slate-50 font-sans p-4">
-    <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-50" />
+    <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[16px_16px] opacity-50" />
     <div className="relative z-10 bg-white/90 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/60 ring-1 ring-slate-900/5 max-w-md w-full">
       {children}
     </div>

@@ -163,7 +163,7 @@ const RenameInput: React.FC<{
       }}
       onClick={(e) => e.stopPropagation()}
       {...tourAttr('library-shell.folder-rename-input')}
-      className="flex-1 min-w-0 bg-white border border-brand-blue-primary/40 rounded px-1.5 py-0.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+      className="flex-1 min-w-0 bg-white border border-brand-blue-primary/40 rounded-sm px-1.5 py-0.5 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
     />
   );
 };
@@ -472,7 +472,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
               <Folder size={14} />
             )}
           </span>
-          <span className="flex-1 min-w-0 break-words">{folder.name}</span>
+          <span className="flex-1 min-w-0 wrap-break-word">{folder.name}</span>
         </button>
       )}
 

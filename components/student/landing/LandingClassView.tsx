@@ -95,7 +95,7 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
           <button
             type="button"
             onClick={() => onTabChange('resources')}
-            className="mt-2 rounded text-sm font-semibold text-brand-blue-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="mt-2 rounded-sm text-sm font-semibold text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             See {p.resources.length}{' '}
             {p.resources.length === 1 ? 'resource' : 'resources'}
@@ -172,9 +172,9 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
               aria-selected={tab === t.id}
               aria-controls={panelId(cls.classId)}
               onClick={() => onTabChange(t.id)}
-              className={`flex min-w-0 flex-col items-center rounded-lg px-1 py-1.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+              className={`flex min-w-0 flex-col items-center rounded-lg px-1 py-1.5 transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                 tab === t.id
-                  ? 'bg-white text-slate-900 shadow-sm'
+                  ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >

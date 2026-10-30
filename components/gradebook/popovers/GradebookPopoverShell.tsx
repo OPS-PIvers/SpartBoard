@@ -107,7 +107,7 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
       {!submenu && pos && (
         <div
           aria-hidden
-          className="pointer-events-none fixed rounded-sm shadow-[0_0_0_200vmax_rgba(15,23,42,.15)]"
+          className="pointer-events-none fixed rounded-xs shadow-[0_0_0_200vmax_rgba(15,23,42,.15)]"
           style={{ ...pos.hole, zIndex: Z_INDEX.popover - 1 }}
         />
       )}
@@ -123,7 +123,7 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
           left: pos?.left ?? -9999,
           maxHeight: pos?.maxHeight,
         }}
-        className={`fixed flex flex-col overflow-y-auto rounded-xl border border-slate-300 bg-white text-sm text-slate-800 shadow-[0_24px_48px_-12px_rgba(15,23,42,.35),0_8px_16px_-8px_rgba(15,23,42,.2)] outline-none ${
+        className={`fixed flex flex-col overflow-y-auto rounded-xl border border-slate-300 bg-white text-sm text-slate-800 shadow-[0_24px_48px_-12px_rgba(15,23,42,.35),0_8px_16px_-8px_rgba(15,23,42,.2)] outline-hidden ${
           submenu
             ? 'z-popover-menu w-[280px] gap-1.5 p-1.5'
             : 'z-popover w-[min(380px,calc(100vw-24px))] gap-3.5 p-4'

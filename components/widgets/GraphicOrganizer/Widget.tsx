@@ -87,7 +87,7 @@ export const EditableNode: React.FC<{
       suppressContentEditableWarning
       onInput={handleInput}
       onBlur={handleBlur}
-      className={`outline-none overflow-y-auto min-h-0 whitespace-pre-wrap break-words empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 ${className ?? ''}`}
+      className={`outline-hidden overflow-y-auto min-h-0 whitespace-pre-wrap wrap-break-word empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 ${className ?? ''}`}
       style={{ minHeight: 'min(50px, 10cqmin)', ...style }}
       data-placeholder={placeholder}
     />
@@ -151,7 +151,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
       }}
     >
       <div
-        className="border-2 border-slate-300 rounded relative"
+        className="border-2 border-slate-300 rounded-sm relative"
         style={{ backgroundColor: cellBg, padding: 'min(16px, 3cqmin)' }}
       >
         <div
@@ -177,7 +177,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         />
       </div>
       <div
-        className="border-2 border-slate-300 rounded relative"
+        className="border-2 border-slate-300 rounded-sm relative"
         style={{ backgroundColor: cellBg, padding: 'min(16px, 3cqmin)' }}
       >
         <div
@@ -203,7 +203,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         />
       </div>
       <div
-        className="border-2 border-slate-300 rounded relative"
+        className="border-2 border-slate-300 rounded-sm relative"
         style={{ backgroundColor: cellBg, padding: 'min(16px, 3cqmin)' }}
       >
         <div
@@ -229,7 +229,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         />
       </div>
       <div
-        className="border-2 border-slate-300 rounded relative"
+        className="border-2 border-slate-300 rounded-sm relative"
         style={{ backgroundColor: cellBg, padding: 'min(16px, 3cqmin)' }}
       >
         <div
@@ -437,7 +437,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           id="know"
           initialText={nodes['know']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="flex-grow h-full"
+          className="grow h-full"
           style={{
             padding: 'min(16px, 3cqmin)',
             paddingBottom: 'clamp(12px, 3cqmin, 16px)',
@@ -468,7 +468,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           id="wonder"
           initialText={nodes['wonder']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="flex-grow h-full"
+          className="grow h-full"
           style={{
             padding: 'min(16px, 3cqmin)',
             paddingBottom: 'clamp(12px, 3cqmin, 16px)',
@@ -499,7 +499,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           id="learn"
           initialText={nodes['learn']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="flex-grow h-full"
+          className="grow h-full"
           style={{
             padding: 'min(16px, 3cqmin)',
             paddingBottom: 'clamp(12px, 3cqmin, 16px)',
@@ -520,7 +520,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         gap: 'min(16px, 3cqmin)',
       }}
     >
-      <div className="flex-1 border-2 border-rose-300 rounded-lg shadow-sm h-full flex flex-col">
+      <div className="flex-1 border-2 border-rose-300 rounded-lg shadow-xs h-full flex flex-col">
         <div
           className="bg-rose-100 text-center rounded-t-md border-b-2 border-rose-300 font-bold text-rose-800 uppercase tracking-wider"
           style={{
@@ -534,7 +534,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           id="cause"
           initialText={nodes['cause']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="flex-grow"
+          className="grow"
           style={{
             padding: 'min(16px, 3cqmin)',
             fontSize: BODY_FONT,
@@ -563,7 +563,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         </svg>
       </div>
 
-      <div className="flex-1 border-2 border-emerald-300 rounded-lg shadow-sm h-full flex flex-col">
+      <div className="flex-1 border-2 border-emerald-300 rounded-lg shadow-xs h-full flex flex-col">
         <div
           className="bg-emerald-100 text-center rounded-t-md border-b-2 border-emerald-300 font-bold text-emerald-800 uppercase tracking-wider"
           style={{
@@ -577,7 +577,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           id="effect"
           initialText={nodes['effect']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="flex-grow"
+          className="grow"
           style={{
             padding: 'min(16px, 3cqmin)',
             fontSize: BODY_FONT,

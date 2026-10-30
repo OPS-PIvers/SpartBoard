@@ -54,7 +54,7 @@ export const MiniAppPeriodLockedScreen: React.FC<
 export const MiniAppPeriodPausedOverlay: React.FC = () => (
   <div
     role="status"
-    className="absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center"
+    className="absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center"
   >
     <PauseCircle className="w-12 h-12 text-white/80 mb-4" aria-hidden />
     <h2 className="text-white font-bold text-2xl mb-2">

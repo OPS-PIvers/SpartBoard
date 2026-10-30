@@ -48,7 +48,7 @@ export const ResultsProtectionGate: React.FC<ResultsProtectionGateProps> = ({
   if (tabWarningEnabled && lockedOut) {
     return (
       <div
-        className={`h-screen [height:100dvh] overflow-y-auto ${light ? 'bg-slate-50' : 'bg-slate-950'}`}
+        className={`h-screen h-dvh overflow-y-auto ${light ? 'bg-slate-50' : 'bg-slate-950'}`}
       >
         <div className="min-h-full flex flex-col items-center justify-center gap-4 p-6 text-center">
           <ShieldAlert

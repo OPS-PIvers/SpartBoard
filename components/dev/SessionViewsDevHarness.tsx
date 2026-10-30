@@ -457,7 +457,7 @@ export const SessionViewsDevHarness: React.FC = () => {
                         setView(next);
                         setState(DEFAULT_STATE_FOR_VIEW[next]);
                       }}
-                      className="bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm font-normal normal-case tracking-normal text-white"
+                      className="bg-slate-800 border border-slate-600 rounded-sm px-3 py-2 text-sm font-normal normal-case tracking-normal text-white"
                     >
                       {VIEWS.map((v) => (
                         <option key={v.key} value={v.key}>
@@ -472,7 +472,7 @@ export const SessionViewsDevHarness: React.FC = () => {
                     <select
                       value={state}
                       onChange={(e) => setState(e.target.value as StateKey)}
-                      className="bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm font-normal normal-case tracking-normal text-white"
+                      className="bg-slate-800 border border-slate-600 rounded-sm px-3 py-2 text-sm font-normal normal-case tracking-normal text-white"
                     >
                       {STATES.map((s) => (
                         <option key={s.id} value={s.key}>

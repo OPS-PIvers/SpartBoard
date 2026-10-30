@@ -20,7 +20,7 @@ export const LunchCountConfigurationPanel: React.FC<
     config.submissionUrl && !config.submissionUrl.startsWith('https://');
 
   return (
-    <div className="space-y-4 p-4 bg-white rounded-lg border border-slate-200 shadow-sm">
+    <div className="space-y-4 p-4 bg-white rounded-lg border border-slate-200 shadow-xs">
       <h3 className="text-sm font-bold text-slate-800 mb-2 border-b pb-2">
         Lunch Count Configuration
       </h3>
@@ -42,7 +42,7 @@ export const LunchCountConfigurationPanel: React.FC<
                 schumannSheetId: e.target.value.trim(),
               })
             }
-            className={`w-full px-2 py-1.5 text-xs font-mono border rounded focus:ring-1 outline-none ${
+            className={`w-full px-2 py-1.5 text-xs font-mono border rounded focus:ring-1 outline-hidden ${
               isSchumannIdMalformed
                 ? 'border-red-300 bg-red-50 focus:ring-red-500'
                 : 'border-slate-300 focus:ring-brand-blue-primary'
@@ -74,7 +74,7 @@ export const LunchCountConfigurationPanel: React.FC<
                 intermediateSheetId: e.target.value.trim(),
               })
             }
-            className={`w-full px-2 py-1.5 text-xs font-mono border rounded focus:ring-1 outline-none ${
+            className={`w-full px-2 py-1.5 text-xs font-mono border rounded focus:ring-1 outline-hidden ${
               isIntermediateIdMalformed
                 ? 'border-red-300 bg-red-50 focus:ring-red-500'
                 : 'border-slate-300 focus:ring-brand-blue-primary'
@@ -106,7 +106,7 @@ export const LunchCountConfigurationPanel: React.FC<
                 submissionUrl: e.target.value.trim(),
               })
             }
-            className={`w-full px-2 py-1.5 text-xs font-mono border rounded focus:ring-1 outline-none ${
+            className={`w-full px-2 py-1.5 text-xs font-mono border rounded focus:ring-1 outline-hidden ${
               isUrlMalformed
                 ? 'border-red-300 bg-red-50 focus:ring-red-500'
                 : 'border-slate-300 focus:ring-brand-blue-primary'

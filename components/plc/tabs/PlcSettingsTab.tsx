@@ -172,7 +172,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
                   }`}
                 >
                   <span
-                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${
+                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-xs transition-all ${
                       enabled ? 'left-[22px]' : 'left-0.5'
                     }`}
                   />
@@ -218,7 +218,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           disabled={digestBusy}
           role="switch"
           aria-checked={digestOptIn}
-          className={`mt-3 w-full flex items-start gap-3 p-3 bg-white border rounded-xl text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
+          className={`mt-3 w-full flex items-start gap-3 p-3 bg-white border rounded-xl text-left transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
             digestOptIn
               ? 'border-brand-blue-light/60 hover:border-brand-blue-primary'
               : 'border-slate-200 hover:border-slate-300'
@@ -253,7 +253,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
             }`}
           >
             <span
-              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${
+              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-xs transition-all ${
                 digestOptIn ? 'left-[22px]' : 'left-0.5'
               }`}
             />
@@ -270,7 +270,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           onClick={toggleTrash}
           aria-expanded={trashOpen}
           aria-controls="plc-settings-trash"
-          className="w-full flex items-center justify-between gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 rounded-lg"
+          className="w-full flex items-center justify-between gap-2 text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 rounded-lg"
         >
           <span className="flex items-center gap-2">
             <Trash2 className="w-4 h-4 text-slate-500" aria-hidden="true" />

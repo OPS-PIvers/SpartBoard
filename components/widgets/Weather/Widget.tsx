@@ -188,26 +188,26 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       switch (cond.toLowerCase()) {
         case 'sunny':
         case 'clear':
-          return 'bg-gradient-to-br from-blue-400 via-sky-300 to-blue-200';
+          return 'bg-linear-to-br from-blue-400 via-sky-300 to-blue-200';
         case 'cloudy':
         case 'clouds':
-          return 'bg-gradient-to-br from-slate-500 via-slate-400 to-slate-300';
+          return 'bg-linear-to-br from-slate-500 via-slate-400 to-slate-300';
         case 'rainy':
         case 'rain':
         case 'drizzle':
-          return 'bg-gradient-to-br from-slate-800 via-blue-900 to-slate-900';
+          return 'bg-linear-to-br from-slate-800 via-blue-900 to-slate-900';
         case 'snowy':
         case 'snow':
-          return 'bg-gradient-to-br from-blue-100 via-white to-blue-50';
+          return 'bg-linear-to-br from-blue-100 via-white to-blue-50';
         case 'windy':
         case 'squall':
         case 'tornado':
-          return 'bg-gradient-to-br from-teal-600 via-emerald-500 to-teal-400';
+          return 'bg-linear-to-br from-teal-600 via-emerald-500 to-teal-400';
         default:
           console.warn(
             `[WeatherWidget] Unhandled condition for background sync: ${cond}`
           );
-          return 'bg-gradient-to-br from-slate-300 via-slate-200 to-slate-100';
+          return 'bg-linear-to-br from-slate-300 via-slate-200 to-slate-100';
       }
     };
 
@@ -397,7 +397,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       {!noGear && !hasDetails && (
         <div
           data-testid="weather-clothing-card"
-          className="w-full border border-slate-200/60 rounded-2xl flex items-center shadow-sm"
+          className="w-full border border-slate-200/60 rounded-2xl flex items-center shadow-xs"
           style={{
             backgroundColor: hexToRgba(cardColor, cardOpacity),
             gap: 'min(16px, 4cqmin)',

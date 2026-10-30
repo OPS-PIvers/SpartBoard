@@ -87,11 +87,11 @@ export const Toggle: React.FC<ToggleProps> = ({
       className={`
         ${currentSize.button}
         rounded-full relative transition-colors duration-200 ease-in-out
-        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-blue-primary
+        focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-brand-blue-primary
         ${checked ? activeColor : inactiveColor}
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         ${className}
-        flex-shrink-0
+        shrink-0
       `}
     >
       {/* State Labels */}

@@ -302,7 +302,7 @@ function renderQuizPreview(data: QuizData): React.ReactNode {
           {
             key: q.id,
             className:
-              'flex items-start gap-3 p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm',
+              'flex items-start gap-3 p-2.5 bg-white border border-slate-200 rounded-xl shadow-xs',
           },
           React.createElement(
             'span',

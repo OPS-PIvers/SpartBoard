@@ -47,7 +47,7 @@ export const BoardClassPicker: React.FC<BoardClassPickerProps> = ({
         title={current?.label}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full min-w-0 cursor-pointer appearance-none truncate rounded-full border border-slate-200 bg-white/70 font-semibold text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        className="w-full min-w-0 cursor-pointer appearance-none truncate rounded-full border border-slate-200 bg-white/70 font-semibold text-slate-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
         style={{
           ...chipStyle,
           maxWidth: undefined,

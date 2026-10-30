@@ -101,7 +101,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
       <div
         ref={setNodeRef}
         style={style}
-        className={`bg-white border rounded-lg shadow-sm overflow-hidden ${
+        className={`bg-white border rounded-lg shadow-xs overflow-hidden ${
           isDragging
             ? 'border-blue-300 shadow-lg opacity-60'
             : 'border-slate-200'
@@ -130,7 +130,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                 )
               : {})}
             data-tour-widget={widgetId}
-            className="flex-1 px-2 py-1.5 text-sm border border-slate-200 rounded focus:border-blue-400 outline-none min-w-0"
+            className="flex-1 px-2 py-1.5 text-sm border border-slate-200 rounded-sm focus:border-blue-400 outline-hidden min-w-0"
           />
           {isOneOff && (
             <span
@@ -159,7 +159,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
           <button
             type="button"
             onClick={() => onDelete(item.id)}
-            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
+            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-sm transition-colors shrink-0"
             aria-label="Delete event"
             {...(widgetType
               ? tourFieldAttr(
@@ -216,7 +216,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                         )
                       : {})}
                     data-tour-widget={widgetId}
-                    className="w-14 min-w-0 px-1.5 py-1 text-xs text-center border border-slate-200 rounded outline-none tabular-nums"
+                    className="w-14 min-w-0 px-1.5 py-1 text-xs text-center border border-slate-200 rounded-sm outline-hidden tabular-nums"
                   />
                   <span className="text-xs text-slate-400 font-semibold select-none">
                     :
@@ -239,7 +239,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                         )
                       : {})}
                     data-tour-widget={widgetId}
-                    className="w-14 min-w-0 px-1.5 py-1 text-xs text-center border border-slate-200 rounded outline-none tabular-nums"
+                    className="w-14 min-w-0 px-1.5 py-1 text-xs text-center border border-slate-200 rounded-sm outline-hidden tabular-nums"
                   />
                   <span className="text-xxs text-slate-400 uppercase tracking-wide ml-1">
                     min:sec
@@ -266,7 +266,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                     time: e.target.value,
                   })
                 }
-                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded-sm outline-hidden"
               />
               <input
                 type="time"
@@ -280,7 +280,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                 data-tour-widget={widgetId}
                 value={item.endTime ?? ''}
                 onChange={(e) => onUpdate(item.id, { endTime: e.target.value })}
-                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded-sm outline-hidden"
               />
             </>
           )}

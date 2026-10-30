@@ -35,7 +35,7 @@ export const IconPicker: React.FC<
         onChange={(e) => setSearch(e.target.value)}
         aria-label={t('searchIcons')}
         placeholder={t('searchIcons')}
-        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50"
+        className="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 placeholder:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50"
       />
       <div
         role="radiogroup"
@@ -60,9 +60,9 @@ export const IconPicker: React.FC<
               tabIndex={tabbable ? 0 : -1}
               disabled={disabled}
               onClick={() => onChange(name)}
-              className={`flex items-center justify-center p-1.5 rounded-md transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`flex items-center justify-center p-1.5 rounded-md transition-colors cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed ${
                 selected
-                  ? 'bg-brand-blue-primary text-white shadow-sm'
+                  ? 'bg-brand-blue-primary text-white shadow-xs'
                   : 'text-slate-600 hover:bg-blue-50 hover:text-brand-blue-primary'
               }`}
             >

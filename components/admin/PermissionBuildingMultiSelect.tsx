@@ -72,7 +72,7 @@ export const PermissionBuildingMultiSelect: React.FC<Props> = ({
               aria-pressed={isSelected}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
                 isSelected
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm hover:bg-brand-blue-dark'
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs hover:bg-brand-blue-dark'
                   : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
               }`}
             >

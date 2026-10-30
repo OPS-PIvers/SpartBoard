@@ -84,7 +84,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
                 }
                 className={`px-2.5 py-1 text-xxs font-bold rounded-md transition-colors ${
                   active
-                    ? 'bg-white text-slate-800 shadow-sm'
+                    ? 'bg-white text-slate-800 shadow-xs'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -161,7 +161,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
               }
               className={`flex-1 py-1.5 rounded-md text-xxs font-bold uppercase transition-all ${
                 currentStyle.dockBorderRadius === r.id
-                  ? 'bg-white shadow-sm text-brand-blue-primary'
+                  ? 'bg-white shadow-xs text-brand-blue-primary'
                   : 'text-slate-500'
               }`}
             >
@@ -197,7 +197,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
             }
             className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
               currentStyle.dockTextShadow
-                ? 'bg-white border-brand-blue-primary text-brand-blue-dark shadow-sm'
+                ? 'bg-white border-brand-blue-primary text-brand-blue-dark shadow-xs'
                 : 'bg-white border-slate-100 text-slate-500'
             }`}
           >

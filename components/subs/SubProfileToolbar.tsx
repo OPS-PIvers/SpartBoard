@@ -66,7 +66,7 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`Board menu — ${teacherName}, ${boardName}`}
-        className="flex items-center gap-3 rounded-full bg-white/85 hover:bg-white backdrop-blur-xl border border-slate-200/70 shadow-lg shadow-slate-900/15 px-3 py-2 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        className="flex items-center gap-3 rounded-full bg-white/85 hover:bg-white backdrop-blur-xl border border-slate-200/70 shadow-lg shadow-slate-900/15 px-3 py-2 transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
       >
         <div className="w-8 h-8 rounded-full bg-brand-blue-primary/10 flex items-center justify-center text-brand-blue-primary">
           <Menu className="w-4 h-4" />
@@ -80,7 +80,7 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
           <div className="text-xs font-bold text-slate-800 leading-tight">
             {teacherName}
           </div>
-          <div className="text-[10px] text-slate-500 leading-tight truncate max-w-[12rem]">
+          <div className="text-[10px] text-slate-500 leading-tight truncate max-w-48">
             {boardName}
           </div>
         </div>

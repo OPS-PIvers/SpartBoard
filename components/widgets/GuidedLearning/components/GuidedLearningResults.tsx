@@ -743,7 +743,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
     <div className="h-full flex flex-col bg-slate-50 text-slate-900">
       {/* Header */}
       <div
-        className="flex items-center border-b border-slate-200 bg-white flex-shrink-0"
+        className="flex items-center border-b border-slate-200 bg-white shrink-0"
         style={{
           gap: 'min(8px, 2cqmin)',
           padding: 'min(8px, 1.5cqmin) min(12px, 2.5cqmin)',
@@ -760,7 +760,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
           />
         </button>
         <BarChart2
-          className="text-brand-blue-primary flex-shrink-0"
+          className="text-brand-blue-primary shrink-0"
           style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
         />
         <span

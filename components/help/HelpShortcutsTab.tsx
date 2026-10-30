@@ -41,7 +41,7 @@ const keyLabel = (token: string, mac: boolean): string => {
 };
 
 const KeyBadge: React.FC<{ label: string }> = ({ label }) => (
-  <kbd className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-xs font-mono shadow-sm">
+  <kbd className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-xs font-mono shadow-xs">
     {label}
   </kbd>
 );

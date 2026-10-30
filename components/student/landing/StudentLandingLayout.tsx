@@ -53,7 +53,7 @@ const SignOutButton: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 ${
+    className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition focus:outline-hidden focus-visible:ring-2 ${
       tone === 'dark'
         ? 'border-white/25 text-white hover:bg-white/10 focus-visible:ring-white'
         : 'border-slate-200 text-slate-700 hover:bg-slate-50 focus-visible:ring-brand-blue-primary'
@@ -148,7 +148,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
   return (
     <div
       className={`relative flex flex-col overflow-hidden bg-slate-50 font-sans ${
-        embedded ? 'h-full w-full' : 'h-screen [height:100dvh] w-screen'
+        embedded ? 'h-full w-full' : 'h-screen h-dvh w-screen'
       }`}
     >
       <header className="flex h-[60px] shrink-0 items-center gap-3 bg-brand-blue-primary px-4 text-white min-[896px]:h-[68px] min-[896px]:px-6">
@@ -167,7 +167,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
           onClick={() => setSheetOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={sheetOpen}
-          className="inline-flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white min-[896px]:hidden"
+          className="inline-flex min-h-[44px] min-w-0 items-center gap-1.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-white/10 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white min-[896px]:hidden"
         >
           <span className="truncate text-base font-bold">
             {selected?.name ?? 'Overview'}
@@ -235,7 +235,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
                 onClick={() => changeTab(t.id)}
                 aria-current={active ? 'page' : undefined}
                 aria-controls={panelId(selected.classId)}
-                className={`flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${
+                className={`flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${
                   active ? 'text-brand-blue-primary' : 'text-slate-500'
                 }`}
               >

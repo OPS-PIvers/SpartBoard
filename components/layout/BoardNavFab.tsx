@@ -397,7 +397,7 @@ export const BoardNavFab: FC = () => {
             loadDashboard(db.id);
             closeBoardsMenu();
           }}
-          className="min-w-0 flex-1 flex items-center gap-2 pl-3 pr-1 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+          className="min-w-0 flex-1 flex items-center gap-2 pl-3 pr-1 py-2 text-left text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
         >
           {leadingIcon}
           <span className="truncate">{db.name}</span>
@@ -549,7 +549,7 @@ export const BoardNavFab: FC = () => {
                   db,
                   idx,
                   <Pin
-                    className={`w-3 h-3 flex-shrink-0 ${favoriteIconClass(db)}`}
+                    className={`w-3 h-3 shrink-0 ${favoriteIconClass(db)}`}
                   />,
                   'pinned-'
                 )
@@ -575,7 +575,7 @@ export const BoardNavFab: FC = () => {
                 collectionSlotStart + idx,
                 db.isDefault ? (
                   <Star
-                    className={`w-3.5 h-3.5 flex-shrink-0 ${favoriteIconClass(db)}`}
+                    className={`w-3.5 h-3.5 shrink-0 ${favoriteIconClass(db)}`}
                   />
                 ) : null,
                 '',
@@ -612,9 +612,9 @@ export const BoardNavFab: FC = () => {
                 role="menuitem"
                 data-new-board
                 onClick={() => setIsCreatingBoard(true)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
               >
-                <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+                <Plus className="w-3.5 h-3.5 shrink-0" />
                 {t('boardsModal.newBoard', { defaultValue: 'New Board' })}
               </button>
             )}
@@ -628,9 +628,9 @@ export const BoardNavFab: FC = () => {
                 setIsBoardsModalOpen(true);
                 closeBoardsMenu(false);
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+              className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
             >
-              <Settings className="w-3.5 h-3.5 flex-shrink-0" />
+              <Settings className="w-3.5 h-3.5 shrink-0" />
               {t('boardNav.manageAllBoards', {
                 defaultValue: 'Manage all boards',
               })}

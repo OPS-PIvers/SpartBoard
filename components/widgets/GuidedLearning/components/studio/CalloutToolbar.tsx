@@ -47,7 +47,7 @@ const ALIGN_LABEL_KEYS = {
 } as const;
 
 const buttonClass =
-  'flex h-8 w-8 items-center justify-center rounded-md text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:pointer-events-none disabled:opacity-40';
+  'flex h-8 w-8 items-center justify-center rounded-md text-slate-700 transition-colors hover:bg-slate-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:pointer-events-none disabled:opacity-40';
 
 /** Floating pill over a selected callout: edit, resets, kind, colour and delete. */
 export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
@@ -160,7 +160,7 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
               title={t(style.labelKey)}
               {...tourAttr('studio.callout-tone')}
               onClick={() => onChange(setCalloutTone(step, option))}
-              className={`flex h-6 w-6 items-center justify-center rounded-full border border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${style.swatch}`}
+              className={`flex h-6 w-6 items-center justify-center rounded-full border border-slate-300 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${style.swatch}`}
             >
               {checked && (
                 <Check

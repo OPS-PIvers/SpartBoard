@@ -226,7 +226,7 @@ export const TooltipInteraction: React.FC<Props> = ({
         data-side={placement.side}
         className={`absolute flex flex-col ${ALIGN_CLASSES[align]} ${tone.tooltipCard} rounded-2xl leading-relaxed shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none${
           overflowing
-            ? ' outline outline-2 outline-offset-2 outline-amber-400'
+            ? ' outline-solid outline-2 outline-offset-2 outline-amber-400'
             : ''
         }`}
         style={

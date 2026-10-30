@@ -84,7 +84,7 @@ export const TabWarningThresholdRow: React.FC<{
             onChange={(e) => setInputValue(e.target.value)}
             onBlur={handleBlur}
             {...tourAttr('assign-tab-warning.threshold')}
-            className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+            className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
           />
         </label>
       )}
@@ -190,7 +190,7 @@ export const TabAwayLimitRow: React.FC<{
               <Minus size={12} />
             </button>
             <span
-              className="min-w-[3.5rem] text-center text-xs font-bold text-slate-800 tabular-nums"
+              className="min-w-14 text-center text-xs font-bold text-slate-800 tabular-nums"
               aria-live="polite"
             >
               {stepLabel(current)}

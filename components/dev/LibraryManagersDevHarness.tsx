@@ -660,7 +660,7 @@ export const LibraryManagersDevHarness: React.FC = () => {
               aria-label="Library"
               value={view}
               onChange={(e) => setView(e.target.value as HarnessView)}
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm"
+              className="rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm"
             >
               {LIBRARY_HARNESS_VIEWS.map((v) => (
                 <option key={v} value={v}>

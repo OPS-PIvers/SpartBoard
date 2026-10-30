@@ -118,7 +118,7 @@ export const SpeakPlayerDevHarness: React.FC = () => {
   return (
     <div className="flex min-h-screen items-start justify-center bg-slate-100 p-4">
       <div
-        className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow"
+        className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm"
         style={{ width: setup.width, height: setup.height }}
       >
         <FlashcardPlayer

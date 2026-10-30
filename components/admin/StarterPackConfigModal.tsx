@@ -155,7 +155,7 @@ export const AdminStarterPackConfig = () => {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:border-brand-blue-primary"
+              className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-hidden focus:border-brand-blue-primary"
               placeholder="e.g. Reading Time"
             />
           </div>
@@ -174,7 +174,7 @@ export const AdminStarterPackConfig = () => {
               onChange={(e) =>
                 setFormData({ ...formData, icon: e.target.value })
               }
-              className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:border-brand-blue-primary"
+              className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-hidden focus:border-brand-blue-primary"
               placeholder="e.g. BookOpen"
             />
           </div>
@@ -193,7 +193,7 @@ export const AdminStarterPackConfig = () => {
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
-              className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:border-brand-blue-primary"
+              className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-hidden focus:border-brand-blue-primary"
               placeholder="Description"
             />
           </div>

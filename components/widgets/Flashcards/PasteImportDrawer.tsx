@@ -94,7 +94,7 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
             onChange={(event) =>
               setSeparator(event.target.value as FlashcardImportSeparator)
             }
-            className="mt-1 w-full rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-rose-500/30"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white outline-hidden focus:ring-2 focus:ring-rose-500/30"
             style={{
               padding: 'min(8px, 2cqmin)',
               fontSize: 'min(13px, 4cqmin)',
@@ -120,7 +120,7 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
                 'flashcards'
               )}
               onChange={(event) => setCustomSeparator(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-rose-500/30"
+              className="mt-1 w-full rounded-xl border border-slate-200 outline-hidden focus:ring-2 focus:ring-rose-500/30"
               style={{
                 padding: 'min(8px, 2cqmin)',
                 fontSize: 'min(13px, 4cqmin)',
@@ -141,7 +141,7 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
             value={source}
             {...tourTypeAttr('flashcards.paste-source', 'flashcards')}
             onChange={(event) => setSource(event.target.value)}
-            className="mt-1 flex-1 resize-none rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-rose-500/30"
+            className="mt-1 flex-1 resize-none rounded-xl border border-slate-200 outline-hidden focus:ring-2 focus:ring-rose-500/30"
             style={{
               minHeight: 'min(120px, 30cqh)',
               padding: 'min(10px, 2.5cqmin)',

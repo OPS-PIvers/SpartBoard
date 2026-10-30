@@ -61,7 +61,7 @@ export const SpeakReviewList: React.FC<SpeakReviewListProps> = ({
               <button
                 type="button"
                 onClick={() => onJump(card.id)}
-                className="min-w-0 rounded text-left hover:underline"
+                className="min-w-0 rounded-sm text-left hover:underline"
                 {...tourFieldAttr(
                   'flashcards-speak-editor.review-card',
                   'flashcards',

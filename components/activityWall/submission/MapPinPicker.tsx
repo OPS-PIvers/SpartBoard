@@ -28,7 +28,7 @@ const pinIcon = divIcon({
 });
 
 const inputClass =
-  'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+  'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 
 /** react-leaflet ignores center/zoom prop changes after mount; this keeps the view synced to the draft. */
 const MapViewSync: React.FC<{ lat: number; lng: number; zoom: number }> = ({

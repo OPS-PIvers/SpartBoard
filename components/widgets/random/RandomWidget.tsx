@@ -1841,7 +1841,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   onClick={cycleMode}
                   disabled={isSpinning}
                   {...tourAttr('random.mode', widget.id, widget.type)}
-                  className="flex items-center min-w-0 bg-transparent border-0 p-0 m-0 hover:opacity-80 transition-opacity cursor-pointer disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2 rounded"
+                  className="flex items-center min-w-0 bg-transparent border-0 p-0 m-0 hover:opacity-80 transition-opacity cursor-pointer disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2 rounded-sm"
                   style={{ gap: 'clamp(6px, 1.5cqmin, 10px)' }}
                   aria-label={
                     mode === 'single' && remainingStudents.length > 0
@@ -2123,7 +2123,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 {...tourAttr('random.pick', widget.id, widget.type)}
                 onClick={handlePick}
                 disabled={isSpinning}
-                className="flex-shrink-0"
+                className="shrink-0"
                 style={{
                   width: 'clamp(40px, 10cqmin, 72px)',
                   height: 'clamp(40px, 10cqmin, 72px)',
@@ -2173,7 +2173,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       height: 'clamp(40px, 10cqmin, 72px)',
                       padding: 0,
                     }}
-                    className="flex-shrink-0"
+                    className="shrink-0"
                     title={t('widgets.random.sendToScoreboard')}
                     icon={
                       <Trophy
@@ -2275,7 +2275,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       height: 'clamp(40px, 10cqmin, 72px)',
                       padding: 0,
                     }}
-                    className="flex-shrink-0 ml-auto"
+                    className="shrink-0 ml-auto"
                     title={t('widgets.random.rotateGroupsHint', {
                       defaultValue:
                         'Rotate — shift each group forward by one (locked students stay put).',

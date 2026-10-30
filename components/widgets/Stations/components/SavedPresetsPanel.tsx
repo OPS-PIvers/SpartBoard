@@ -142,7 +142,7 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
                 widgetType
               )
             : {})}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xxs font-black uppercase tracking-widest hover:bg-brand-blue-dark transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xxs font-black uppercase tracking-widest hover:bg-brand-blue-dark transition-colors shadow-xs"
         >
           <Save size={12} />
           Save Current

@@ -16,7 +16,7 @@ export interface GradebookExportMenuProps {
 }
 
 const itemClass =
-  'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none disabled:opacity-50';
+  'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-hidden disabled:opacity-50';
 
 /** D30: the grid's current view to a CSV download or a new Google Sheet. */
 export const GradebookExportMenu: React.FC<GradebookExportMenuProps> = ({
@@ -76,7 +76,7 @@ export const GradebookExportMenu: React.FC<GradebookExportMenuProps> = ({
       open
       onClose={onClose}
       anchorRef={anchorRef}
-      className="w-[260px] !p-1.5"
+      className="w-[260px] p-1.5!"
     >
       <div role="menu" aria-label="Export" className="flex flex-col gap-1">
         <button

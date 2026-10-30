@@ -472,7 +472,7 @@ const PanelScreen: React.FC = () => {
   const [body, setBody] = useState(PANEL_BODY);
   const [items, setItems] = useState(PANEL_ITEMS);
   return (
-    <div className="grid h-full min-h-[40rem] grid-cols-[minmax(0,1fr)_28rem] divide-x divide-slate-200">
+    <div className="grid h-full min-h-160 grid-cols-[minmax(0,1fr)_28rem] divide-x divide-slate-200">
       <PlcNoteRichEditor
         value={body}
         onChange={setBody}
@@ -519,7 +519,7 @@ export const TeamsNotesDevHarness: React.FC = () => {
   const [lead, setLead] = useState(initial.lead);
   return (
     <div
-      className={`flex flex-col bg-white font-sans ${initial.capture ? 'min-h-screen' : 'h-screen [height:100dvh] overflow-hidden'}`}
+      className={`flex flex-col bg-white font-sans ${initial.capture ? 'min-h-screen' : 'h-screen h-dvh overflow-hidden'}`}
     >
       <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-slate-200 bg-slate-100 px-4 py-2 text-xs text-slate-700">
         <span className="font-bold uppercase tracking-widest text-slate-500">
@@ -538,7 +538,7 @@ export const TeamsNotesDevHarness: React.FC = () => {
                     : 'note'
               )
             }
-            className="rounded border border-slate-300 bg-white px-2 py-1"
+            className="rounded-sm border border-slate-300 bg-white px-2 py-1"
           >
             <option value="note">8. PLC meeting note</option>
             <option value="dept">4. Department Hub</option>
@@ -550,7 +550,7 @@ export const TeamsNotesDevHarness: React.FC = () => {
           <select
             value={lead ? 'lead' : 'member'}
             onChange={(e) => setLead(e.target.value === 'lead')}
-            className="rounded border border-slate-300 bg-white px-2 py-1"
+            className="rounded-sm border border-slate-300 bg-white px-2 py-1"
           >
             <option value="lead">Lead</option>
             <option value="member">Member</option>

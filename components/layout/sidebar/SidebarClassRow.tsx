@@ -110,7 +110,7 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
         <Star className="w-4 h-4" fill={isActive ? 'currentColor' : 'none'} />
       </button>
       <div className="flex-1 min-w-0 py-1">
-        <div className="text-sm font-bold leading-snug text-slate-800 [overflow-wrap:anywhere]">
+        <div className="text-sm font-bold leading-snug text-slate-800 wrap-anywhere">
           {r.name}
         </div>
         {r.loadError ? (

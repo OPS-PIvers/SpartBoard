@@ -52,7 +52,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
 
   return (
     <div
-      className="flex h-full w-full select-none overflow-hidden rounded-[var(--window-radius,0px)]"
+      className="flex h-full w-full select-none overflow-hidden rounded-(--window-radius,0px)"
       style={{ backgroundColor: surfaceBg }}
     >
       {/* Sidebar Navigation */}
@@ -173,7 +173,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
             {activeCat.stems.map((stem) => (
               <li
                 key={stem.id}
-                className="font-medium text-slate-700 border-l-4 leading-relaxed shadow-sm bg-slate-50 rounded-r-lg"
+                className="font-medium text-slate-700 border-l-4 leading-relaxed shadow-xs bg-slate-50 rounded-r-lg"
                 style={{
                   borderLeftColor: activeCat.color,
                   paddingLeft: '1.14em',

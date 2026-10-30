@@ -38,24 +38,24 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'relative touch-target-expand flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed';
+      'relative touch-target-expand flex items-center justify-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variantStyles: Record<IconButtonVariant, string> = {
       primary:
-        'bg-brand-blue-primary text-white hover:bg-brand-blue-dark shadow-sm',
+        'bg-brand-blue-primary text-white hover:bg-brand-blue-dark shadow-xs',
       secondary: 'bg-slate-100 text-slate-600 hover:bg-slate-200',
       ghost: 'text-slate-400 hover:bg-slate-100 hover:text-slate-600',
       'brand-ghost':
-        'text-brand-blue-primary bg-brand-blue-lighter/50 hover:bg-brand-blue-primary hover:text-white shadow-sm',
+        'text-brand-blue-primary bg-brand-blue-lighter/50 hover:bg-brand-blue-primary hover:text-white shadow-xs',
       danger: 'text-red-500 hover:bg-red-50 hover:text-red-600',
       'brand-danger-ghost':
-        'text-brand-red-primary bg-brand-red-lighter/50 hover:bg-brand-red-primary hover:text-white shadow-sm',
+        'text-brand-red-primary bg-brand-red-lighter/50 hover:bg-brand-red-primary hover:text-white shadow-xs',
       glass: 'text-slate-600 hover:bg-slate-800/10',
     };
 
     const activeStyles: Record<IconButtonVariant, string> = {
       primary:
-        'ring-2 ring-white ring-offset-2 ring-offset-brand-blue-primary bg-brand-blue-dark text-white shadow-sm',
+        'ring-2 ring-white ring-offset-2 ring-offset-brand-blue-primary bg-brand-blue-dark text-white shadow-xs',
       secondary: 'bg-slate-200 text-slate-800',
       ghost: 'bg-slate-100 text-slate-800',
       'brand-ghost': 'bg-brand-blue-primary text-white shadow-md',

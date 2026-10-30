@@ -55,7 +55,7 @@ export const SyntaxTokenEditorField: React.FC<{
         )}
         rows={3}
         aria-labelledby={ctx.labelId}
-        className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
         {...tourAttr(
           'widget-settings.syntax-framer.content',
           ctx.widget.id,

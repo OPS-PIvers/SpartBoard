@@ -143,7 +143,7 @@ const ClassRosterMenu: React.FC<Props> = ({
         <button
           onClick={onOpenFullEditor}
           {...tourAttr('classes.open-full-editor')}
-          className="w-full bg-blue-600 text-white py-2 rounded text-xs font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors"
+          className="w-full bg-blue-600 text-white py-2 rounded-sm text-xs font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors"
         >
           <Plus size={14} /> Open Full Editor
         </button>

@@ -131,7 +131,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
         {...tourAttr('plc-notes.rollup-toggle')}
         type="button"
         onClick={() => setRollupOpen((v) => !v)}
-        className="inline-flex items-center gap-1 -mx-1 px-1 py-0.5 rounded text-xxs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+        className="inline-flex items-center gap-1 -mx-1 px-1 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
       >
         {t('plcDashboard.notes.actionItems.openCount', {
           defaultValue: 'Open action items ({{count}})',

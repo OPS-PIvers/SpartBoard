@@ -138,7 +138,7 @@ async function loadHubTour(setId: string): Promise<HubTour | null> {
 }
 
 const Loader: React.FC = () => (
-  <div className="h-screen [height:100dvh] w-full flex items-center justify-center bg-white">
+  <div className="h-screen h-dvh w-full flex items-center justify-center bg-white">
     <Loader2
       className="w-8 h-8 text-slate-400 animate-spin"
       aria-hidden="true"
@@ -149,7 +149,7 @@ const Loader: React.FC = () => (
 const Unavailable: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <main className="h-screen [height:100dvh] overflow-y-auto bg-white px-4 py-12 pb-16">
+    <main className="h-screen h-dvh overflow-y-auto bg-white px-4 py-12 pb-16">
       <div className="mx-auto max-w-2xl">
         <h1 className="text-xl font-semibold text-slate-900">
           {t('webTourHub.unavailableTitle')}
@@ -210,7 +210,7 @@ const OpenedTour: React.FC<{
 }> = ({ state, onStartAgain }) => {
   const { t } = useTranslation();
   return (
-    <main className="h-screen [height:100dvh] overflow-y-auto bg-white px-4 py-12 pb-16">
+    <main className="h-screen h-dvh overflow-y-auto bg-white px-4 py-12 pb-16">
       <div className="mx-auto max-w-2xl" aria-live="polite">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           {t('webTourHub.eyebrow')}
@@ -472,7 +472,7 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
   };
 
   return (
-    <main className="h-screen [height:100dvh] overflow-y-auto bg-white px-4 py-10 pb-16">
+    <main className="h-screen h-dvh overflow-y-auto bg-white px-4 py-10 pb-16">
       <div className="mx-auto max-w-2xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           {t('webTourHub.eyebrow')}
@@ -579,7 +579,7 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
                       alt={t('webTourHub.pictureAlt', { number: i + 1 })}
                       width={step.web.picture?.w}
                       height={step.web.picture?.h}
-                      className="mt-2 h-auto max-w-full rounded border border-slate-200"
+                      className="mt-2 h-auto max-w-full rounded-sm border border-slate-200"
                     />
                   )}
                 </div>

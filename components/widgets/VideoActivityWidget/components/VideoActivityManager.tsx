@@ -931,7 +931,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           {...tourAttr('video-activity.empty-create')}
           type="button"
           onClick={onNew}
-          className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary text-white font-bold shadow-sm hover:bg-brand-blue-dark transition-colors"
+          className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary text-white font-bold shadow-xs hover:bg-brand-blue-dark transition-colors"
           style={{
             padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
             fontSize: 'min(14px, 5.5cqmin)',

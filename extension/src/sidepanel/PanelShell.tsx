@@ -105,7 +105,7 @@ export const PanelShell: React.FC = () => {
       aria-selected={current === id}
       className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold ${focusRing} ${
         current === id
-          ? 'bg-white text-slate-900 shadow-sm'
+          ? 'bg-white text-slate-900 shadow-xs'
           : 'text-slate-600 hover:text-slate-900'
       }`}
       onClick={() => setTab(id)}

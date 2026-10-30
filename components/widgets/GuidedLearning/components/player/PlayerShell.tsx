@@ -41,7 +41,7 @@ export const PlayerShell: React.FC<PlayerShellProps> = ({
       data-gl-topbar=""
       inert={inertChrome ? true : undefined}
       aria-hidden={inertChrome ? true : undefined}
-      className="flex items-center border-b border-slate-200 flex-shrink-0 bg-white"
+      className="flex items-center border-b border-slate-200 shrink-0 bg-white"
       style={{
         gap: 'min(8px, 2cqmin)',
         padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
@@ -60,7 +60,7 @@ export const PlayerShell: React.FC<PlayerShellProps> = ({
         data-gl-footer
         inert={inertChrome ? true : undefined}
         aria-hidden={inertChrome ? true : undefined}
-        className="flex items-center flex-shrink-0 border-t border-slate-200 bg-white"
+        className="flex items-center shrink-0 border-t border-slate-200 bg-white"
         style={{
           gap: 'min(10px, 2.5cqmin)',
           padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
@@ -118,7 +118,7 @@ export const PlayerTopBar: React.FC<PlayerTopBarProps> = ({
 
       <span
         data-testid="gl-mode-chip"
-        className="rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-semibold whitespace-nowrap flex-shrink-0"
+        className="rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-semibold whitespace-nowrap shrink-0"
         style={{
           padding: 'min(3px, 0.8cqmin) min(10px, 2.4cqmin)',
           fontSize: 'var(--gl-text-small, min(12px, 3.2cqmin))',
@@ -166,9 +166,9 @@ export const PlayerTopBar: React.FC<PlayerTopBarProps> = ({
 };
 
 const PREVIEW_BUTTON =
-  'flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-slate-700';
+  'flex shrink-0 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-slate-700';
 const PREVIEW_NEXT =
-  'flex flex-shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-white';
+  'flex shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-white';
 const NO_DONE: ReadonlySet<string> = new Set();
 const noop = () => undefined;
 const never = () => false;

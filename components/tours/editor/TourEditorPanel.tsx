@@ -462,7 +462,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <h2 className="mt-1 break-words text-sm font-semibold text-white">
+        <h2 className="mt-1 wrap-break-word text-sm font-semibold text-white">
           {set.title.trim() || t('tours.welcomeTitle')}
         </h2>
         <SaveAlert state={session.saveState} />
@@ -481,7 +481,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
               onClick={() => setTab(id)}
               className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${focusRing} ${
                 tab === id
-                  ? 'bg-white text-brand-blue-dark shadow-sm'
+                  ? 'bg-white text-brand-blue-dark shadow-xs'
                   : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
               }`}
             >
@@ -792,7 +792,7 @@ const OutlineRow: React.FC<{
         <button
           type="button"
           onClick={() => session.select(index)}
-          className={`flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/50 ${
+          className={`flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/50 ${
             selected ? '' : 'hover:bg-slate-50'
           }`}
         >
@@ -805,7 +805,7 @@ const OutlineRow: React.FC<{
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
             <span
-              className={`break-words text-sm ${
+              className={`wrap-break-word text-sm ${
                 selected ? 'font-semibold text-slate-900' : 'text-slate-700'
               }`}
             >
@@ -841,7 +841,7 @@ const OutlineRow: React.FC<{
                     aria-hidden="true"
                   />
                 )}
-                <span className="min-w-0 break-words">{subtitle}</span>
+                <span className="min-w-0 wrap-break-word">{subtitle}</span>
               </span>
             )}
           </span>
@@ -865,7 +865,7 @@ const OutlineRow: React.FC<{
           {...listeners}
           aria-label={t('tours.editor.reorder', { n: index + 1 })}
           title={t('tours.editor.reorder', { n: index + 1 })}
-          className="mr-1 mt-1.5 cursor-grab touch-none rounded-md p-1 text-slate-400 opacity-0 hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 active:cursor-grabbing group-hover:opacity-100"
+          className="mr-1 mt-1.5 cursor-grab touch-none rounded-md p-1 text-slate-400 opacity-0 hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 active:cursor-grabbing group-hover:opacity-100"
         >
           <GripVertical className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -918,7 +918,7 @@ const StepCard: React.FC<{
               onClick={() => retakeTourEditThumbnail(step.id)}
               aria-label={t('tours.editor.retake')}
               title={t('tours.editor.retakeHint')}
-              className={`absolute right-1.5 top-1.5 rounded-lg bg-white p-1.5 text-slate-700 shadow hover:bg-slate-50 ${focusRing}`}
+              className={`absolute right-1.5 top-1.5 rounded-lg bg-white p-1.5 text-slate-700 shadow-sm hover:bg-slate-50 ${focusRing}`}
             >
               <Camera className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -953,7 +953,7 @@ const StepCard: React.FC<{
         <div className="flex items-start gap-2">
           <span
             data-testid="tour-editor-control"
-            className="min-w-0 flex-1 break-words pt-1 text-sm font-normal text-slate-900"
+            className="min-w-0 flex-1 wrap-break-word pt-1 text-sm font-normal text-slate-900"
           >
             {tour?.anchor === WHOLE_BOARD_ANCHOR || !tour
               ? t('tourPicker.wholeBoard')
@@ -1032,7 +1032,7 @@ const StepCard: React.FC<{
             onChange={(e) =>
               bind({ ...tour, teacherMustClick: e.target.checked })
             }
-            className="h-4 w-4 shrink-0 rounded border-slate-300 accent-brand-blue-primary [color-scheme:light]"
+            className="h-4 w-4 shrink-0 rounded-sm border-slate-300 accent-brand-blue-primary scheme-light"
           />
           {t('glStudio.tourTeacherMustClick')}
         </label>
@@ -1071,7 +1071,7 @@ const StepCard: React.FC<{
         <button
           type="button"
           onClick={() => session.deleteStep(step.id)}
-          className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold text-brand-red-primary hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red-primary/40"
+          className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold text-brand-red-primary hover:bg-red-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-red-primary/40"
         >
           <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
           {t('glStudio.deleteStep')}

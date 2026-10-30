@@ -638,7 +638,7 @@ const StudentExperience: React.FC<{
   };
 
   return (
-    <div className="h-screen [height:100dvh] overflow-hidden bg-slate-950">
+    <div className="h-screen h-dvh overflow-hidden bg-slate-950">
       <div className="h-full relative" style={{ containerType: 'size' }}>
         <GuidedLearningPlayer
           key={`gl-player-${replayKey}`}
@@ -689,7 +689,7 @@ const StudentExperience: React.FC<{
           <button
             onClick={() => void handleDone()}
             disabled={submitting}
-            className="px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 disabled:opacity-70 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
+            className="px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 disabled:opacity-70 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-xs"
           >
             {submitting
               ? t('glStudent.submitting')
@@ -740,7 +740,7 @@ const FinishedCard: React.FC<{
             type="button"
             onClick={onSubmit}
             disabled={submitting}
-            className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+            className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-70 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/90"
           >
             {submitting
               ? t('glStudent.submitting')
@@ -752,7 +752,7 @@ const FinishedCard: React.FC<{
           <button
             type="button"
             onClick={onBack}
-            className="rounded-xl px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+            className="rounded-xl px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/90"
           >
             {t('glStudent.finished.back')}
           </button>
@@ -799,7 +799,7 @@ const StartScreen: React.FC<{
 
   if (needsPeriodPicker) {
     return (
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
+      <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
         <div className="min-h-full flex items-center justify-center p-6">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
             <ClipboardList
@@ -842,7 +842,7 @@ const StartScreen: React.FC<{
     (welcomeMessage.length > 0 || Boolean(welcomeImage));
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
       <div className="min-h-full flex items-center justify-center p-6">
         <div
           className={`bg-slate-900 border border-white/10 rounded-2xl p-8 ${showWelcome ? 'max-w-md' : 'max-w-sm'} w-full text-center shadow-2xl`}
@@ -862,7 +862,7 @@ const StartScreen: React.FC<{
           <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
           {showWelcome ? (
             welcomeMessage ? (
-              <div className="mt-3 mb-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left">
+              <div className="mt-3 mb-6 rounded-xl border border-white/10 bg-white/3 px-4 py-3 text-left">
                 <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
                   {welcomeMessage}
                 </p>
@@ -990,7 +990,7 @@ const CompletionScreen: React.FC<{
   // and surface the Replay CTA as the primary action.
   if (isViewOnly) {
     return (
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
+      <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
         <div className="min-h-full flex items-center justify-center p-6">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
             <BookOpen
@@ -1027,7 +1027,7 @@ const CompletionScreen: React.FC<{
   // (uncommon but supported).
   if (visibility === 'none') {
     return (
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
+      <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
         <div className="min-h-full flex items-center justify-center p-6">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
             <CheckCircle2
@@ -1050,7 +1050,7 @@ const CompletionScreen: React.FC<{
   }
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
       <div className="min-h-full flex items-center justify-center p-6">
         <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
           <Trophy
@@ -1135,7 +1135,7 @@ export const PublishedGLReview: React.FC<{
   const totalGradable = gradableSteps.length;
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
       <div className="min-h-full flex items-start justify-center p-6">
         <div className="w-full max-w-md flex flex-col gap-4">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 text-center shadow-2xl">

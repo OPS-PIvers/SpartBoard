@@ -55,7 +55,7 @@ const previewUrl = (blob: Blob): string => {
 const sectionLabel =
   'text-xxs font-bold uppercase tracking-wider text-slate-500';
 const fieldClass =
-  'rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none';
+  'rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden';
 
 export const QuizVersionReview: React.FC<Props> = ({ set, plan, onChange }) => {
   const labelOf = (v: number): string => set.versions[v]?.label ?? '';
@@ -319,7 +319,7 @@ export const QuizVersionReview: React.FC<Props> = ({ set, plan, onChange }) => {
                   <img
                     src={previewUrl(img.blob)}
                     alt={`${pictureName(img)} in ${version}`}
-                    className="h-12 w-16 shrink-0 rounded border border-slate-200 object-contain"
+                    className="h-12 w-16 shrink-0 rounded-sm border border-slate-200 object-contain"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-slate-800">

@@ -8,10 +8,10 @@ import type {
 import { flagSwatch } from './popoverFormat';
 
 const FOCUS =
-  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary';
+  'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary';
 
 export const INPUT_CLASS =
-  'h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-[13px] text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30';
+  'h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-[13px] text-slate-800 focus:border-brand-blue-primary focus:outline-hidden focus:ring-[3px] focus:ring-brand-blue-primary/30';
 
 /** A flag's one-letter mark, as the grid cell draws it; auto flags are outlined. */
 export const FlagChip: React.FC<{ flag: GradebookFlagDef; auto?: boolean }> = ({
@@ -50,7 +50,7 @@ export const Btn: React.FC<
     <button
       type="button"
       {...rest}
-      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border font-semibold shadow-sm transition-colors disabled:pointer-events-none disabled:opacity-50 ${
+      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border font-semibold shadow-xs transition-colors disabled:pointer-events-none disabled:opacity-50 ${
         size === 'sm' ? 'h-[30px] px-3 text-xs' : 'h-[34px] px-3.5 text-[13px]'
       } ${tones[tone]} ${FOCUS} ${className}`}
     />
@@ -109,7 +109,7 @@ export const Toggle: React.FC<{
     />
     <span
       aria-hidden
-      className="relative h-[18px] w-8 flex-none rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-3.5 after:w-3.5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-brand-blue-primary peer-checked:after:translate-x-3.5 peer-focus-visible:ring-[3px] peer-focus-visible:ring-brand-blue-primary/30"
+      className="relative h-[18px] w-8 flex-none rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-3.5 after:w-3.5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-brand-blue-primary peer-checked:after:translate-x-3.5 peer-focus-visible:ring-[3px] peer-focus-visible:ring-brand-blue-primary/30"
     />
     {children}
   </label>
@@ -137,7 +137,7 @@ export const FlagMenuList: React.FC<{
           aria-checked={!!on}
           disabled={disabled}
           onClick={() => onToggle(f.id)}
-          className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none ${
+          className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-hidden ${
             on ? 'font-semibold text-slate-900' : 'text-slate-700'
           }`}
         >
@@ -147,7 +147,7 @@ export const FlagMenuList: React.FC<{
           <FlagChip flag={f} auto={on?.auto} />
           <span className="flex-1">{f.name}</span>
           {on?.auto && <span className="text-[11px] text-slate-400">auto</span>}
-          <kbd className="rounded border border-slate-200 px-[5px] font-sans text-[11px] leading-4 text-slate-400">
+          <kbd className="rounded-sm border border-slate-200 px-[5px] font-sans text-[11px] leading-4 text-slate-400">
             {f.key}
           </kbd>
         </button>

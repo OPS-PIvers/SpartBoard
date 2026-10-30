@@ -130,7 +130,7 @@ const DialogShell: React.FC<DialogShellProps> = ({
     >
       <div className="flex gap-3">
         <div
-          className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${cfg.iconBg}`}
+          className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${cfg.iconBg}`}
         >
           {cfg.icon}
         </div>
@@ -318,7 +318,7 @@ const PromptDialog: React.FC<{
   };
 
   const inputClass =
-    'w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors resize-none';
+    'w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 outline-hidden focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors resize-none';
 
   return (
     <div
@@ -497,7 +497,7 @@ export const DialogContainer: React.FC = () => {
       // overlay excludes it from that check, so confirming/cancelling a dialog
       // leaves the settings panel underneath exactly as it was.
       data-settings-exclude
-      className="fixed inset-0 z-dialog flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-dialog flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
       {...backdropProps}
     >
       {renderDialog()}

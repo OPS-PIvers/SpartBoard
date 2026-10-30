@@ -45,7 +45,7 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
       aria-label={title}
       title={title}
       {...tourProps}
-      className="flex items-stretch bg-white/80 border border-slate-200 rounded-full overflow-hidden shadow-sm flex-shrink-0"
+      className="flex items-stretch bg-white/80 border border-slate-200 rounded-full overflow-hidden shadow-xs shrink-0"
       style={{ height: 'clamp(40px, 10cqmin, 72px)' }}
     >
       <button
@@ -89,7 +89,7 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
                 : {})}
               title={labelTitle}
               aria-label={labelTitle}
-              className="uppercase tracking-wider text-slate-500 font-bold leading-none rounded bg-slate-100 hover:bg-slate-200 transition-colors"
+              className="uppercase tracking-wider text-slate-500 font-bold leading-none rounded-sm bg-slate-100 hover:bg-slate-200 transition-colors"
               style={{
                 fontSize: 'clamp(9px, 1.8cqmin, 12px)',
                 padding: '1px clamp(3px, 0.8cqmin, 6px)',

@@ -200,7 +200,7 @@ export const ToolDockItem = React.memo(
                       <span className="truncate text-xs text-slate-800 font-medium">
                         {getTitle(widget)}
                       </span>
-                      <RefreshCcw className="w-3 h-3 text-brand-blue-primary opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                      <RefreshCcw className="w-3 h-3 text-brand-blue-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                     </button>
                     <button
                       {...tourTypeAttr('dock.minimized-close', tool.type)}

@@ -252,7 +252,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
       aria-modal="true"
       aria-labelledby="gl-record-start-title"
       data-tour-ignore=""
-      className="fixed inset-0 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
       style={{ zIndex: Z_INDEX.tour }}
     >
       <form
@@ -275,7 +275,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
             onChange={(e) => setTitle(e.target.value)}
             maxLength={120}
             placeholder={t('glRecorder.startWhatPlaceholder')}
-            className="rounded-lg border border-slate-300 px-3 py-2 font-normal text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+            className="rounded-lg border border-slate-300 px-3 py-2 font-normal text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
           />
         </label>
         <ul className="flex flex-col gap-2.5 text-sm text-slate-700">

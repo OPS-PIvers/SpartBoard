@@ -129,7 +129,7 @@ export const SmartNotebookConfigurationPanel: React.FC<Props> = ({
                         storageLimitMb: clamped,
                       });
                     }}
-                    className="w-20 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-20 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-center font-medium focus:outline-hidden focus:ring-2 focus:ring-green-500"
                   />
                   <span className="text-xs font-medium text-slate-500">MB</span>
                 </div>

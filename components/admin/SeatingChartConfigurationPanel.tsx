@@ -93,7 +93,7 @@ export const SeatingChartConfigurationPanel: React.FC<
                   };
                   updateCurrentDefaults(updates);
                 }}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none font-bold bg-white"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-hidden font-bold bg-white"
               >
                 <option value="class">ClassLink Roster</option>
                 <option value="custom">Custom Roster</option>

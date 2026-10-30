@@ -152,7 +152,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
           onClick={() => setTab('color')}
           className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
             tab === 'color'
-              ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+              ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
               : 'bg-white border-slate-200 text-slate-600'
           }`}
         >
@@ -165,7 +165,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
           onClick={() => setTab('image')}
           className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
             tab === 'image'
-              ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+              ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
               : 'bg-white border-slate-200 text-slate-600'
           }`}
         >
@@ -184,7 +184,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
               onClick={() => void handlePickColor(c)}
               className={`w-8 h-8 rounded-full border-2 transition-all ${
                 color === c && !imageUrl
-                  ? 'border-slate-800 scale-110 shadow-sm'
+                  ? 'border-slate-800 scale-110 shadow-xs'
                   : 'border-transparent hover:scale-105'
               }`}
               style={{ backgroundColor: c }}

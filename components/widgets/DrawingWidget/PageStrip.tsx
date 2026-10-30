@@ -159,7 +159,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
 
   // Shared button classes for the compact in-toolbar chips.
   const chipBase =
-    'h-7 rounded-md flex items-center justify-center transition-colors text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900';
+    'h-7 rounded-md flex items-center justify-center transition-colors text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900';
 
   const currentTitle = pageLabel(pages[currentPage], currentPage);
 
@@ -168,7 +168,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
     const isFirst = currentPage === 0;
     const isLast = currentPage === pages.length - 1;
     return (
-      <div className="flex items-center gap-0.5 flex-shrink-0">
+      <div className="flex items-center gap-0.5 shrink-0">
         <button
           type="button"
           {...tourTypeAttr('drawing.page-prev', 'drawing')}
@@ -232,7 +232,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
               ref={popoverRef}
               tabIndex={-1}
               onKeyDown={handlePopoverKeyDown}
-              className="fixed z-[2147483600] w-[280px] max-h-[60vh] flex flex-col rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 overflow-hidden focus:outline-none"
+              className="fixed z-2147483600 w-[280px] max-h-[60vh] flex flex-col rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 overflow-hidden focus:outline-hidden"
               style={{
                 bottom: `${anchor.bottom}px`,
                 left: `${anchor.left}px`,
@@ -269,7 +269,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
                         aria-label={`Page ${index + 1}`}
                         aria-current={isActive ? 'page' : undefined}
                         disabled={isEditing}
-                        className="flex-1 flex items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light rounded disabled:cursor-text"
+                        className="flex-1 flex items-center gap-2 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light rounded-sm disabled:cursor-text"
                       >
                         <span
                           className={`w-12 h-9 shrink-0 rounded border border-white/10 bg-white/5 overflow-hidden relative ${
@@ -323,7 +323,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
                         )}
                         title={`Rename page ${index + 1}`}
                         aria-label={`Rename page ${index + 1}`}
-                        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded text-slate-300 hover:bg-white/10 hover:text-white"
+                        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded-sm text-slate-300 hover:bg-white/10 hover:text-white"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -338,7 +338,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
                         disabled={pages.length <= 1}
                         title={`Delete page ${index + 1}`}
                         aria-label={`Page ${index + 1} actions`}
-                        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded text-red-300 hover:bg-red-500/20 hover:text-red-200 disabled:opacity-20 disabled:hover:bg-transparent"
+                        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded-sm text-red-300 hover:bg-red-500/20 hover:text-red-200 disabled:opacity-20 disabled:hover:bg-transparent"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -351,7 +351,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
                 {...tourTypeAttr('drawing.page-menu-add', 'drawing')}
                 onClick={() => onAddPage()}
                 aria-label="Add page"
-                className="border-t border-white/10 px-3 py-2 text-sm text-slate-200 hover:bg-white/5 flex items-center gap-2 transition-colors focus-visible:outline-none focus-visible:bg-white/5"
+                className="border-t border-white/10 px-3 py-2 text-sm text-slate-200 hover:bg-white/5 flex items-center gap-2 transition-colors focus-visible:outline-hidden focus-visible:bg-white/5"
               >
                 <Plus className="w-4 h-4" />
                 Add page
@@ -365,7 +365,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
 
   // ----- Single-page render path: [+ Add page] [Page 1 (editable)] -----
   return (
-    <div className="flex items-center gap-1 flex-shrink-0">
+    <div className="flex items-center gap-1 shrink-0">
       <button
         type="button"
         {...tourTypeAttr('drawing.add-page', 'drawing')}
@@ -463,7 +463,7 @@ const InlineTitle: React.FC<{
         onClick={() => setIsEditing(true)}
         title="Rename page"
         aria-label={`Rename "${value}"`}
-        className="h-7 px-2 max-w-[140px] truncate rounded-md text-xs text-slate-200 font-medium hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+        className="h-7 px-2 max-w-[140px] truncate rounded-md text-xs text-slate-200 font-medium hover:bg-white/10 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
       >
         {value}
       </button>
@@ -492,7 +492,7 @@ const InlineTitle: React.FC<{
         e.stopPropagation();
       }}
       aria-label="Page title"
-      className="h-7 px-2 max-w-[160px] rounded-md text-xs bg-slate-800 text-white ring-1 ring-brand-blue-light focus:outline-none focus:ring-2"
+      className="h-7 px-2 max-w-[160px] rounded-md text-xs bg-slate-800 text-white ring-1 ring-brand-blue-light focus:outline-hidden focus:ring-2"
     />
   );
 };
@@ -549,7 +549,7 @@ const PageThumbnail: React.FC<{
   if (subcollectionMigrated) {
     return (
       <span
-        className="absolute inset-1 rounded-sm bg-white/10"
+        className="absolute inset-1 rounded-xs bg-white/10"
         aria-hidden="true"
       />
     );

@@ -22,7 +22,7 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
   return (
     <div
       style={{ padding: 'min(10px, 2cqmin)', gap: 'min(10px, 2cqmin)' }}
-      className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-violet-200 transition-all flex items-center"
+      className="bg-white rounded-xl border border-slate-200 shadow-xs hover:shadow-md hover:border-violet-200 transition-all flex items-center"
     >
       <div
         className="rounded-lg flex items-center justify-center shrink-0 border bg-violet-50 text-violet-600 border-violet-100 font-black"
@@ -52,7 +52,7 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
         {/* no-tour-anchor: one row per library app, generated from the admin list */}
         <button
           onClick={() => onAssign(app)}
-          className="bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-all flex items-center gap-1.5 font-black uppercase tracking-widest shadow-sm"
+          className="bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-all flex items-center gap-1.5 font-black uppercase tracking-widest shadow-xs"
           style={{
             padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
             fontSize: 'min(10px, 2.5cqmin)',

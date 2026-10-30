@@ -168,7 +168,7 @@ const ShellPlaceholder: React.FC = () => {
   return (
     <div
       aria-hidden="true"
-      className={`fixed ${positionClasses} z-dock rounded-full bg-white/5 backdrop-blur-sm border border-white/10 pointer-events-none ${
+      className={`fixed ${positionClasses} z-dock rounded-full bg-white/5 backdrop-blur-xs border border-white/10 pointer-events-none ${
         isVertical ? 'w-16 h-64' : 'h-16 w-80'
       }`}
     />
@@ -1691,7 +1691,7 @@ export const DashboardView: React.FC = () => {
             <iframe
               ref={ytIframeRef}
               src={`https://www.youtube.com/embed/${youTubeVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youTubeVideoId}&disablekb=1&modestbranding=1&enablejsapi=1`}
-              className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-screen min-w-[177.78vh] -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80"
+              className="absolute top-1/2 left-1/2 w-screen h-[56.25vw] min-h-screen min-w-[177.78vh] -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80"
               allow="autoplay; encrypted-media"
               title="Ambient background video"
             />
@@ -1910,7 +1910,7 @@ export const DashboardView: React.FC = () => {
               ? 'Enable background video sound'
               : 'Mute background video'
           }
-          className={`fixed left-4 z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-colors backdrop-blur-sm ${
+          className={`fixed left-4 z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-colors backdrop-blur-xs ${
             dashboards.length > 1 ? 'bottom-16' : 'bottom-6'
           }`}
           aria-label="Toggle background video sound"

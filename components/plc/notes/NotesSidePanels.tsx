@@ -59,7 +59,7 @@ export const PanelResizer: React.FC<PanelResizerProps> = ({
           onResize(width - 24);
         }
       }}
-      className="group relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize touch-none focus:outline-none"
+      className="group relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize touch-none focus:outline-hidden"
     >
       <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-200 transition-colors group-hover:w-0.5 group-hover:bg-brand-blue-primary group-focus-visible:w-0.5 group-focus-visible:bg-brand-blue-primary" />
     </div>
@@ -121,7 +121,7 @@ export const NotesRail: React.FC<NotesRailProps> = ({ entries, onOpen }) => {
                 }`}
                 aria-hidden
               />
-              <span className="w-full text-center text-xxs font-bold leading-snug line-clamp-2 break-words">
+              <span className="w-full text-center text-xxs font-bold leading-snug line-clamp-2 wrap-break-word">
                 {title}
               </span>
             </button>

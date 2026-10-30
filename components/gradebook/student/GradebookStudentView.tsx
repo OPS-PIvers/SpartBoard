@@ -254,7 +254,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
           title="Previous student (←)"
           disabled={!prevUid}
           onClick={() => goTo(prevUid)}
-          className="w-8 !px-0"
+          className="w-8 px-0!"
         >
           <ChevronLeft size={14} />
         </Btn>
@@ -270,7 +270,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
           title="Next student (→)"
           disabled={!nextUid}
           onClick={() => goTo(nextUid)}
-          className="w-8 !px-0"
+          className="w-8 px-0!"
         >
           <ChevronRight size={14} />
         </Btn>
@@ -309,7 +309,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
           return (
             <section
               key={id}
-              className={`${CARD_META[id].span} flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${hidden ? 'opacity-45' : ''}`}
+              className={`${CARD_META[id].span} flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs ${hidden ? 'opacity-45' : ''}`}
             >
               <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 {CARD_META[id].title}
@@ -368,7 +368,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
 };
 
 const Kpi: React.FC<{ value: string; label: string }> = ({ value, label }) => (
-  <div className="flex flex-col gap-0.5 rounded-2xl border border-slate-200 bg-white px-[18px] py-4 shadow-sm">
+  <div className="flex flex-col gap-0.5 rounded-2xl border border-slate-200 bg-white px-[18px] py-4 shadow-xs">
     <b className="text-2xl font-bold text-slate-900">
       <Private>{value}</Private>
     </b>

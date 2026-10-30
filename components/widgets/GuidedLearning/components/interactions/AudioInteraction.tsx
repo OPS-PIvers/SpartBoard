@@ -103,7 +103,7 @@ export const AudioInteraction: React.FC<Props> = ({
           }}
         >
           <div
-            className="rounded-full bg-brand-blue-primary flex items-center justify-center flex-shrink-0"
+            className="rounded-full bg-brand-blue-primary flex items-center justify-center shrink-0"
             style={{
               width: 'min(40px, 10cqmin)',
               height: 'min(40px, 10cqmin)',
@@ -136,7 +136,7 @@ export const AudioInteraction: React.FC<Props> = ({
           {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
           <button
             onClick={togglePlay}
-            className={`rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${focusRing}`}
+            className={`rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark flex items-center justify-center shrink-0 transition-all active:scale-90 ${focusRing}`}
             style={{ width: 'min(36px, 9cqmin)', height: 'min(36px, 9cqmin)' }}
             aria-label={playing ? t('glPlayer.pause') : t('glPlayer.play')}
           >

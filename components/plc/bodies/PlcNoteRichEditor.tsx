@@ -369,7 +369,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
   const isEmpty = value.trim() === '';
 
   return (
-    <div className="min-h-[12rem] flex flex-col">
+    <div className="min-h-48 flex flex-col">
       {showToolbar && (
         <div
           role="toolbar"
@@ -424,7 +424,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
           onFocus={() =>
             document.execCommand('defaultParagraphSeparator', false, 'p')
           }
-          className="plc-note-rich plc-note-sizes rich-text-content min-h-full w-full p-4 text-sm text-slate-700 leading-relaxed focus:outline-none"
+          className="plc-note-rich plc-note-sizes rich-text-content min-h-full w-full p-4 text-sm text-slate-700 leading-relaxed focus:outline-hidden"
         />
         {isEmpty && !readOnly && (
           <div

@@ -1058,7 +1058,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                   setKey((k) => ({ ...k, [id]: v === '' ? null : Number(v) }));
                   setKeyConfirmed(false);
                 }}
-                className="rounded border border-slate-200 px-1 py-0.5 text-sm"
+                className="rounded-sm border border-slate-200 px-1 py-0.5 text-sm"
               >
                 <option value="">—</option>
                 {CHOICE_LETTERS.slice(0, batch.choiceCount).map((letter, c) => (
@@ -1077,7 +1077,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             checked={keyConfirmed}
             disabled={keyIncomplete}
             onChange={(e) => setKeyConfirmed(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300"
+            className="h-4 w-4 rounded-sm border-slate-300"
           />
           {keyIncomplete
             ? 'Fill in every row to confirm the key'
@@ -1123,7 +1123,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               {...tourFieldAttr('quiz-import.paper-tag-question', 'quiz', id)}
               aria-label={`Tag question ${i + 1}`}
               onClick={() => setPicker({ questionId: id })}
-              className="shrink-0 rounded px-2 py-0.5 text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
+              className="shrink-0 rounded-sm px-2 py-0.5 text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
             >
               {targets[id]?.length ? 'Edit' : 'Tag'}
             </button>
@@ -1231,7 +1231,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                     <img
                       src={crop}
                       alt={`Question ${a.question + 1} as scanned`}
-                      className="h-10 rounded border border-slate-200 bg-white"
+                      className="h-10 rounded-sm border border-slate-200 bg-white"
                     />
                   )}
                   <span className="text-xs text-slate-500">
@@ -1335,7 +1335,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               type="button"
               {...tourTypeAttr('quiz-import.paper-retry-upload', 'quiz')}
               onClick={() => uploaderRef.current?.retryFailed()}
-              className="rounded px-2 py-0.5 font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
+              className="rounded-sm px-2 py-0.5 font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
             >
               Retry
             </button>
@@ -1374,7 +1374,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                           className="h-16 w-full object-contain"
                         />
                       ) : (
-                        <div className="h-16 w-full rounded bg-slate-50" />
+                        <div className="h-16 w-full rounded-sm bg-slate-50" />
                       )}
                       <figcaption className="mt-0.5 flex justify-between text-xs text-slate-600">
                         <span>{label}.</span>
@@ -1575,7 +1575,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                           return next;
                         })
                       }
-                      className="h-4 w-4 rounded border-slate-300"
+                      className="h-4 w-4 rounded-sm border-slate-300"
                     />
                     <span>
                       {sheet ? sheetLabel(sheet, rosters) : `Seat ${c.seat}`}

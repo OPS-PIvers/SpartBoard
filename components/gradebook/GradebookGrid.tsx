@@ -21,7 +21,7 @@ const dateFmt = new Intl.DateTimeFormat(undefined, {
 });
 
 const HATCH =
-  'bg-[repeating-linear-gradient(135deg,theme(colors.slate.100)_0_6px,transparent_6px_12px)]';
+  'bg-[repeating-linear-gradient(135deg,var(--color-slate-100)_0_6px,transparent_6px_12px)]';
 
 const isTyping = (el: EventTarget | null): boolean =>
   el instanceof HTMLElement &&
@@ -276,7 +276,7 @@ export const GradebookGrid: React.FC = () => {
                         />
                       )}
                     </span>
-                    <span className="line-clamp-2 text-[12.5px] font-semibold leading-tight text-white [text-wrap:balance]">
+                    <span className="line-clamp-2 text-[12.5px] font-semibold leading-tight text-white text-balance">
                       {c.title}
                     </span>
                     <span className="text-[11px] font-normal text-white/75">
@@ -364,7 +364,7 @@ export const GradebookGrid: React.FC = () => {
                           view.cellFormat
                         )}
                         title={na ? 'Not assigned' : undefined}
-                        className={`relative grid h-[46px] w-28 place-items-center text-sm font-medium text-slate-800 hover:shadow-[inset_0_0_0_2px_theme(colors.slate.200)] focus:outline-none focus:shadow-[inset_0_0_0_2px_theme(colors.brand.blue.primary)] ${
+                        className={`relative grid h-[46px] w-28 place-items-center text-sm font-medium text-slate-800 hover:shadow-[inset_0_0_0_2px_var(--color-slate-200)] focus:outline-hidden focus:shadow-[inset_0_0_0_2px_var(--color-brand-blue-primary)] ${
                           na ? HATCH : ''
                         }`}
                       >

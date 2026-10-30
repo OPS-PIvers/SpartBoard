@@ -132,7 +132,7 @@ export const BreathingConfigurationPanel: React.FC<
                   }
                   className={`flex-1 py-1.5 px-2 text-xxs font-bold rounded transition-colors whitespace-nowrap ${
                     checked
-                      ? 'bg-brand-blue-primary text-white shadow-sm'
+                      ? 'bg-brand-blue-primary text-white shadow-xs'
                       : 'text-slate-500 hover:bg-slate-50'
                   }`}
                 >
@@ -181,7 +181,7 @@ export const BreathingConfigurationPanel: React.FC<
                   }
                   className={`flex-1 py-1.5 px-2 text-xxs font-bold rounded transition-colors whitespace-nowrap ${
                     checked
-                      ? 'bg-brand-blue-primary text-white shadow-sm'
+                      ? 'bg-brand-blue-primary text-white shadow-xs'
                       : 'text-slate-500 hover:bg-slate-50'
                   }`}
                 >
@@ -240,7 +240,7 @@ export const BreathingConfigurationPanel: React.FC<
                   className={`w-6 h-6 rounded-full transition-all border-2 ${
                     checked
                       ? 'border-slate-800 scale-110 shadow-md'
-                      : 'border-transparent hover:scale-105 shadow-sm'
+                      : 'border-transparent hover:scale-105 shadow-xs'
                   }`}
                   style={{ backgroundColor: color }}
                   title={`Select color ${color}`}

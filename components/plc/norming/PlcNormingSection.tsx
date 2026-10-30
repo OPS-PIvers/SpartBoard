@@ -45,7 +45,7 @@ const NormingAudio: React.FC<{ path: string }> = ({ path }) => {
         type="button"
         onClick={() => void load()}
         disabled={state === 'loading'}
-        className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
       >
         <Play className="w-3.5 h-3.5" aria-hidden="true" />
         {state === 'loading'
@@ -116,7 +116,7 @@ const NormingCard: React.FC<{
             type="button"
             onClick={() => void remove()}
             disabled={busy}
-            className="rounded px-1.5 py-0.5 font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="rounded-sm px-1.5 py-0.5 font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             {t('plcNorming.section.remove', { defaultValue: 'Remove' })}
           </button>

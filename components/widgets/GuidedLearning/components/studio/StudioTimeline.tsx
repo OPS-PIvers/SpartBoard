@@ -157,7 +157,7 @@ const TimelineBody = React.memo(function TimelineBody({
                           className="pointer-events-none h-full w-full object-contain"
                         />
                       ) : null}
-                      <span className="absolute left-0.5 top-0.5 rounded bg-slate-900/80 px-1 text-xxs font-bold leading-tight text-white">
+                      <span className="absolute left-0.5 top-0.5 rounded-sm bg-slate-900/80 px-1 text-xxs font-bold leading-tight text-white">
                         {s.slide + 1}
                       </span>
                     </button>

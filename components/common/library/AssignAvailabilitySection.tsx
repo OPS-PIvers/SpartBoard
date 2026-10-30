@@ -76,7 +76,7 @@ export const PointField: React.FC<{
               if (e.target.value) onChange({ ...point, day: e.target.value });
             }}
             {...tourFieldAttr('assign-availability.date', 'assign', side)}
-            className="w-[8.25rem] bg-transparent focus:outline-none"
+            className="w-33 bg-transparent focus:outline-hidden"
           />
         </span>
         <span className="relative flex w-40 items-center gap-1.5 pl-2.5 pr-2">
@@ -94,7 +94,7 @@ export const PointField: React.FC<{
                   onChange({ ...point, time: pickedTime });
                 }}
                 {...tourFieldAttr('assign-availability.time', 'assign', side)}
-                className="min-w-0 flex-1 appearance-none bg-transparent pr-4 focus:outline-none"
+                className="min-w-0 flex-1 appearance-none bg-transparent pr-4 focus:outline-hidden"
               >
                 <option value="bell">{bellLabel}</option>
                 <option value="time">
@@ -118,7 +118,7 @@ export const PointField: React.FC<{
                   if (e.target.value)
                     onChange({ ...point, time: e.target.value });
                 }}
-                className="min-w-0 flex-1 bg-transparent focus:outline-none"
+                className="min-w-0 flex-1 bg-transparent focus:outline-hidden"
               />
               {bellAvailable && (
                 <button
@@ -127,7 +127,7 @@ export const PointField: React.FC<{
                   title={bellLabel}
                   onClick={() => onChange({ ...point, time: 'bell' })}
                   {...tourFieldAttr('assign-availability.bell', 'assign', side)}
-                  className="rounded p-0.5 text-slate-400 hover:text-slate-700"
+                  className="rounded-sm p-0.5 text-slate-400 hover:text-slate-700"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -265,7 +265,7 @@ const WorkKindToggle: React.FC<{
           )}
           className={`rounded-md px-2 py-1 font-semibold ${cqScaled ? '' : 'text-xs'} ${
             value === option.id
-              ? 'bg-white text-slate-800 shadow-sm'
+              ? 'bg-white text-slate-800 shadow-xs'
               : 'text-slate-600 hover:text-slate-800'
           }`}
           style={scaledFont(cqScaled, 12, 4.5)}
@@ -351,7 +351,7 @@ export const AssignAvailabilitySection: React.FC<{
                     : { all: value.all, allowLate: value.allowLate }
                 )
               }
-              className={`appearance-none bg-transparent pr-4 font-semibold text-brand-blue-primary focus:outline-none ${cqScaled ? '' : 'text-xs'}`}
+              className={`appearance-none bg-transparent pr-4 font-semibold text-brand-blue-primary focus:outline-hidden ${cqScaled ? '' : 'text-xs'}`}
               style={scaledFont(cqScaled, 12, 4.5)}
             >
               <option value="all">

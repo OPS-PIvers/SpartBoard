@@ -471,8 +471,8 @@ const WrittenResponseEditorInner: React.FC<
                 ? 'border-slate-200 text-slate-400 cursor-not-allowed'
                 : 'border-slate-700 text-slate-400 cursor-not-allowed'
               : light
-                ? 'border-slate-300 text-slate-900 focus:outline-none focus:border-brand-blue-light focus-visible:ring-2 focus-visible:ring-brand-blue-light'
-                : 'border-slate-700 text-white focus:outline-none focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
+                ? 'border-slate-300 text-slate-900 focus:outline-hidden focus:border-brand-blue-light focus-visible:ring-2 focus-visible:ring-brand-blue-light'
+                : 'border-slate-700 text-white focus:outline-hidden focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
           } rounded-b-2xl text-sm leading-relaxed overflow-y-auto`}
           style={{
             wordBreak: 'break-word',
@@ -498,7 +498,7 @@ const WrittenResponseEditorInner: React.FC<
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
             onKeyDown={handleHandleKeyDown}
-            className={`absolute bottom-1.5 right-2 flex items-center justify-center w-7 h-5 rounded cursor-ns-resize touch-none focus-visible:outline-none focus-visible:ring-2 ${
+            className={`absolute bottom-1.5 right-2 flex items-center justify-center w-7 h-5 rounded cursor-ns-resize touch-none focus-visible:outline-hidden focus-visible:ring-2 ${
               light
                 ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:ring-brand-blue-light'
                 : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/70 focus-visible:ring-violet-400'
@@ -530,7 +530,7 @@ const ToolbarButton: React.FC<{
       e.preventDefault();
     }}
     onClick={onClick}
-    className={`p-1.5 rounded focus-visible:outline-none focus-visible:ring-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${
+    className={`p-1.5 rounded focus-visible:outline-hidden focus-visible:ring-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${
       light
         ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-brand-blue-light'
         : 'text-slate-300 hover:bg-slate-700 hover:text-white focus-visible:ring-violet-400'

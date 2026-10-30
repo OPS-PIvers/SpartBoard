@@ -179,7 +179,7 @@ export const TeamsMentoringDevHarness: React.FC = () => {
     />
   );
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-white font-sans [height:100dvh]">
+    <div className="flex h-screen flex-col overflow-hidden bg-white font-sans h-dvh">
       <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-slate-200 bg-slate-100 px-4 py-2 text-xs text-slate-700">
         <span className="font-bold uppercase tracking-widest text-slate-500">
           Build
@@ -189,7 +189,7 @@ export const TeamsMentoringDevHarness: React.FC = () => {
           <select
             value={screen}
             onChange={(e) => setScreen(e.target.value as Screen)}
-            className="rounded border border-slate-300 bg-white px-2 py-1"
+            className="rounded-sm border border-slate-300 bg-white px-2 py-1"
           >
             <option value="mhub">6a. Mentoring Program Hub</option>
             <option value="workspace">6b. Workspace</option>

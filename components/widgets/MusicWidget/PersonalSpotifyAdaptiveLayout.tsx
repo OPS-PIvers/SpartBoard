@@ -186,7 +186,7 @@ export const PersonalSpotifyAdaptiveLayout: React.FC<Props> = ({
   // The player surface is hidden while browsing.
   if (isBrowsing) {
     return (
-      <div className="w-full h-full flex flex-col bg-slate-900/60 backdrop-blur-sm">
+      <div className="w-full h-full flex flex-col bg-slate-900/60 backdrop-blur-xs">
         <div className="shrink-0">{tabBar}</div>
         {listBody}
       </div>
@@ -201,7 +201,7 @@ export const PersonalSpotifyAdaptiveLayout: React.FC<Props> = ({
         {renderPlayer()}
         {/* Pills float over the art with a subtle top scrim for legibility. */}
         <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
-          <div className="absolute inset-x-0 top-0 h-full bg-gradient-to-b from-black/50 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-full bg-linear-to-b from-black/50 to-transparent" />
           <div className="relative pointer-events-auto">{tabBar}</div>
         </div>
       </div>
@@ -209,7 +209,7 @@ export const PersonalSpotifyAdaptiveLayout: React.FC<Props> = ({
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-900/60 backdrop-blur-sm">
+    <div className="w-full h-full flex flex-col bg-slate-900/60 backdrop-blur-xs">
       <div className="shrink-0">{tabBar}</div>
       <div className="flex-1 min-h-0">{renderPlayer()}</div>
     </div>

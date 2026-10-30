@@ -26,7 +26,7 @@ export const InstructionalRoutinesManager: React.FC<
   } | null>(null);
 
   return (
-    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-2xl h-[80vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-black text-sm uppercase tracking-widest text-slate-500">
@@ -64,7 +64,7 @@ export const InstructionalRoutinesManager: React.FC<
                   ],
                 })
               }
-              className="px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-brand-blue-dark transition-all flex items-center gap-2 shadow-sm whitespace-nowrap"
+              className="px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-brand-blue-dark transition-all flex items-center gap-2 shadow-xs whitespace-nowrap"
             >
               <Plus className="w-4 h-4" /> New Routine
             </button>
@@ -78,7 +78,7 @@ export const InstructionalRoutinesManager: React.FC<
               return (
                 <div
                   key={routine.id}
-                  className="bg-white border-2 border-slate-200 rounded-2xl p-4 flex items-center justify-between group hover:border-brand-blue-light transition-all shadow-sm"
+                  className="bg-white border-2 border-slate-200 rounded-2xl p-4 flex items-center justify-between group hover:border-brand-blue-light transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-4">
                     <div
@@ -151,7 +151,7 @@ export const InstructionalRoutinesManager: React.FC<
 
       {/* Routine Editor Modal */}
       {editingRoutine && (
-        <div className="fixed inset-0 z-modal-deep bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-modal-deep bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-2xl h-[80vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
             <LibraryManager
               routine={editingRoutine}

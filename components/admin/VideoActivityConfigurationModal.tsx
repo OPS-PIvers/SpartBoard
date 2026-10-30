@@ -163,7 +163,7 @@ export const VideoActivityConfigurationModal: React.FC<
   const config = (permission.config ?? {}) as VideoActivityGlobalConfig;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-modal-nested p-4 font-sans backdrop-blur-sm">
+    <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-modal-nested p-4 font-sans backdrop-blur-xs">
       <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white shrink-0">
@@ -325,7 +325,7 @@ export const VideoActivityConfigurationModal: React.FC<
                                 )}
                                 className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all ${
                                   (activity.buildings ?? []).length === 0
-                                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                                     : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                 }`}
                               >
@@ -355,7 +355,7 @@ export const VideoActivityConfigurationModal: React.FC<
                                     }
                                     className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all ${
                                       assignedBuildings.includes(building.id)
-                                        ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                        ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                                         : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                     }`}
                                   >

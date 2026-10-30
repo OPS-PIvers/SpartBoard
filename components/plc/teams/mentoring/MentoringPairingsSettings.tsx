@@ -15,7 +15,7 @@ import { mentoringRoster, pairNames } from '@/utils/mentoring';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const SELECT =
-  'rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30';
+  'rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30';
 const HEADING = 'text-sm font-bold text-slate-800';
 
 export const MentoringPairingsSettings: React.FC<{ plc: Plc }> = ({ plc }) => {

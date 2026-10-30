@@ -12,9 +12,10 @@ import path from 'node:path';
 import JSZip from 'jszip';
 import { build, type InlineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tailwindcss from 'tailwindcss';
+import tailwindcss from '@tailwindcss/postcss';
 import { LISTINGS, type ListingId } from '../src/listings.ts';
 import { manifestFor, type Manifest } from '../src/manifest.ts';
+import { propertyDefaults } from './propertyDefaults.ts';
 import { remToPx } from './remToPx.ts';
 
 const extDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -85,7 +86,9 @@ const configFor = (
   css: {
     postcss: {
       plugins: [
-        tailwindcss(path.join(extDir, 'scripts/tailwind.overlay.config.ts')),
+        // The config comes from each stylesheet's @config (scripts/tailwind.overlay.config.ts).
+        tailwindcss({ base: repoRoot }),
+        propertyDefaults(),
         remToPx(),
       ],
     },

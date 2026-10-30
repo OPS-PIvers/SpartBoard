@@ -105,7 +105,7 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
                 style={{ backgroundColor: hex }}
                 className={`w-9 h-9 rounded-lg border-2 transition-all ${
                   activeColor === hex
-                    ? 'border-brand-blue-primary scale-110 shadow-sm'
+                    ? 'border-brand-blue-primary scale-110 shadow-xs'
                     : 'border-transparent hover:border-slate-300'
                 }`}
               />
@@ -133,7 +133,7 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
                 onClick={() => handleUpdateBuilding({ fontSize: value })}
                 className={`flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
                   activeFontSize === value
-                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                     : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -165,7 +165,7 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
                 fontFamily: selected === 'global' ? undefined : selected,
               });
             }}
-            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
           >
             {FONTS.map((f) => (
               <option key={f.id} value={f.id}>
@@ -224,7 +224,7 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
                 onClick={() => handleUpdateBuilding({ verticalAlign: value })}
                 className={`flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
                   activeVerticalAlign === value
-                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                     : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                 }`}
               >

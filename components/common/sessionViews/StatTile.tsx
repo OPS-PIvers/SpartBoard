@@ -38,7 +38,7 @@ export const StatTile: React.FC<StatTileProps> = ({
   children,
 }) => {
   const surface =
-    'bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm transition-all';
+    'bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-xs shadow-xs transition-all';
   const interactiveClass = interactive
     ? `cursor-pointer hover:bg-white/85 hover:shadow-md ${
         selected ? 'ring-2 ring-brand-blue-primary/40' : ''

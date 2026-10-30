@@ -373,7 +373,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                           aria-describedby={
                             isDuplicateTerm ? warningId : undefined
                           }
-                          className={`px-3 py-2 bg-white border-2 rounded-xl text-emerald-800 font-bold focus:outline-none shadow-sm text-sm ${
+                          className={`px-3 py-2 bg-white border-2 rounded-xl text-emerald-800 font-bold focus:outline-hidden shadow-xs text-sm ${
                             isDuplicateTerm
                               ? 'border-brand-red-primary focus:border-brand-red-primary'
                               : 'border-emerald-500/20 focus:border-emerald-500'
@@ -393,7 +393,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                             'quiz',
                             String(i + 1)
                           )}
-                          className="px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
+                          className="px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 shadow-xs text-sm"
                         />
                         <button
                           type="button"
@@ -460,7 +460,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                   'quiz',
                   String(i + 1)
                 )}
-                className="flex-1 px-3 py-1.5 bg-white border border-brand-red-primary/20 rounded-xl text-brand-blue-dark font-medium focus:outline-none focus:border-brand-red-primary shadow-sm text-sm"
+                className="flex-1 px-3 py-1.5 bg-white border border-brand-red-primary/20 rounded-xl text-brand-blue-dark font-medium focus:outline-hidden focus:border-brand-red-primary shadow-xs text-sm"
               />
               <button
                 type="button"
@@ -609,14 +609,14 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
                         'quiz',
                         String(i + 1)
                       )}
-                      className="flex-1 px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
+                      className="flex-1 px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 shadow-xs text-sm"
                     />
                     <div className="flex items-center">
                       <button
                         type="button"
                         onClick={() => swap(i, 'up')}
                         disabled={i === 0}
-                        className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded transition-colors disabled:opacity-20"
+                        className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded-sm transition-colors disabled:opacity-20"
                         aria-label="Move up"
                         {...tourFieldAttr(
                           'quiz-editor.order-up',
@@ -630,7 +630,7 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
                         type="button"
                         onClick={() => swap(i, 'down')}
                         disabled={i === rows.length - 1}
-                        className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded transition-colors disabled:opacity-20"
+                        className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded-sm transition-colors disabled:opacity-20"
                         aria-label="Move down"
                         {...tourFieldAttr(
                           'quiz-editor.order-down',

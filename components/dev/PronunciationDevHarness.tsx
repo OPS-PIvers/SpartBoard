@@ -306,7 +306,7 @@ export const PronunciationDevHarness: React.FC = () => {
   );
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50 text-slate-900">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-4xl space-y-6 p-6 pb-24">
         <header>
           <h1 className="text-2xl font-bold">
@@ -350,7 +350,7 @@ export const PronunciationDevHarness: React.FC = () => {
           <label className="block text-sm">
             Model URL
             <input
-              className="mt-1 w-full rounded border px-2 py-1 font-mono text-xs"
+              className="mt-1 w-full rounded-sm border px-2 py-1 font-mono text-xs"
               value={modelUrl}
               onChange={(e) => setModelUrl(e.target.value)}
               disabled={busy}
@@ -359,7 +359,7 @@ export const PronunciationDevHarness: React.FC = () => {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              className="rounded-sm bg-blue-700 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
               onClick={() => void loadModel()}
               disabled={busy}
             >
@@ -367,7 +367,7 @@ export const PronunciationDevHarness: React.FC = () => {
             </button>
             <button
               type="button"
-              className="rounded border px-3 py-1.5 text-sm disabled:opacity-50"
+              className="rounded-sm border px-3 py-1.5 text-sm disabled:opacity-50"
               onClick={() => void clearCache()}
               disabled={busy}
             >
@@ -390,7 +390,7 @@ export const PronunciationDevHarness: React.FC = () => {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              className="rounded-sm bg-blue-700 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
               onClick={() => void decodeClips()}
               disabled={busy || recording || modelState.kind !== 'ready'}
             >
@@ -398,7 +398,7 @@ export const PronunciationDevHarness: React.FC = () => {
             </button>
             <button
               type="button"
-              className="rounded border px-3 py-1.5 text-sm disabled:opacity-50"
+              className="rounded-sm border px-3 py-1.5 text-sm disabled:opacity-50"
               onClick={() => (recording ? mic.stop() : void mic.start())}
               disabled={busy || modelState.kind !== 'ready'}
             >
@@ -463,7 +463,7 @@ export const PronunciationDevHarness: React.FC = () => {
         {error && (
           <p
             role="alert"
-            className="rounded border border-red-300 bg-red-50 p-2 text-sm text-red-800"
+            className="rounded-sm border border-red-300 bg-red-50 p-2 text-sm text-red-800"
           >
             {error}
           </p>
@@ -473,12 +473,12 @@ export const PronunciationDevHarness: React.FC = () => {
           <h2 className="font-semibold">4. Report</h2>
           <button
             type="button"
-            className="rounded border px-3 py-1.5 text-sm"
+            className="rounded-sm border px-3 py-1.5 text-sm"
             onClick={() => void navigator.clipboard?.writeText(report)}
           >
             Copy report
           </button>
-          <pre className="max-h-64 overflow-auto rounded bg-slate-100 p-2 text-xs">
+          <pre className="max-h-64 overflow-auto rounded-sm bg-slate-100 p-2 text-xs">
             {report}
           </pre>
         </section>

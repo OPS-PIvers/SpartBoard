@@ -106,7 +106,7 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
           }}
           placeholder="https://orono.schoology.com/course/…"
           title="Open the course in Schoology and copy the address bar. For a linked section, choose it in the Gradebook first."
-          className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+          className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
         />
         <button
           type="button"
@@ -143,7 +143,7 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
               value={rosterId}
               disabled={linking}
               onChange={(e) => setRosterId(e.target.value)}
-              className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50"
+              className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50"
             >
               <option value="">Choose a class…</option>
               {ordered.map((r) => {

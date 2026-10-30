@@ -202,7 +202,7 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
           {/* Selection Bar (only when focused) */}
           {isFocused && selectionItems.length > 0 && (
             <div
-              className="w-full flex-shrink-0 bg-slate-100/80 rounded-2xl p-1.5 flex gap-2 overflow-x-auto custom-scrollbar no-scrollbar"
+              className="w-full shrink-0 bg-slate-100/80 rounded-2xl p-1.5 flex gap-2 overflow-x-auto custom-scrollbar no-scrollbar"
               style={{ minHeight: 'max(64px, min(80px, 20cqmin))' }}
             >
               {selectionItems.map((item, itemIndex) => {
@@ -218,9 +218,9 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                       `row-${itemIndex + 1}`
                     )}
                     data-tour-widget={widget.id}
-                    className={`flex-shrink-0 flex flex-col items-center justify-center rounded-xl border-2 transition-all relative ${
+                    className={`shrink-0 flex flex-col items-center justify-center rounded-xl border-2 transition-all relative ${
                       isActive
-                        ? 'bg-white border-blue-500 shadow-sm'
+                        ? 'bg-white border-blue-500 shadow-xs'
                         : 'bg-white/40 border-transparent text-slate-400'
                     }`}
                     style={{
@@ -243,7 +243,7 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                       {item.label}
                     </span>
                     {isActive && (
-                      <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-blue-500 rounded-full border border-white shadow-sm" />
+                      <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-blue-500 rounded-full border border-white shadow-xs" />
                     )}
                   </button>
                 );

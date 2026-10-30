@@ -63,7 +63,7 @@ export const CountdownDateField: React.FC<{
         type="date"
         value={value}
         onChange={(event) => handleChange(event.target.value)}
-        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
       />
     </div>
   );

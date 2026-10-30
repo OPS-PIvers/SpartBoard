@@ -57,7 +57,7 @@ export const TeamNoteHero: React.FC<TeamHeroProps> = ({
           </TextLink>
         }
       />
-      <div className="mt-4 max-h-[28rem] overflow-y-auto pb-6">
+      <div className="mt-4 max-h-112 overflow-y-auto pb-6">
         <NotesMarkdown body={note.body} />
       </div>
     </>

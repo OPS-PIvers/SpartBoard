@@ -84,7 +84,7 @@ const LabelsEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
             onChange={(e) =>
               setDraft((d) => ({ ...d, [level]: e.target.value }))
             }
-            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30"
           />
         </label>
       ))}

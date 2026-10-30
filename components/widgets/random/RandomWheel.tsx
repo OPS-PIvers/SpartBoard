@@ -51,7 +51,7 @@ export const RandomWheel: React.FC<RandomWheelProps> = ({
 
       <svg
         viewBox="0 0 300 300"
-        className="w-[95%] h-[95%] drop-shadow-2xl transition-transform duration-[4000ms] cubic-bezier(0.15, 0, 0.15, 1)"
+        className="w-[95%] h-[95%] drop-shadow-2xl transition-transform duration-4000 cubic-bezier(0.15, 0, 0.15, 1)"
         style={{
           transform: `rotate(${rotation}deg)`,
           maxWidth: wheelSize * 1.2,
@@ -109,7 +109,7 @@ export const RandomWheel: React.FC<RandomWheelProps> = ({
                   fontWeight="900"
                   textAnchor="middle"
                   alignmentBaseline="middle"
-                  className="select-none pointer-events-none drop-shadow-sm uppercase tracking-tighter"
+                  className="select-none pointer-events-none drop-shadow-xs uppercase tracking-tighter"
                 >
                   {name}
                 </text>
@@ -134,7 +134,7 @@ export const RandomWheel: React.FC<RandomWheelProps> = ({
           style={{ padding: 'min(12px, 2.5cqmin)' }}
         >
           <div
-            className="bg-white rounded-[2rem] shadow-[0_25px_60px_rgba(0,0,0,0.3)] text-indigo-900 animate-pulse text-center max-w-[90%]"
+            className="bg-white rounded-4xl shadow-[0_25px_60px_rgba(0,0,0,0.3)] text-indigo-900 animate-pulse text-center max-w-[90%]"
             style={{
               // 300px hard cap matches RandomFlash so the new 80cqw / 60cqh
               // ceilings in RandomWidget can't drive a tiny-string winner

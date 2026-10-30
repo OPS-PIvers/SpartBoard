@@ -208,7 +208,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
       padding="p-0"
       header={
         <div
-          className="flex items-center justify-between border-b border-slate-100 bg-white/50 backdrop-blur-sm shrink-0"
+          className="flex items-center justify-between border-b border-slate-100 bg-white/50 backdrop-blur-xs shrink-0"
           style={{ padding: 'min(8px, 1.5cqmin) min(12px, 2.5cqmin)' }}
         >
           <div
@@ -216,7 +216,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
             style={{ gap: 'min(6px, 1.5cqmin)' }}
           >
             <div
-              className="bg-emerald-50 rounded-lg border border-emerald-100 shadow-sm flex items-center justify-center"
+              className="bg-emerald-50 rounded-lg border border-emerald-100 shadow-xs flex items-center justify-center"
               style={{ padding: 'min(4px, 1cqmin)' }}
             >
               <Shirt
@@ -235,7 +235,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
             </span>
           </div>
           <div
-            className="flex items-center bg-emerald-50 rounded-full border border-emerald-100 shadow-sm"
+            className="flex items-center bg-emerald-50 rounded-full border border-emerald-100 shadow-xs"
             style={{
               gap: 'min(4px, 1cqmin)',
               padding: 'min(3px, 0.8cqmin) min(8px, 2cqmin)',
@@ -270,7 +270,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
               {gearList.map((item, idx) => (
                 <div
                   key={`${item.label}-${idx}`}
-                  className="flex items-center bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-emerald-200 hover:shadow-md transition-all group overflow-hidden"
+                  className="flex items-center bg-white border border-slate-100 rounded-2xl shadow-xs hover:border-emerald-200 hover:shadow-md transition-all group overflow-hidden"
                   style={{
                     gap: 'min(10px, 2.5cqmin)',
                     padding: 'min(12px, 2.5cqmin)',
@@ -278,7 +278,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
                 >
                   {item.imageUrl ? (
                     <div
-                      className="shrink-0 rounded-xl overflow-hidden shadow-sm"
+                      className="shrink-0 rounded-xl overflow-hidden shadow-xs"
                       style={{
                         width: 'min(48px, 16cqmin)',
                         height: 'min(48px, 16cqmin)',
@@ -292,7 +292,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
                     </div>
                   ) : (
                     <span
-                      className="group-hover:scale-125 transition-transform duration-300 transform-gpu drop-shadow-sm shrink-0"
+                      className="group-hover:scale-125 transition-transform duration-300 transform-gpu drop-shadow-xs shrink-0"
                       style={{ fontSize: 'min(48px, 16cqmin)' }}
                     >
                       {item.icon ?? '👕'}

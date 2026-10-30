@@ -200,7 +200,7 @@ export const PlcTrashBody: React.FC<PlcTrashBodyProps> = ({ plc }) => {
                   type="button"
                   onClick={() => void handleRestore(item)}
                   disabled={restoringId !== null}
-                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1"
                   aria-label={t('plcDashboard.trash.restoreItem', {
                     defaultValue: 'Restore "{{title}}"',
                     title: rowTitle,

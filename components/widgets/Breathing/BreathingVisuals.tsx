@@ -116,7 +116,7 @@ export const BreathingVisuals: React.FC<BreathingVisualsProps> = ({
               return (
                 <div
                   key={ring}
-                  className="absolute rounded-full transition-all ease-linear border-[4px] md:border-[6px]"
+                  className="absolute rounded-full transition-all ease-linear border-4 md:border-[6px]"
                   style={{
                     width: '30%',
                     height: '30%',

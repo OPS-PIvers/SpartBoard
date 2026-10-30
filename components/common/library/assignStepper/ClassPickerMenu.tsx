@@ -74,7 +74,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         {...(anchor ?? tourAttr('assign-classes.trigger'))}
-        className="flex h-9 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 hover:border-slate-400 focus:outline-none focus:border-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-9 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 hover:border-slate-400 focus:outline-hidden focus:border-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Users className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
         <span className="min-w-0 flex-1 truncate text-left">
@@ -118,7 +118,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
                           'assign',
                           `row-${rowIndex + 1}`
                         ))}
-                      className="h-4 w-4 rounded accent-brand-blue-primary"
+                      className="h-4 w-4 rounded-sm accent-brand-blue-primary"
                     />
                     <span className="min-w-0 flex-1 truncate">{r.name}</span>
                     <span className="text-xs text-slate-400">

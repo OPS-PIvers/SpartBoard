@@ -29,9 +29,9 @@ const MAX_PAIRS = 8;
 const MAX_ITEMS = 10;
 
 const rowInputClass =
-  'min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 const removeButtonClass =
-  'shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
+  'shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
 
 const emptyQuestion = (): GuidedLearningQuestion => ({
   type: 'multiple-choice',

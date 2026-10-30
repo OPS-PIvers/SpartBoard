@@ -182,7 +182,7 @@ export const FocusPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-white font-sans">
+    <div className="h-screen h-dvh overflow-y-auto bg-white font-sans">
       {state !== undefined && (
         <FocusView
           state={state}

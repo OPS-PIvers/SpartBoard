@@ -201,7 +201,7 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
   const historyOpen = pro && !isLive && showHistory;
   const showFooter = pro && !isLive && teams.length > 0;
   const footerButtonClass =
-    'flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-lg font-bold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-default disabled:active:scale-100';
+    'flex items-center justify-center bg-white border border-slate-200 shadow-xs rounded-lg font-bold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-default disabled:active:scale-100';
   const footerButtonStyle: React.CSSProperties = {
     padding: 'min(5px, 1.2cqmin) min(10px, 2.5cqmin)',
     gap: 'min(5px, 1.2cqmin)',

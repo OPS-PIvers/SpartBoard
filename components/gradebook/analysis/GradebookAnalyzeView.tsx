@@ -49,7 +49,7 @@ export const GradebookAnalyzeView: React.FC<GradebookAnalyzeViewProps> = ({
           type="button"
           {...tourAttr('gradebook.analyze.close')}
           onClick={onClose}
-          className="inline-flex h-[34px] items-center rounded-lg border border-slate-300 bg-white px-3.5 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          className="inline-flex h-[34px] items-center rounded-lg border border-slate-300 bg-white px-3.5 text-[13px] font-semibold text-slate-700 shadow-xs hover:bg-slate-50"
         >
           Close
         </button>

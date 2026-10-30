@@ -50,7 +50,7 @@ const CrumbButton: React.FC<{
       type="button"
       onClick={onClick}
       {...tourAttr('library-shell.folder-crumb')}
-      className={`rounded px-0.5 break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+      className={`rounded px-0.5 wrap-break-word focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
         isOver
           ? 'bg-brand-blue-lighter text-brand-blue-primary ring-2 ring-brand-blue-primary'
           : 'hover:text-brand-blue-primary hover:underline'
@@ -95,7 +95,7 @@ const Breadcrumb: React.FC<{ model: LibraryFolderViewModel }> = ({ model }) => {
             };
             content = last ? (
               <span
-                className="font-semibold text-brand-blue-dark break-words"
+                className="font-semibold text-brand-blue-dark wrap-break-word"
                 aria-current="location"
               >
                 {label}
@@ -161,7 +161,7 @@ const NameField: React.FC<{
         }
       }}
       onBlur={() => settle(value)}
-      className="min-w-0 flex-1 rounded-md border border-brand-blue-primary bg-white px-2 py-1 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+      className="min-w-0 flex-1 rounded-md border border-brand-blue-primary bg-white px-2 py-1 font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30"
       style={{ fontSize }}
     />
   );
@@ -239,7 +239,7 @@ export const FolderRowButton: React.FC<{
   const nameSize = isList ? 'min(14px, 4.5cqmin)' : 'min(15px, 4.8cqmin)';
   const className = `relative flex w-full items-center text-left transition-colors ${
     reorder?.draggingId === row.folder.id ? 'opacity-50' : ''
-  } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/40 ${
+  } focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/40 ${
     isOver
       ? 'bg-brand-blue-lighter/40 ring-2 ring-inset ring-brand-blue-primary'
       : isList
@@ -278,7 +278,7 @@ export const FolderRowButton: React.FC<{
         />
       ) : (
         <span
-          className="min-w-0 flex-1 break-words font-bold text-slate-800"
+          className="min-w-0 flex-1 wrap-break-word font-bold text-slate-800"
           style={{ fontSize: nameSize }}
         >
           {row.folder.name}
@@ -380,7 +380,7 @@ export const FolderViewHeader: React.FC<{
                 )
               }
               {...tourAttr('library-shell.folder-search-scope')}
-              className="rounded-lg font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+              className="rounded-lg font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
               style={{
                 ...textStyle,
                 paddingInline: 'min(8px, 2cqmin)',

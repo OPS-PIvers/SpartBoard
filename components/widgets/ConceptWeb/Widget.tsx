@@ -431,7 +431,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
 
   return (
     <div
-      className={`relative w-full h-full overflow-hidden rounded-[var(--window-radius,0px)] select-none ${fontClassName}`}
+      className={`relative w-full h-full overflow-hidden rounded-(--window-radius,0px) select-none ${fontClassName}`}
       style={{ backgroundColor: hexToRgba(cardColor, cardOpacity) }}
     >
       {!isReadOnly && (
@@ -441,7 +441,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
         >
           <button
             {...tourAttr('concept-web.add-node', widget.id, widget.type)}
-            className="bg-white border border-slate-300 rounded shadow-sm font-medium text-slate-700 hover:bg-slate-50 pointer-events-auto"
+            className="bg-white border border-slate-300 rounded-sm shadow-xs font-medium text-slate-700 hover:bg-slate-50 pointer-events-auto"
             style={{
               padding: 'min(4px, 1cqmin) min(12px, 3cqmin)',
               fontSize: 'min(14px, 4cqmin)',
@@ -527,7 +527,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
               onPointerMove={handleNodePointerMove}
               onPointerUp={handleNodePointerUp}
               onPointerCancel={handleNodePointerUp}
-              className="absolute z-10 flex flex-col items-center justify-center shadow-sm border border-slate-300 rounded-[1cqmin] cursor-grab active:cursor-grabbing p-[1cqmin] group"
+              className="absolute z-10 flex flex-col items-center justify-center shadow-xs border border-slate-300 rounded-[1cqmin] cursor-grab active:cursor-grabbing p-[1cqmin] group"
               style={{
                 left: `${node.x}%`,
                 top: `${node.y}%`,
@@ -541,7 +541,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
             >
               {/* no-tour-anchor: one per node, the tour points at Add Node instead */}
               <textarea
-                className="w-full h-full text-center bg-transparent border-none resize-none focus:outline-none focus:ring-[var(--ring-width)] focus:ring-slate-400 font-medium text-slate-800 leading-tight"
+                className="w-full h-full text-center bg-transparent border-none resize-none focus:outline-hidden focus:ring-(--ring-width) focus:ring-slate-400 font-medium text-slate-800 leading-tight"
                 style={
                   {
                     borderRadius: '0.5cqmin',
@@ -583,7 +583,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
                   {/* no-tour-anchor: per-node link handle, dragged not clicked */}
                   <button
                     type="button"
-                    className="handle absolute bg-white border border-slate-300 cursor-crosshair text-slate-400 hover:text-indigo-500 hover:border-indigo-400 transition-colors shadow-sm"
+                    className="handle absolute bg-white border border-slate-300 cursor-crosshair text-slate-400 hover:text-indigo-500 hover:border-indigo-400 transition-colors shadow-xs"
                     style={{
                       bottom: 'max(-4px, -1cqmin)',
                       left: '50%',

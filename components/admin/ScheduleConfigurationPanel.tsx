@@ -114,7 +114,7 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
       <div
         ref={setNodeRef}
         style={style}
-        className={`bg-white border rounded-lg p-2 flex items-center gap-3 shadow-sm group ${
+        className={`bg-white border rounded-lg p-2 flex items-center gap-3 shadow-xs group ${
           isDragging
             ? 'border-brand-blue-primary shadow-lg opacity-50'
             : 'border-slate-200'
@@ -141,7 +141,7 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
                 item.id && onUpdate(item.id, { task: e.target.value })
               }
               placeholder="Task Name"
-              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
+              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:border-brand-blue-primary outline-hidden"
             />
           </div>
           <div className="col-span-2">
@@ -156,7 +156,7 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
               onChange={(e) =>
                 item.id && onUpdate(item.id, { startTime: e.target.value })
               }
-              className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded outline-none"
+              className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded-sm outline-hidden"
             />
           </div>
           <div className="col-span-2">
@@ -171,7 +171,7 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
               onChange={(e) =>
                 item.id && onUpdate(item.id, { endTime: e.target.value })
               }
-              className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded outline-none"
+              className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded-sm outline-hidden"
             />
           </div>
           <div className="col-span-2">
@@ -196,7 +196,7 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
               placeholder="Class period"
               aria-label={`Class period id for ${item.task || 'this item'}`}
               title="Fill in to make this a class period (e.g. P3). Use the same id on every schedule."
-              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
+              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:border-brand-blue-primary outline-hidden"
             />
           </div>
           <div className="col-span-2 flex items-center justify-end">
@@ -264,7 +264,7 @@ const SpecialDaysCard: React.FC<SpecialDaysCardProps> = ({
               onChange({ ...dateOverrides, [date]: e.target.value })
             }
             aria-label={`Schedule for ${date}`}
-            className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded bg-white outline-none"
+            className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded-sm bg-white outline-hidden"
           >
             {!schedules.some((s) => s.id === scheduleId) && (
               <option value={scheduleId}>Deleted schedule</option>
@@ -300,7 +300,7 @@ const SpecialDaysCard: React.FC<SpecialDaysCardProps> = ({
           value={newDate}
           onChange={(e) => setNewDate(e.target.value)}
           aria-label="Special day date"
-          className="px-2 py-1.5 text-xs border border-slate-200 rounded outline-none"
+          className="px-2 py-1.5 text-xs border border-slate-200 rounded-sm outline-hidden"
         />
         <button
           {...tourFieldAttr(
@@ -565,7 +565,7 @@ export const ScheduleConfigurationPanel: React.FC<
               {schedules.map((s) => (
                 <div
                   key={s.id}
-                  className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-blue-200 transition-colors group"
+                  className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs hover:border-blue-200 transition-colors group"
                 >
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <input
@@ -579,7 +579,7 @@ export const ScheduleConfigurationPanel: React.FC<
                       onChange={(e) =>
                         handleUpdateSchedule(s.id, { name: e.target.value })
                       }
-                      className="font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 truncate flex-1 outline-none text-sm hover:bg-slate-50 rounded px-1 -ml-1 transition-colors"
+                      className="font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 truncate flex-1 outline-hidden text-sm hover:bg-slate-50 rounded-sm px-1 -ml-1 transition-colors"
                       placeholder="Schedule Name"
                     />
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -590,7 +590,7 @@ export const ScheduleConfigurationPanel: React.FC<
                           `edit-${s.id}`
                         )}
                         onClick={() => setActiveScheduleId(s.id)}
-                        className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded"
+                        className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-sm"
                         title="Edit items"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -601,7 +601,7 @@ export const ScheduleConfigurationPanel: React.FC<
                           'schedule'
                         )}
                         onClick={() => handleDeleteSchedule(s.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-sm"
                         title="Delete schedule"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -688,7 +688,7 @@ export const ScheduleConfigurationPanel: React.FC<
                         name: e.target.value,
                       })
                     }
-                    className="text-xxs font-bold text-slate-600 uppercase tracking-widest bg-transparent border-b border-dashed border-slate-300 focus:border-brand-blue-primary outline-none px-1 py-0.5"
+                    className="text-xxs font-bold text-slate-600 uppercase tracking-widest bg-transparent border-b border-dashed border-slate-300 focus:border-brand-blue-primary outline-hidden px-1 py-0.5"
                     placeholder="Schedule Name"
                   />
                 </div>
@@ -795,7 +795,7 @@ export const ScheduleConfigurationPanel: React.FC<
                   fontFamily: selected === 'global' ? undefined : selected,
                 });
               }}
-              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
             >
               {FONTS.map((f) => (
                 <option key={f.id} value={f.id}>
@@ -828,7 +828,7 @@ export const ScheduleConfigurationPanel: React.FC<
                   textSizePreset: e.target.value as TextSizePreset,
                 })
               }
-              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
             >
               {TEXT_SIZE_PRESET_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>

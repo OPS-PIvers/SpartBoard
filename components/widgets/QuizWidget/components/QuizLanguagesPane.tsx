@@ -379,7 +379,7 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
         onChange={(e) => onChange(e.target.value)}
         rows={2}
         {...tourFieldAttr('quiz-library.language-translated-text', 'quiz', key)}
-        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:border-brand-blue-primary focus:outline-none"
+        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:border-brand-blue-primary focus:outline-hidden"
       />
     </div>
   );

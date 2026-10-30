@@ -62,7 +62,7 @@ export const WallShell: React.FC<WallShellProps> = ({
                 </h1>
               )}
               {prompt && (
-                <p className="max-h-[30vh] overflow-y-auto whitespace-pre-line break-words text-sm text-white/90 sm:text-base">
+                <p className="max-h-[30vh] overflow-y-auto whitespace-pre-line wrap-break-word text-sm text-white/90 sm:text-base">
                   {prompt}
                 </p>
               )}
@@ -72,7 +72,7 @@ export const WallShell: React.FC<WallShellProps> = ({
                 type="button"
                 onClick={() => onImageSizeChange(nextWallImageSize(imageSize))}
                 aria-label={`Image size: ${WALL_IMAGE_SIZE_LABEL[imageSize]}. Click to change.`}
-                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/15 px-3 py-1 text-sm font-bold transition-colors hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/15 px-3 py-1 text-sm font-bold transition-colors hover:bg-white/25 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
               >
                 <ImageIcon aria-hidden="true" className="h-4 w-4" />
                 <span className="hidden sm:inline">Images:</span>{' '}

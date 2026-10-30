@@ -17,7 +17,7 @@ export const GradebookViewTabs: React.FC<{
     role="tablist"
     aria-label="Gradebook view"
     {...tourAttr('gradebook.student-view.tab')}
-    className="inline-flex items-center gap-1 rounded-full bg-white border border-slate-200 p-1 shadow-sm"
+    className="inline-flex items-center gap-1 rounded-full bg-white border border-slate-200 p-1 shadow-xs"
   >
     {TABS.map((tab) => {
       const isActive = tab.id === value;
@@ -28,9 +28,9 @@ export const GradebookViewTabs: React.FC<{
           role="tab"
           aria-selected={isActive}
           onClick={() => onChange(tab.id)}
-          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
+          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
             isActive
-              ? 'bg-brand-blue-primary text-white shadow-sm'
+              ? 'bg-brand-blue-primary text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >

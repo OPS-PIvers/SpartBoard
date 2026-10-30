@@ -213,7 +213,7 @@ export const FocusLive: React.FC<{
         className="flex items-baseline justify-between"
         style={{ gap: 'min(8px, 2cqmin)' }}
       >
-        <div className="min-w-[0]">
+        <div className="min-w-0">
           <div
             className="truncate font-bold text-slate-800"
             style={{
@@ -318,7 +318,7 @@ export const FocusLive: React.FC<{
   );
   const roster = (
     <div
-      className="relative z-[1] min-h-[0] flex-1 overflow-y-auto"
+      className="relative z-1 min-h-0 flex-1 overflow-y-auto"
       style={{ paddingBottom: 'max(16px, 3cqmin)' }}
     >
       {isSub || hideNames ? (
@@ -353,7 +353,7 @@ export const FocusLive: React.FC<{
                 gap: 'min(8px, 2cqmin)',
               }}
             >
-              <div className="min-w-[0] flex-1">
+              <div className="min-w-0 flex-1">
                 <div
                   className="truncate text-slate-800"
                   style={{ fontSize: name }}
@@ -452,7 +452,7 @@ export const FocusLive: React.FC<{
           {header}
           {footer}
         </div>
-        <div className="flex min-w-[0] flex-1 flex-col">{roster}</div>
+        <div className="flex min-w-0 flex-1 flex-col">{roster}</div>
       </div>
     );
   }

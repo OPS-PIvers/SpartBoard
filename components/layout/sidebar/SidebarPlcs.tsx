@@ -209,14 +209,14 @@ const PlcRow: React.FC<PlcRowProps> = ({
         type="button"
         onClick={onOpen}
         {...tourFieldAttr('plcs.open-plc', 'plcs', rowKey)}
-        className="absolute inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary"
+        className="absolute inset-0 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary"
         aria-label={t('sidebar.plcs.openDashboard', {
           defaultValue: 'Open {{name}} dashboard',
           name: plc.name,
         })}
       />
       <div className="relative flex-1 min-w-0 py-1 pl-1.5 pointer-events-none">
-        <div className="text-sm font-bold leading-snug text-slate-800 group-hover:text-brand-blue-primary transition-colors [overflow-wrap:anywhere]">
+        <div className="text-sm font-bold leading-snug text-slate-800 group-hover:text-brand-blue-primary transition-colors wrap-anywhere">
           {plc.name}
         </div>
         <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
@@ -351,7 +351,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
               <button
                 onClick={() => setIsCreating(true)}
                 {...tourAttr('plcs.new-plc')}
-                className="flex flex-col items-center justify-center gap-1.5 p-3 bg-brand-blue-primary text-white rounded-xl shadow-sm hover:bg-brand-blue-dark transition-all"
+                className="flex flex-col items-center justify-center gap-1.5 p-3 bg-brand-blue-primary text-white rounded-xl shadow-xs hover:bg-brand-blue-dark transition-all"
               >
                 <Plus className="w-4 h-4" />
                 <span className="text-xxs font-bold uppercase tracking-wider">
@@ -407,7 +407,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                 <button
                   {...tourAttr('plcs.empty-create')}
                   onClick={() => setIsCreating(true)}
-                  className="mt-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
+                  className="mt-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors"
                 >
                   {t('sidebar.groups.createNew', {
                     defaultValue: 'Create a team',

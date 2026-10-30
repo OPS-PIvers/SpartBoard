@@ -151,7 +151,7 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
                   {...tourAttr('remote-control.copy-link')}
                   className={`shrink-0 p-1 rounded-md transition-all ${
                     copied
-                      ? 'bg-green-500 text-white shadow-sm'
+                      ? 'bg-green-500 text-white shadow-xs'
                       : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'
                   }`}
                   title="Copy Remote Link"
@@ -171,7 +171,7 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
             window.open(remoteUrl, '_blank');
             onClose();
           }}
-          className="w-full bg-slate-800 text-white py-2 rounded text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors"
+          className="w-full bg-slate-800 text-white py-2 rounded-sm text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors"
         >
           <ExternalLink size={14} /> Open Remote View
         </button>

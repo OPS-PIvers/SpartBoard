@@ -20,7 +20,7 @@ const FLAG_TINT: Record<string, string> = {
 };
 
 export const NewBadge: React.FC = () => (
-  <span className="rounded bg-brand-red-primary px-[5px] py-px text-[10px] font-bold leading-[1.2] tracking-wide text-white">
+  <span className="rounded-sm bg-brand-red-primary px-[5px] py-px text-[10px] font-bold leading-[1.2] tracking-wide text-white">
     NEW
   </span>
 );
@@ -58,7 +58,7 @@ const GradeRow: React.FC<{
     <>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-900">
-          <span className="min-w-0 break-words">{row.title}</span>
+          <span className="min-w-0 wrap-break-word">{row.title}</span>
           {isNew && <NewBadge />}
         </div>
         <div className="text-xs text-slate-500">
@@ -101,7 +101,7 @@ const GradeRow: React.FC<{
             'gradebook',
             row.sessionId
           )}
-          className={`${cls} transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary`}
+          className={`${cls} transition hover:bg-slate-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary`}
         >
           {body}
         </a>
@@ -137,7 +137,7 @@ export const StudentGradesList: React.FC<StudentGradesListProps> = ({
         Your teacher hasn&apos;t shared grades for this class.
       </div>
     ) : (
-      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white shadow-xs ring-1 ring-slate-200">
         {rows.map((row) => (
           <GradeRow
             key={row.sessionId}

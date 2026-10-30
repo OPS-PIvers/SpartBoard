@@ -35,7 +35,7 @@ export const GradebookShell: React.FC<{
       aria-labelledby="gradebook-title"
       onKeyDown={onKeyDown}
     >
-      <header className="flex h-14 shrink-0 items-center gap-3 bg-brand-blue-primary px-4 text-white shadow-sm md:h-16">
+      <header className="flex h-14 shrink-0 items-center gap-3 bg-brand-blue-primary px-4 text-white shadow-xs md:h-16">
         <button
           type="button"
           onClick={onClose}
@@ -77,7 +77,7 @@ export const GradebookShell: React.FC<{
                 {...tourFieldAttr('gradebook.tab', 'gradebook', id)}
                 className={`h-7 rounded-md px-3 text-[13px] font-semibold ${
                   tab === id
-                    ? 'bg-white text-brand-blue-dark shadow-sm'
+                    ? 'bg-white text-brand-blue-dark shadow-xs'
                     : 'text-white/85 hover:bg-white/15'
                 }`}
               >

@@ -189,7 +189,7 @@ const MenuButton: React.FC<{
 };
 
 const SWATCH_CLASS =
-  'w-6 h-6 rounded-full border transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
+  'w-6 h-6 rounded-full border transition-transform hover:scale-110 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500';
 
 const SwatchSection: React.FC<{
   label: string;
@@ -929,7 +929,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   return (
     <div
       ref={toolbarRef}
-      className="flex items-center gap-0.5 p-1 bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg overflow-hidden"
+      className="flex items-center gap-0.5 p-1 bg-white/95 backdrop-blur-xs border border-slate-200 shadow-md rounded-lg overflow-hidden"
       onMouseDown={(e) => {
         if ((e.target as HTMLElement).tagName !== 'INPUT') {
           e.preventDefault();
@@ -973,7 +973,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   runCommand('fontName', family);
                   setShowFontMenu(false);
                 }}
-                className="text-left px-3 py-1.5 hover:bg-slate-50 rounded text-xs text-slate-700 whitespace-nowrap"
+                className="text-left px-3 py-1.5 hover:bg-slate-50 rounded-sm text-xs text-slate-700 whitespace-nowrap"
                 style={{ fontFamily: f.family }}
                 {...tourFieldAttr('text-toolbar.font', 'text', f.id)}
               >
@@ -994,7 +994,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             : undefined
         }
       >
-        <div className="flex items-center gap-0 rounded border border-slate-200 mx-0.5">
+        <div className="flex items-center gap-0 rounded-sm border border-slate-200 mx-0.5">
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => applyFontSize(currentFontSize - 1)}
@@ -1025,7 +1025,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                 setFontSizeInput(String(currentFontSize));
               }
             }}
-            className="w-7 h-6 text-center text-[10px] font-mono text-slate-600 border-x border-slate-200 bg-transparent outline-none"
+            className="w-7 h-6 text-center text-[10px] font-mono text-slate-600 border-x border-slate-200 bg-transparent outline-hidden"
             aria-label="Font size"
             {...tourTypeAttr('text-toolbar.font-size', 'text')}
           />
@@ -1170,7 +1170,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     runCommand('justifyLeft');
                     setShowAlignMenu(false);
                   }}
-                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                   title="Align Left"
                   {...tourFieldAttr('text-toolbar.align', 'text', 'left')}
                 >
@@ -1182,7 +1182,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     runCommand('justifyCenter');
                     setShowAlignMenu(false);
                   }}
-                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                   title="Align Center"
                   {...tourFieldAttr('text-toolbar.align', 'text', 'center')}
                 >
@@ -1194,7 +1194,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     runCommand('justifyRight');
                     setShowAlignMenu(false);
                   }}
-                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                   title="Align Right"
                   {...tourFieldAttr('text-toolbar.align', 'text', 'right')}
                 >
@@ -1268,7 +1268,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     runCommand('outdent');
                     setShowAlignMenu(false);
                   }}
-                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                   title="Decrease Indent"
                   {...tourFieldAttr('text-toolbar.indent', 'text', 'decrease')}
                 >
@@ -1280,7 +1280,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     runCommand('indent');
                     setShowAlignMenu(false);
                   }}
-                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                   title="Increase Indent"
                   {...tourFieldAttr('text-toolbar.indent', 'text', 'increase')}
                 >
@@ -1373,7 +1373,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runInlineStyleCommand('bold');
                       setShowOverflowMenu(false);
                     }}
-                    className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
+                    className="flex items-center justify-center w-8 h-8 rounded-sm hover:bg-slate-100"
                     title="Bold"
                     {...tourFieldAttr('text-toolbar.more-item', 'text', 'bold')}
                     aria-label="Bold"
@@ -1386,7 +1386,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runInlineStyleCommand('italic');
                       setShowOverflowMenu(false);
                     }}
-                    className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
+                    className="flex items-center justify-center w-8 h-8 rounded-sm hover:bg-slate-100"
                     title="Italic"
                     {...tourFieldAttr(
                       'text-toolbar.more-item',
@@ -1403,7 +1403,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runInlineStyleCommand('underline');
                       setShowOverflowMenu(false);
                     }}
-                    className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
+                    className="flex items-center justify-center w-8 h-8 rounded-sm hover:bg-slate-100"
                     title="Underline"
                     {...tourFieldAttr(
                       'text-toolbar.more-item',
@@ -1431,7 +1431,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runCommand('insertUnorderedList');
                       setShowOverflowMenu(false);
                     }}
-                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                     title="Bulleted List"
                     {...tourFieldAttr(
                       'text-toolbar.more-item',
@@ -1447,7 +1447,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runCommand('insertOrderedList');
                       setShowOverflowMenu(false);
                     }}
-                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                     title="Numbered List"
                     {...tourFieldAttr(
                       'text-toolbar.more-item',
@@ -1474,7 +1474,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runCommand('justifyLeft');
                       setShowOverflowMenu(false);
                     }}
-                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                     title="Align Left"
                     {...tourFieldAttr(
                       'text-toolbar.more-item',
@@ -1490,7 +1490,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runCommand('justifyCenter');
                       setShowOverflowMenu(false);
                     }}
-                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                     title="Align Center"
                     {...tourFieldAttr(
                       'text-toolbar.more-item',
@@ -1506,7 +1506,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runCommand('justifyRight');
                       setShowOverflowMenu(false);
                     }}
-                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                     title="Align Right"
                     {...tourFieldAttr(
                       'text-toolbar.more-item',
@@ -1574,7 +1574,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runCommand('outdent');
                       setShowOverflowMenu(false);
                     }}
-                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                     title="Decrease Indent"
                     {...tourFieldAttr(
                       'text-toolbar.more-item',
@@ -1590,7 +1590,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runCommand('indent');
                       setShowOverflowMenu(false);
                     }}
-                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    className="w-8 h-8 rounded-sm hover:bg-slate-100 flex items-center justify-center"
                     title="Increase Indent"
                     {...tourFieldAttr(
                       'text-toolbar.more-item',
@@ -1623,7 +1623,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     setShowOverflowMenu(false);
                     void handleLink();
                   }}
-                  className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded hover:bg-slate-100 text-xs text-slate-700"
+                  className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded-sm hover:bg-slate-100 text-xs text-slate-700"
                   title="Insert Link"
                   {...tourFieldAttr('text-toolbar.more-item', 'text', 'link')}
                 >

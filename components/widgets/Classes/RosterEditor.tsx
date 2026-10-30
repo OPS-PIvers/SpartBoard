@@ -61,7 +61,7 @@ export const RosterEditor: React.FC<EditorProps> = ({
           <div className="flex gap-2 items-center flex-1 ml-4 justify-end">
             <input
               {...tourTypeAttr('classes-widget.editor-name', 'classes')}
-              className="border-b-2 border-slate-200 focus:border-blue-500 bg-transparent px-1 py-0.5 outline-none text-slate-800 placeholder-slate-400 min-w-0 text-sm font-bold"
+              className="border-b-2 border-slate-200 focus:border-blue-500 bg-transparent px-1 py-0.5 outline-hidden text-slate-800 placeholder-slate-400 min-w-0 text-sm font-bold"
               placeholder="Class Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -69,7 +69,7 @@ export const RosterEditor: React.FC<EditorProps> = ({
             <button
               {...tourTypeAttr('classes-widget.editor-save', 'classes')}
               onClick={handleSave}
-              className="bg-green-600 text-white px-3 py-1.5 rounded-lg flex gap-1 items-center text-xs font-bold hover:bg-green-700 shadow-sm transition-colors"
+              className="bg-green-600 text-white px-3 py-1.5 rounded-lg flex gap-1 items-center text-xs font-bold hover:bg-green-700 shadow-xs transition-colors"
             >
               <Save size={14} /> Save
             </button>
@@ -129,7 +129,7 @@ export const RosterEditor: React.FC<EditorProps> = ({
               </div>
               {/* no-tour-anchor: holds student names and PINs */}
               <textarea
-                className="flex-1 border border-slate-200 focus:border-blue-400 p-3 rounded-xl resize-none text-xs font-mono focus:ring-2 focus:ring-blue-100 outline-none transition-all custom-scrollbar bg-slate-50/30 min-h-0"
+                className="flex-1 border border-slate-200 focus:border-blue-400 p-3 rounded-xl resize-none text-xs font-mono focus:ring-2 focus:ring-blue-100 outline-hidden transition-all custom-scrollbar bg-slate-50/30 min-h-0"
                 value={firsts}
                 onChange={(e) => setFirsts(e.target.value)}
                 placeholder={
@@ -158,7 +158,7 @@ export const RosterEditor: React.FC<EditorProps> = ({
                 </div>
                 {/* no-tour-anchor: holds student names and PINs */}
                 <textarea
-                  className="flex-1 border border-slate-200 focus:border-blue-400 p-3 rounded-xl resize-none text-xs font-mono focus:ring-2 focus:ring-blue-100 outline-none transition-all custom-scrollbar bg-slate-50/30 min-h-0"
+                  className="flex-1 border border-slate-200 focus:border-blue-400 p-3 rounded-xl resize-none text-xs font-mono focus:ring-2 focus:ring-blue-100 outline-hidden transition-all custom-scrollbar bg-slate-50/30 min-h-0"
                   value={lasts}
                   onChange={(e) => setLasts(e.target.value)}
                   placeholder="Paste last names..."
@@ -184,7 +184,7 @@ export const RosterEditor: React.FC<EditorProps> = ({
                 </div>
                 {/* no-tour-anchor: holds student names and PINs */}
                 <textarea
-                  className="flex-1 border border-slate-200 focus:border-violet-400 p-3 rounded-xl resize-none text-xs font-mono focus:ring-2 focus:ring-violet-100 outline-none transition-all custom-scrollbar bg-slate-50/30 min-h-0"
+                  className="flex-1 border border-slate-200 focus:border-violet-400 p-3 rounded-xl resize-none text-xs font-mono focus:ring-2 focus:ring-violet-100 outline-hidden transition-all custom-scrollbar bg-slate-50/30 min-h-0"
                   value={pins}
                   onChange={(e) => setPins(e.target.value)}
                   placeholder={'01\n02\n03\n...'}

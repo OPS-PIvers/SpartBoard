@@ -1161,7 +1161,7 @@ const StageBody: React.FC<
                 aria-label={
                   step.label ?? t('glPlayer.outline.step', { n: idx + 1 })
                 }
-                className={`absolute z-[5] bg-transparent transition-colors focus:outline-none focus-visible:bg-white/20 ${
+                className={`absolute z-5 bg-transparent transition-colors focus:outline-hidden focus-visible:bg-white/20 ${
                   hidden
                     ? ''
                     : region.shape === 'polygon'
@@ -1236,7 +1236,7 @@ const StageBody: React.FC<
               <button
                 {...tourAttr('gl-player.hotspot')}
                 onClick={() => onPinClick(step.id)}
-                className={`group relative flex items-center justify-center rounded-full border-2 border-white transition-all shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 bg-white/25 hover:bg-white/35 ${
+                className={`group relative flex items-center justify-center rounded-full border-2 border-white transition-all shadow-lg focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/90 bg-white/25 hover:bg-white/35 ${
                   // 'reminder' wiggle is applied to the button itself
                   // (not a ring child) so it actually moves the marker.
                   // 'consistent' uses the inline ping ring below.
@@ -1283,9 +1283,9 @@ const StageBody: React.FC<
           <div
             role="status"
             data-testid="gl-slide-loading"
-            className="absolute inset-0 z-[15] overflow-hidden bg-slate-800/70 pointer-events-none"
+            className="absolute inset-0 z-15 overflow-hidden bg-slate-800/70 pointer-events-none"
           >
-            <div className="h-full w-full -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent motion-reduce:animate-none" />
+            <div className="h-full w-full -translate-x-full animate-shimmer bg-linear-to-r from-transparent via-white/10 to-transparent motion-reduce:animate-none" />
             <span className="sr-only">{t('glPlayer.slide.loading')}</span>
           </div>
         )}
@@ -1293,7 +1293,7 @@ const StageBody: React.FC<
         <div
           role="alert"
           data-testid="gl-slide-error"
-          className="absolute inset-0 z-[45] bg-slate-950"
+          className="absolute inset-0 z-45 bg-slate-950"
         >
           <ScaledEmptyState
             icon={ImageOff}
@@ -1303,7 +1303,7 @@ const StageBody: React.FC<
                 type="button"
                 {...tourAttr('gl-player.retry-slide')}
                 onClick={retrySlide}
-                className="flex items-center rounded-full bg-white text-slate-900 font-bold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                className="flex items-center rounded-full bg-white text-slate-900 font-bold hover:bg-slate-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 style={{
                   gap: 'min(6px, 1.5cqmin)',
                   padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',

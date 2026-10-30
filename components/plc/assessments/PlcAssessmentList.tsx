@@ -189,7 +189,7 @@ interface RowProps {
 }
 
 const CHIP_BUTTON =
-  'relative z-10 inline-flex rounded-full transition-[filter] hover:brightness-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
+  'relative z-10 inline-flex rounded-full transition-[filter] hover:brightness-95 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
 
 // Chips are buttons inside the row, so the open button reaches the row edges through ::after instead of wrapping them.
 const STRETCH_OPEN =
@@ -399,7 +399,7 @@ const AssessmentRow: React.FC<RowProps> = ({
           aria-label={t('plcDashboard.assessmentList.folders.dragHandle', {
             defaultValue: 'Drag to move',
           })}
-          className={`shrink-0 p-1 -ml-1 rounded text-slate-400 hover:text-slate-600 cursor-grab touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${onShowInQuiz ? 'relative z-10' : ''}`}
+          className={`shrink-0 p-1 -ml-1 rounded text-slate-400 hover:text-slate-600 cursor-grab touch-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${onShowInQuiz ? 'relative z-10' : ''}`}
         >
           <GripVertical className="w-4 h-4" aria-hidden="true" />
         </button>
@@ -412,7 +412,7 @@ const AssessmentRow: React.FC<RowProps> = ({
             type="button"
             onClick={() => onOpen(row.assessmentId as string)}
             aria-label={title}
-            className={`shrink-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${STRETCH_OPEN}`}
+            className={`shrink-0 rounded-xl focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${STRETCH_OPEN}`}
           >
             <ChevronRight
               className="w-4 h-4 text-slate-400"
@@ -425,7 +425,7 @@ const AssessmentRow: React.FC<RowProps> = ({
           {...tourFieldAttr('plc-assessments.open', 'plc', row.id)}
           type="button"
           onClick={() => onOpen(row.assessmentId as string)}
-          className="flex items-center gap-3 flex-1 min-w-0 text-left rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          className="flex items-center gap-3 flex-1 min-w-0 text-left rounded-xl focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
         >
           {body}
           <ChevronRight
@@ -443,7 +443,7 @@ const AssessmentRow: React.FC<RowProps> = ({
           type="button"
           onClick={() => onAssign(row)}
           disabled={busy}
-          className="relative z-10 shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-primary/5 transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          className="relative z-10 shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-primary/5 transition-colors disabled:opacity-40 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
         >
           <Users className="w-3.5 h-3.5" aria-hidden="true" />
           {t('plcDashboard.assessmentList.assign', {
@@ -467,14 +467,14 @@ const AssessmentRow: React.FC<RowProps> = ({
               defaultValue: 'More actions for {{title}}',
               title,
             })}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
           >
             <MoreVertical className="w-4 h-4" aria-hidden="true" />
           </button>
           {menuOpen && (
             <div
               role="menu"
-              className="absolute right-0 top-full mt-1 z-10 min-w-[10rem] bg-white border border-slate-200 rounded-xl shadow-lg py-1"
+              className="absolute right-0 top-full mt-1 z-10 min-w-40 bg-white border border-slate-200 rounded-xl shadow-lg py-1"
             >
               {row.archived ? (
                 <button
@@ -628,7 +628,7 @@ const AssessmentRow: React.FC<RowProps> = ({
                     {moveSubmenuOpen && (
                       <div
                         role="menu"
-                        className="absolute left-full top-0 ml-1 z-20 min-w-[10rem] max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg py-1"
+                        className="absolute left-full top-0 ml-1 z-20 min-w-40 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg py-1"
                       >
                         <button
                           {...tourFieldAttr(
@@ -1210,9 +1210,9 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
                   type="button"
                   aria-pressed={active}
                   onClick={() => setFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+                  className={`px-3 py-1.5 rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                     active
-                      ? 'bg-white text-brand-blue-dark shadow-sm'
+                      ? 'bg-white text-brand-blue-dark shadow-xs'
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
@@ -1237,7 +1237,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
               placeholder={t('plcDashboard.assessmentList.searchPlaceholder', {
                 defaultValue: 'Search…',
               })}
-              className="pl-8 pr-3 py-1.5 w-44 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+              className="pl-8 pr-3 py-1.5 w-44 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
             />
           </label>
           {targetOptions.length > 0 && (
@@ -1248,7 +1248,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
               aria-label={t('plcDashboard.assessmentList.targetFilterLabel', {
                 defaultValue: 'Filter by target',
               })}
-              className="max-w-48 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+              className="max-w-48 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
             >
               <option value="">
                 {t('plcDashboard.assessmentList.allTargets', {

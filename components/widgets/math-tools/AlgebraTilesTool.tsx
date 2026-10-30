@@ -158,7 +158,7 @@ export const AlgebraTilesTool: React.FC = () => {
               )}
               onClick={() => addTile(kind)}
               title={`Add ${meta.label}`}
-              className="flex items-center gap-1 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-200 font-black"
+              className="flex items-center gap-1 rounded-lg hover:bg-white hover:shadow-xs transition-all border border-transparent hover:border-slate-200 font-black"
               style={{
                 color: meta.textColor,
                 fontSize: 'min(10px, 3.5cqmin)',

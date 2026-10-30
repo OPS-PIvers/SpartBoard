@@ -76,7 +76,7 @@ export const BlurBoxes: React.FC<{
           data-box="1"
           aria-label="Remove blur"
           title="Remove blur"
-          className="absolute border-2 border-slate-900 bg-slate-500/70 backdrop-blur-sm"
+          className="absolute border-2 border-slate-900 bg-slate-500/70 backdrop-blur-xs"
           style={{
             left: `${b.xPct}%`,
             top: `${b.yPct}%`,

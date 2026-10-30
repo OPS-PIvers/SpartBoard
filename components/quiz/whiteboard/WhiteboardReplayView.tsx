@@ -288,7 +288,7 @@ export const WhiteboardReplayView: React.FC<WhiteboardReplayViewProps> = ({
               ? undefined
               : t('quizWhiteboardResponse.replay.unavailable')
           }
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-white transition hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-white transition hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
         >
           {playing ? (
             <Pause aria-hidden className="h-4 w-4" />

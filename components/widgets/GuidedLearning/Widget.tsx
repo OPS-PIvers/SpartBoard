@@ -1802,7 +1802,7 @@ const TeacherGuidedLearningWidget: React.FC<{
                           },
                         });
                       }}
-                      className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
+                      className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-xs transition-colors"
                       style={{
                         paddingInline: 'min(12px, 3cqmin)',
                         paddingBlock: 'min(8px, 2cqmin)',
@@ -1857,7 +1857,7 @@ const TeacherGuidedLearningWidget: React.FC<{
                       type="button"
                       {...tourAttr('gl-results.error-back')}
                       onClick={closeResults}
-                      className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
+                      className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-xs transition-colors"
                       style={{
                         marginTop: 'min(8px, 2cqmin)',
                         gap: 'min(6px, 1.5cqmin)',

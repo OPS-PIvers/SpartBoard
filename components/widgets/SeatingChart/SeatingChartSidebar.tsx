@@ -140,7 +140,7 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
                       );
                     }
                   }}
-                  className="w-full p-2 text-xs border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-black"
+                  className="w-full p-2 text-xs border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 outline-hidden font-black"
                 />
               </div>
             )}
@@ -189,7 +189,7 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
                     t.type
                   )}
                   onClick={() => addFurniture(t.type)}
-                  className="flex flex-col items-center justify-center gap-1 p-2 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg transition-colors aspect-square shadow-sm"
+                  className="flex flex-col items-center justify-center gap-1 p-2 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg transition-colors aspect-square shadow-xs"
                 >
                   <t.icon className="w-6 h-6 text-slate-600" />
                   <span className="text-xxs font-black uppercase text-slate-500">
@@ -279,7 +279,7 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
                     'seating-chart'
                   )}
                   onClick={() => handleStudentClick(student.id)}
-                  className={`p-2 bg-white border ${selectedStudent === student.id ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200'} rounded-lg shadow-sm text-xs font-black text-slate-700 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-all`}
+                  className={`p-2 bg-white border ${selectedStudent === student.id ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200'} rounded-lg shadow-xs text-xs font-black text-slate-700 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-all`}
                   title="Drag or Click to assign"
                 >
                   {student.label}

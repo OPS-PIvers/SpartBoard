@@ -344,7 +344,7 @@ export const GuidedLearningEditorContextPane = React.memo(
             onChange={(e) => setDescription(e.target.value)}
             {...tourAttr('gl-editor.description')}
             placeholder="Add a description (optional)"
-            className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-none text-sm p-0"
+            className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-hidden text-sm p-0"
           />
           {/* Chips wrap to a second row when the modal is too narrow to
             fit them on one — chip popovers are still portal'd to body so
@@ -685,7 +685,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                     <button
                       onClick={() => moveImage(currentImageIndex, -1)}
                       disabled={currentImageIndex === 0}
-                      className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded transition-colors"
+                      className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded-sm transition-colors"
                       {...tourAttr('gl-editor.slide-earlier')}
                       aria-label="Move slide earlier"
                     >
@@ -694,7 +694,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                     <button
                       onClick={() => moveImage(currentImageIndex, 1)}
                       disabled={currentImageIndex === imageUrls.length - 1}
-                      className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded transition-colors"
+                      className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded-sm transition-colors"
                       {...tourAttr('gl-editor.slide-later')}
                       aria-label="Move slide later"
                     >
@@ -1061,7 +1061,7 @@ const InteractionPreviewOverlay: React.FC<InteractionPreviewOverlayProps> = ({
             height: extent.height,
           }}
         >
-          <span className="absolute left-1.5 top-1.5 rounded bg-slate-900/70 px-1.5 py-0.5 text-xxs font-bold text-white backdrop-blur-sm">
+          <span className="absolute left-1.5 top-1.5 rounded-sm bg-slate-900/70 px-1.5 py-0.5 text-xxs font-bold text-white backdrop-blur-xs">
             Zoom {zoomScale}× (approx frame)
           </span>
         </div>

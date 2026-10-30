@@ -75,7 +75,7 @@ export const DevicePresetPicker: React.FC<DevicePresetPickerProps> = ({
                 : (DEVICE_PRESETS.find((p) => p.id === id) ?? DEVICE_PRESETS[0])
             );
           }}
-          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
         >
           {options.map((id) => (
             <option key={id} value={id}>

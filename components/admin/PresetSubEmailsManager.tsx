@@ -74,7 +74,7 @@ export const PresetSubEmailsManager: React.FC = () => {
           id="preset-sub-building"
           value={selectedBuildingId}
           onChange={(e) => setSelectedBuildingId(e.target.value)}
-          className="w-full max-w-xs rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+          className="w-full max-w-xs rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
         >
           {buildings.map((b) => (
             <option key={b.id} value={b.id}>
@@ -299,7 +299,7 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
             }
           }}
           placeholder="ohssub@orono.k12.mn.us"
-          className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+          className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
         />
         <button
           {...tourAttr('admin.sub-presets.add-email')}

@@ -4,12 +4,12 @@ import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 export const fieldLabelClass = 'text-xs font-bold text-slate-600';
 export const inputClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 export const groupHeadingClass =
   'text-xxs font-bold uppercase tracking-wider text-slate-500';
 export const hintClass = 'text-xs font-normal leading-snug text-slate-500';
 export const quietButtonClass =
-  'flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 disabled:opacity-50';
+  'flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 disabled:opacity-50';
 
 export interface ChoiceOption<T extends string> {
   value: T;
@@ -57,7 +57,7 @@ export function ChoiceGroup<T extends string>({
               onClick={() => {
                 if (!on) onChange(opt.value);
               }}
-              className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+              className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
                 on
                   ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
                   : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'

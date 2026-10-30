@@ -95,7 +95,7 @@ const REPLAY_WIDTH: React.CSSProperties = {
 const LOG_MIRROR_MS = 2_000;
 
 const btn =
-  'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
 export const WhiteboardResponseCapture: React.FC<
   WhiteboardResponseCaptureProps
@@ -429,7 +429,7 @@ export const WhiteboardResponseCapture: React.FC<
   if (slotClosed) {
     return (
       <section
-        className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm"
+        className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-xs"
         aria-live="polite"
       >
         <div className="flex items-start gap-3">
@@ -486,7 +486,7 @@ export const WhiteboardResponseCapture: React.FC<
   return (
     <>
       <section
-        className="flex flex-1 flex-col gap-3 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm"
+        className="flex flex-1 flex-col gap-3 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-xs"
         data-testid="whiteboard-capture"
       >
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -654,7 +654,7 @@ export const WhiteboardResponseCapture: React.FC<
         )}
 
         {/* The board takes the height left over, so the page never scrolls. */}
-        <div className="relative min-h-[16rem] w-full flex-1 [container-type:size]">
+        <div className="relative min-h-64 w-full flex-1 @container-size">
           <div className="absolute inset-0">
             {reviewing && reviewOn && recorder.take ? (
               // Width leaves room under the 4:3 picture for the replay controls.
@@ -731,7 +731,7 @@ export const WhiteboardResponseCapture: React.FC<
           <div
             ref={statusBannerRef}
             tabIndex={-1}
-            className={`rounded-2xl p-3 text-sm focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-slate-400 ${
+            className={`rounded-2xl p-3 text-sm focus:outline-solid focus:outline-2 focus:outline-offset-2 focus:outline-slate-400 ${
               archiveFailed
                 ? 'bg-amber-50 text-amber-800'
                 : 'bg-slate-100 text-slate-700'

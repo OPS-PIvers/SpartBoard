@@ -479,7 +479,7 @@ export const MobileRemoteView: React.FC = () => {
       {/* Board picker overlay — jump directly to any board */}
       {isBoardPickerOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-xs"
           onClick={() => setIsBoardPickerOpen(false)}
         >
           <div

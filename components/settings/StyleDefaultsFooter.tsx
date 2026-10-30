@@ -12,7 +12,7 @@ export type StyleDefaultsFooterProps = {
 };
 
 const buttonClass =
-  'px-3 py-1.5 rounded-lg text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed';
+  'px-3 py-1.5 rounded-lg text-xs font-bold transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed';
 
 // Explicit "my default" controls at the foot of the Style tab (D28).
 export const StyleDefaultsFooter: React.FC<StyleDefaultsFooterProps> = ({

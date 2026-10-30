@@ -155,7 +155,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
             <rect
               data-testid="tour-spotlight-breathe"
               {...ringBox}
-              className="fill-none stroke-white [transform-box:fill-box] [transform-origin:center] motion-safe:animate-tour-breathe motion-reduce:hidden"
+              className="fill-none stroke-white transform-fill origin-center motion-safe:animate-tour-breathe motion-reduce:hidden"
               strokeWidth={3}
             />
           ) : (
@@ -163,7 +163,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
               <rect
                 data-testid="tour-spotlight-pulse"
                 {...ringBox}
-                className="fill-none stroke-white [transform-box:fill-box] [transform-origin:center] motion-safe:animate-tour-pulse motion-reduce:hidden"
+                className="fill-none stroke-white transform-fill origin-center motion-safe:animate-tour-pulse motion-reduce:hidden"
                 strokeWidth={3}
               />
             )

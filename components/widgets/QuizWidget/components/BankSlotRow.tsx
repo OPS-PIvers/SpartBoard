@@ -70,7 +70,7 @@ export const BankSlotRow = React.memo(function BankSlotRow({
       <span className="text-slate-400 font-mono font-bold text-xs w-5 shrink-0 text-center">
         ×{slot.count ?? 0}
       </span>
-      <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700">
+      <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700">
         <Shuffle className="w-2.5 h-2.5" aria-hidden />
         Bank
       </span>
@@ -90,7 +90,7 @@ export const BankSlotRow = React.memo(function BankSlotRow({
           onRemove(slot.id);
         }}
         aria-label="Remove bank slot"
-        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100"
+        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-sm p-1 transition-colors opacity-0 group-hover:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>

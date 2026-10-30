@@ -59,7 +59,7 @@ export const GuidedLearningConfigurationPanel: React.FC<
               tourAutopilotPolicy: e.target.value,
             })
           }
-          className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+          className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
         >
           {POLICIES.map((p) => (
             <option key={p.value} value={p.value}>
@@ -70,7 +70,7 @@ export const GuidedLearningConfigurationPanel: React.FC<
         <p className="text-xs text-slate-500">{help}</p>
       </div>
       <div className="bg-blue-50/50 rounded-xl p-4 flex items-start space-x-3">
-        <div className="flex-shrink-0 mt-0.5">
+        <div className="shrink-0 mt-0.5">
           <Info className="w-5 h-5 text-blue-500" />
         </div>
         <p className="text-sm font-medium text-gray-900">

@@ -10,7 +10,7 @@ export interface FlashcardsSpeakStepProps {
   onChange: (value: FlashcardsSpeakValue) => void;
 }
 
-const ROW_CLASS = 'flex min-h-[2rem] items-center justify-between gap-3';
+const ROW_CLASS = 'flex min-h-8 items-center justify-between gap-3';
 const LABEL_CLASS = 'text-sm font-bold text-brand-blue-dark';
 
 export const FlashcardsSpeakStep: React.FC<FlashcardsSpeakStepProps> = ({

@@ -74,7 +74,7 @@ export const GroupViewModal: React.FC<GroupViewModalProps> = ({
         isOpen
         onClose={onClose}
         maxWidth="max-w-4xl"
-        className="!bg-slate-50"
+        className="bg-slate-50!"
         ariaLabel={`${group.name}: ${run.title}`}
         customHeader={
           <div className="mb-5 flex shrink-0 flex-wrap items-start justify-between gap-3 p-6 pb-0">

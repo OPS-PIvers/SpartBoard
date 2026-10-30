@@ -247,7 +247,7 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
           zoom.setContainer(el);
         }}
         tabIndex={0}
-        className="relative flex-1 flex items-center justify-center outline-none"
+        className="relative flex-1 flex items-center justify-center outline-hidden"
         style={{
           transform: zoom.transform,
           transformOrigin: '0 0',
@@ -268,7 +268,7 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
           src={pageUrl}
           alt={`Page ${pageNumber}`}
           onLoad={measure}
-          className="max-w-full max-h-full object-contain shadow-2xl bg-white rounded-sm"
+          className="max-w-full max-h-full object-contain shadow-2xl bg-white rounded-xs"
         />
         {content &&
           placedAssets.map((a) => {
@@ -317,7 +317,7 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
                   onPointerDown={(e) => beginDrag(e, a, 'resize')}
                   onPointerMove={onPointerMove}
                   onPointerUp={onPointerUp}
-                  className="absolute -bottom-1 -right-1 bg-white border-2 border-indigo-500 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute -bottom-1 -right-1 bg-white border-2 border-indigo-500 rounded-xs opacity-0 group-hover:opacity-100 transition-opacity"
                   style={{
                     width: 'min(14px, 4cqmin)',
                     height: 'min(14px, 4cqmin)',

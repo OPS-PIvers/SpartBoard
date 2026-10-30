@@ -174,7 +174,7 @@ export const WidgetPermissionCardBody: React.FC<
                 'admin',
                 tool.type
               )}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
             />
           </label>
           <div>
@@ -197,7 +197,7 @@ export const WidgetPermissionCardBody: React.FC<
                     )}
                     className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
                       isSelected
-                        ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                        ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                         : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
@@ -212,7 +212,7 @@ export const WidgetPermissionCardBody: React.FC<
                 {...tourFieldAttr('admin.widgets.grade-level', 'admin', 'all')}
                 className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
                   isAllSelected
-                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                     : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >

@@ -158,7 +158,7 @@ const StudentMenu: React.FC<{
           placeholder="Search students"
           aria-label="Search students"
           {...tourAttr('assign-students.search')}
-          className="min-w-0 flex-1 bg-transparent text-sm focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent text-sm focus:outline-hidden"
         />
       </div>
       {groups.length > 0 && (
@@ -238,7 +238,7 @@ const StudentMenu: React.FC<{
                   'assign',
                   pickableRowKeys.get(row.studentId) ?? ''
                 )}
-                className="h-4 w-4 rounded accent-brand-blue-primary"
+                className="h-4 w-4 rounded-sm accent-brand-blue-primary"
               />
               <span className="min-w-0 flex-1 truncate">{row.name}</span>
             </label>
@@ -252,7 +252,7 @@ const StudentMenu: React.FC<{
                 type="checkbox"
                 disabled
                 checked={false}
-                className="h-4 w-4 rounded accent-brand-blue-primary"
+                className="h-4 w-4 rounded-sm accent-brand-blue-primary"
               />
               <span className="min-w-0 flex-1 truncate">{row.name}</span>
               <span className="text-xs">No sign-in</span>

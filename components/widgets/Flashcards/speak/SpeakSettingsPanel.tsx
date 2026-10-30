@@ -36,7 +36,7 @@ interface SpeakSettingsPanelProps {
 const LABEL_CLASS = 'font-black uppercase tracking-widest text-slate-500';
 const LABEL_STYLE = { fontSize: 'min(10px, 3.2cqmin)' };
 const CONTROL_CLASS =
-  'mt-1 w-full rounded-xl border border-slate-200 bg-white text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20';
+  'mt-1 w-full rounded-xl border border-slate-200 bg-white text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20';
 const CONTROL_STYLE = {
   padding: 'min(8px, 2cqmin)',
   fontSize: 'min(13px, 4cqmin)',
@@ -401,7 +401,7 @@ export const SpeakSettingsPanel: React.FC<SpeakSettingsPanelProps> = ({
                         )
                       )
                     }
-                    className="rounded-lg border border-slate-200 bg-white text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+                    className="rounded-lg border border-slate-200 bg-white text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
                     style={{
                       padding: 'min(5px, 1.3cqmin) min(6px, 1.5cqmin)',
                       fontSize: 'min(12px, 3.8cqmin)',

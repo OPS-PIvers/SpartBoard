@@ -85,7 +85,7 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
   };
 
   const itemClass = (isCurrent: boolean) =>
-    `w-full flex items-center gap-2 pr-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
+    `w-full flex items-center gap-2 pr-3 py-2 text-left text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
       isCurrent ? 'text-white' : 'text-white/80 hover:bg-white/10'
     }`;
 
@@ -109,7 +109,7 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
           {...tourAttr('board-nav.move-back')}
           aria-label={t('common.back', { defaultValue: 'Back' })}
           title={t('common.back', { defaultValue: 'Back' })}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white/70 hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white/70 hover:bg-white/15 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/50"
         >
           <ChevronLeft className="w-4 h-4" aria-hidden="true" />
         </button>
@@ -133,10 +133,10 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
         style={{ paddingLeft: '0.75rem' }}
         className={itemClass(currentCollectionId === null)}
       >
-        <Home className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+        <Home className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
         <span className="flex-1 truncate">{rootLabel}</span>
         {currentCollectionId === null && (
-          <Check className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+          <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
         )}
       </button>
       {flat.map(({ c, depth }) => {
@@ -153,13 +153,13 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
             className={itemClass(isCurrent)}
           >
             <Folder
-              className="w-3.5 h-3.5 flex-shrink-0"
+              className="w-3.5 h-3.5 shrink-0"
               style={c.color ? { color: c.color } : undefined}
               aria-hidden="true"
             />
             <span className="flex-1 truncate">{c.name}</span>
             {isCurrent && (
-              <Check className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+              <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
             )}
           </button>
         );
@@ -192,9 +192,9 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
           data-new-collection
           {...tourAttr('board-nav.move-new-collection')}
           onClick={() => setIsCreating(true)}
-          className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+          className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
         >
-          <Plus className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+          <Plus className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
           {t('boardsModal.newCollection', { defaultValue: 'New Collection' })}
         </button>
       )}

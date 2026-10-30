@@ -779,7 +779,7 @@ export function ImportWizard<TData>({
               onClick={() => void handleCreateTemplate()}
               {...tourAttr('import-wizard.create-template')}
               disabled={creatingTemplate}
-              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
+              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-xs active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
             >
               {creatingTemplate ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -794,7 +794,7 @@ export function ImportWizard<TData>({
               onClick={() => void handleCopyTemplateUrl()}
               {...tourAttr('import-wizard.copy-template-url')}
               disabled={copyState === 'copying'}
-              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
+              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-xs active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
             >
               {copyState === 'copying' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -824,14 +824,14 @@ export function ImportWizard<TData>({
               value={sheetUrl}
               onChange={(e) => setSheetUrl(e.target.value)}
               placeholder="https://docs.google.com/spreadsheets/…"
-              className="flex-1 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors"
+              className="flex-1 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium placeholder-slate-400 focus:outline-hidden focus:border-brand-blue-primary transition-colors"
             />
             <button
               type="button"
               onClick={handleSheetSubmit}
               {...tourAttr('import-wizard.sheet-url-submit')}
               disabled={loading || !sheetUrl.trim()}
-              className="px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white font-bold rounded-xl transition-colors shadow-sm active:scale-95 flex items-center justify-center"
+              className="px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white font-bold rounded-xl transition-colors shadow-xs active:scale-95 flex items-center justify-center"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -863,14 +863,14 @@ export function ImportWizard<TData>({
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
             placeholder='{ "title": "…", "imageUrls": […], "steps": […] }'
-            className="w-full h-24 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-mono text-xs placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors resize-none"
+            className="w-full h-24 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-mono text-xs placeholder-slate-400 focus:outline-hidden focus:border-brand-blue-primary transition-colors resize-none"
           />
           <button
             type="button"
             onClick={() => void runParse({ kind: 'json', text: pasteText })}
             {...tourAttr('import-wizard.paste-json-submit')}
             disabled={loading || !pasteText.trim()}
-            className="w-full py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white text-sm font-bold rounded-xl transition-colors shadow-sm active:scale-95"
+            className="w-full py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white text-sm font-bold rounded-xl transition-colors shadow-xs active:scale-95"
           >
             Import pasted JSON
           </button>
@@ -906,7 +906,7 @@ export function ImportWizard<TData>({
 
   const previewStep = (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
         {parsed != null ? (
           // An adapter with a review step owns this pane and hands back the
           // teacher's corrections; everything else keeps the read-only preview.
@@ -958,7 +958,7 @@ export function ImportWizard<TData>({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={`Untitled ${adapter.widgetLabel}`}
-          className="w-full px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors"
+          className="w-full px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium placeholder-slate-400 focus:outline-hidden focus:border-brand-blue-primary transition-colors"
         />
       </div>
       {validationErrors.length > 0 && (
@@ -1044,7 +1044,7 @@ export function ImportWizard<TData>({
             onClick={() => setStep('confirm')}
             {...tourAttr('import-wizard.continue')}
             disabled={parsed == null}
-            className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Continue
           </button>
@@ -1055,7 +1055,7 @@ export function ImportWizard<TData>({
             onClick={() => void handleConfirmSave()}
             {...tourAttr('import-wizard.save')}
             disabled={saving || parsed == null}
-            className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -1102,7 +1102,7 @@ export function ImportWizard<TData>({
           <div
             role="status"
             aria-live="polite"
-            className="absolute inset-0 z-20 rounded-2xl bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 animate-in fade-in duration-150"
+            className="absolute inset-0 z-20 rounded-2xl bg-white/80 backdrop-blur-xs flex flex-col items-center justify-center gap-3 animate-in fade-in duration-150"
           >
             <Loader2 className="w-8 h-8 text-brand-blue-primary animate-spin" />
             <p className="font-bold text-slate-700 text-sm">{loadingLabel}</p>
@@ -1177,7 +1177,7 @@ const AiAssistOverlay: React.FC<AiAssistOverlayProps> = ({
     <div
       role="dialog"
       aria-label={`AI-assist for ${widgetLabel}`}
-      className="absolute inset-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 -mx-6 -my-5"
+      className="absolute inset-0 z-10 bg-white/95 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 -mx-6 -my-5"
     >
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-start justify-between gap-3">
@@ -1211,7 +1211,7 @@ const AiAssistOverlay: React.FC<AiAssistOverlayProps> = ({
             onClick={onGenerate}
             {...tourAttr('import-wizard.ai-generate')}
             disabled={isGenerating || !prompt.trim()}
-            className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
               <>

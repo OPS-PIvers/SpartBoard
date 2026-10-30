@@ -64,14 +64,14 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
     );
     return (
       <li key={standard.key}>
-        <div className="flex items-start gap-1 rounded hover:bg-slate-100">
+        <div className="flex items-start gap-1 rounded-sm hover:bg-slate-100">
           <button
             type="button"
             onClick={() => flip(standard.key, open)}
             aria-expanded={open}
             aria-controls={panelId}
             aria-label={`${open ? 'Collapse' : 'Expand'} ${standard.code}`}
-            className="mt-1.5 p-0.5 rounded text-slate-500 hover:text-slate-800"
+            className="mt-1.5 p-0.5 rounded-sm text-slate-500 hover:text-slate-800"
           >
             <ChevronRight
               className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-90' : ''}`}
@@ -106,7 +106,7 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
               const benchTag = tagFromBenchmark(b);
               return (
                 <li key={b.id}>
-                  <label className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-slate-100 cursor-pointer">
+                  <label className="flex items-start gap-2 px-2 py-1.5 rounded-sm hover:bg-slate-100 cursor-pointer">
                     <input
                       type="checkbox"
                       className={CHECKBOX}
@@ -142,7 +142,7 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
           onClick={() => flip(strand.key, open)}
           aria-expanded={open}
           aria-controls={panelId}
-          className="flex w-full items-center gap-1.5 px-2 py-1.5 rounded text-left text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-100"
+          className="flex w-full items-center gap-1.5 px-2 py-1.5 rounded-sm text-left text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-100"
         >
           <ChevronRight
             className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-90' : ''}`}

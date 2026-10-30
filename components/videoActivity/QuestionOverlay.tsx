@@ -144,7 +144,7 @@ export const FibAnswerInput: React.FC<FibAnswerInputProps> = ({
         if (e.key === 'Enter') onEnter();
       }}
       placeholder="Type your answer…"
-      className={`w-full px-4 py-3 text-sm rounded-xl border-2 transition-all focus:outline-none ${
+      className={`w-full px-4 py-3 text-sm rounded-xl border-2 transition-all focus:outline-hidden ${
         graded
           ? isCorrect
             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 font-bold'
@@ -423,7 +423,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
             onClick={handleSubmit}
             disabled={!canSubmit}
             aria-busy={checking}
-            className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 shadow-sm"
+            className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 shadow-xs"
           >
             {checking ? 'Checking…' : 'Submit Answer'}
           </button>

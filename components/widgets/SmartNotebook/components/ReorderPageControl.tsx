@@ -42,7 +42,7 @@ export const ReorderPageControl: React.FC<{
     <div
       role="group"
       aria-label="Reorder page"
-      className={`flex items-center rounded-xl bg-slate-100 border border-slate-200 shadow-sm transition-opacity ${
+      className={`flex items-center rounded-xl bg-slate-100 border border-slate-200 shadow-xs transition-opacity ${
         allDisabled ? 'opacity-50' : 'opacity-100'
       }`}
       style={{ padding: 'min(2px, 0.5cqmin)', gap: 'min(2px, 0.5cqmin)' }}

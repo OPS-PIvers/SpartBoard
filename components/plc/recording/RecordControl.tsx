@@ -65,7 +65,7 @@ const LiveBadge: React.FC<{ live: RecordControlLive }> = ({ live }) => {
       {live.recorderName && (
         <>
           <span className="text-slate-400">·</span>
-          <span className="text-slate-600 truncate max-w-[10rem]">
+          <span className="text-slate-600 truncate max-w-40">
             {live.recorderName}
           </span>
         </>

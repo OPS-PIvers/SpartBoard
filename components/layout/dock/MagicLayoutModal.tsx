@@ -151,7 +151,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
             {...tourAttr('dock.magic-layout-apply')}
             disabled={isGenerating || !description.trim() || outward.locked}
             title={outward.lockedTitle}
-            className="flex-[2] py-3 text-xs font-black uppercase tracking-widest text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-2 py-3 text-xs font-black uppercase tracking-widest text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
               <>

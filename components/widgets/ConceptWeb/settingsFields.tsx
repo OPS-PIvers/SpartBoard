@@ -29,7 +29,7 @@ export const ConceptWebCanvasField: React.FC<{ ctx: CustomRenderCtx }> = ({
     >
       <div className="relative flex min-h-32 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-4">
         <div
-          className="absolute flex flex-col items-center justify-center rounded-lg border border-slate-300 bg-amber-100 p-2 shadow-sm"
+          className="absolute flex flex-col items-center justify-center rounded-lg border border-slate-300 bg-amber-100 p-2 shadow-xs"
           style={{
             width: `${width}%`,
             height: `${height}%`,
@@ -41,7 +41,7 @@ export const ConceptWebCanvasField: React.FC<{ ctx: CustomRenderCtx }> = ({
             aria-label={t('previewLabel')}
             readOnly
             value={t('previewText')}
-            className="h-full w-full resize-none rounded-sm border-none bg-transparent text-center text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-400"
+            className="h-full w-full resize-none rounded-xs border-none bg-transparent text-center text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-slate-400"
             style={{ fontSize: '15cqmin' }}
           />
         </div>

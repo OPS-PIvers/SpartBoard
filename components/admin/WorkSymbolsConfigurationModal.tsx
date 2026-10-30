@@ -200,7 +200,7 @@ export const WorkSymbolsConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-3xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
@@ -321,7 +321,7 @@ export const WorkSymbolsConfigurationModal: React.FC<
                     onChange={(e) =>
                       updateSymbolTitle(symbol.id, e.target.value)
                     }
-                    className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-violet-400 focus:outline-none"
+                    className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-violet-400 focus:outline-hidden"
                     placeholder="Symbol title..."
                   />
 
@@ -374,7 +374,7 @@ export const WorkSymbolsConfigurationModal: React.FC<
                               className={`px-2 py-1 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                                 isAssigned
                                   ? isExplicit || isAllBuildings
-                                    ? 'bg-violet-500 text-white border-violet-500 shadow-sm'
+                                    ? 'bg-violet-500 text-white border-violet-500 shadow-xs'
                                     : 'bg-violet-100 text-violet-600 border-violet-200'
                                   : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-500'
                               }`}

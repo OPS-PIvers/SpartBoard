@@ -214,7 +214,7 @@ export const FibAnswerField: React.FC<FibAnswerFieldProps> = ({
       type="text"
       value={q.correctAnswer}
       onChange={(e) => onChange({ correctAnswer: e.target.value })}
-      className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-sm"
+      className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 text-sm"
       placeholder="Enter the definitive answer"
       {...answerAnchor}
     />

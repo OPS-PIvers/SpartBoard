@@ -94,7 +94,7 @@ export const BoardThumbnail: React.FC<BoardThumbnailProps> = ({
         return (
           <div
             key={w.id}
-            className="absolute rounded-[2px] bg-white/30 border border-white/40 shadow-sm flex items-center justify-center text-white/85"
+            className="absolute rounded-[2px] bg-white/30 border border-white/40 shadow-xs flex items-center justify-center text-white/85"
             style={{
               left: `${left}%`,
               top: `${top}%`,

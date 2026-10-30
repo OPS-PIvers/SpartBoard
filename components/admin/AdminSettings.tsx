@@ -292,9 +292,9 @@ const RailTab: React.FC<{
     onClick={onClick}
     title={label}
     {...tourFieldAttr('admin.settings.tab', 'admin', id)}
-    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors justify-center lg:justify-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors justify-center lg:justify-start focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 ${
       isActive
-        ? 'bg-white text-brand-blue-dark font-semibold shadow-sm'
+        ? 'bg-white text-brand-blue-dark font-semibold shadow-xs'
         : 'text-white/70 hover:bg-white/10 hover:text-white'
     }`}
   >

@@ -91,7 +91,7 @@ export const WebTourPlaybackDevHarness: React.FC = () => {
   };
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-50">
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-6 pb-16">
         <h1 className="text-xl font-bold">Web tour playback harness</h1>
         <p className="text-sm text-slate-600">
@@ -111,7 +111,7 @@ export const WebTourPlaybackDevHarness: React.FC = () => {
           <input
             value={id}
             onChange={(e) => saveId(e.target.value.trim())}
-            className="rounded border border-slate-300 px-2 py-1 font-mono"
+            className="rounded-sm border border-slate-300 px-2 py-1 font-mono"
           />
         </label>
         <div className="flex flex-wrap items-center gap-2">
@@ -133,7 +133,7 @@ export const WebTourPlaybackDevHarness: React.FC = () => {
               max={6}
               value={stepIndex}
               onChange={(e) => setStepIndex(Number(e.target.value) || 0)}
-              className="w-16 rounded border border-slate-300 px-2 py-1"
+              className="w-16 rounded-sm border border-slate-300 px-2 py-1"
             />
           </label>
           <button

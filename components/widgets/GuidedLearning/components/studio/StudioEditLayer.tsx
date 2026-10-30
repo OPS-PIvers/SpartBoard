@@ -1026,7 +1026,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
                 >
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none rounded-sm border border-sky-500 bg-white shadow"
+                    className="pointer-events-none rounded-xs border border-sky-500 bg-white shadow-sm"
                     style={{ width: handleSize, height: handleSize }}
                   />
                 </div>
@@ -1034,7 +1034,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
             })}
             <div
               data-gl-handle="move"
-              className="absolute cursor-move rounded-full border border-sky-500 bg-sky-400/80 shadow"
+              className="absolute cursor-move rounded-full border border-sky-500 bg-sky-400/80 shadow-sm"
               style={{
                 left: selRect.x + selRect.w / 2 - handleSize / 2,
                 top: selRect.y + selRect.h / 2 - handleSize / 2,
@@ -1053,7 +1053,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
             {...tourAttr('studio.vertex-handle')}
             data-gl-vertex={i}
             aria-label={t('glStudio.vertexN', { n: i + 1 })}
-            className="absolute cursor-grab rounded-full border border-sky-500 bg-white shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            className="absolute cursor-grab rounded-full border border-sky-500 bg-white shadow-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-300"
             style={{
               left: pt.x - handleSize / 2,
               top: pt.y - handleSize / 2,
@@ -1070,7 +1070,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
           }
           className={`pointer-events-none absolute ${
             calloutSelected
-              ? 'outline outline-2 outline-sky-400'
+              ? 'outline-solid outline-2 outline-sky-400'
               : 'outline-dashed outline-1 outline-white/90'
           }`}
           style={{
@@ -1098,7 +1098,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
             <span
               aria-hidden="true"
               data-testid="gl-callout-anchor-dot"
-              className="pointer-events-none absolute rounded-full border-2 border-sky-500 bg-white shadow"
+              className="pointer-events-none absolute rounded-full border-2 border-sky-500 bg-white shadow-sm"
               style={{
                 left: end.x - d / 2,
                 top: end.y - d / 2,
@@ -1133,7 +1133,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
             >
               <span
                 aria-hidden="true"
-                className="pointer-events-none rounded-sm border border-sky-500 bg-white shadow"
+                className="pointer-events-none rounded-xs border border-sky-500 bg-white shadow-sm"
                 style={{ width: handleSize, height: handleSize }}
               />
             </div>
@@ -1273,7 +1273,7 @@ const HoverChip: React.FC<{
 }> = ({ rect, scale, label }) => (
   <div
     data-testid="gl-studio-hover-chip"
-    className="pointer-events-none absolute whitespace-nowrap rounded-md bg-slate-900/90 px-2 py-0.5 text-xs font-bold text-white shadow"
+    className="pointer-events-none absolute whitespace-nowrap rounded-md bg-slate-900/90 px-2 py-0.5 text-xs font-bold text-white shadow-sm"
     style={{
       left: rect.x,
       top: rect.y - 24 / scale,

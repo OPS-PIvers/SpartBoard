@@ -185,7 +185,7 @@ export const AudioAnnotatedResponseView: React.FC<
             type="button"
             onClick={onRetryLoad}
             {...tourTypeAttr('quiz-grading.audio-retry', 'quiz')}
-            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             <RotateCcw aria-hidden className="h-3.5 w-3.5" />
             {t('quizMediaResponse.grading.player.retry')}
@@ -219,7 +219,7 @@ export const AudioAnnotatedResponseView: React.FC<
               ? t('quizMediaResponse.grading.player.pause')
               : t('quizMediaResponse.grading.player.play')
           }
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-white transition hover:bg-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
         >
           {playing ? (
             <Pause aria-hidden className="h-4 w-4" />
@@ -235,7 +235,7 @@ export const AudioAnnotatedResponseView: React.FC<
             {...tourTypeAttr('quiz-grading.audio-skip-silence', 'quiz')}
             aria-label={t('quizMediaResponse.grading.player.skipToSpeech')}
             title={t('quizMediaResponse.grading.player.skipToSpeech')}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
           >
             <SkipForward aria-hidden className="h-4 w-4" />
           </button>
@@ -264,7 +264,7 @@ export const AudioAnnotatedResponseView: React.FC<
                   data-testid="waveform-loading"
                   className="mb-1 h-0.5 w-full overflow-hidden rounded-full bg-slate-200"
                 >
-                  <div className="h-full w-full -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-brand-blue-primary to-transparent motion-reduce:animate-none motion-reduce:translate-x-0" />
+                  <div className="h-full w-full -translate-x-full animate-shimmer bg-linear-to-r from-transparent via-brand-blue-primary to-transparent motion-reduce:animate-none motion-reduce:translate-x-0" />
                 </div>
               )}
               <input
@@ -320,7 +320,7 @@ export const AudioAnnotatedResponseView: React.FC<
           onClick={addAtCursor}
           {...tourTypeAttr('quiz-grading.audio-add-comment', 'quiz')}
           disabled={disabled}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <MessageSquarePlus aria-hidden className="h-3.5 w-3.5" />
           {t('quizMediaResponse.grading.player.addComment')}

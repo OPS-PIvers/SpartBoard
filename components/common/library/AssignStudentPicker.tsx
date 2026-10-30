@@ -315,7 +315,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
           onClick={handleConfirm}
           disabled={draftSelected.length === 0}
           {...tourAttr('assign-students-legacy.confirm')}
-          className="px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t('assignStudentPicker.confirm', { defaultValue: 'Add students' })}
         </button>
@@ -494,7 +494,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                             ` (${targetableMembers.length}/${members.length})`}
                         </button>
                         {hasSkipped && (
-                          <span className="text-xxs text-slate-400 pl-1 max-w-[11rem]">
+                          <span className="text-xxs text-slate-400 pl-1 max-w-44">
                             {t('assignStudentPicker.groupSkippedNote', {
                               names: skippedMembers
                                 .map(studentDisplayName)
@@ -532,7 +532,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                 placeholder={t('assignStudentPicker.searchPlaceholder', {
                   defaultValue: 'Search students…',
                 })}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
               />
             </div>
             {activeRoster && targetableRows.length > 0 && (
@@ -542,7 +542,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                   checked={allTargetableSelected}
                   onChange={toggleSelectAll}
                   {...tourAttr('assign-students-legacy.select-all')}
-                  className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary"
+                  className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary"
                 />
                 {t('assignStudentPicker.selectAll', {
                   defaultValue: 'Select all',
@@ -577,7 +577,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                         'assign',
                         row.studentId
                       )}
-                      className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary disabled:opacity-50"
+                      className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary disabled:opacity-50"
                     />
                     <span className="text-sm text-slate-800">{row.name}</span>
                   </span>
@@ -594,7 +594,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
             })}
             {activeRoster && rows.length === 0 && (
               <div
-                className="h-full min-h-[12rem]"
+                className="h-full min-h-48"
                 style={{ containerType: 'size' }}
               >
                 {activeRoster.loadError ? (
@@ -673,7 +673,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
             )}
             {!activeRoster && (
               <div
-                className="h-full min-h-[12rem]"
+                className="h-full min-h-48"
                 style={{ containerType: 'size' }}
               >
                 <ScaledEmptyState

@@ -94,7 +94,7 @@ export const SoundConfigurationPanel: React.FC<
                 onClick={() => handleUpdateBuilding({ visual: opt.value })}
                 className={`p-2 rounded-lg border text-left transition-colors ${
                   (currentBuildingConfig.visual ?? 'thermometer') === opt.value
-                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >

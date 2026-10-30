@@ -33,7 +33,7 @@ export const AddonShell: React.FC<{
   /** Max content width. Defaults to a comfortable single-column card width. */
   maxWidthClassName?: string;
 }> = ({ children, maxWidthClassName = 'max-w-xl' }) => (
-  <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100 font-sans text-slate-900">
+  <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100 font-sans text-slate-900">
     {/* Decorative brand glow — purely atmospheric, behind the content. */}
     <div
       aria-hidden="true"
@@ -55,7 +55,7 @@ export const AddonHeader: React.FC<{
   subtitle?: string;
 }> = ({ icon: Icon, title, subtitle }) => (
   <header className="mb-6 flex items-start gap-3.5">
-    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-blue-light to-brand-blue-primary shadow-lg shadow-brand-blue-primary/20">
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-brand-blue-light to-brand-blue-primary shadow-lg shadow-brand-blue-primary/20">
       <Icon className="h-5 w-5 text-white" strokeWidth={2.25} />
     </div>
     <div className="min-w-0">
@@ -77,7 +77,7 @@ export const AddonCard: React.FC<{
   className?: string;
 }> = ({ children, className = '' }) => (
   <div
-    className={`rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5 ${className}`}
+    className={`rounded-2xl border border-slate-200 bg-white shadow-xs shadow-slate-900/5 ${className}`}
   >
     {children}
   </div>
@@ -87,7 +87,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
   primary:
-    'bg-gradient-to-r from-brand-blue-primary to-brand-blue-light text-white shadow-sm shadow-brand-blue-primary/25 hover:brightness-110 focus-visible:ring-brand-blue-light',
+    'bg-linear-to-r from-brand-blue-primary to-brand-blue-light text-white shadow-xs shadow-brand-blue-primary/25 hover:brightness-110 focus-visible:ring-brand-blue-light',
   secondary:
     'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus-visible:ring-brand-blue-light',
   ghost:
@@ -113,7 +113,7 @@ export const AddonButton: React.FC<
   <button
     type="button"
     disabled={(disabled ?? false) || loading}
-    className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 ${BUTTON_VARIANT[variant]} ${className}`}
+    className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 ${BUTTON_VARIANT[variant]} ${className}`}
     {...rest}
   >
     {loading ? (
@@ -161,7 +161,7 @@ export const AddonError: React.FC<{ message: string | null }> = ({
         className="mt-0.5 h-4 w-4 shrink-0 text-red-500"
         aria-hidden="true"
       />
-      <span className="min-w-0 break-words">{message}</span>
+      <span className="min-w-0 wrap-break-word">{message}</span>
     </div>
   ) : null;
 
@@ -225,7 +225,7 @@ export const AddonSelect: React.FC<{
             setOpen(true);
           }
         }}
-        className="flex w-full items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-left text-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-left text-sm transition hover:bg-slate-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span
           className={`min-w-0 flex-1 truncate ${selected ? 'text-slate-900' : 'text-slate-400'}`}

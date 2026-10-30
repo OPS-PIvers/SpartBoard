@@ -397,7 +397,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                   }
                 >
                   <div
-                    className="font-black text-slate-700 leading-tight [overflow-wrap:anywhere]"
+                    className="font-black text-slate-700 leading-tight wrap-anywhere"
                     style={{ marginRight: '0.4em' }}
                   >
                     Unassigned ({stats.remaining})
@@ -445,7 +445,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
             <div
               key={drag.pointerId}
               data-no-drag="true"
-              className="fixed z-[10000] rounded-lg border-2 border-brand-blue-primary bg-white font-semibold text-slate-800 shadow-xl cursor-grabbing pointer-events-none whitespace-nowrap"
+              className="fixed z-10000 rounded-lg border-2 border-brand-blue-primary bg-white font-semibold text-slate-800 shadow-xl cursor-grabbing pointer-events-none whitespace-nowrap"
               style={{
                 left: drag.x,
                 top: drag.y,

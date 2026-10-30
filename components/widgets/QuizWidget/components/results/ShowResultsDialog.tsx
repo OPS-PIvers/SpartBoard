@@ -155,7 +155,7 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
             {EXPIRY_OPTIONS.map((opt) => (
               <label
                 key={opt.id}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-semibold cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-blue-primary/40 ${
+                className={`rounded-lg border px-3 py-1.5 text-sm font-semibold cursor-pointer transition-colors has-focus-visible:ring-2 has-focus-visible:ring-brand-blue-primary/40 ${
                   expiry === opt.id
                     ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
                     : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'

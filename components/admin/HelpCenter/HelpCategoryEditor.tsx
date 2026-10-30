@@ -82,7 +82,7 @@ export const HelpCategoryEditor: React.FC<HelpCategoryEditorProps> = ({
                   )
                 );
               }}
-              className="flex-1 text-sm text-slate-700 bg-transparent focus:outline-none"
+              className="flex-1 text-sm text-slate-700 bg-transparent focus:outline-hidden"
             />
             <button
               type="button"

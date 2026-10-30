@@ -73,7 +73,7 @@ export const UnlockDialog: React.FC<UnlockDialogProps> = ({
             maxLength={UNLOCK_REASON_MAX}
             rows={3}
             autoFocus
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 focus:border-slate-500 focus:outline-none"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 focus:border-slate-500 focus:outline-hidden"
           />
         </label>
         {error && (

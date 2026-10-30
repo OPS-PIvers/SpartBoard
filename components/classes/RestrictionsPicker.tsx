@@ -106,7 +106,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
               placeholder={t('sidebar.classes.restrictionsFilter', {
                 defaultValue: 'Search classmates…',
               })}
-              className="flex-1 min-w-0 text-sm text-slate-800 placeholder:text-slate-400 bg-transparent outline-none"
+              className="flex-1 min-w-0 text-sm text-slate-800 placeholder:text-slate-400 bg-transparent outline-hidden"
               autoFocus
             />
           </div>

@@ -81,7 +81,7 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
               aria-label="Your name"
-              className="w-full rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              className="w-full rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-300 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
             />
           )}
           {requiresPin && (
@@ -90,7 +90,7 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
               onChange={(e) => setPin(e.target.value)}
               placeholder="PIN"
               aria-label="PIN"
-              className="w-full rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              className="w-full rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-300 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
             />
           )}
         </div>
@@ -103,12 +103,12 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
           maxLength={2000}
           placeholder={parentCommentId ? 'Write a reply…' : 'Leave a comment…'}
           aria-label={parentCommentId ? 'Write a reply' : 'Leave a comment'}
-          className="flex-1 resize-none rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          className="flex-1 resize-none rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder:text-slate-300 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
         />
         <button
           type="submit"
           disabled={submitting || !content.trim()}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-white/25 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? (
             <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />

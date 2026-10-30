@@ -67,7 +67,7 @@ export const BuildingHubView: React.FC<BuildingHubViewProps> = ({
       )}
 
       {showQuick && (
-        <Section first={!showHero} label="Quick links" className="!py-4">
+        <Section first={!showHero} label="Quick links" className="py-4!">
           <QuickLinksView
             links={quickLinks}
             isLead={isLead}

@@ -51,7 +51,7 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({
       {label}
     </dt>
     <dd
-      className="font-sans text-brand-gray-darkest whitespace-pre-wrap break-words min-w-0"
+      className="font-sans text-brand-gray-darkest whitespace-pre-wrap wrap-break-word min-w-0"
       style={BODY_TEXT}
     >
       {children}
@@ -107,7 +107,7 @@ export const StudentAnswerLine: React.FC<{
           Q{line.number}
         </span>
         <p
-          className="font-sans font-medium text-brand-gray-darkest flex-1 min-w-0 break-words"
+          className="font-sans font-medium text-brand-gray-darkest flex-1 min-w-0 wrap-break-word"
           style={BODY_TEXT}
         >
           {line.text}
@@ -122,7 +122,7 @@ export const StudentAnswerLine: React.FC<{
               'quiz',
               String(line.number)
             )}
-            className="inline-flex items-center shrink-0 rounded font-sans font-semibold text-brand-blue-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+            className="inline-flex items-center shrink-0 rounded-sm font-sans font-semibold text-brand-blue-primary hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             style={{ ...SMALL_TEXT, gap: 'min(3px, 0.8cqmin)' }}
           >
             <Pencil aria-hidden style={SMALL_ICON} />

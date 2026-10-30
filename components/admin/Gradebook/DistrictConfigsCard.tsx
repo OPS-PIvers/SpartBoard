@@ -33,9 +33,9 @@ export interface DistrictConfigsCardProps {
 }
 
 const FIELD =
-  'h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
+  'h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
 const ICON_BTN =
-  'h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30';
+  'h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30';
 const ROW_LABEL = 'min-w-[130px] text-sm font-medium text-slate-600';
 
 const savedOf = (c: DistrictConfig): Saved => ({

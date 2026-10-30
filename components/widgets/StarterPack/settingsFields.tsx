@@ -102,7 +102,7 @@ export const StarterPackField: React.FC<{ ctx: CustomRenderCtx }> = ({
         onChange={(event) => setPackName(event.target.value)}
         placeholder={t('packNamePlaceholder')}
         aria-label={t('packName')}
-        className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-xs transition-colors focus:border-brand-blue-primary focus:outline-none"
+        className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-xs transition-colors focus:border-brand-blue-primary focus:outline-hidden"
         {...tourAttr(
           'widget-settings.starter-pack.pack-name',
           ctx.widget.id,
@@ -117,7 +117,7 @@ export const StarterPackField: React.FC<{ ctx: CustomRenderCtx }> = ({
           type="button"
           onClick={() => void handleSavePersonal()}
           disabled={disabled}
-          className="flex w-full flex-col items-center gap-1.5 rounded-xl bg-brand-blue-primary px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
+          className="flex w-full flex-col items-center gap-1.5 rounded-xl bg-brand-blue-primary px-4 py-3 font-bold text-white shadow-xs transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
           {...tourAttr(
             'widget-settings.starter-pack.save-personal',
             ctx.widget.id,
@@ -135,7 +135,7 @@ export const StarterPackField: React.FC<{ ctx: CustomRenderCtx }> = ({
             type="button"
             onClick={() => void handleSaveGlobal()}
             disabled={disabled}
-            className="flex w-full flex-col items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-50"
+            className="flex w-full flex-col items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-xs transition-colors hover:bg-emerald-700 disabled:opacity-50"
             {...tourAttr(
               'widget-settings.starter-pack.save-global',
               ctx.widget.id,

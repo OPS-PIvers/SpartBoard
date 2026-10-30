@@ -49,7 +49,7 @@ const PlayButton: React.FC<PlayButtonProps> = ({
     <button
       type="button"
       aria-label={isPlaying ? 'Pause' : 'Play'}
-      className="rounded-full shadow-xl backdrop-blur-sm bg-white/90 flex items-center justify-center transform transition-transform active:scale-90"
+      className="rounded-full shadow-xl backdrop-blur-xs bg-white/90 flex items-center justify-center transform transition-transform active:scale-90"
       style={{ width: size, height: size }}
       onClick={handleClick}
       {...tourProps}
@@ -276,7 +276,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <WidgetLayout
         padding="p-0"
         content={
-          <div className="w-full h-full overflow-hidden rounded-[var(--window-radius,0px)] bg-black">
+          <div className="w-full h-full overflow-hidden rounded-(--window-radius,0px) bg-black">
             <iframe
               src={spotifyEmbedUrl}
               title={`Spotify: ${activeStation.title}`}
@@ -321,7 +321,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div
-          className={`w-full h-full rounded-[var(--window-radius,0px)] overflow-hidden relative select-none transition-all duration-500 ${
+          className={`w-full h-full rounded-(--window-radius,0px) overflow-hidden relative select-none transition-all duration-500 ${
             layout === 'default' && !isTransparent ? 'shadow-inner' : ''
           }`}
           style={{
@@ -387,7 +387,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
               {/* Gradient + title overlay at bottom */}
               <div
-                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent"
+                className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent"
                 style={{
                   padding: 'min(20px, 15cqh) min(12px, 4cqw) min(10px, 8cqh)',
                 }}

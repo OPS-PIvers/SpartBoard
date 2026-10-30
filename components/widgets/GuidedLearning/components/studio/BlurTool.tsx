@@ -79,7 +79,7 @@ export const BlurTool: React.FC<BlurToolProps> = ({
         <div
           key={i}
           data-testid="gl-blur-area"
-          className={`absolute rounded-sm ${areaClass}`}
+          className={`absolute rounded-xs ${areaClass}`}
           style={box(r)}
         >
           <button
@@ -89,7 +89,7 @@ export const BlurTool: React.FC<BlurToolProps> = ({
             onPointerDown={(e) => e.stopPropagation()}
             {...tourAttr('studio.blur-remove')}
             onClick={() => onChange(rects.filter((_, j) => j !== i))}
-            className="absolute -right-3 -top-3 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-700 shadow ring-1 ring-slate-300 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="absolute -right-3 -top-3 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-300 hover:bg-slate-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -98,7 +98,7 @@ export const BlurTool: React.FC<BlurToolProps> = ({
       {draft && (
         <div
           data-testid="gl-blur-draft"
-          className={`pointer-events-none absolute rounded-sm ${areaClass}`}
+          className={`pointer-events-none absolute rounded-xs ${areaClass}`}
           style={box(draft)}
         />
       )}

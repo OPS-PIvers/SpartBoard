@@ -17,7 +17,7 @@ interface WidgetHelpButtonProps {
 }
 
 const menuItemClass =
-  'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-none';
+  'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-hidden';
 
 /** The settings header's `?`: opens guides, or offers a live tour first when the widget has one. */
 export const WidgetHelpButton: React.FC<WidgetHelpButtonProps> = ({

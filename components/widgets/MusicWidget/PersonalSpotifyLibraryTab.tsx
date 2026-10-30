@@ -30,11 +30,11 @@ const Skeleton: React.FC = () => (
     />
     <div className="flex-1 space-y-2">
       <div
-        className="bg-slate-700 rounded"
+        className="bg-slate-700 rounded-sm"
         style={{ height: 'min(16px, 4cqmin)', width: '75%' }}
       />
       <div
-        className="bg-slate-800 rounded"
+        className="bg-slate-800 rounded-sm"
         style={{ height: 'min(12px, 3cqmin)', width: '50%' }}
       />
     </div>
@@ -90,7 +90,7 @@ export const PersonalSpotifyLibraryTab: React.FC<Props> = ({
           type="button"
           onClick={onReconnect}
           {...tourTypeAttr('music.spotify-reconnect', 'music')}
-          className="rounded-md bg-amber-500 text-amber-950 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+          className="rounded-md bg-amber-500 text-amber-950 font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-300"
           style={{
             fontSize: 'min(15px, 4.5cqmin)',
             padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
@@ -150,7 +150,7 @@ export const PersonalSpotifyLibraryTab: React.FC<Props> = ({
           onClick={refresh}
           {...tourTypeAttr('music.spotify-refresh', 'music')}
           aria-label="Refresh library"
-          className="text-slate-500 hover:text-slate-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 rounded"
+          className="text-slate-500 hover:text-slate-300 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-green-400/70 rounded-sm"
           style={{ padding: 'min(6px, 1.5cqmin)' }}
         >
           <RefreshCw

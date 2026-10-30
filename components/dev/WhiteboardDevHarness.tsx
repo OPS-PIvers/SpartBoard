@@ -61,14 +61,14 @@ export const WhiteboardDevHarness: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen [height:100dvh] flex-col bg-gradient-to-b from-white to-slate-100">
+    <div className="flex h-screen h-dvh flex-col bg-linear-to-b from-white to-slate-100">
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-amber-50 px-4 py-2 text-xs text-slate-700">
         <strong>/whiteboard-dev</strong>
         <select
           // no-tour-anchor: dev-only harness
           value={pageKey}
           onChange={(e) => setPageKey(e.target.value)}
-          className="rounded border border-slate-300 px-1 py-0.5"
+          className="rounded-sm border border-slate-300 px-1 py-0.5"
         >
           {Object.keys(PAGES).map((k) => (
             <option key={k}>{k}</option>
@@ -91,7 +91,7 @@ export const WhiteboardDevHarness: React.FC = () => {
             setLog([]);
             setPicture(null);
           }}
-          className="rounded border border-slate-300 bg-white px-2 py-0.5"
+          className="rounded-sm border border-slate-300 bg-white px-2 py-0.5"
         >
           retake
         </button>
@@ -99,7 +99,7 @@ export const WhiteboardDevHarness: React.FC = () => {
           // no-tour-anchor: dev-only harness
           type="button"
           onClick={() => void exportPicture()}
-          className="rounded border border-slate-300 bg-white px-2 py-0.5"
+          className="rounded-sm border border-slate-300 bg-white px-2 py-0.5"
         >
           export picture
         </button>

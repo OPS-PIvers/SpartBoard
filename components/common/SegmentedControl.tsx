@@ -70,7 +70,7 @@ export const SegmentedControl: <T extends string>(props: {
             onClick={() => onChange(opt.value)}
             className={`${fullWidth ? 'flex items-center justify-center gap-2 h-9 px-3 text-sm' : `${opt.badge || Icon ? 'inline-flex items-center gap-1.5 ' : ''}h-8 px-3 text-xs`} rounded-md font-semibold transition-all ${
               selected
-                ? 'bg-white text-slate-900 shadow-sm'
+                ? 'bg-white text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-800'
             }`}
           >

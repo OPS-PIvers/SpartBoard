@@ -62,7 +62,7 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
   });
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50 text-slate-900 flex flex-col">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-50 text-slate-900 flex flex-col">
       <header className="flex items-center justify-between px-8 py-5">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-brand-blue-primary flex items-center justify-center">
@@ -125,7 +125,7 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
           ) : entries.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-12 text-center">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-xs p-12 text-center">
               <div className="mx-auto w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-4">
                 <School className="w-7 h-7 text-slate-400" />
               </div>

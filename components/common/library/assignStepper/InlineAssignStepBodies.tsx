@@ -81,7 +81,7 @@ export const InlineAssignStepBodies: React.FC<InlineAssignStepBodiesProps> = ({
     >
       <Section title={getAssignStepTitle('when', activity, { kind: 'work' })}>
         {onWindowOnChange && (
-          <div className="flex min-h-[2rem] items-center justify-between gap-3">
+          <div className="flex min-h-8 items-center justify-between gap-3">
             <span className="text-sm font-medium text-slate-700">
               {scheduleLabel}
             </span>

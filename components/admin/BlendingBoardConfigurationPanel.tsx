@@ -31,7 +31,7 @@ export const BlendingBoardConfigurationPanel: React.FC<
           onChange={(e) => onChange({ ...config, url: e.target.value })}
           onBlur={(e) => onChange({ ...config, url: e.target.value.trim() })}
           placeholder="https://research.dwi.ufl.edu/op.n/file/bca9ju45kvvrvoan/?embed"
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 outline-none text-sm"
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 outline-hidden text-sm"
         />
         <p className="text-xxs text-slate-400 mt-1">
           Must be an https link that allows embedding.

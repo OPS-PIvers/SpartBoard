@@ -156,7 +156,7 @@ export const StationCard: React.FC<StationCardProps> = ({
           }}
         >
           <div
-            className="font-black leading-tight w-full line-clamp-2 break-words"
+            className="font-black leading-tight w-full line-clamp-2 wrap-break-word"
             style={{
               // Cap dropped from 28 → 22 so the title doesn't dominate the
               // card at typical widget sizes. The 14cqmin coefficient keeps
@@ -172,7 +172,7 @@ export const StationCard: React.FC<StationCardProps> = ({
           </div>
           {station.description && (
             <div
-              className="leading-tight w-full line-clamp-3 break-words"
+              className="leading-tight w-full line-clamp-3 wrap-break-word"
               style={{
                 fontSize: 'min(11px, 5.5cqmin)',
                 // Hardcoded for the same readability reason as the title
@@ -233,7 +233,7 @@ export const StationCard: React.FC<StationCardProps> = ({
               )
             : {})}
           data-tour-widget={widgetId}
-          className="absolute top-1 right-1 z-30 rounded-full text-white font-black flex items-center justify-center hover:bg-brand-red-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary transition-colors"
+          className="absolute top-1 right-1 z-30 rounded-full text-white font-black flex items-center justify-center hover:bg-brand-red-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary transition-colors"
           style={{
             backgroundColor: accent,
             width: 'min(24px, 12cqmin)',

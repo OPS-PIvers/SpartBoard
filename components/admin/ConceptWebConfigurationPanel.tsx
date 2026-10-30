@@ -83,7 +83,7 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
                       : undefined,
                   });
                 }}
-                className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none"
+                className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-hidden"
               />
             </div>
             <div>
@@ -108,7 +108,7 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
                       : undefined,
                   });
                 }}
-                className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none"
+                className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-hidden"
               />
             </div>
           </div>
@@ -133,7 +133,7 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
                   : (selected as GlobalFontFamily);
               updateBuildingConfig({ fontFamily });
             }}
-            className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none"
+            className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-hidden"
           >
             <option value="global">Global (Dashboard default)</option>
             <option value="sans">Sans Serif</option>

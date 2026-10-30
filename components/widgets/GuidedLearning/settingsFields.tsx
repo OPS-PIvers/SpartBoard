@@ -11,7 +11,7 @@ export const GuidedLearningLibraryField: React.FC<{
     onClick={() => ctx.updateConfig({ view: 'library' })}
     aria-labelledby={ctx.labelId}
     aria-describedby={ctx.describedBy}
-    className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white transition-colors hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+    className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white transition-colors hover:bg-indigo-500 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
     {...tourAttr(
       'widget-settings.guided-learning.library',
       ctx.widget.id,

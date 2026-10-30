@@ -738,7 +738,7 @@ const SidebarNavButton: React.FC<{
         flexShrink: 0,
       }}
     />
-    {!isRail && <span className="flex-1 break-words">{label}</span>}
+    {!isRail && <span className="flex-1 wrap-break-word">{label}</span>}
     {!isRail && count != null && count > 0 && (
       <span
         className={`inline-flex items-center justify-center rounded-full font-bold leading-none ${
@@ -806,7 +806,7 @@ const NewFolderInput: React.FC<{
       }}
       placeholder="New folder name"
       {...tourAttr('library-shell.new-folder-input')}
-      className="w-full px-2 py-1.5 text-sm rounded-lg border border-brand-blue-primary/40 bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+      className="w-full px-2 py-1.5 text-sm rounded-lg border border-brand-blue-primary/40 bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
     />
   );
 };
@@ -829,7 +829,7 @@ const DeleteFolderModal: React.FC<{
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full m-4 p-5">
         <header className="flex items-start gap-3 mb-3">
           <div className="bg-amber-100 text-amber-600 rounded-full p-2 shrink-0">

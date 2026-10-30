@@ -385,7 +385,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                 key={m.uid}
                 role="img"
                 aria-label={ariaLabel}
-                className={`relative flex items-center justify-center w-9 h-9 rounded-full text-xxs font-bold shadow-sm border ${
+                className={`relative flex items-center justify-center w-9 h-9 rounded-full text-xxs font-bold shadow-xs border ${
                   isYou
                     ? 'bg-brand-blue-primary text-white border-brand-blue-dark'
                     : 'bg-white text-slate-600 border-slate-200'
@@ -439,7 +439,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
               >
                 <div
                   aria-hidden="true"
-                  className={`flex items-center justify-center w-8 h-8 rounded-full text-xxs font-bold shadow-sm border ${
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-xxs font-bold shadow-xs border ${
                     isYou
                       ? 'bg-brand-blue-primary text-white border-brand-blue-dark'
                       : 'bg-slate-50 text-slate-600 border-slate-200'
@@ -626,7 +626,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
             id="plc-invite-feedback"
             role="status"
             aria-live="polite"
-            className="mt-2 min-h-[1rem]"
+            className="mt-2 min-h-4"
           >
             {inviteError && (
               <p className="text-xxs text-brand-red-primary font-semibold">

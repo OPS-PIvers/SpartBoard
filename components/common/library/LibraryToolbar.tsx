@@ -44,7 +44,7 @@ const SortDropdown: React.FC<{
         setOpen(false);
       }}
     >
-      <div className="inline-flex items-stretch rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="inline-flex items-stretch rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -152,7 +152,7 @@ const FilterDropdown: React.FC<{
           widgetType,
           `row-${rowIndex + 1}`
         )}
-        className={`appearance-none rounded-xl border bg-white shadow-sm font-bold transition-colors cursor-pointer hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 ${
+        className={`appearance-none rounded-xl border bg-white shadow-xs font-bold transition-colors cursor-pointer hover:bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30 ${
           isActive
             ? 'border-brand-blue-primary/40 text-brand-blue-primary'
             : 'border-slate-200 text-slate-700'
@@ -213,7 +213,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
           {...tourTypeAttr('library-shell.search', widgetType)}
-          className="w-full rounded-xl border border-slate-200 bg-white font-medium text-slate-700 placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 focus:border-brand-blue-primary/40"
+          className="w-full rounded-xl border border-slate-200 bg-white font-medium text-slate-700 placeholder:text-slate-400 shadow-xs focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30 focus:border-brand-blue-primary/40"
           style={{
             paddingLeft: 'min(36px, 9cqmin)',
             paddingRight: 'min(12px, 3cqmin)',

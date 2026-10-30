@@ -157,7 +157,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   return createPortal(
     <div
-      className={`fixed inset-0 ${zIndex} flex items-center justify-center ${isFullscreen ? 'p-0' : 'p-4'} bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200`}
+      className={`fixed inset-0 ${zIndex} flex items-center justify-center ${isFullscreen ? 'p-0' : 'p-4'} bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200`}
       {...backdropProps}
       role="dialog"
       aria-modal="true"
@@ -165,7 +165,7 @@ export const Modal: React.FC<ModalProps> = ({
       aria-labelledby={ariaLabelledby}
     >
       <div
-        className={`${overlay ? 'relative' : ''} w-full ${maxWidth} flex flex-col max-h-[90vh] ${variant === 'default' ? 'bg-white rounded-2xl shadow-2xl' : ''} ${className} ${isFullscreen ? '!h-full !max-h-none !max-w-none !rounded-none' : ''} animate-in zoom-in-95 duration-200`}
+        className={`${overlay ? 'relative' : ''} w-full ${maxWidth} flex flex-col max-h-[90vh] ${variant === 'default' ? 'bg-white rounded-2xl shadow-2xl' : ''} ${className} ${isFullscreen ? 'h-full! max-h-none! max-w-none! rounded-none!' : ''} animate-in zoom-in-95 duration-200`}
         data-fullscreen={isFullscreen || undefined}
         onClick={(e) => e.stopPropagation()}
       >

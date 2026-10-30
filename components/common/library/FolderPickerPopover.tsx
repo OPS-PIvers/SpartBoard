@@ -304,7 +304,7 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
   if (variant === 'dialog') {
     return (
       <div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+        className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs"
         role="presentation"
       >
         {card}
