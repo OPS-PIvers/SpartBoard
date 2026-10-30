@@ -22,6 +22,7 @@ import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { LucideIcon } from 'lucide-react';
 import type { ClassRoster, WidgetType } from '@/types';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
+import type { ConversionInput } from '@/utils/import/aiConversion';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 
 /* ─── Shared enums / tokens ───────────────────────────────────────────────── */
@@ -586,7 +587,9 @@ export type ImportSourcePayload =
       keyFile?: UploadedDocument;
       /** False when the teacher switched the AI reader off for this read. */
       useAi?: boolean;
-    };
+    }
+  /** Import's AI Conversion of already-read text (docs/plans/IMPORT.md D8, D10). */
+  | { kind: 'conversion'; input: ConversionInput };
 
 /** Parser result — `warnings` surface non-fatal issues in the preview. */
 export interface ImportParseResult<TData> {
