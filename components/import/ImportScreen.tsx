@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { FileText, Globe, Image, Link2, Type, X } from 'lucide-react';
+import {
+  FileText,
+  FolderTree,
+  Globe,
+  Image,
+  Link2,
+  Type,
+  X,
+} from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
@@ -28,7 +36,11 @@ interface ImportScreenProps {
   onPlaceReference: (widget: ReferenceWidget, source: PendingSource) => void;
   /** False hides the Embed check's "Add as a link" when Links is off for this teacher. */
   canAddLink?: boolean;
+  /** Opens the whole-course checklist for a Schoology course export; absent when it isn't offered. */
+  onCourse?: (file: File) => void;
 }
+
+const COURSE_EXPORT = /\.imscc$/i;
 
 const hostOf = (url: string): string => {
   try {
@@ -96,6 +108,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   onContinue,
   onPlaceReference,
   canAddLink = true,
+  onCourse,
 }) => {
   // The page being checked for Embed, and rows whose page refused it.
   const [embedding, setEmbedding] = useState<Row | null>(null);
@@ -202,6 +215,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
                   ? setEmbedding(row)
                   : onContinue(row.source, target)
               }
+              onCourse={onCourse}
               onRemove={
                 row.removeId
                   ? () => onRemoveInboxItem(row.removeId ?? '')
@@ -248,9 +262,14 @@ const SourceRow: React.FC<{
   allowed: ImportScreenProps['allowed'];
   onPick: (target: ImportTarget) => void;
   onRemove?: () => void;
-}> = ({ source, detail, note, allowed, onPick, onRemove }) => {
+  onCourse?: (file: File) => void;
+}> = ({ source, detail, note, allowed, onPick, onRemove, onCourse }) => {
   const described = describeSource(source);
   const { targets, guess } = targetChoices(source, allowed);
+  const courseFile =
+    onCourse && source.file && COURSE_EXPORT.test(source.file.name)
+      ? source.file
+      : null;
   return (
     <li className="py-4">
       <div className="flex items-start gap-3">
@@ -277,12 +296,25 @@ const SourceRow: React.FC<{
               </button>
             )}
           </div>
-          {targets.length === 0 ? (
+          {targets.length === 0 && !courseFile ? (
             <p className="text-sm text-slate-600" role="status">
               SpartBoard can’t import this yet.
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
+              {courseFile && (
+                <button
+                  type="button"
+                  onClick={() => onCourse?.(courseFile)}
+                  {...tourAttr('import-screen.course')}
+                  className="relative touch-target-expand inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white py-1 pl-1 pr-3 text-sm font-bold text-slate-700 transition-colors hover:border-brand-blue-primary hover:text-brand-blue-primary"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-brand-blue-primary text-white">
+                    <FolderTree className="h-3.5 w-3.5" />
+                  </span>
+                  Whole course
+                </button>
+              )}
               {targets.map((target) => {
                 const route = importRoute(target);
                 if (!route) return null;

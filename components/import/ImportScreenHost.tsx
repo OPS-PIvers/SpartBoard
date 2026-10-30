@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
@@ -11,6 +11,7 @@ import {
 } from '@/utils/import/contract';
 import { ImportScreen } from './ImportScreen';
 import { ImportInboxNotice } from '@/components/layout/ImportInboxNotice';
+import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import {
   closeImportScreen,
   offerImportHandoff,
@@ -30,6 +31,13 @@ import { pageSourceKind } from '@/utils/import/pageImages';
 const sentIdOf = (source: PendingSource): string | undefined =>
   source.readFromLink ? undefined : source.inboxItem?.id;
 
+// The course checklist pulls in every library it saves to, so it loads only when opened.
+const CourseImportHost = lazy(() =>
+  import('./course/CourseImportHost').then((m) => ({
+    default: m.CourseImportHost,
+  }))
+);
+
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst)$/i;
 const CARTRIDGE = /\.imscc$/i;
 
@@ -47,6 +55,7 @@ interface ImportScreenHostProps {
 export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
   const request = useImportScreenRequest();
   const { user } = useAuth();
+  const [courseFile, setCourseFile] = useState<File | null>(null);
   const inbox = useImportInbox(user?.uid, true);
   // The extension's "Open in SpartBoard" lands on /?importInbox=1 after a Send.
   useEffect(() => {
@@ -78,16 +87,34 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
           key={request.openId}
           request={request}
           inbox={inbox}
+          onCourse={(file) => {
+            closeImportScreen();
+            setCourseFile(file);
+          }}
           {...props}
         />
+      )}
+      {courseFile && (
+        <LazyChunkErrorBoundary>
+          <Suspense fallback={null}>
+            <CourseImportHost
+              file={courseFile}
+              onClose={() => setCourseFile(null)}
+            />
+          </Suspense>
+        </LazyChunkErrorBoundary>
       )}
     </>
   );
 };
 
 const OpenImportScreen: React.FC<
-  ImportScreenHostProps & { request: ImportScreenRequest; inbox: ImportInbox }
-> = ({ request, inbox, placeAt, placePdf, placeNotebook }) => {
+  ImportScreenHostProps & {
+    request: ImportScreenRequest;
+    inbox: ImportInbox;
+    onCourse: (file: File) => void;
+  }
+> = ({ request, inbox, onCourse, placeAt, placePdf, placeNotebook }) => {
   const { canAccessWidget, canAccessFeature } = useAuth();
   const {
     activeDashboard,
@@ -281,6 +308,7 @@ const OpenImportScreen: React.FC<
       onContinue={route}
       onPlaceReference={placeReference}
       canAddLink={canAccessWidget('url')}
+      onCourse={isActiveBoardReadOnly ? undefined : onCourse}
     />
   );
 };

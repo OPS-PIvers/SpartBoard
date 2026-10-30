@@ -77,8 +77,14 @@ export {
   readCartridge,
   readCartridgeBanks,
   collectionTitle,
+  readCourseMaterials,
+  courseFileReader,
+  mimeTypeFor,
   type CartridgeBank,
   type CartridgeBankCollection,
+  type CourseMaterial,
+  type CourseMaterialKind,
+  type CourseMaterials,
 } from './cartridgeReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
 export {

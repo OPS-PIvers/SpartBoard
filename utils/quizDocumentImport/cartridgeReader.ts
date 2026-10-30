@@ -933,3 +933,224 @@ export async function readCartridgeBanks(
     skippedBanks,
   };
 }
+
+/* ─── Pages, files, links and discussions in a course export (IMPORT D19) ── */
+
+export type CourseMaterialKind = 'page' | 'file' | 'link' | 'discussion';
+
+/** One non-question item in a course export, in the folder it sat in. */
+export interface CourseMaterial {
+  /** The manifest's resource identifier, unique within the export. */
+  id: string;
+  kind: CourseMaterialKind;
+  title: string;
+  /** Folder names from the course down to the item, not including it. */
+  folderPath: string[];
+  /** A page's or discussion prompt's words, one line per paragraph. */
+  text?: string;
+  /** A link's address (http or https only). */
+  url?: string;
+  /** A file's name, as the teacher uploaded it. */
+  fileName?: string;
+  /** A file's path inside the export, for `readCourseFile`. */
+  zipPath?: string;
+}
+
+export interface CourseMaterials {
+  title: string;
+  materials: CourseMaterial[];
+}
+
+const isLinkResource = (type: string): boolean => /imswl/i.test(type);
+const isDiscussionResource = (type: string): boolean => /imsdt/i.test(type);
+const isWebContent = (type: string): boolean =>
+  /^webcontent$/i.test(type.trim()) ||
+  /learning-application-resource/i.test(type);
+const PAGE_FILE = /\.x?html?$/i;
+
+/** Every outline item that points at a resource, with the folders above it. */
+function outlinedRefs(manifest: Document): ManifestBankRef[] {
+  const refs: ManifestBankRef[] = [];
+  const visit = (item: Element, path: string[]): void => {
+    const title = childrenNamed(item, 'title')[0]?.textContent?.trim() ?? '';
+    const ref = item.getAttribute('identifierref');
+    if (ref) refs.push({ resourceId: ref, title, folderPath: path });
+    const next = !ref && title ? [...path, title] : path;
+    for (const child of childrenNamed(item, 'item')) visit(child, next);
+  };
+  const organization = firstDescendant(manifest, 'organization');
+  if (organization) {
+    for (const item of childrenNamed(organization, 'item')) visit(item, []);
+  }
+  return refs;
+}
+
+// A parsed document never runs scripts or loads pictures, so the HTML is only read.
+const parseHtml = (html: string): Document =>
+  new DOMParser().parseFromString(html, 'text/html');
+
+const htmlText = (html: string): string => readableText(parseHtml(html).body);
+
+function parseXml(xml: string): Document | null {
+  const doc = new DOMParser().parseFromString(
+    defineHtmlEntities(xml),
+    'application/xml'
+  );
+  return doc.getElementsByTagName('parsererror').length > 0 ? null : doc;
+}
+
+const isWebAddress = (raw: string): boolean => {
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+};
+
+async function loadManifest(
+  file: Blob,
+  budget: UnzipBudget
+): Promise<{ zip: JSZip; manifest: Document }> {
+  let zip: JSZip;
+  try {
+    zip = await new JSZip().loadAsync(file);
+  } catch {
+    throw new Error(NOT_A_CARTRIDGE);
+  }
+  const entry = zip.file(MANIFEST);
+  if (!entry) throw new Error(NOT_A_CARTRIDGE);
+  const manifest = parseXml(await unzipText(entry, budget));
+  if (!manifest) throw new Error(NOT_A_CARTRIDGE);
+  return { zip, manifest };
+}
+
+function manifestCourseTitle(manifest: Document, fallback: string): string {
+  const general = firstDescendant(manifest, 'general');
+  const titleHolder = general ? childrenNamed(general, 'title')[0] : null;
+  const raw = titleHolder
+    ? (firstDescendant(titleHolder, 'string')?.textContent ?? '')
+    : '';
+  return collectionTitle(raw, fallback);
+}
+
+/** Reads the pages, files, links and discussion prompts in a course export; quizzes and banks come from `readCartridgeBanks`. */
+export async function readCourseMaterials(
+  file: Blob,
+  fallbackTitle: string,
+  maxUnzippedBytes: number = MAX_CARTRIDGE_UNZIPPED_BYTES
+): Promise<CourseMaterials> {
+  const budget: UnzipBudget = { remaining: maxUnzippedBytes };
+  const { zip, manifest } = await loadManifest(file, budget);
+  const resources = new Map<string, Element>();
+  for (const resource of descendants(manifest, 'resource')) {
+    const id = resource.getAttribute('identifier');
+    if (id) resources.set(id, resource);
+  }
+
+  const outlined = outlinedRefs(manifest);
+  const listed = new Set(outlined.map((r) => r.resourceId));
+  // Links and discussions the outline leaves out still come in, at the top; loose web files are page attachments.
+  const loose = [...resources.entries()]
+    .filter(([id, r]) => {
+      const type = r.getAttribute('type') ?? '';
+      return (
+        !listed.has(id) && (isLinkResource(type) || isDiscussionResource(type))
+      );
+    })
+    .map(([id]) => ({ resourceId: id, title: '', folderPath: [] }));
+
+  const materials: CourseMaterial[] = [];
+  const seen = new Set<string>();
+  for (const ref of [...outlined, ...loose]) {
+    const resource = resources.get(ref.resourceId);
+    if (!resource || seen.has(ref.resourceId)) continue;
+    seen.add(ref.resourceId);
+    const type = resource.getAttribute('type') ?? '';
+    const href = decodePath(resourceHref(resource));
+    const entry = href ? zip.file(href) : null;
+    const base = { id: ref.resourceId, folderPath: ref.folderPath };
+
+    if (isLinkResource(type) || isDiscussionResource(type)) {
+      const doc = entry ? parseXml(await unzipText(entry, budget)) : null;
+      if (!doc) continue;
+      const ownTitle = firstDescendant(doc, 'title')?.textContent?.trim() ?? '';
+      const title = ref.title || ownTitle;
+      if (isLinkResource(type)) {
+        const url =
+          firstDescendant(doc, 'url')?.getAttribute('href')?.trim() ?? '';
+        if (!isWebAddress(url)) continue;
+        materials.push({ ...base, kind: 'link', title: title || url, url });
+      } else {
+        const text = htmlText(firstDescendant(doc, 'text')?.textContent ?? '');
+        if (!text && !title) continue;
+        materials.push({
+          ...base,
+          kind: 'discussion',
+          title: title || 'Discussion',
+          text,
+        });
+      }
+      continue;
+    }
+
+    if (!isWebContent(type) || !entry) continue;
+    const fileName = href.split('/').pop() ?? href;
+    if (PAGE_FILE.test(href)) {
+      const page = parseHtml(await unzipText(entry, budget));
+      const pageTitle = page.title.trim();
+      const text = readableText(page.body);
+      materials.push({
+        ...base,
+        kind: 'page',
+        title: ref.title || pageTitle || fileName,
+        text,
+      });
+      continue;
+    }
+    materials.push({
+      ...base,
+      kind: 'file',
+      title: ref.title || fileName,
+      fileName,
+      zipPath: entry.name,
+    });
+  }
+
+  return {
+    title: manifestCourseTitle(manifest, fallbackTitle),
+    materials,
+  };
+}
+
+/** Reads files out of a course export one at a time, opening the zip once; each is refused past `maxBytes` unpacked. */
+export function courseFileReader(
+  file: Blob
+): (material: CourseMaterial, maxBytes: number) => Promise<File> {
+  let opened: Promise<JSZip> | null = null;
+  return async (material, maxBytes) => {
+    opened ??= new JSZip().loadAsync(file);
+    const zip = await opened;
+    const entry = material.zipPath ? zip.file(material.zipPath) : null;
+    if (!entry) throw new Error('That file is missing from the export.');
+    const chunks = await unzipCapped(entry, { remaining: maxBytes });
+    const name = material.fileName ?? material.title;
+    return new File(chunks, name, { type: mimeTypeFor(name) });
+  };
+}
+
+const FILE_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ...IMAGE_TYPES,
+};
+
+export function mimeTypeFor(name: string): string {
+  const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  return FILE_TYPES[ext] ?? 'application/octet-stream';
+}
