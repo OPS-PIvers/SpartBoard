@@ -1,4 +1,5 @@
 // Students and staff share @orono.k12.mn.us, so rules tests seed the member doc that makes an address staff.
+import type { RulesTestContext } from '@firebase/rules-unit-testing';
 import { doc, setDoc, type Firestore } from 'firebase/firestore';
 
 export const STUDENT_GOOGLE_EMAIL = '704522@orono.k12.mn.us';
@@ -7,9 +8,10 @@ export const INACTIVE_STAFF_EMAIL = 'former.teacher@orono.k12.mn.us';
 
 /** Active teacher member docs for each address, plus a student-role and an inactive member for the denial cases. */
 export async function seedDistrictStaff(
-  db: Firestore,
+  ctxDb: ReturnType<RulesTestContext['firestore']>,
   emails: readonly string[]
 ): Promise<void> {
+  const db = ctxDb as unknown as Firestore;
   const member = (email: string, data: Record<string, unknown>) =>
     setDoc(doc(db, `organizations/orono/members/${email.toLowerCase()}`), {
       email: email.toLowerCase(),

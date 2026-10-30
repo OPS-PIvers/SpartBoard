@@ -12,13 +12,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import {
-  setDoc,
-  getDoc,
-  doc,
-  updateDoc,
-  type Firestore,
-} from 'firebase/firestore';
+import { setDoc, getDoc, doc, updateDoc } from 'firebase/firestore';
 import {
   NOT_STAFF_DISTRICT_EMAILS,
   seedDistrictStaff,
@@ -74,7 +68,8 @@ const asStudent = () =>
 
 const staffFields = { staffEmail: STAFF_EMAIL, staffName: STAFF_NAME };
 
-const seedMembers = (db: Firestore) => seedDistrictStaff(db, [STAFF_EMAIL]);
+const seedMembers = (db: Parameters<typeof seedDistrictStaff>[0]) =>
+  seedDistrictStaff(db, [STAFF_EMAIL]);
 const notStaffGoogle = () =>
   NOT_STAFF_DISTRICT_EMAILS.map((email) => ({
     email,
