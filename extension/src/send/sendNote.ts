@@ -41,7 +41,7 @@ export function sendNote(input: SendNoteInput): SendNote {
   if (input.kind === 'empty' && input.selectionOnly)
     return {
       ok: false,
-      text: "Text in a box you type in can't be sent. Select text on the page instead.",
+      text: 'Your selection has no text that can be sent. Select text on the page itself, not in a box you type in.',
     };
   if (input.kind === 'empty')
     return {

@@ -294,10 +294,39 @@ describe('send worker', () => {
   });
 
   it('adds the button to a tab whose address changed in place to an allowed page', async () => {
-    const { worker, deps } = setup();
+    const { worker, deps } = setup({
+      tell: vi.fn(() => Promise.reject(new Error('no script'))),
+    });
     await worker.changedInPlace(4, 0, ARTICLE);
-    expect(deps.tell).toHaveBeenCalledWith(4, { type: 'send/recheck' });
     expect(deps.inject).toHaveBeenCalledWith(4);
+    const has = setup();
+    await has.worker.changedInPlace(4, 0, ARTICLE);
+    expect(has.deps.tell).toHaveBeenCalledWith(4, { type: 'send/recheck' });
+    expect(has.deps.inject).not.toHaveBeenCalled();
+  });
+
+  it('turns Send off when SpartBoard refuses, but keeps it offline', async () => {
+    let now = 0;
+    let why: 'offline' | 'no-access' = 'offline';
+    const { worker } = setup({
+      now: () => now,
+      status: vi.fn(() =>
+        Promise.resolve(
+          now === 0
+            ? {
+                ok: true as const,
+                value: { enabled: true, hasAccount: true, blockPatterns: [] },
+              }
+            : { ok: false as const, why }
+        )
+      ),
+    });
+    await worker.status();
+    now = 31 * 60_000;
+    expect((await worker.status()).enabled).toBe(true);
+    why = 'no-access';
+    now = 37 * 60_000;
+    expect((await worker.status()).enabled).toBe(false);
   });
 
   it("shows the button at once in the panel's tab when the teacher turns it back on", async () => {

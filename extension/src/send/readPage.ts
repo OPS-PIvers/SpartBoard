@@ -109,7 +109,14 @@ function skipped(el: Element): boolean {
   if (SKIP_TAGS.has(tagOf(el))) return true;
   const role = el.getAttribute('role');
   if (role && SKIP_ROLES.has(role)) return true;
-  if (el.getAttribute('aria-hidden') === 'true') return true;
+  // Modal libraries hide the whole app this way while a dialog is open; that isn't hidden content.
+  if (
+    el.getAttribute('aria-hidden') === 'true' &&
+    el !== el.ownerDocument.body &&
+    el !== el.ownerDocument.documentElement &&
+    el.parentElement !== el.ownerDocument.body
+  )
+    return true;
   if ((el as HTMLElement).hidden) return true;
   // Editable text is something the teacher typed, as good as a form value.
   const editable = el.getAttribute('contenteditable');

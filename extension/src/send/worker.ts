@@ -73,7 +73,7 @@ export function createSendWorker(deps: SendWorkerDeps) {
     cached: SendStatusCache | undefined
   ): Promise<SendStatusCache> {
     const result = await deps.status();
-    // A failed check keeps the last answer, so the block list still holds while SpartBoard is unreachable.
+    // Unreachable keeps the last answer, so the block list holds offline; any refusal turns Send off.
     const fresh: SendStatusCache = result.ok
       ? {
           enabled: result.value.enabled && result.value.hasAccount,
@@ -84,7 +84,7 @@ export function createSendWorker(deps: SendWorkerDeps) {
           at: deps.now(),
         }
       : {
-          enabled: cached?.enabled ?? false,
+          enabled: result.why === 'offline' && (cached?.enabled ?? false),
           blockPatterns: cached?.blockPatterns ?? [],
           at: deps.now(),
           failed: true,
@@ -126,7 +126,9 @@ export function createSendWorker(deps: SendWorkerDeps) {
     const show = !blocked && buttonShown(await deps.loadSettings(), url);
     // The Schoology reader posts to its own inbox, which needs its own flag.
     const schoology =
-      !blocked && !!schoologyPage(url) && (await deps.schoologyEnabled());
+      !blocked &&
+      !!schoologyPage(url) &&
+      (await deps.schoologyEnabled().catch(() => false));
     return { enabled: true, blocked, show, schoology };
   }
 
@@ -140,8 +142,12 @@ export function createSendWorker(deps: SendWorkerDeps) {
   /** The address changed without a new document: a tab showing the button checks again, and one that now should show gets it. */
   async function changedInPlace(tabId: number, frameId: number, url: string) {
     if (frameId !== 0) return;
-    await deps.tell(tabId, { type: 'send/recheck' }).catch(() => undefined);
-    await navigated(tabId, frameId, url);
+    // A tab with the script answers; one without it may need it now.
+    const told = await deps.tell(tabId, { type: 'send/recheck' }).then(
+      () => true,
+      () => false
+    );
+    if (!told) await navigated(tabId, frameId, url);
   }
 
   /** The toolbar's "Send this page" or the right-click item: works even where the teacher hid the button. */
@@ -211,7 +217,7 @@ export function createSendWorker(deps: SendWorkerDeps) {
         if (host && msg.hidden !== undefined)
           next = withHidden(next, host, msg.hidden);
         await deps.saveSettings(next);
-        // Open pages hear the change themselves; the panel's tab gets the button if it had none.
+        // Pages with the button hear the change; the panel's tab gets it now, other tabs on their next page.
         const url =
           msg.tabId === undefined ? undefined : await deps.tabUrl(msg.tabId);
         if (msg.tabId !== undefined && url) await navigated(msg.tabId, 0, url);

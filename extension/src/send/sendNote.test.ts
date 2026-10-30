@@ -38,7 +38,7 @@ describe('sendNote', () => {
     ).toEqual({ ok: false, text: 'Too many sends.' });
     expect(sendNote({ kind: 'blocked' }).ok).toBe(false);
     expect(sendNote({ kind: 'empty', selectionOnly: true }).text).toMatch(
-      /box you type in/
+      /no text that can be sent/
     );
     expect(sendNote({ kind: 'reply', reply: undefined }).ok).toBe(false);
   });
