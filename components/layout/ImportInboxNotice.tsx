@@ -37,7 +37,7 @@ export const ImportInboxNotice: React.FC<ImportInboxNoticeProps> = ({
         type="button"
         onClick={onOpen}
         {...tourAttr('import-notice.open')}
-        className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-blue-dark"
+        className="relative touch-target-expand rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-blue-dark"
       >
         Add to board
       </button>
@@ -45,7 +45,7 @@ export const ImportInboxNotice: React.FC<ImportInboxNoticeProps> = ({
         type="button"
         onClick={() => setHidden(new Set(items.map((item) => item.id)))}
         aria-label="Hide"
-        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+        className="relative touch-target-expand rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
       >
         <X className="h-4 w-4" />
       </button>

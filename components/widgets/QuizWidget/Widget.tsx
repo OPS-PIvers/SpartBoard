@@ -527,7 +527,7 @@ const TeacherQuizWidget: React.FC<{
   // Bank editor state — ephemeral, mirrors the quiz editor pair below.
   const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
-  const importHandoff = useImportHandoff(widget.id);
+  const pendingHandoff = useImportHandoff(widget.id);
   const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
   // The .imscc flags fold into schoology-quiz-import and retire once it opens.
   const canImportBankCartridge =
@@ -1772,6 +1772,15 @@ const TeacherQuizWidget: React.FC<{
   // ─── Views ─────────────────────────────────────────────────────────────────
 
   const view = config.view ?? 'manager';
+  // A handed-over Source waits until no editor, import or live view is open.
+  const importHandoff =
+    pendingHandoff &&
+    view === 'manager' &&
+    !editingQuiz &&
+    !editingBank &&
+    !bankImportOpen
+      ? pendingHandoff
+      : null;
 
   // Sheets-API ops here (Picker-selected sheet read + template create) need
   // only the non-sensitive `drive.file` login scope — silent for every
@@ -1927,7 +1936,7 @@ const TeacherQuizWidget: React.FC<{
 
   if (bankImportOpen || importHandoff?.target === 'questionBank') {
     const closeBankImport = () => {
-      takeImportHandoff(widget.id);
+      if (importHandoff) takeImportHandoff(widget.id);
       setBankImportOpen(false);
     };
     const baseAdapter = createQuizImportAdapter({
@@ -1976,7 +1985,7 @@ const TeacherQuizWidget: React.FC<{
         initialSource={importHandoff?.source}
         onSaved={() => {
           addToast('Question bank saved to Drive!', 'success');
-          completeImportHandoff(widget.id);
+          if (importHandoff) completeImportHandoff(widget.id);
           setBankImportOpen(false);
         }}
       />

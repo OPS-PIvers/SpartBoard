@@ -102,7 +102,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 hover:bg-white/15 rounded-full text-white/80 hover:text-white transition-colors"
+            className="relative touch-target-expand p-1.5 hover:bg-white/15 rounded-full text-white/80 hover:text-white transition-colors"
             aria-label="Close"
             {...tourAttr('import-screen.close')}
           >
@@ -195,7 +195,7 @@ const SourceRow: React.FC<{
                 onClick={onRemove}
                 aria-label={`Remove ${described.title}`}
                 {...tourAttr('import-screen.sent-remove')}
-                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="relative touch-target-expand rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -218,7 +218,7 @@ const SourceRow: React.FC<{
                     type="button"
                     onClick={() => onPick(target)}
                     {...tourAttr('import-screen.target')}
-                    className={`inline-flex items-center gap-2 rounded-lg border py-1 pl-1 pr-3 text-sm font-bold transition-colors ${
+                    className={`relative touch-target-expand inline-flex items-center gap-2 rounded-lg border py-1 pl-1 pr-3 text-sm font-bold transition-colors ${
                       target === guess
                         ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary hover:bg-brand-blue-lighter/70'
                         : 'border-slate-300 bg-white text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary'

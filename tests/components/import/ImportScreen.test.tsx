@@ -8,7 +8,6 @@ import { sourceFromInboxItem } from '@/components/import/sourceFromInbox';
 import {
   completeImportHandoff,
   offerImportHandoff,
-  openImportScreen,
   resetImportHandoffsForTest,
   takeImportHandoff,
 } from '@/components/import/importHandoff';
@@ -70,11 +69,17 @@ describe('targetChoices', () => {
     expect(c.guess).toBe('embed');
   });
 
-  it('reads a Google Sheet link as a spreadsheet, not a page', () => {
+  it('offers a Google Sheet link only as a page; the Picker grants sheet reads', () => {
     const c = targetChoices({
       url: 'https://docs.google.com/spreadsheets/d/abc/edit',
     });
-    expect(c.targets).toEqual(['quiz', 'questionBank', 'flashcards']);
+    expect(c.targets).toEqual(['embed', 'links']);
+  });
+
+  it('reads a PDF by its type when the name has no extension', () => {
+    expect(
+      targetChoices({ file: file('scan', 'application/pdf') }).targets
+    ).toContain('pdf');
   });
 
   it('guesses Flashcards for a sent two-column table', () => {
@@ -211,17 +216,6 @@ describe('import handoff into a review screen', () => {
     });
     expect(takeImportHandoff('w1')?.target).toBe('questionBank');
     expect(takeImportHandoff('w1')).toBeNull();
-  });
-
-  it('drops a handoff no widget picked up when Import opens again', () => {
-    offerImportHandoff({
-      widgetId: 'w3',
-      widgetType: 'quiz',
-      target: 'quiz',
-      source: { text: 'a' },
-    });
-    openImportScreen();
-    expect(takeImportHandoff('w3')).toBeNull();
   });
 
   it('runs onSaved only when the widget saves, not when it is closed', () => {

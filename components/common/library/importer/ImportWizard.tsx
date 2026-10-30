@@ -414,13 +414,11 @@ export function ImportWizard<TData>({
   // Read a Source handed over by Import once per open; the parse itself is async work.
   const readInitial = useEffectEvent((): void => {
     if (!initialSource) return;
-    const { file, url, text } = initialSource;
+    const { file, text } = initialSource;
     if (file) {
       void importFile(file, true);
     } else if (text && supportsCsv) {
       void runParse({ kind: 'csv', text }, true);
-    } else if (url && supportsSheet && GOOGLE_SHEET_URL_PATTERN.test(url)) {
-      void runParse({ kind: 'sheet', url }, true);
     }
   });
   // The session the initial Source was read in; guards StrictMode's second effect run.

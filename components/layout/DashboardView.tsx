@@ -84,6 +84,7 @@ import { extractYouTubeId } from '@/utils/youtube';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { UNIVERSAL_IMPORT_FEATURE } from '@/utils/import/contract';
 import { ImportScreenHost } from '@/components/import/ImportScreenHost';
+import { targetChoices } from '@/components/import/importTargets';
 import {
   openImportScreen,
   type ImportDropPoint,
@@ -1348,7 +1349,11 @@ export const DashboardView: React.FC = () => {
       dt.getData('application/spart-sticker')
     )
       return false;
-    const file = dt.files?.[0];
+    // Prefer a file Import can read, so a PDF dropped with other files still lands.
+    const files = Array.from(dt.files ?? []);
+    const file =
+      files.find((f) => targetChoices({ file: f }).targets.length > 0) ??
+      files[0];
     const uri = dt
       .getData('text/uri-list')
       .split(/\r?\n/)

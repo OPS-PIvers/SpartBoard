@@ -55,11 +55,9 @@ const subscribe = (l: Listener): (() => void) => {
   return () => listeners.delete(l);
 };
 
-/** Opens the Import screen and drops any handoff still waiting. */
+/** Opens the Import screen. */
 export function openImportScreen(request: ImportScreenRequest = {}): void {
   openCount += 1;
-  // A Source no widget picked up never reopens later by surprise.
-  handoffs = [];
   screen = { ...request, openId: openCount };
   emit();
 }

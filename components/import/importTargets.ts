@@ -13,14 +13,11 @@ export interface ImportRoute {
   accepts: (source: PendingSource) => boolean;
 }
 
-const GOOGLE_SHEET = /^https:\/\/docs\.google\.com\/spreadsheets\//i;
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst|imscc)$/i;
 
 const hasExt = (s: PendingSource, re: RegExp): boolean =>
   re.test(s.file?.name ?? '');
 const isCsv = (s: PendingSource): boolean => hasExt(s, /\.csv$/i);
-const isSheet = (s: PendingSource): boolean =>
-  !s.file && !s.text && !!s.url && GOOGLE_SHEET.test(s.url);
 const isWebUrl = (s: PendingSource): boolean =>
   !s.file &&
   !!s.url &&
@@ -36,19 +33,19 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     widgetType: 'quiz',
     landing: 'review',
     // Photos are read only through the wizard's own picture picker, so they aren't offered here yet.
-    accepts: (s) => hasExt(s, QUIZ_DOCUMENT) || isCsv(s) || isSheet(s),
+    accepts: (s) => hasExt(s, QUIZ_DOCUMENT) || isCsv(s),
   },
   questionBank: {
     label: 'Question bank',
     widgetType: 'quiz',
     landing: 'review',
-    accepts: (s) => isCsv(s) || isSheet(s) || hasExt(s, /\.imscc$/i),
+    accepts: (s) => isCsv(s) || hasExt(s, /\.imscc$/i),
   },
   flashcards: {
     label: 'Flashcards',
     widgetType: 'flashcards',
     landing: 'review',
-    accepts: (s) => isCsv(s) || isSheet(s) || hasTabbedRows(s),
+    accepts: (s) => isCsv(s) || hasTabbedRows(s),
   },
   guidedLearning: {
     label: 'Guided Learning',
@@ -72,13 +69,13 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     label: 'PDF',
     widgetType: 'pdf',
     landing: 'place',
-    accepts: (s) => hasExt(s, /\.pdf$/i),
+    accepts: (s) => hasExt(s, /\.pdf$/i) || s.file?.type === 'application/pdf',
   },
   embed: {
     label: 'Embed',
     widgetType: 'embed',
     landing: 'place',
-    accepts: (s) => isWebUrl(s) && !isSheet(s),
+    accepts: (s) => isWebUrl(s),
   },
   links: {
     label: 'Link',
@@ -92,7 +89,7 @@ export function importRoute(target: ImportTarget): ImportRoute | null {
   return IMPORT_ROUTES[target] ?? null;
 }
 
-/** The S1 guess input for a live Source; a sheet link reads as a spreadsheet, not a page. */
+/** The S1 guess input for a live Source. */
 export function toGuessSource(source: PendingSource): ImportSource {
   if (source.file)
     return {
@@ -103,8 +100,6 @@ export function toGuessSource(source: PendingSource): ImportSource {
     };
   if (source.inboxItem) return { kind: 'send', item: source.inboxItem };
   if (source.text) return { kind: 'text', text: source.text };
-  if (source.url && isSheet(source))
-    return { kind: 'file', fileName: 'sheet.csv', mimeType: 'text/csv' };
   return { kind: 'url', url: source.url ?? '' };
 }
 
@@ -123,7 +118,7 @@ export function targetChoices(
     const route = IMPORT_ROUTES[t];
     return !!route && allowed(t, source) && route.accepts(source);
   });
-  // .imscc reads as both, but the guess only names the quiz; a sheet can also be a bank.
+  // .imscc and CSV read as both, but the guess only names the quiz.
   if (
     IMPORT_ROUTES.questionBank?.accepts(source) &&
     allowed('questionBank', source) &&
