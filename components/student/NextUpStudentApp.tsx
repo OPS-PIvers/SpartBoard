@@ -172,7 +172,7 @@ export const NextUpStudentApp: React.FC = () => {
   }
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-white">
+    <div className="h-screen h-dvh overflow-y-auto bg-white">
       <div className="min-h-full flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="flex items-center justify-center mb-8 gap-2">
@@ -184,7 +184,7 @@ export const NextUpStudentApp: React.FC = () => {
             </span>
           </div>
 
-          <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 shadow-sm">
+          <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 shadow-xs">
             <h1 className="text-2xl font-black text-slate-800 mb-2 text-center">
               Take a Number
             </h1>
@@ -205,7 +205,7 @@ export const NextUpStudentApp: React.FC = () => {
                   required
                   autoFocus
                   maxLength={100}
-                  className="w-full px-6 py-4 bg-white border-2 border-slate-200 rounded-2xl text-xl font-bold text-slate-800 focus:outline-none focus:border-blue-600 transition-colors shadow-inner"
+                  className="w-full px-6 py-4 bg-white border-2 border-slate-200 rounded-2xl text-xl font-bold text-slate-800 focus:outline-hidden focus:border-blue-600 transition-colors shadow-inner"
                 />
               </div>
 

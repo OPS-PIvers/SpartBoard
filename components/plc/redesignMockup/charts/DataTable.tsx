@@ -56,7 +56,7 @@ export const TableToggle: React.FC<{
     aria-pressed={table}
     onClick={onToggle}
     {...anchor}
-    className="rounded text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+    className="rounded-sm text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
   >
     {table ? 'Chart' : 'Table'}
   </button>

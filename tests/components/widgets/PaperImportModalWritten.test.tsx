@@ -284,6 +284,32 @@ describe('PaperImportModal with handwritten answers', () => {
     );
   });
 
+  it('skips a page the teacher picks, as if it were never scanned', async () => {
+    const twoPage: PaperBatch = {
+      ...batch,
+      pagesPerSheet: 2,
+      pageMaps: [...pageMaps, { page: 2, grid: 2, items: [] }],
+    };
+    const { onImport } = setup({ batches: [twoPage] });
+    chooseFile();
+    await reviewReady();
+    expect(screen.getAllByText(/Page 2 not found in the scan/)).toHaveLength(2);
+
+    const pages = screen.getByRole('combobox', { name: 'Pages to import' });
+    fireEvent.change(pages, { target: { value: '2' } });
+    expect(screen.queryByText(/Page 2 not found in the scan/)).toBeNull();
+
+    fireEvent.change(pages, { target: { value: '1' } });
+    expect(
+      screen.getByText('Answers on page 1 are not imported.')
+    ).toBeVisible();
+    expect(screen.queryByLabelText('Written answers')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: /^Import 0 sheets$/ })
+    ).toBeInTheDocument();
+    expect(onImport).not.toHaveBeenCalled();
+  });
+
   it('warns before import when pages go over the daily limit', async () => {
     setup({
       checkQuota: () => Promise.resolve({ disabled: false, remaining: 0 }),

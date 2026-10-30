@@ -61,7 +61,7 @@ export const BackgroundsFilterBar: React.FC<BackgroundsFilterBarProps> = ({
           placeholder={t('backgrounds.searchPlaceholder', {
             defaultValue: 'Search backgrounds…',
           })}
-          className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20"
+          className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-hidden focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20"
         />
       </div>
 

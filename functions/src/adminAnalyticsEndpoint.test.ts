@@ -24,7 +24,7 @@ const verifyIdTokenMock = vi.fn<(idToken: string) => Promise<DecodedToken>>();
 const adminDocGetMock = vi.fn<(id: string) => Promise<DocSnap>>();
 const memberDocGetMock = vi.fn<(path: string) => Promise<DocSnap>>();
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   auth: vi.fn(() => ({

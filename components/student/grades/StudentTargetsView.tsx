@@ -137,7 +137,7 @@ const TargetRow: React.FC<{
           target.targetId
         )}
         onClick={onToggle}
-        className="grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto]"
+        className="grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition hover:bg-slate-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto]"
       >
         <span className="min-w-0">
           <span className="block truncate text-sm text-slate-900">
@@ -153,7 +153,7 @@ const TargetRow: React.FC<{
             <span
               key={`${e.sessionId}-${i}`}
               title={`${e.title}: ${Math.round(e.pct)}%`}
-              className={`grid h-7 w-9 place-items-center rounded text-xs font-semibold tabular-nums ${styleFor(data.scale, e.pct).cell}`}
+              className={`grid h-7 w-9 place-items-center rounded-sm text-xs font-semibold tabular-nums ${styleFor(data.scale, e.pct).cell}`}
             >
               {Math.round(e.pct)}
             </span>
@@ -246,7 +246,7 @@ export const StudentTargetsView: React.FC<{ data: StudentGradesData }> = ({
           ))}
         </div>
       </section>
-      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white shadow-xs ring-1 ring-slate-200">
         {targets.map((t) => (
           <TargetRow
             key={t.targetId}

@@ -162,7 +162,7 @@ export const VideoActivityQuizContextPane = React.memo(
           )}
         </div>
 
-        <div className="h-[45%] min-h-[11rem] shrink-0 px-5 pt-4 pb-3 border-b border-slate-200 bg-slate-50">
+        <div className="h-[45%] min-h-44 shrink-0 px-5 pt-4 pb-3 border-b border-slate-200 bg-slate-50">
           {videoId ? (
             <Timeline
               videoId={videoId}
@@ -367,12 +367,12 @@ const VaQuestionRow = React.memo(function VaQuestionRow({
         {index + 1}
       </span>
       <span
-        className={`shrink-0 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type ?? 'MC']}`}
+        className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type ?? 'MC']}`}
       >
         {question.type ?? 'MC'}
       </span>
       {needsKey && (
-        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
+        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
           <AlertCircle className="w-2.5 h-2.5" aria-hidden />
           Needs answer
         </span>
@@ -402,7 +402,7 @@ const VaQuestionRow = React.memo(function VaQuestionRow({
           'video-activity',
           String(index + 1)
         )}
-        className="text-slate-300 hover:text-brand-blue-primary hover:bg-slate-100 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        className="text-slate-300 hover:text-brand-blue-primary hover:bg-slate-100 rounded-sm p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
       >
         <Copy className="w-3.5 h-3.5" />
       </button>
@@ -419,7 +419,7 @@ const VaQuestionRow = React.memo(function VaQuestionRow({
           'video-activity',
           question.id
         )}
-        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-sm p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>

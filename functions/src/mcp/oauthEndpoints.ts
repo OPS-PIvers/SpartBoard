@@ -1,6 +1,6 @@
 // OAuth 2.1 authorization server for the Claude connector (CC-D1): discovery, DCR, token, revoke.
 import { onRequest } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import type { Request } from 'firebase-functions/v2/https';
 import '../functionsInit';
 import {

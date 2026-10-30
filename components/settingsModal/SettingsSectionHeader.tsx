@@ -15,7 +15,7 @@ export const SettingsSectionHeader: React.FC<SettingsSectionHeaderProps> = ({
 }) => (
   <div className="mb-5">
     <div className="flex items-center gap-2.5">
-      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
         {icon}
       </div>
       <h2 className="text-sm font-bold text-slate-800">{title}</h2>

@@ -1,6 +1,6 @@
 // The extension side panel's Focus tab (CHROME_EXTENSION.md F12): one endpoint over the teacher session actions.
 import { HttpsError } from 'firebase-functions/v2/https';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import {
   normalizeEmailDomain,
   resolveOrgIdForDomain,

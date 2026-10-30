@@ -2343,7 +2343,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
           zoom.setContainer(el);
         }}
         tabIndex={0}
-        className="h-full w-full touch-none select-none overflow-hidden outline-none"
+        className="h-full w-full touch-none select-none overflow-hidden outline-hidden"
         style={{ cursor: panning || spaceDown ? 'grabbing' : cursor }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -2403,7 +2403,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
               applyTextEdit();
             }
           }}
-          className="absolute z-10 resize-none rounded border-2 border-indigo-500 bg-white/95 px-1 py-0.5 leading-tight text-slate-900 shadow-lg outline-none"
+          className="absolute z-10 resize-none rounded-sm border-2 border-indigo-500 bg-white/95 px-1 py-0.5 leading-tight text-slate-900 shadow-lg outline-hidden"
           style={{
             left: editing.left,
             top: editing.top,

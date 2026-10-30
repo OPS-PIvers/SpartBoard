@@ -222,7 +222,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
                   defaultValue: 'Version history',
                 })}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[22rem]">
+              <p className="text-xs text-slate-500 mt-0.5 truncate max-w-88">
                 {title}
               </p>
             </div>
@@ -234,7 +234,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
             aria-label={t('plcDashboard.versions.close', {
               defaultValue: 'Close',
             })}
-            className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+            className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
           >
             <span className="sr-only">
               {t('plcDashboard.versions.close', { defaultValue: 'Close' })}
@@ -285,7 +285,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
               {...tourAttr('plc-versions.reload')}
               type="button"
               onClick={() => void load()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
             >
               {t('plcDashboard.versions.retry', {
                 defaultValue: 'Try again',
@@ -355,7 +355,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
                       version: snap.version,
                       defaultValue: 'Restore version {{version}}',
                     })}
-                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-lighter hover:bg-brand-blue-light/30 text-brand-blue-primary text-xxs font-bold uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-lighter hover:bg-brand-blue-light/30 text-brand-blue-primary text-xxs font-bold uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                   >
                     {isRestoring ? (
                       <Loader2

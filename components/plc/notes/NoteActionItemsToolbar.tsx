@@ -26,9 +26,9 @@ interface NoteActionItemsToolbarProps {
 }
 
 const BOXED_SELECT_CLASS =
-  'shrink-0 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xxs text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'shrink-0 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xxs text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 const MENU_BUTTON_CLASS =
-  'inline-flex items-center gap-1 px-1.5 py-1 rounded-md whitespace-nowrap text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
+  'inline-flex items-center gap-1 px-1.5 py-1 rounded-md whitespace-nowrap text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
 
 interface MenuSection {
   heading?: string;

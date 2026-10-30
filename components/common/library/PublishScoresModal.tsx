@@ -215,9 +215,9 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                 onClick={() => setSelected(opt.id)}
                 disabled={submitting}
                 {...tourAttr('publish-scores.level')}
-                className={`w-full text-left rounded-xl border px-4 py-3 transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 ${
+                className={`w-full text-left rounded-xl border px-4 py-3 transition-all focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 ${
                   isActive
-                    ? 'border-brand-blue-primary bg-brand-blue-lighter/30 shadow-sm'
+                    ? 'border-brand-blue-primary bg-brand-blue-lighter/30 shadow-xs'
                     : 'border-slate-200 bg-white hover:border-slate-300'
                 }`}
               >
@@ -270,7 +270,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                     onClick={() => setWrittenMode(opt.id)}
                     disabled={submitting}
                     {...tourAttr('publish-scores.written-mode')}
-                    className={`rounded-lg border px-2 py-1.5 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 ${
+                    className={`rounded-lg border px-2 py-1.5 text-sm font-semibold transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 ${
                       isActive
                         ? 'border-brand-blue-primary bg-brand-blue-lighter/30 text-slate-900'
                         : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
@@ -333,7 +333,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
               onClick={() => void handleConfirm(selected)}
               disabled={submitting}
               {...tourAttr('publish-scores.confirm')}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {isPublished ? 'Update' : 'Publish'}

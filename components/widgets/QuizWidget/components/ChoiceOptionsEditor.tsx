@@ -148,7 +148,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                     'quiz',
                     letter.toLowerCase()
                   )}
-                  className={`shrink-0 w-7 h-7 flex items-center justify-center border-2 ${Marker} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+                  className={`shrink-0 w-7 h-7 flex items-center justify-center border-2 ${Marker} transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
                     row.correct
                       ? 'bg-emerald-600 border-emerald-600 text-white'
                       : 'bg-white border-slate-300 text-transparent hover:border-emerald-500'

@@ -2,7 +2,7 @@
 import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { randomUUID } from 'node:crypto';
 import { isDistrictStaffEmail } from './districtStaff';
 import {

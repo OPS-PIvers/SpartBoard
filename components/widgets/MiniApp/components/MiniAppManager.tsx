@@ -1606,7 +1606,7 @@ const MiniAppPreviewPane: React.FC<{
         title={`Preview of ${app.title}`}
         srcDoc={app.html}
         sandbox="allow-scripts"
-        className="w-full aspect-[4/3] rounded-lg border border-slate-200 bg-white"
+        className="w-full aspect-4/3 rounded-lg border border-slate-200 bg-white"
         loading="lazy"
       />
     </LibraryPreviewPane>

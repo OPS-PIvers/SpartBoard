@@ -55,7 +55,7 @@ export const ChecklistCard = React.memo<ChecklistCardProps>(
         tabIndex={0}
         onClick={() => onToggle(id)}
         onKeyDown={handleKeyDown}
-        className={`w-full h-full flex items-center cursor-pointer select-none transition-all overflow-hidden ${lines ? '' : 'rounded-2xl border shadow-sm active:scale-[0.98]'}`}
+        className={`w-full h-full flex items-center cursor-pointer select-none transition-all overflow-hidden ${lines ? '' : 'rounded-2xl border shadow-xs active:scale-[0.98]'}`}
         style={
           lines
             ? {

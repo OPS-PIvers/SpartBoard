@@ -78,7 +78,7 @@ function colRef(path: string): Record<string, unknown> {
 
 const DELETE = Symbol('delete');
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const firestore = Object.assign(
     () => ({
       doc: (p: string) => docRef(p),

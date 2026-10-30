@@ -109,7 +109,7 @@ export const FontSelect: React.FC<FontSelectProps> = ({
             openList();
           }
         }}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-slate-800 transition-colors hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50"
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-slate-800 transition-colors hover:border-slate-300 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50"
       >
         <span
           id={`${uid}-value`}
@@ -132,7 +132,7 @@ export const FontSelect: React.FC<FontSelectProps> = ({
           aria-labelledby={labelId}
           aria-activedescendant={`${uid}-opt-${activeIndex}`}
           onKeyDown={onListKeyDown}
-          className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg focus:outline-none"
+          className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg focus:outline-hidden"
         >
           {OPTIONS.map((option, index) => {
             const isSelected = index === selectedIndex;

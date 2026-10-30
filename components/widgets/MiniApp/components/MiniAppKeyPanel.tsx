@@ -11,7 +11,7 @@ import {
 import { tourTypeAttr } from '@/config/tourAnchors';
 
 const FIELD =
-  'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 const SMALL_LABEL = 'block text-xs font-medium text-slate-500 mb-1';
 
 const ANSWER_PLACEHOLDER: Partial<Record<MiniAppQuestionType, string>> = {

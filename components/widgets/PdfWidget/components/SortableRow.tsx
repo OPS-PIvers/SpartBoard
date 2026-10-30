@@ -37,7 +37,7 @@ export const SortableRow: React.FC<SortableRowProps> = React.memo(
           padding: 'min(10px, 2.5cqmin)',
           gap: 'min(10px, 2.5cqmin)',
         }}
-        className="group bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-red-200 transition-all flex items-center"
+        className="group bg-white rounded-xl border border-slate-200 shadow-xs hover:shadow-md hover:border-red-200 transition-all flex items-center"
       >
         {/* Drag handle */}
         <div

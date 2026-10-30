@@ -153,7 +153,7 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
       className={
         compact
           ? 'flex flex-col gap-3'
-          : 'flex flex-col gap-4 bg-white rounded-xl border border-slate-200 p-5 shadow-sm'
+          : 'flex flex-col gap-4 bg-white rounded-xl border border-slate-200 p-5 shadow-xs'
       }
     >
       {!compact && (
@@ -176,7 +176,7 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
           onChange={(event) => setDestination(event.target.value)}
           placeholder="https://docs.google.com/document/d/…"
           required
-          className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
         />
       </div>
 
@@ -198,7 +198,7 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
               value={slug}
               onChange={(event) => setSlug(event.target.value)}
               placeholder="auto-generated"
-              className="flex-1 px-2 py-2 text-sm focus:outline-none"
+              className="flex-1 px-2 py-2 text-sm focus:outline-hidden"
             />
           </div>
         </div>
@@ -216,7 +216,7 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
             value={label}
             onChange={(event) => setLabel(event.target.value)}
             placeholder="Lesson 1 video"
-            className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
           />
         </div>
       </div>
@@ -340,7 +340,7 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
             value={destination}
             onChange={(event) => setDestination(event.target.value)}
             required
-            className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
           />
         </div>
 
@@ -354,7 +354,7 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
             value={label}
             onChange={(event) => setLabel(event.target.value)}
             placeholder="Optional"
-            className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
           />
         </div>
 
@@ -488,7 +488,7 @@ export const LinkShortenerManager: React.FC = () => {
         onSuccess={() => showToast('success', 'Short link created')}
       />
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
           <div>
             <h3 className="font-bold text-slate-800">All short links</h3>
@@ -504,7 +504,7 @@ export const LinkShortenerManager: React.FC = () => {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search…"
-              className="pl-9 pr-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary w-64"
+              className="pl-9 pr-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary w-64"
             />
           </div>
         </div>
@@ -560,7 +560,7 @@ export const LinkShortenerManager: React.FC = () => {
                           type="button"
                           onClick={() => handleCopy(link.code)}
                           aria-label="Copy short URL"
-                          className="p-1 rounded hover:bg-slate-200 text-slate-500"
+                          className="p-1 rounded-sm hover:bg-slate-200 text-slate-500"
                         >
                           {copiedCode === link.code ? (
                             <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -590,7 +590,7 @@ export const LinkShortenerManager: React.FC = () => {
                       <div className="text-slate-700">
                         {formatDate(link.createdAt)}
                       </div>
-                      <div className="text-xs text-slate-500 truncate max-w-[12rem]">
+                      <div className="text-xs text-slate-500 truncate max-w-48">
                         {link.createdByEmail}
                       </div>
                     </td>

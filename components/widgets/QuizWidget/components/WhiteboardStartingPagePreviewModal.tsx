@@ -79,7 +79,7 @@ export interface WhiteboardStartingPagePreviewModalProps {
 const toolBtn = (active: boolean) =>
   `inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-bold transition ${
     active
-      ? 'bg-white text-brand-blue-primary shadow-sm'
+      ? 'bg-white text-brand-blue-primary shadow-xs'
       : 'text-slate-600 hover:text-slate-900'
   }`;
 const plainBtn =
@@ -388,7 +388,7 @@ export const WhiteboardStartingPagePreviewModal: React.FC<
               nudge(e);
             }
           }}
-          className={`block aspect-[4/3] w-full touch-none select-none rounded-lg border border-slate-200 bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+          className={`block aspect-4/3 w-full touch-none select-none rounded-lg border border-slate-200 bg-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
             tool === 'move' ? 'cursor-default' : 'cursor-crosshair'
           }`}
         />

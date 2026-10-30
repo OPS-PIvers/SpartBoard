@@ -1,7 +1,7 @@
 // Unit tests for a Synced collaborator editing another member's Activity Wall.
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(),

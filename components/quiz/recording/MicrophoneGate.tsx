@@ -100,8 +100,8 @@ export const MicrophoneGate: React.FC<{
     }
   }, [deps, onReady]);
 
-  const page = `h-screen [height:100dvh] overflow-y-auto ${
-    light ? 'bg-gradient-to-b from-white to-slate-100' : 'bg-slate-900'
+  const page = `h-screen h-dvh overflow-y-auto ${
+    light ? 'bg-linear-to-b from-white to-slate-100' : 'bg-slate-900'
   }`;
 
   if (noticePending) {
@@ -162,7 +162,7 @@ export const MicrophoneGate: React.FC<{
         <section
           aria-labelledby="mic-gate-heading"
           aria-live="polite"
-          className={`rounded-3xl border p-6 shadow-sm backdrop-blur-sm ${
+          className={`rounded-3xl border p-6 shadow-xs backdrop-blur-xs ${
             light
               ? 'border-slate-200 bg-white/90'
               : 'border-slate-700 bg-slate-800/60'
@@ -208,7 +208,7 @@ export const MicrophoneGate: React.FC<{
             type="button"
             onClick={() => void ask()}
             disabled={step === 'asking'}
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-60"
           >
             {step === 'asking' ? (
               <Loader2 aria-hidden className="h-4 w-4 animate-spin" />

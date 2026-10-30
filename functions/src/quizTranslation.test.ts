@@ -3,11 +3,11 @@
 // plan's decisions — alignment, quota, D17, D29 — are under test.
 
 import { describe, it, expect, vi } from 'vitest';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
 const INCREMENT = Symbol('increment');
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {

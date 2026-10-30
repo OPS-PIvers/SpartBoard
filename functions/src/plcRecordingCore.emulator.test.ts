@@ -1,6 +1,6 @@
 // Runs only under the emulators: firebase emulators:exec --project demo-spartboard --only firestore,storage "pnpm -C functions exec vitest run src/plcRecordingCore.emulator.test.ts"
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   adminAudioBucket,
   AUDIO_RETENTION_MS,

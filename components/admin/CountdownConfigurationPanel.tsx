@@ -132,7 +132,7 @@ export const CountdownConfigurationPanel: React.FC<
             )}
             value={currentBuildingConfig.title ?? ''}
             onChange={(e) => handleUpdateBuilding({ title: e.target.value })}
-            className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none font-bold"
+            className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-hidden font-bold"
             placeholder="e.g. Summer Break"
           />
         </div>
@@ -151,7 +151,7 @@ export const CountdownConfigurationPanel: React.FC<
               )}
               value={formatDateForInput(currentBuildingConfig.startDate)}
               onChange={(e) => handleDateChange('startDate', e.target.value)}
-              className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none font-bold bg-white"
+              className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-hidden font-bold bg-white"
             />
           </div>
           <div className="flex-1">
@@ -167,7 +167,7 @@ export const CountdownConfigurationPanel: React.FC<
               )}
               value={formatDateForInput(currentBuildingConfig.eventDate)}
               onChange={(e) => handleDateChange('eventDate', e.target.value)}
-              className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none font-bold bg-white"
+              className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-hidden font-bold bg-white"
             />
           </div>
         </div>
@@ -187,7 +187,7 @@ export const CountdownConfigurationPanel: React.FC<
               className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${
                 currentBuildingConfig.viewMode === 'number' ||
                 !currentBuildingConfig.viewMode
-                  ? 'bg-brand-blue-primary text-white shadow'
+                  ? 'bg-brand-blue-primary text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -202,7 +202,7 @@ export const CountdownConfigurationPanel: React.FC<
               onClick={() => handleUpdateBuilding({ viewMode: 'grid' })}
               className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${
                 currentBuildingConfig.viewMode === 'grid'
-                  ? 'bg-brand-blue-primary text-white shadow'
+                  ? 'bg-brand-blue-primary text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >

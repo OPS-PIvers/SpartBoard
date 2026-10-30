@@ -93,7 +93,7 @@ const teacherLabel = (displayName: string | null, email: string | null) => {
 };
 
 const toolbarButtonClass =
-  'inline-flex items-center justify-center rounded-lg border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40';
+  'inline-flex items-center justify-center rounded-lg border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40';
 
 /** Below this widget width the secondary toolbar actions collapse into one menu. */
 const TOOLBAR_COMPACT_WIDTH = 460;
@@ -635,7 +635,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   const header = activeEntry && (
     <div
-      className="flex items-center justify-between border-b border-white/15 bg-slate-900/70 backdrop-blur-sm"
+      className="flex items-center justify-between border-b border-white/15 bg-slate-900/70 backdrop-blur-xs"
       style={{
         padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
         gap: 'min(8px, 2cqmin)',
@@ -659,7 +659,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         </h2>
         {ownerName && (
           <span
-            className="min-w-0 shrink-[2] truncate font-semibold text-slate-300"
+            className="min-w-0 shrink-2 truncate font-semibold text-slate-300"
             style={{ fontSize: 'min(11px, 3.8cqmin)' }}
           >
             Shared by {ownerName}
@@ -680,7 +680,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             onClick={toggleOpenClosed}
             disabled={isActiveBoardReadOnly}
             aria-pressed={isOpenWall}
-            className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
+            className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
               isOpenWall
                 ? 'bg-emerald-500 text-white hover:bg-emerald-600'
                 : 'bg-slate-600 text-slate-100 hover:bg-slate-500'
@@ -704,7 +704,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                 ? 'Posts visible to students. Hide posts from students'
                 : 'Posts hidden from students. Show posts to students'
             }
-            className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
+            className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
               isVisibleWall
                 ? 'bg-sky-500 text-white hover:bg-sky-600'
                 : 'bg-slate-600 text-slate-100 hover:bg-slate-500'
@@ -758,7 +758,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                         setToolbarMenuOpen(false);
                         action.run();
                       }}
-                      className="flex w-full items-center text-left font-semibold text-slate-200 transition-colors hover:bg-white/10 focus:outline-none focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 disabled:opacity-40"
+                      className="flex w-full items-center text-left font-semibold text-slate-200 transition-colors hover:bg-white/10 focus:outline-hidden focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 disabled:opacity-40"
                       style={{
                         gap: 'min(8px, 2cqmin)',
                         padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
@@ -842,7 +842,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             {...tourAttr('activity-wall.connect-drive', widget.id, widget.type)}
             onClick={() => void connectDrive()}
             disabled={connectingDrive}
-            className="shrink-0 rounded-lg bg-amber-400 font-bold text-amber-950 transition-colors hover:bg-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-amber-400 font-bold text-amber-950 transition-colors hover:bg-amber-300 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50"
             style={{
               padding: 'min(3px, 1cqmin) min(8px, 2cqmin)',
               fontSize: 'min(10px, 3.2cqmin)',
@@ -875,7 +875,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               widget.type
             )}
             onClick={() => setLibraryOpen(true)}
-            className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
             style={{
               padding: 'min(8px, 2cqmin) min(14px, 3.4cqmin)',
               fontSize: 'min(12px, 3.8cqmin)',
@@ -915,7 +915,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             type="button"
             {...tourAttr('activity-wall.review-posts', widget.id, widget.type)}
             onClick={() => setModerationOpen(true)}
-            className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
             style={{
               padding: 'min(8px, 2cqmin) min(14px, 3.4cqmin)',
               fontSize: 'min(12px, 3.8cqmin)',

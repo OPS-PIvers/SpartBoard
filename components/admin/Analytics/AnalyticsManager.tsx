@@ -365,7 +365,7 @@ const PanelCard: React.FC<React.PropsWithChildren<{ title: string }>> = ({
   title,
   children,
 }) => (
-  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
     <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">
       {title}
     </h3>
@@ -783,7 +783,7 @@ export const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
         </ResponsiveContainer>
       </PanelCard>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
             All Widgets
@@ -794,7 +794,7 @@ export const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
             placeholder="Search widgets..."
             value={widgetSearch}
             onChange={(e) => setWidgetSearch(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white outline-none focus:ring-2 focus:ring-blue-500 w-48"
+            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white outline-hidden focus:ring-2 focus:ring-blue-500 w-48"
           />
         </div>
         <div className="overflow-x-auto">
@@ -830,7 +830,7 @@ export const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
                       buildingLabel(id),
                       `b:${id}`,
                       'text-right',
-                      `pt-1 normal-case tracking-normal max-w-[8rem] whitespace-normal leading-tight ${i === 0 ? 'border-l border-slate-200' : ''}`
+                      `pt-1 normal-case tracking-normal max-w-32 whitespace-normal leading-tight ${i === 0 ? 'border-l border-slate-200' : ''}`
                     )
                   )}
                 </tr>
@@ -858,7 +858,7 @@ export const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
                         e.stopPropagation();
                         setOpenWidget(row.type);
                       }}
-                      className="text-left hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                      className="text-left hover:text-blue-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 rounded-sm"
                     >
                       {row.name}
                     </button>
@@ -1330,14 +1330,14 @@ const KpiUserModal: React.FC<{
               placeholder="Search by email…"
               value={emailSearch}
               onChange={(e) => setEmailSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <select
             {...tourAttr('admin.analytics.user-building-filter')}
             value={buildingFilter}
             onChange={(e) => setBuildingFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Buildings</option>
             {availableBuildings.map((id) => (
@@ -1486,7 +1486,7 @@ const DataTable: React.FC<{
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-200">
         <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
           {title}
@@ -1862,7 +1862,7 @@ export const AnalyticsManager: React.FC = () => {
             onClick={() => setSelectedTab(tab.id)}
             className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
               selectedTab === tab.id
-                ? 'bg-white border-slate-300 text-slate-900 shadow-sm'
+                ? 'bg-white border-slate-300 text-slate-900 shadow-xs'
                 : 'bg-transparent border-transparent text-slate-500 hover:text-slate-700 hover:bg-white/60'
             }`}
           >
@@ -1899,10 +1899,10 @@ export const AnalyticsManager: React.FC = () => {
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm animate-pulse"
+              className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs animate-pulse"
             >
-              <div className="h-3 w-20 bg-slate-200 rounded mb-3" />
-              <div className="h-8 w-16 bg-slate-200 rounded" />
+              <div className="h-3 w-20 bg-slate-200 rounded-sm mb-3" />
+              <div className="h-8 w-16 bg-slate-200 rounded-sm" />
             </div>
           ))}
         </div>
@@ -1975,7 +1975,7 @@ export const AnalyticsManager: React.FC = () => {
             value={selectedDomain}
             onChange={(e) => setSelectedDomain(e.target.value)}
             aria-label="Filter by domain"
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Domains</option>
             {uniqueDomains.map((d) => (
@@ -1989,7 +1989,7 @@ export const AnalyticsManager: React.FC = () => {
             value={selectedBuilding}
             onChange={(e) => setSelectedBuilding(e.target.value)}
             aria-label="Filter by building"
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Buildings</option>
             {hasNoBuildingUsers && (

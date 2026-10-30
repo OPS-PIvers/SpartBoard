@@ -46,7 +46,7 @@ export const BannerInteraction: React.FC<{
           // no-tour-anchor: student player overlay, not on the teacher board during a tour
           <button
             onClick={onClose}
-            className="pointer-events-auto absolute text-white/80 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 rounded"
+            className="pointer-events-auto absolute text-white/80 hover:text-white transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/80 rounded-sm"
             style={{
               top: 'clamp(6px, 1.8cqmin, 12px)',
               right: 'clamp(6px, 1.8cqmin, 12px)',

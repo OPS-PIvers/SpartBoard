@@ -2,7 +2,7 @@
 import '../functionsInit';
 import { createHash } from 'node:crypto';
 import { onRequest } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import {
   CLASSLINK_CLIENT_ID,
   CLASSLINK_CLIENT_SECRET,

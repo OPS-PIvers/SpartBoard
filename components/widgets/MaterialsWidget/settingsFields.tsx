@@ -100,7 +100,7 @@ export const MaterialsTitleFontField: React.FC<{
             data-tour-widget={ctx.widget.id}
             className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
               isSelected
-                ? 'border-blue-500 bg-blue-50 shadow-sm'
+                ? 'border-blue-500 bg-blue-50 shadow-xs'
                 : 'border-slate-100 hover:border-slate-200'
             }`}
           >
@@ -144,7 +144,7 @@ export const MaterialsTitleField: React.FC<{
       placeholder={translate(ctx, 'titlePlaceholder')}
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
-      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-hidden focus:ring-2 focus:ring-blue-500"
       {...tourAttr(
         'widget-settings.materials.title',
         ctx.widget.id,
@@ -435,7 +435,7 @@ export const MaterialsCatalogField: React.FC<{
                   key={item.id}
                   className={`flex items-center rounded-lg border transition-all ${
                     isSelected
-                      ? 'border-blue-200 bg-blue-50 shadow-sm'
+                      ? 'border-blue-200 bg-blue-50 shadow-xs'
                       : 'border-slate-200 bg-white hover:bg-slate-50'
                   }`}
                 >
@@ -468,7 +468,7 @@ export const MaterialsCatalogField: React.FC<{
                       }`}
                     />
                     <span
-                      className={`break-words text-sm font-medium leading-tight ${
+                      className={`wrap-break-word text-sm font-medium leading-tight ${
                         isSelected ? 'text-slate-900' : 'text-slate-500'
                       }`}
                     >
@@ -548,7 +548,7 @@ export const MaterialsCatalogField: React.FC<{
                       className="flex items-center gap-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-2"
                     >
                       <item.iconComponent className="h-4 w-4 shrink-0 text-slate-400" />
-                      <span className="min-w-0 flex-1 break-words text-sm font-medium leading-tight text-slate-500">
+                      <span className="min-w-0 flex-1 wrap-break-word text-sm font-medium leading-tight text-slate-500">
                         {item.label}
                       </span>
                       <button

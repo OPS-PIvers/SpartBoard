@@ -128,7 +128,7 @@ export const ScoreboardConfigurationPanel: React.FC<
           <div className="space-y-1.5 mb-3">
             {teams.map((team) => (
               <div key={team.id} className="space-y-1.5">
-                <div className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-sm">
+                <div className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-xs">
                   <GripVertical className="w-3.5 h-3.5 text-slate-300 shrink-0" />
 
                   {/* Color swatch showing current color */}
@@ -147,7 +147,7 @@ export const ScoreboardConfigurationPanel: React.FC<
                     onChange={(e) =>
                       handleUpdateTeam(team.id, { name: e.target.value })
                     }
-                    className="flex-1 text-xs border-none outline-none bg-transparent font-medium"
+                    className="flex-1 text-xs border-none outline-hidden bg-transparent font-medium"
                     placeholder="Team name..."
                   />
 
@@ -207,7 +207,7 @@ export const ScoreboardConfigurationPanel: React.FC<
             {...tourTypeAttr('admin.widget-config.add', 'scoreboard')}
             onClick={handleAddTeam}
             disabled={teams.length >= 8}
-            className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors w-full justify-center"
+            className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded-sm hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors w-full justify-center"
           >
             <Plus className="w-3 h-3" /> Add Team
           </button>

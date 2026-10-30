@@ -1,7 +1,7 @@
 // Weekly sweep of Guided Learning uploads nothing references (GUIDED_LEARNING_STUDIO.md P5-3).
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   GL_MEDIA_MARKER,
   glMediaOwner,

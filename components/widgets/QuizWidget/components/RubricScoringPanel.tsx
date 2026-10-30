@@ -202,7 +202,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
                       'quizMediaResponse.grading.rubricTags.jumpToSuffix',
                       { name: criterion.name }
                     )}`}
-                    className="shrink-0 rounded text-xs font-bold text-violet-700 underline underline-offset-2 transition-colors hover:text-violet-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+                    className="shrink-0 rounded-sm text-xs font-bold text-violet-700 underline underline-offset-2 transition-colors hover:text-violet-900 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-1"
                   >
                     {countLabel}
                   </button>
@@ -219,7 +219,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
                     aria-expanded={noteOpen}
                     aria-label={`${noteOpen ? 'Hide' : 'Add'} note for ${criterion.name}`}
                     title={`${noteOpen ? 'Hide' : 'Add'} note`}
-                    className="-mr-1 -mt-1 shrink-0 p-1 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                    className="-mr-1 -mt-1 shrink-0 p-1 rounded-sm text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
                   >
                     {noteOpen ? (
                       <X className="w-4 h-4" />
@@ -293,7 +293,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
                   onChange={(e) => setNote(criterion.id, e.target.value)}
                   rows={2}
                   placeholder="Note for this criterion…"
-                  className="mt-2 w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary text-xs resize-none"
+                  className="mt-2 w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary text-xs resize-none"
                 />
               )}
             </fieldset>

@@ -271,7 +271,7 @@ export const NewUserSetup: React.FC = () => {
       {/* Card */}
       <div className="w-full max-w-2xl bg-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-700">
         {/* Header */}
-        <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-light px-8 py-6 flex items-end justify-between gap-4">
+        <div className="bg-linear-to-r from-brand-blue-primary to-brand-blue-light px-8 py-6 flex items-end justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-3 mb-4">
               <Sparkles className="w-6 h-6 text-white/80" />
@@ -499,7 +499,7 @@ const StepAppearance: React.FC<{
 
   const windowRadiusMap: Record<GlobalStyle['windowBorderRadius'], string> = {
     none: 'rounded-none',
-    sm: 'rounded-sm',
+    sm: 'rounded-xs',
     md: 'rounded-md',
     lg: 'rounded-lg',
     xl: 'rounded-xl',
@@ -683,7 +683,7 @@ const StepDock: React.FC<{
                   }`}
                 >
                   <span
-                    className={`w-7 h-7 flex items-center justify-center rounded-lg flex-shrink-0 ${tool.color}`}
+                    className={`w-7 h-7 flex items-center justify-center rounded-lg shrink-0 ${tool.color}`}
                   >
                     <Icon className="w-4 h-4 text-white" />
                   </span>
@@ -693,7 +693,7 @@ const StepDock: React.FC<{
                     {tool.label}
                   </span>
                   {isSelected && (
-                    <Check className="w-3.5 h-3.5 text-blue-400 flex-shrink-0 ml-auto" />
+                    <Check className="w-3.5 h-3.5 text-blue-400 shrink-0 ml-auto" />
                   )}
                 </button>
               );

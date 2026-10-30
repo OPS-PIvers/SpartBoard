@@ -36,7 +36,7 @@ export const QuizStopScreen: React.FC<QuizStopScreenProps> = ({
     }
   };
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100 flex flex-col items-center justify-center p-6 text-center">
+    <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100 flex flex-col items-center justify-center p-6 text-center">
       <Octagon
         className={`w-14 h-14 mb-6 ${ready ? 'text-brand-blue-primary' : 'text-brand-red-primary'}`}
         aria-hidden

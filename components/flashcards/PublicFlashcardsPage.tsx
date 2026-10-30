@@ -65,7 +65,7 @@ const PublicFlashcardsReady: React.FC<{
   return (
     <div className="flex h-screen h-dvh flex-col overflow-hidden bg-slate-100">
       {!embedded && (
-        <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-6">
+        <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 shadow-xs sm:px-6">
           <div className="mx-auto flex max-w-6xl items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700">
               <Layers3 aria-hidden="true" className="h-5 w-5" />

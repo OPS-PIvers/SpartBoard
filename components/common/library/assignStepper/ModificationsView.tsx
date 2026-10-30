@@ -439,7 +439,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                   }))}
                 footer={
                   <>
-                    <div className="flex min-h-[2rem] items-center justify-between gap-3">
+                    <div className="flex min-h-8 items-center justify-between gap-3">
                       <span className="text-sm font-medium text-slate-700">
                         {t('assignTargeting.skipStudent', 'Skip this student')}
                       </span>
@@ -487,7 +487,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
               onChange={(e) => addStudent(e.target.value)}
               {...tourAttr('assign-mods.add-student')}
               aria-label={t('assignTargeting.addStudent', 'Add a student')}
-              className="h-9 w-48 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none"
+              className="h-9 w-48 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden"
             >
               <option value="">
                 {t('assignTargeting.addStudent', 'Add a student')}
@@ -666,7 +666,7 @@ export const ModificationsView: React.FC<ModificationsViewProps> = ({
           type="button"
           onClick={onBack}
           {...tourAttr('assign-mods.done')}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-brand-blue-primary px-5 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-brand-blue-dark"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-brand-blue-primary px-5 py-2 text-sm font-bold text-white shadow-xs transition-colors hover:bg-brand-blue-dark"
         >
           {t('assignTargeting.collapse', 'Done')}
         </button>

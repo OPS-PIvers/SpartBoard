@@ -504,7 +504,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         <button
           onClick={() => setShowAiPrompt(true)}
           {...tourTypeAttr('quiz-editor.footer-draft-ai', 'quiz')}
-          className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2"
+          className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-xs transition-colors flex items-center gap-2"
           title="Generate with AI"
         >
           <Wand2 className="w-4 h-4" />

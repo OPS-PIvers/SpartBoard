@@ -65,7 +65,7 @@ const KpiCard: React.FC<{
   accentBg: string;
   icon: React.ReactNode;
 }> = ({ title, value, subtitle, accentColor, accentBg, icon }) => (
-  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs relative overflow-hidden">
     <div
       className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
       style={{ background: accentColor }}
@@ -89,7 +89,7 @@ const PanelCard: React.FC<React.PropsWithChildren<{ title: string }>> = ({
   title,
   children,
 }) => (
-  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
     <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">
       {title}
     </h3>

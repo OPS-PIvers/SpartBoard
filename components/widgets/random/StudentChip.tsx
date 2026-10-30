@@ -87,7 +87,7 @@ export const StudentChip: React.FC<StudentChipProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group/chip ${layoutClasses} rounded-lg shadow-sm font-semibold leading-snug overflow-hidden min-w-0 transition-colors ${baseClasses} ${
+      className={`group/chip ${layoutClasses} rounded-lg shadow-xs font-semibold leading-snug overflow-hidden min-w-0 transition-colors ${baseClasses} ${
         isDragOverlay ? 'shadow-lg ring-2 ring-brand-blue-primary/40' : ''
       } ${dragClasses}`}
       {...listeners}

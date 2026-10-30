@@ -32,19 +32,19 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'transition flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed';
+    'transition flex items-center justify-center gap-2 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variantStyles: Record<ButtonVariant, string> = {
     primary:
-      'bg-brand-blue-primary text-white shadow-sm hover:bg-brand-blue-light',
+      'bg-brand-blue-primary text-white shadow-xs hover:bg-brand-blue-light',
     secondary: 'bg-slate-200 text-slate-600 hover:bg-slate-300',
-    success: 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700',
+    success: 'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700',
     danger: 'bg-red-50 text-red-600 hover:bg-red-100',
     'ghost-danger': 'text-red-500 hover:bg-red-50 hover:text-red-600',
     ghost:
       'text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter',
     hero: 'bg-brand-blue-primary text-white shadow-lg shadow-brand-blue-primary/30 hover:bg-brand-blue-dark active:scale-95 hover:-translate-y-1',
-    dark: 'bg-brand-gray-dark text-white shadow-sm hover:bg-brand-gray-darkest',
+    dark: 'bg-brand-gray-dark text-white shadow-xs hover:bg-brand-gray-darkest',
   };
 
   const sizeStyles: Record<ButtonSize, string> = {

@@ -23,7 +23,7 @@ export const SliderField: React.FC<FieldProps<SliderFieldSchema<string>>> = ({
         disabled={disabled}
         aria-describedby={describedBy}
         onChange={(e) => onChange(e.target.valueAsNumber)}
-        className="w-full disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-brand-blue-primary"
+        className="w-full disabled:opacity-50 focus:outline-hidden focus:ring-2 focus:ring-offset-1 focus:ring-brand-blue-primary"
       />
       <span
         aria-hidden="true"

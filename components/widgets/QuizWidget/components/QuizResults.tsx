@@ -3115,7 +3115,7 @@ const SelectStudentsButton: React.FC<{
     type="button"
     onClick={() => onSelect(students.map((s) => s.responseKey))}
     {...tourTypeAttr('quiz-results.select-students', 'quiz')}
-    className="inline-flex items-center font-sans font-semibold text-brand-blue-primary hover:text-brand-blue-dark hover:underline rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+    className="inline-flex items-center font-sans font-semibold text-brand-blue-primary hover:text-brand-blue-dark hover:underline rounded-sm focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
     style={{
       ...SMALL_TEXT,
       gap: 'min(4px, 1cqmin)',
@@ -3215,7 +3215,7 @@ const DistributionRow: React.FC<{
           onClick={onToggle}
           aria-expanded={isOpen}
           {...tourFieldAttr('quiz-results.outcome-row', 'quiz', label)}
-          className="block w-full text-left rounded hover:bg-brand-gray-lightest/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+          className="block w-full text-left rounded-sm hover:bg-brand-gray-lightest/60 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
         >
           {line}
         </button>
@@ -3602,7 +3602,7 @@ const QuestionsScreen: React.FC<{
                 'quiz',
                 String(i)
               )}
-              className="block w-full text-left rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+              className="block w-full text-left rounded-sm focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             >
               <span
                 className="flex items-center justify-between"
@@ -4498,7 +4498,7 @@ const StudentsScreen: React.FC<{
                       'quiz',
                       String(studentIndex)
                     )}
-                    className="flex items-center min-w-0 text-left rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                    className="flex items-center min-w-0 text-left rounded-sm focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
                     style={{ gap: 'min(4px, 1cqmin)' }}
                   >
                     <ChevronRight
@@ -4656,7 +4656,7 @@ const StudentsScreen: React.FC<{
                       </p>
                     ) : (
                       <div
-                        className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded tracking-tighter"
+                        className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded-sm tracking-tighter"
                         style={{
                           fontSize: 'min(9px, 2.5cqmin)',
                           padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',

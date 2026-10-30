@@ -1,6 +1,6 @@
 // Keeps poll_codes/{code} pointing at the session a join code should open, so clients never write pointers.
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 
 type Firestore = admin.firestore.Firestore;

@@ -1,3 +1,46 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss' source(none);
+
+@config "../../scripts/tailwind.overlay.config.ts";
+
+/* Keeps Tailwind v3's preflight defaults that v4 changed (border, ring and placeholder colours, field backgrounds, button cursor). */
+@theme {
+  --default-ring-color: rgb(59 130 246 / 0.5);
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
+  input:where(
+    :not(
+      [type='button'],
+      [type='reset'],
+      [type='submit'],
+      [type='checkbox'],
+      [type='radio'],
+      [type='range'],
+      [type='color'],
+      [type='file'],
+      [type='image']
+    )
+  ),
+  select,
+  textarea {
+    background-color: Field;
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}

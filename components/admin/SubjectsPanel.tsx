@@ -21,7 +21,7 @@ import {
 import { useSubjects } from '@/hooks/useSubjects';
 
 const inputClass =
-  'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 
 export const SubjectsPanel: React.FC = () => {
   const { subjects, loading } = useSubjects();
@@ -156,7 +156,7 @@ export const SubjectsPanel: React.FC = () => {
                     }}
                     disabled={saving || editing}
                     aria-label={`Rename ${subject.label}`}
-                    className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                    className="p-1.5 rounded-sm text-slate-500 hover:bg-slate-100 disabled:opacity-40"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -181,7 +181,7 @@ export const SubjectsPanel: React.FC = () => {
                         ? 'Subjects with a standards catalog cannot be archived'
                         : undefined
                     }
-                    className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                    className="p-1.5 rounded-sm text-slate-500 hover:bg-slate-100 disabled:opacity-40"
                   >
                     {subject.archived ? (
                       <ArchiveRestore className="w-4 h-4" />

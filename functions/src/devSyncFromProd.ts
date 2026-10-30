@@ -1,6 +1,6 @@
 // Dev-only: replaces the caller's own materials in spartboard-dev with a fresh copy from prod. Read-only on prod.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { GoogleAuth, Impersonated } from 'google-auth-library';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';

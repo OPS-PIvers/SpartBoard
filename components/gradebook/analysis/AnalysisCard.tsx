@@ -9,7 +9,7 @@ export const AnalysisCard: React.FC<{
   children: React.ReactNode;
 }> = ({ title, wide = false, aside, children }) => (
   <section
-    className={`col-span-12 ${wide ? '' : 'md:col-span-6'} flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}
+    className={`col-span-12 ${wide ? '' : 'md:col-span-6'} flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs`}
   >
     <h3 className="m-0 flex items-center gap-2 text-sm font-bold text-slate-800">
       {title}
@@ -23,7 +23,7 @@ export const Kpi: React.FC<{ value: React.ReactNode; label: string }> = ({
   value,
   label,
 }) => (
-  <div className="flex flex-col gap-0.5 rounded-2xl border border-slate-200 bg-white px-[18px] py-4 shadow-sm">
+  <div className="flex flex-col gap-0.5 rounded-2xl border border-slate-200 bg-white px-[18px] py-4 shadow-xs">
     <b className="text-2xl font-bold text-slate-900">{value}</b>
     <span className="text-xs text-slate-500">{label}</span>
   </div>
@@ -36,7 +36,7 @@ export const AnalysisSelect: React.FC<
   <span className={`relative inline-flex ${wrapClassName}`}>
     <select
       {...rest}
-      className={`appearance-none rounded-lg border border-slate-300 bg-white pl-3 pr-8 text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30 ${className}`}
+      className={`appearance-none rounded-lg border border-slate-300 bg-white pl-3 pr-8 text-slate-800 focus:border-brand-blue-primary focus:outline-hidden focus:ring-[3px] focus:ring-brand-blue-primary/30 ${className}`}
     />
     <ChevronDown
       className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"

@@ -2392,7 +2392,7 @@ export const LiveTourRunner: React.FC = () => {
       data-click-outside-ignore="true"
       onClick={(e) => e.stopPropagation()}
       data-testid="live-tour"
-      className="contents pointer-events-none [&>*]:pointer-events-auto [&>svg]:pointer-events-none"
+      className="contents pointer-events-none *:pointer-events-auto [&>svg]:pointer-events-none"
     >
       <div
         aria-live="polite"

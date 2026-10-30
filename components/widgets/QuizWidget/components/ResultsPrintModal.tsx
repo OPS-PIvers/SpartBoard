@@ -692,7 +692,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
               <h2 className="text-base font-bold text-slate-900">
                 Print results
               </h2>
-              <p className="mt-0.5 max-w-[28rem] truncate text-xs text-slate-500">
+              <p className="mt-0.5 max-w-md truncate text-xs text-slate-500">
                 {quiz.title}
               </p>
             </div>
@@ -771,7 +771,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                           'quiz',
                           c.id
                         )}
-                        className={`rounded-lg border p-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
+                        className={`rounded-lg border p-2.5 text-left transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
                           on
                             ? 'border-brand-blue-primary bg-brand-blue-lighter/60'
                             : 'border-slate-200 bg-white hover:border-brand-blue-light'
@@ -905,7 +905,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                 const shown = resolveShownName(response);
                 return (
                   <li key={student.key}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm text-slate-700 hover:bg-slate-50">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-sm text-slate-700 hover:bg-slate-50">
                       <input
                         type="checkbox"
                         checked={selected.has(student.key)}
@@ -938,7 +938,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
           </div>
         </div>
 
-        <div className="flex min-h-[24rem] flex-col">
+        <div className="flex min-h-96 flex-col">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Preview
           </span>

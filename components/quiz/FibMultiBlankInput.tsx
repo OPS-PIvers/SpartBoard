@@ -65,7 +65,7 @@ export const FibMultiBlankInput: React.FC<{
             value={parts[i] ?? ''}
             onChange={(e) => update(i, e.target.value)}
             disabled={disabled}
-            className={`flex-1 min-w-0 px-5 py-4 border-2 rounded-2xl text-sm focus:outline-none focus:ring-0 disabled:opacity-50 ${inputClassName}`}
+            className={`flex-1 min-w-0 px-5 py-4 border-2 rounded-2xl text-sm focus:outline-hidden focus:ring-0 disabled:opacity-50 ${inputClassName}`}
             onKeyDown={(e) => {
               if (e.key !== 'Enter') return;
               const nextInput = e.currentTarget

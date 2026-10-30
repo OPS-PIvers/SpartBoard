@@ -1,12 +1,20 @@
-const admin = require('firebase-admin');
-const serviceAccount = require('../.temp-service-account.json');
+import { readFileSync } from 'node:fs';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+const serviceAccount = JSON.parse(
+  readFileSync(
+    new URL('../.temp-service-account.json', import.meta.url),
+    'utf8'
+  )
+);
 
 // Initialize Admin SDK
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+initializeApp({
+  credential: cert(serviceAccount),
 });
 
-const db = admin.firestore();
+const db = getFirestore();
 
 async function initGlobalPermissions() {
   const features = [

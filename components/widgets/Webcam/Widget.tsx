@@ -1079,7 +1079,7 @@ export const WebcamWidget: React.FC<{
 
               {/* Status Overlays */}
               {showCaptureSuccess && (
-                <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 backdrop-blur-sm z-40 animate-in fade-in zoom-in duration-300">
+                <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 backdrop-blur-xs z-40 animate-in fade-in zoom-in duration-300">
                   <div
                     className="bg-green-500 text-white rounded-full shadow-2xl"
                     style={{ padding: 'min(24px, 6cqmin)' }}
@@ -1095,7 +1095,7 @@ export const WebcamWidget: React.FC<{
               )}
 
               {isExtracting && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-blue-500/20 backdrop-blur-sm z-40 animate-in fade-in duration-300">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-blue-500/20 backdrop-blur-xs z-40 animate-in fade-in duration-300">
                   <div
                     className="bg-brand-blue-primary text-white rounded-full shadow-2xl"
                     style={{

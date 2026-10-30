@@ -207,7 +207,7 @@ export const WhiteboardAnnotatedResponseView: React.FC<
             type="button"
             onClick={() => setReloadNonce((n) => n + 1)}
             {...tourTypeAttr('quiz-grading.audio-retry', 'quiz')}
-            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             <RotateCcw aria-hidden className="h-3.5 w-3.5" />
             {t('quizMediaResponse.grading.player.retry')}
@@ -253,7 +253,7 @@ export const WhiteboardAnnotatedResponseView: React.FC<
             onClick={addAtCursor}
             {...tourTypeAttr('quiz-grading.whiteboard-add-comment', 'quiz')}
             disabled={disabled}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             <MessageSquarePlus aria-hidden className="h-3.5 w-3.5" />
             {t('quizMediaResponse.grading.player.addComment')}

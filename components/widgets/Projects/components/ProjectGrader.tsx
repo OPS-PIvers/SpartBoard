@@ -295,7 +295,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
       onSave={() => undefined}
       onClose={onClose}
       maxWidth="max-w-5xl"
-      bodyClassName="!p-0 !overflow-hidden"
+      bodyClassName="p-0! overflow-hidden!"
       saveErrorMessage={false}
       tourScope="projects"
     >
@@ -304,7 +304,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
           aria-label="Group queue"
           className="overflow-y-auto border-r border-slate-200 bg-slate-50 pb-2"
         >
-          <p className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 backdrop-blur">
+          <p className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 backdrop-blur-sm">
             Groups
           </p>
           <ul>
@@ -403,7 +403,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
                       comment: event.target.value,
                     }))
                   }
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                 />
               </div>
 

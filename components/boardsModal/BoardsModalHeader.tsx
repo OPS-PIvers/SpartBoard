@@ -115,7 +115,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
           placeholder={t('boardsModal.searchPlaceholder', {
             defaultValue: 'Search Boards & Collections',
           })}
-          className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary"
+          className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary"
         />
       </div>
       <div className="flex items-center gap-2 ml-auto">
@@ -143,7 +143,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
         <button
           onClick={onCreateBoard}
           {...tourAttr('boards-modal.new-board')}
-          className="flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-white bg-brand-blue-primary rounded-xl hover:bg-brand-blue-dark shadow-sm transition"
+          className="flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-white bg-brand-blue-primary rounded-xl hover:bg-brand-blue-dark shadow-xs transition"
         >
           <Plus className="w-3.5 h-3.5" />
           {t('boardsModal.newBoard', { defaultValue: 'New Board' })}

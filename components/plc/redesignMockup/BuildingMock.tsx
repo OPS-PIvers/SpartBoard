@@ -176,7 +176,7 @@ export const BuildingHubMock: React.FC<{
         </div>
       </Section>
 
-      <Section label="Quick links" className="!py-4">
+      <Section label="Quick links" className="py-4!">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           {LINKS.map(([Icon, label]) => (
             <TextLink key={label} icon={Icon} className="text-sm">

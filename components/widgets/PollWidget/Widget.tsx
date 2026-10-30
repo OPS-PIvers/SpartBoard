@@ -315,7 +315,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </button>
             )}
             <div
-              className={`flex-1 min-w-0 font-black uppercase ${isAnnouncement ? 'text-white' : 'text-slate-800'} tracking-tight [overflow-wrap:anywhere] font-${globalStyle.fontFamily}`}
+              className={`flex-1 min-w-0 font-black uppercase ${isAnnouncement ? 'text-white' : 'text-slate-800'} tracking-tight wrap-anywhere font-${globalStyle.fontFamily}`}
               style={{
                 // Long questions shrink so the whole question fits in about 40% of the face.
                 fontSize: `min(32px, 10cqmin, ${(64 / Math.sqrt(questionChars)).toFixed(2)}cqmin)`,
@@ -457,7 +457,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       gap: 'min(16px, 3cqmin)',
                     }}
                   >
-                    <span className="font-bold min-w-0 [overflow-wrap:anywhere]">
+                    <span className="font-bold min-w-0 wrap-anywhere">
                       {markCorrect && o.correct && (
                         <CircleCheck
                           aria-label="Correct answer"
@@ -603,7 +603,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <img
                     src={qrUrl}
                     alt="Join QR code"
-                    className="rounded bg-white"
+                    className="rounded-sm bg-white"
                     style={{
                       width: 'min(72px, 22cqmin)',
                       height: 'min(72px, 22cqmin)',

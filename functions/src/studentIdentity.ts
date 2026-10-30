@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import { OAuth2Client } from 'google-auth-library';
 import './functionsInit';
@@ -24,6 +24,7 @@ import {
   isBridgeablePin,
 } from './classlinkShared';
 import { normalizeQuizCode } from './quizCode';
+import { quizJoinCodeOwner } from './quizJoinCodeOwner';
 import {
   STUDENT_LOGIN_CLASS_IDS_MAX,
   StudentLookupError,
@@ -1747,14 +1748,17 @@ export const pinLoginV1 = onCall(
         });
         return { matched: false, reason: 'no-joinable-session' };
       }
+      // Only the code's owner's sessions count, so a colliding session can't take the bridge.
+      const owner = await quizJoinCodeOwner(db, code);
+      const owned = owner
+        ? codeMatch.docs.filter((d) => d.data().teacherUid === owner)
+        : codeMatch.docs;
       // The token is scoped to one session, so bridge only the one the client resolved from this code.
       const wanted =
         typeof data.sessionId === 'string' && data.sessionId
           ? data.sessionId
           : null;
-      const picked = wanted
-        ? codeMatch.docs.find((d) => d.id === wanted)
-        : codeMatch.docs[0];
+      const picked = wanted ? owned.find((d) => d.id === wanted) : owned[0];
       if (!picked) {
         console.warn('[pinLoginV1] fallback', {
           kind,

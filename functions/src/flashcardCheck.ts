@@ -4,7 +4,7 @@ import {
   HttpsError,
   type CallableRequest,
 } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { matchFlashcardAnswer } from './flashcardMatch';

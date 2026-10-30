@@ -25,7 +25,7 @@ import {
 } from './pollPhoneState';
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100">
+  <div className="h-screen h-dvh overflow-y-auto bg-slate-100">
     <div className="min-h-full flex items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl overflow-hidden">
         {children}
@@ -50,7 +50,7 @@ const TextAnswerForm: React.FC<{
     if (answer && answer !== initial) onSend(answer);
   };
   const fieldClass =
-    'w-full rounded-xl border border-slate-300 p-3 text-slate-800 font-semibold outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/30 disabled:opacity-60';
+    'w-full rounded-xl border border-slate-300 p-3 text-slate-800 font-semibold outline-hidden focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/30 disabled:opacity-60';
   return (
     <form
       className="space-y-2"

@@ -77,7 +77,7 @@ export const LinkTargetPicker: React.FC<LinkTargetPickerProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Choose link target page"
-      className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+      className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs"
     >
       <div
         ref={panelRef}

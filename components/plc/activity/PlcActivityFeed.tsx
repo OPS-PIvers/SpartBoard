@@ -115,7 +115,7 @@ export const PlcActivityFeed: React.FC<PlcActivityFeedProps> = ({
   );
 
   return (
-    <div className="flex flex-col bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+    <div className="flex flex-col bg-white/70 backdrop-blur-xs border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
       <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
         <div className="w-8 h-8 rounded-xl bg-brand-blue-lighter/60 flex items-center justify-center shrink-0">
           <ActivityIcon

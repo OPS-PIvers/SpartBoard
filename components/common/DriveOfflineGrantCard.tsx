@@ -71,7 +71,7 @@ export const DriveOfflineGrantCard: React.FC = () => {
   return (
     <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
       <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-3 flex items-center gap-3 max-w-[300px]">
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <GoogleDriveIcon className="w-5 h-5 opacity-60" />
         </div>
 
@@ -84,7 +84,7 @@ export const DriveOfflineGrantCard: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => void handleConnect()}
             disabled={isConnecting}

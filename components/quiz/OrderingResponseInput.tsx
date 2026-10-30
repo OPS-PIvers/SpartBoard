@@ -78,7 +78,7 @@ const DraggableChip: React.FC<{
           ? 'opacity-40'
           : selected
             ? light
-              ? 'bg-brand-blue-primary border-brand-blue-light text-white shadow-sm ring-2 ring-brand-blue-light/40'
+              ? 'bg-brand-blue-primary border-brand-blue-light text-white shadow-xs ring-2 ring-brand-blue-light/40'
               : 'bg-violet-500 border-violet-400 text-white shadow-lg ring-2 ring-violet-300'
             : light
               ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-brand-blue-light/60'
@@ -164,7 +164,7 @@ const Slot: React.FC<{
               ? 'opacity-40'
               : selectedHere
                 ? light
-                  ? 'bg-brand-blue-primary border-brand-blue-light text-white shadow-sm ring-2 ring-brand-blue-light/40'
+                  ? 'bg-brand-blue-primary border-brand-blue-light text-white shadow-xs ring-2 ring-brand-blue-light/40'
                   : 'bg-violet-500 border-violet-400 text-white shadow-lg ring-2 ring-violet-300'
                 : light
                   ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-brand-blue-light/60'

@@ -80,7 +80,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
       {...anchors?.bar}
       role="region"
       aria-label="Bulk actions"
-      className="flex flex-wrap items-center rounded-2xl border border-brand-blue-primary/30 bg-brand-blue-lighter/30 shadow-sm backdrop-blur-sm"
+      className="flex flex-wrap items-center rounded-2xl border border-brand-blue-primary/30 bg-brand-blue-lighter/30 shadow-xs backdrop-blur-xs"
       style={{
         gap: 'min(8px, 2cqmin)',
         paddingInline: 'min(12px, 3cqmin)',
@@ -115,7 +115,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               }}
               disabled={disabled}
               {...tourAttr('library-shell.bulk-action')}
-              className={`inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider shadow-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 action.destructive
                   ? 'text-brand-red-dark ring-1 ring-brand-red-primary/20 hover:bg-brand-red-lighter/30 hover:ring-brand-red-primary/40'
                   : 'text-brand-blue-dark hover:bg-brand-blue-lighter/40'
@@ -149,7 +149,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               type="button"
               onClick={() => setShowFolderPicker((v) => !v)}
               disabled={busy}
-              className="inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider text-brand-blue-dark shadow-sm transition-colors hover:bg-brand-blue-lighter/40 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider text-brand-blue-dark shadow-xs transition-colors hover:bg-brand-blue-lighter/40 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
                 gap: 'min(6px, 1.5cqmin)',
                 paddingInline: 'min(12px, 3cqmin)',
@@ -193,7 +193,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
             }}
             disabled={busy}
             {...tourAttr('library-shell.bulk-delete')}
-            className="inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider text-brand-red-dark shadow-sm transition-colors hover:bg-brand-red-lighter/30 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider text-brand-red-dark shadow-xs transition-colors hover:bg-brand-red-lighter/30 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               gap: 'min(6px, 1.5cqmin)',
               paddingInline: 'min(12px, 3cqmin)',

@@ -8691,6 +8691,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import.reference.convert",
+    "label": "Convert instead button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import.reference.add-link",
+    "label": "Add as a link button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import.reference.cancel",
+    "label": "Cancel button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-import.cartridge-close",
     "label": "Close in Quiz import",
     "scope": "widget type",
@@ -9432,6 +9472,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Blank answer in Quiz import, by item",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-import",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.paper-skip-page",
+    "label": "Pages to import select (all or skip one page) in Quiz import",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -38875,6 +38938,106 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.import-block-list.add",
+    "label": "Add button in Import block list",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.new-pattern",
+    "label": "New blocked address field in Import block list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.remove",
+    "label": "Remove button in an Import block list row",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.restore-defaults",
+    "label": "Restore defaults button in Import block list",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.test-url",
+    "label": "Test an address field in Import block list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.subjects.add",
     "label": "Add content area button in Subjects",
     "scope": "board",
@@ -67551,6 +67714,65 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import-notice.open",
+    "label": "Add to board button on the sent-pages notice on the board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-screen.close",
+    "label": "Close button in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-screen.sent-remove",
+    "label": "Remove button on a page sent from the browser, in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-screen.target",
+    "label": "A one-tap choice (Flashcards, Quiz, Embed…) in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
     "id": "import-wizard.close",
     "label": "Close button in the Import wizard",
     "scope": "board",
@@ -67780,6 +68002,71 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.wall-prompt",
+    "label": "Prompt box when reviewing an imported Activity Wall",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wall-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.wall-layout",
+    "label": "Layout menu when reviewing an imported Activity Wall",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wall-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.board-name",
+    "label": "Board name box when reviewing an imported board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-board-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.board-cancel",
+    "label": "Cancel button when reviewing an imported board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-board-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.board-create",
+    "label": "Create board button when reviewing an imported board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-board-review",
         "kind": "shared",
         "path": []
       }

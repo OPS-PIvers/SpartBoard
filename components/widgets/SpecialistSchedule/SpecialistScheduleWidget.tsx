@@ -331,7 +331,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
               />
               <span
-                className="font-black min-w-0 [overflow-wrap:anywhere]"
+                className="font-black min-w-0 wrap-anywhere"
                 style={{
                   fontSize: `min(${Math.round(18 * textScale)}px, ${(4.5 * textScale).toFixed(2)}cqmin)`,
                   color: fontColor,
@@ -388,7 +388,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                   className={`w-full flex items-center rounded-2xl transition-all relative overflow-hidden shrink-0 ${
                     isActive
                       ? 'border-teal-600 shadow-md z-10'
-                      : 'border border-slate-200 shadow-sm'
+                      : 'border border-slate-200 shadow-xs'
                   }`}
                   style={{
                     backgroundColor: bgColor,
@@ -444,7 +444,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                         : ''}
                     </span>
                     <span
-                      className={`font-black leading-tight w-full [overflow-wrap:anywhere] ${isPast ? 'text-slate-400 line-through' : 'text-slate-700'}`}
+                      className={`font-black leading-tight w-full wrap-anywhere ${isPast ? 'text-slate-400 line-through' : 'text-slate-700'}`}
                       style={{
                         fontSize: `min(${Math.round(20 * textScale)}px, ${(5 * textScale).toFixed(2)}cqmin)`,
                       }}

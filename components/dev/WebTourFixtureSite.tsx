@@ -14,7 +14,7 @@ const FixtureFrame: React.FC = () => (
     <input
       id="fixture-comment"
       type="text"
-      className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+      className="mt-1 w-full rounded-sm border border-slate-300 px-2 py-1"
     />
   </div>
 );
@@ -72,7 +72,7 @@ const Course: React.FC = () => {
         <iframe
           title="Comment box"
           src={`${WEB_TOUR_FIXTURE_PATH}/frame`}
-          className="h-24 w-full rounded border border-slate-300"
+          className="h-24 w-full rounded-sm border border-slate-300"
         />
       )}
       <a
@@ -99,7 +99,7 @@ export const WebTourFixtureSite: React.FC = () => {
   };
   if (path === `${WEB_TOUR_FIXTURE_PATH}/frame`) return <FixtureFrame />;
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-50">
       <main className="mx-auto flex max-w-2xl flex-col gap-4 p-6 pb-16">
         {path.startsWith(`${WEB_TOUR_FIXTURE_PATH}/course/`) ? (
           <Course />

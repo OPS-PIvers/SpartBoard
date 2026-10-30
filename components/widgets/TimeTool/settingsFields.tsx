@@ -56,7 +56,7 @@ function TimeToolRadioGroup<V extends string | number | null>({
         const tabbable = selected || (selectedIndex < 0 && index === 0);
         const activeClass = selectedClass
           ? selectedClass(option.value)
-          : 'bg-white text-slate-900 shadow-sm font-semibold';
+          : 'bg-white text-slate-900 shadow-xs font-semibold';
         return (
           // no-tour-anchor: one radio per option; the group carries the anchor
           <button
@@ -67,7 +67,7 @@ function TimeToolRadioGroup<V extends string | number | null>({
             tabIndex={tabbable ? 0 : -1}
             disabled={disabled}
             onClick={() => onSelect(option.value)}
-            className={`flex-1 flex items-center justify-center text-xs px-2 py-1.5 rounded-md transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`flex-1 flex items-center justify-center text-xs px-2 py-1.5 rounded-md transition-colors cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-offset-1 focus:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed ${
               selected ? activeClass : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -165,13 +165,13 @@ const TRAFFIC_OPTIONS: ReadonlyArray<{ value: TrafficColor; leaf: string }> = [
 const trafficSelectedClass = (color: TrafficColor | null) => {
   switch (color) {
     case 'red':
-      return 'bg-red-500 text-white font-semibold shadow-sm';
+      return 'bg-red-500 text-white font-semibold shadow-xs';
     case 'yellow':
-      return 'bg-yellow-300 text-yellow-900 font-semibold shadow-sm';
+      return 'bg-yellow-300 text-yellow-900 font-semibold shadow-xs';
     case 'green':
-      return 'bg-green-500 text-white font-semibold shadow-sm';
+      return 'bg-green-500 text-white font-semibold shadow-xs';
     default:
-      return 'bg-white text-slate-900 shadow-sm font-semibold';
+      return 'bg-white text-slate-900 shadow-xs font-semibold';
   }
 };
 

@@ -7,7 +7,7 @@
 // allowlist. Rationale for not re-deriving the whole session: see the PR.
 
 import { onCall } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { randomUUID } from 'crypto';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
@@ -31,6 +31,7 @@ import {
   type GlKeyStep,
 } from './guidedLearningPublicStep';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { quizJoinCodeOwner } from './quizJoinCodeOwner';
 
 /** Only the kinds D8 puts in v1; Poll and Activity Wall stay unlaunchable. */
 const LAUNCHABLE_KINDS = [
@@ -575,9 +576,9 @@ export async function resolveTargeting(
 
 /**
  * Server mirror of `allocateJoinCode` (`hooks/useQuizAssignments.ts`): a code
- * is global across every teacher, so a candidate is rejected while any session
- * still carrying it is joinable. Falls back to an unchecked code rather than
- * refusing the launch, as the teacher's own path does.
+ * has one owner for good, so a candidate someone has claimed is rejected, as is
+ * an unclaimed legacy code with a joinable session. Falls back to an unchecked
+ * code; the batch's owner `create` then fails rather than sharing a code.
  */
 export async function allocateJoinCode(
   db: admin.firestore.Firestore,
@@ -585,6 +586,7 @@ export async function allocateJoinCode(
 ): Promise<string> {
   for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt += 1) {
     const candidate = newCode();
+    if ((await quizJoinCodeOwner(db, candidate)) !== null) continue;
     const pointers = await db
       .collection('quiz_join_codes')
       .doc(candidate)
@@ -1217,6 +1219,11 @@ export async function handleLaunchSubAssignment(
     mediaResponseEnabled: false,
     createdAt: now,
     updatedAt: now,
+  });
+  // create, not set: it fails if another account claimed the code meanwhile.
+  batch.create(db.doc(`quiz_join_codes/${code}`), {
+    teacherUid: hostUid,
+    createdAt: now,
   });
   batch.set(db.doc(`quiz_join_codes/${code}/sessions/${sessionId}`), {
     sessionId,

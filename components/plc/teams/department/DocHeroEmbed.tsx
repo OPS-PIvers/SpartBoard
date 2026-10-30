@@ -22,7 +22,7 @@ export const DocHeroEmbed: React.FC<{ url: string; title: string }> = ({
           : embed
       }
       title={title}
-      className="block h-[28rem] w-full border-0"
+      className="block h-112 w-full border-0"
       sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
       allow="clipboard-write"
     />

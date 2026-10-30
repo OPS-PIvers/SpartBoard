@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type * as admin from 'firebase-admin';
+import type * as admin from './firebaseAdmin';
 import {
   isPeriodFrozen,
   PERIOD_WINDOW_GRACE_MS,

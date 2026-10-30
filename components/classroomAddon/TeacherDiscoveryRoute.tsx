@@ -1192,7 +1192,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   onClick={() => setKind(tab.value)}
                   className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-50 ${
                     active
-                      ? 'bg-gradient-to-r from-brand-blue-primary to-brand-blue-light text-white shadow'
+                      ? 'bg-linear-to-r from-brand-blue-primary to-brand-blue-light text-white shadow-sm'
                       : 'text-slate-600 hover:bg-white'
                   }`}
                 >
@@ -1286,7 +1286,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   onChange={(e) => setTeacherName(e.target.value)}
                   placeholder={defaultTeacherName || 'Teacher name'}
                   disabled={busy}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition placeholder:text-slate-400 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
 
@@ -1354,7 +1354,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                         }
                       }}
                       disabled={busy}
-                      className="h-4 w-4 rounded accent-brand-blue-light"
+                      className="h-4 w-4 rounded-sm accent-brand-blue-light"
                     />
                     Share results with a PLC
                   </label>

@@ -239,7 +239,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
     height: 'min(16px, 4cqmin)',
   };
   const toolBtnClass =
-    'rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-40';
+    'rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-xs disabled:opacity-40';
   const toolBtnStyle = { padding: 'min(8px, 2cqmin)' };
 
   return (
@@ -301,7 +301,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                 onChange={(e) =>
                   onPageChange(sections[Number(e.target.value)].startIndex)
                 }
-                className="rounded-xl bg-white text-slate-700 font-bold uppercase tracking-tight border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-all"
+                className="rounded-xl bg-white text-slate-700 font-bold uppercase tracking-tight border border-slate-200 shadow-xs cursor-pointer hover:bg-slate-50 transition-all"
                 style={{
                   fontSize: 'min(11px, 2.8cqmin)',
                   padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
@@ -380,7 +380,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             <button
               onClick={onPresent}
               {...tourTypeAttr('smart-notebook.present', 'smartNotebook')}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm flex items-center transition-all active:scale-95"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs flex items-center transition-all active:scale-95"
               style={{
                 padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
                 gap: 'min(6px, 1.5cqmin)',
@@ -587,7 +587,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
               disabled={currentPage === 0}
               onClick={() => onPageChange(Math.max(0, currentPage - 1))}
               {...tourTypeAttr('smart-notebook.page-prev', 'smartNotebook')}
-              className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
+              className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-xs active:scale-90"
               style={{ padding: 'min(10px, 2.5cqmin)' }}
               title="Previous page"
             >
@@ -668,7 +668,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                 onPageChange(Math.min(totalPages - 1, currentPage + 1))
               }
               {...tourTypeAttr('smart-notebook.page-next', 'smartNotebook')}
-              className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
+              className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-xs active:scale-90"
               style={{ padding: 'min(10px, 2.5cqmin)' }}
               title="Next page"
             >
@@ -811,7 +811,7 @@ const Toolbar: React.FC<{
       aria-label={label}
       className={`flex items-center justify-center rounded-md transition-colors ${
         isActive
-          ? 'bg-brand-blue-primary text-white shadow-sm'
+          ? 'bg-brand-blue-primary text-white shadow-xs'
           : 'text-slate-300 hover:bg-white/10'
       }`}
       style={{
@@ -826,7 +826,7 @@ const Toolbar: React.FC<{
   return (
     <div
       ref={containerRef}
-      className="relative bg-slate-900/95 backdrop-blur"
+      className="relative bg-slate-900/95 backdrop-blur-sm"
       style={{ padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)' }}
     >
       <div
@@ -1001,7 +1001,7 @@ const Toolbar: React.FC<{
                     aria-label={label}
                     className={`flex-1 flex items-center justify-center rounded-md transition-colors ${
                       isActive
-                        ? 'bg-brand-blue-primary text-white shadow-sm'
+                        ? 'bg-brand-blue-primary text-white shadow-xs'
                         : 'text-slate-300 hover:bg-white/10'
                     }`}
                     style={{ height: 'min(36px, 8cqmin)' }}
@@ -1036,7 +1036,7 @@ const Toolbar: React.FC<{
                     aria-pressed={isActive}
                     className={`rounded-full transition-transform ${
                       isActive
-                        ? 'scale-110 ring-2 ring-white shadow-sm'
+                        ? 'scale-110 ring-2 ring-white shadow-xs'
                         : 'ring-1 ring-white/30 hover:scale-110'
                     }`}
                     style={{
@@ -1140,7 +1140,7 @@ const Toolbar: React.FC<{
                   onChange={(e) => setValue(parseInt(e.target.value, 10))}
                   {...tourTypeAttr('smart-notebook.pen-size', 'smartNotebook')}
                   aria-label={label}
-                  className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+                  className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light"
                 />
                 <span
                   className="font-mono text-slate-300 text-right tabular-nums"
@@ -1228,7 +1228,7 @@ const BackgroundPicker: React.FC<{
       aria-pressed={mode === target}
       className={`rounded-lg font-bold uppercase tracking-tight transition-colors ${
         mode === target
-          ? 'bg-indigo-600 text-white shadow-sm'
+          ? 'bg-indigo-600 text-white shadow-xs'
           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
       }`}
       style={{
@@ -1245,7 +1245,7 @@ const BackgroundPicker: React.FC<{
       role="dialog"
       aria-modal="true"
       aria-label="Page background"
-      className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+      className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs"
     >
       <div
         ref={panelRef}

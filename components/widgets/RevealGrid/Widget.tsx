@@ -258,7 +258,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
                     >
                       {/* FRONT OF CARD (Number) */}
                       <div
-                        className={`absolute w-full h-full flex flex-col items-center justify-center rounded-xl border-2 shadow-sm ${
+                        className={`absolute w-full h-full flex flex-col items-center justify-center rounded-xl border-2 shadow-xs ${
                           revealMode === 'flip'
                             ? 'backface-hidden'
                             : 'transition-opacity duration-500'
@@ -289,7 +289,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
 
                       {/* BACK OF CARD (Content) */}
                       <div
-                        className={`absolute w-full h-full flex items-center justify-center rounded-xl border-2 shadow-sm ${
+                        className={`absolute w-full h-full flex items-center justify-center rounded-xl border-2 shadow-xs ${
                           revealMode === 'flip'
                             ? 'backface-hidden rotate-y-180'
                             : 'transition-opacity duration-500'
@@ -307,7 +307,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
                         }}
                       >
                         <span
-                          className="text-center [overflow-wrap:anywhere] w-full text-slate-800 font-medium"
+                          className="text-center wrap-anywhere w-full text-slate-800 font-medium"
                           style={{
                             fontSize: memoryFont,
                             padding: 'min(24px, 6cqmin)',
@@ -336,7 +336,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
                     >
                       {/* FRONT OF CARD */}
                       <div
-                        className={`absolute w-full h-full flex flex-col items-center justify-center rounded-xl border-2 shadow-sm ${
+                        className={`absolute w-full h-full flex flex-col items-center justify-center rounded-xl border-2 shadow-xs ${
                           revealMode === 'flip'
                             ? 'backface-hidden'
                             : 'transition-opacity duration-500'
@@ -356,7 +356,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
                         }}
                       >
                         <span
-                          className="font-bold text-center [overflow-wrap:anywhere] w-full"
+                          className="font-bold text-center wrap-anywhere w-full"
                           style={{
                             fontSize: frontFont,
                             padding: 'min(24px, 6cqmin)',
@@ -368,7 +368,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
                         {/* THE MAGIC: X-Ray Answer Overlay */}
                         {isShowAnswersMode && !card.isRevealed && (
                           <div
-                            className="absolute bg-yellow-100/90 rounded border border-yellow-300 text-yellow-800 text-center shadow-sm z-10"
+                            className="absolute bg-yellow-100/90 rounded-sm border border-yellow-300 text-yellow-800 text-center shadow-xs z-10"
                             style={{
                               insetInline: 'min(8px, 4cqmin)',
                               bottom: 'min(8px, 4cqmin)',
@@ -385,7 +385,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
                             >
                               Answer
                             </span>
-                            <span className="[overflow-wrap:anywhere] font-medium">
+                            <span className="wrap-anywhere font-medium">
                               {card.backContent}
                             </span>
                           </div>
@@ -394,7 +394,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
 
                       {/* BACK OF CARD (The actual reveal) */}
                       <div
-                        className={`absolute w-full h-full flex items-center justify-center rounded-xl border-2 shadow-sm ${
+                        className={`absolute w-full h-full flex items-center justify-center rounded-xl border-2 shadow-xs ${
                           revealMode === 'flip'
                             ? 'backface-hidden rotate-y-180'
                             : 'transition-opacity duration-500'
@@ -412,7 +412,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
                         }}
                       >
                         <span
-                          className="text-center [overflow-wrap:anywhere] w-full text-slate-800 font-medium"
+                          className="text-center wrap-anywhere w-full text-slate-800 font-medium"
                           style={{
                             fontSize: backFont,
                             padding: 'min(24px, 6cqmin)',

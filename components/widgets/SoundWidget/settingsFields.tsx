@@ -107,7 +107,7 @@ export const SoundGoalTeamField: React.FC<{ ctx: CustomRenderCtx }> = ({
           quietGoalTeamId: teamId || null,
         });
       }}
-      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 appearance-none cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
       {...tourAttr(
         'widget-settings.sound.goal-team',
         ctx.widget.id,

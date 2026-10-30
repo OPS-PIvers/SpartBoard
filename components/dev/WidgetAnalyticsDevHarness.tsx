@@ -132,7 +132,7 @@ export const WidgetAnalyticsDevHarness: React.FC = () => {
   );
   return (
     <AuthContext.Provider value={auth}>
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50 p-6 pb-24 font-sans">
+      <div className="h-screen h-dvh overflow-y-auto bg-slate-50 p-6 pb-24 font-sans">
         <WidgetsPanel data={data} />
       </div>
     </AuthContext.Provider>

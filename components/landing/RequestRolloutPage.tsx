@@ -22,7 +22,7 @@ const CONTACT_EMAIL = 'spartboard@orono.k12.mn.us';
 type RequestKind = 'pilot' | 'district';
 
 const inputClass =
-  'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/20';
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20';
 
 const Field: React.FC<{
   label: string;
@@ -99,7 +99,7 @@ export const RequestRolloutPage: React.FC = () => {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <a href="/" className="flex items-center gap-2">
-            <img src="/favicon.png" alt="" className="h-8 w-8 rounded" />
+            <img src="/favicon.png" alt="" className="h-8 w-8 rounded-sm" />
             <span className="text-lg font-semibold text-slate-900">
               {APP_NAME}
             </span>
@@ -150,7 +150,7 @@ export const RequestRolloutPage: React.FC = () => {
                 <button
                   onClick={handleSignIn}
                   disabled={signingIn}
-                  className="inline-flex items-center gap-2 rounded-xl bg-brand-blue-primary px-6 py-3 font-bold text-white shadow transition hover:bg-brand-blue-dark disabled:opacity-70"
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-blue-primary px-6 py-3 font-bold text-white shadow-sm transition hover:bg-brand-blue-dark disabled:opacity-70"
                 >
                   {signingIn ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -269,7 +269,7 @@ export const RequestRolloutPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-blue-primary px-8 py-3 font-bold text-white shadow transition hover:bg-brand-blue-dark disabled:opacity-70"
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-blue-primary px-8 py-3 font-bold text-white shadow-sm transition hover:bg-brand-blue-dark disabled:opacity-70"
               >
                 {submitting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />

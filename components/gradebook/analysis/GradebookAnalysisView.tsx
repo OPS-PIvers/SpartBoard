@@ -178,7 +178,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
           aria-expanded={menuOpen}
           {...tourAttr('gradebook.analysis.filters')}
           onClick={() => setMenuOpen((o) => !o)}
-          className={`inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3.5 text-[13px] font-semibold shadow-sm ${menuOpen ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
+          className={`inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3.5 text-[13px] font-semibold shadow-xs ${menuOpen ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
         >
           Filters
           {activeCount > 0 && (
@@ -249,7 +249,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         anchorRef={filtersRef}
-        className="w-[300px] !p-4"
+        className="w-[300px] p-4!"
       >
         <div className="flex flex-col gap-3.5">
           <label className="flex flex-col gap-2">

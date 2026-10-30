@@ -64,7 +64,7 @@ let ownedTestClasses: string[] = [];
 const seenSections = new Map<string, { sessionId: string }>();
 const courseLinks = new Map<string, Record<string, unknown>>();
 
-vi.mock('firebase-admin', () => ({
+vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(() => ({

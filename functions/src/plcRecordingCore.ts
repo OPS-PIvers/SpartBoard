@@ -1,7 +1,7 @@
 // Group meeting recording logic shared by the callables, schedules and gcPlcOrphans (docs/plans/shipped/PLC_MEETING_RECORDING.md).
 import { HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { withDuration } from './webmDuration';
 import { refundAiUsage } from './aiGeneration';

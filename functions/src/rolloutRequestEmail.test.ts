@@ -25,7 +25,7 @@ const adminMock = vi.hoisted(() => ({
   mailSets: [] as Array<{ id: string; payload: Record<string, unknown> }>,
 }));
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const firestoreFn = vi.fn(() => ({
     collection: vi.fn((name: string) => {
       if (name === 'mail') {

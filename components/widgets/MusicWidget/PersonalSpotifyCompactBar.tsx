@@ -86,12 +86,12 @@ export const PersonalSpotifyCompactBar: React.FC<Props> = ({
         <img
           src={displayImage}
           alt=""
-          className="rounded-xl object-cover flex-shrink-0 shadow-lg"
+          className="rounded-xl object-cover shrink-0 shadow-lg"
           style={{ width: 'min(64px, 60cqh)', height: 'min(64px, 60cqh)' }}
         />
       ) : (
         <div
-          className="rounded-xl bg-slate-700 flex items-center justify-center flex-shrink-0"
+          className="rounded-xl bg-slate-700 flex items-center justify-center shrink-0"
           style={{ width: 'min(64px, 60cqh)', height: 'min(64px, 60cqh)' }}
         >
           <Music2
@@ -128,7 +128,7 @@ export const PersonalSpotifyCompactBar: React.FC<Props> = ({
 
   return (
     <div
-      className="flex items-center h-full w-full bg-slate-900/60 backdrop-blur-sm"
+      className="flex items-center h-full w-full bg-slate-900/60 backdrop-blur-xs"
       style={{ gap: 'min(10px, 7cqh)', padding: 'min(8px, 6cqh)' }}
     >
       <div

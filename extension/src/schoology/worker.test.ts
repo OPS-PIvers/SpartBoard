@@ -67,6 +67,22 @@ describe('Schoology worker', () => {
     expect(student.deps.inject).not.toHaveBeenCalled();
   });
 
+  it('refuses readers on pages the Send block list covers', async () => {
+    const { deps, worker } = setup({
+      blocked: (url) => Promise.resolve(url.includes('/assignment/5')),
+    });
+    await worker.navigated(1, 0, QUIZ_URL);
+    expect(deps.inject).not.toHaveBeenCalled();
+    expect(
+      await worker.message({ type: 'schoology/send', request: {} }, QUIZ_URL)
+    ).toEqual({
+      ok: false,
+      why: 'no-access',
+      message: 'Your district turned off sending from this page.',
+    });
+    expect(deps.send).not.toHaveBeenCalled();
+  });
+
   it('sends only for Schoology pages', async () => {
     const { deps, worker } = setup();
     const msg = { type: 'schoology/send', request: { quiz: {} } };

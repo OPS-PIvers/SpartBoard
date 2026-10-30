@@ -528,7 +528,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
         <button
           type="button"
           onClick={() => setSettingsOpen(true)}
-          className="rounded-full bg-rose-600 font-black text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
+          className="rounded-full bg-rose-600 font-black text-white focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300"
           style={{
             marginTop: 'min(14px, 3cqmin)',
             padding: 'min(10px, 2.4cqmin) min(18px, 4cqmin)',
@@ -567,7 +567,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             onClick={onBack}
             aria-label={t('flashcards.player.back')}
             className={cx(
-              'rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+              'rounded-full transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
               dark
                 ? 'bg-white/10 text-white hover:bg-white/20'
                 : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
@@ -597,9 +597,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 onClick={() => selectMode(candidate.id)}
                 aria-pressed={selected}
                 className={cx(
-                  'inline-flex items-center rounded-full font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+                  'inline-flex items-center rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
                   selected
-                    ? 'bg-rose-600 text-white shadow-sm'
+                    ? 'bg-rose-600 text-white shadow-xs'
                     : dark
                       ? 'text-white hover:bg-white/10'
                       : 'text-slate-700 hover:bg-white'
@@ -681,7 +681,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             aria-label={t('flashcards.player.settings')}
             aria-expanded={settingsOpen}
             className={cx(
-              'rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+              'rounded-full transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
               settingsOpen
                 ? 'bg-rose-600 text-white'
                 : dark
@@ -928,7 +928,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               onClick={() => setSettingsOpen(false)}
               aria-label={t('flashcards.settings.close')}
               className={cx(
-                'ml-auto rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+                'ml-auto rounded-full transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
                 dark ? 'hover:bg-white/10' : 'hover:bg-slate-100'
               )}
               style={{ padding: 'min(7px, 1.5cqmin)' }}
@@ -1137,7 +1137,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 type="button"
                 onClick={resetProgress}
                 className={cx(
-                  'flex w-full items-center justify-center rounded-xl border font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300',
+                  'flex w-full items-center justify-center rounded-xl border font-black transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300',
                   dark
                     ? 'border-rose-300/30 bg-rose-400/10 text-rose-100 hover:bg-rose-400/20'
                     : 'border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100'
@@ -1217,9 +1217,9 @@ const SegmentedSetting: React.FC<{
           aria-pressed={value === option.value}
           disabled={disabled}
           className={cx(
-            'flex-1 rounded-lg font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60',
+            'flex-1 rounded-lg font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60',
             value === option.value
-              ? 'bg-rose-600 text-white shadow-sm'
+              ? 'bg-rose-600 text-white shadow-xs'
               : dark
                 ? 'text-white hover:bg-white/10'
                 : 'text-slate-700 hover:bg-white'
@@ -1283,7 +1283,7 @@ const QuestionCountSetting: React.FC<{
             onChange(Math.min(bounded, Math.max(1, parsed)));
           }}
           className={cx(
-            'w-0 min-w-0 flex-1 rounded-lg border-2 text-center font-bold outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60',
+            'w-0 min-w-0 flex-1 rounded-lg border-2 text-center font-bold outline-hidden transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60',
             dark
               ? 'border-white/15 bg-white/10 text-white focus:border-cyan-300 focus:ring-cyan-300/20'
               : 'border-slate-200 bg-white text-slate-900 focus:border-rose-400 focus:ring-rose-200'
@@ -1299,9 +1299,9 @@ const QuestionCountSetting: React.FC<{
           aria-pressed={isAll}
           disabled={disabled}
           className={cx(
-            'shrink-0 rounded-lg font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60',
+            'shrink-0 rounded-lg font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60',
             isAll
-              ? 'bg-rose-600 text-white shadow-sm'
+              ? 'bg-rose-600 text-white shadow-xs'
               : dark
                 ? 'bg-white/10 text-white hover:bg-white/20'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -1340,7 +1340,7 @@ const SelectSetting: React.FC<{
       disabled={disabled}
       onChange={(event) => onChange(Number(event.target.value))}
       className={cx(
-        'rounded-lg border-2 font-bold outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60',
+        'rounded-lg border-2 font-bold outline-hidden transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60',
         dark
           ? 'border-white/15 bg-slate-900 text-white focus:border-cyan-300 focus:ring-cyan-300/20'
           : 'border-slate-200 bg-white text-slate-900 focus:border-rose-400 focus:ring-rose-200'
@@ -1412,7 +1412,7 @@ const ToggleSetting: React.FC<{
       style={{ width: 'min(38px, 9cqmin)', height: 'min(22px, 5cqmin)' }}
     >
       <span
-        className="absolute rounded-full bg-white shadow-sm transition-transform"
+        className="absolute rounded-full bg-white shadow-xs transition-transform"
         style={{
           width: 'min(16px, 3.8cqmin)',
           height: 'min(16px, 3.8cqmin)',

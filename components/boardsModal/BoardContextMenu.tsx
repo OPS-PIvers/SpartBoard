@@ -161,7 +161,7 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
               item.action();
               onClose();
             }}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors focus-visible:outline-none ${
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors focus-visible:outline-hidden ${
               item.danger
                 ? 'text-brand-red-primary hover:bg-brand-red-primary/10 focus-visible:bg-brand-red-primary/10'
                 : 'text-slate-700 hover:bg-slate-100 focus-visible:bg-slate-100'

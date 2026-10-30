@@ -114,7 +114,7 @@ export const SessionSummary = React.memo<{
         <svg
           viewBox={`0 0 ${total} 1`}
           preserveAspectRatio="none"
-          className="w-full shrink-0 rounded"
+          className="w-full shrink-0 rounded-sm"
           style={{ height: 'min(28px, 5cqmin)' }}
           role="img"
           aria-label={t('widgets.sound.timeline')}

@@ -67,7 +67,7 @@ let contextDocs: Array<{ id: string; data: () => unknown }>;
 let gradeLinks: Map<string, Record<string, unknown>>;
 let lastSessionCollection = '';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(() => ({

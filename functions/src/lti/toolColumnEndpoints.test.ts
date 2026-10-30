@@ -129,7 +129,7 @@ const fakeDb = {
     }),
 };
 
-vi.mock('firebase-admin', () => ({
+vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(() => fakeDb),

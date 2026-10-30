@@ -137,7 +137,7 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
         style={{ right: '22px', bottom: '2px', whiteSpace: 'nowrap' }}
       >
         <span
-          className="bg-brand-blue-primary text-white font-black rounded px-1 py-0.5 shadow"
+          className="bg-brand-blue-primary text-white font-black rounded-sm px-1 py-0.5 shadow-sm"
           style={{ fontSize: 'min(9px, 3cqmin)' }}
         >
           {displayRotation}°

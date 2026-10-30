@@ -24,6 +24,7 @@ import {
   Library,
   ClipboardList,
   History,
+  ShieldBan,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -49,6 +50,7 @@ import { SchoologyCategoriesPanel } from './SchoologyCategoriesPanel';
 import { AccessSearchProvider } from './access/AccessSearchProvider';
 import { GradebookAdminPanel } from './Gradebook/GradebookAdminPanel';
 import { ViewAsLogPanel } from './ViewAsLog/ViewAsLogPanel';
+import { ImportBlockListPanel } from './ImportBlockList/ImportBlockListPanel';
 import type { GlobalFeature } from '@/types';
 
 interface AdminSettingsProps {
@@ -188,6 +190,13 @@ const TAB_GROUPS = [
         icon: Link2,
         component: LinkShortenerManager,
       },
+      {
+        id: 'import-block-list',
+        label: 'Import block list',
+        icon: ShieldBan,
+        component: ImportBlockListPanel,
+        feature: 'universal-import',
+      },
     ],
   },
   {
@@ -283,9 +292,9 @@ const RailTab: React.FC<{
     onClick={onClick}
     title={label}
     {...tourFieldAttr('admin.settings.tab', 'admin', id)}
-    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors justify-center lg:justify-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors justify-center lg:justify-start focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 ${
       isActive
-        ? 'bg-white text-brand-blue-dark font-semibold shadow-sm'
+        ? 'bg-white text-brand-blue-dark font-semibold shadow-xs'
         : 'text-white/70 hover:bg-white/10 hover:text-white'
     }`}
   >

@@ -48,7 +48,7 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
             <span className="text-sm text-slate-700">{email}</span>
             <button
               onClick={() => onChange(betaUsers.filter((e) => e !== email))}
-              className="text-red-600 hover:bg-red-100 p-1 rounded transition-colors"
+              className="text-red-600 hover:bg-red-100 p-1 rounded-sm transition-colors"
               aria-label={`Remove ${email}`}
               {...tourFieldAttr(
                 'admin.beta.remove',
@@ -67,7 +67,7 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
             placeholder="user@example.com"
             aria-label="Add beta user email"
             {...tourAttr('admin.beta.email')}
-            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const target = e.target as HTMLInputElement;

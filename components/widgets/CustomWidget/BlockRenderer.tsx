@@ -66,9 +66,7 @@ function TextBlock({ block, config, blockState }: BlockProps<TextBlockConfig>) {
         fontSize: 'min(16px, 6cqmin)',
       }}
     >
-      <span className="min-w-0 text-center [overflow-wrap:anywhere]">
-        {displayText}
-      </span>
+      <span className="min-w-0 text-center wrap-anywhere">{displayText}</span>
     </div>
   );
 }
@@ -96,9 +94,7 @@ function HeadingBlock({
         fontWeight: 'bold',
       }}
     >
-      <span className="min-w-0 text-center [overflow-wrap:anywhere]">
-        {displayText}
-      </span>
+      <span className="min-w-0 text-center wrap-anywhere">{displayText}</span>
     </div>
   );
 }
@@ -166,7 +162,7 @@ function RevealBlock({
           />
         ) : (
           <span
-            className="min-w-0 text-center [overflow-wrap:anywhere] p-2"
+            className="min-w-0 text-center wrap-anywhere p-2"
             style={{
               color: block.style.textColor ?? undefined,
               fontSize: 'min(16px, 6cqmin)',
@@ -224,7 +220,7 @@ function FlipCardBlock({
             />
           ) : (
             <span
-              className="min-w-0 text-center [overflow-wrap:anywhere] p-2"
+              className="min-w-0 text-center wrap-anywhere p-2"
               style={{
                 color: block.style.textColor ?? undefined,
                 fontSize: 'min(16px, 6cqmin)',
@@ -251,7 +247,7 @@ function FlipCardBlock({
             />
           ) : (
             <span
-              className="min-w-0 text-center [overflow-wrap:anywhere] p-2"
+              className="min-w-0 text-center wrap-anywhere p-2"
               style={{
                 color: block.style.textColor ?? 'white',
                 fontSize: 'min(16px, 6cqmin)',
@@ -280,9 +276,7 @@ function ConditionalLabelBlock({
         fontSize: 'min(16px, 6cqmin)',
       }}
     >
-      <span className="min-w-0 text-center [overflow-wrap:anywhere]">
-        {displayText}
-      </span>
+      <span className="min-w-0 text-center wrap-anywhere">{displayText}</span>
     </div>
   );
 }
@@ -394,7 +388,7 @@ function ButtonBlock({
     <div className="w-full h-full flex items-center justify-center p-1">
       {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
       <button
-        className={`rounded transition-colors font-medium flex items-center gap-1 ${btnClass}`}
+        className={`rounded-sm transition-colors font-medium flex items-center gap-1 ${btnClass}`}
         style={{
           fontSize: 'min(14px, 5.5cqmin)',
           padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
@@ -470,7 +464,7 @@ function CounterBlock({
       <div className="flex flex-wrap items-center justify-center gap-1">
         {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
         <button
-          className="bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
+          className="bg-slate-600 hover:bg-slate-500 text-white rounded-sm transition-colors"
           style={{
             fontSize: 'min(16px, 6cqmin)',
             padding: 'min(4px, 1.5cqmin) min(10px, 3cqmin)',
@@ -491,7 +485,7 @@ function CounterBlock({
         </div>
         {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
         <button
-          className="bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
+          className="bg-slate-600 hover:bg-slate-500 text-white rounded-sm transition-colors"
           style={{
             fontSize: 'min(16px, 6cqmin)',
             padding: 'min(4px, 1.5cqmin) min(10px, 3cqmin)',
@@ -559,7 +553,7 @@ function ToggleBlock({
         }}
       >
         <div
-          className="absolute top-0.5 rounded-full bg-white shadow transition-transform duration-200"
+          className="absolute top-0.5 rounded-full bg-white shadow-sm transition-transform duration-200"
           style={{
             width: 'min(22px, 6.5cqmin)',
             height: 'min(22px, 6.5cqmin)',
@@ -649,7 +643,7 @@ function TextInputBlock({
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
         placeholder={config.placeholder ?? 'Type here…'}
-        className="bg-slate-700 border border-slate-500 rounded text-white outline-none focus:border-blue-400"
+        className="bg-slate-700 border border-slate-500 rounded-sm text-white outline-hidden focus:border-blue-400"
         style={{
           fontSize: 'min(13px, 5cqmin)',
           padding: 'min(4px, 1.5cqmin) min(8px, 2.5cqmin)',
@@ -658,7 +652,7 @@ function TextInputBlock({
       {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
       <button
         onClick={handleSubmit}
-        className="bg-brand-blue-primary hover:bg-brand-blue-light text-white rounded transition-colors self-end"
+        className="bg-brand-blue-primary hover:bg-brand-blue-light text-white rounded-sm transition-colors self-end"
         style={{
           fontSize: 'min(12px, 4.5cqmin)',
           padding: 'min(4px, 1.5cqmin) min(10px, 3cqmin)',
@@ -721,7 +715,7 @@ function PollBlock({
             <button
               key={i}
               onClick={() => handleVote(i)}
-              className="relative rounded overflow-hidden text-left transition-colors"
+              className="relative rounded-sm overflow-hidden text-left transition-colors"
               style={{
                 backgroundColor: voted ? '#334155' : '#475569',
                 fontSize: 'min(12px, 4.5cqmin)',
@@ -806,7 +800,7 @@ function MultipleChoiceBlock({
             <button
               key={i}
               onClick={() => handleSelect(i)}
-              className={`rounded text-left text-white transition-colors ${btnBg}`}
+              className={`rounded-sm text-left text-white transition-colors ${btnBg}`}
               style={{
                 fontSize: 'min(12px, 4.5cqmin)',
                 padding: 'min(4px, 1.5cqmin) min(8px, 2.5cqmin)',
@@ -1060,7 +1054,7 @@ function SortBinBlock({
               {itemsInBin.map((it, j) => (
                 <div
                   key={j}
-                  className="bg-green-700 rounded text-white"
+                  className="bg-green-700 rounded-sm text-white"
                   style={{
                     fontSize: 'min(10px, 3.5cqmin)',
                     padding: 'min(2px, 0.8cqmin) min(5px, 1.8cqmin)',
@@ -1191,7 +1185,7 @@ function TimerBlock({
             <button
               onClick={handleStart}
               disabled={remaining <= 0}
-              className="bg-green-700 hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded transition-colors flex items-center gap-1"
+              className="bg-green-700 hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-sm transition-colors flex items-center gap-1"
               style={{
                 fontSize: 'min(12px, 4.5cqmin)',
                 padding: 'min(4px, 1.5cqmin) min(10px, 3cqmin)',
@@ -1209,7 +1203,7 @@ function TimerBlock({
             // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
             <button
               onClick={handleStop}
-              className="bg-yellow-700 hover:bg-yellow-600 text-white rounded transition-colors flex items-center gap-1"
+              className="bg-yellow-700 hover:bg-yellow-600 text-white rounded-sm transition-colors flex items-center gap-1"
               style={{
                 fontSize: 'min(12px, 4.5cqmin)',
                 padding: 'min(4px, 1.5cqmin) min(10px, 3cqmin)',
@@ -1227,7 +1221,7 @@ function TimerBlock({
           {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
           <button
             onClick={handleReset}
-            className="bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors flex items-center gap-1"
+            className="bg-slate-600 hover:bg-slate-500 text-white rounded-sm transition-colors flex items-center gap-1"
             style={{
               fontSize: 'min(12px, 4.5cqmin)',
               padding: 'min(4px, 1.5cqmin) min(10px, 3cqmin)',
@@ -1316,11 +1310,11 @@ function ChecklistBlock({
         <button
           key={i}
           onClick={() => handleCheck(i)}
-          className="flex items-center gap-1 text-left hover:bg-slate-700 rounded px-1 transition-colors"
+          className="flex items-center gap-1 text-left hover:bg-slate-700 rounded-sm px-1 transition-colors"
           style={{ padding: 'min(3px, 1.2cqmin) min(4px, 1.5cqmin)' }}
         >
           <span
-            className={`rounded border-2 flex items-center justify-center flex-shrink-0 ${
+            className={`rounded border-2 flex items-center justify-center shrink-0 ${
               checked[i]
                 ? 'bg-green-600 border-green-600 text-white'
                 : 'border-slate-400 bg-transparent'

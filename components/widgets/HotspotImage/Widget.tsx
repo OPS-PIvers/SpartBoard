@@ -161,7 +161,7 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
                     <button
                       aria-label={`Open hotspot: ${spot.title || 'Untitled'}`}
                       onClick={(e) => handlePinClick(spot.id, e)}
-                      className={`relative flex items-center justify-center rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-blue-400
+                      className={`relative flex items-center justify-center rounded-full transition-all focus:outline-hidden focus:ring-2 focus:ring-blue-400
                         ${
                           isActive
                             ? 'bg-blue-600 text-white scale-110 shadow-lg shadow-blue-500/50 z-20'

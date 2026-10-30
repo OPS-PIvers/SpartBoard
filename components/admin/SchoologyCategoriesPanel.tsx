@@ -23,7 +23,7 @@ const clampWeight = (n: number): number =>
   Math.max(0, Math.min(100, Math.round(n)));
 
 const inputClass =
-  'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 
 export const SchoologyCategoriesPanel: React.FC = () => {
   const [rows, setRows] = useState<Row[] | null>(null);

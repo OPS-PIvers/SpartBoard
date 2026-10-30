@@ -14,7 +14,7 @@ const Frame: React.FC<{
   children: React.ReactNode;
 }> = ({ n, title, value, open, onOpen, children }) => (
   <div
-    className={`rounded-xl border bg-white ${open ? 'border-brand-blue-primary/40 shadow-sm' : 'border-slate-200'}`}
+    className={`rounded-xl border bg-white ${open ? 'border-brand-blue-primary/40 shadow-xs' : 'border-slate-200'}`}
   >
     {/* no-tour-anchor: DEV-only harness frame, never shipped */}
     <button
@@ -39,7 +39,7 @@ const Frame: React.FC<{
         </span>
       )}
     </button>
-    {open && <div className="px-4 pb-4 pl-[3.25rem]">{children}</div>}
+    {open && <div className="px-4 pb-4 pl-13">{children}</div>}
   </div>
 );
 

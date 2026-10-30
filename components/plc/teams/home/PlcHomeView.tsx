@@ -103,7 +103,7 @@ const LatestAssessment: React.FC<{
         type="button"
         {...tourAttr('teams.home.latest-assessment')}
         onClick={() => onOpenAssessment(featured.assessmentId)}
-        className="block text-left text-base font-bold text-slate-800 hover:text-brand-blue-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+        className="block text-left text-base font-bold text-slate-800 hover:text-brand-blue-primary focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
       >
         {featured.title}
       </button>
@@ -153,7 +153,7 @@ const ToolsRow: React.FC<{ tools: readonly PlcHomeTool[] }> = ({ tools }) => (
           type="button"
           onClick={onOpen}
           {...tourFieldAttr('teams.home.tool', 'teams-home', id)}
-          className="group flex w-full min-w-0 items-start gap-3 rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          className="group flex w-full min-w-0 items-start gap-3 rounded-sm text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
         >
           <Icon
             className="mt-0.5 h-5 w-5 shrink-0 text-slate-400 group-hover:text-brand-blue-primary"

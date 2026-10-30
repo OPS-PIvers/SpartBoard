@@ -1,6 +1,6 @@
 // Dev-only: seeds or removes a demo Gradebook (two test classes, twelve assignments, marks, targets) in the caller's dev account.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { createHmac } from 'crypto';
 import './functionsInit';
 import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';

@@ -163,7 +163,7 @@ const MyItemRow: React.FC<{
         disabled={item.done}
         {...tourFieldAttr('teams.my-items.check', 'teams-shell', item.id)}
         onClick={onToggle}
-        className={`shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
+        className={`shrink-0 rounded-full transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
           item.done
             ? 'text-emerald-500'
             : 'text-slate-300 hover:text-emerald-500'

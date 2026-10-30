@@ -309,7 +309,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
             </span>
             <BucketBar buckets={row.buckets} />
             <span
-              className="break-words font-sans text-brand-gray-primary"
+              className="wrap-break-word font-sans text-brand-gray-primary"
               style={text.sub}
             >
               {row.mastered}/{row.total} mastered · {row.studyMinutes} min ·{' '}
@@ -386,13 +386,13 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
       >
         <div className="min-w-0">
           <p
-            className="break-words font-sans font-medium text-brand-gray-dark"
+            className="wrap-break-word font-sans font-medium text-brand-gray-dark"
             style={text.sub}
           >
             {flag.card?.term ?? flag.cardId}
           </p>
           <p
-            className="break-words font-sans text-brand-gray-primary"
+            className="wrap-break-word font-sans text-brand-gray-primary"
             style={text.sub}
           >
             Wrote “{flag.response}” · expected “{flag.expected}”
@@ -473,7 +473,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
             </p>
             {row.submittedAt !== null && (
               <p
-                className="break-words font-sans text-brand-gray-primary"
+                className="wrap-break-word font-sans text-brand-gray-primary"
                 style={text.sub}
               >
                 {row.score}/{row.total} · submitted{' '}
@@ -624,7 +624,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                         {entry.card.term}
                       </p>
                       <p
-                        className="break-words font-sans text-brand-gray-primary"
+                        className="wrap-break-word font-sans text-brand-gray-primary"
                         style={text.sub}
                       >
                         {entry.correct} of {entry.answered} correct ·{' '}
@@ -648,7 +648,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                       {hard.card.term}
                     </p>
                     <p
-                      className="break-words font-sans text-brand-gray-primary"
+                      className="wrap-break-word font-sans text-brand-gray-primary"
                       style={text.sub}
                     >
                       {hard.card.definition} · {hard.strugglingStudents} still

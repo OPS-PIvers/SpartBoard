@@ -1,5 +1,5 @@
 // Writes the student-readable projection `student_grades/{studentUid}/classes/{classId}` (docs/plans/GRADEBOOK.md D35-D37).
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import {
   DEFAULT_ATTEMPT_POLICY,
   DEFAULT_GRADEBOOK_SETTINGS,

@@ -37,7 +37,7 @@ export const AddSpot: React.FC<AddSpotProps> = ({
         e.stopPropagation();
         onAddAt(placement);
       }}
-      className={`flex items-center justify-center rounded-full border border-dashed border-white/40 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${reveal} ${className}`}
+      className={`flex items-center justify-center rounded-full border border-dashed border-white/40 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 ${reveal} ${className}`}
       style={{ padding: scale.pad, ...style }}
     >
       <Plus

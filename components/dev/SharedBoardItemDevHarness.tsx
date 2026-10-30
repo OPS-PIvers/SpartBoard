@@ -58,7 +58,7 @@ const Frame: React.FC<{ w: number; h: number; children: React.ReactNode }> = ({
   children,
 }) => (
   <div
-    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs"
     style={{ width: w, height: h, containerType: 'size' }}
   >
     {children}
@@ -67,7 +67,7 @@ const Frame: React.FC<{ w: number; h: number; children: React.ReactNode }> = ({
 
 export const SharedBoardItemDevHarness: React.FC = () => (
   <DashboardContext.Provider value={dashboard}>
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100 p-8 pb-16">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-100 p-8 pb-16">
       {SIZES.map(({ w, h }) => (
         <div key={w} className="mb-8 flex flex-wrap items-start gap-8">
           <Frame w={w} h={h}>

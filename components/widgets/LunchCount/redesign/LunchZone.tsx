@@ -22,7 +22,7 @@ export const ZONE_TEXT = 'clamp(12px, calc(3.4cqmin - 0.5px), 30px)';
 export const CHIP_HEIGHT = 'max(36px, min(64px, 2.4em))';
 
 export const CHIP_CLASS =
-  'flex items-center max-w-full rounded-xl bg-white text-slate-800 font-bold leading-tight shadow-sm [overflow-wrap:anywhere] transition-colors hover:bg-slate-50 active:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary [-webkit-tap-highlight-color:transparent]';
+  'flex items-center max-w-full rounded-xl bg-white text-slate-800 font-bold leading-tight shadow-xs wrap-anywhere transition-colors hover:bg-slate-50 active:bg-slate-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary [-webkit-tap-highlight-color:transparent]';
 
 export const ChipGrid: React.FC<ChipGridProps> = ({
   students,
@@ -132,7 +132,7 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
           {count}
         </span>
         <span
-          className={`font-black leading-tight min-w-0 [overflow-wrap:anywhere] ${tone.label}`}
+          className={`font-black leading-tight min-w-0 wrap-anywhere ${tone.label}`}
           style={{ fontSize: ZONE_TEXT }}
         >
           {label}
@@ -156,7 +156,7 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
               <button
                 type="button"
                 onClick={() => onPeekItem(menuItem)}
-                className="relative touch-target-expand shrink-0 rounded-lg overflow-hidden bg-white active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                className="relative touch-target-expand shrink-0 rounded-lg overflow-hidden bg-white active:opacity-80 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                 style={{
                   width: 'clamp(32px, 11cqmin, 96px)',
                   height: 'clamp(32px, 11cqmin, 96px)',
@@ -173,7 +173,7 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
             ) : null}
             <div
               title={fullLine}
-              className={`flex-1 min-w-0 font-semibold leading-snug line-clamp-2 [overflow-wrap:anywhere] ${tone.text}`}
+              className={`flex-1 min-w-0 font-semibold leading-snug line-clamp-2 wrap-anywhere ${tone.text}`}
               style={{ fontSize: ZONE_TEXT }}
             >
               {line}
@@ -189,7 +189,7 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
                         <button
                           type="button"
                           onClick={() => onPeekItem(s)}
-                          className="underline decoration-slate-400 underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                          className="underline decoration-slate-400 underline-offset-2 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                           aria-label={`Show photo of ${s.name}`}
                         >
                           {s.name}

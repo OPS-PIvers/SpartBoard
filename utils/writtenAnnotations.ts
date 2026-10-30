@@ -448,22 +448,18 @@ export const PREVIEW_ANNOTATION_ID = '__preview__';
  * highlight-color slots.
  */
 export const PREVIEW_HIGHLIGHT_CLASS =
-  'bg-violet-200/50 outline-dashed outline-1 outline-violet-400 text-inherit rounded-sm px-0.5';
+  'bg-violet-200/50 outline-dashed outline-1 outline-violet-400 text-inherit rounded-xs px-0.5';
 
 // The four `<mark>` background classes shipped by `highlightClass`.
-// Exported so `tailwind.config.js` can spread them into its `safelist`
-// without duplicating the list — these classes live in this file, which
-// Tailwind already scans via the `utils/` content glob, but the safelist
-// is a belt-and-braces guarantee against future content-glob regressions
-// and needs to stay in lockstep with the switch below.
+// Tailwind already finds them in this file; index.css also lists them in an
+// `@source inline` as a guarantee, kept in lockstep by tests/indexCssHighlightSource.test.ts.
 export const HIGHLIGHT_BG_CLASSES = [
   'bg-amber-300/60',
   'bg-emerald-300/60',
   'bg-pink-300/60',
   'bg-sky-300/60',
   // Preview mark for the pending-selection state — see
-  // `PREVIEW_HIGHLIGHT_CLASS`. Kept in the same safelist so a
-  // content-glob regression can't strip just the preview style.
+  // `PREVIEW_HIGHLIGHT_CLASS`. Listed here so it's guaranteed with the others.
   'bg-violet-200/50',
   'outline-violet-400',
 ] as const;
@@ -477,7 +473,7 @@ export const HIGHLIGHT_BG_CLASSES = [
 export const highlightClass = (
   color: WrittenAnswerAnnotation['highlightColor']
 ): string => {
-  const base = 'text-inherit rounded-sm px-0.5 cursor-pointer';
+  const base = 'text-inherit rounded-xs px-0.5 cursor-pointer';
   switch (color) {
     case 'green':
       return `bg-emerald-300/60 ${base}`;

@@ -201,14 +201,14 @@ export const WidgetUsersModal: React.FC<{
                   placeholder="Search by email…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <select
                 {...tourAttr('admin.analytics.widget-users-building')}
                 value={buildingFilter}
                 onChange={(e) => setBuildingFilter(e.target.value)}
-                className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All buildings</option>
                 {buildingOptions.map(([id, n]) => (

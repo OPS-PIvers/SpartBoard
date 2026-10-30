@@ -59,7 +59,7 @@ const LunchTimeControlImpl: React.FC<CustomRenderCtx> = ({
             }
           }}
           placeholder="HR"
-          className="w-16 p-2.5 text-xs text-center border border-slate-200 rounded-xl outline-none bg-white font-mono"
+          className="w-16 p-2.5 text-xs text-center border border-slate-200 rounded-xl outline-hidden bg-white font-mono"
         />
         <span className="font-black text-slate-400 text-sm">:</span>
         <input
@@ -91,7 +91,7 @@ const LunchTimeControlImpl: React.FC<CustomRenderCtx> = ({
             }
           }}
           placeholder="MM"
-          className="w-16 p-2.5 text-xs text-center border border-slate-200 rounded-xl outline-none bg-white font-mono"
+          className="w-16 p-2.5 text-xs text-center border border-slate-200 rounded-xl outline-hidden bg-white font-mono"
         />
       </div>
       {hour && (

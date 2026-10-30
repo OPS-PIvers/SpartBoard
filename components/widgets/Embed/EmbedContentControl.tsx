@@ -11,7 +11,7 @@ import type { EmbedConfig } from '@/types';
 type Props = CustomRenderCtx;
 
 const TEXTAREA_BASE_CLASS =
-  'w-full text-xs border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500';
+  'w-full text-xs border rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-500';
 const TEXTAREA_CODE_CLASS =
   'font-mono bg-slate-900 border-slate-700 text-emerald-200 placeholder:text-slate-400';
 
@@ -75,7 +75,7 @@ const EmbedContentControlImpl: React.FC<Props> = ({
             onClick={() => updateConfig({ mode: 'url' })}
             className={`flex-1 py-1.5 text-xxs rounded-lg transition-all flex items-center justify-center gap-2 ${
               mode === 'url'
-                ? 'bg-white shadow-sm text-indigo-600'
+                ? 'bg-white shadow-xs text-indigo-600'
                 : 'text-slate-600'
             }`}
           >
@@ -94,7 +94,7 @@ const EmbedContentControlImpl: React.FC<Props> = ({
             onClick={() => updateConfig({ mode: 'code' })}
             className={`flex-1 py-1.5 text-xxs rounded-lg transition-all flex items-center justify-center gap-2 ${
               mode === 'code'
-                ? 'bg-white shadow-sm text-indigo-600'
+                ? 'bg-white shadow-xs text-indigo-600'
                 : 'text-slate-600'
             }`}
           >
@@ -120,7 +120,7 @@ const EmbedContentControlImpl: React.FC<Props> = ({
               value={url}
               placeholder="https://example.com..."
               onChange={(e) => updateConfig({ url: e.target.value })}
-              className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <EmbedVerifyControl

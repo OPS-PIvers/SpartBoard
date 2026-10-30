@@ -9,7 +9,7 @@ export const ProjectRubricSheet: React.FC<{
   onClose: () => void;
 }> = ({ rubric, maxPoints, onClose }) => (
   <div
-    className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+    className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 backdrop-blur-xs sm:items-center sm:p-6"
     role="dialog"
     aria-modal="true"
     aria-label={`How this is scored: ${rubric.title}`}

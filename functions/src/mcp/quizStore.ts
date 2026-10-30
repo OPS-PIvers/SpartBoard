@@ -1,5 +1,5 @@
 // Server mirrors of the quiz / question bank save paths (hooks/useQuiz.ts saveQuiz, hooks/useQuestionBanks.ts saveBank).
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { hashQuestionForTranslation } from '../quizTranslationHash';
 import { ToolError } from './activity';
 import { standardCodes, type TargetTag } from './standards';

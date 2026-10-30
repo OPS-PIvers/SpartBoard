@@ -108,7 +108,7 @@ vi.mock('axios', () => ({
   },
 }));
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const seg = (p: string) => p.split('/');
 
   const matches = (data: any, f: { f: string; op: string; v: unknown }) => {
@@ -275,7 +275,7 @@ import {
   PIN_LOGIN_SESSION_MAX_DAILY_FAILURES,
 } from './studentIdentity';
 import { computeStudentUid } from './classlinkShared';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
 // The onCall mock returns the raw handler, so each callable is invokable.
 const callStudentLogin = studentLoginV1 as unknown as (req: {
@@ -1676,6 +1676,39 @@ describe('pinLoginV1', () => {
     ).toEqual({ matched: false, reason: 'no-joinable-session' });
     expect(h.lastCustomToken).toBeNull();
   });
+  it("bridges only the code owner's session, never a colliding one", async () => {
+    h.docStore.set('quiz_join_codes/ABC123', { teacherUid: 'teacher1' });
+    for (const [id, teacherUid] of [
+      ['qs-real', 'teacher1'],
+      ['qs-squat', 'attacker'],
+    ]) {
+      h.docStore.set(`quiz_sessions/${id}`, {
+        code: 'ABC123',
+        status: 'active',
+        teacherUid,
+        rosterIds: ['r1'],
+      });
+    }
+    h.docStore.set('users/attacker/rosters/r1/pin_index/1__123456', {
+      pseudonym: 'PSX',
+      classId: 'CLX',
+      orgId: 'org-orono',
+    });
+
+    expect(
+      await callPinLogin({
+        data: {
+          kind: 'quiz',
+          code: 'ABC123',
+          sessionId: 'qs-squat',
+          pin: '123456',
+          period: '1',
+        },
+      })
+    ).toEqual({ matched: false, reason: 'no-joinable-session' });
+    expect(h.lastCustomToken).toBeNull();
+  });
+
   it('mints a token for a resolved video-activity PIN', async () => {
     h.docStore.set('video_activity_sessions/vs1', {
       teacherUid: 'teacher1',

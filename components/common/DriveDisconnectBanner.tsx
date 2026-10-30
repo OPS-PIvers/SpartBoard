@@ -102,13 +102,13 @@ export const DriveDisconnectBanner: React.FC = () => {
     return (
       <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
         <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-3 flex items-center gap-3 max-w-[280px]">
-          <GoogleDriveIcon className="w-5 h-5 opacity-60 flex-shrink-0" />
+          <GoogleDriveIcon className="w-5 h-5 opacity-60 shrink-0" />
           <p className="flex-1 min-w-0 text-xs font-bold text-slate-800 leading-tight">
             {VIEW_AS_DRIVE_UNAVAILABLE}
           </p>
           <button
             onClick={handleDismiss}
-            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0"
+            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
             aria-label="Dismiss notification"
           >
             <X className="w-3.5 h-3.5" />
@@ -123,7 +123,7 @@ export const DriveDisconnectBanner: React.FC = () => {
   return (
     <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
       <div className="bg-white rounded-xl shadow-xl border border-amber-200 p-3 flex items-center gap-3 max-w-[280px]">
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <GoogleDriveIcon className="w-5 h-5 opacity-60" />
         </div>
 
@@ -136,7 +136,7 @@ export const DriveDisconnectBanner: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => void handleConnect()}
             disabled={isConnecting}

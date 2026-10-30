@@ -1,5 +1,5 @@
 // Staff-audience identity from a caller's ID token; mirrors utils/staffAudience.ts and staffJoinOk in firestore.rules.
-import type * as admin from 'firebase-admin';
+import type * as admin from './firebaseAdmin';
 import { isDistrictStaffEmail } from './districtStaff';
 
 export interface StaffIdentity {

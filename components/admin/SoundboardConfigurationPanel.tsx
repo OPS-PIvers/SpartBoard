@@ -380,7 +380,7 @@ export const SoundboardConfigurationPanel: React.FC<
   return (
     <div className="space-y-6">
       {/* Standard Library Section */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4 shadow-sm">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4 shadow-xs">
         <div className="flex items-center gap-2 mb-2">
           <Music size={16} className="text-brand-blue-primary" />
           <h3 className="text-sm font-bold text-slate-700">
@@ -398,7 +398,7 @@ export const SoundboardConfigurationPanel: React.FC<
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div
-                      className="w-4 h-4 rounded"
+                      className="w-4 h-4 rounded-sm"
                       style={{ backgroundColor: libSound.color }}
                     />
                     <div>
@@ -452,7 +452,7 @@ export const SoundboardConfigurationPanel: React.FC<
             size="sm"
             onClick={addCustomSound}
             {...tourTypeAttr('admin.widget-config.add', 'soundboard')}
-            className="flex-shrink-0 shadow-sm"
+            className="shrink-0 shadow-xs"
           >
             <Plus size={16} className="mr-1.5" />
             Add Custom URL
@@ -474,7 +474,7 @@ export const SoundboardConfigurationPanel: React.FC<
               return (
                 <div
                   key={sound.id}
-                  className="bg-white p-3 rounded-xl border border-slate-200 flex items-start gap-4 shadow-sm"
+                  className="bg-white p-3 rounded-xl border border-slate-200 flex items-start gap-4 shadow-xs"
                 >
                   <div className="flex-1 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
@@ -493,7 +493,7 @@ export const SoundboardConfigurationPanel: React.FC<
                           onChange={(e) =>
                             updateCustomSound(index, { label: e.target.value })
                           }
-                          className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-none"
+                          className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-hidden"
                           placeholder="e.g., School Song"
                         />
                       </div>
@@ -515,7 +515,7 @@ export const SoundboardConfigurationPanel: React.FC<
                                 color: e.target.value,
                               })
                             }
-                            className="h-8 w-8 rounded cursor-pointer border-0 p-0"
+                            className="h-8 w-8 rounded-sm cursor-pointer border-0 p-0"
                           />
                           <input
                             type="text"
@@ -530,7 +530,7 @@ export const SoundboardConfigurationPanel: React.FC<
                                 color: e.target.value,
                               })
                             }
-                            className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-none"
+                            className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-hidden"
                           />
                         </div>
                       </div>
@@ -556,7 +556,7 @@ export const SoundboardConfigurationPanel: React.FC<
                             }));
                             updateCustomSound(index, { url: e.target.value });
                           }}
-                          className={`flex-1 px-3 py-1.5 text-xs border rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-none ${
+                          className={`flex-1 px-3 py-1.5 text-xs border rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-hidden ${
                             showUrlError ? 'border-red-300' : 'border-slate-200'
                           }`}
                           placeholder="https://example.com/sound.mp3"

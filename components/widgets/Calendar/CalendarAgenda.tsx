@@ -211,7 +211,9 @@ const EventDetailsModal: React.FC<{
               aria-hidden="true"
               className="w-5 h-5 shrink-0 text-slate-400 mt-0.5"
             />
-            <span className="font-semibold break-words min-w-0">{text}</span>
+            <span className="font-semibold wrap-break-word min-w-0">
+              {text}
+            </span>
           </div>
         ))}
         {event.description && (
@@ -220,7 +222,7 @@ const EventDetailsModal: React.FC<{
               aria-hidden="true"
               className="w-5 h-5 shrink-0 text-slate-400 mt-0.5"
             />
-            <p className="whitespace-pre-line leading-relaxed break-words min-w-0">
+            <p className="whitespace-pre-line leading-relaxed wrap-break-word min-w-0">
               {event.description}
             </p>
           </div>

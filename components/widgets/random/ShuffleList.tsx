@@ -41,7 +41,7 @@ const ShuffleRow: React.FC<ShuffleRowProps> = ({
       }}
     >
       <span
-        className="font-mono font-black text-slate-400 flex-shrink-0 tabular-nums flex items-center justify-end"
+        className="font-mono font-black text-slate-400 shrink-0 tabular-nums flex items-center justify-end"
         style={{
           fontSize,
           minWidth: iconSize,

@@ -25,6 +25,7 @@ import {
   doc,
   getDocs,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -35,6 +36,7 @@ const GROUP_ID = 'group-rules-test';
 const TEACHER_A_UID = 'teacher-a-uid';
 const TEACHER_B_UID = 'teacher-b-uid';
 const NON_PARTICIPANT_UID = 'non-participant-uid';
+const STAFF_PEER_EMAIL = 'peer.teacher@orono.k12.mn.us';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -46,6 +48,15 @@ const asTeacherA = () =>
   testEnv
     .authenticatedContext(TEACHER_A_UID, {
       email: 'teacher-a@example.com',
+    })
+    .firestore();
+
+// A PLC peer who has not joined the group yet: verified district staff.
+const asStaffPeer = () =>
+  testEnv
+    .authenticatedContext('staff-peer-uid', {
+      email: STAFF_PEER_EMAIL,
+      email_verified: true,
     })
     .firestore();
 
@@ -91,6 +102,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await seedDistrictStaff(ctx.firestore(), [STAFF_PEER_EMAIL]);
     await setDoc(
       doc(ctx.firestore(), `synced_quizzes/${GROUP_ID}`),
       seededGroup()
@@ -99,12 +111,15 @@ beforeEach(async () => {
 });
 
 describe('synced_quizzes — read', () => {
-  it('any authenticated user can `get` a known group id', async () => {
-    // Reads are deliberately broad on the grounds that the groupId is an
-    // unguessable v4 UUID. The point of this test is to lock in that
-    // posture — flipping it accidentally to participant-only would break
-    // join flows where the importer reads the group before joining.
+  it('participants and staff peers can `get` it; a non-staff outsider cannot', async () => {
+    // It holds the answer key; the full persona matrix is in syncedContentReads.test.ts.
     await assertSucceeds(
+      getDoc(doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`))
+    );
+    await assertSucceeds(
+      getDoc(doc(asStaffPeer(), `synced_quizzes/${GROUP_ID}`))
+    );
+    await assertFails(
       getDoc(doc(asNonParticipant(), `synced_quizzes/${GROUP_ID}`))
     );
   });
@@ -174,7 +189,7 @@ describe('synced_quizzes — paperSheetStimuli', () => {
       );
     });
     const snap = await assertSucceeds(
-      getDoc(doc(asNonParticipant(), `synced_quizzes/${GROUP_ID}`))
+      getDoc(doc(asStaffPeer(), `synced_quizzes/${GROUP_ID}`))
     );
     expect(snap.data()?.paperSheetStimuli).toEqual(SHEET_STIMULI);
   });
@@ -269,7 +284,7 @@ describe('synced_quizzes — bank slots, order and sections', () => {
       );
     });
     const snap = await assertSucceeds(
-      getDoc(doc(asNonParticipant(), `synced_quizzes/${GROUP_ID}`))
+      getDoc(doc(asStaffPeer(), `synced_quizzes/${GROUP_ID}`))
     );
     expect(snap.data()?.bankSlots).toEqual(BANK_FIELDS.bankSlots);
     expect(snap.data()?.order).toEqual(BANK_FIELDS.order);

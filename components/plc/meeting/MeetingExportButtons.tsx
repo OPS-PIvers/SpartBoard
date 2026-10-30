@@ -149,7 +149,7 @@ export const MeetingExportButtons: React.FC<{
         type="button"
         onClick={() => handleExport('sheet')}
         disabled={busy !== null}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-50 px-4 py-2 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+        className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-50 px-4 py-2 rounded-xl transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
       >
         {busy === 'sheet' ? (
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
@@ -165,7 +165,7 @@ export const MeetingExportButtons: React.FC<{
         type="button"
         onClick={() => handleExport('pdf')}
         disabled={busy !== null}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-50 px-4 py-2 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+        className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-50 px-4 py-2 rounded-xl transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
       >
         {busy === 'pdf' ? (
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

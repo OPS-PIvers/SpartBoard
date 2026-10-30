@@ -149,7 +149,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
           <p className="text-xs text-slate-500 font-black uppercase tracking-widest mb-1.5">
             Pasted link
           </p>
-          <p className="text-sm text-slate-700 font-bold leading-relaxed whitespace-pre-wrap break-words">
+          <p className="text-sm text-slate-700 font-bold leading-relaxed whitespace-pre-wrap wrap-break-word">
             {preview}
           </p>
         </div>
@@ -229,8 +229,8 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
                     const Picked = getUrlIcon(iconId);
                     return (
                       <>
-                        <Picked className="w-8 h-8 text-white drop-shadow-sm" />
-                        <span className="font-black text-white text-sm mt-1 drop-shadow-md break-words text-center px-2 line-clamp-2">
+                        <Picked className="w-8 h-8 text-white drop-shadow-xs" />
+                        <span className="font-black text-white text-sm mt-1 drop-shadow-md wrap-break-word text-center px-2 line-clamp-2">
                           {title.trim() || 'Sample'}
                         </span>
                       </>
@@ -255,7 +255,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
                 autoFocus
                 {...tourAttr('dock.url-picker-title')}
                 placeholder="e.g. Class Website"
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
               />
             </div>
 

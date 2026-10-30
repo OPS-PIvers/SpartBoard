@@ -1,5 +1,6 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { FocusSite } from '@/utils/focus/contract';
+import type { ImportAttribution } from '@/utils/import/contract';
 
 export type WidgetType =
   | 'clock'
@@ -1752,6 +1753,8 @@ export interface LiveStudent {
   status: 'active' | 'frozen' | 'disconnected';
   joinedAt: number;
   lastActive: number;
+  /** The join code the student typed; rules let only a holder of the live code read the session. */
+  code?: string;
 }
 
 // Supporting types for widget configs
@@ -9336,6 +9339,8 @@ export interface FlashcardSet {
   publicShareId?: string | null;
   /** Speak settings; the source of the student-facing stamp (docs/multilingual-pronunciation-engine.md F21). */
   speak?: FlashcardSpeakSettings;
+  /** Where Import got this set (IMPORT.md D7); never copied to the public snapshot. */
+  importedFrom?: ImportAttribution;
   createdAt: number;
   updatedAt: number;
 }
@@ -10742,7 +10747,9 @@ export type GlobalFeature =
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
-  | 'staff-audience';
+  | 'staff-audience'
+  /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
+  | 'universal-import';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

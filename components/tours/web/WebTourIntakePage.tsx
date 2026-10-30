@@ -187,7 +187,7 @@ const Intake: React.FC<{ phase: Phase }> = ({ phase }) => {
             ? 'Saved.'
             : 'Ready to save steps.';
   return (
-    <main className="flex h-screen [height:100dvh] items-center justify-center bg-white px-4">
+    <main className="flex h-screen h-dvh items-center justify-center bg-white px-4">
       <p role="status" className="text-sm font-semibold text-slate-700">
         {text}
       </p>
@@ -196,7 +196,7 @@ const Intake: React.FC<{ phase: Phase }> = ({ phase }) => {
 };
 
 const Spinner: React.FC = () => (
-  <main className="flex h-screen [height:100dvh] items-center justify-center bg-white">
+  <main className="flex h-screen h-dvh items-center justify-center bg-white">
     <Loader2
       className="h-6 w-6 animate-spin text-brand-blue-primary"
       aria-label="Loading"

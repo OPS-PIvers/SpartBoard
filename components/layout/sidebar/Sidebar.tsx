@@ -99,13 +99,13 @@ const PlcsMenuButton: React.FC<PlcsMenuButtonProps> = ({
       onClick={onClick}
       className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
     >
-      <div className="relative w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+      <div className="relative w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors shrink-0">
         <Users2 className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
         {pendingInviteCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-red-primary border-2 border-white" />
         )}
       </div>
-      <span className="flex-grow text-[13px]">
+      <span className="grow text-[13px]">
         {t('sidebar.nav.groups', { defaultValue: 'My Teams' })}
       </span>
       <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
@@ -365,7 +365,7 @@ export const Sidebar: React.FC = () => {
             size="md"
             className={
               annotationActive
-                ? '!bg-brand-blue-lighter !text-brand-blue-primary'
+                ? 'bg-brand-blue-lighter! text-brand-blue-primary!'
                 : ''
             }
           />
@@ -447,7 +447,7 @@ export const Sidebar: React.FC = () => {
       {isOpen && (
         <div className="fixed inset-0 z-modal flex">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-xs"
             onClick={() => {
               setIsOpen(false);
               setActiveSection('main');
@@ -469,7 +469,7 @@ export const Sidebar: React.FC = () => {
                     className="-ml-1.5"
                   />
                 ) : (
-                  <div className="w-9 h-9 flex-shrink-0 bg-brand-blue-primary rounded-lg flex items-center justify-center overflow-hidden">
+                  <div className="w-9 h-9 shrink-0 bg-brand-blue-primary rounded-lg flex items-center justify-center overflow-hidden">
                     {appSettings?.logoUrl ? (
                       <img
                         src={appSettings.logoUrl}
@@ -533,10 +533,10 @@ export const Sidebar: React.FC = () => {
                     }}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors shrink-0">
                       <SquareSquare className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="grow text-[13px]">
                       {t('sidebar.nav.boards')}
                     </span>
                     <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
@@ -549,10 +549,10 @@ export const Sidebar: React.FC = () => {
                     onClick={() => setIsBackgroundsModalOpen(true)}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-pink-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-pink-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors shrink-0">
                       <Paintbrush className="w-4 h-4 text-pink-400 group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="grow text-[13px]">
                       {t('sidebar.nav.backgrounds')}
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
@@ -567,10 +567,10 @@ export const Sidebar: React.FC = () => {
                       }}
                       className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors shrink-0">
                         <BookOpenCheck className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
                       </div>
-                      <span className="flex-grow text-[13px]">
+                      <span className="grow text-[13px]">
                         {t('sidebar.nav.gradebook', {
                           defaultValue: 'Gradebook',
                         })}
@@ -586,10 +586,10 @@ export const Sidebar: React.FC = () => {
                       }}
                       className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors shrink-0">
                         <ClipboardList className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
                       </div>
-                      <span className="flex-grow text-[13px]">
+                      <span className="grow text-[13px]">
                         {t('sidebar.nav.assignments', {
                           defaultValue: 'Assignments',
                         })}
@@ -610,10 +610,10 @@ export const Sidebar: React.FC = () => {
                         onClick={() => setActiveSection('classes')}
                         className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors shrink-0">
                           <Users className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
                         </div>
-                        <span className="flex-grow text-[13px]">
+                        <span className="grow text-[13px]">
                           {t('sidebar.nav.classes', {
                             defaultValue: 'My Classes',
                           })}
@@ -656,10 +656,10 @@ export const Sidebar: React.FC = () => {
                     }}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors shrink-0">
                       <SlidersHorizontal className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="grow text-[13px]">
                       {t('settings.profileAndSettings', {
                         defaultValue: 'Profile & Settings',
                       })}
@@ -671,10 +671,10 @@ export const Sidebar: React.FC = () => {
                     onClick={() => setIsQuickAccessModalOpen(true)}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-amber-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors shrink-0">
                       <Zap className="w-4 h-4 text-amber-400 group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="grow text-[13px]">
                       {t('sidebar.nav.quickAccess', {
                         defaultValue: 'Quick Access',
                       })}
@@ -710,16 +710,16 @@ export const Sidebar: React.FC = () => {
                       onClick={() => setActiveSection('google-drive')}
                       className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors shrink-0">
                         <GoogleDriveIcon className="w-4 h-4" />
                       </div>
-                      <span className="flex-grow text-[13px]">
+                      <span className="grow text-[13px]">
                         {t('sidebar.nav.googleDrive', {
                           defaultValue: 'Google Drive',
                         })}
                       </span>
                       <div
-                        className={`w-2 h-2 rounded-full flex-shrink-0 ${isDriveConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}
+                        className={`w-2 h-2 rounded-full shrink-0 ${isDriveConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}
                       />
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                     </button>
@@ -735,7 +735,7 @@ export const Sidebar: React.FC = () => {
                       onClick={() => setShowWhatsNew(true)}
                       className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                     >
-                      <div className="relative w-8 h-8 rounded-lg bg-emerald-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <div className="relative w-8 h-8 rounded-lg bg-emerald-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors shrink-0">
                         <Sparkles className="w-4 h-4 text-emerald-500 group-hover:text-brand-blue-primary transition-colors" />
                         {hasUnreadWhatsNew && (
                           <span
@@ -744,7 +744,7 @@ export const Sidebar: React.FC = () => {
                           />
                         )}
                       </div>
-                      <span className="flex-grow text-[13px]">
+                      <span className="grow text-[13px]">
                         {t('sidebar.nav.whatsNew', {
                           defaultValue: "What's New",
                         })}
@@ -819,21 +819,21 @@ export const Sidebar: React.FC = () => {
             {/* Footer */}
             <footer className="mt-auto border-t border-slate-200 bg-slate-50/50">
               <div className="px-4 py-3 flex items-center gap-3">
-                <div className="relative flex-shrink-0">
+                <div className="relative shrink-0">
                   {user?.photoURL ? (
                     <img
                       src={user.photoURL}
                       alt={user?.displayName ?? ''}
-                      className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 shadow-sm"
+                      className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 shadow-xs"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-brand-blue-primary flex items-center justify-center text-xxs font-bold text-white shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-brand-blue-primary flex items-center justify-center text-xxs font-bold text-white shadow-xs">
                       {user?.displayName?.charAt(0).toUpperCase()}
                     </div>
                   )}
                   <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
                 </div>
-                <div className="flex flex-col min-w-0 flex-grow">
+                <div className="flex flex-col min-w-0 grow">
                   <span className="text-xxs font-bold text-slate-900 truncate">
                     {user?.displayName}
                   </span>

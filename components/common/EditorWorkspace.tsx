@@ -86,7 +86,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     <EditorModalShell
       {...shellProps}
       className={className}
-      bodyClassName="!p-0 !overflow-hidden relative"
+      bodyClassName="p-0! overflow-hidden! relative"
     >
       <div
         className="grid h-full w-full"

@@ -63,7 +63,7 @@ export const ImageUpload: React.FC<
   };
 
   const buttonClass =
-    'flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed';
+    'flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
     <div
@@ -101,7 +101,7 @@ export const ImageUpload: React.FC<
             disabled={busy}
             onClick={() => replaceUrl('')}
             aria-label={t('clearImage')}
-            className="p-1.5 rounded-md text-slate-600 hover:text-brand-red-primary hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-md text-slate-600 hover:text-brand-red-primary hover:bg-red-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X size={14} aria-hidden="true" />
           </button>

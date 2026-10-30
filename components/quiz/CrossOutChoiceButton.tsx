@@ -34,7 +34,7 @@ export const CrossOutChoiceButton: React.FC<{
       onClick={onToggle}
       onPointerDown={(e) => e.stopPropagation()}
       disabled={disabled}
-      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 disabled:opacity-40 ${tone} ${className}`}
+      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 disabled:opacity-40 ${tone} ${className}`}
     >
       {crossedOut ? (
         <Undo2 className="h-5 w-5" aria-hidden />

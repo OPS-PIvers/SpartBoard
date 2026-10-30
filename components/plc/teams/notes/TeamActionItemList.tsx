@@ -41,7 +41,7 @@ const DueControl: React.FC<{
             ref.current?.focus();
           }
         }}
-        className={`rounded hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${dueAt == null ? 'text-slate-400' : ''}`}
+        className={`rounded hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${dueAt == null ? 'text-slate-400' : ''}`}
       >
         {text}
       </button>
@@ -110,7 +110,7 @@ export const TeamActionItemList: React.FC<{
                   doneAt: item.done ? null : Date.now(),
                 })
               }
-              className={`shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-default ${
+              className={`shrink-0 rounded-full transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-default ${
                 item.done
                   ? 'text-emerald-500'
                   : 'text-slate-300 enabled:hover:text-emerald-500'
@@ -136,11 +136,11 @@ export const TeamActionItemList: React.FC<{
                     'teams-notes',
                     item.id
                   )}
-                  className={`block w-full border-0 bg-transparent p-0 text-sm focus:outline-none focus:ring-0 ${item.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}
+                  className={`block w-full border-0 bg-transparent p-0 text-sm focus:outline-hidden focus:ring-0 ${item.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}
                 />
               ) : (
                 <p
-                  className={`break-words text-sm ${item.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}
+                  className={`wrap-break-word text-sm ${item.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}
                 >
                   {item.text}
                 </p>
@@ -162,7 +162,7 @@ export const TeamActionItemList: React.FC<{
                       'teams-notes',
                       item.id
                     )}
-                    className={`appearance-none border-0 bg-transparent bg-none p-0 text-xs [field-sizing:content] hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${item.assigneeUid ? '' : 'text-slate-400'}`}
+                    className={`appearance-none border-0 bg-transparent bg-none p-0 text-xs field-sizing-content hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${item.assigneeUid ? '' : 'text-slate-400'}`}
                   >
                     <option value="">{unassigned}</option>
                     {members.map((m) => (
@@ -226,7 +226,7 @@ export const TeamActionItemList: React.FC<{
           aria-label={t('plcDashboard.notes.actionItems.add', {
             defaultValue: 'Add action item',
           })}
-          className="mt-1 block w-full border-0 border-t border-slate-100 bg-transparent px-7 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+          className="mt-1 block w-full border-0 border-t border-slate-100 bg-transparent px-7 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-hidden focus:ring-0"
         />
       )}
     </div>

@@ -249,7 +249,7 @@ export const AssignWhenStep: React.FC<{
           )}
 
           {!available && (
-            <div className="flex min-h-[2rem] items-center justify-between gap-3">
+            <div className="flex min-h-8 items-center justify-between gap-3">
               <span className="text-sm font-medium text-slate-700">
                 {allowLateLabel}
               </span>

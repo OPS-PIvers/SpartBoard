@@ -147,7 +147,7 @@ export const ShareCollectionLinkCreatorModal: FC<
 
   return (
     <div
-      className="fixed inset-0 z-modal bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-modal bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={headingId}
@@ -155,7 +155,7 @@ export const ShareCollectionLinkCreatorModal: FC<
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-5 border-b border-slate-100 flex items-center gap-2">
           <Folder
-            className="w-5 h-5 flex-shrink-0"
+            className="w-5 h-5 shrink-0"
             style={collection.color ? { color: collection.color } : undefined}
           />
           <h2 id={headingId} className="text-lg font-bold text-slate-800">
@@ -190,7 +190,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                   aria-label={t('shareCollection.urlLabel', {
                     defaultValue: 'Share collection URL',
                   })}
-                  className="w-full px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded select-all"
+                  className="w-full px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded-sm select-all"
                   onFocus={(e) => e.currentTarget.select()}
                 />
               </div>
@@ -286,7 +286,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 type="button"
                 onClick={onClose}
                 {...tourAttr('share-collection.cancel')}
-                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded"
+                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-sm"
               >
                 {t('common.cancel', { defaultValue: 'Cancel' })}
               </button>
@@ -295,7 +295,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 onClick={() => void handleCreate()}
                 disabled={busy}
                 {...tourAttr('share-collection.create')}
-                className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-50"
+                className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded-sm hover:bg-brand-blue-dark disabled:opacity-50"
               >
                 {busy
                   ? t('shareCollection.creating', {
@@ -342,7 +342,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 aria-label={t('shareCollection.urlLabel', {
                   defaultValue: 'Share collection URL',
                 })}
-                className="flex-1 px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded select-all"
+                className="flex-1 px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded-sm select-all"
                 onFocus={(e) => e.currentTarget.select()}
               />
               <button
@@ -362,7 +362,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                   })();
                 }}
                 {...tourAttr('share-collection.copy-link')}
-                className="px-2 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 rounded hover:bg-slate-200"
+                className="px-2 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 rounded-sm hover:bg-slate-200"
               >
                 {t('shareCollection.copy', { defaultValue: 'Copy' })}
               </button>
@@ -372,7 +372,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 type="button"
                 onClick={onClose}
                 {...tourAttr('share-collection.done')}
-                className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark"
+                className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded-sm hover:bg-brand-blue-dark"
               >
                 {t('common.done', { defaultValue: 'Done' })}
               </button>

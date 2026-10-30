@@ -15,7 +15,7 @@ import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectio
 import { tourAttr } from '@/config/tourAnchors';
 
 const chipClass = (selected: boolean) =>
-  `min-w-[2.5rem] px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+  `min-w-10 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
     selected
       ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
       : 'bg-white border-slate-200 text-slate-600 hover:border-brand-blue-light'
@@ -27,7 +27,7 @@ const GroupHeading: React.FC<{
   action?: React.ReactNode;
 }> = ({ icon, title, action }) => (
   <div className="flex items-start gap-2.5">
-    <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0">
+    <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
       {icon}
     </div>
     <div className="flex-1 min-w-0">
@@ -102,7 +102,7 @@ export const ProfileSection: React.FC = () => {
                 className={`flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all text-left ${
                   isSelected
                     ? 'bg-brand-blue-primary border-brand-blue-primary text-white shadow-md shadow-brand-blue-primary/15'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-brand-blue-light hover:shadow-sm'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-brand-blue-light hover:shadow-xs'
                 }`}
               >
                 <span className="text-xs font-bold tracking-tight">

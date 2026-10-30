@@ -2115,6 +2115,19 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'import.reference.convert': {
+    label: 'Convert instead button when a page refuses to show in an Embed',
+    panel: true,
+  },
+  'import.reference.add-link': {
+    label: 'Add as a link button when a page refuses to show in an Embed',
+    panel: true,
+  },
+  'import.reference.cancel': {
+    label: 'Cancel button when a page refuses to show in an Embed',
+    panel: true,
+    closes: 'own',
+  },
   'quiz-import.cartridge-close': {
     label: 'Close in Quiz import',
     perWidgetType: true,
@@ -2295,6 +2308,11 @@ export const TOUR_ANCHORS = {
   'quiz-import.paper-answer-blank': {
     label: 'Blank answer in Quiz import, by item',
     perField: true,
+    panel: true,
+  },
+  'quiz-import.paper-skip-page': {
+    label: 'Pages to import select (all or skip one page) in Quiz import',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-import.paper-retry-upload': {
@@ -8740,6 +8758,32 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.import-block-list.add': {
+    label: 'Add button in Import block list',
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.new-pattern': {
+    label: 'New blocked address field in Import block list',
+    panel: true,
+  },
+  'admin.import-block-list.remove': {
+    label: 'Remove button in an Import block list row',
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.restore-defaults': {
+    label: 'Restore defaults button in Import block list',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.test-url': {
+    label: 'Test an address field in Import block list',
+    panel: true,
+  },
   'admin.subjects.add': {
     label: 'Add content area button in Subjects',
     persists: true,
@@ -15148,6 +15192,26 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'import-notice.open': {
+    label: 'Add to board button on the sent-pages notice on the board',
+    panel: true,
+  },
+  // Add to board window: a sent page or a board drop into SpartBoard (IMPORT.md D1).
+  'import-screen.close': {
+    label: 'Close button in the Add to board window',
+    panel: true,
+  },
+  'import-screen.sent-remove': {
+    label:
+      'Remove button on a page sent from the browser, in the Add to board window',
+    panel: true,
+    destructive: true,
+  },
+  'import-screen.target': {
+    label:
+      'A one-tap choice (Flashcards, Quiz, Embed…) in the Add to board window',
+    panel: true,
+  },
   // Library Import wizard (Quiz, Video Activity, Guided Learning, Mini App, Flashcards).
   'import-wizard.close': {
     label: 'Close button in the Import wizard',
@@ -15222,6 +15286,26 @@ export const TOUR_ANCHORS = {
   },
   'import-wizard.title': {
     label: 'Title box on the Import wizard confirm step',
+    panel: true,
+  },
+  'import-review.wall-prompt': {
+    label: 'Prompt box when reviewing an imported Activity Wall',
+    panel: true,
+  },
+  'import-review.wall-layout': {
+    label: 'Layout menu when reviewing an imported Activity Wall',
+    panel: true,
+  },
+  'import-review.board-name': {
+    label: 'Board name box when reviewing an imported board',
+    panel: true,
+  },
+  'import-review.board-cancel': {
+    label: 'Cancel button when reviewing an imported board',
+    panel: true,
+  },
+  'import-review.board-create': {
+    label: 'Create board button when reviewing an imported board',
     panel: true,
   },
   'import-wizard.cancel': {

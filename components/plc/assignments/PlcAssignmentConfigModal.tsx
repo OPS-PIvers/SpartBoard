@@ -472,7 +472,7 @@ export const PlcAssignmentConfigModal: React.FC<
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -506,7 +506,7 @@ export const PlcAssignmentConfigModal: React.FC<
               type="text"
               value={teacherName}
               onChange={(e) => setTeacherName(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30"
               placeholder={t(
                 'plcDashboard.assignmentConfig.teacherNamePlaceholder',
                 {
@@ -532,7 +532,7 @@ export const PlcAssignmentConfigModal: React.FC<
               aria-label={t('plcDashboard.assignmentConfig.dueDateLabel', {
                 defaultValue: 'Due date (optional)',
               })}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30"
             />
           </div>
 

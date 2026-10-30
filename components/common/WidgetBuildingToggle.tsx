@@ -74,7 +74,7 @@ export const WidgetBuildingToggle: React.FC<WidgetBuildingToggleProps> = ({
             onClick={() => selectBuilding(building)}
             className={`px-2 py-0.5 text-xxs font-bold rounded-md transition-all ${
               isActive
-                ? 'bg-white text-slate-700 shadow-sm'
+                ? 'bg-white text-slate-700 shadow-xs'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >

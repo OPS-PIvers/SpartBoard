@@ -29,7 +29,7 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { PLC_DETACHED_SUBCOLLECTION } from './plcSyncJoinGuards';

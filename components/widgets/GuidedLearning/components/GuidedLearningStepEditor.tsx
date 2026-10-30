@@ -39,7 +39,7 @@ const BANNER_TONES: NonNullable<GuidedLearningStep['bannerTone']>[] = [
 const labelClass =
   'block text-slate-600 font-bold uppercase tracking-wider mb-1 text-xs';
 const inputClass =
-  'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
+  'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
 const selectClass = `${inputClass} appearance-none`;
 
 export const GuidedLearningStepEditor: React.FC<Props> = ({
@@ -629,7 +629,7 @@ const MCEditor: React.FC<{
             name={`correct-${stepId}`}
             checked={q.correctAnswer === choice && choice !== ''}
             onChange={() => updateQ({ correctAnswer: choice })}
-            className="accent-emerald-600 flex-shrink-0 w-4 h-4"
+            className="accent-emerald-600 shrink-0 w-4 h-4"
             {...tourAttr('gl-editor.question-correct')}
             aria-label={`Mark choice ${idx + 1} as correct`}
           />
@@ -648,7 +648,7 @@ const MCEditor: React.FC<{
             }}
             {...tourAttr('gl-editor.question-choice')}
             placeholder={`Choice ${idx + 1}`}
-            className="flex-1 bg-white border border-slate-300 rounded text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
+            className="flex-1 bg-white border border-slate-300 rounded-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
           />
           {choices.length > 2 && (
             <button
@@ -705,7 +705,7 @@ const MatchingEditor: React.FC<{
             onChange={(e) => setPair(idx, 'left', e.target.value)}
             {...tourAttr('gl-editor.question-match-left')}
             placeholder="Term"
-            className="flex-1 bg-white border border-slate-300 rounded text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
+            className="flex-1 bg-white border border-slate-300 rounded-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
           />
           <span className="text-slate-400 font-bold">→</span>
           <input
@@ -714,7 +714,7 @@ const MatchingEditor: React.FC<{
             onChange={(e) => setPair(idx, 'right', e.target.value)}
             {...tourAttr('gl-editor.question-match-right')}
             placeholder="Definition"
-            className="flex-1 bg-white border border-slate-300 rounded text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
+            className="flex-1 bg-white border border-slate-300 rounded-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
           />
           {pairs.length > 2 && (
             <button
@@ -770,7 +770,7 @@ const SortingEditor: React.FC<{
             }}
             {...tourAttr('gl-editor.question-sort-item')}
             placeholder={`Item ${idx + 1}`}
-            className="flex-1 bg-white border border-slate-300 rounded text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
+            className="flex-1 bg-white border border-slate-300 rounded-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
           />
           {items.length > 2 && (
             <button

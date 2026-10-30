@@ -2405,8 +2405,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       allowInvisible={true}
       selected={isSelected}
       cornerRadius={isMaximized ? 'none' : undefined}
-      className={`absolute select-none widget group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
-        isMaximized ? 'border-none !shadow-none' : ''
+      className={`absolute select-none widget group focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+        isMaximized ? 'border-none shadow-none!' : ''
       } ${isGroupActive || isGroupBuildSelected ? 'ring-2 ring-brand-blue-light/60' : ''}`}
       bgHex={resolveWindowBackgroundHex(widget.backgroundColor)}
       style={{
@@ -2522,7 +2522,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       >
         {showConfirm && (
           <div
-            className="absolute inset-0 z-confirm-overlay bg-slate-900/95 flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-200 backdrop-blur-sm rounded-[inherit]"
+            className="absolute inset-0 z-confirm-overlay bg-slate-900/95 flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-200 backdrop-blur-xs rounded-[inherit]"
             role="alertdialog"
             aria-labelledby={`dialog-title-${widget.id}`}
             aria-describedby={`dialog-desc-${widget.id}`}
@@ -2688,7 +2688,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   });
                 }}
               />
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-widget-internal-overlay flex items-center gap-1 p-1 bg-white/90 backdrop-blur shadow-lg rounded-full border border-slate-200 animate-in slide-in-from-bottom-2 fade-in duration-200">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-widget-internal-overlay flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm shadow-lg rounded-full border border-slate-200 animate-in slide-in-from-bottom-2 fade-in duration-200">
                 <PenColorSwatches
                   variant="window"
                   value={annotationColor}
@@ -3152,7 +3152,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 variant="glass"
                 active={isScreenRecording}
                 className={
-                  isScreenRecording ? '!bg-red-500/20 !text-red-600' : ''
+                  isScreenRecording ? 'bg-red-500/20! text-red-600!' : ''
                 }
               />
             </div>
@@ -3173,7 +3173,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               size="xl"
               variant="brand-ghost"
               active={showMaxMenu}
-              className="shadow-2xl !bg-white/90 hover:!bg-white backdrop-blur-md border border-slate-200"
+              className="shadow-2xl bg-white/90! hover:bg-white! backdrop-blur-md border border-slate-200"
             />
             <IconButton
               icon={<Minimize2 className="w-6 h-6" />}
@@ -3185,7 +3185,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               }}
               size="xl"
               variant="brand-ghost"
-              className="shadow-2xl !bg-white/90 hover:!bg-white backdrop-blur-md border border-slate-200"
+              className="shadow-2xl bg-white/90! hover:bg-white! backdrop-blur-md border border-slate-200"
             />
           </div>
         </div>
@@ -3208,7 +3208,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               pointerEvents: 'none',
               zIndex: Z_INDEX.tooltip,
             }}
-            className="bg-slate-900/90 text-white text-xs px-2 py-1 rounded shadow-lg backdrop-blur-sm whitespace-nowrap"
+            className="bg-slate-900/90 text-white text-xs px-2 py-1 rounded-sm shadow-lg backdrop-blur-xs whitespace-nowrap"
           >
             {t('widgetWindow.pinnedTooltip')}
           </div>,
@@ -3280,7 +3280,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     }
                     e.stopPropagation();
                   }}
-                  className="text-xxs font-bold text-slate-800 bg-white/50 border border-white/50 rounded-full px-3 py-1 outline-none w-32 shadow-sm"
+                  className="text-xxs font-bold text-slate-800 bg-white/50 border border-white/50 rounded-full px-3 py-1 outline-hidden w-32 shadow-xs"
                 />
               ) : (
                 <div className="flex items-center gap-1">
@@ -3327,7 +3327,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       disabled={isLocked}
                       className={
                         widget.flipped
-                          ? '!bg-brand-blue-lighter/60 !text-brand-blue-primary'
+                          ? 'bg-brand-blue-lighter/60! text-brand-blue-primary!'
                           : ''
                       }
                     />
@@ -3357,7 +3357,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   variant="glass"
                   active={isPinned}
                   disabled={isLocked}
-                  className={isPinned ? '!bg-amber-500/20 !text-amber-600' : ''}
+                  className={isPinned ? 'bg-amber-500/20! text-amber-600!' : ''}
                 />
                 {headerActions && (
                   <div className="flex items-center text-slate-700">
@@ -3417,7 +3417,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   disabled={isLocked}
                   className={
                     isAnnotating
-                      ? '!bg-brand-blue-lighter !text-brand-blue-primary'
+                      ? 'bg-brand-blue-lighter! text-brand-blue-primary!'
                       : ''
                   }
                 />
@@ -3448,7 +3448,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       label={t('widgetWindow.group.ungroup')}
                       size="sm"
                       variant="glass"
-                      className="!text-blue-600"
+                      className="text-blue-600!"
                     />
                   ) : (
                     <IconButton
@@ -3711,7 +3711,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     {...tourAttr('widget.close', widget.id, widget.type)}
                     size="sm"
                     variant="danger"
-                    className="hover:!bg-red-500/20"
+                    className="hover:bg-red-500/20!"
                   />
                 )}
               </div>

@@ -92,7 +92,7 @@ export const Viewer: React.FC<ViewerProps> = ({
     height: 'min(16px, 4cqmin)',
   };
   const toolBtnClass =
-    'rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-40';
+    'rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-xs disabled:opacity-40';
   const toolBtnStyle = { padding: 'min(8px, 2cqmin)' };
   // Optional lesson grouping (derived from the notebook's manifest at import,
   // for both raw .notebook and converted .spartnb files). Find which lesson
@@ -181,7 +181,7 @@ export const Viewer: React.FC<ViewerProps> = ({
                 onChange={(e) =>
                   setCurrentPage(sections[Number(e.target.value)].startIndex)
                 }
-                className="rounded-xl bg-white text-slate-700 font-bold uppercase tracking-tight border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-all"
+                className="rounded-xl bg-white text-slate-700 font-bold uppercase tracking-tight border border-slate-200 shadow-xs cursor-pointer hover:bg-slate-50 transition-all"
                 style={{
                   fontSize: 'min(11px, 2.8cqmin)',
                   padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
@@ -275,7 +275,7 @@ export const Viewer: React.FC<ViewerProps> = ({
                   'smart-notebook.toggle-assets',
                   'smartNotebook'
                 )}
-                className={`rounded-xl transition-all shadow-sm border ${
+                className={`rounded-xl transition-all shadow-xs border ${
                   showAssets
                     ? 'bg-indigo-600 text-white border-indigo-700'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -409,7 +409,7 @@ export const Viewer: React.FC<ViewerProps> = ({
                     key={url}
                     draggable
                     onDragStart={(e) => handleDragStart(e, url)}
-                    className="aspect-square bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:bg-indigo-50/50 transition-all shadow-sm group"
+                    className="aspect-square bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:bg-indigo-50/50 transition-all shadow-xs group"
                   >
                     <img
                       src={url}
@@ -435,7 +435,7 @@ export const Viewer: React.FC<ViewerProps> = ({
             disabled={prevVisible === null}
             onClick={() => prevVisible !== null && setCurrentPage(prevVisible)}
             {...tourTypeAttr('smart-notebook.page-prev', 'smartNotebook')}
-            className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
+            className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-xs active:scale-90"
             style={{ padding: 'min(12px, 2.5cqmin)' }}
           >
             <ChevronLeft
@@ -507,7 +507,7 @@ export const Viewer: React.FC<ViewerProps> = ({
             disabled={nextVisible === null}
             onClick={() => nextVisible !== null && setCurrentPage(nextVisible)}
             {...tourTypeAttr('smart-notebook.page-next', 'smartNotebook')}
-            className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
+            className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-xs active:scale-90"
             style={{ padding: 'min(12px, 2.5cqmin)' }}
           >
             <ChevronRight

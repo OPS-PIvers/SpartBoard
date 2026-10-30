@@ -16,17 +16,17 @@ export const StudentPageShell: React.FC<PageShellProps> = ({
   onDone,
   children,
 }) => (
-  <div className="relative h-screen [height:100dvh] w-screen overflow-y-auto overflow-x-hidden bg-slate-50 font-sans">
+  <div className="relative h-screen h-dvh w-screen overflow-y-auto overflow-x-hidden bg-slate-50 font-sans">
     <div className="pointer-events-none fixed inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40" />
+      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[16px_16px] opacity-40" />
       <div className="absolute left-[-15%] top-[-10%] h-[500px] w-[500px] rounded-full bg-brand-blue-primary/15 blur-[120px]" />
       <div className="absolute bottom-[-15%] right-[-10%] h-[500px] w-[500px] rounded-full bg-brand-red-primary/10 blur-[120px]" />
     </div>
 
     <div className="relative z-10 flex min-h-full flex-col">
-      <header className="relative z-30 flex h-[72px] shrink-0 items-center justify-between gap-4 bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark px-4 text-white shadow-md shadow-brand-blue-primary/20 sm:h-[80px] sm:px-8">
+      <header className="relative z-30 flex h-[72px] shrink-0 items-center justify-between gap-4 bg-linear-to-r from-brand-blue-primary to-brand-blue-dark px-4 text-white shadow-md shadow-brand-blue-primary/20 sm:h-[80px] sm:px-8">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 shadow-sm ring-1 ring-white/20">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 shadow-xs ring-1 ring-white/20">
             <GraduationCap className="h-5 w-5 text-white" strokeWidth={2.5} />
           </div>
           <span className="truncate text-lg font-bold tracking-tight text-white sm:text-xl">
@@ -37,7 +37,7 @@ export const StudentPageShell: React.FC<PageShellProps> = ({
           type="button"
           onClick={onDone}
           aria-label="Done — sign out"
-          className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-white/30 hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-primary"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:border-white/30 hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-primary"
         >
           <LogOut className="h-4 w-4" strokeWidth={2.25} />
           <span>Done</span>

@@ -19,7 +19,7 @@ import {
 
 const send = <T,>(msg: object): Promise<T> => chrome.runtime.sendMessage(msg);
 
-const card = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
+const card = 'rounded-2xl border border-slate-200 bg-white shadow-xs';
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
 
 export const FAILURE_TEXT: Record<ApiFailure, string> = {
@@ -66,7 +66,7 @@ const TourRow: React.FC<{
 }> = ({ tour, showHost, busy, disabled, onStart }) => (
   <li className={`flex items-center gap-3 p-3 ${card}`}>
     <span className="min-w-0 flex-1">
-      <span className="block font-semibold [overflow-wrap:anywhere]">
+      <span className="block font-semibold wrap-anywhere">
         {tour.title || 'Untitled tour'}
       </span>
       <span className={`block truncate text-xs ${chromeMuted}`}>

@@ -16,7 +16,7 @@ export const StimulusDrawerButton: React.FC<{
       onClick={onToggle}
       aria-expanded={open}
       aria-controls="whiteboard-stimulus-drawer"
-      className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-brand-blue-primary transition hover:bg-brand-blue-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+      className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-brand-blue-primary transition hover:bg-brand-blue-primary/10 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
     >
       <BookOpen aria-hidden className="h-4 w-4" />
       {open
@@ -56,7 +56,7 @@ export const StimulusDrawer: React.FC<{
           type="button"
           onClick={onClose}
           aria-label={t('quizWhiteboard.drawer.hide', 'Hide materials')}
-          className="touch-target-expand rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+          className="touch-target-expand rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
         >
           <X aria-hidden className="h-5 w-5" />
         </button>

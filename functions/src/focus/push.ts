@@ -5,7 +5,7 @@ import {
   sign,
   type KeyObject,
 } from 'node:crypto';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { GoogleAuth } from 'google-auth-library';
 import { FOCUS_PUSH_COLLECTION } from './shared.gen';
 

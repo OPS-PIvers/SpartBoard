@@ -421,7 +421,7 @@ const QuizPreviewLobby: React.FC = () => {
       : (new URLSearchParams(window.location.search).get('code') ?? '');
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900 flex flex-col">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-900 flex flex-col">
       <TeacherPreviewBanner />
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm">
@@ -446,14 +446,14 @@ const QuizPreviewLobby: React.FC = () => {
               readOnly
               tabIndex={-1}
               placeholder="Quiz Code (XXXXXX)"
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-none cursor-default"
+              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-hidden cursor-default"
             />
             <input
               type="text"
               readOnly
               tabIndex={-1}
               placeholder="Your PIN"
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-none cursor-default"
+              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-hidden cursor-default"
             />
             <button
               type="button"
@@ -1186,7 +1186,7 @@ const QuizJoinFlow: React.FC<{
       // grow past 100% via `min-h-full` — content centers when it fits and
       // the outer scrolls when it doesn't (e.g. teacher with 8+ periods on
       // a phone-sized viewport).
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900">
+      <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
         <div className="min-h-full flex flex-col items-center justify-center p-6">
           <div className="w-full max-w-sm">
             <div className="flex items-center justify-center mb-8">
@@ -1283,7 +1283,7 @@ const QuizJoinFlow: React.FC<{
         // SSO students arrive from /my-assignments or the Classroom add-on —
         // always the async/self-paced flow, so this surface is LIGHT.
         return (
-          <div className="min-h-screen bg-gradient-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-4 p-6">
+          <div className="min-h-screen bg-linear-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-4 p-6">
             <AlertCircle className="w-10 h-10 text-red-500" />
             <p className="text-slate-600 text-sm text-center max-w-sm">
               {ssoError}
@@ -1392,7 +1392,7 @@ const QuizJoinFlow: React.FC<{
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="Quiz Code (XXXXXX)"
               maxLength={8}
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
               required
             />
             <input
@@ -1401,7 +1401,7 @@ const QuizJoinFlow: React.FC<{
               onChange={(e) => setPin(e.target.value)}
               placeholder="Your PIN"
               maxLength={10}
-              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
               required
             />
             <button
@@ -1463,9 +1463,7 @@ const QuizJoinFlow: React.FC<{
         return (
           <div
             className={`min-h-screen flex flex-col items-center justify-center gap-4 p-6 ${
-              light
-                ? 'bg-gradient-to-b from-white to-slate-100'
-                : 'bg-slate-900'
+              light ? 'bg-linear-to-b from-white to-slate-100' : 'bg-slate-900'
             }`}
           >
             <AlertCircle
@@ -1577,7 +1575,7 @@ const QuizJoinFlow: React.FC<{
           <div
             className={`min-h-screen flex flex-col items-center justify-center p-6 text-center ${
               lightLoad
-                ? 'bg-gradient-to-b from-white to-slate-100'
+                ? 'bg-linear-to-b from-white to-slate-100'
                 : 'bg-slate-900'
             }`}
           >
@@ -1636,9 +1634,9 @@ const QuizJoinFlow: React.FC<{
               />
             ) : (
               <div
-                className={`h-screen [height:100dvh] ${
+                className={`h-screen h-dvh ${
                   session.sessionMode === 'student'
-                    ? 'bg-gradient-to-b from-white to-slate-100'
+                    ? 'bg-linear-to-b from-white to-slate-100'
                     : 'bg-slate-900'
                 }`}
               />
@@ -3167,7 +3165,7 @@ export const ActiveQuiz: React.FC<{
       <div
         className={`min-h-screen flex items-center justify-center ${
           isStudentPaced
-            ? 'bg-gradient-to-b from-white to-slate-100'
+            ? 'bg-linear-to-b from-white to-slate-100'
             : 'bg-slate-900'
         }`}
       >
@@ -3644,7 +3642,7 @@ export const ActiveQuiz: React.FC<{
     }
   };
   const appBg = light
-    ? 'bg-gradient-to-b from-white to-slate-100'
+    ? 'bg-linear-to-b from-white to-slate-100'
     : 'bg-slate-900';
   const headingText = light ? 'text-slate-900' : 'text-white';
   const backBtnCls = light
@@ -3704,7 +3702,7 @@ export const ActiveQuiz: React.FC<{
     // on widescreens; this guarantees the narrow-viewport path stays
     // scroll-free regardless of what's rendered inside.
     <div
-      className={`h-screen [height:100dvh] overflow-y-auto overflow-x-hidden relative ${
+      className={`h-screen h-dvh overflow-y-auto overflow-x-hidden relative ${
         whiteboardConfig ? 'flex flex-col' : ''
       } ${appBg}`}
     >
@@ -3712,7 +3710,7 @@ export const ActiveQuiz: React.FC<{
           UI on first render after a teacher unlock so the student knows
           what happened before they touch anything. */}
       {showResumeModal && (
-        <div className="fixed inset-0 z-overlay bg-emerald-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+        <div className="fixed inset-0 z-overlay bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
           <h2 className="text-4xl font-black text-white mb-4">
             Attempt Unlocked
@@ -3783,7 +3781,7 @@ export const ActiveQuiz: React.FC<{
                 : attemptCloseAutoSubmit())
             }
             disabled={closeAutoSubmitInFlight || timeUpInFlight}
-            className="shrink-0 px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 font-semibold"
+            className="shrink-0 px-2 py-1 rounded-sm bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 font-semibold"
           >
             {closeAutoSubmitInFlight || timeUpInFlight ? 'Retrying…' : 'Retry'}
           </button>
@@ -3806,7 +3804,7 @@ export const ActiveQuiz: React.FC<{
 
       {/* 🔴 The Cheating Warning Modal */}
       {showCheatWarning && (
-        <div className="fixed inset-0 z-overlay bg-red-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+        <div className="fixed inset-0 z-overlay bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED
@@ -3896,7 +3894,7 @@ export const ActiveQuiz: React.FC<{
             narrow ones. One DOM node for both breakpoints so crossing a
             breakpoint never remounts a viewer mid-read. */}
         {sideStimuli.length > 0 && (
-          <div className="shrink-0 w-full lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:[resize:horizontal] lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3">
+          <div className="shrink-0 w-full lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:resize-x lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3">
             {sideStimuli.map((s) => (
               <div key={s.id} className="flex-1 min-h-[280px] flex flex-col">
                 <StimulusRenderer
@@ -3937,7 +3935,7 @@ export const ActiveQuiz: React.FC<{
                     type="button"
                     onClick={handleBack}
                     aria-label="Previous question"
-                    className={`p-1 -ml-1 rounded transition-colors ${backBtnCls}`}
+                    className={`p-1 -ml-1 rounded-sm transition-colors ${backBtnCls}`}
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
@@ -3972,7 +3970,7 @@ export const ActiveQuiz: React.FC<{
               </div>
             )}
             <span
-              className={`text-xs px-2 py-0.5 rounded font-medium ${typeBadgeCls}`}
+              className={`text-xs px-2 py-0.5 rounded-sm font-medium ${typeBadgeCls}`}
             >
               {currentQuestion.type === 'MC'
                 ? 'Multiple Choice'
@@ -4035,7 +4033,7 @@ export const ActiveQuiz: React.FC<{
               className={`${questionGap} flex items-start gap-3 rounded-2xl transition-colors ${highlightClass({ kind: 'question' }, readAloud.highlightedPart)}`}
             >
               <h2
-                className={`flex-1 text-xl font-bold leading-snug break-words whitespace-pre-line ${headingText}`}
+                className={`flex-1 text-xl font-bold leading-snug wrap-break-word whitespace-pre-line ${headingText}`}
               >
                 {(currentQuestion.blankCount ?? 0) >= 2 ? (
                   <NumberedBlanksText
@@ -4056,7 +4054,7 @@ export const ActiveQuiz: React.FC<{
             </div>
           ) : (
             <h2
-              className={`text-xl font-bold ${questionGap} leading-snug break-words whitespace-pre-line ${headingText}`}
+              className={`text-xl font-bold ${questionGap} leading-snug wrap-break-word whitespace-pre-line ${headingText}`}
             >
               {(currentQuestion.blankCount ?? 0) >= 2 ? (
                 <NumberedBlanksText text={displayQuestion.text} light={light} />
@@ -4113,7 +4111,7 @@ export const ActiveQuiz: React.FC<{
                     // The capture stays mounted under the gate so a live take survives rotation.
                     <div
                       className={`relative flex flex-1 flex-col ${
-                        whiteboardGated ? 'min-h-[16rem]' : ''
+                        whiteboardGated ? 'min-h-64' : ''
                       }`}
                     >
                       <div
@@ -4203,7 +4201,7 @@ export const ActiveQuiz: React.FC<{
                               ? () => void handleRecordingSubmit()
                               : handleNext
                           }
-                          className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+                          className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
                         >
                           {currentIndex >= effectiveTotalQuestions - 1
                             ? saveError
@@ -4316,7 +4314,7 @@ export const ActiveQuiz: React.FC<{
                             )}
                           </span>
                           <span
-                            className={`min-w-0 break-words ${isCrossedOut ? 'line-through decoration-2' : ''}`}
+                            className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
                           >
                             {opt}
                           </span>
@@ -4510,7 +4508,7 @@ export const ActiveQuiz: React.FC<{
                       onChange={(e) => setCacheForCurrent(e.target.value)}
                       disabled={submitted && !isStudentPaced}
                       placeholder="Type your answer…"
-                      className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-none focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
+                      className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
                       onKeyDown={(e) => {
                         if (e.key !== 'Enter') return;
                         const trimmed = cleanBlankAnswer(
@@ -4746,7 +4744,7 @@ export const ActiveQuiz: React.FC<{
               students miss it.
             */}
                   <div
-                    className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
+                    className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-xs pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
                   >
                     {isStudentPaced ? (
                       submitted &&
@@ -5119,7 +5117,7 @@ const ReturnToAssignmentsButton: React.FC<{
     className={
       variant === 'standalone'
         ? 'inline-flex items-center gap-2 px-5 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-full transition-colors'
-        : 'w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-brand-blue-primary/20'
+        : 'w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-xs shadow-brand-blue-primary/20'
     }
   >
     Back to my assignments <ArrowRight className="w-4 h-4" />
@@ -5220,7 +5218,7 @@ const ReviewPhase: React.FC<{
   }
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         {/* Question recap */}
         <p className="text-slate-400 text-xs uppercase tracking-widest mb-3">
@@ -5334,7 +5332,7 @@ const ResultsScreen: React.FC<{
   }
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         <Trophy className="w-16 h-16 text-amber-400 mb-6" />
         <h1 className="text-3xl font-black text-white mb-2">Quiz Complete!</h1>
@@ -5481,14 +5479,14 @@ export const PublishedScoreReview: React.FC<{
   // teacher-paced quiz that has ended keeps the dark, immersive treatment.
   const light = session.sessionMode === 'student';
   const pageBg = light
-    ? 'bg-gradient-to-b from-white to-slate-100'
+    ? 'bg-linear-to-b from-white to-slate-100'
     : 'bg-slate-900';
   const headingText = light ? 'text-slate-900' : 'text-white';
   const subtleText = light ? 'text-slate-500' : 'text-slate-400';
   const faintText = light ? 'text-slate-400' : 'text-slate-500';
   const prepText = light ? 'text-slate-600' : 'text-slate-300';
   const scoreCardCls = light
-    ? 'border-slate-200 bg-white shadow-sm shadow-slate-900/5'
+    ? 'border-slate-200 bg-white shadow-xs shadow-slate-900/5'
     : 'border-slate-700 bg-slate-800';
   const answerCardBase = light ? 'bg-white' : 'bg-slate-800/60';
   const neutralBorder = light ? 'border-slate-200' : 'border-slate-700';
@@ -5707,7 +5705,7 @@ export const PublishedScoreReview: React.FC<{
   // state — no results are rendered once locked.
   if (lockedOut && embedded) {
     return (
-      <div className={`h-screen [height:100dvh] overflow-y-auto ${pageBg}`}>
+      <div className={`h-screen h-dvh overflow-y-auto ${pageBg}`}>
         <div className="min-h-full flex flex-col items-center justify-center gap-4 p-6 text-center">
           <ShieldAlert
             className={`h-12 w-12 ${light ? 'text-amber-500' : 'text-amber-400'}`}
@@ -5734,7 +5732,7 @@ export const PublishedScoreReview: React.FC<{
   // active-quiz screen uses — see comment there for why.
   return (
     <div
-      className={`h-screen [height:100dvh] overflow-y-auto overflow-x-hidden px-4 py-8 sm:px-6 sm:py-12 ${pageBg}`}
+      className={`h-screen h-dvh overflow-y-auto overflow-x-hidden px-4 py-8 sm:px-6 sm:py-12 ${pageBg}`}
     >
       {watermarkEnabled && (
         <ResultsWatermark
@@ -5966,7 +5964,7 @@ export const PublishedScoreReview: React.FC<{
                             {idx + 1}
                           </span>
                           <p
-                            className={`flex-1 min-w-0 break-words whitespace-pre-line text-sm font-semibold ${qTextCls}`}
+                            className={`flex-1 min-w-0 wrap-break-word whitespace-pre-line text-sm font-semibold ${qTextCls}`}
                           >
                             {recapQuestion.text}
                           </p>
@@ -6662,7 +6660,7 @@ const FullPageLoader: React.FC<{ message: string; light?: boolean }> = ({
 }) => (
   <div
     className={`min-h-screen flex flex-col items-center justify-center gap-4 ${
-      light ? 'bg-gradient-to-b from-white to-slate-100' : 'bg-slate-900'
+      light ? 'bg-linear-to-b from-white to-slate-100' : 'bg-slate-900'
     }`}
   >
     <Loader2

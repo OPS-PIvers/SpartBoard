@@ -1,7 +1,7 @@
 // Unit tests for the PLC goal coach: prompt context, response parsing, gating and refunds.
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(),
@@ -28,7 +28,7 @@ vi.mock('./aiGeneration', () => ({
   vertexClientOptions: vi.fn(),
 }));
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { enforceAiFeatureAccess, resolveCallerIsAdmin } from './aiGeneration';
 import {
   adminSkipsGoalCoachQuota,

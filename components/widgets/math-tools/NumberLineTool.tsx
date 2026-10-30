@@ -196,7 +196,7 @@ export const NumberLineTool: React.FC<NumberLineToolProps> = ({
                 value={min}
                 {...tourTypeAttr('math-tool.number-line-min', 'mathTool')}
                 onChange={(e) => onRangeChange(Number(e.target.value), max)}
-                className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-center"
+                className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded-sm text-center"
                 style={{ width: 'min(56px, 15cqw)' }}
               />
             </label>
@@ -207,7 +207,7 @@ export const NumberLineTool: React.FC<NumberLineToolProps> = ({
                 value={max}
                 {...tourTypeAttr('math-tool.number-line-max', 'mathTool')}
                 onChange={(e) => onRangeChange(min, Number(e.target.value))}
-                className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-center"
+                className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded-sm text-center"
                 style={{ width: 'min(56px, 15cqw)' }}
               />
             </label>

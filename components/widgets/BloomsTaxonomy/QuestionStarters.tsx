@@ -26,7 +26,7 @@ export const BloomsQuestionStarters: React.FC<{
 
   return (
     <div
-      className="flex h-full w-full select-none overflow-hidden rounded-[var(--window-radius,0px)]"
+      className="flex h-full w-full select-none overflow-hidden rounded-(--window-radius,0px)"
       style={{ backgroundColor: surfaceBg }}
     >
       <div
@@ -159,7 +159,7 @@ export const BloomsQuestionStarters: React.FC<{
             {active.questionStarters.map((starter) => (
               <li
                 key={starter}
-                className="font-medium text-slate-700 border-l-4 leading-relaxed shadow-sm bg-slate-50 rounded-r-lg"
+                className="font-medium text-slate-700 border-l-4 leading-relaxed shadow-xs bg-slate-50 rounded-r-lg"
                 style={{
                   borderLeftColor: activeColor,
                   paddingLeft: '0.95em',

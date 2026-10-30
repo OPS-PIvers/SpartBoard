@@ -1,7 +1,7 @@
 // Teacher focus-session actions (docs/plans/CHROME_EXTENSION.md F1, F6, F7, F8, F11); onCall wrappers are in sessionCallables.ts.
 import { HttpsError } from 'firebase-functions/v2/https';
 import { Timestamp } from 'firebase-admin/firestore';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import {
   computeStudentUid,
   normalizeEmailDomain,

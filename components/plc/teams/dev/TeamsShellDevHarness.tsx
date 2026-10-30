@@ -236,7 +236,7 @@ export const TeamsShellDevHarness: React.FC = () => {
 
   return (
     <div
-      className={`flex flex-col bg-white font-sans ${initial.capture ? 'min-h-screen' : 'h-screen [height:100dvh] overflow-hidden'}`}
+      className={`flex flex-col bg-white font-sans ${initial.capture ? 'min-h-screen' : 'h-screen h-dvh overflow-hidden'}`}
     >
       <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-slate-200 bg-slate-100 px-4 py-2 text-xs text-slate-700">
         <span className="font-bold uppercase tracking-widest text-slate-500">
@@ -246,7 +246,7 @@ export const TeamsShellDevHarness: React.FC = () => {
           aria-label="Screen"
           value={screen}
           onChange={(e) => setScreen(e.target.value as Screen)}
-          className="rounded border border-slate-300 bg-white px-2 py-1"
+          className="rounded-sm border border-slate-300 bg-white px-2 py-1"
         >
           {SCREENS.map((id) => (
             <option key={id} value={id}>

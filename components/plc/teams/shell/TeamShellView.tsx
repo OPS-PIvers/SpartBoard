@@ -29,9 +29,9 @@ export type TeamOverlay =
   'gear' | 'whatsnew' | 'myitems' | 'members' | 'search' | null;
 
 const HEADER_BTN =
-  'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
+  'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70';
 const HEADER_ICON =
-  'rounded-lg p-1.5 transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
+  'rounded-lg p-1.5 transition-colors hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70';
 
 export interface TeamShellViewProps {
   name: string;
@@ -102,7 +102,7 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <div className="relative flex h-14 shrink-0 items-center gap-2 bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark px-4 text-white shadow-sm md:h-16">
+      <div className="relative flex h-14 shrink-0 items-center gap-2 bg-linear-to-r from-brand-blue-primary to-brand-blue-dark px-4 text-white shadow-xs md:h-16">
         {!showMobileMenu && onMobileMenu && (
           <button
             type="button"

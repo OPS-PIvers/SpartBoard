@@ -120,7 +120,7 @@ export const PlcAdminMembersEditor: React.FC<PlcAdminMembersEditorProps> = ({
                     e.target.value as AdminMemberRole
                   )
                 }
-                className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 {ROLES.map((role) => (
                   <option key={role} value={role}>
@@ -159,7 +159,7 @@ export const PlcAdminMembersEditor: React.FC<PlcAdminMembersEditorProps> = ({
           value={selectedEmail}
           onChange={(e) => setSelectedEmail(e.target.value)}
           disabled={busy || loading}
-          className="min-w-0 flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+          className="min-w-0 flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
         >
           <option value="">
             {loading
@@ -185,7 +185,7 @@ export const PlcAdminMembersEditor: React.FC<PlcAdminMembersEditorProps> = ({
           value={selectedRole}
           onChange={(e) => setSelectedRole(e.target.value as AdminMemberRole)}
           disabled={busy}
-          className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+          className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
         >
           {ROLES.map((role) => (
             <option key={role} value={role}>

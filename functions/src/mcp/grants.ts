@@ -1,5 +1,5 @@
 // Grant lifecycle: one grant per Claude connection, under users/{uid}/mcp_grants (CC-D10).
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import {
   ACCESS_TOKEN_TTL_S,
   REFRESH_IDLE_TTL_MS,

@@ -1,5 +1,5 @@
 // Step pictures from the browser run (LIVE_TOUR_ONE_SHOT.md D12a): a 30-minute ticket, then plain POSTs of the pictures.
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { publicOrigin } from './config';

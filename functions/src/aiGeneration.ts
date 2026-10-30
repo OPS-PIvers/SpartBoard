@@ -1,7 +1,7 @@
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { Type, Schema } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
 import {
@@ -402,7 +402,8 @@ async function enforceAiFeatureAccess(
   uid: string,
   featureId: string,
   missingDocAllowed: boolean,
-  extraCap?: AiExtraCap
+  extraCap?: AiExtraCap,
+  featureGranted = false
 ): Promise<AiUsageCharge> {
   const [geminiDoc, specDoc] = await Promise.all([
     db.collection('global_permissions').doc('gemini-functions').get(),
@@ -421,13 +422,14 @@ async function enforceAiFeatureAccess(
   const specPerm = specDoc.exists
     ? (specDoc.data() as GlobalPermission)
     : undefined;
-  if (specPerm) {
+  // featureGranted: the caller already checked the flag with its full rules (beta teachers, tier, buildings).
+  if (specPerm && !featureGranted) {
     assertPermissionAllows(specPerm, token, {
       disabled: `${featureId} is currently disabled by an administrator.`,
       adminOnly: `${featureId} is currently restricted to administrators.`,
       notBeta: `You do not have access to the ${featureId} beta feature.`,
     });
-  } else if (!missingDocAllowed) {
+  } else if (!specPerm && !missingDocAllowed) {
     throw new HttpsError(
       'permission-denied',
       'Admin access required to use AI generation.'

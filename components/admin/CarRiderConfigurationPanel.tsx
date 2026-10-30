@@ -30,7 +30,7 @@ export const CarRiderConfigurationPanel: React.FC<
           value={config.url ?? ''}
           onChange={(e) => onChange({ ...config, url: e.target.value })}
           placeholder="https://carriderpro.com/login/your-district"
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden text-sm"
         />
       </div>
     </div>

@@ -65,13 +65,13 @@ const renderActionButton = (
 ): React.ReactElement => {
   const Icon = action.icon;
   const base =
-    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-bold transition-all shadow-xs active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed';
   // Buttons sit on the solid blue header bar: primary inverts to a white
   // chip; secondary is a translucent white ghost.
   const variantClass =
     variant === 'primary'
       ? accented
-        ? 'bg-white hover:bg-slate-100 text-[color:var(--library-accent)]'
+        ? 'bg-white hover:bg-slate-100 text-(--library-accent)'
         : 'bg-white hover:bg-brand-blue-lighter text-brand-blue-primary'
       : 'bg-white/15 hover:bg-white/25 text-white border border-white/30';
   return (
@@ -295,7 +295,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   return (
     <section
       ref={rootRef}
-      className="flex flex-col h-full min-h-0 text-brand-gray-dark bg-white rounded-[var(--window-radius,0px)] overflow-hidden"
+      className="flex flex-col h-full min-h-0 text-brand-gray-dark bg-white rounded-(--window-radius,0px) overflow-hidden"
       aria-label={`${widgetLabel} library`}
     >
       {/* Single chrome bar: segmented tab control on the left, header
@@ -355,7 +355,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                     triggerProps={anchor}
                     tourId="library-shell.secondary-menu-item"
                     tourScope={widgetType ?? 'library'}
-                    triggerClassName="gap-1.5 rounded-xl font-bold shadow-sm active:scale-95 bg-white/15 hover:bg-white/25 text-white border border-white/30"
+                    triggerClassName="gap-1.5 rounded-xl font-bold shadow-xs active:scale-95 bg-white/15 hover:bg-white/25 text-white border border-white/30"
                     triggerStyle={{
                       paddingInline: labelsHidden ? '0' : 'min(14px, 3cqmin)',
                       paddingBlock: 'min(8px, 1.8cqmin)',
@@ -407,9 +407,9 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                     }
                     tourId="library-shell.new-menu-item"
                     tourScope={widgetType ?? 'library'}
-                    triggerClassName={`gap-1.5 rounded-xl font-bold shadow-sm active:scale-95 ${
+                    triggerClassName={`gap-1.5 rounded-xl font-bold shadow-xs active:scale-95 ${
                       accent
-                        ? 'bg-white hover:bg-slate-100 text-[color:var(--library-accent)]'
+                        ? 'bg-white hover:bg-slate-100 text-(--library-accent)'
                         : 'bg-white hover:bg-brand-blue-lighter text-brand-blue-primary'
                     }`}
                     triggerStyle={{

@@ -20,7 +20,7 @@ const AUTO_SIZE = {
 } as React.CSSProperties;
 
 const fieldClass =
-  'w-full min-w-[14ch] resize-none rounded-md bg-white/10 px-1.5 py-0.5 text-inherit placeholder:text-white/50 outline-none ring-1 ring-white/40 focus:ring-2 focus:ring-sky-300';
+  'w-full min-w-[14ch] resize-none rounded-md bg-white/10 px-1.5 py-0.5 text-inherit placeholder:text-white/50 outline-hidden ring-1 ring-white/40 focus:ring-2 focus:ring-sky-300';
 
 /** Plain-text label and body fields drawn inside the callout itself. */
 export const InlineCalloutEditor: React.FC<InlineCalloutEditorProps> = ({

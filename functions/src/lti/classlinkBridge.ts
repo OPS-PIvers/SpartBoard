@@ -22,7 +22,7 @@
 // A bridge failure must NEVER block a student from taking the assignment: every
 // path degrades to `null` and the caller keeps its current sub-derived uid.
 
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 
 import { computeStudentUid } from '../classlinkShared';
 // Reuse the existing OneRoster seam (and its test-spy point) rather than

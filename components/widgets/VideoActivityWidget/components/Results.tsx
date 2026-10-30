@@ -930,7 +930,7 @@ export const Results: React.FC<ResultsProps> = ({
               }
             />
           ) : (
-            <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
+            <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-xs shadow-xs overflow-hidden">
               {questions.map((q, idx) => {
                 const skipped = notAsked.has(q.id);
                 const accuracy = skipped ? 0 : getQuestionAccuracy(q);
@@ -1009,7 +1009,7 @@ export const Results: React.FC<ResultsProps> = ({
           (responses.length === 0 ? (
             <ScaledEmptyState icon={Users} title="No students yet" />
           ) : (
-            <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
+            <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-xs shadow-xs overflow-hidden">
               {responses
                 .slice()
                 .sort((a, b) => {

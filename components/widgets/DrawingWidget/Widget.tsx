@@ -1480,10 +1480,10 @@ export const DrawingWidget: React.FC<{
   // export / extract). Keeps the visual rhythm consistent and disabled-state
   // contrast legible on the dark glass surface.
   const actionBtnBase =
-    'w-7 h-7 rounded-md flex items-center justify-center transition-colors text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900';
+    'w-7 h-7 rounded-md flex items-center justify-center transition-colors text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900';
 
   const shapeToggleBase =
-    'h-8 px-2.5 rounded-md flex items-center gap-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900';
+    'h-8 px-2.5 rounded-md flex items-center gap-1.5 text-xs font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900';
 
   const PaletteUI = (
     <div ref={toolBarRef} className="flex flex-col gap-1.5 px-2 py-2">
@@ -1512,9 +1512,9 @@ export const DrawingWidget: React.FC<{
               data-tool={tool}
               {...tourFieldAttr('drawing.tool', 'drawing', tool)}
               onClick={(e) => handleToolClick(tool, e)}
-              className={`flex-1 h-7 rounded-md flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 ${
+              className={`flex-1 h-7 rounded-md flex items-center justify-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 ${
                 isActive
-                  ? 'bg-brand-blue-primary text-white shadow-sm'
+                  ? 'bg-brand-blue-primary text-white shadow-xs'
                   : 'text-slate-300 hover:bg-white/10'
               }`}
               title={
@@ -1540,7 +1540,7 @@ export const DrawingWidget: React.FC<{
         {/* History group — undo / redo / clear. Clear gets a destructive
             red tint on hover but lives with the history actions, not the
             color picker (where it used to read as a sixth swatch). */}
-        <div className="flex items-center gap-0.5 flex-shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
           <button
             type="button"
             {...tourAttr('drawing.undo', widget.id, widget.type)}
@@ -1582,7 +1582,7 @@ export const DrawingWidget: React.FC<{
             disabled={objects.length === 0}
             title="Clear All"
             aria-label="Clear All"
-            className={`${actionBtnBase} hover:!bg-red-500/20 hover:text-red-300`}
+            className={`${actionBtnBase} hover:bg-red-500/20! hover:text-red-300`}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -1590,7 +1590,7 @@ export const DrawingWidget: React.FC<{
 
         {/* I/O group — insert image + export. Both are one-shot actions;
             export still opens the existing portalled popover. */}
-        <div className="flex items-center gap-0.5 flex-shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
           <button
             type="button"
             {...tourAttr('drawing.insert-image', widget.id, widget.type)}
@@ -1638,7 +1638,7 @@ export const DrawingWidget: React.FC<{
                   id="drawing-export-popover"
                   data-testid="drawing-export-popover"
                   data-widget-portal=""
-                  className="fixed z-[2147483600] min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden"
+                  className="fixed z-2147483600 min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden"
                   style={{
                     bottom: `${exportMenuAnchor.bottom}px`,
                     // Kept on screen for a toolbar near the left edge.
@@ -1728,7 +1728,7 @@ export const DrawingWidget: React.FC<{
             data-widget-portal=""
             role="dialog"
             aria-label={`${toolPopover === 'eraser' ? 'Eraser' : 'Tool'} options`}
-            className="fixed z-[2147483600] w-[260px] rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 p-3"
+            className="fixed z-2147483600 w-[260px] rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 p-3"
             style={{
               bottom: `${toolPopoverAnchor.bottom}px`,
               // Kept on screen for a widget at the right edge.
@@ -1766,9 +1766,9 @@ export const DrawingWidget: React.FC<{
                       aria-pressed={isActive}
                       {...tourFieldAttr('drawing.eraser-mode', 'drawing', mode)}
                       onClick={() => setEraserMode(mode)}
-                      className={`flex-1 h-8 rounded-md flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 ${
+                      className={`flex-1 h-8 rounded-md flex items-center justify-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 ${
                         isActive
-                          ? 'bg-brand-blue-primary text-white shadow-sm'
+                          ? 'bg-brand-blue-primary text-white shadow-xs'
                           : 'text-slate-300 hover:bg-white/10'
                       }`}
                       title={label}
@@ -1809,7 +1809,7 @@ export const DrawingWidget: React.FC<{
                           aria-label={COLOR_HEX_TO_NAME[c] ?? c}
                           aria-pressed={current === c}
                           onClick={() => pick(c)}
-                          className={`w-6 h-6 rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+                          className={`w-6 h-6 rounded-full transition-transform focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
                             current === c
                               ? 'ring-2 ring-white scale-110'
                               : 'ring-1 ring-white/20 hover:scale-110'
@@ -1869,7 +1869,7 @@ export const DrawingWidget: React.FC<{
                       else setWidth(px);
                     }}
                     aria-label="Stroke width"
-                    className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+                    className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light"
                   />
                   <span className="font-mono text-xs text-slate-300 w-10 text-right tabular-nums">
                     {shownWidth}px
@@ -1964,7 +1964,7 @@ export const DrawingWidget: React.FC<{
         // sits on the inside edge of the wrapper and stays visible.
         className={`flex-1 relative ${
           isStudentView ? 'bg-transparent' : 'bg-white/5'
-        } overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset ${cursorClass}`}
+        } overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset ${cursorClass}`}
         // tabIndex makes the wrapper focusable so React's synthetic `paste`
         // and `keydown` events fire here. Required for Backspace/Delete and
         // arrow nudges to reach the selection hook without a focused child.
@@ -2033,7 +2033,7 @@ export const DrawingWidget: React.FC<{
           // Page edge while zoomed: what Download and students see.
           <div
             aria-hidden
-            className="absolute pointer-events-none rounded-sm ring-1 ring-slate-400/70"
+            className="absolute pointer-events-none rounded-xs ring-1 ring-slate-400/70"
             style={{
               left: view.x * layoutRatio,
               top: view.y * layoutRatio,
@@ -2142,7 +2142,7 @@ export const DrawingWidget: React.FC<{
           <div
             role="status"
             aria-live="polite"
-            className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm text-white"
+            className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs text-white"
           >
             <div className="flex flex-col items-center gap-2">
               <div className="w-6 h-6 border-2 border-white/60 border-t-transparent rounded-full motion-safe:animate-spin" />
@@ -2159,7 +2159,7 @@ export const DrawingWidget: React.FC<{
           <div
             role="group"
             aria-label="Zoom"
-            className="absolute bottom-2 right-2 flex items-center gap-0.5 rounded-lg bg-slate-900/80 p-0.5 text-slate-200 shadow-sm ring-1 ring-white/10 backdrop-blur-md"
+            className="absolute bottom-2 right-2 flex items-center gap-0.5 rounded-lg bg-slate-900/80 p-0.5 text-slate-200 shadow-xs ring-1 ring-white/10 backdrop-blur-md"
             onPointerDown={(e) => e.stopPropagation()}
           >
             <button
@@ -2170,7 +2170,7 @@ export const DrawingWidget: React.FC<{
               title="Hand (hold Space)"
               aria-label="Hand"
               className={`${actionBtnBase} touch-target-expand ${
-                viewport.handActive ? '!bg-brand-blue-primary text-white' : ''
+                viewport.handActive ? 'bg-brand-blue-primary! text-white' : ''
               }`}
             >
               <Hand className="w-4 h-4" />
@@ -2192,7 +2192,7 @@ export const DrawingWidget: React.FC<{
               onClick={viewport.resetZoom}
               title="Zoom to 100% (Ctrl 0)"
               aria-label="Zoom to 100%"
-              className="touch-target-expand h-7 min-w-[3rem] rounded-md px-1 text-xs font-semibold tabular-nums transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+              className="touch-target-expand h-7 min-w-12 rounded-md px-1 text-xs font-semibold tabular-nums transition-colors hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light"
             >
               {Math.round(view.zoom * 100)}%
             </button>
@@ -2213,7 +2213,7 @@ export const DrawingWidget: React.FC<{
               onClick={viewport.fit}
               title="Fit"
               aria-label="Fit"
-              className="touch-target-expand h-7 rounded-md px-2 text-xs font-semibold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+              className="touch-target-expand h-7 rounded-md px-2 text-xs font-semibold transition-colors hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light"
             >
               Fit
             </button>

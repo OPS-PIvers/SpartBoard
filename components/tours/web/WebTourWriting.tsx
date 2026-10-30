@@ -192,13 +192,13 @@ export const WebStepClaudeFields: React.FC<{
             className="mt-0.5 h-4 w-4 shrink-0 text-brand-blue-primary"
             aria-hidden="true"
           />
-          <span className="min-w-0 flex-1 break-words">
+          <span className="min-w-0 flex-1 wrap-break-word">
             {web.claudeQuestion}
           </span>
           {/* no-tour-anchor: per-step controls repeat on every step */}
           <button
             type="button"
-            className="-m-1 shrink-0 rounded p-1 text-slate-500 hover:bg-white/60 hover:text-slate-900"
+            className="-m-1 shrink-0 rounded-sm p-1 text-slate-500 hover:bg-white/60 hover:text-slate-900"
             aria-label="Dismiss question"
             title="Dismiss question"
             onClick={() => onChange(dismissQuestion(step))}

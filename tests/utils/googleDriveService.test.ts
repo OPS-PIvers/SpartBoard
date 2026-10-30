@@ -800,4 +800,58 @@ describe('GoogleDriveService', () => {
       ).rejects.toThrow('Unsupported file type for text extraction.');
     });
   });
+
+  describe('slide deck conversion', () => {
+    it('uploads a .pptx as Google Slides with a resumable upload', async () => {
+      vi.spyOn(service, 'getFolderPath').mockResolvedValue('folder-1');
+      const fetchSpy = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          headers: new Headers({ Location: 'https://upload.example/session' }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ id: 'slides-9' }),
+        } as Response);
+      const deck = new Blob(['pk'], {
+        type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      });
+
+      const id = await service.importAsGoogleFile(
+        deck,
+        'Cells',
+        'application/vnd.google-apps.presentation'
+      );
+
+      expect(id).toBe('slides-9');
+      const [startUrl, startInit] = fetchSpy.mock.calls[0];
+      expect(startUrl as string).toContain('uploadType=resumable');
+      expect(JSON.parse(startInit?.body as string)).toEqual({
+        name: 'Cells',
+        mimeType: 'application/vnd.google-apps.presentation',
+        parents: ['folder-1'],
+      });
+      const [putUrl, putInit] = fetchSpy.mock.calls[1];
+      expect(putUrl).toBe('https://upload.example/session');
+      expect(putInit?.method).toBe('PUT');
+      expect(putInit?.body).toBe(deck);
+    });
+
+    it('explains an export Drive refuses as too large', async () => {
+      mockFetch({
+        ok: false,
+        status: 403,
+        text: () =>
+          Promise.resolve(
+            '{"error":{"errors":[{"reason":"exportSizeLimitExceeded"}]}}'
+          ),
+      });
+      await expect(service.exportAsPdf('slides-9')).rejects.toThrow(
+        /too large for Google Drive to convert/
+      );
+    });
+  });
 });

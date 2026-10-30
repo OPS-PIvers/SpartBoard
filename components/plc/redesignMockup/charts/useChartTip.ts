@@ -44,7 +44,7 @@ export function useChartTip() {
     },
     onPointerLeave: () => setTip(null),
     onBlur: () => setTip(null),
-    className: 'cursor-default focus:outline-none',
+    className: 'cursor-default focus:outline-hidden',
   });
   return { tip, setTip, bind };
 }

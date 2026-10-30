@@ -25,7 +25,7 @@ export const StudentPreviewBanner: React.FC = () => (
       onClick={() => {
         void endStudentPreview().then(() => window.close());
       }}
-      className="px-2 py-0.5 rounded bg-white text-slate-900 font-semibold hover:bg-slate-200"
+      className="px-2 py-0.5 rounded-sm bg-white text-slate-900 font-semibold hover:bg-slate-200"
     >
       Exit
     </button>

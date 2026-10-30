@@ -159,7 +159,7 @@ export const ScoreboardItem = React.memo(
       60,
       110 / digitCount
     ).toFixed(1)}cqw, 42cqh), 200px)`;
-    const amountButtonClass = `bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink min-w-0 font-black tabular-nums leading-none`;
+    const amountButtonClass = `bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition-all shrink min-w-0 font-black tabular-nums leading-none`;
     const amountButtonStyle: React.CSSProperties = {
       fontSize: 'clamp(9px, min(8cqmin, 6.5cqw), 40px)',
       padding: 'clamp(3px, 3cqmin, 16px) clamp(3px, 2.5cqw, 22px)',
@@ -171,7 +171,7 @@ export const ScoreboardItem = React.memo(
 
     return (
       <div
-        className={`${colorClass} text-white rounded-2xl border border-white/20 shadow-sm relative group transition-all hover:shadow-md`}
+        className={`${colorClass} text-white rounded-2xl border border-white/20 shadow-xs relative group transition-all hover:shadow-md`}
         style={{ containerType: 'size' }}
       >
         {/* Padding lives inside so its cqmin resolves against the card, not the board. */}
@@ -181,7 +181,7 @@ export const ScoreboardItem = React.memo(
         >
           <div
             title={pro ? team.name : undefined}
-            className={`font-black uppercase text-white text-center w-full shrink-0 ${pro ? `line-clamp-2 break-words leading-tight ${team.name.length > 12 ? 'tracking-wide' : 'tracking-widest'}` : 'line-clamp-1 tracking-widest'}`}
+            className={`font-black uppercase text-white text-center w-full shrink-0 ${pro ? `line-clamp-2 wrap-break-word leading-tight ${team.name.length > 12 ? 'tracking-wide' : 'tracking-widest'}` : 'line-clamp-1 tracking-widest'}`}
             style={{
               fontSize: pro
                 ? `clamp(9px, min(10cqmin, ${(170 / nameLength).toFixed(1)}cqw), 48px)`
@@ -229,7 +229,7 @@ export const ScoreboardItem = React.memo(
               style={{ gap: 'clamp(4px, 4cqmin, 20px)' }}
             >
               <div
-                className="font-black text-white tabular-nums drop-shadow-sm text-center min-w-0 leading-none"
+                className="font-black text-white tabular-nums drop-shadow-xs text-center min-w-0 leading-none"
                 style={{ fontSize: multiFontSize }}
               >
                 {shownScore}
@@ -296,7 +296,7 @@ export const ScoreboardItem = React.memo(
                   fieldKey
                 )}
                 data-tour-widget={widgetId}
-                className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
+                className={`bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
                 style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
               >
                 <Minus
@@ -308,7 +308,7 @@ export const ScoreboardItem = React.memo(
               </button>
               {/* --fs-pick is only set inside the container query, so the fallback picks the stacked size. */}
               <div
-                className="order-first basis-full font-black text-white tabular-nums drop-shadow-sm text-center min-w-0 leading-none [@container(min-aspect-ratio:1.4)]:order-none [@container(min-aspect-ratio:1.4)]:basis-auto [@container(min-aspect-ratio:1.4)]:flex-1 [@container(min-aspect-ratio:1.4)]:[--fs-pick:var(--fs-side)]"
+                className="order-first basis-full font-black text-white tabular-nums drop-shadow-xs text-center min-w-0 leading-none [@container(min-aspect-ratio:1.4)]:order-0 [@container(min-aspect-ratio:1.4)]:basis-auto [@container(min-aspect-ratio:1.4)]:flex-1 [@container(min-aspect-ratio:1.4)]:[--fs-pick:var(--fs-side)]"
                 style={
                   {
                     '--fs-side': sideFontSize,
@@ -327,7 +327,7 @@ export const ScoreboardItem = React.memo(
                   fieldKey
                 )}
                 data-tour-widget={widgetId}
-                className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
+                className={`bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
                 style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
               >
                 <Plus

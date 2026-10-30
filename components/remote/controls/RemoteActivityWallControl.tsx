@@ -303,7 +303,7 @@ export const RemoteActivityWallControl: React.FC<
                     {submission.participantLabel}
                   </div>
                 )}
-                <div className="text-white text-sm break-words">
+                <div className="text-white text-sm wrap-break-word">
                   {submission.content}
                 </div>
               </div>

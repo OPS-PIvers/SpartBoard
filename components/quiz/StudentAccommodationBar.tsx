@@ -13,7 +13,7 @@ export interface AccommodationLocaleToggle {
 }
 
 const segment = (active: boolean): string =>
-  `inline-flex min-h-11 items-center rounded-2xl px-4 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
+  `inline-flex min-h-11 items-center rounded-2xl px-4 text-sm font-bold transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
     active
       ? 'bg-brand-blue-primary text-white'
       : 'text-slate-600 hover:text-brand-blue-primary'
@@ -25,7 +25,7 @@ export const StudentAccommodationBar: React.FC<{
 }> = ({ readAloud, locale }) => {
   const { t } = useTranslation();
   return (
-    <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur">
+    <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur-sm">
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-2 px-4 py-2">
         {readAloud && <ReadAloudControls controller={readAloud} />}
         {locale && (

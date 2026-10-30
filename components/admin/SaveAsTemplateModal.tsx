@@ -396,7 +396,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
                 {...tourAttr('admin.save-template.existing-template')}
                 value={selectedTemplateId}
                 onChange={(e) => setSelectedTemplateId(e.target.value)}
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30"
               >
                 <option value="">Select a template…</option>
                 {templates.map((t) => (
@@ -443,7 +443,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="e.g. Morning Routine"
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30"
             />
           </div>
 

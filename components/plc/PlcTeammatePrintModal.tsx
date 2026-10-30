@@ -322,7 +322,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                 {...tourFieldAttr('plc-print.teammate', 'plc', m.uid)}
                 type="button"
                 onClick={() => setTargetUid(m.uid)}
-                className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-brand-blue-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+                className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-brand-blue-light focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-blue-primary/10">
                   <UserRound
@@ -464,7 +464,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                 checked={selected}
                 onChange={() => toggleRoster(roster)}
                 aria-label={roster.name}
-                className="h-4 w-4 shrink-0 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                className="h-4 w-4 shrink-0 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold text-slate-800">
@@ -494,7 +494,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                     setExpandedRosterId(expanded ? null : roster.id)
                   }
                   aria-expanded={expanded}
-                  className="shrink-0 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+                  className="shrink-0 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
                 >
                   {expanded ? (
                     <ChevronDown className="h-4 w-4" aria-hidden="true" />
@@ -524,7 +524,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                         type="checkbox"
                         checked={!excludedStudentIds.has(student.id)}
                         onChange={() => toggleStudent(student.id)}
-                        className="h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                        className="h-4 w-4 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
                       />
                       {`${student.lastName}, ${student.firstName}`.trim()}
                     </label>

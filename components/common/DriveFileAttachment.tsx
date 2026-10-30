@@ -142,8 +142,8 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
     : 'text-slate-700 font-medium truncate flex-1';
 
   const removeButtonClasses = isDark
-    ? 'p-0.5 hover:bg-white/10 rounded text-slate-400 hover:text-slate-200 transition-colors'
-    : 'p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors';
+    ? 'p-0.5 hover:bg-white/10 rounded-sm text-slate-400 hover:text-slate-200 transition-colors'
+    : 'p-0.5 hover:bg-slate-100 rounded-sm text-slate-400 hover:text-slate-600 transition-colors';
 
   const extractingPillClasses = isDark
     ? 'flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-300'

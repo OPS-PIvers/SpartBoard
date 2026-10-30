@@ -169,7 +169,7 @@ export const ViewAsBanner: React.FC = () => {
               aria-expanded={pendingOpen}
               data-testid="view-as-pending-toggle"
               onClick={() => setPendingOpen((open) => !open)}
-              className="px-2 py-0.5 rounded border border-white/30 hover:bg-white/10"
+              className="px-2 py-0.5 rounded-sm border border-white/30 hover:bg-white/10"
             >
               Pending changes ({pending.length})
             </button>
@@ -179,7 +179,7 @@ export const ViewAsBanner: React.FC = () => {
               type="button"
               disabled={busy !== null}
               onClick={() => setUnlockOpen(true)}
-              className="px-2 py-0.5 rounded border border-white/30 hover:bg-white/10 disabled:opacity-50"
+              className="px-2 py-0.5 rounded-sm border border-white/30 hover:bg-white/10 disabled:opacity-50"
             >
               Unlock edits
             </button>
@@ -193,7 +193,7 @@ export const ViewAsBanner: React.FC = () => {
                 type="button"
                 disabled={busy !== null}
                 onClick={() => run('renew', viewAs.renew)}
-                className="px-2 py-0.5 rounded border border-white/30 hover:bg-white/10 disabled:opacity-50"
+                className="px-2 py-0.5 rounded-sm border border-white/30 hover:bg-white/10 disabled:opacity-50"
               >
                 {busy === 'renew' ? (
                   <Loader2 size={12} className="animate-spin" />
@@ -207,7 +207,7 @@ export const ViewAsBanner: React.FC = () => {
             type="button"
             disabled={busy !== null}
             onClick={() => run('exit', viewAs.end)}
-            className="px-2 py-0.5 rounded bg-white text-slate-900 font-semibold hover:bg-slate-200 disabled:opacity-50"
+            className="px-2 py-0.5 rounded-sm bg-white text-slate-900 font-semibold hover:bg-slate-200 disabled:opacity-50"
           >
             Exit
           </button>

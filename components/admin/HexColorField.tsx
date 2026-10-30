@@ -73,8 +73,8 @@ export const HexColorField: React.FC<HexColorFieldProps> = ({
   fallback,
   ariaLabel,
   id,
-  swatchClassName = 'w-10 h-8 rounded border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0',
-  inputClassName = 'flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none',
+  swatchClassName = 'w-10 h-8 rounded-sm border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0',
+  inputClassName = 'flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded-sm focus:ring-1 focus:ring-blue-500 outline-hidden',
   anchors,
 }) => {
   const [draft, setDraft] = useState(value ?? '');

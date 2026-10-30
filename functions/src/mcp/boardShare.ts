@@ -1,5 +1,5 @@
 // Shared and synced-collection board mirroring for Claude's board writes (AI_BOARDS D23).
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { ToolError, type ToolContext } from './activity';
 import { boardWidgets } from './boardStore';
 

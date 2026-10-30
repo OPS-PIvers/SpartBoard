@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { handleFocusPanel } from './panel';
 import type { FocusCaller, FocusDeps } from './sessions';
 import type { FocusPanelListReply, FocusStartReply } from './shared.gen';

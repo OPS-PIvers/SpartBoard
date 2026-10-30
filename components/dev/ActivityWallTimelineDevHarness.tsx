@@ -293,7 +293,7 @@ const Frame: React.FC<{
   <section className="space-y-2">
     <h2 className="text-sm font-bold text-slate-700">{label}</h2>
     <div
-      className="overflow-hidden rounded-xl border border-slate-300 shadow"
+      className="overflow-hidden rounded-xl border border-slate-300 shadow-sm"
       style={{ width, height, containerType: 'size' }}
     >
       {children}
@@ -367,7 +367,7 @@ export const ActivityWallTimelineDevHarness: React.FC = () => {
   if (view === 'groups') {
     const hidden = { ...groupSession, timelineDatesHidden: true };
     return (
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100 p-6 pb-12">
+      <div className="h-screen h-dvh overflow-y-auto bg-slate-100 p-6 pb-12">
         <div className="space-y-8">
           <Frame label="Group lanes, large widget" width={1100} height={560}>
             <LayoutRouter
@@ -408,10 +408,7 @@ export const ActivityWallTimelineDevHarness: React.FC = () => {
 
   if (view === 'present') {
     return (
-      <div
-        className="h-screen [height:100dvh]"
-        style={{ containerType: 'size' }}
-      >
+      <div className="h-screen h-dvh" style={{ containerType: 'size' }}>
         <LayoutRouter
           session={datedSession}
           submissions={submissions}
@@ -423,7 +420,7 @@ export const ActivityWallTimelineDevHarness: React.FC = () => {
   }
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100 p-6 pb-12">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-100 p-6 pb-12">
       <div className="space-y-8">
         <Frame label="Before: list timeline" width={1100} height={420}>
           <LayoutRouter

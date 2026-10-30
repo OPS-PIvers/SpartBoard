@@ -141,7 +141,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
         onClick={() => void handleSubmit()}
         disabled={blocked}
         title={outward.lockedTitle ?? (disabled ? disabledReason : undefined)}
-        className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitting ? (
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

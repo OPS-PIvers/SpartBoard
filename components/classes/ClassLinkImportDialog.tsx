@@ -445,7 +445,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                     'classlink-import',
                     `row-${i + 1}`
                   )}
-                  className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-xl bg-white hover:border-brand-blue-primary hover:shadow-sm transition-all"
+                  className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-xl bg-white hover:border-brand-blue-primary hover:shadow-xs transition-all"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 min-w-0">
@@ -453,7 +453,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                         {cls.title}
                       </div>
                       {isTestClass && (
-                        <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
+                        <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-700 border border-amber-200">
                           {t('sidebar.classes.testBadge', {
                             defaultValue: 'TEST',
                           })}

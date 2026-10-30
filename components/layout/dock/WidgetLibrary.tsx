@@ -214,12 +214,12 @@ const SortableLibraryTool = React.memo(
           >
             <tool.icon className="w-6 h-6" />
             {isEditMode && !isHidden && (
-              <div className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm ring-2 ring-white">
+              <div className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-xs ring-2 ring-white">
                 <Plus className="w-2.5 h-2.5" />
               </div>
             )}
             {!isEditMode && isActive && (
-              <div className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full p-0.5 shadow-sm">
+              <div className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full p-0.5 shadow-xs">
                 <Plus className="w-2.5 h-2.5 rotate-45" />
               </div>
             )}
@@ -242,7 +242,7 @@ const SortableLibraryTool = React.memo(
             }}
             onPointerDown={(e) => e.stopPropagation()}
             {...tourTypeAttr('library.item-hide', tool.type)}
-            className={`absolute top-1 left-1 p-1 rounded-md shadow-sm transition-all ${
+            className={`absolute top-1 left-1 p-1 rounded-md shadow-xs transition-all ${
               isHidden
                 ? 'bg-white text-brand-blue-primary hover:bg-brand-blue-primary hover:text-white'
                 : 'bg-white/90 text-slate-400 hover:text-slate-700 hover:bg-white'
@@ -640,7 +640,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
           {...tourAttr('library.root')}
           className={`w-full overflow-hidden flex flex-col p-0 shadow-2xl animate-in zoom-in-95 duration-300 select-none pointer-events-auto ${
             large
-              ? 'max-w-7xl h-full max-h-[56rem]'
+              ? 'max-w-7xl h-full max-h-224'
               : 'max-w-2xl h-[560px] max-h-[75vh]'
           }`}
         >
@@ -676,7 +676,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 <button
                   onClick={onExitEditMode}
                   {...tourAttr('library.done-editing')}
-                  className="px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-primary/90 text-white text-xxs font-black uppercase tracking-widest rounded-full transition-all flex items-center gap-1.5 shadow-sm"
+                  className="px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-primary/90 text-white text-xxs font-black uppercase tracking-widest rounded-full transition-all flex items-center gap-1.5 shadow-xs"
                 >
                   <Check className="w-3.5 h-3.5" />
                   Done
@@ -703,7 +703,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 placeholder="Search widgets…"
                 {...tourAttr('library.search')}
                 aria-label="Search widgets"
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/80 border border-white/60 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/80 border border-white/60 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary"
               />
             </div>
             <div className="flex gap-2">
@@ -714,7 +714,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 }
                 aria-label="Filter by category"
                 {...tourAttr('library.filter-category')}
-                className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <option value="all">All Categories</option>
                 {WIDGET_CATEGORIES.map((c) => (
@@ -730,7 +730,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 }
                 aria-label="Filter by grade level"
                 {...tourAttr('library.filter-grade')}
-                className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 {GRADE_OPTIONS.map((g) => (
                   <option key={g.value} value={g.value}>
@@ -743,7 +743,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 onChange={(e) => setSortMode(e.target.value as LibrarySort)}
                 aria-label="Sort widgets"
                 {...tourAttr('library.sort')}
-                className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <option value="az">A–Z</option>
                 <option value="custom">My order</option>
@@ -835,10 +835,10 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                             'saved',
                             sw.id
                           )}
-                          className="flex flex-col items-center gap-2 w-full focus:outline-none"
+                          className="flex flex-col items-center gap-2 w-full focus:outline-hidden"
                         >
                           <div
-                            className={`w-10 h-10 rounded-xl ${sw.color} flex items-center justify-center text-white shadow-sm group-hover:scale-110 transition-transform`}
+                            className={`w-10 h-10 rounded-xl ${sw.color} flex items-center justify-center text-white shadow-xs group-hover:scale-110 transition-transform`}
                           >
                             <Icon size={20} />
                           </div>
@@ -878,7 +878,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                         className="flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 border border-white/40 hover:bg-white hover:shadow-md transition-all text-center group"
                       >
                         <div
-                          className={`w-10 h-10 rounded-xl ${w.color} flex items-center justify-center text-xl text-white shadow-sm group-hover:scale-110 transition-transform`}
+                          className={`w-10 h-10 rounded-xl ${w.color} flex items-center justify-center text-xl text-white shadow-xs group-hover:scale-110 transition-transform`}
                         >
                           {Icon ? <Icon size={20} /> : w.icon}
                         </div>
@@ -1048,7 +1048,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               {...tourAttr('library.reset-dock')}
               className={`${
                 large ? 'w-full sm:w-auto shrink-0' : 'w-full max-w-xs mx-auto'
-              } py-2 px-4 bg-white/50 border border-slate-200 text-slate-500 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-white hover:text-brand-red-primary hover:border-brand-red-light transition-all shadow-sm`}
+              } py-2 px-4 bg-white/50 border border-slate-200 text-slate-500 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-white hover:text-brand-red-primary hover:border-brand-red-light transition-all shadow-xs`}
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Reset Dock to Defaults

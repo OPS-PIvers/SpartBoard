@@ -43,7 +43,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
           className="w-full h-full object-cover"
         />
         {isVideo && (
-          <div className="absolute top-1.5 left-1.5 flex items-center gap-1 bg-red-600 text-white rounded px-1.5 py-0.5">
+          <div className="absolute top-1.5 left-1.5 flex items-center gap-1 bg-red-600 text-white rounded-sm px-1.5 py-0.5">
             <Video className="w-3 h-3" />
             <span className="text-xxxs font-black uppercase tracking-wide">
               Video
@@ -89,7 +89,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1.5 bg-black/40 backdrop-blur-xs rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <span className="text-xxs font-black uppercase text-white">
             Active
           </span>
@@ -127,7 +127,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                   preset.id
                 )}
                 onChange={(e) => setEditName(e.target.value)}
-                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                 autoFocus
               />
               <button
@@ -142,7 +142,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                   }
                   setEditingId(null);
                 }}
-                className="p-1 text-green-600 hover:bg-green-50 rounded"
+                className="p-1 text-green-600 hover:bg-green-50 rounded-sm"
               >
                 <Check className="w-3.5 h-3.5" />
               </button>
@@ -153,7 +153,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                   preset.id
                 )}
                 onClick={() => setEditingId(null)}
-                className="p-1 text-red-500 hover:bg-red-50 rounded"
+                className="p-1 text-red-500 hover:bg-red-50 rounded-sm"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -176,7 +176,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                   setEditingId(preset.id);
                   setEditName(preset.label);
                 }}
-                className="p-1 text-slate-400 hover:text-brand-blue-primary rounded transition-colors shrink-0"
+                className="p-1 text-slate-400 hover:text-brand-blue-primary rounded-sm transition-colors shrink-0"
               >
                 <Pencil className="w-3 h-3" />
               </button>
@@ -235,7 +235,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                 onChange={(e) => setEditingCategoryValue(e.target.value)}
                 list={`cats-grid-${preset.id}`}
                 placeholder="Category..."
-                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-1 focus:ring-brand-blue-primary min-w-0"
+                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded-sm focus:outline-hidden focus:ring-1 focus:ring-brand-blue-primary min-w-0"
                 autoFocus
               />
               <datalist id={`cats-grid-${preset.id}`}>
@@ -259,7 +259,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                   setEditingCategoryPresetId(null);
                   setEditingCategoryValue('');
                 }}
-                className="p-1 text-green-600 hover:bg-green-50 rounded shrink-0"
+                className="p-1 text-green-600 hover:bg-green-50 rounded-sm shrink-0"
               >
                 <Check className="w-3 h-3" />
               </button>
@@ -273,7 +273,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                   setEditingCategoryPresetId(null);
                   setEditingCategoryValue('');
                 }}
-                className="p-1 text-red-500 hover:bg-red-50 rounded shrink-0"
+                className="p-1 text-red-500 hover:bg-red-50 rounded-sm shrink-0"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -289,7 +289,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                 setEditingCategoryPresetId(preset.id);
                 setEditingCategoryValue(preset.category ?? '');
               }}
-              className="flex items-center gap-1.5 w-full px-2 py-1 bg-slate-50 border border-slate-100 rounded text-xs text-slate-500 hover:border-brand-blue-light hover:text-brand-blue-primary transition-colors text-left"
+              className="flex items-center gap-1.5 w-full px-2 py-1 bg-slate-50 border border-slate-100 rounded-sm text-xs text-slate-500 hover:border-brand-blue-light hover:text-brand-blue-primary transition-colors text-left"
             >
               <Tag className="w-3 h-3" />
               <span className="truncate">
@@ -349,7 +349,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
               {preset.betaUsers.map((email, emailIndex) => (
                 <div
                   key={email}
-                  className="flex items-center justify-between p-0.5 px-1.5 bg-blue-50/50 rounded text-xxs border border-blue-100/50"
+                  className="flex items-center justify-between p-0.5 px-1.5 bg-blue-50/50 rounded-sm text-xxs border border-blue-100/50"
                 >
                   <span className="text-slate-700 truncate mr-2">{email}</span>
                   <button
@@ -359,7 +359,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                       `${preset.id}:${emailIndex}`
                     )}
                     onClick={() => void removeBetaUser(preset.id, email)}
-                    className="text-red-600 hover:bg-red-100 p-0.5 rounded transition-colors shrink-0"
+                    className="text-red-600 hover:bg-red-100 p-0.5 rounded-sm transition-colors shrink-0"
                   >
                     <X className="w-2 h-2" />
                   </button>
@@ -386,7 +386,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                 name="betaEmail"
                 type="email"
                 placeholder="Add email..."
-                className="flex-1 px-2 py-1 border border-slate-200 rounded text-xxs focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
+                className="flex-1 px-2 py-1 border border-slate-200 rounded-sm text-xxs focus:outline-hidden focus:ring-1 focus:ring-brand-blue-primary"
               />
               <button
                 {...tourFieldAttr(
@@ -395,7 +395,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                   preset.id
                 )}
                 type="submit"
-                className="p-1 px-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                className="p-1 px-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-2.5 h-2.5" />
               </button>

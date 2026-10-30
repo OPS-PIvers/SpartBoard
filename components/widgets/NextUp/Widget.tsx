@@ -372,7 +372,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                 <button
                   {...tourAttr('next-up.reset-queue', widget.id, widget.type)}
                   onClick={handleResetQueue}
-                  className="hover:bg-white/10 rounded transition-colors"
+                  className="hover:bg-white/10 rounded-sm transition-colors"
                   style={{ padding: 'min(4px, 1cqmin)' }}
                   title="Reset Queue"
                 >
@@ -387,7 +387,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                   {...tourAttr('next-up.next-student', widget.id, widget.type)}
                   onClick={handleNextStudent}
                   disabled={loading}
-                  className="bg-white/20 hover:bg-white/30 rounded font-bold transition-all text-white disabled:opacity-50"
+                  className="bg-white/20 hover:bg-white/30 rounded-sm font-bold transition-all text-white disabled:opacity-50"
                   style={{
                     fontSize: 'min(12px, 3cqmin)',
                     paddingLeft: 'min(12px, 3cqmin)',
@@ -486,7 +486,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                 waitingStudents.map((student, idx) => (
                   <div
                     key={student.id}
-                    className={`flex items-center bg-white border border-slate-100 rounded-xl shadow-sm animate-in slide-in-from-right duration-300`}
+                    className={`flex items-center bg-white border border-slate-100 rounded-xl shadow-xs animate-in slide-in-from-right duration-300`}
                     style={{
                       padding: 'min(12px, 3cqmin)',
                       animationDelay: `${idx * 50}ms`,

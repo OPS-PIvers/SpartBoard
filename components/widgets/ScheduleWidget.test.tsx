@@ -202,7 +202,7 @@ describe('ScheduleWidget', () => {
       setTimeTo(8, 30);
       render(<ScheduleWidget widget={createWidget()} />);
 
-      expect(screen.getByText('Math')).toHaveClass('break-words');
+      expect(screen.getByText('Math')).toHaveClass('wrap-break-word');
       expect(screen.getByText('Math')).not.toHaveClass('truncate');
       expect(screen.getByText('Reading')).toHaveClass('truncate');
       expect(screen.getByText('Recess')).toHaveClass('truncate');
@@ -239,7 +239,7 @@ describe('ScheduleWidget', () => {
       render(<ScheduleWidget widget={widget} />);
 
       expect(screen.getByText('Math')).toHaveClass('truncate');
-      expect(screen.getByText('Reading')).toHaveClass('break-words');
+      expect(screen.getByText('Reading')).toHaveClass('wrap-break-word');
     });
 
     it('expands the first upcoming item before the school day starts', () => {
@@ -247,7 +247,7 @@ describe('ScheduleWidget', () => {
       setTimeTo(7, 0);
       render(<ScheduleWidget widget={createWidget()} />);
 
-      expect(screen.getByText('Math')).toHaveClass('break-words');
+      expect(screen.getByText('Math')).toHaveClass('wrap-break-word');
       expect(screen.getByText('Reading')).toHaveClass('truncate');
     });
 
@@ -272,7 +272,7 @@ describe('ScheduleWidget', () => {
       );
 
       expect(screen.getByText('Math')).toHaveClass('truncate');
-      expect(screen.getByText('Math')).not.toHaveClass('break-words');
+      expect(screen.getByText('Math')).not.toHaveClass('wrap-break-word');
     });
   });
 

@@ -46,7 +46,7 @@ export const SoundPicker: React.FC<
               tabIndex={tabbable ? 0 : -1}
               disabled={disabled}
               onClick={() => onChange(option.value)}
-              className={`flex-1 min-w-0 truncate text-xs font-semibold px-2 py-1.5 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`flex-1 min-w-0 truncate text-xs font-semibold px-2 py-1.5 text-left cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed ${
                 selected ? 'text-brand-blue-dark' : 'text-slate-700'
               }`}
             >
@@ -58,7 +58,7 @@ export const SoundPicker: React.FC<
                 aria-label={`${previewText} ${label}`}
                 disabled={disabled}
                 onClick={() => field.preview?.(option.value)}
-                className="flex items-center justify-center px-2 border-l border-slate-200 text-slate-600 hover:text-brand-blue-primary hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center px-2 border-l border-slate-200 text-slate-600 hover:text-brand-blue-primary hover:bg-blue-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Play size={12} aria-hidden="true" />
               </button>

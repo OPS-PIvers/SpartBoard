@@ -56,7 +56,7 @@ export const ClassesConfigurationPanel: React.FC<
           <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-4">
             ClassLink Integration
           </h4>
-          <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-xs">
             <div>
               <span className="text-sm font-bold text-slate-700 block">
                 Enable ClassLink Sync

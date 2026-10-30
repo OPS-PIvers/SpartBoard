@@ -1,5 +1,5 @@
 // Shared plumbing for MCP tool handlers: results, errors and cursor paging.
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { PAGE_SIZE } from './config';

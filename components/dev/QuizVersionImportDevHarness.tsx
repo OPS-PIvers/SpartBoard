@@ -147,7 +147,7 @@ export const QuizVersionImportDevHarness: React.FC = () => {
   const adapter = harnessAdapter(setSaved);
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100 p-6">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-100 p-6">
       <button
         type="button"
         onClick={() => setOpen(true)}

@@ -195,7 +195,7 @@ export const MaterialsConfigurationPanel: React.FC<
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -221,7 +221,7 @@ export const MaterialsConfigurationPanel: React.FC<
         </label>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <label className="text-xxs font-bold text-slate-500 uppercase block">
@@ -266,7 +266,7 @@ export const MaterialsConfigurationPanel: React.FC<
                     'materials',
                     'materialName'
                   )}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-blue-primary"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-hidden focus:border-brand-blue-primary"
                 />
               </div>
 
@@ -344,7 +344,7 @@ export const MaterialsConfigurationPanel: React.FC<
                     'materials',
                     'iconSearch'
                   )}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-blue-primary"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-hidden focus:border-brand-blue-primary"
                 />
               </div>
               {filteredFallbackIcons.length > 0 && (
@@ -575,7 +575,7 @@ export const MaterialsConfigurationPanel: React.FC<
                 )}
                 className={`flex items-center gap-2 rounded-lg border p-2 text-left transition-colors ${
                   isSelected
-                    ? 'border-brand-blue-primary shadow-sm ring-1 ring-brand-blue-primary/20'
+                    ? 'border-brand-blue-primary shadow-xs ring-1 ring-brand-blue-primary/20'
                     : 'border-slate-200 bg-white hover:bg-slate-50'
                 }`}
                 style={{

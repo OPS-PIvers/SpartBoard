@@ -129,7 +129,7 @@ export const AllOrganizationsView: React.FC<Props> = ({
                     onOpen(org.id);
                   }
                 }}
-                className="w-full grid grid-cols-[2fr_1fr_0.75fr_0.75fr_0.75fr_1.5fr_0.9fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-100 last:border-b-0 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-none transition-colors cursor-pointer"
+                className="w-full grid grid-cols-[2fr_1fr_0.75fr_0.75fr_0.75fr_1.5fr_0.9fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-100 last:border-b-0 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-hidden transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <OrgLogoTile

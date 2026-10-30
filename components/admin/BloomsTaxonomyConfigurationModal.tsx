@@ -266,7 +266,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
       maxWidth="max-w-5xl"
       customHeader={header}
       footer={footer}
-      className="!p-0"
+      className="p-0!"
       contentClassName=""
       footerClassName="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between w-full shrink-0"
     >
@@ -280,7 +280,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
             <BuildingSelector
               selectedId={selectedBuildingId}
               onSelect={setSelectedBuildingId}
-              activeClassName="bg-indigo-500 text-white border-indigo-500 shadow-sm"
+              activeClassName="bg-indigo-500 text-white border-indigo-500 shadow-xs"
             />
           </div>
 
@@ -309,7 +309,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                           )}
                           checked={availableCategories.includes(cat)}
                           onChange={() => toggleAvailable(cat)}
-                          className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-500"
+                          className="rounded-sm border-slate-300 text-indigo-500 focus:ring-indigo-500"
                         />
                         {CATEGORY_LABELS[cat]}
                       </label>
@@ -338,7 +338,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                         )}
                         checked={defaultEnabled.includes(cat)}
                         onChange={() => toggleDefaultEnabled(cat)}
-                        className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-500"
+                        className="rounded-sm border-slate-300 text-indigo-500 focus:ring-indigo-500"
                       />
                       {CATEGORY_LABELS[cat]}
                     </label>
@@ -409,7 +409,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                                 `add-${cat}`
                               )}
                               onClick={() => addItem(selectedLevel, cat)}
-                              className="p-1 text-indigo-500 hover:bg-indigo-50 rounded transition-colors"
+                              className="p-1 text-indigo-500 hover:bg-indigo-50 rounded-sm transition-colors"
                               title="Add item"
                             >
                               <Plus className="w-3.5 h-3.5" />
@@ -433,7 +433,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                                     e.target.value
                                   )
                                 }
-                                className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 text-slate-700 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none"
+                                className="flex-1 text-xs border border-slate-200 rounded-sm px-2 py-1 text-slate-700 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-hidden"
                               />
                               <button
                                 {...tourFieldAttr(
@@ -444,7 +444,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                                 onClick={() =>
                                   removeItem(selectedLevel, cat, idx)
                                 }
-                                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-sm transition-colors"
                                 title="Remove item"
                               >
                                 <Trash2 className="w-3 h-3" />

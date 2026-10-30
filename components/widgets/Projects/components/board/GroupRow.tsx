@@ -99,7 +99,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
       <tr>
         <th
           scope="row"
-          className="sticky left-0 z-[1] w-px whitespace-nowrap text-left align-middle font-normal"
+          className="sticky left-0 z-1 w-px whitespace-nowrap text-left align-middle font-normal"
           style={{ ...stickyStyle, padding: NAME_PAD }}
         >
           <span
@@ -124,7 +124,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
                 {...tourTypeAttr('projects.group-student-view', 'projects')}
                 title="Student view"
                 aria-haspopup="dialog"
-                className="flex min-w-0 rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                className="flex min-w-0 rounded-md text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
               >
                 {nameChip}
               </button>
@@ -134,7 +134,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
                 {...tourTypeAttr('projects.group-expand', 'projects')}
                 aria-expanded={expanded}
                 aria-label={`${expanded ? 'Hide' : 'Show'} members and work for ${group.name}`}
-                className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                className="shrink-0 rounded-md focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                 style={{ padding: 'min(3px, 0.8cqmin)' }}
               >
                 <ChevronRight
@@ -186,7 +186,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
                       aria-haspopup="menu"
                       aria-expanded={openCellKey === key}
                       title={`${step.title}: ${STEP_STATE_LABELS[state]}`}
-                      className={`flex-1 min-w-0 ${STATE_STYLES[state].tone} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary disabled:opacity-50`}
+                      className={`flex-1 min-w-0 ${STATE_STYLES[state].tone} transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary disabled:opacity-50`}
                     />
                   );
                 })}
@@ -250,7 +250,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
                     aria-label={label}
                     aria-haspopup="menu"
                     aria-expanded={openCellKey === key}
-                    className={`${cell} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50`}
+                    className={`${cell} transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50`}
                     style={{ height: cellHeight }}
                   >
                     {inner}

@@ -156,7 +156,7 @@ export const WaveformScrubber: React.FC<WaveformScrubberProps> = ({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onKeyDown={onKeyDown}
-      className={`relative h-12 w-full cursor-pointer touch-none select-none rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${className}`}
+      className={`relative h-12 w-full cursor-pointer touch-none select-none rounded-md focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${className}`}
     >
       <canvas
         ref={canvasRef}

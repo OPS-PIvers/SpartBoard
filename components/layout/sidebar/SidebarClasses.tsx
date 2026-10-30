@@ -480,7 +480,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
               <button
                 onClick={() => setEditingRosterId('new')}
                 {...tourAttr('classes.new-class')}
-                className="flex flex-col items-center justify-center gap-1.5 p-3 bg-brand-blue-primary text-white rounded-xl shadow-sm hover:bg-brand-blue-dark transition-all"
+                className="flex flex-col items-center justify-center gap-1.5 p-3 bg-brand-blue-primary text-white rounded-xl shadow-xs hover:bg-brand-blue-dark transition-all"
               >
                 <Plus className="w-4 h-4" />
                 <span className="text-xxs font-bold uppercase tracking-wider">
@@ -551,7 +551,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <button
                   {...tourAttr('classes.new-class-empty')}
                   onClick={() => setEditingRosterId('new')}
-                  className="mt-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
+                  className="mt-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors"
                 >
                   {t('sidebar.classes.createNewClass', {
                     defaultValue: 'Create New Class',
@@ -674,7 +674,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                   onClick={() => void handleConfirmLink()}
                   disabled={!selectedCourseId || isSaving || isUnlinking}
                   {...tourAttr('classes.classroom-confirm')}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                   {t('sidebar.classes.linkGoogleClassroom.confirm', {
@@ -724,7 +724,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <button
                   onClick={() => void loadCourses()}
                   {...tourAttr('classes.classroom-retry')}
-                  className="mt-1 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
+                  className="mt-1 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors"
                 >
                   {t('common.retry', { defaultValue: 'Try Again' })}
                 </button>

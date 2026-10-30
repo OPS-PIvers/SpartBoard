@@ -52,7 +52,9 @@ import {
 } from '@/utils/paperCropStore';
 import {
   assemblePaperScan,
+  sheetPageCount,
   sheetRowOf,
+  skipSheetPage,
   type AssembledSheet,
   type AssembleResult,
   type ScannedPage,
@@ -247,6 +249,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     new Map()
   );
   const [quota, setQuota] = useState<PaperImportQuota | null>(null);
+  const [skipPage, setSkipPage] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const uploaderRef = useRef<CropUploader | null>(null);
   const thumbsRef = useRef(thumbs);
@@ -281,6 +284,14 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     return out;
   }, [batch]);
   const quizSections = useMemo(() => sessionSectionsFor(quiz), [quiz]);
+  // The sheets that import: a skipped page drops out as if it were never scanned.
+  const importSheets = useMemo(
+    () =>
+      assembled && batch
+        ? skipSheetPage(batch, assembled.sheets, skipPage)
+        : [],
+    [assembled, batch, skipPage]
+  );
   const resumable =
     batch?.pendingReview &&
     !discarded.has(batch.id) &&
@@ -490,6 +501,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     setKeyConfirmed(state.keyConfirmed);
     setSpareAssignments(state.spareAssignments);
     setTargets(state.targets);
+    setSkipPage(null);
     setCrops(await cropStore.load(batch.id));
     setStep('review');
   };
@@ -553,6 +565,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       setKey(next.keySheet ? keySheetChoices(next.keySheet, quiz, batch) : {});
       setKeyConfirmed(false);
       setSpareAssignments({});
+      setSkipPage(null);
       void cropStore.save(batch.id, nextCrops);
       if (byMap) {
         const nextScanId = newScanId();
@@ -742,7 +755,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     setProgress('');
     setStep('importing');
     try {
-      const { payload } = buildPayload(batch, assembled.sheets);
+      const { payload } = buildPayload(batch, importSheets);
       if (isV2) {
         setProgress('Uploading handwriting…');
         await uploaderRef.current?.whenIdle();
@@ -811,7 +824,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       batch,
       quiz,
       rosters,
-      sheets: assembled.sheets,
+      sheets: importSheets,
       spareAssignments,
       ...(isV2 && uid && scanId ? { scan: { uid, scanId } } : {}),
     });
@@ -834,12 +847,22 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       unassigned: skipped.filter((s) => s.reason === 'unassigned-spare').length,
       missingStudent: skipped.filter((s) => s.reason === 'student-not-found')
         .length,
-      doubtful: assembled.sheets.reduce(
+      doubtful: importSheets.reduce(
         (n, s) => n + s.answers.filter((a) => a.doubt).length,
         0
       ),
     };
-  }, [assembled, batch, quiz, rosters, spareAssignments, isV2, uid, scanId]);
+  }, [
+    assembled,
+    importSheets,
+    batch,
+    quiz,
+    rosters,
+    spareAssignments,
+    isV2,
+    uid,
+    scanId,
+  ]);
 
   const header = (
     <div className="flex items-start justify-between border-b border-slate-100 px-5 pb-3 pt-5">
@@ -1035,7 +1058,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                   setKey((k) => ({ ...k, [id]: v === '' ? null : Number(v) }));
                   setKeyConfirmed(false);
                 }}
-                className="rounded border border-slate-200 px-1 py-0.5 text-sm"
+                className="rounded-sm border border-slate-200 px-1 py-0.5 text-sm"
               >
                 <option value="">—</option>
                 {CHOICE_LETTERS.slice(0, batch.choiceCount).map((letter, c) => (
@@ -1054,7 +1077,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             checked={keyConfirmed}
             disabled={keyIncomplete}
             onChange={(e) => setKeyConfirmed(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300"
+            className="h-4 w-4 rounded-sm border-slate-300"
           />
           {keyIncomplete
             ? 'Fill in every row to confirm the key'
@@ -1100,7 +1123,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               {...tourFieldAttr('quiz-import.paper-tag-question', 'quiz', id)}
               aria-label={`Tag question ${i + 1}`}
               onClick={() => setPicker({ questionId: id })}
-              className="shrink-0 rounded px-2 py-0.5 text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
+              className="shrink-0 rounded-sm px-2 py-0.5 text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
             >
               {targets[id]?.length ? 'Edit' : 'Tag'}
             </button>
@@ -1208,7 +1231,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                     <img
                       src={crop}
                       alt={`Question ${a.question + 1} as scanned`}
-                      className="h-10 rounded border border-slate-200 bg-white"
+                      className="h-10 rounded-sm border border-slate-200 bg-white"
                     />
                   )}
                   <span className="text-xs text-slate-500">
@@ -1265,7 +1288,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
 
   const renderWritten = () => {
     if (!isV2 || !assembled || !summary) return null;
-    const sheets = assembled.sheets.filter(
+    const sheets = importSheets.filter(
       (s) => !s.isBlank && (s.written?.length ?? 0) > 0
     );
     if (sheets.length === 0) return null;
@@ -1312,7 +1335,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               type="button"
               {...tourTypeAttr('quiz-import.paper-retry-upload', 'quiz')}
               onClick={() => uploaderRef.current?.retryFailed()}
-              className="rounded px-2 py-0.5 font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
+              className="rounded-sm px-2 py-0.5 font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
             >
               Retry
             </button>
@@ -1351,7 +1374,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                           className="h-16 w-full object-contain"
                         />
                       ) : (
-                        <div className="h-16 w-full rounded bg-slate-50" />
+                        <div className="h-16 w-full rounded-sm bg-slate-50" />
                       )}
                       <figcaption className="mt-0.5 flex justify-between text-xs text-slate-600">
                         <span>{label}.</span>
@@ -1385,7 +1408,13 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         (p) => `Page ${p + 1}: seat or page number not in this batch`
       ),
     ];
-    const blankSheets = assembled.sheets.filter((s) => s.isBlank);
+    const blankSheets = importSheets.filter((s) => s.isBlank);
+    // Offered with handwritten answers only, which sit behind their own preview flag.
+    const hasWrittenBoxes = !!batch?.pageMaps?.some((m) =>
+      m.items.some((item) => item.kind === 'written')
+    );
+    const pageCount =
+      batch && isV2 && hasWrittenBoxes ? sheetPageCount(batch) : 0;
     return (
       <div className="space-y-4 px-5 pb-5 pt-4">
         <p className="text-sm text-slate-700">
@@ -1414,9 +1443,34 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           )}
           .
         </p>
+        {pageCount > 1 && (
+          <label className="block">
+            <span className={labelClass}>Pages to import</span>
+            <select
+              {...tourTypeAttr('quiz-import.paper-skip-page', 'quiz')}
+              value={skipPage ?? ''}
+              onChange={(e) =>
+                setSkipPage(e.target.value ? Number(e.target.value) : null)
+              }
+              className={fieldClass}
+            >
+              <option value="">All pages</option>
+              {Array.from({ length: pageCount }, (_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  Skip page {i + 1}
+                </option>
+              ))}
+            </select>
+            {skipPage !== null && (
+              <span className="mt-1 block text-xs text-slate-600">
+                Answers on page {skipPage} are not imported.
+              </span>
+            )}
+          </label>
+        )}
         {renderKey()}
         {renderTargets()}
-        {assembled.sheets.map(renderSheet)}
+        {importSheets.map(renderSheet)}
         {renderWritten()}
         {problems.length > 0 && (
           <section className="rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -1521,7 +1575,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                           return next;
                         })
                       }
-                      className="h-4 w-4 rounded border-slate-300"
+                      className="h-4 w-4 rounded-sm border-slate-300"
                     />
                     <span>
                       {sheet ? sheetLabel(sheet, rosters) : `Seat ${c.seat}`}

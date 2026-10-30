@@ -14,7 +14,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { randomBytes } from 'node:crypto';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 
 import {
   getLtiPlatformConfig,

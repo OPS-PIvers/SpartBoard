@@ -61,7 +61,7 @@ export const TimedNotesList: React.FC<TimedNotesListProps> = ({
                 'quiz',
                 String(index)
               )}
-              className="rounded bg-slate-200 px-1.5 py-0.5 font-mono text-xs tabular-nums text-slate-700 transition hover:bg-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="rounded-sm bg-slate-200 px-1.5 py-0.5 font-mono text-xs tabular-nums text-slate-700 transition hover:bg-slate-300 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2"
               aria-label={t('quizMediaResponse.grading.player.seekTo', {
                 time: formatTimecode(a.from),
               })}
@@ -80,7 +80,7 @@ export const TimedNotesList: React.FC<TimedNotesListProps> = ({
                 'quiz',
                 String(index)
               )}
-              className="ml-auto rounded p-1 text-slate-500 transition hover:bg-slate-200 hover:text-brand-red-primary disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="ml-auto rounded-sm p-1 text-slate-500 transition hover:bg-slate-200 hover:text-brand-red-primary disabled:opacity-40 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2"
               aria-label={t('quizMediaResponse.grading.player.removeComment', {
                 time: formatTimecode(a.from),
               })}
@@ -139,7 +139,7 @@ export const TimedNotesList: React.FC<TimedNotesListProps> = ({
                   )
                 )
               }
-              className="w-full resize-none rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:bg-slate-100"
+              className="w-full resize-none rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 disabled:bg-slate-100"
             />
           </label>
         </li>

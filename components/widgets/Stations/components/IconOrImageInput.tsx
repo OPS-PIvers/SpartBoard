@@ -185,7 +185,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
           data-tour-widget={widgetId}
           className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
             tab === 'icon'
-              ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+              ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
               : 'bg-white border-slate-200 text-slate-600'
           }`}
         >
@@ -203,7 +203,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
           data-tour-widget={widgetId}
           className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
             tab === 'image'
-              ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+              ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
               : 'bg-white border-slate-200 text-slate-600'
           }`}
         >
@@ -225,7 +225,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
               fieldKey
             )}
             data-tour-widget={widgetId}
-            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
           />
           <div className="grid grid-cols-8 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar p-1 border border-slate-200 rounded-lg bg-white">
             {filteredIcons.map((name) => {

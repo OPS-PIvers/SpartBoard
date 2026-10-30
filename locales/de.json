@@ -2632,6 +2632,7 @@
         "zoomIn": "Vergrößern",
         "zoomOut": "Verkleinern",
         "zoomFit": "Einpassen",
+        "darken": "Handschrift abdunkeln",
         "loading": "Handschrift wird geladen",
         "unavailable": "Handschrift nicht verfügbar",
         "reload": "Erneut versuchen",

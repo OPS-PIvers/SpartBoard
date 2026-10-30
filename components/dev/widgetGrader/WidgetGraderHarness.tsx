@@ -33,7 +33,7 @@ import { WIDGET_STUBS } from './stubs';
 
 export const BOARD_WIDTH = 1920;
 export const BOARD_HEIGHT = 1080;
-const BOARD_BACKGROUND = 'bg-gradient-to-br from-slate-900 to-slate-700';
+const BOARD_BACKGROUND = 'bg-linear-to-br from-slate-900 to-slate-700';
 const ORIGIN = 120;
 const GAP = 40;
 const QUIET_MS = 250;

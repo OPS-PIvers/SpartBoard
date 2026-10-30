@@ -161,7 +161,7 @@ export const PlcMeetingRecordView: React.FC<PlcMeetingRecordViewProps> = ({
               defaultValue: 'Agenda',
             })}
           >
-            <p className="text-base text-slate-700 whitespace-pre-wrap break-words">
+            <p className="text-base text-slate-700 whitespace-pre-wrap wrap-break-word">
               {meeting.agenda.trim()}
             </p>
           </RecordSection>
@@ -320,7 +320,7 @@ export const PlcMeetingRecordView: React.FC<PlcMeetingRecordViewProps> = ({
                       aria-hidden="true"
                     />
                     <div className="min-w-0">
-                      <p className="text-base text-slate-800 whitespace-pre-wrap break-words">
+                      <p className="text-base text-slate-800 whitespace-pre-wrap wrap-break-word">
                         {d.text}
                       </p>
                       {d.linkedDataCard && (
@@ -371,7 +371,7 @@ export const PlcMeetingRecordView: React.FC<PlcMeetingRecordViewProps> = ({
                     aria-hidden="true"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-base text-slate-800 break-words">
+                    <p className="text-base text-slate-800 wrap-break-word">
                       {item.text}
                     </p>
                     <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500 flex-wrap">
@@ -422,7 +422,7 @@ export const PlcMeetingRecordView: React.FC<PlcMeetingRecordViewProps> = ({
               defaultValue: 'Notes',
             })}
           >
-            <p className="text-base text-slate-700 whitespace-pre-wrap break-words">
+            <p className="text-base text-slate-700 whitespace-pre-wrap wrap-break-word">
               {meeting.notesBody.trim()}
             </p>
           </RecordSection>
@@ -437,7 +437,7 @@ const RecordSection: React.FC<{
   title: string;
   children: React.ReactNode;
 }> = ({ icon: Icon, title, children }) => (
-  <section className="bg-white border border-slate-200 rounded-3xl shadow-sm px-5 lg:px-6 py-5">
+  <section className="bg-white border border-slate-200 rounded-3xl shadow-xs px-5 lg:px-6 py-5">
     <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2 mb-3">
       <Icon className="w-4 h-4 text-brand-blue-primary" aria-hidden={true} />
       {title}

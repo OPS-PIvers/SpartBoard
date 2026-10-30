@@ -196,7 +196,7 @@ const useSuggestedTargetsSlots = (
               {...tourTypeAttr('quiz-import.targets-destination', 'quiz')}
               value={destIndex}
               onChange={(e) => setDestIndex(Number(e.target.value))}
-              className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-none"
+              className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-hidden"
             >
               {destinations.map((d, i) => (
                 <option key={d.kind === 'plc' ? d.plcId : 'personal'} value={i}>

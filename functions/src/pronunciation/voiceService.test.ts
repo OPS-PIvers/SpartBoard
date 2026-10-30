@@ -12,7 +12,7 @@ vi.mock('@google-cloud/text-to-speech', () => ({
     synthesizeSpeech = mocks.synthesizeSpeech;
   },
 }));
-vi.mock('firebase-admin', () => ({
+vi.mock('../firebaseAdmin', () => ({
   storage: () => ({
     bucket: () => ({ file: () => ({ download: mocks.download }) }),
   }),

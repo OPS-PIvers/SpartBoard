@@ -73,7 +73,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
       ariaLabelledby="report-modal-title"
     >
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[90%] max-h-[90vh] overflow-y-auto border border-slate-200 animate-in zoom-in-95 duration-200 custom-scrollbar">
-        <div className="p-6 bg-brand-blue-primary/90 backdrop-blur-sm text-white flex justify-between items-center sticky top-0 z-10">
+        <div className="p-6 bg-brand-blue-primary/90 backdrop-blur-xs text-white flex justify-between items-center sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/30 rounded-xl">
               <FileSpreadsheet className="w-6 h-6" aria-hidden="true" />
@@ -187,7 +187,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
                     )
                   }
                   placeholder="0"
-                  className="w-20 p-2 text-center text-lg font-black bg-white border border-purple-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400/20"
+                  className="w-20 p-2 text-center text-lg font-black bg-white border border-purple-200 rounded-xl outline-hidden focus:ring-2 focus:ring-purple-400/20"
                 />
               </div>
             )}
@@ -204,7 +204,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Gluten Free, Field Trips, etc..."
-              className="w-full h-24 p-4 text-sm font-bold bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-blue-primary/20 focus:border-brand-blue-primary transition-all resize-none shadow-inner"
+              className="w-full h-24 p-4 text-sm font-bold bg-white border border-slate-200 rounded-2xl outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20 focus:border-brand-blue-primary transition-all resize-none shadow-inner"
             />
           </div>
 
@@ -225,7 +225,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
               }
               variant="success"
               {...tourTypeAttr('lunch-count.report-confirm', 'lunchCount')}
-              className="flex-[2] py-4 rounded-2xl font-black uppercase tracking-widest"
+              className="flex-2 py-4 rounded-2xl font-black uppercase tracking-widest"
               isLoading={isSubmitting}
               icon={<Send className="w-4 h-4" />}
             >

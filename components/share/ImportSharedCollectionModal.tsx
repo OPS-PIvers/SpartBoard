@@ -68,7 +68,7 @@ export const ImportSharedCollectionModal: FC<
 
   return (
     <div
-      className="fixed inset-0 z-modal bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-modal bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={headingId}
@@ -76,7 +76,7 @@ export const ImportSharedCollectionModal: FC<
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="p-5 border-b border-slate-100 flex items-center gap-2">
           <Folder
-            className="w-5 h-5 flex-shrink-0"
+            className="w-5 h-5 shrink-0"
             style={
               meta?.collection.color
                 ? { color: meta.collection.color }
@@ -164,7 +164,7 @@ export const ImportSharedCollectionModal: FC<
               type="button"
               onClick={onClose}
               {...tourAttr('import-shared-collection.cancel')}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded"
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-sm"
             >
               {t('common.cancel', { defaultValue: 'Cancel' })}
             </button>
@@ -177,7 +177,7 @@ export const ImportSharedCollectionModal: FC<
                 state.kind !== 'found' ||
                 meta?.intendedMode === 'substitute'
               }
-              className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-50"
+              className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded-sm hover:bg-brand-blue-dark disabled:opacity-50"
             >
               {busy
                 ? t('importSharedCollection.importing', {

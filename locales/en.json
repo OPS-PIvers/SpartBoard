@@ -3915,6 +3915,7 @@
         "zoomIn": "Zoom in",
         "zoomOut": "Zoom out",
         "zoomFit": "Fit",
+        "darken": "Darken handwriting",
         "loading": "Loading handwriting",
         "unavailable": "Handwriting unavailable",
         "reload": "Try again",

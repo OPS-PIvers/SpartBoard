@@ -23,7 +23,7 @@ vi.mock('./secrets', () => ({
   TOUR_ANCHOR_API_TOKEN: { value: () => h.token },
 }));
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const firestore = Object.assign(
     () => ({
       collection: (name: string) => ({

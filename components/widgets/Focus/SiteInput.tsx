@@ -73,7 +73,7 @@ export const SiteInput: React.FC<{
           placeholder="desmos.com or a page's address"
           aria-describedby={hint ? hintId : undefined}
           aria-invalid={hint?.tone === 'error' ? true : undefined}
-          className="min-w-[0] flex-1 rounded-lg border border-slate-300 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary disabled:bg-slate-100"
+          className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary disabled:bg-slate-100"
           style={{
             fontSize: 'min(15px, 4.8cqmin)',
             padding: `0 min(10px, 2.6cqmin)`,

@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
+import { ImportAttributionLine } from '@/components/import/ImportAttributionLine';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -105,7 +106,7 @@ const SortableCardRow: React.FC<SortableCardRowProps> = ({
     <div
       ref={setNodeRef}
       data-card-id={card.id}
-      className={`grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-start rounded-2xl border bg-white shadow-sm ${
+      className={`grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-start rounded-2xl border bg-white shadow-xs ${
         isDragging ? 'z-10 border-rose-300 opacity-70' : 'border-slate-200'
       }`}
       style={{
@@ -148,7 +149,7 @@ const SortableCardRow: React.FC<SortableCardRowProps> = ({
           onChange={(event) => onChange(card.id, { term: event.target.value })}
           maxLength={500}
           rows={2}
-          className="w-full resize-none rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+          className="w-full resize-none rounded-xl border border-slate-200 text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
           style={{
             padding: 'min(8px, 2cqmin)',
             fontSize: 'min(13px, 4cqmin)',
@@ -180,7 +181,7 @@ const SortableCardRow: React.FC<SortableCardRowProps> = ({
           }}
           maxLength={1000}
           rows={2}
-          className="w-full resize-none rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+          className="w-full resize-none rounded-xl border border-slate-200 text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
           style={{
             padding: 'min(8px, 2cqmin)',
             fontSize: 'min(13px, 4cqmin)',
@@ -449,7 +450,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
 
   return (
     <div className="flex h-full w-full bg-transparent">
-      <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--window-radius,0px)] bg-white/95 backdrop-blur-sm">
+      <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-(--window-radius,0px) bg-white/95 backdrop-blur-xs">
         <header
           className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-900 text-white"
           style={{
@@ -569,7 +570,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
             }}
           >
             <div
-              className="grid grid-cols-1 rounded-2xl border border-slate-200 bg-white shadow-sm [@container(min-width:680px)]:grid-cols-2"
+              className="grid grid-cols-1 rounded-2xl border border-slate-200 bg-white shadow-xs [@container(min-width:680px)]:grid-cols-2"
               style={{
                 gap: 'min(12px, 3cqmin)',
                 padding: 'min(14px, 3.5cqmin)',
@@ -586,7 +587,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   maxLength={120}
-                  className="mt-1 w-full rounded-xl border border-slate-200 font-bold text-slate-900 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+                  className="mt-1 w-full rounded-xl border border-slate-200 font-bold text-slate-900 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
                   style={{
                     padding: 'min(9px, 2.2cqmin)',
                     fontSize: 'min(15px, 4.6cqmin)',
@@ -594,6 +595,13 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                   placeholder="Unit vocabulary"
                   {...tourTypeAttr('editor.title', 'flashcards')}
                 />
+                {initialSet.importedFrom && (
+                  <ImportAttributionLine
+                    attribution={initialSet.importedFrom}
+                    className="mt-1 text-slate-500"
+                    style={{ fontSize: 'min(11px, 3.4cqmin)' }}
+                  />
+                )}
               </label>
               <label className="[@container(min-width:680px)]:col-span-2">
                 <span
@@ -606,7 +614,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   maxLength={300}
-                  className="mt-1 w-full rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+                  className="mt-1 w-full rounded-xl border border-slate-200 text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
                   style={{
                     padding: 'min(8px, 2cqmin)',
                     fontSize: 'min(13px, 4cqmin)',

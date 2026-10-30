@@ -27,7 +27,7 @@ const RECURRING_DEFAULTS = [
 ];
 
 const inputClass =
-  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50';
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-teal-500 disabled:opacity-50';
 const smallButtonClass =
   'rounded-lg border border-slate-200 bg-white px-2 py-1 text-xxs font-semibold text-slate-600 hover:border-teal-400 hover:text-teal-700';
 

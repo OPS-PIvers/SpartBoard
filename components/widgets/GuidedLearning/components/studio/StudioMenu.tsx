@@ -122,7 +122,7 @@ export const StudioMenu: React.FC<{
                   close();
                   item.onSelect();
                 }}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:bg-slate-100 focus:outline-none aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:bg-slate-100 focus:outline-hidden aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
               >
                 <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>

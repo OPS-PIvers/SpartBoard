@@ -40,7 +40,7 @@ interface WhiteboardZoomFrameProps {
 }
 
 const btn =
-  'flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 transition-colors [-webkit-tap-highlight-color:transparent] hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-40';
+  'flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 transition-colors [-webkit-tap-highlight-color:transparent] hover:bg-slate-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-40';
 
 const midpoint = (a: Point, b: Point): Point => ({
   x: (a.x + b.x) / 2,
@@ -227,7 +227,7 @@ export const WhiteboardZoomFrame = forwardRef<
 
     return (
       <div
-        className={`relative shrink-0 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200 [container-type:size] ${className}`}
+        className={`relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xs ring-1 ring-slate-200 @container-size ${className}`}
         style={style}
       >
         <div
@@ -252,7 +252,7 @@ export const WhiteboardZoomFrame = forwardRef<
         <div
           role="group"
           aria-label={t('quizWhiteboard.canvas.zoom')}
-          className="absolute bottom-2 right-2 flex items-center rounded-xl bg-white/95 p-0.5 shadow-sm ring-1 ring-slate-200"
+          className="absolute bottom-2 right-2 flex items-center rounded-xl bg-white/95 p-0.5 shadow-xs ring-1 ring-slate-200"
         >
           <button
             type="button"

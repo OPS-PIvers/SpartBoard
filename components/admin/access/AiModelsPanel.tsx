@@ -32,10 +32,10 @@ import {
 const GEMINI_IDS: string[] = KNOWN_GEMINI_MODELS.map((m) => m.value);
 
 const FIELD =
-  'h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
+  'h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
 
 const LIMIT_FIELD =
-  'h-8 w-36 rounded-lg border border-slate-300 bg-white px-2 text-right text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
+  'h-8 w-36 rounded-lg border border-slate-300 bg-white px-2 text-right text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
 
 const formatCount = (n: number): string =>
   n >= 1_000_000

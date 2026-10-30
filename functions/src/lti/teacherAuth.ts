@@ -1,5 +1,5 @@
 // Shared teacher gate for the LTI callables; mirrors firestore.rules isDistrictStaff().
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import { isDistrictStaffToken } from '../districtStaff';
 
 const DISTRICT_EMAIL = /^[^@]+@orono\.k12\.mn\.us$/i;

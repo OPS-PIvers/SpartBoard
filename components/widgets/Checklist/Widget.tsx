@@ -361,7 +361,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
               {...tourAttr('checklist.reset-checks', widget.id, widget.type)}
               onClick={resetToday}
               title="Reset Checks"
-              className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
+              className="flex items-center justify-center bg-white border border-slate-200 shadow-xs rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
               style={{
                 ...footerButtonSize,
               }}
@@ -377,7 +377,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                 )}
                 onClick={removeCompleted}
                 title="Remove Completed"
-                className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
+                className="flex items-center justify-center bg-white border border-slate-200 shadow-xs rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
                 style={{
                   ...footerButtonSize,
                 }}

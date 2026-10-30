@@ -20,7 +20,7 @@ import {
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const inputClass =
-  'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500';
+  'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500';
 
 const isRevealCard = (value: unknown): value is RevealCard => {
   if (!value || typeof value !== 'object') return false;
@@ -404,7 +404,7 @@ export const RevealGridCardsField: React.FC<{
             onChange={(event) => setPasteData(event.target.value)}
             placeholder={t('pastePlaceholder')}
             rows={4}
-            className="w-full rounded border border-blue-200 p-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-sm border border-blue-200 p-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             {...tourAttr(
               'widget-settings.reveal-grid.paste-data',
               ctx.widget.id,
@@ -414,7 +414,7 @@ export const RevealGridCardsField: React.FC<{
           <button
             type="button"
             onClick={handlePasteData}
-            className="mt-2 w-full rounded bg-blue-500 py-2 text-xs font-bold text-white"
+            className="mt-2 w-full rounded-sm bg-blue-500 py-2 text-xs font-bold text-white"
             {...tourAttr(
               'widget-settings.reveal-grid.add-pasted',
               ctx.widget.id,
@@ -430,7 +430,7 @@ export const RevealGridCardsField: React.FC<{
         {cards.map((card, index) => (
           <div
             key={card.id}
-            className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm"
+            className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xs"
           >
             <div className="flex items-center gap-2 px-3 py-2">
               <span className="w-5 shrink-0 text-xxs font-bold text-slate-400">

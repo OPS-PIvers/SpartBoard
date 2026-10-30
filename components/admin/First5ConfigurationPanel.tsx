@@ -69,7 +69,7 @@ export const First5ConfigurationPanel: React.FC<
               'first-5',
               'activeDayNumber'
             )}
-            className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-none text-sm"
+            className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-hidden text-sm"
           />
           {referenceDate && referenceDate !== localTodayISO && (
             <button
@@ -104,7 +104,7 @@ export const First5ConfigurationPanel: React.FC<
       <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mt-4">
         <p className="text-xs text-amber-700">
           URL pattern:{' '}
-          <code className="bg-amber-100 px-1 rounded">
+          <code className="bg-amber-100 px-1 rounded-sm">
             edtomorrow.com/today/
             {todaysDayNumber ?? '???'}
             [j/p/s]

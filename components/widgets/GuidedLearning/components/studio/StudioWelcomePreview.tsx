@@ -53,7 +53,7 @@ export const StudioWelcomePreview: React.FC<StudioWelcomePreviewProps> = ({
           {title.trim() || t('glStudio.untitled')}
         </p>
         {text ? (
-          <div className="mb-6 mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left">
+          <div className="mb-6 mt-3 rounded-xl border border-white/10 bg-white/3 px-4 py-3 text-left">
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
               {text}
             </p>

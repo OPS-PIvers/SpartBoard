@@ -214,7 +214,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
             <button
               onClick={() => setShowMenu(false)}
               aria-label="Close menu"
-              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 transition-shadow"
+              className="rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 transition-shadow"
             >
               <X size={14} className="text-slate-400 hover:text-slate-600" />
             </button>
@@ -237,7 +237,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
                   href={withPreviewFlag(joinUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-indigo-600 border border-indigo-200 rounded-md text-xxs font-bold uppercase tracking-wider hover:bg-indigo-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 focus-visible:ring-offset-indigo-50"
+                  className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-indigo-600 border border-indigo-200 rounded-md text-xxs font-bold uppercase tracking-wider hover:bg-indigo-100 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 focus-visible:ring-offset-indigo-50"
                   title="Preview the student view without touching your teacher session"
                 >
                   <Eye size={12} /> Preview
@@ -293,7 +293,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
                     {/* no-tour-anchor: per-student row, exists only while students are joined */}
                     <button
                       onClick={() => onRemoveStudent(s.id)}
-                      className="p-1 rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="p-1 rounded-sm hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                       aria-label={`Remove ${label}`}
                     >
                       <Trash2 size={14} />
@@ -311,7 +311,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
               aria-label={
                 isGlobalFrozen ? 'Unfreeze all students' : 'Freeze all students'
               }
-              className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xxs  uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-50 ${isGlobalFrozen ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xxs  uppercase transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-50 ${isGlobalFrozen ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
             >
               <Snowflake size={12} />{' '}
               {isGlobalFrozen ? 'Unfreeze All' : 'Freeze All'}

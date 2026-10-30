@@ -350,7 +350,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
                 setHtml(beforeAi);
                 setBeforeAi(null);
               }}
-              className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2"
+              className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-xs transition-colors flex items-center gap-2"
               {...tourTypeAttr('mini-app.undo-ai', 'miniApp')}
             >
               <Undo2 className="w-4 h-4" />
@@ -363,7 +363,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
               onClick={() => setTrying(true)}
               {...tourTypeAttr('mini-app.try-as-student', 'miniApp')}
               disabled={!html.trim()}
-              className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-brand-blue-primary rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+              className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-brand-blue-primary rounded-xl font-bold text-xs uppercase tracking-wider shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               <Play className="w-4 h-4" />
               Try as student
@@ -375,7 +375,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
                 setAiMode('edit');
                 setShowPromptInput(true);
               }}
-              className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2"
+              className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-xs transition-colors flex items-center gap-2"
               title={
                 canEditWithAi ? 'Change this app with AI' : 'Generate with AI'
               }
@@ -506,7 +506,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
                   setBeforeAi(null);
                 }}
                 aria-label="HTML code"
-                className="flex-1 w-full p-4 bg-white border border-slate-200 text-slate-700 placeholder-slate-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 resize-none leading-relaxed custom-scrollbar"
+                className="flex-1 w-full p-4 bg-white border border-slate-200 text-slate-700 placeholder-slate-400 font-mono text-xs rounded-xl focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 resize-none leading-relaxed custom-scrollbar"
                 spellCheck={false}
                 {...tourTypeAttr('mini-app.html-code', 'miniApp')}
                 placeholder="Paste your HTML, CSS, and JS here..."

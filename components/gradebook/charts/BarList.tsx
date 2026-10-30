@@ -82,7 +82,7 @@ export const BarList: React.FC<BarListProps> = ({
                     r.id
                   )}
                   onClick={() => onSelect(r.id)}
-                  className="max-w-full truncate text-left hover:text-brand-blue-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/30 rounded"
+                  className="max-w-full truncate text-left hover:text-brand-blue-primary hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/30 rounded-sm"
                 >
                   {r.label}
                 </button>

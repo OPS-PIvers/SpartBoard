@@ -133,8 +133,8 @@ export const WriteMode: React.FC<WriteModeProps> = ({
             'bg-transparent text-inherit',
             segment.type === 'added' &&
               (dark
-                ? 'rounded bg-emerald-300/20 text-emerald-100'
-                : 'rounded bg-emerald-200 text-emerald-950')
+                ? 'rounded-sm bg-emerald-300/20 text-emerald-100'
+                : 'rounded-sm bg-emerald-200 text-emerald-950')
           )}
         >
           {segment.text}
@@ -169,7 +169,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
   const sides = getFlashcardSides(card, showFirst);
   const isStarred = starred.includes(card.id);
   const inputClass = cx(
-    'w-full rounded-[min(18px,4cqmin)] border-2 text-center font-bold outline-none transition placeholder:opacity-100 focus:ring-4',
+    'w-full rounded-[min(18px,4cqmin)] border-2 text-center font-bold outline-hidden transition placeholder:opacity-100 focus:ring-4',
     dark
       ? 'border-white/15 bg-slate-950/60 text-white placeholder:text-white/60 focus:border-cyan-300 focus:ring-cyan-300/20'
       : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-600 focus:border-rose-400 focus:ring-rose-200'
@@ -199,7 +199,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
           {t(`flashcards.cards.${showFirst}`)} · {index + 1}/{queue.length}
         </div>
         <h2
-          className="mx-auto max-w-[26ch] font-black leading-tight [text-wrap:balance]"
+          className="mx-auto max-w-[26ch] font-black leading-tight text-balance"
           style={{
             marginTop: 'min(12px, 3cqmin)',
             fontSize: 'clamp(20px, 8cqmin, 46px)',
@@ -218,7 +218,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
             )}
             aria-pressed={isStarred}
             className={cx(
-              'absolute rounded-full transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300',
+              'absolute rounded-full transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-amber-300',
               isStarred
                 ? 'bg-amber-400 text-amber-950'
                 : dark
@@ -272,7 +272,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
             ref={continueRef}
             type="button"
             onClick={() => advance(true, acceptedReview.response)}
-            className="mx-auto flex rounded-full bg-rose-600 font-black text-white transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
+            className="mx-auto flex rounded-full bg-rose-600 font-black text-white transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300"
             style={{
               marginTop: 'min(12px, 3cqmin)',
               padding: 'min(10px, 2.4cqmin) min(18px, 4cqmin)',
@@ -326,7 +326,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
           <button
             type="submit"
             disabled={!response.trim()}
-            className="mx-auto flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/20 transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
+            className="mx-auto flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/20 transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
             style={{
               gap: 'min(7px, 1.5cqmin)',
               marginTop: 'min(12px, 3cqmin)',
@@ -441,7 +441,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
               <button
                 type="submit"
                 disabled={!retype.trim()}
-                className="rounded-full bg-rose-600 font-black text-white transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 disabled:opacity-45"
+                className="rounded-full bg-rose-600 font-black text-white transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300 disabled:opacity-45"
                 style={{
                   padding: 'min(10px, 2.4cqmin) min(18px, 4cqmin)',
                   fontSize: 'min(12px, 3.2cqmin)',
@@ -456,7 +456,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
                   disabled={check.flaggedIds.includes(card.id)}
                   aria-pressed={check.flaggedIds.includes(card.id)}
                   className={cx(
-                    'inline-flex items-center rounded-full font-bold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:no-underline',
+                    'inline-flex items-center rounded-full font-bold underline underline-offset-4 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300 disabled:no-underline',
                     dark ? 'text-white' : 'text-rose-800'
                   )}
                   style={{
@@ -483,7 +483,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
                   type="button"
                   onClick={() => advance(true, wrongReview.response)}
                   className={cx(
-                    'rounded-full font-bold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+                    'rounded-full font-bold underline underline-offset-4 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
                     dark ? 'text-white' : 'text-rose-800'
                   )}
                   style={{

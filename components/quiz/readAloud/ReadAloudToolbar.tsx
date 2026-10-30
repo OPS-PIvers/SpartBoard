@@ -31,7 +31,7 @@ export const ReadAloudControls: React.FC<{
         onClick={active ? controller.stop : controller.readQuestion}
         aria-pressed={whole === 'playing'}
         aria-busy={whole === 'loading'}
-        className={`inline-flex min-h-11 items-center gap-2 rounded-2xl border-2 px-4 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
+        className={`inline-flex min-h-11 items-center gap-2 rounded-2xl border-2 px-4 text-sm font-bold transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
           active
             ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary'
             : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
@@ -58,7 +58,7 @@ export const ReadAloudControls: React.FC<{
           defaultValue: 'Speed {{rate}}',
           rate: rateLabel,
         })}
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border-2 border-slate-200 bg-white px-3 font-mono text-sm font-bold text-slate-600 transition-colors hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border-2 border-slate-200 bg-white px-3 font-mono text-sm font-bold text-slate-600 transition-colors hover:border-slate-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60"
       >
         {rateLabel}
       </button>
@@ -72,7 +72,7 @@ export const ReadAloudControls: React.FC<{
           aria-checked={controller.auto}
           aria-labelledby="quiz-read-aloud-auto-label"
           onClick={() => controller.setAuto(!controller.auto)}
-          className={`relative h-6 w-11 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
+          className={`relative h-6 w-11 rounded-full transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
             controller.auto ? 'bg-brand-blue-primary' : 'bg-slate-300'
           }`}
         >

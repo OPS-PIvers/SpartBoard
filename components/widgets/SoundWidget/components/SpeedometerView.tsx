@@ -24,7 +24,7 @@ export const SpeedometerView: React.FC<{
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center p-4">
-      <svg viewBox="0 0 100 60" className="w-full h-auto drop-shadow-sm">
+      <svg viewBox="0 0 100 60" className="w-full h-auto drop-shadow-xs">
         {/* Arcs */}
         {POSTER_LEVELS.map((level, i) => {
           const startVol = level.threshold;

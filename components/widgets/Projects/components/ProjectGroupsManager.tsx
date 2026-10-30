@@ -52,7 +52,7 @@ const MAX_MEMBERS = 40;
 const labelClass =
   'block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1';
 const inputClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 const quietButton =
   'inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50';
 
@@ -214,7 +214,7 @@ const GroupColorPicker: React.FC<{
         aria-haspopup="true"
         aria-expanded={open}
         title="Change color"
-        className={`block h-5 w-5 rounded-full border-2 border-white shadow ring-1 ring-slate-300 ${color}`}
+        className={`block h-5 w-5 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-300 ${color}`}
       />
       {open && (
         <div
@@ -449,7 +449,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
             disabled={namesPending}
             aria-label={`Take ${label} out of ${groupName}`}
             title="Take out of group"
-            className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+            className="shrink-0 rounded-sm p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -536,7 +536,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                     aria-label={`Name of ${name}`}
                     {...tourAttr('projects.group-name')}
                     maxLength={60}
-                    className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm font-bold text-slate-800 hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                    className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm font-bold text-slate-800 hover:border-slate-300 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                   />
                   <span className="shrink-0 text-xs text-slate-500">
                     {group.members.length} student
@@ -552,7 +552,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                     aria-label={`Delete ${name}`}
                     {...tourAttr('projects.group-delete')}
                     title="Delete group"
-                    className="shrink-0 rounded p-1 text-slate-500 hover:bg-red-50 hover:text-brand-red-primary"
+                    className="shrink-0 rounded-sm p-1 text-slate-500 hover:bg-red-50 hover:text-brand-red-primary"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden />
                   </button>

@@ -35,7 +35,7 @@ const NoteListItem: React.FC<{ entry: NotesListEntry }> = ({ entry }) => (
     aria-current={entry.active || undefined}
     {...tourFieldAttr('teams.notes.list-entry', 'teams-notes', entry.key)}
     onClick={entry.onSelect}
-    className={`flex w-full flex-col rounded-xl px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+    className={`flex w-full flex-col rounded-xl px-3 py-2 text-left transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
       entry.active ? 'bg-brand-blue-lighter' : 'hover:bg-slate-100'
     }`}
   >

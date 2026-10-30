@@ -29,7 +29,7 @@ export const SharingStep: React.FC<SharingStepProps> = ({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3 min-h-[2rem]">
+      <div className="flex items-center justify-between gap-3 min-h-8">
         <span className="flex items-center gap-2 min-w-0">
           <Share2
             className="w-4 h-4 shrink-0 text-brand-blue-primary"
@@ -57,7 +57,7 @@ export const SharingStep: React.FC<SharingStepProps> = ({
             value={effectivePlcId}
             onChange={(e) => onChange({ ...value, plcId: e.target.value })}
             {...tourAttr('sharing.plc-select')}
-            className="h-8 w-56 px-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary"
+            className="h-8 w-56 px-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary"
           >
             <option value="">Select a PLC…</option>
             {plcs.map((p) => (

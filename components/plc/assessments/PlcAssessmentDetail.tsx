@@ -96,7 +96,7 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
         type="button"
         onClick={canExpand ? () => setOpen((v) => !v) : undefined}
         aria-expanded={canExpand ? open : undefined}
-        className={`w-full text-left px-4 py-3 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${canExpand ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'}`}
+        className={`w-full text-left px-4 py-3 rounded-xl focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${canExpand ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'}`}
       >
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm text-slate-800 truncate">
@@ -214,7 +214,7 @@ const TargetAggregateRow: React.FC<{
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-label={`${open ? 'Collapse' : 'Expand'} ${row.code ?? row.label}`}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+        className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-slate-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
       >
         {open ? (
           <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
@@ -679,7 +679,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
                     type="button"
                     onClick={() => setQuestionSort(value)}
                     aria-pressed={on}
-                    className={`rounded-full border px-3 py-0.5 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+                    className={`rounded-full border px-3 py-0.5 text-xs transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
                       on
                         ? 'bg-brand-blue-lighter border-brand-blue-primary text-brand-blue-dark'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'

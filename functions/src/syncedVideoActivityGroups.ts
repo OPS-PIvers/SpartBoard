@@ -26,7 +26,7 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { assertShareAuthorInGroup } from './plcSyncJoinGuards';
 

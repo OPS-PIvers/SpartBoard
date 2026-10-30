@@ -247,14 +247,14 @@ export const CALLOUT_TONE_STYLES: Record<
     labelKey: 'glStudio.calloutToneLight',
   },
   accent: {
-    tooltipCard: `bg-[var(--spart-primary,#2d3f89)] text-white border border-white/25 ${chromeShadow}`,
-    popoverCard: `bg-[var(--spart-primary,#2d3f89)] text-white border border-white/25 ${chromeShadow}`,
+    tooltipCard: `bg-(--spart-primary,#2d3f89) text-white border border-white/25 ${chromeShadow}`,
+    popoverCard: `bg-(--spart-primary,#2d3f89) text-white border border-white/25 ${chromeShadow}`,
     title: 'text-white',
     body: 'text-white',
     closeButton: 'text-white/80 hover:text-white',
     line: 'var(--spart-primary, #2d3f89)',
     halo: 'rgba(255,255,255,0.85)',
-    swatch: 'bg-[var(--spart-primary,#2d3f89)] border border-white/40',
+    swatch: 'bg-(--spart-primary,#2d3f89) border border-white/40',
     labelKey: 'glStudio.calloutToneAccent',
   },
 };

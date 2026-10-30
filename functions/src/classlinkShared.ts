@@ -14,7 +14,7 @@
  * `admin.initializeApp()`); `resolveOrgIdForDomain` receives the Firestore handle
  * from its caller so this stays a pure, import-anywhere helper module.
  */
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import * as CryptoJS from 'crypto-js';
 import OAuth from 'oauth-1.0a';
 

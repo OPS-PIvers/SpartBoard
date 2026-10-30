@@ -368,7 +368,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 top-0 z-[3] w-px text-left"
+                className="sticky left-0 top-0 z-3 w-px text-left"
                 style={{ ...stickyStyle, padding: HEADER_PAD }}
               >
                 <span className="sr-only">Group</span>
@@ -376,7 +376,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
               {collapsed ? (
                 <th
                   scope="col"
-                  className="sticky top-0 z-[2] align-bottom font-bold text-slate-800"
+                  className="sticky top-0 z-2 align-bottom font-bold text-slate-800"
                   style={{ ...stickyStyle, padding: HEADER_PAD }}
                 >
                   <span
@@ -391,7 +391,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                         <span
                           key={step.id}
                           title={step.title}
-                          className="flex-1 min-w-0 break-words line-clamp-2 text-center leading-tight"
+                          className="flex-1 min-w-0 wrap-break-word line-clamp-2 text-center leading-tight"
                           style={{ fontSize: 'min(18px, 3cqmin)' }}
                         >
                           {step.title}
@@ -413,7 +413,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                     key={step.id}
                     scope="col"
                     title={step.title}
-                    className="sticky top-0 z-[2] align-bottom text-center font-bold text-slate-800"
+                    className="sticky top-0 z-2 align-bottom text-center font-bold text-slate-800"
                     style={{
                       ...stickyStyle,
                       width: `${100 / steps.length}%`,
@@ -424,7 +424,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                     }}
                   >
                     <span
-                      className={`block leading-tight break-words ${
+                      className={`block leading-tight wrap-break-word ${
                         dense ? 'line-clamp-2' : 'line-clamp-3'
                       }`}
                     >
@@ -638,7 +638,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
             >
               <span
                 aria-hidden
-                className={`flex items-center justify-center rounded ${STATE_STYLES[state].tone}`}
+                className={`flex items-center justify-center rounded-sm ${STATE_STYLES[state].tone}`}
                 style={{
                   width: 'min(16px, 4cqmin)',
                   height: 'min(16px, 4cqmin)',

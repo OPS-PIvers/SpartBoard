@@ -290,7 +290,7 @@ export const DashboardTemplatesManager: React.FC = () => {
 
       {/* Create Form (blank template shell) */}
       {showForm && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-xs animate-in slide-in-from-top-2 duration-200">
           <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
             <LayoutTemplate className="w-4 h-4 text-brand-blue-primary" />
             Create Empty Template Shell
@@ -306,7 +306,7 @@ export const DashboardTemplatesManager: React.FC = () => {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="e.g. K-2 Morning Routine"
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30"
             />
           </div>
 
@@ -322,7 +322,7 @@ export const DashboardTemplatesManager: React.FC = () => {
                 setForm({ ...form, description: e.target.value })
               }
               placeholder="What is this template for?"
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30"
             />
           </div>
 
@@ -436,7 +436,7 @@ export const DashboardTemplatesManager: React.FC = () => {
                                   name: e.target.value,
                                 })
                               }
-                              className="flex-1 min-w-0 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 text-sm transition-colors"
+                              className="flex-1 min-w-0 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-hidden px-0 py-0.5 text-sm transition-colors"
                               placeholder="Template name"
                             />
                             <span
@@ -464,7 +464,7 @@ export const DashboardTemplatesManager: React.FC = () => {
                                 description: e.target.value,
                               })
                             }
-                            className="w-full text-xs text-slate-500 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
+                            className="w-full text-xs text-slate-500 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:outline-hidden px-0 py-0.5 transition-colors"
                             placeholder="Add description…"
                           />
                         </div>
@@ -544,7 +544,7 @@ export const DashboardTemplatesManager: React.FC = () => {
                                   title={b.name}
                                   className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
                                     selected
-                                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                                       : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                   }`}
                                 >
@@ -565,7 +565,7 @@ export const DashboardTemplatesManager: React.FC = () => {
                               }
                               className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
                                 local.targetBuildings.length === 0
-                                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                                   : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                               }`}
                             >

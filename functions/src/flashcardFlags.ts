@@ -1,6 +1,6 @@
 // Teacher review of Flashcards Check flags (docs/plans/shipped/FLASHCARDS.md §2.6 Q41, §7).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';

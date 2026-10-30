@@ -65,7 +65,7 @@ export const CatalystVisualWidget: React.FC<{ widget: WidgetData }> = ({
             {getIcon(config.icon ?? '')}
           </div>
           <h2
-            className="shrink-0 max-h-full overflow-y-auto font-black text-center uppercase tracking-wider leading-tight w-full [overflow-wrap:anywhere]"
+            className="shrink-0 max-h-full overflow-y-auto font-black text-center uppercase tracking-wider leading-tight w-full wrap-anywhere"
             style={{
               fontSize:
                 title.length > 28

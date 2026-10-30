@@ -88,13 +88,13 @@ const CommentRow: React.FC<{
             aria-label={t('plcDashboard.comments.delete', {
               defaultValue: 'Delete comment',
             })}
-            className="ml-auto p-1 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-brand-red-primary/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-red-primary"
+            className="ml-auto p-1 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-brand-red-primary/10 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-red-primary"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
-      <p className="text-xs text-slate-700 whitespace-pre-wrap break-words">
+      <p className="text-xs text-slate-700 whitespace-pre-wrap wrap-break-word">
         {comment.body}
       </p>
     </li>
@@ -395,7 +395,7 @@ export const PlcCommentsThread: React.FC<PlcCommentsThreadProps> = ({
             placeholder={t('plcDashboard.comments.placeholder', {
               defaultValue: 'Write a comment… use @ to mention a teammate',
             })}
-            className="w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           />
           {mentionQuery !== null && (
             <div id={`${idPrefix}-listbox`}>
@@ -414,7 +414,7 @@ export const PlcCommentsThread: React.FC<PlcCommentsThreadProps> = ({
               type="button"
               onClick={() => void handlePost()}
               disabled={posting || draft.trim().length === 0}
-              className="px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xxs font-semibold hover:bg-brand-blue-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+              className="px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xxs font-semibold hover:bg-brand-blue-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
             >
               {t('plcDashboard.comments.post', { defaultValue: 'Post' })}
             </button>

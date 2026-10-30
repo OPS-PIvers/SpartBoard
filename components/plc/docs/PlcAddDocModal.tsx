@@ -85,7 +85,7 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
       role="dialog"
       aria-modal="true"
       aria-label={modalTitle}
@@ -148,7 +148,7 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
               placeholder={t('plcDashboard.docs.titlePlaceholder', {
                 defaultValue: 'Doc title',
               })}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-blue-primary/50 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-blue-primary/50 focus:outline-hidden focus:ring-1 focus:ring-brand-blue-primary/50"
             />
           </div>
           <div>
@@ -173,7 +173,7 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
               placeholder={t('plcDashboard.docs.groupUrlPlaceholder', {
                 defaultValue: 'Paste a link',
               })}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-blue-primary/50 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-blue-primary/50 focus:outline-hidden focus:ring-1 focus:ring-brand-blue-primary/50"
             />
           </div>
         </div>

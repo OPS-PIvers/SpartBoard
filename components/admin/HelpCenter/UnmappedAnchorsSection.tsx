@@ -154,7 +154,7 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
                 className="px-3 py-2 text-xs space-y-1"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <code className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-800">
+                  <code className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-slate-800">
                     {label}
                   </code>
                   <span

@@ -525,7 +525,7 @@ export const ScheduleListField: React.FC<{
                         name: event.target.value,
                       })
                     }
-                    className="min-w-0 flex-1 border-none bg-transparent p-0 text-sm font-bold text-slate-700 outline-none focus:ring-0"
+                    className="min-w-0 flex-1 border-none bg-transparent p-0 text-sm font-bold text-slate-700 outline-hidden focus:ring-0"
                     placeholder={translate(ctx, 'scheduleNamePlaceholder')}
                     {...tourAttr(
                       'widget-settings.schedule.schedule-name',
@@ -536,7 +536,7 @@ export const ScheduleListField: React.FC<{
                   <button
                     type="button"
                     onClick={handleAddSchedule}
-                    className="shrink-0 rounded p-1 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                    className="shrink-0 rounded-sm p-1 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
                     aria-label={translate(ctx, 'newSchedule')}
                     title={translate(ctx, 'newSchedule')}
                     {...tourAttr(
@@ -552,7 +552,7 @@ export const ScheduleListField: React.FC<{
                     onClick={() =>
                       void handleDeleteSchedule(selectedSchedule.id)
                     }
-                    className="shrink-0 rounded p-1 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                    className="shrink-0 rounded-sm p-1 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
                     aria-label={translate(ctx, 'deleteSchedule')}
                     title={translate(ctx, 'deleteSchedule')}
                     {...tourAttr(
@@ -789,7 +789,7 @@ export const ScheduleListField: React.FC<{
                     });
                     addToast(copyToast, 'success');
                   }}
-                  className="rounded p-1.5 text-brand-blue-primary hover:bg-blue-100"
+                  className="rounded-sm p-1.5 text-brand-blue-primary hover:bg-blue-100"
                   aria-label={translate(ctx, 'copyToMySchedules')}
                   title={translate(ctx, 'copyToMySchedules')}
                   {...tourFieldAttr(

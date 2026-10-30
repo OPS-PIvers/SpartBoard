@@ -45,7 +45,7 @@ export const NumberField: React.FC<FieldProps<NumberFieldSchema<string>>> = ({
         setFocused(false);
         setDraft(committed);
       }}
-      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
     />
   );
 };

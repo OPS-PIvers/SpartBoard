@@ -26,11 +26,11 @@ export const SpotifyRowSkeleton: React.FC = () => (
     />
     <div className="flex-1 space-y-2">
       <div
-        className="bg-slate-700 rounded"
+        className="bg-slate-700 rounded-sm"
         style={{ height: 'min(16px, 4cqmin)', width: '75%' }}
       />
       <div
-        className="bg-slate-800 rounded"
+        className="bg-slate-800 rounded-sm"
         style={{ height: 'min(12px, 3cqmin)', width: '50%' }}
       />
     </div>
@@ -61,7 +61,7 @@ export const SpotifyReconnectBanner: React.FC<{ onReconnect: () => void }> = ({
       type="button"
       onClick={onReconnect}
       {...tourTypeAttr('music.spotify-reconnect', 'music')}
-      className="rounded-md bg-amber-500 text-amber-950 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+      className="rounded-md bg-amber-500 text-amber-950 font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-300"
       style={{
         fontSize: 'min(15px, 4.5cqmin)',
         padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',

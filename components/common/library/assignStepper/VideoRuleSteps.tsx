@@ -27,7 +27,7 @@ export const VideoAttemptsStep: React.FC<VideoRuleStepProps> = ({
   answerRows = VIDEO_ANSWER_ROWS_READY,
 }) => (
   <div className="space-y-1.5">
-    <div className="flex min-h-[2rem] flex-col justify-center">
+    <div className="flex min-h-8 flex-col justify-center">
       <AttemptLimitRow
         label="Attempts allowed"
         value={value.behavior.attemptLimit}

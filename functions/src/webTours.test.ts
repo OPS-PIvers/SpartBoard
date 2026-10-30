@@ -21,7 +21,7 @@ const h = vi.hoisted(() => {
   return { store, deleted, db };
 });
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(() => h.db),

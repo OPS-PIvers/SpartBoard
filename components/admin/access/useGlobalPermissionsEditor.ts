@@ -39,6 +39,7 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'dashboard-layout',
   'instructional-routine',
   'ocr',
+  'universal-import',
 ];
 
 /** Features whose admin card picks the Gemini model tier. */

@@ -113,7 +113,7 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      zIndex="z-[12500]"
+      zIndex="z-12500"
       maxWidth="max-w-3xl"
       className="h-[80vh]"
       contentClassName="px-6 pb-4 flex flex-col"
@@ -170,7 +170,7 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
                       student.id
                     )}
                     aria-pressed={isAbsent}
-                    className={`relative flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-sm font-bold transition-colors motion-safe:transition-transform focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    className={`relative flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-sm font-bold transition-colors motion-safe:transition-transform focus:outline-hidden focus:ring-2 focus:ring-offset-2 ${
                       isAbsent
                         ? 'bg-red-50 border-red-300 text-red-700 line-through opacity-70 focus:ring-red-400'
                         : 'bg-white border-slate-200 text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary focus:ring-brand-blue-primary'
