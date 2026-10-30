@@ -23,6 +23,8 @@ export const AI_INTEGRATIONS = {
   'quiz-translation': { tier: 'advanced', inputs: ['text'] },
   'response-translation': { tier: 'standard', inputs: ['text'] },
   'web-tour-writing': { tier: 'advanced', inputs: ['image'] },
+  'flashcards-import': { tier: 'standard', inputs: ['text'] },
+  'activity-wall-import': { tier: 'standard', inputs: ['text'] },
 } as const satisfies Record<
   string,
   { tier: AiTier; inputs: readonly AiInputKind[] }

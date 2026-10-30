@@ -6,6 +6,12 @@ const BOARDS_MENU = 'board-nav.select-board';
 const GROUP_WIZARD = 'roster-groups.new';
 
 export const SURFACES: TourSurfaceMap = {
+  // Import's review step for an AI-made board; opened from Import once a target is picked.
+  'board.import-board-review': {
+    label: 'Import review for an AI-made board',
+    kind: 'shared',
+    files: ['components/import/conversion/'],
+  },
   // Import's Reference material step; the Import screen that opens it lands separately.
   'import.reference': {
     label: 'Import: page refused to show in an Embed',

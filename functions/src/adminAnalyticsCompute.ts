@@ -552,6 +552,7 @@ export async function computeAnalyticsForOrg(
   //   requestPlcMeetingNotesV1 (plcMeetingNotes.ts): plc-meeting-ai-notes
   //   plcGoalCoachV1 (plcGoalCoach.ts): plc-goal-coach
   //   writeWebTourTextV1 (webTourWriting.ts): web-tour-writing
+  //   importConvertV1 (importConversion.ts): universal-import
   //   translateQuizV1 / translateResponseV1 (quizTranslation.ts): translation (count + backCount)
   //   extractQuizFromDocumentV1: quiz-document-ai-reader; extractStimulusReadAloudTextV1 counts as ocr
   //
@@ -583,6 +584,7 @@ export async function computeAnalyticsForOrg(
     'plc-goal-coach',
     'quiz-document-ai-reader',
     'web-tour-writing',
+    'universal-import',
   ];
 
   // Sub-limit counters beside a feature counter; skipped so they never double count.
