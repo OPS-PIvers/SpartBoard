@@ -4843,43 +4843,45 @@ service cloud.firestore {
         incoming().at == request.time;
     }
 
-    // Quiz join-code -> session pointers. One doc per (code, session), written by
-    // the owning teacher alongside the session itself.
-    //
-    // Why this collection exists: the PIN join flow has to turn a 6-char code into
-    // a session id, and it used to do that with where('code','==',code) against
-    // quiz_sessions. A `list` rule is evaluated ONCE against the query with an EMPTY
-    // resource, so it cannot prove that a filter on `code` was supplied — which is
-    // why quiz_sessions still answers `list` to any authed caller (see the note
-    // there). Here the code is a PATH segment, so the same lookup is provable by
-    // construction: the caller had to know the code to address the collection at all.
-    //
-    // Reads are open to any authed caller INCLUDING anonymous, because K-2 students
-    // have no account to sign in with and reach their quiz by PIN. Knowing the code
-    // IS the gate, exactly as it was before.
+    // Quiz join codes. The parent doc `quiz_join_codes/{code}` is the code's owner
+    // record, create-if-absent and immutable, so a code has exactly one owner and no
+    // second account can register a session under it. Pointers at
+    // /sessions/{sessionId} map the code to that owner's sessions; join resolves a
+    // code only through them (the code is a path segment, so knowing it is the gate).
+    // Reads are open to any authed caller including anonymous K-2 PIN students.
+    // Only staff (active non-student member doc) claim codes or create sessions.
+    function quizStaff() {
+      return signedIn() && notAnon() && !isStudentRoleUser() &&
+        request.auth.token.get('email_verified', false) == true &&
+        staffMemberOk(operatorMember());
+    }
+    // The caller owns this code once the write lands (getAfter: claimed in the same batch).
+    // TRANSITIONAL: a still-unclaimed code also passes, so a tab on the client before
+    // owner records can assign until it reloads; drop `o == null` the release after.
+    function ownsJoinCode(c) {
+      let o = getAfter(/databases/$(database)/documents/quiz_join_codes/$(c));
+      return o == null || o.data.teacherUid == authUid();
+    }
     match /quiz_join_codes/{code} {
-      // Nothing is stored on the parent doc; the pointers live in /sessions.
-      allow read, write: if false;
+      allow get: if signedIn();
+      allow create: if quizStaff() &&
+        code.matches('^[A-Z0-9]{1,16}$') &&
+        incoming().keys().hasOnly(['teacherUid', 'createdAt']) &&
+        incoming().teacherUid == authUid() &&
+        isInt('createdAt');
 
       match /sessions/{sessionId} {
         allow get, list: if signedIn();
         // Owner-only, doc id == session id, and no free-form storage.
-        allow create: if signedIn() &&
-          notAnon() &&
-          code.matches('^[A-Z0-9]{1,16}$') &&
+        allow create: if quizStaff() &&
           incoming().keys().hasOnly(['sessionId', 'teacherUid', 'createdAt']) &&
           incoming().sessionId == sessionId &&
           incoming().teacherUid == authUid() &&
-          isInt('createdAt');
-        // Immutable: an update could re-aim a live code at a different session,
-        // which is the one thing this collection must never let anyone do.
-        // Re-pointing is a delete + create, both owner-gated.
-        allow update: if false;
-        // `resource == null` makes deleting a pointer that was never written a
-        // no-op. deleteAssignment batches this atomically with the session and
-        // assignment deletes, and every session predating this collection has no
-        // pointer — without it, dereferencing the null resource throws, the batch
-        // is denied, and deleting a quiz breaks until the backfill has run.
+          isInt('createdAt') &&
+          ownsJoinCode(code);
+        // Immutable: re-pointing is a delete + create, both owner-gated.
+        // `resource == null` keeps deleting a never-written pointer a no-op, so
+        // deleteAssignment's batch works for sessions that predate pointers.
         allow delete: if signedIn() && (
           resource == null ||
           existing().teacherUid == authUid()
@@ -4891,26 +4893,12 @@ service cloud.firestore {
     // owns the document and stores their uid on the `teacherUid` field.
     // Multiple concurrent sessions per teacher are allowed.
     match /quiz_sessions/{sessionId} {
-      // Reads are intentionally permissive: any authed caller can get/list session docs.
-      // studentRole class gating is enforced on the response WRITE rules below (runtime
-      // get() of the parent classId), not on read - students see session metadata by id
-      // but can't submit outside their classIds. Privacy: a sessionId is an unguessable
-      // v4 UUID and the doc exposes no PII (answer-key stripped).
-      allow read: if signedIn();
-      // NOTE: `list` is NOT scoped here yet, unlike the other session collections.
-      // The PIN join flow queries this collection by join code
-      // (`where('code','==',code)`) as an ANONYMOUS student, and a list rule is
-      // evaluated against the query with an empty resource — it cannot prove that
-      // a filter on `code` was supplied.
-      //
-      // The `quiz_join_codes` lookup above now resolves a code without that query,
-      // so this IS closable: split into `allow get` plus
-      // `allow list: if request.auth != null && sessionListScoped();` — the same
-      // shape as the four collections below, verified against the emulator. It
-      // waits on every production browser reaching the new join path and on the
-      // live sessions being backfilled, because a merge to a dev-* branch ships
-      // these rules to production while the client only reaches a preview channel.
-      // Sequence: docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md.
+      // Any authed caller can get a session by id (a v4 UUID; the doc carries no PII
+      // and no answer key). List is scoped to the owner's own sessions or a student's
+      // classIds claim, so nobody can enumerate live join codes; join resolves a code
+      // through `quiz_join_codes` instead. studentRole class gating is on response writes.
+      allow get: if signedIn();
+      allow list: if signedIn() && sessionListScoped();
       // Only the teacher (session owner) can create/update/delete the session document.
       // Ownership is carried on the `teacherUid` field (no longer the doc id).
       // PLC pooling link (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §4): a session may
@@ -4936,9 +4924,13 @@ service cloud.firestore {
           [sessionTeacherUid(), sessionId, incoming().servedQuestionIds];
       }
       // ltiAttachment names the Schoology grade column; only the launch handler writes it.
-      allow create: if signedIn() &&
-        notAnon() &&
+      // A session carrying a join code must sit under a code the caller owns.
+      function sessionCodeOk() {
+        return incoming().get('code', null) in [null, ''] || ownsJoinCode(incoming().code);
+      }
+      allow create: if quizStaff() &&
         incoming().teacherUid == authUid() &&
+        sessionCodeOk() &&
         !('ltiAttachment' in incoming()) &&
         subMonitorStampAbsent() &&
         (!('plcId' in incoming()) || plcLinkOk(incoming()));
@@ -4948,6 +4940,7 @@ service cloud.firestore {
       allow update: if signedIn() &&
         existing().teacherUid == authUid() &&
         unchanged('teacherUid') &&
+        (!changed(['code']) || sessionCodeOk()) &&
         !changed(['ltiAttachment']) &&
         subMonitorStampUnchanged() &&
         (!changed(['status']) || incoming().status in ['waiting', 'active', 'paused', 'ended']) &&

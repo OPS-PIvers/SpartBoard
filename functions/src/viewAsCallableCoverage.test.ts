@@ -10,6 +10,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   checkUrlCompatibility: 'read',
   fetchExternalProxy: 'read',
   fetchImportImage: 'read',
+  fetchImportPageV1: 'read',
   fetchLinkPreview: 'read',
   focusOpenV1: 'read',
   getActiveStudentsV1: 'read',

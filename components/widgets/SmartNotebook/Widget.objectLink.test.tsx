@@ -139,7 +139,10 @@ describe('SmartNotebookWidget object link concurrency', () => {
       },
     ];
 
-    (useAuth as unknown as Mock).mockReturnValue({ user: mockUser });
+    (useAuth as unknown as Mock).mockReturnValue({
+      user: mockUser,
+      canAccessFeature: () => false,
+    });
     (useDashboard as unknown as Mock).mockReturnValue({
       updateWidget: vi.fn(),
       addToast: vi.fn(),

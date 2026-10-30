@@ -20,6 +20,7 @@ import {
   checkImporter,
   failureUrl,
   storedUrl,
+  isSecretParam,
   importStatus,
   parseSendRequest,
   receiveSend,
@@ -349,6 +350,52 @@ describe('storedUrl', () => {
     expect(
       storedUrl('https://a.example/p?id=4&access_token=s&X-Amz-Signature=t#x')
     ).toBe('https://a.example/p?id=4');
+  });
+
+  it('drops signed-link and API credentials by family', () => {
+    const url = storedUrl(
+      'https://a.example/p?page=2&X-Goog-Signature=a&X-Goog-Credential=b&Policy=c&Key-Pair-Id=d&refresh_token=e&apikey=f&client_secret=g&password=h&jwt=i'
+    );
+    expect(url).toBe('https://a.example/p?page=2');
+  });
+});
+
+describe('isSecretParam', () => {
+  it.each([
+    'access_token',
+    'refresh_token',
+    'id_token',
+    'token',
+    'apikey',
+    'api-key',
+    'x-api-key',
+    'apiKey',
+    'client_secret',
+    'password',
+    'sessionid',
+    'session_id',
+    'PHPSESSID',
+    'access_key',
+    'AWSAccessKeyId',
+    'X-Goog-Signature',
+    'Policy',
+    'Key-Pair-Id',
+  ])('strips %s', (name) => {
+    expect(isSecretParam(name)).toBe(true);
+  });
+
+  it.each([
+    'pageToken',
+    'nextPageToken',
+    'continuationToken',
+    'tokenizer',
+    'id',
+    'page',
+    'keyword',
+    'monkey',
+    'sessions_list',
+  ])('keeps %s', (name) => {
+    expect(isSecretParam(name)).toBe(false);
   });
 });
 

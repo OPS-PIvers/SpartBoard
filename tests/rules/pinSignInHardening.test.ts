@@ -25,6 +25,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-pin-sign-in-hardening';
 const TEACHER_UID = 'teacher-uid-psh';
@@ -118,6 +119,12 @@ beforeEach(async () => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     await setDoc(doc(db, 'quiz_sessions/existing'), session(TEACHER_UID));
+    // Staff member doc and the code's owner record, so the teacher may create under it.
+    await seedDistrictStaff(db, ['teacher@school.edu']);
+    await setDoc(doc(db, 'quiz_join_codes/ABC123'), {
+      teacherUid: TEACHER_UID,
+      createdAt: 1,
+    });
     const items = `student_assignments/${STUDENT_UID}/items`;
     await setDoc(doc(db, `${items}/in-a`), pointer(CLASS_A));
     await setDoc(doc(db, `${items}/in-b`), pointer(CLASS_B));
@@ -161,14 +168,15 @@ describe('quiz_sessions create', () => {
     );
   });
 
-  it('keeps the owner update and every signed-in read working', async () => {
+  it('keeps the owner update and every signed-in get working', async () => {
     await assertSucceeds(
       updateDoc(doc(asTeacher(), 'quiz_sessions/existing'), {
         status: 'active',
       })
     );
     await assertSucceeds(getDoc(doc(asAnon(), 'quiz_sessions/existing')));
-    await assertSucceeds(
+    // Join resolves codes through quiz_join_codes; listing sessions by code is an enumeration.
+    await assertFails(
       getDocs(
         query(
           collection(asAnon(), 'quiz_sessions'),

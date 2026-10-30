@@ -21,6 +21,7 @@ import {
   writeBatch,
   increment,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-period-access-test';
 const TEACHER_UID = 'teacher-uid';
@@ -501,6 +502,9 @@ describe('content/questions', () => {
   });
 
   it('lets the teacher write it in the batch that creates the session', async () => {
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      seedDistrictStaff(ctx.firestore(), ['teacher@example.org'])
+    );
     const db = asTeacher();
     const batch = writeBatch(db);
     batch.set(doc(db, 'quiz_sessions/new-session'), {

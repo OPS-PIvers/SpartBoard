@@ -23,10 +23,7 @@ export const DEFAULT_SEND_BLOCK_PATTERNS: readonly string[] = [
 const HOST = /^(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 const PATH = /^\/[a-z0-9\-._~%!$&'()*+,;=:@/]*$/;
 
-/**
- * A pattern as stored: `host` or `host/path`, lower case, no scheme. `*.example.org` is the domain and its subdomains;
- * `*` in the path matches anything, and the path must match the whole URL path. Query and hash are never matched.
- */
+/** Stored as `host` or `host/path`, lower case; `*.` covers subdomains, `*` globs the whole path, query and hash never match. */
 export function normalizeBlockPattern(raw: string): string | null {
   const p = raw
     .trim()

@@ -26,9 +26,12 @@ export interface SchoologyRead {
 
 /** Thrown when Schoology's page or data no longer has the shape a reader expects. */
 export class SchoologyReadError extends Error {
-  constructor(detail: string) {
+  /** True when Schoology refused or didn't answer, rather than answering in a shape the reader doesn't know. */
+  readonly transport: boolean;
+  constructor(detail: string, transport = false) {
     super(`Couldn't read this quiz: ${detail}`);
     this.name = 'SchoologyReadError';
+    this.transport = transport;
   }
 }
 
