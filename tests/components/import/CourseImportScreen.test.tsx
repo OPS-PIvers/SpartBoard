@@ -232,7 +232,7 @@ describe('CourseImportScreen', () => {
   });
 
   it('stops the batch when a review is closed, keeping later pages queued', async () => {
-    const parse = vi.fn(() => new Promise(() => undefined));
+    const parse = vi.fn((): Promise<never> => new Promise(() => undefined));
     const api = makeApi({
       reviewAdapter: vi.fn(() => ({ ...adapter, parse })),
     });
