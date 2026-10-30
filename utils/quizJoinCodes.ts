@@ -172,10 +172,10 @@ export async function findQuizSessionsByCode(
     readJoinCodeOwner(normCode),
     sessionsByPointer(normCode),
   ]);
-  // An unowned code predates owner records (the backfill claims those).
-  const ownerUid = owner ?? teacherUid;
   if (owner && teacherUid && teacherUid !== owner) return [];
-  return ownerUid
-    ? matches.filter((m) => m.data.teacherUid === ownerUid)
-    : matches;
+  const ownerUid = owner ?? teacherUid;
+  if (ownerUid) return matches.filter((m) => m.data.teacherUid === ownerUid);
+  // An unowned code predates owner records; with two teachers on it, neither can be trusted.
+  const teachers = new Set(matches.map((m) => m.data.teacherUid));
+  return teachers.size > 1 ? [] : matches;
 }

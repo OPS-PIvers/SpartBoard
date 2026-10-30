@@ -126,6 +126,17 @@ describe('findQuizSessionsByCode', () => {
     expect(out.map((m) => m.id)).toEqual(['mine']);
   });
 
+  it('matches nothing on an unclaimed code two teachers share', async () => {
+    wire(['a', 'b'], { a: 't-1', b: 'attacker' }, null);
+    await expect(findQuizSessionsByCode('ABC123')).resolves.toEqual([]);
+  });
+
+  it("returns an unclaimed code's sessions when one teacher holds them", async () => {
+    wire(['a', 'b'], { a: 't-1', b: 't-1' }, null);
+    const out = await findQuizSessionsByCode('ABC123');
+    expect(out.map((m) => m.id)).toEqual(['a', 'b']);
+  });
+
   it('never runs a quiz_sessions query', async () => {
     wire(['s1'], { s1: 't-1' }, 't-1');
     await findQuizSessionsByCode('ABC123');

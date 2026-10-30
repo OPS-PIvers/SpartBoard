@@ -2,9 +2,11 @@
  * Backfill `quiz_join_codes/{code}/sessions/{sessionId}` pointers for quiz
  * sessions created before the lookup collection shipped
  * (docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md), and the `quiz_join_codes/{code}`
- * owner record for every code that has none. A code's owner is the teacher of its
- * joinable session(s), else of its newest session by server create time; a code
- * with joinable sessions from two teachers is reported, not claimed.
+ * owner record for every code that has none. A code's owner is the teacher whose
+ * joinable session under it was created first (server create time), else the
+ * teacher of its newest session; codes joinable for two teachers are listed in
+ * `ownerConflicts`. Run with --all before the release that ships owner records
+ * and again right after it, to claim codes an old tab created in between.
  *
  * Without a pointer a session is reachable only through the legacy
  * `where('code','==',code)` query, which is the query that keeps `quiz_sessions`
@@ -96,7 +98,7 @@ const report = {
   pending: [],
 };
 
-/** code -> { joinable: Set<teacherUid>, newest: { teacherUid, createMs } } */
+/** code -> { joinable: Map<teacherUid, earliest createMs>, newest: { teacherUid, createMs } } */
 const codes = new Map();
 
 let batch = db.batch();
@@ -135,9 +137,14 @@ for await (const sessionDoc of pagedSessions()) {
     continue;
   }
 
-  const seen = codes.get(code) ?? { joinable: new Set(), newest: null };
+  const seen = codes.get(code) ?? { joinable: new Map(), newest: null };
   const createMs = sessionDoc.createTime?.toMillis() ?? 0;
-  if (JOINABLE.has(status)) seen.joinable.add(data.teacherUid);
+  if (JOINABLE.has(status)) {
+    const prev = seen.joinable.get(data.teacherUid);
+    if (prev === undefined || createMs < prev) {
+      seen.joinable.set(data.teacherUid, createMs);
+    }
+  }
   if (!seen.newest || createMs > seen.newest.createMs) {
     seen.newest = { teacherUid: data.teacherUid, createMs };
   }
@@ -182,12 +189,18 @@ for (const [code, seen] of codes) {
     report.ownersPresent += 1;
     continue;
   }
+  // A hijack session comes after the real one, so the first-created joinable session wins.
+  const firstJoinable = [...seen.joinable].sort((a, b) => a[1] - b[1])[0];
   if (seen.joinable.size > 1) {
-    report.ownerConflicts.push({ code, teachers: [...seen.joinable] });
-    continue;
+    report.ownerConflicts.push({
+      code,
+      teachers: [...seen.joinable.keys()],
+      owner: firstJoinable[0],
+    });
   }
-  const [teacherUid] =
-    seen.joinable.size === 1 ? [...seen.joinable] : [seen.newest.teacherUid];
+  const teacherUid = firstJoinable
+    ? firstJoinable[0]
+    : seen.newest.teacherUid;
   report.ownersWritten += 1;
   // create, not set: never overwrite an owner a live client claimed meanwhile.
   batch.create(ownerRef, { teacherUid, createdAt: Date.now() });

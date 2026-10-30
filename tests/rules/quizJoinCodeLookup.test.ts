@@ -121,6 +121,7 @@ beforeAll(async () => {
     },
   });
 
+  await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     const member = (email: string, data: Record<string, unknown>) =>
@@ -456,6 +457,28 @@ describe('quiz_sessions reads', () => {
         query(
           collection(asTeacher(), 'quiz_sessions'),
           where('teacherUid', '==', OTHER_TEACHER_UID)
+        )
+      )
+    );
+  });
+
+  it("denies a Google-signed-in student listing a teacher's sessions", async () => {
+    await assertFails(
+      getDocs(
+        query(
+          collection(asGoogleStudent(), 'quiz_sessions'),
+          where('teacherUid', '==', TEACHER_UID)
+        )
+      )
+    );
+  });
+
+  it('lets a studentRole student list sessions for their own class', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asStudent(), 'quiz_sessions'),
+          where('classIds', 'array-contains-any', ['class-A'])
         )
       )
     );
