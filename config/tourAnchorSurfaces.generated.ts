@@ -502,6 +502,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-import.paper-seat-student': ['quiz.paper-import'],
     'quiz-import.paper-answer-letter': ['quiz.paper-import'],
     'quiz-import.paper-answer-blank': ['quiz.paper-import'],
+    'quiz-import.paper-skip-page': ['quiz.paper-import'],
     'quiz-import.paper-retry-upload': ['quiz.paper-import'],
     'quiz-import.paper-replace-seat': ['quiz.paper-import'],
     'quiz-import.paper-replace-submit': ['quiz.paper-import'],

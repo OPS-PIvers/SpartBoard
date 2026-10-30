@@ -82,6 +82,22 @@ describe('PaperCropPanel', () => {
     );
   });
 
+  it('opens below fit width with darkening on, and zooms out further', async () => {
+    setup();
+    const img = await screen.findByAltText('Handwritten answer, question 7');
+    expect(img.style.width).toBe('75%');
+    expect(img.style.filter).toMatch(/paper-darken-/);
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
+    expect(img.style.width).toBe('50%');
+    expect(screen.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Fit' }));
+    expect(img.style.width).toBe('100%');
+    const darken = screen.getByRole('button', { name: 'Darken handwriting' });
+    expect(darken).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(darken);
+    expect(img.style.filter).toBe('');
+  });
+
   it('offers a reload when the crop fails, but not when it is gone', async () => {
     setup({
       resolveCrop: vi.fn().mockRejectedValue(new Error('network')),

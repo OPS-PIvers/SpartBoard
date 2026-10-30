@@ -2297,6 +2297,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-import.paper-skip-page': {
+    label: 'Pages to import select (all or skip one page) in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-import.paper-retry-upload': {
     label: 'Retry failed uploads in Quiz import',
     perWidgetType: true,

@@ -9448,6 +9448,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-import.paper-skip-page",
+    "label": "Pages to import select (all or skip one page) in Quiz import",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.paper-import",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-import.paper-retry-upload",
     "label": "Retry failed uploads in Quiz import",
     "scope": "widget type",
