@@ -19,7 +19,7 @@ export function firestore(): firestoreModule.Firestore {
 // eslint-disable-next-line @typescript-eslint/no-namespace -- keeps the v13 `admin.firestore.X` call sites and types working.
 export namespace firestore {
   export import CollectionReference = firestoreModule.CollectionReference;
-  export import DocumentData = firestoreModule.DocumentData;
+  export type DocumentData = firestoreModule.DocumentData;
   export import DocumentReference = firestoreModule.DocumentReference;
   export import DocumentSnapshot = firestoreModule.DocumentSnapshot;
   export import FieldPath = firestoreModule.FieldPath;
@@ -40,8 +40,8 @@ export function auth(): authModule.Auth {
 // eslint-disable-next-line @typescript-eslint/no-namespace -- keeps the v13 `admin.auth.X` types working.
 export namespace auth {
   export import Auth = authModule.Auth;
-  export import GetUsersResult = authModule.GetUsersResult;
-  export import UserIdentifier = authModule.UserIdentifier;
+  export type GetUsersResult = authModule.GetUsersResult;
+  export type UserIdentifier = authModule.UserIdentifier;
   export import UserMetadata = authModule.UserMetadata;
   export import UserRecord = authModule.UserRecord;
 }
