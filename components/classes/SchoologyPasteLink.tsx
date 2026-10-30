@@ -105,7 +105,7 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
             if (e.key === 'Enter') void handleCheck();
           }}
           placeholder="https://orono.schoology.com/course/…"
-          title="Open the course in Schoology and copy the address bar."
+          title="Open the course in Schoology and copy the address bar. For a linked section, choose it in the Gradebook first."
           className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
         />
         <button
@@ -122,10 +122,6 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
           Check
         </button>
       </div>
-      <p className="text-xs text-slate-500">
-        For a linked section, choose it in the Schoology Gradebook and paste
-        that page&rsquo;s link.
-      </p>
       {linkedTitle && (
         <p className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600">
           <Check size={14} /> Linked “{linkedTitle}”.
