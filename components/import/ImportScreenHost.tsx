@@ -10,7 +10,7 @@ import {
   type ImportTarget,
 } from '@/utils/import/contract';
 import { ImportScreen } from './ImportScreen';
-import { ImportInboxNotice } from './ImportInboxNotice';
+import { ImportInboxNotice } from '@/components/layout/ImportInboxNotice';
 import {
   closeImportScreen,
   offerImportHandoff,
@@ -194,7 +194,6 @@ const OpenImportScreen: React.FC<
       isOpen
       onClose={closeImportScreen}
       initialSource={request.source}
-      presetTarget={request.presetTarget}
       inboxItems={inbox.items}
       onRemoveInboxItem={removeSent}
       allowed={allowed}

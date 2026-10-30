@@ -18,6 +18,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/layout/sidebar/Sidebar.tsx',
       'components/share/ShareStatusBanner.tsx',
       'components/layout/useClaudeBoardActivity.ts',
+      'components/layout/ImportInboxNotice.tsx',
     ],
     inner: {
       'dashboard.group-cancel': 'widget.group-with',
@@ -122,10 +123,10 @@ export const SURFACES: TourSurfaceMap = {
     ],
   },
   'board.import': {
-    label: 'Import window (file, link, text or a page sent from the browser)',
+    label: 'Add to board window (a page sent from the browser or a board drop)',
     kind: 'modal',
     files: ['components/import/'],
-    opensWith: 'library-shell.new-menu-item',
+    opensWith: 'import-notice.open',
   },
   'board.assignments-hub': {
     label: 'Assignments hub',

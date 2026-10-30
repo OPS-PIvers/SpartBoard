@@ -153,52 +153,29 @@ describe('ImportScreen', () => {
     return { onContinue, onRemoveInboxItem };
   };
 
-  it('preselects the guess for a dropped file and continues with it', () => {
+  it('offers one-tap choices for a dropped file', () => {
     const pdf = file('notes.pdf', 'application/pdf');
     const { onContinue } = renderScreen({ initialSource: { file: pdf } });
-    expect(screen.getByRole('radio', { name: /PDF/ })).toBeChecked();
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'PDF' }));
     expect(onContinue).toHaveBeenCalledWith({ file: pdf }, 'pdf');
   });
 
-  it('lets a widget preset its own target', () => {
-    const { onContinue } = renderScreen({
-      initialSource: { file: file('notes.pdf', 'application/pdf') },
-      presetTarget: 'quiz',
-    });
-    expect(screen.getByRole('radio', { name: /Quiz/ })).toBeChecked();
-    fireEvent.click(screen.getByRole('radio', { name: /PDF/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(onContinue).toHaveBeenLastCalledWith(expect.anything(), 'pdf');
-  });
-
-  it('takes a pasted link and refuses one that is not a web address', () => {
-    const { onContinue } = renderScreen();
-    const field = screen.getByLabelText('Paste a link');
-    fireEvent.change(field, { target: { value: 'not a link' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Next' })[0]);
-    expect(screen.getByRole('alert')).toHaveTextContent('https://');
-    fireEvent.change(field, { target: { value: 'https://example.org/a' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Next' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(onContinue).toHaveBeenCalledWith(
-      { url: 'https://example.org/a', sourceUrl: 'https://example.org/a' },
-      'embed'
-    );
-  });
-
-  it('lists sent pages, picks one, and removes one', () => {
+  it('lists sent pages with their choices, and removes one', () => {
     const { onContinue, onRemoveInboxItem } = renderScreen({
       inboxItems: [sent],
     });
+    expect(screen.getByText('Cell vocabulary')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Paste/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Flashcards' }));
+    expect(onContinue.mock.calls[0][1]).toBe('flashcards');
+    expect(onContinue).toHaveBeenCalledWith(
+      expect.objectContaining({ inboxItem: sent }),
+      'flashcards'
+    );
     fireEvent.click(
       screen.getByRole('button', { name: 'Remove Cell vocabulary' })
     );
     expect(onRemoveInboxItem).toHaveBeenCalledWith('send-1');
-    fireEvent.click(screen.getByRole('button', { name: /^Cell vocabulary/ }));
-    expect(screen.getByText('Sent from example.org')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(onContinue.mock.calls[0][1]).toBe('flashcards');
   });
 
   it('says so when nothing can read the Source', () => {
@@ -206,7 +183,13 @@ describe('ImportScreen', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'SpartBoard can’t import this yet.'
     );
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+  });
+
+  it('says so when nothing is waiting', () => {
+    renderScreen();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Nothing is waiting to be added.'
+    );
   });
 });
 

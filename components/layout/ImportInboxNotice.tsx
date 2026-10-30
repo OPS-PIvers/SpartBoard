@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Globe, X } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 import type { ImportInboxItem } from '@/utils/import/contract';
 
 interface ImportInboxNoticeProps {
@@ -29,9 +30,10 @@ export const ImportInboxNotice: React.FC<ImportInboxNoticeProps> = ({
           ? '1 page sent from your browser'
           : `${count} pages sent from your browser`}
       </span>
-      <button // no-tour-anchor: shows only after a Send, not on a tour path
+      <button
         type="button"
         onClick={onOpen}
+        {...tourAttr('import-notice.open')}
         className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-blue-dark"
       >
         Add to board

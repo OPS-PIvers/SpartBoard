@@ -15153,51 +15153,24 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  // Import window: any file, link, text or sent page into SpartBoard (IMPORT.md D1).
+  'import-notice.open': {
+    label: 'Add to board button on the sent-pages notice on the board',
+    panel: true,
+  },
+  // Add to board window: a sent page or a board drop into SpartBoard (IMPORT.md D1).
   'import-screen.close': {
-    label: 'Close button in the Import window',
-    panel: true,
-  },
-  'import-screen.choose-file': {
-    label: 'Choose file button in the Import window',
-    panel: true,
-  },
-  'import-screen.link': {
-    label: 'Paste a link field in the Import window',
-    panel: true,
-  },
-  'import-screen.link-next': {
-    label: 'Next button beside the link field in the Import window',
-    panel: true,
-  },
-  'import-screen.text': {
-    label: 'Paste text field in the Import window',
-    panel: true,
-  },
-  'import-screen.text-next': {
-    label: 'Next button under the text field in the Import window',
-    panel: true,
-  },
-  'import-screen.sent-item': {
-    label: 'A page sent from the browser, in the Import window',
+    label: 'Close button in the Add to board window',
     panel: true,
   },
   'import-screen.sent-remove': {
     label:
-      'Remove button on a page sent from the browser, in the Import window',
+      'Remove button on a page sent from the browser, in the Add to board window',
     panel: true,
     destructive: true,
   },
   'import-screen.target': {
-    label: 'A Make it into choice in the Import window',
-    panel: true,
-  },
-  'import-screen.back': {
-    label: 'Back button in the Import window',
-    panel: true,
-  },
-  'import-screen.continue': {
-    label: 'Continue button in the Import window',
+    label:
+      'A one-tap choice (Flashcards, Quiz, Embed…) in the Add to board window',
     panel: true,
   },
   // Library Import wizard (Quiz, Video Activity, Guided Learning, Mini App, Flashcards).

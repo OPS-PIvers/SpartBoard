@@ -36,8 +36,6 @@ export interface ImportDropPoint {
 /** A request to show the Import screen. */
 export interface ImportScreenRequest {
   source?: PendingSource;
-  /** Preselects this target. */
-  presetTarget?: ImportTarget;
   dropPoint?: ImportDropPoint;
 }
 
