@@ -92,17 +92,17 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       customHeader={
-        <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0 bg-white rounded-t-2xl">
+        <div className="flex items-center justify-between gap-4 px-6 py-4 shrink-0 bg-brand-blue-primary rounded-t-2xl">
           <h3
             id="import-screen-title"
-            className="font-black text-lg text-slate-800"
+            className="font-black text-lg text-white"
           >
             Add to board
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+            className="p-1.5 hover:bg-white/15 rounded-full text-white/80 hover:text-white transition-colors"
             aria-label="Close"
             {...tourAttr('import-screen.close')}
           >
