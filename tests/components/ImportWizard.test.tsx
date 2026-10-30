@@ -315,7 +315,8 @@ describe('ImportWizard', () => {
     });
     expect(saveSpy).toHaveBeenCalledWith(
       { rows: ['row-a', 'row-b'] },
-      'Unit 4 Review'
+      'Unit 4 Review',
+      { fromInitialSource: false }
     );
     expect(onSaved).toHaveBeenCalledWith('Unit 4 Review');
     expect(onClose).toHaveBeenCalledTimes(1);

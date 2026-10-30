@@ -82,6 +82,14 @@ import {
 import type { LiveSession, WidgetType } from '@/types';
 import { extractYouTubeId } from '@/utils/youtube';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { UNIVERSAL_IMPORT_FEATURE } from '@/utils/import/contract';
+import { ImportScreenHost } from '@/components/import/ImportScreenHost';
+import { targetChoices } from '@/components/import/importTargets';
+import {
+  openImportScreen,
+  type ImportDropPoint,
+  type PendingSource,
+} from '@/components/import/importHandoff';
 import { useWallBoardAccessCleanup } from '@/components/widgets/ActivityWall/hooks/useWallBoardAccessCleanup';
 
 // ── Code-split lazies ────────────────────────────────────────────────────────
@@ -508,6 +516,7 @@ export const DashboardView: React.FC = () => {
   }, [rescueWidgets]); // rescueWidgets is stable ([] deps), so listener is registered once
 
   const { canAccessFeature, isAdmin } = useAuth();
+  const universalImport = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
   // Latched: the host takes the parameter off the address once it opens the editor.
   const [webTourLink] = React.useState(opensWebTour);
   useWallBoardAccessCleanup(user?.uid ?? null);
@@ -1214,10 +1223,174 @@ export const DashboardView: React.FC = () => {
     setSelectedWidgetIds,
   ]);
 
+  // Board-space centre a dropped or imported widget of size w x h is placed around.
+  const placeAt = (
+    point: ImportDropPoint | undefined,
+    w: number,
+    h: number
+  ) => {
+    const centre =
+      point ??
+      viewportToWrapper(
+        { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+        zoom,
+        panOffset,
+        window.innerWidth,
+        window.innerHeight
+      );
+    return {
+      x: Math.max(0, centre.x - w / 2),
+      y: Math.max(0, centre.y - h / 2),
+    };
+  };
+
+  const placePdf = (pdfFile: File, point?: ImportDropPoint): void => {
+    if (!user) return;
+    if (pdfFile.size > MAX_PDF_SIZE_BYTES) {
+      addToast(t('toasts.imageTooLarge'), 'error');
+      return;
+    }
+    const { x: dropX, y: dropY } = placeAt(point, 600, 750);
+    addToast(t('sidebar.header.syncingChanges'), 'info');
+    void (async () => {
+      try {
+        const pdfData = await uploadAndRegisterPdf(user.uid, pdfFile);
+        addWidget('pdf', {
+          x: dropX,
+          y: dropY,
+          w: 600,
+          h: 750,
+          config: {
+            activePdfId: pdfData.id,
+            activePdfUrl: pdfData.storageUrl,
+            activePdfName: pdfData.name,
+          },
+        });
+        addToast(
+          `"${pdfData.name}" ${t('sidebar.header.allChangesSavedTooltip')}`,
+          'success'
+        );
+      } catch (err) {
+        console.error('PDF drop upload failed', err);
+        addToast(t('common.error'), 'error');
+      }
+    })();
+  };
+
+  const placeNotebook = (notebookFile: File, point?: ImportDropPoint): void => {
+    if (!user) return;
+    // Same admin storage cap the Library Import button enforces (0 = no limit).
+    const rawLimit = getAdminBuildingConfig(
+      'smartNotebook',
+      featurePermissions,
+      selectedBuildings
+    ).storageLimitMb;
+    const limitMb = Math.max(
+      0,
+      typeof rawLimit === 'number' && Number.isFinite(rawLimit) ? rawLimit : 50
+    );
+    if (limitMb > 0 && notebookFile.size > limitMb * 1024 * 1024) {
+      addToast(t('toasts.notebookTooLarge', { limit: limitMb }), 'error');
+      return;
+    }
+    const defaults = WIDGET_DEFAULTS.smartNotebook;
+    const w = defaults.w ?? 600;
+    const h = defaults.h ?? 500;
+    const { x: dropX, y: dropY } = placeAt(point, w, h);
+    addToast(t('toasts.notebookImporting'), 'info');
+    void (async () => {
+      try {
+        const { parsed, summary } = await importNotebookFile(notebookFile);
+        const notebook = await uploadParsedNotebook(user.uid, parsed, {
+          uploadFile,
+          deleteFile,
+        });
+        addWidget('smartNotebook', {
+          x: dropX,
+          y: dropY,
+          w,
+          h,
+          config: {
+            ...defaults.config,
+            activeNotebookId: notebook.id,
+          },
+        });
+        addToast(formatImportSummary(summary), 'success');
+      } catch (err) {
+        console.error('Notebook drop import failed', err);
+        addToast(t('toasts.notebookImportFailed'), 'error');
+      }
+    })();
+  };
+
+  // Flag on: a file, link or text dropped on the board itself opens Import (D1).
+  const isBoardDropTarget = (e: React.DragEvent): boolean => {
+    const types = Array.from(e.dataTransfer.types ?? []);
+    if (
+      types.includes('application/sticker') ||
+      types.includes('application/spart-sticker')
+    )
+      return false;
+    const target = e.target as HTMLElement | null;
+    // Portaled dialogs and fields bubble here too; their own drops stay theirs.
+    return !target?.closest?.(
+      '[data-widget-id], [data-widget-portal], [role="dialog"], input, textarea, [contenteditable="true"]'
+    );
+  };
+
+  const openImportFromDrop = (
+    e: React.DragEvent,
+    dropPoint: (x: number, y: number) => ImportDropPoint
+  ): boolean => {
+    if (e.defaultPrevented || !isBoardDropTarget(e)) return false;
+    const dt = e.dataTransfer;
+    if (
+      dt.getData('application/sticker') ||
+      dt.getData('application/spart-sticker')
+    )
+      return false;
+    // Prefer a file Import can read, so a PDF dropped with other files still lands.
+    const files = Array.from(dt.files ?? []);
+    const file =
+      files.find((f) => targetChoices({ file: f }).targets.length > 0) ??
+      files[0];
+    const uri = dt
+      .getData('text/uri-list')
+      .split(/\r?\n/)
+      .find((l) => l.trim() && !l.startsWith('#'));
+    const text = dt.getData('text/plain');
+    const link = [uri, text.trim()].find(
+      (v): v is string => !!v && /^https?:\/\/\S+$/i.test(v.trim())
+    );
+    const source: PendingSource | null = file
+      ? { file }
+      : link
+        ? { url: link.trim(), sourceUrl: link.trim() }
+        : text.trim()
+          ? { text }
+          : null;
+    if (!source) return false;
+    e.preventDefault();
+    openImportScreen({ source, dropPoint: dropPoint(e.clientX, e.clientY) });
+    return true;
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     if (
       e.dataTransfer.types.includes('application/sticker') ||
       e.dataTransfer.types.includes('application/spart-sticker')
+    ) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      return;
+    }
+    const types = Array.from(e.dataTransfer.types ?? []);
+    if (
+      universalImport &&
+      isBoardDropTarget(e) &&
+      (types.includes('Files') ||
+        types.includes('text/uri-list') ||
+        types.includes('text/plain'))
     ) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
@@ -1253,45 +1426,15 @@ export const DashboardView: React.FC = () => {
     const dropPoint = (clientX: number, clientY: number) =>
       viewportToWrapper({ x: clientX, y: clientY }, zoom, panOffset, vw, vh);
 
+    if (universalImport && openImportFromDrop(e, dropPoint)) return;
+
     // Handle PDF files dragged from the filesystem
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
       const pdfFile = files.find((f) => f.type === 'application/pdf');
       if (pdfFile && user) {
         e.preventDefault();
-        if (pdfFile.size > MAX_PDF_SIZE_BYTES) {
-          addToast(t('toasts.imageTooLarge'), 'error');
-          return;
-        }
-        const w = 600;
-        const h = 750;
-        const boardPoint = dropPoint(e.clientX, e.clientY);
-        const dropX = Math.max(0, boardPoint.x - w / 2);
-        const dropY = Math.max(0, boardPoint.y - h / 2);
-        addToast(t('sidebar.header.syncingChanges'), 'info');
-        void (async () => {
-          try {
-            const pdfData = await uploadAndRegisterPdf(user.uid, pdfFile);
-            addWidget('pdf', {
-              x: dropX,
-              y: dropY,
-              w: 600,
-              h: 750,
-              config: {
-                activePdfId: pdfData.id,
-                activePdfUrl: pdfData.storageUrl,
-                activePdfName: pdfData.name,
-              },
-            });
-            addToast(
-              `"${pdfData.name}" ${t('sidebar.header.allChangesSavedTooltip')}`,
-              'success'
-            );
-          } catch (err) {
-            console.error('PDF drop upload failed', err);
-            addToast(t('common.error'), 'error');
-          }
-        })();
+        placePdf(pdfFile, dropPoint(e.clientX, e.clientY));
         return;
       }
 
@@ -1300,52 +1443,7 @@ export const DashboardView: React.FC = () => {
       const notebookFile = files.find((f) => isNotebookImportFile(f.name));
       if (notebookFile && user) {
         e.preventDefault();
-        // Same admin storage cap the Library Import button enforces (0 = no limit).
-        const rawLimit = getAdminBuildingConfig(
-          'smartNotebook',
-          featurePermissions,
-          selectedBuildings
-        ).storageLimitMb;
-        const limitMb = Math.max(
-          0,
-          typeof rawLimit === 'number' && Number.isFinite(rawLimit)
-            ? rawLimit
-            : 50
-        );
-        if (limitMb > 0 && notebookFile.size > limitMb * 1024 * 1024) {
-          addToast(t('toasts.notebookTooLarge', { limit: limitMb }), 'error');
-          return;
-        }
-        const defaults = WIDGET_DEFAULTS.smartNotebook;
-        const w = defaults.w ?? 600;
-        const h = defaults.h ?? 500;
-        const boardPoint = dropPoint(e.clientX, e.clientY);
-        const dropX = Math.max(0, boardPoint.x - w / 2);
-        const dropY = Math.max(0, boardPoint.y - h / 2);
-        addToast(t('toasts.notebookImporting'), 'info');
-        void (async () => {
-          try {
-            const { parsed, summary } = await importNotebookFile(notebookFile);
-            const notebook = await uploadParsedNotebook(user.uid, parsed, {
-              uploadFile,
-              deleteFile,
-            });
-            addWidget('smartNotebook', {
-              x: dropX,
-              y: dropY,
-              w,
-              h,
-              config: {
-                ...defaults.config,
-                activeNotebookId: notebook.id,
-              },
-            });
-            addToast(formatImportSummary(summary), 'success');
-          } catch (err) {
-            console.error('Notebook drop import failed', err);
-            addToast(t('toasts.notebookImportFailed'), 'error');
-          }
-        })();
+        placeNotebook(notebookFile, dropPoint(e.clientX, e.clientY));
         return;
       }
     }
@@ -1735,6 +1833,13 @@ export const DashboardView: React.FC = () => {
       <AnnouncementOverlay />
       {canAccessFeature('group-reminders') && <GroupReminderHost />}
       {canAccessFeature('schoology-quiz-import') && <SchoologyReviewHost />}
+      {universalImport && (
+        <ImportScreenHost
+          placeAt={placeAt}
+          placePdf={placePdf}
+          placeNotebook={placeNotebook}
+        />
+      )}
       <ShareStatusBanner />
       <ImportShareModePicker />
       {pendingSharedCollectionId && (
