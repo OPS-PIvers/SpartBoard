@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
-import { useImportInbox } from '@/hooks/useImportInbox';
+import { useImportInbox, type ImportInbox } from '@/hooks/useImportInbox';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
 import {
   IMPORT_INBOX_EVENT,
@@ -10,6 +10,7 @@ import {
   type ImportTarget,
 } from '@/utils/import/contract';
 import { ImportScreen } from './ImportScreen';
+import { ImportInboxNotice } from './ImportInboxNotice';
 import {
   closeImportScreen,
   offerImportHandoff,
@@ -37,6 +38,8 @@ interface ImportScreenHostProps {
 /** Shows Import on the board and sends the teacher's pick to a review screen or onto the board (D3, D4). */
 export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
   const request = useImportScreenRequest();
+  const { user } = useAuth();
+  const inbox = useImportInbox(user?.uid, true);
   // The extension's "Open in SpartBoard" lands on /?importInbox=1 after a Send.
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -54,15 +57,27 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
     window.addEventListener(IMPORT_INBOX_EVENT, onRequest);
     return () => window.removeEventListener(IMPORT_INBOX_EVENT, onRequest);
   }, []);
-  if (!request) return null;
-  // Mounted only while open, so its listeners cost nothing the rest of the time.
-  return <OpenImportScreen key={request.openId} request={request} {...props} />;
+  if (!request)
+    return (
+      <ImportInboxNotice
+        items={inbox.items}
+        onOpen={() => openImportScreen()}
+      />
+    );
+  return (
+    <OpenImportScreen
+      key={request.openId}
+      request={request}
+      inbox={inbox}
+      {...props}
+    />
+  );
 };
 
 const OpenImportScreen: React.FC<
-  ImportScreenHostProps & { request: ImportScreenRequest }
-> = ({ request, placeAt, placePdf, placeNotebook }) => {
-  const { user, canAccessWidget, canAccessFeature } = useAuth();
+  ImportScreenHostProps & { request: ImportScreenRequest; inbox: ImportInbox }
+> = ({ request, inbox, placeAt, placePdf, placeNotebook }) => {
+  const { canAccessWidget, canAccessFeature } = useAuth();
   const {
     activeDashboard,
     addWidget,
@@ -70,7 +85,6 @@ const OpenImportScreen: React.FC<
     addToast,
     isActiveBoardReadOnly,
   } = useDashboard();
-  const inbox = useImportInbox(user?.uid, true);
   const canReadQuizDocuments = useQuizDocumentImportGate();
   const schoology = canAccessFeature('schoology-quiz-import');
 
@@ -114,17 +128,15 @@ const OpenImportScreen: React.FC<
     return true;
   };
 
-  // Hands a Source (empty for the widget's own import options) to a review screen.
+  // Hands a Source to a widget's review screen.
   const review = (source: PendingSource, target: ImportTarget): void => {
     const r = importRoute(target);
     if (!r) return;
     const point = request.dropPoint;
-    // Reuse the widget that asked, or (outside a drop) one already on this board.
-    const widgets = activeDashboard?.widgets ?? [];
-    const existing =
-      widgets.find(
-        (w) => w.id === request.fromWidgetId && w.type === r.widgetType
-      ) ?? (point ? undefined : widgets.find((w) => w.type === r.widgetType));
+    // Outside a drop, reuse one already on this board.
+    const existing = point
+      ? undefined
+      : activeDashboard?.widgets.find((w) => w.type === r.widgetType);
     let widgetId = existing?.id;
     if (existing?.minimized) updateWidget(existing.id, { minimized: false });
     if (!widgetId) {
@@ -177,30 +189,15 @@ const OpenImportScreen: React.FC<
     if (placed && sentId) removeSent(sentId);
   };
 
-  // A widget's own Import button can still reach its picker, templates and AI options.
-  const presetTarget = request.presetTarget;
-  const preset = presetTarget ? importRoute(presetTarget) : null;
-  const widgetOptions =
-    request.fromWidgetId && presetTarget && preset?.landing === 'review'
-      ? {
-          label: preset.label,
-          open: () => {
-            closeImportScreen();
-            review({}, presetTarget);
-          },
-        }
-      : undefined;
-
   return (
     <ImportScreen
       isOpen
       onClose={closeImportScreen}
       initialSource={request.source}
-      presetTarget={presetTarget}
+      presetTarget={request.presetTarget}
       inboxItems={inbox.items}
       onRemoveInboxItem={removeSent}
       allowed={allowed}
-      widgetOptions={widgetOptions}
       onContinue={route}
     />
   );

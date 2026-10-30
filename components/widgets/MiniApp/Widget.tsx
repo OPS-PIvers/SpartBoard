@@ -91,7 +91,6 @@ import { useDialog } from '@/context/useDialog';
 import { useSavedWidgets } from '@/context/useSavedWidgets';
 import { ImportWizard } from '@/components/common/library/importer';
 import {
-  openImportScreen,
   completeImportHandoff,
   takeImportHandoff,
   useImportHandoff,
@@ -1903,14 +1902,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onReorder={handleReorder}
               onSaveGlobalToLibrary={(app) => void handleSaveToLibrary(app)}
               savingGlobalId={savingGlobalId}
-              onImport={() =>
-                canAccessFeature('universal-import')
-                  ? openImportScreen({
-                      presetTarget: 'miniApp',
-                      fromWidgetId: widget.id,
-                    })
-                  : setShowImportWizard(true)
-              }
+              onImport={() => setShowImportWizard(true)}
               onExport={handleExport}
               onArchiveCopyUrl={(a) => void handleArchiveCopyUrl(a)}
               onArchiveEnd={(a) => void handleArchiveEnd(a)}

@@ -67719,22 +67719,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "import-screen.widget-options",
-    "label": "More import options link in the Import window, opened from a widget Import button",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.import",
-        "kind": "modal",
-        "path": [
-          "library-shell.new",
-          "library-shell.new-menu-item"
-        ]
-      }
-    ]
-  },
-  {
     "id": "import-screen.back",
     "label": "Back button in the Import window",
     "scope": "board",

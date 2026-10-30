@@ -36,10 +36,8 @@ export interface ImportDropPoint {
 /** A request to show the Import screen. */
 export interface ImportScreenRequest {
   source?: PendingSource;
-  /** Preselects this target, e.g. from a widget's own Import button. */
+  /** Preselects this target. */
   presetTarget?: ImportTarget;
-  /** The widget whose Import button opened this; its review screen is reused. */
-  fromWidgetId?: string;
   dropPoint?: ImportDropPoint;
 }
 

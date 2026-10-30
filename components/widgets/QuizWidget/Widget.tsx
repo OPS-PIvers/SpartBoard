@@ -81,7 +81,6 @@ import { CartridgeBankImportModal } from './components/CartridgeBankImportModal'
 import { SchoologyInboxModal } from './components/SchoologyInboxModal';
 import { useSchoologyInbox } from '@/hooks/useSchoologyInbox';
 import {
-  openImportScreen,
   completeImportHandoff,
   takeImportHandoff,
   useImportHandoff,
@@ -529,7 +528,6 @@ const TeacherQuizWidget: React.FC<{
   const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
   const importHandoff = useImportHandoff(widget.id);
-  const universalImport = canAccessFeature('universal-import');
   const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
   // The .imscc flags fold into schoology-quiz-import and retire once it opens.
   const canImportBankCartridge =
@@ -2411,14 +2409,7 @@ const TeacherQuizWidget: React.FC<{
           });
           setEditingMeta(null);
         }}
-        onImport={() =>
-          universalImport
-            ? openImportScreen({
-                presetTarget: 'quiz',
-                fromWidgetId: widget.id,
-              })
-            : setView('import')
-        }
+        onImport={() => setView('import')}
         onPrintPaperSheets={
           paperSheets.enabled && !isReview
             ? async (meta) => {
@@ -3248,14 +3239,7 @@ const TeacherQuizWidget: React.FC<{
         banks={banks}
         banksLoading={banksLoading}
         sharedBankSources={sharedBankSources}
-        onImportBank={() =>
-          universalImport
-            ? openImportScreen({
-                presetTarget: 'questionBank',
-                fromWidgetId: widget.id,
-              })
-            : setBankImportOpen(true)
-        }
+        onImportBank={() => setBankImportOpen(true)}
         schoologyInboxCount={schoologyInbox.items.length}
         onOpenSchoologyInbox={() => setSchoologyReviewOpen(true)}
         onNewBank={() => {

@@ -292,23 +292,4 @@ describe('import handoff into a review screen', () => {
       })
     );
   });
-
-  it('offers the widget its own import options from its Import button', () => {
-    const open = vi.fn();
-    render(
-      <ImportScreen
-        isOpen
-        onClose={vi.fn()}
-        inboxItems={[]}
-        onRemoveInboxItem={vi.fn()}
-        allowed={() => true}
-        widgetOptions={{ label: 'Quiz', open }}
-        onContinue={vi.fn()}
-      />
-    );
-    fireEvent.click(
-      screen.getByRole('button', { name: 'More Quiz import options' })
-    );
-    expect(open).toHaveBeenCalled();
-  });
 });

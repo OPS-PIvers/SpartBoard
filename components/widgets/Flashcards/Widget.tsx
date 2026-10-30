@@ -52,7 +52,6 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ImportWizard } from '@/components/common/library/importer';
 import {
-  openImportScreen,
   completeImportHandoff,
   takeImportHandoff,
   useImportHandoff,
@@ -131,7 +130,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const config = widget.config as FlashcardsConfig;
-  const { user, ensureGoogleScope, canAccessFeature } = useAuth();
+  const { user, ensureGoogleScope } = useAuth();
   const claudeReview = useClaudeReview('flashcard_sets');
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -180,7 +179,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const importHandoff = useImportHandoff(widget.id);
-  const universalImport = canAccessFeature('universal-import');
   const closeImport = () => {
     if (importHandoff) takeImportHandoff(widget.id);
     setImportOpen(false);
@@ -697,14 +695,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 error={flashcardSets.error}
                 folders={folders}
                 onNew={() => setEditingSet(makeSet())}
-                onImport={() =>
-                  universalImport
-                    ? openImportScreen({
-                        presetTarget: 'flashcards',
-                        fromWidgetId: widget.id,
-                      })
-                    : setImportOpen(true)
-                }
+                onImport={() => setImportOpen(true)}
                 onEdit={handleEditSet}
                 badgesFor={(set) => {
                   const review = claudeReview.badge(set, () =>

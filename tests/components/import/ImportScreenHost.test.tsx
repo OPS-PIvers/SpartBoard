@@ -1,9 +1,12 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { ImportScreenHost } from '@/components/import/ImportScreenHost';
 import { resetImportHandoffsForTest } from '@/components/import/importHandoff';
-import { IMPORT_INBOX_EVENT } from '@/utils/import/contract';
+import {
+  IMPORT_INBOX_EVENT,
+  type ImportInboxItem,
+} from '@/utils/import/contract';
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
@@ -21,15 +24,51 @@ vi.mock('@/context/useDashboard', () => ({
     isActiveBoardReadOnly: false,
   }),
 }));
+const inboxItems: ImportInboxItem[] = [];
 vi.mock('@/hooks/useImportInbox', () => ({
-  useImportInbox: () => ({ items: [], remove: vi.fn() }),
+  useImportInbox: () => ({ items: inboxItems, remove: vi.fn() }),
 }));
 vi.mock('@/hooks/useQuizDocumentImportGate', () => ({
   useQuizDocumentImportGate: () => true,
 }));
 
 describe('ImportScreenHost', () => {
-  afterEach(() => act(() => resetImportHandoffsForTest()));
+  afterEach(() => {
+    inboxItems.length = 0;
+    act(() => resetImportHandoffsForTest());
+  });
+
+  const renderHost = () =>
+    render(
+      <ImportScreenHost
+        placeAt={() => ({ x: 0, y: 0 })}
+        placePdf={vi.fn()}
+        placeNotebook={vi.fn()}
+      />
+    );
+
+  it('shows a corner notice for waiting pages that opens Import, and hides it', () => {
+    inboxItems.push({
+      id: 's1',
+      url: 'https://example.org/a',
+      title: 'Cells',
+      platform: 'generic',
+      selectionOnly: false,
+      receivedAt: 1,
+      images: [],
+      blocks: [],
+    });
+    const { unmount } = renderHost();
+    expect(
+      screen.getByText('1 page sent from your browser')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    expect(screen.queryByText('1 page sent from your browser')).toBeNull();
+    unmount();
+    renderHost();
+    fireEvent.click(screen.getByRole('button', { name: 'Add to board' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
 
   it('opens Import when the extension fires the inbox event, and cancels it', () => {
     render(

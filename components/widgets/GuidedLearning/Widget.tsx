@@ -89,7 +89,6 @@ import { glSetToLiveTour } from './utils/glToLiveTour';
 import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
 import {
-  openImportScreen,
   completeImportHandoff,
   takeImportHandoff,
   useImportHandoff,
@@ -1254,7 +1253,6 @@ const TeacherGuidedLearningWidget: React.FC<{
     setShowImportWizard(true);
   };
   const importHandoff = useImportHandoff(widget.id);
-  const universalImport = canAccessFeature('universal-import');
   const glHandoff =
     importHandoff?.target === 'guidedLearning' ? importHandoff : null;
   const openGlHandoff = useEffectEvent(openImportWizard);
@@ -1734,15 +1732,7 @@ const TeacherGuidedLearningWidget: React.FC<{
                   onExport={(setId, driveFileId, buildingEntry) => {
                     void handleExport(setId, driveFileId, buildingEntry);
                   }}
-                  onImport={
-                    universalImport
-                      ? () =>
-                          openImportScreen({
-                            presetTarget: 'guidedLearning',
-                            fromWidgetId: widget.id,
-                          })
-                      : openImportWizard
-                  }
+                  onImport={openImportWizard}
                   importFocusCounter={importFocusCounter}
                   assignmentMode={assignmentMode}
                   onError={(message) => addToast(message, 'error')}
