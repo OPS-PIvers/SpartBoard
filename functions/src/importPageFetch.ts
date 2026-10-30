@@ -11,12 +11,15 @@ import {
 import { decodeHtmlEntities } from './linkPreview';
 import { isDistrictStaffToken } from './districtStaff';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
-import { isUrlBlocked, resolveBlockPatterns } from './sendBlockList';
+import {
+  IMPORT_SEND_BLOCK_LIST_DOC,
+  UNIVERSAL_IMPORT_FEATURE,
+  isUrlBlocked,
+  resolveBlockPatterns,
+} from './import/shared.gen';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
 
-const FEATURE_ID = 'universal-import';
-const BLOCK_LIST_DOC = 'import_send_block_list';
 const MAX_REDIRECTS = 3;
 const MAX_RESPONSE_BYTES = 1_048_576;
 // Whole-call budget across redirect hops, under the 40 s function timeout.
@@ -546,7 +549,7 @@ export const fetchImportPageV1 = onCall(
       staff &&
       (await isGlobalFeatureGranted(
         db,
-        FEATURE_ID,
+        UNIVERSAL_IMPORT_FEATURE,
         token.email ?? null,
         request.auth.uid
       ));
@@ -563,7 +566,7 @@ export const fetchImportPageV1 = onCall(
 
     const blockSnap = await db
       .collection('admin_settings')
-      .doc(BLOCK_LIST_DOC)
+      .doc(IMPORT_SEND_BLOCK_LIST_DOC)
       .get();
     const patterns = resolveBlockPatterns(blockSnap.data());
     return fetchImportPage(url, {

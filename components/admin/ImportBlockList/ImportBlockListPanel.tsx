@@ -155,7 +155,8 @@ export const ImportBlockListPanel: React.FC = () => {
       </div>
       <p className="mb-6 text-sm text-slate-600">
         SpartBoard won&apos;t import from pages that match these addresses, and
-        the Send button stays hidden on them. A * matches anything.
+        the Send button stays hidden on them. A * matches anything. Only the
+        site and path are checked, not anything after a ?.
       </p>
 
       {loading ? (

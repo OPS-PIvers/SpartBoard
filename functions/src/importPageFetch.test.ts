@@ -36,7 +36,7 @@ import {
   type FetchedResponse,
   type ImportPageDeps,
 } from './importPageFetch';
-import { isUrlBlocked } from './sendBlockList';
+import { isUrlBlocked } from './import/shared.gen';
 
 const html = (body: string, head = '<title>Cells</title>') =>
   `<!doctype html><html><head>${head}</head><body>${body}</body></html>`;
@@ -234,6 +234,14 @@ describe('fetchImportPage', () => {
     const result = await fetchImportPage('https://short.example/x', d);
     expect(result).toEqual({ status: 'blocked' });
     expect(d.fetched).toEqual(['https://short.example/x']);
+  });
+
+  it('refuses a percent-encoded blocked path', async () => {
+    const d = deps({}, ['*.schoology.com/course/*/gradebook*']);
+    expect(
+      await fetchImportPage('https://app.schoology.com/course/1/gr%61debook', d)
+    ).toEqual({ status: 'blocked' });
+    expect(d.fetched).toEqual([]);
   });
 
   it('says to use the extension when redirected to a sign-in page', async () => {
