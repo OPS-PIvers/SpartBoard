@@ -102,6 +102,7 @@ function makeRest(overrides: Partial<RestOps> = {}): RestOps {
     createGradingCategories: vi.fn(async () => []),
     setColumnCategory: vi.fn(async () => undefined),
     getColumnCategory: vi.fn(async () => '222'),
+    publishColumn: vi.fn(async () => undefined),
     listColumnGrades: vi.fn(async () => []),
     setExceptions: vi.fn(async (_s: string, rows: unknown[]) =>
       rows.map(() => true)
@@ -228,6 +229,26 @@ describe('pushSection: creating the column', () => {
     expect(deps.updateLineItemMaximum).toHaveBeenCalledWith(ITEM, 'tok', 10);
     expect(out.columnCreated).toBe(false);
     expect(store.records.get(CTX)?.lineitemUrl).toBe(ITEM);
+  });
+
+  it('uses the shared column id and publishes it in a linked section', async () => {
+    const shared = `${schoologySectionUrls('8497573101').lineitemsUrl}/8631284348/csm/${CTX}`;
+    deps.listLineItems = vi.fn(async () => [
+      { id: shared, label: 'Cells quiz', scoreMaximum: 10 },
+    ]);
+    await pushSection(deps, input());
+    expect(store.records.get(CTX)?.columnId).toBe('8631284348');
+    expect(deps.rest?.setColumnCategory).toHaveBeenCalledWith(
+      CTX,
+      '8631284348',
+      '222'
+    );
+    expect(deps.rest?.publishColumn).toHaveBeenCalledWith(CTX, '8631284348');
+  });
+
+  it('leaves publishing alone outside linked sections', async () => {
+    await pushSection(deps, input());
+    expect(deps.rest?.publishColumn).not.toHaveBeenCalled();
   });
 
   it('is blocked while a parallel create holds the lease', async () => {

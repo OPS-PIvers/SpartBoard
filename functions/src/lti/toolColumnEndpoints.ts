@@ -43,6 +43,7 @@ import {
   deleteLineItem,
   isSchoologySectionId,
   isSchoologyServiceUrl,
+  lineItemColumnId,
   listLineItems,
   schoologySectionUrls,
   updateLineItemMaximum,
@@ -270,7 +271,10 @@ export function firestoreColumnStore(
     if (!d || typeof d.lineitemUrl !== 'string') return null;
     const record: ToolColumnRecord = {
       lineitemUrl: d.lineitemUrl,
-      columnId: typeof d.columnId === 'string' ? d.columnId : null,
+      // Re-derived so records saved with a linked section's id as the column heal.
+      columnId:
+        lineItemColumnId(d.lineitemUrl) ??
+        (typeof d.columnId === 'string' ? d.columnId : null),
       scoreMaximum: typeof d.scoreMaximum === 'number' ? d.scoreMaximum : 0,
       categoryId: typeof d.categoryId === 'string' ? d.categoryId : null,
       lastPushed:
@@ -362,6 +366,7 @@ function restOps(): RestOps | null {
     setColumnCategory: (s, col, cat) =>
       rest.setColumnCategory(creds, s, col, cat),
     getColumnCategory: (s, col) => rest.getColumnCategory(creds, s, col),
+    publishColumn: (s, col) => rest.publishColumn(creds, s, col),
     listColumnGrades: (s, col) => rest.listColumnGrades(creds, s, col),
     setExceptions: (s, rows) => rest.setExceptions(creds, s, rows),
     listEnrollments: (s) => rest.listEnrollments(creds, s),
