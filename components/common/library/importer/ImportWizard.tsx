@@ -244,7 +244,7 @@ export function ImportWizard<TData>({
     const session = sessionRef.current;
     setLoadingLabel(
       payload.kind === 'conversion'
-        ? 'Converting with AI…'
+        ? 'Converting…'
         : payload.kind === 'document'
           ? 'Importing…'
           : 'Importing your file…'
