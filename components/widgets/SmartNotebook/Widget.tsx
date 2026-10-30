@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
@@ -68,6 +68,10 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { UNIVERSAL_IMPORT_FEATURE } from '@/utils/import/contract';
 import { pageSourceKind, readPageSource } from '@/utils/import/pageImages';
 import { ImportWizard } from '@/components/common/library/importer';
+import {
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
 import type { ImportParseResult } from '@/components/common/library/types';
 import {
   createNotebookSlidesImportAdapter,
@@ -285,19 +289,52 @@ export const SmartNotebookWidget: React.FC<{
     }
   }
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    // Retrieve storage limit from admin configuration, fallback to 50MB
+  // Admin storage limit, 50MB when unset; 0 means no limit.
+  const refuseOversize = (file: File): boolean => {
     const rawLimit = config?.storageLimitMb;
     const parsedLimit =
       typeof rawLimit === 'number' && Number.isFinite(rawLimit) ? rawLimit : 50;
     const limitMb = Math.max(0, parsedLimit);
+    if (limitMb === 0 || file.size <= limitMb * 1024 * 1024) return false;
+    addToast(`File is too large (max ${limitMb}MB)`, 'error');
+    return true;
+  };
 
-    // Check file size (0 means no limit)
-    if (limitMb > 0 && file.size > limitMb * 1024 * 1024) {
-      addToast(`File is too large (max ${limitMb}MB)`, 'error');
+  // Slides handed over by Import open the same review as the library's Import.
+  const importHandoff = useImportHandoff(widget.id);
+  const readHandedSlides = useEffectEvent(async (file: File) => {
+    if (refuseOversize(file)) return;
+    setIsImporting(true);
+    try {
+      setSlidesReview(
+        await readNotebookSlides(
+          file,
+          (f) => readPageSource(f, { drive: driveService }),
+          slidesPreviewUrl
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      addToast(
+        err instanceof Error ? err.message : 'Failed to import these slides',
+        'error'
+      );
+    } finally {
+      setIsImporting(false);
+    }
+  });
+  useEffect(() => {
+    if (importHandoff?.target !== 'notebook') return;
+    const file = takeImportHandoff(widget.id)?.source.file;
+    if (file && pageSourceKind(file))
+      void Promise.resolve(file).then(readHandedSlides);
+  }, [importHandoff, widget.id]);
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (refuseOversize(file)) {
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }

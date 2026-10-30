@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Globe, Link2, Type, X } from 'lucide-react';
+import { FileText, Globe, Image, Link2, Type, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
@@ -7,6 +7,8 @@ import type { ImportInboxItem, ImportTarget } from '@/utils/import/contract';
 import type { PendingSource } from './importHandoff';
 import { importRoute, targetChoices } from './importTargets';
 import { sourceFromInboxItem } from './sourceFromInbox';
+import { ReferenceEmbedStep } from './reference/ReferenceEmbedStep';
+import type { ReferenceWidget } from './reference/referenceLanding';
 
 interface ImportScreenProps {
   isOpen: boolean;
@@ -19,6 +21,10 @@ interface ImportScreenProps {
   /** Targets this teacher may use for this Source (widget access and import gates). */
   allowed: (target: ImportTarget, source: PendingSource) => boolean;
   onContinue: (source: PendingSource, target: ImportTarget) => void;
+  /** Places what the Embed check built (an Embed, or a Link when the page refuses framing). */
+  onPlaceReference: (widget: ReferenceWidget, source: PendingSource) => void;
+  /** False hides the Embed check's "Add as a link" when Links is off for this teacher. */
+  canAddLink?: boolean;
 }
 
 const hostOf = (url: string): string => {
@@ -75,7 +81,17 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   onRemoveInboxItem,
   allowed,
   onContinue,
+  onPlaceReference,
+  canAddLink = true,
 }) => {
+  // The page being checked for Embed, and rows whose page refused it.
+  const [embedding, setEmbedding] = useState<Row | null>(null);
+  const [noEmbed, setNoEmbed] = useState<ReadonlySet<string>>(new Set());
+  // Convert is offered only when the row has a target besides Embed and Link.
+  const canConvert = (row: Row): boolean =>
+    targetChoices(row.source, allowed).targets.some(
+      (t) => t !== 'embed' && t !== 'links'
+    );
   const rows: Row[] = [
     ...(initialSource && !initialSource.inboxItem
       ? [{ key: 'dropped', source: initialSource }]
@@ -116,7 +132,23 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
       ariaLabelledby="import-screen-title"
       zIndex="z-dialog"
     >
-      {rows.length === 0 ? (
+      {embedding?.source.url ? (
+        <ReferenceEmbedStep
+          url={embedding.source.url}
+          title={embedding.source.title}
+          onPlace={(widget) => onPlaceReference(widget, embedding.source)}
+          onConvert={
+            canConvert(embedding)
+              ? () => {
+                  setNoEmbed((prev) => new Set(prev).add(embedding.key));
+                  setEmbedding(null);
+                }
+              : undefined
+          }
+          canAddLink={canAddLink}
+          onCancel={() => setEmbedding(null)}
+        />
+      ) : rows.length === 0 ? (
         <p className="py-4 text-sm text-slate-600" role="status">
           Nothing is waiting to be added.
         </p>
@@ -126,8 +158,15 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
             <SourceRow
               key={row.key}
               source={row.source}
-              allowed={allowed}
-              onPick={(target) => onContinue(row.source, target)}
+              allowed={(target, source) =>
+                !(target === 'embed' && noEmbed.has(row.key)) &&
+                allowed(target, source)
+              }
+              onPick={(target) =>
+                target === 'embed' && row.source.url
+                  ? setEmbedding(row)
+                  : onContinue(row.source, target)
+              }
               onRemove={
                 row.removeId
                   ? () => onRemoveInboxItem(row.removeId ?? '')
@@ -211,7 +250,9 @@ const SourceRow: React.FC<{
                 const route = importRoute(target);
                 if (!route) return null;
                 const tool = toolFor(route.widgetType);
-                const Icon = tool?.icon ?? Globe;
+                const Icon =
+                  tool?.icon ??
+                  (route.widgetType === 'sticker' ? Image : Globe);
                 return (
                   <button
                     key={target}
