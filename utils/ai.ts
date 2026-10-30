@@ -9,6 +9,7 @@ import {
   GuidedLearningMode,
   GuidedLearningInteractionType,
   GuidedLearningTourAction,
+  InternalToolType,
 } from '@/types';
 import { TOOLS } from '@/config/tools';
 import { getBoardTemplate } from '@/config/boardTemplates';
@@ -340,9 +341,21 @@ export function placeTemplateLayout(
   }));
 }
 
+const INTERNAL_TOOLS: Record<InternalToolType, true> = {
+  record: true,
+  magic: true,
+  remote: true,
+};
+
+const isInternalTool = (
+  type: WidgetType | InternalToolType
+): type is InternalToolType => type in INTERNAL_TOOLS;
+
 /** The widget types the teacher can use, sent so Magic Board only picks from them. */
 function allowedWidgetTypes(canUseWidget: (type: WidgetType) => boolean) {
-  return TOOLS.map((t) => t.type).filter((type) => canUseWidget(type));
+  return TOOLS.flatMap(({ type }) =>
+    isInternalTool(type) || !canUseWidget(type) ? [] : [type]
+  );
 }
 
 /**
