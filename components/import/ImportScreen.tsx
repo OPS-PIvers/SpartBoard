@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   FileText,
   Globe,
+  Image,
   LayoutTemplate,
   Link2,
   Sparkles,
@@ -16,6 +17,8 @@ import type { PendingSource } from './importHandoff';
 import { importRoute, targetChoices, usesAi } from './importTargets';
 import { AI_CONVERSION_LIMIT_NOTE } from '@/utils/import/aiConversion';
 import { sourceFromInboxItem } from './sourceFromInbox';
+import { ReferenceEmbedStep } from './reference/ReferenceEmbedStep';
+import type { ReferenceWidget } from './reference/referenceLanding';
 
 interface ImportScreenProps {
   isOpen: boolean;
@@ -30,6 +33,10 @@ interface ImportScreenProps {
   /** AI Conversions are on for this teacher (switch, flags and view-as). */
   aiOn?: boolean;
   onContinue: (source: PendingSource, target: ImportTarget) => void;
+  /** Places what the Embed check built (an Embed, or a Link when the page refuses framing). */
+  onPlaceReference: (widget: ReferenceWidget, source: PendingSource) => void;
+  /** False hides the Embed check's "Add as a link" when Links is off for this teacher. */
+  canAddLink?: boolean;
 }
 
 const hostOf = (url: string): string => {
@@ -87,7 +94,17 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   allowed,
   aiOn = false,
   onContinue,
+  onPlaceReference,
+  canAddLink = true,
 }) => {
+  // The page being checked for Embed, and rows whose page refused it.
+  const [embedding, setEmbedding] = useState<Row | null>(null);
+  const [noEmbed, setNoEmbed] = useState<ReadonlySet<string>>(new Set());
+  // Convert is offered only when the row has a target besides Embed and Link.
+  const canConvert = (row: Row): boolean =>
+    targetChoices(row.source, allowed).targets.some(
+      (t) => t !== 'embed' && t !== 'links'
+    );
   const rows: Row[] = [
     ...(initialSource && !initialSource.inboxItem
       ? [{ key: 'dropped', source: initialSource }]
@@ -128,7 +145,23 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
       ariaLabelledby="import-screen-title"
       zIndex="z-dialog"
     >
-      {rows.length === 0 ? (
+      {embedding?.source.url ? (
+        <ReferenceEmbedStep
+          url={embedding.source.url}
+          title={embedding.source.title}
+          onPlace={(widget) => onPlaceReference(widget, embedding.source)}
+          onConvert={
+            canConvert(embedding)
+              ? () => {
+                  setNoEmbed((prev) => new Set(prev).add(embedding.key));
+                  setEmbedding(null);
+                }
+              : undefined
+          }
+          canAddLink={canAddLink}
+          onCancel={() => setEmbedding(null)}
+        />
+      ) : rows.length === 0 ? (
         <p className="py-4 text-sm text-slate-600" role="status">
           Nothing is waiting to be added.
         </p>
@@ -138,9 +171,16 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
             <SourceRow
               key={row.key}
               source={row.source}
-              allowed={allowed}
               aiOn={aiOn}
-              onPick={(target) => onContinue(row.source, target)}
+              allowed={(target, source) =>
+                !(target === 'embed' && noEmbed.has(row.key)) &&
+                allowed(target, source)
+              }
+              onPick={(target) =>
+                target === 'embed' && row.source.url
+                  ? setEmbedding(row)
+                  : onContinue(row.source, target)
+              }
               onRemove={
                 row.removeId
                   ? () => onRemoveInboxItem(row.removeId ?? '')
@@ -229,7 +269,8 @@ const SourceRow: React.FC<{
                 const Icon =
                   route.landing === 'board'
                     ? LayoutTemplate
-                    : (tool?.icon ?? Globe);
+                    : (tool?.icon ??
+                      (route.widgetType === 'sticker' ? Image : Globe));
                 const ai = usesAi(target, source, aiOn);
                 return (
                   <button

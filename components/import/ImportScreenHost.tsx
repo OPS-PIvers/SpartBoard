@@ -25,6 +25,9 @@ import {
   type PendingSource,
 } from './importHandoff';
 import { conversionInputFor, importRoute, usesAi } from './importTargets';
+import type { ReferenceWidget } from './reference/referenceLanding';
+import { usePhotoReference } from './reference/usePhotoReference';
+import { pageSourceKind } from '@/utils/import/pageImages';
 
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst)$/i;
 const CARTRIDGE = /\.imscc$/i;
@@ -125,6 +128,7 @@ const OpenImportScreen: React.FC<
     isActiveBoardReadOnly,
   } = useDashboard();
   const canReadQuizDocuments = useQuizDocumentImportGate();
+  const photo = usePhotoReference();
   const schoology = canAccessFeature('schoology-quiz-import');
 
   // The same gates the Quiz widget puts on its own import, so Import never offers what the review would refuse.
@@ -176,12 +180,16 @@ const OpenImportScreen: React.FC<
     if (!r?.widgetType) return;
     const widgetType = r.widgetType;
     const point = request.dropPoint;
-    // Outside a drop, reuse one already on this board.
+    // Outside a drop, reuse one on this board; a Notebook shows the review only in its library.
     // An Activity Wall from a page gets its own widget, since one on the board may be showing a shared wall.
     const existing =
       point || target === 'activityWall'
         ? undefined
-        : activeDashboard?.widgets.find((w) => w.type === widgetType);
+        : activeDashboard?.widgets.find(
+            (w) =>
+              w.type === widgetType &&
+              !('activeNotebookId' in w.config && w.config.activeNotebookId)
+          );
     let widgetId = existing?.id;
     if (existing?.minimized) updateWidget(existing.id, { minimized: false });
     if (!widgetId) {
@@ -201,6 +209,42 @@ const OpenImportScreen: React.FC<
       source,
       ...(sentId ? { onSaved: () => removeSent(sentId) } : {}),
     });
+  };
+
+  // Puts a Reference widget on the board without touching the window, which may have reopened meanwhile.
+  const putReference = (
+    widget: ReferenceWidget,
+    source: PendingSource
+  ): void => {
+    // The window only offers allowed widgets; this catches a permission change while it was open.
+    if (!canAccessWidget(widget.type)) return;
+    if (refuseReadOnly()) return;
+    const defaults = WIDGET_DEFAULTS[widget.type];
+    const w = widget.overrides.w ?? defaults.w ?? 400;
+    const h = widget.overrides.h ?? defaults.h ?? 300;
+    addWidget(widget.type, {
+      ...widget.overrides,
+      ...placeAt(request.dropPoint, w, h),
+    });
+    const sentId = source.inboxItem?.id;
+    if (sentId) removeSent(sentId);
+  };
+
+  // A Reference widget built by the Embed check.
+  const placeReference = (
+    widget: ReferenceWidget,
+    source: PendingSource
+  ): void => {
+    closeImportScreen();
+    putReference(widget, source);
+  };
+
+  const placeSticker = async (file: File, source: PendingSource) => {
+    closeImportScreen();
+    if (refuseReadOnly()) return;
+    const sticker = await photo.toSticker(file);
+    if (sticker) putReference(sticker, source);
+    else addToast('That picture couldn’t be added.', 'error');
   };
 
   // AI picks confirm in a view-as tab first, since importConvertV1 is outward.
@@ -232,8 +276,14 @@ const OpenImportScreen: React.FC<
       void convert(source, target);
       return;
     }
+    if (target === 'sticker' && source.file) {
+      void placeSticker(source.file, source);
+      return;
+    }
     closeImportScreen();
-    if (r.landing === 'review') {
+    // Slides become Notebook pages through the Notebook widget's own review.
+    const slides = !!source.file && pageSourceKind(source.file) !== null;
+    if (r.landing === 'review' || (target === 'notebook' && slides)) {
       review(source, target);
       return;
     }
@@ -271,6 +321,8 @@ const OpenImportScreen: React.FC<
       allowed={allowed}
       aiOn={aiOn}
       onContinue={route}
+      onPlaceReference={placeReference}
+      canAddLink={canAccessWidget('url')}
     />
   );
 };

@@ -85,6 +85,25 @@ describe('ReferenceEmbedStep', () => {
     );
   });
 
+  it('leaves out Convert and the link when neither is available', async () => {
+    render(
+      <ReferenceEmbedStep
+        url="https://www.news.example.com/story"
+        onPlace={vi.fn()}
+        onCancel={vi.fn()}
+        canAddLink={false}
+        check={vi.fn().mockResolvedValue({ isEmbeddable: false })}
+      />
+    );
+    expect(
+      await screen.findByRole('button', { name: 'Cancel' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Convert instead' })
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add as a link' })).toBeNull();
+  });
+
   it('never places a page Embed when the building only allows code embeds', async () => {
     embedPolicy.hideUrlField = true;
     try {

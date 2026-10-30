@@ -9,6 +9,7 @@ import {
   conversionInputFromSource,
   type ConversionInput,
 } from '@/utils/import/aiConversion';
+import { pageSourceKind } from '@/utils/import/pageImages';
 import type { PendingSource } from './importHandoff';
 
 export interface ImportRoute {
@@ -33,6 +34,14 @@ const isWebUrl = (s: PendingSource): boolean =>
   !!s.url &&
   /^https?:\/\//i.test(s.url) &&
   !s.inboxItem?.selectionOnly;
+const isSlides = (s: PendingSource): boolean =>
+  !!s.file && pageSourceKind(s.file) !== null;
+// Guided Learning's wizard picks slides by file name, so a nameless deck isn't offered there.
+const isNamedSlides = (s: PendingSource): boolean =>
+  hasExt(s, /\.(pdf|pptx)$/i);
+const PHOTO_TYPES = /^image\/(png|jpe?g|gif|webp|avif|heic|heif)$/i;
+const isPhoto = (s: PendingSource): boolean =>
+  PHOTO_TYPES.test(s.file?.type ?? '');
 const hasTabbedRows = (s: PendingSource): boolean =>
   !s.file && !!s.text && /\t|,/.test(s.text);
 
@@ -88,7 +97,7 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     label: 'Guided Learning',
     widgetType: 'guided-learning',
     landing: 'review',
-    accepts: (s) => hasExt(s, /\.json$/i),
+    accepts: (s) => hasExt(s, /\.json$/i) || isNamedSlides(s),
   },
   miniApp: {
     label: 'Mini App',
@@ -100,13 +109,19 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     label: 'Notebook',
     widgetType: 'smartNotebook',
     landing: 'place',
-    accepts: (s) => hasExt(s, /\.(notebook|olf|spartnb)$/i),
+    accepts: (s) => hasExt(s, /\.(notebook|olf|spartnb)$/i) || isSlides(s),
   },
   pdf: {
     label: 'PDF',
     widgetType: 'pdf',
     landing: 'place',
     accepts: (s) => hasExt(s, /\.pdf$/i) || s.file?.type === 'application/pdf',
+  },
+  sticker: {
+    label: 'Sticker',
+    widgetType: 'sticker',
+    landing: 'place',
+    accepts: isPhoto,
   },
   embed: {
     label: 'Embed',

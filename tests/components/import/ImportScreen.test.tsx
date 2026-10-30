@@ -19,6 +19,20 @@ import { ImportWizard } from '@/components/common/library/importer';
 import type { ImportAdapter } from '@/components/common/library/types';
 import type { ImportInboxItem } from '@/utils/import/contract';
 
+vi.mock('@/components/import/reference/ReferenceEmbedStep', () => ({
+  ReferenceEmbedStep: ({
+    url,
+    onConvert,
+  }: {
+    url: string;
+    onConvert?: () => void;
+  }) => (
+    <button type="button" onClick={onConvert} data-convert={!!onConvert}>
+      Checking {url}
+    </button>
+  ),
+}));
+
 const file = (name: string, type = '') => new File(['x'], name, { type });
 
 const sent: ImportInboxItem = {
@@ -104,7 +118,7 @@ describe('targetChoices', () => {
   it('does not offer Quiz for a photo, which only the quiz picture picker reads', () => {
     expect(
       targetChoices({ file: file('worksheet.jpg', 'image/jpeg') }).targets
-    ).toEqual([]);
+    ).not.toContain('quiz');
   });
 
   it('asks the gate per Source, so a closed import is never offered', () => {
@@ -112,7 +126,29 @@ describe('targetChoices', () => {
       { file: file('notes.pdf', 'application/pdf') },
       (t, s) => !(t === 'quiz' && s.file?.name.endsWith('.pdf'))
     );
-    expect(c.targets).toEqual(['pdf']);
+    expect(c.targets).not.toContain('quiz');
+    expect(c.targets).toContain('pdf');
+  });
+
+  it('offers Notebook and Guided Learning for slides, and a Sticker for a photo', () => {
+    expect(targetChoices({ file: file('deck.pptx') }).targets).toEqual(
+      expect.arrayContaining(['notebook', 'guidedLearning'])
+    );
+    expect(
+      targetChoices({ file: file('board.jpg', 'image/jpeg') }).targets
+    ).toEqual(['sticker']);
+  });
+
+  it('keeps Guided Learning to named decks and Sticker to photos a board can show', () => {
+    expect(
+      targetChoices({ file: file('scan', 'application/pdf') }).targets
+    ).not.toContain('guidedLearning');
+    expect(
+      targetChoices({ file: file('scan.tiff', 'image/tiff') }).targets
+    ).toEqual([]);
+    expect(
+      targetChoices({ file: file('IMG_1.HEIC', 'image/heic') }).targets
+    ).toEqual(['sticker']);
   });
 
   it('adds the AI Conversions for page text only when AI is on', () => {
@@ -195,6 +231,7 @@ describe('ImportScreen', () => {
         onRemoveInboxItem={onRemoveInboxItem}
         allowed={() => true}
         onContinue={onContinue}
+        onPlaceReference={vi.fn()}
         {...props}
       />
     );
@@ -236,6 +273,27 @@ describe('ImportScreen', () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /New board/ }));
     expect(onContinue.mock.calls[0][1]).toBe('board');
+  });
+
+  it('checks a page before embedding it, and drops Embed when it refuses', () => {
+    const { onContinue } = renderScreen({ inboxItems: [sent] });
+    fireEvent.click(screen.getByRole('button', { name: 'Embed' }));
+    expect(onContinue).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', { name: `Checking ${sent.url}` })
+    );
+    expect(screen.queryByRole('button', { name: 'Embed' })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Flashcards' })
+    ).toBeInTheDocument();
+  });
+
+  it('offers no Convert for a page that can only be embedded or linked', () => {
+    renderScreen({ inboxItems: [{ ...sent, blocks: [] }] });
+    fireEvent.click(screen.getByRole('button', { name: 'Embed' }));
+    expect(
+      screen.getByRole('button', { name: `Checking ${sent.url}` })
+    ).toHaveAttribute('data-convert', 'false');
   });
 
   it('says so when nothing can read the Source', () => {

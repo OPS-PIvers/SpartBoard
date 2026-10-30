@@ -356,7 +356,7 @@ export function ImportWizard<TData>({
       return;
     }
     if (extraUpload && matchesAccept(file.name, extraUpload.accept)) {
-      await runParse({ kind: 'file', file });
+      await runParse({ kind: 'file', file }, fromInitial);
       return;
     }
     const uploadAccept = acceptExtensionsForSources(adapter.supportedSources);
