@@ -185,7 +185,10 @@ beforeEach(async () => {
 
 const asExternal = () =>
   testEnv
-    .authenticatedContext(EXTERNAL_UID, { email: EXTERNAL_EMAIL })
+    .authenticatedContext(EXTERNAL_UID, {
+      email: EXTERNAL_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 // email_verified: true — isOrgMember() now requires it (see firestore.rules).
 const asMember = () =>

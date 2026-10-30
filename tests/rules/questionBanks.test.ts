@@ -51,7 +51,10 @@ let testEnv: RulesTestEnvironment;
 
 const as = (uid: string) =>
   testEnv
-    .authenticatedContext(uid, { email: `${uid}@example.com` })
+    .authenticatedContext(uid, {
+      email: `${uid}@example.com`,
+      email_verified: true,
+    })
     .firestore();
 
 const asStudent = () =>

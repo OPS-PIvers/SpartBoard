@@ -2164,14 +2164,23 @@ service cloud.firestore {
       ]);
     }
 
+    // Synced content carries answer keys and its group id rides on student-readable
+    // session docs, so only verified teacher sign-ins may get it, never a district
+    // student Google account (any @students.* domain, as isStudentDomainEmail in
+    // functions/src/classlinkShared.ts, or a numeric local part on ours).
+    function syncedReader() {
+      return liveTeacher() &&
+             !request.auth.token.get('email', '').lower().matches('.*@students[.].+|[0-9]+@orono[.]k12[.]mn[.]us');
+    }
+
     // Synced quiz groups - canonical mutable record of a quiz shared across PLC peers.
-    // Group id is an unguessable v4 UUID, so reads are auth-only. Content writes
+    // Group id is an unguessable v4 UUID; reads use syncedReader(). Content writes
     // require existing participation; version increments monotonically so a
     // non-participant can't overwrite. The participants map is client-immutable
     // (joins/leaves go through CFs); create is open iff participants carries only the
     // caller's uid.
     match /synced_quizzes/{groupId} {
-      allow get: if signedIn();
+      allow get: if syncedReader();
       // list closed: it would let any authed user enumerate every synced quiz
       // (defeating the unguessable-id gate on get). Clients always know the
       // groupId via their quiz_metadata or a share URL, so get suffices.
@@ -2261,11 +2270,11 @@ service cloud.firestore {
 
     // ---- Synced QUESTION BANKS (plan §4.2, decision 1) ----
     // Read-only PLC share of a personal bank: only the owner writes (the bank
-    // editor republishes on every save); any authed user may get by id (ids are
+    // editor republishes on every save); a syncedReader() may get by id (ids are
     // unguessable uuids, handed out via plcs/{plcId}/question_banks headers).
     // No participants/join function - members never co-edit.
     match /synced_question_banks/{groupId} {
-      allow get: if signedIn();
+      allow get: if syncedReader();
       allow list: if false;
 
       allow create: if signedIn()
@@ -2330,7 +2339,7 @@ service cloud.firestore {
     }
 
     match /synced_video_activities/{groupId} {
-      allow get: if signedIn();
+      allow get: if syncedReader();
       // list closed (see synced_quizzes): would let any authed user enumerate
       // every synced activity. Clients know the groupId via their
       // video_activity_metadata or a share URL.

@@ -53,6 +53,7 @@ const asNonParticipant = () =>
   testEnv
     .authenticatedContext(NON_PARTICIPANT_UID, {
       email: 'random@example.com',
+      email_verified: true,
     })
     .firestore();
 
