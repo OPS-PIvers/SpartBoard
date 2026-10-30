@@ -150,6 +150,7 @@ export const ImportConversionDevHarness: React.FC = () => {
             allowed={() => true}
             aiOn
             onContinue={() => undefined}
+            onPlaceReference={() => undefined}
           />
         ) : view === 'board' ? (
           <BoardImportReview plan={plan} onClose={() => undefined} />
