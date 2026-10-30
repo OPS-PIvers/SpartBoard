@@ -13,6 +13,8 @@ export interface PendingSource {
   platform?: string;
   /** The page the extension sent, when this came from the inbox. */
   inboxItem?: ImportInboxItem;
+  /** True when inboxItem is a dropped link read on the server, so there is no Send to remove. */
+  readFromLink?: boolean;
 }
 
 /** A Source waiting for a widget to open its own review screen with it. */
