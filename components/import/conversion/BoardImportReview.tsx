@@ -39,12 +39,17 @@ export const BoardImportReview: React.FC<BoardImportReviewProps> = ({
   useLayoutEffect(() => {
     latest.current = dashboard;
   });
+  // A retry reopens the board already made, so a slow switch never leaves an empty duplicate.
+  const createdId = useRef<string | undefined>(undefined);
 
   const handleCreate = async () => {
     if (!name.trim() || outward.locked) return;
     if (outward.active && !(await outward.confirm('Create a board'))) return;
     setCreating(true);
-    const id = await latest.current.createNewDashboard(name.trim());
+    if (createdId.current) latest.current.loadDashboard(createdId.current);
+    else
+      createdId.current = await latest.current.createNewDashboard(name.trim());
+    const id = createdId.current;
     const deadline = performance.now() + BOARD_WAIT_MS;
     while (
       id &&

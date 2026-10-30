@@ -26,8 +26,8 @@ export const CONVERSION_INTEGRATION: Record<ConversionTarget, AiIntegrationId> =
 
 export const MAX_SOURCE_TITLE_CHARS = 300;
 export const MAX_SOURCE_URL_CHARS = 2_000;
-/** Hard ceiling on what a request may carry; the admin input limit trims further. */
-export const MAX_SOURCE_TEXT_CHARS = 200_000;
+/** Hard ceiling on what a request may carry (the highest admin input limit); longer text is cut, never refused. */
+export const MAX_SOURCE_TEXT_CHARS = 1_000_000;
 export const MAX_FLASHCARDS = 200;
 export const MAX_TERM_CHARS = 300;
 export const MAX_DEFINITION_CHARS = 1_000;
@@ -47,6 +47,8 @@ export interface ConversionSource {
 export interface ConversionRequest {
   target: ConversionTarget;
   source: ConversionSource;
+  /** The text was cut before the model saw any of it (by the client or by this ceiling). */
+  clipped: boolean;
   /** Board only: widget types the teacher can use. */
   allowedWidgets?: unknown;
 }
@@ -95,10 +97,12 @@ export function parseConversionRequest(raw: unknown): ConversionRequest {
     throw bad('Unknown import target.');
   }
   const s = (d.source ?? {}) as Record<string, unknown>;
-  if (typeof s.text !== 'string' || s.text.length > MAX_SOURCE_TEXT_CHARS) {
-    throw bad('The page text is missing or too long.');
-  }
-  const text = s.text.replace(/\r\n?/g, '\n').trim();
+  if (typeof s.text !== 'string') throw bad('The page text is missing.');
+  const clipped = s.text.length > MAX_SOURCE_TEXT_CHARS || d.clipped === true;
+  const text = s.text
+    .slice(0, MAX_SOURCE_TEXT_CHARS)
+    .replace(/\r\n?/g, '\n')
+    .trim();
   if (!text) throw bad('There is no text to convert.');
   const url = clean(s.url, MAX_SOURCE_URL_CHARS);
   return {
@@ -108,6 +112,7 @@ export function parseConversionRequest(raw: unknown): ConversionRequest {
       url: /^https?:\/\//i.test(url) ? url : '',
       text,
     },
+    clipped,
     ...(target === 'board' ? { allowedWidgets: d.allowedWidgets } : {}),
   };
 }
@@ -289,7 +294,41 @@ const BOARD_CONFIG_KEYS: Readonly<Record<string, readonly string[]>> = {
   text: ['content'],
   poll: ['question'],
 };
+// Settings stored as HTML: the plain text is escaped so it renders only as text.
+const HTML_CONFIG_KEYS = new Set(['text.content']);
 const MAX_BOARD_TEXT_CHARS = 2_000;
+
+const NAMED_ENTITIES: Readonly<Record<string, string>> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+};
+
+const decodeEntities = (text: string): string =>
+  text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);?/gi, (match, body: string) => {
+    const lower = body.toLowerCase();
+    if (lower.startsWith('#')) {
+      const code = lower.startsWith('#x')
+        ? parseInt(lower.slice(2), 16)
+        : parseInt(lower.slice(1), 10);
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+    }
+    return NAMED_ENTITIES[lower] ?? match;
+  });
+
+/** Strips markup and entities, leaving the text a reader would see. */
+export const toPlainText = (raw: string): string =>
+  decodeEntities(raw.replace(/<[^>]*>?/g, ' ')).replace(/[<>]/g, ' ');
+
+// A scheme, a protocol-relative path, or a dotted host such as evil.example.
+const LINK_LIKE =
+  /(?:\b(?:https?|ftp|file|data|javascript|vbscript|mailto|blob|tel|sms):|\/\/|www\.|[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}\b)/i;
+
+const escapeHtml = (text: string): string =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export function safeBoardConfig(
   widgetType: string,
@@ -297,8 +336,13 @@ export function safeBoardConfig(
 ): Record<string, unknown> {
   const safe: Record<string, unknown> = {};
   for (const key of BOARD_CONFIG_KEYS[widgetType] ?? []) {
-    const value = clean(config[key], MAX_BOARD_TEXT_CHARS);
-    if (value && !/(?:https?:|www\.)/i.test(value)) safe[key] = value;
+    const raw = config[key];
+    if (typeof raw !== 'string') continue;
+    const value = clean(toPlainText(raw), MAX_BOARD_TEXT_CHARS);
+    if (!value || LINK_LIKE.test(value)) continue;
+    safe[key] = HTML_CONFIG_KEYS.has(`${widgetType}.${key}`)
+      ? escapeHtml(value)
+      : value;
   }
   return safe;
 }

@@ -27,6 +27,7 @@ vi.mock('./aiGeneration', () => ({
   resolveCallerIsAdmin: vi.fn(),
 }));
 vi.mock('./districtStaff', () => ({ isDistrictStaffToken: vi.fn() }));
+vi.mock('./quizMediaArchive', () => ({ isGlobalFeatureGranted: vi.fn() }));
 
 import type * as admin from 'firebase-admin';
 import {
@@ -40,6 +41,7 @@ import {
   buildSourceBlock,
   fitSourceText,
   MAX_FLASHCARDS,
+  MAX_SOURCE_TEXT_CHARS,
   parseActivityWallResponse,
   parseBoardResponse,
   parseConversionRequest,
@@ -48,6 +50,7 @@ import {
   type ConversionRequest,
 } from './importConversionAi';
 import { BOARD_TEMPLATES } from './mcp/boardEngine.gen';
+import { isGlobalFeatureGranted } from './quizMediaArchive';
 
 const SOURCE = {
   title: 'The water cycle',
@@ -71,6 +74,7 @@ function deps(over: Partial<ConversionDeps> = {}): ConversionDeps {
     flagsOn: vi.fn(() => Promise.resolve(true)),
     layoutAllowed: vi.fn(() => Promise.resolve(true)),
     isStaff: vi.fn(() => Promise.resolve(true)),
+    granted: vi.fn(() => Promise.resolve(true)),
     charge: vi.fn(() => Promise.resolve(CHARGE)),
     refund: vi.fn(() => Promise.resolve(undefined)),
     record: vi.fn(() => Promise.resolve({ docIds: ['admin'] })),
@@ -90,6 +94,7 @@ function deps(over: Partial<ConversionDeps> = {}): ConversionDeps {
 const req = (target: ConversionRequest['target']): ConversionRequest => ({
   target,
   source: { ...SOURCE },
+  clipped: false,
 });
 
 describe('parseConversionRequest', () => {
@@ -103,19 +108,29 @@ describe('parseConversionRequest', () => {
     expect(parsed.source.text).toContain('Evaporation');
   });
 
-  it('refuses an unknown target, empty text and oversized text', () => {
+  it('refuses an unknown target and empty text', () => {
     expect(() =>
       parseConversionRequest({ target: 'quiz', source: SOURCE })
     ).toThrow(/Unknown import target/);
     expect(() =>
       parseConversionRequest({ target: 'board', source: { text: '   ' } })
     ).toThrow(/no text/);
-    expect(() =>
-      parseConversionRequest({
-        target: 'board',
-        source: { text: 'x'.repeat(200_001) },
-      })
-    ).toThrow(/too long/);
+  });
+
+  it('cuts oversized text and marks it clipped instead of refusing', () => {
+    const parsed = parseConversionRequest({
+      target: 'board',
+      source: { text: 'x'.repeat(MAX_SOURCE_TEXT_CHARS + 5) },
+    });
+    expect(parsed.source.text).toHaveLength(MAX_SOURCE_TEXT_CHARS);
+    expect(parsed.clipped).toBe(true);
+    expect(
+      parseConversionRequest({ target: 'board', source: SOURCE, clipped: true })
+        .clipped
+    ).toBe(true);
+    expect(
+      parseConversionRequest({ target: 'board', source: SOURCE }).clipped
+    ).toBe(false);
   });
 
   it('passes allowedWidgets through for board only', () => {
@@ -269,6 +284,25 @@ describe('runConversion', () => {
     expect(d.charge).not.toHaveBeenCalled();
   });
 
+  it('refuses staff the Import flag does not grant, before charging', async () => {
+    const d = deps({ granted: vi.fn(() => Promise.resolve(false)) });
+    await expect(
+      runConversion(req('flashcards'), 'u', TOKEN, d)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(d.charge).not.toHaveBeenCalled();
+  });
+
+  it('flags a clipped request as truncated', async () => {
+    const d = deps();
+    const out = await runConversion(
+      { ...req('flashcards'), clipped: true },
+      'u',
+      TOKEN,
+      d
+    );
+    expect(out.truncated).toBe(true);
+  });
+
   it('charges staff, records admins, and returns the parsed result', async () => {
     const d = deps();
     const out = await runConversion(req('flashcards'), 'u', TOKEN, d);
@@ -358,24 +392,22 @@ describe('flag helpers', () => {
   it('follows the Magic Layout flag for boards', async () => {
     const layout = (perm?: Record<string, unknown>) =>
       db(perm ? { 'dashboard-layout': perm } : {});
-    expect(await layoutFlagAllows(layout(), TOKEN, false)).toBe(true);
+    expect(await layoutFlagAllows(layout(), TOKEN, 'u', false)).toBe(true);
     expect(
-      await layoutFlagAllows(layout({ enabled: false }), TOKEN, true)
+      await layoutFlagAllows(layout({ enabled: false }), TOKEN, 'u', true)
     ).toBe(false);
     expect(
-      await layoutFlagAllows(
-        layout({ enabled: true, accessLevel: 'admin' }),
-        TOKEN,
-        false
-      )
-    ).toBe(false);
-    expect(
-      await layoutFlagAllows(
-        layout({ enabled: true, accessLevel: 'beta', betaUsers: ['T@x.org'] }),
-        TOKEN,
-        false
-      )
+      await layoutFlagAllows(layout({ enabled: true }), TOKEN, 'u', true)
     ).toBe(true);
+    vi.mocked(isGlobalFeatureGranted).mockResolvedValueOnce(false);
+    const perm = { enabled: true, accessLevel: 'beta' };
+    expect(await layoutFlagAllows(layout(perm), TOKEN, 'u', false)).toBe(false);
+    expect(isGlobalFeatureGranted).toHaveBeenCalledWith(
+      expect.anything(),
+      'dashboard-layout',
+      't@x.org',
+      'u'
+    );
   });
 });
 
@@ -391,6 +423,38 @@ describe('board safety', () => {
     expect(
       safeBoardConfig('text', { content: 'Visit www.evil.example now' })
     ).toEqual({});
+  });
+
+  it('drops markup, encoded schemes, bare domains and protocol-relative links', () => {
+    expect(
+      safeBoardConfig('text', {
+        content: '<a href="//evil.example/login">Open the worksheet</a>',
+      })
+    ).toEqual({ content: 'Open the worksheet' });
+    expect(
+      safeBoardConfig('text', {
+        content: 'Read <img src="//tracker.example/p.gif">',
+      })
+    ).toEqual({ content: 'Read' });
+    for (const content of [
+      'Go to h&#116;tps&#58;//evil',
+      'See evil.example for more',
+      'mailto:someone',
+      '&lt;a href=&quot;//x&quot;&gt;hi&lt;/a&gt;',
+    ]) {
+      expect(safeBoardConfig('text', { content })).toEqual({});
+    }
+  });
+
+  it('keeps ordinary text as plain text', () => {
+    expect(
+      safeBoardConfig('text', {
+        content: '<b>Learning target:</b> compare 3 & 4',
+      })
+    ).toEqual({ content: 'Learning target: compare 3 &amp; 4' });
+    expect(
+      safeBoardConfig('poll', { question: 'Which is bigger: 3 & 4?' })
+    ).toEqual({ question: 'Which is bigger: 3 & 4?' });
   });
 
   it('strips settings from the parsed board', () => {

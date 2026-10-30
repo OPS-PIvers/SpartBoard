@@ -51,8 +51,14 @@ export interface ConversionDeps {
   /** Neither `gemini-functions` nor `universal-import` is switched off. */
   flagsOn: () => Promise<boolean>;
   /** Board only: the Magic Layout (`dashboard-layout`) flag lets this caller in. */
-  layoutAllowed: (token: Token, isAdmin: boolean) => Promise<boolean>;
+  layoutAllowed: (
+    token: Token,
+    uid: string,
+    isAdmin: boolean
+  ) => Promise<boolean>;
   isStaff: (token: Token) => Promise<boolean>;
+  /** Non-admins: the universal-import flag grants this caller, by the same rules as Send. */
+  granted: (token: Token, uid: string) => Promise<boolean>;
   charge: (token: Token, uid: string) => Promise<AiUsageCharge>;
   refund: (charge: AiUsageCharge) => Promise<void>;
   record: (token: Token, uid: string) => Promise<AiUsageCharge>;
@@ -89,10 +95,19 @@ export async function runConversion(
       'Only district staff can import with AI.'
     );
   }
+  if (!isAdmin && !(await deps.granted(token, uid))) {
+    throw new HttpsError(
+      'permission-denied',
+      'Import is not turned on for your account.'
+    );
+  }
   // Checked before the charge, so a bad widget list costs nothing.
   const allowed =
     req.target === 'board' ? readAllowedWidgets(req.allowedWidgets) : null;
-  if (req.target === 'board' && !(await deps.layoutAllowed(token, isAdmin))) {
+  if (
+    req.target === 'board' &&
+    !(await deps.layoutAllowed(token, uid, isAdmin))
+  ) {
     throw new HttpsError(
       'permission-denied',
       'Building boards with AI is turned off by an administrator.'
@@ -112,7 +127,7 @@ export async function runConversion(
       integration,
       buildConversionPrompt({ ...req, source }, allowed)
     );
-    const truncated = fitted.truncated;
+    const truncated = fitted.truncated || req.clipped;
     switch (req.target) {
       case 'flashcards':
         return {
@@ -156,10 +171,16 @@ export async function importFlagsOn(db: Firestore): Promise<boolean> {
   return flags.every((d) => d.data()?.enabled !== false);
 }
 
+const verifiedEmail = (token: Token): string | null =>
+  token.email_verified === true && token.email
+    ? token.email.toLowerCase()
+    : null;
+
 /** The Magic Layout flag for this caller: open when no doc is saved, as its default is public. */
 export async function layoutFlagAllows(
   db: Firestore,
   token: Token,
+  uid: string,
   isAdmin: boolean
 ): Promise<boolean> {
   const perm = (
@@ -168,14 +189,13 @@ export async function layoutFlagAllows(
   if (!perm) return true;
   if (perm.enabled === false) return false;
   if (isAdmin) return true;
-  if (perm.accessLevel === 'admin') return false;
-  if (perm.accessLevel === 'beta') {
-    const email =
-      token.email_verified === true ? token.email?.toLowerCase() : '';
-    const beta = Array.isArray(perm.betaUsers) ? perm.betaUsers : [];
-    return !!email && beta.some((u) => String(u).toLowerCase() === email);
-  }
-  return true;
+  const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+  return isGlobalFeatureGranted(
+    db,
+    'dashboard-layout',
+    verifiedEmail(token),
+    uid
+  );
 }
 
 function defaultDeps(): ConversionDeps {
@@ -191,15 +211,27 @@ function defaultDeps(): ConversionDeps {
       ).data()?.enabled === true,
     isAdmin: (token) => resolveCallerIsAdmin(db, token),
     flagsOn: () => importFlagsOn(db),
-    layoutAllowed: (token, isAdmin) => layoutFlagAllows(db, token, isAdmin),
+    layoutAllowed: (token, uid, isAdmin) =>
+      layoutFlagAllows(db, token, uid, isAdmin),
     isStaff: (token) => isDistrictStaffToken(db, token),
+    granted: async (token, uid) => {
+      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+      return isGlobalFeatureGranted(
+        db,
+        UNIVERSAL_IMPORT_FEATURE_ID,
+        verifiedEmail(token),
+        uid
+      );
+    },
     charge: (token, uid) =>
       enforceAiFeatureAccess(
         db,
         token,
         uid,
         UNIVERSAL_IMPORT_FEATURE_ID,
-        false
+        false,
+        undefined,
+        true
       ),
     refund: (charge) => refundAiUsage(db, charge),
     record: (token, uid) =>

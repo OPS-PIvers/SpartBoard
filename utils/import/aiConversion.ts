@@ -108,9 +108,13 @@ export function conversionInputFromSource(
   }
 }
 
+/** Mirrors functions/src/importConversionAi.ts MAX_SOURCE_TEXT_CHARS; longer text is cut here and flagged. */
+export const MAX_CONVERSION_TEXT_CHARS = 1_000_000;
+
 interface ConvertRequest {
   target: AiConversionTarget;
   source: ConversionInput;
+  clipped: boolean;
   allowedWidgets?: string[];
 }
 
@@ -126,9 +130,13 @@ export async function convertWithAi<T extends AiConversionTarget>(
     { timeout: 310_000 }
   );
   try {
+    const clipped = source.text.length > MAX_CONVERSION_TEXT_CHARS;
     const result = await call({
       target,
-      source,
+      source: clipped
+        ? { ...source, text: source.text.slice(0, MAX_CONVERSION_TEXT_CHARS) }
+        : source,
+      clipped,
       ...(target === 'board' && options.allowedWidgets
         ? { allowedWidgets: options.allowedWidgets }
         : {}),
