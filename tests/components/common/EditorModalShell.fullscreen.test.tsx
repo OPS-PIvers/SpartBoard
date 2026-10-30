@@ -33,7 +33,7 @@ describe('full-screen toggle on large modals', () => {
     render(shell(onClose));
     fireEvent.click(screen.getByRole('button', { name: 'View full screen' }));
     expect(panel().getAttribute('data-fullscreen')).toBe('true');
-    expect(panel().className).toContain('!h-full');
+    expect(panel().className).toContain('h-full!');
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();

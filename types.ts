@@ -1,5 +1,6 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { FocusSite } from '@/utils/focus/contract';
+import type { ImportAttribution } from '@/utils/import/contract';
 
 export type WidgetType =
   | 'clock'
@@ -9338,6 +9339,8 @@ export interface FlashcardSet {
   publicShareId?: string | null;
   /** Speak settings; the source of the student-facing stamp (docs/multilingual-pronunciation-engine.md F21). */
   speak?: FlashcardSpeakSettings;
+  /** Where Import got this set (IMPORT.md D7); never copied to the public snapshot. */
+  importedFrom?: ImportAttribution;
   createdAt: number;
   updatedAt: number;
 }

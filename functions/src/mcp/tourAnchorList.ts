@@ -67714,6 +67714,65 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import-notice.open",
+    "label": "Add to board button on the sent-pages notice on the board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-screen.close",
+    "label": "Close button in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-screen.sent-remove",
+    "label": "Remove button on a page sent from the browser, in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-screen.target",
+    "label": "A one-tap choice (Flashcards, Quiz, Embed…) in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
     "id": "import-wizard.close",
     "label": "Close button in the Import wizard",
     "scope": "board",

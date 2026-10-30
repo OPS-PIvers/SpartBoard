@@ -88,6 +88,11 @@ import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import { glSetToLiveTour } from './utils/glToLiveTour';
 import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
+import {
+  completeImportHandoff,
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
 import { createGuidedLearningImportAdapter } from './adapters/guidedLearningImportAdapter';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { UNIVERSAL_IMPORT_FEATURE } from '@/utils/import/contract';
@@ -1253,6 +1258,14 @@ const TeacherGuidedLearningWidget: React.FC<{
     setImportDestination(null);
     setShowImportWizard(true);
   };
+  const importHandoff = useImportHandoff(widget.id);
+  const glHandoff =
+    importHandoff?.target === 'guidedLearning' ? importHandoff : null;
+  const openGlHandoff = useEffectEvent(openImportWizard);
+  // The handoff store lives outside React; open the review when a Source arrives.
+  useEffect(() => {
+    if (glHandoff) void Promise.resolve().then(openGlHandoff);
+  }, [glHandoff]);
 
   // Best-effort deletion of uploads whose save never succeeded.
   const discardRehostedUploads = (cached: {
@@ -1936,8 +1949,11 @@ const TeacherGuidedLearningWidget: React.FC<{
       )}
 
       <ImportWizard<GuidedLearningSet>
+        key={glHandoff?.id ?? 'import'}
         isOpen={showImportWizard}
+        initialSource={glHandoff?.source}
         onClose={() => {
+          if (glHandoff) takeImportHandoff(widget.id);
           setShowImportWizard(false);
           importWizardClosedRef.current = true;
           // Defer cleanup to the save's settle handler while a save is in flight.
@@ -1950,6 +1966,7 @@ const TeacherGuidedLearningWidget: React.FC<{
             'success'
           );
           setImportFocusCounter((c) => c + 1);
+          if (glHandoff) completeImportHandoff(widget.id);
         }}
       />
 
