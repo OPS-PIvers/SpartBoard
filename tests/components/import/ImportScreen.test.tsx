@@ -138,6 +138,8 @@ describe('targetChoices', () => {
 
   it('reads a two-column page as rows, not with AI', () => {
     expect(usesAi('flashcards', sourceFromInboxItem(sent), true)).toBe(false);
+    const pasted = 'cell, unit of life\natom, smallest unit\nion, charged atom';
+    expect(usesAi('flashcards', { text: pasted }, true)).toBe(false);
   });
 
   it('never offers AI for a bare link or an unread file', () => {

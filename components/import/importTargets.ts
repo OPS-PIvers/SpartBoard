@@ -151,8 +151,11 @@ export function usesAi(
   if (!route.accepts(source)) return true;
   // Flashcards: a CSV or a page of term/definition rows still reads without AI.
   if (isCsv(source)) return false;
+  // Comma rows count too, the way a .csv is read (two comma cells become a tab).
   return !looksLikeTwoColumns(
-    (source.text ?? '').split(/\r?\n/),
+    (source.text ?? '')
+      .split(/\r?\n/)
+      .map((l) => (l.split(',').length === 2 ? l.replace(',', '\t') : l)),
     source.inboxItem?.blocks ?? []
   );
 }
