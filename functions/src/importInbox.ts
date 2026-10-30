@@ -73,15 +73,69 @@ function httpUrl(v: unknown, what: string): string {
   return raw;
 }
 
-const SECRET_PARAM =
-  /^(access_token|id_token|token|auth|code|key|api_key|sig|signature|session|x-amz-.+)$/i;
+const SECRET_NAMES = new Set([
+  'auth',
+  'code',
+  'key',
+  'sig',
+  'jwt',
+  'policy',
+  'key-pair-id',
+  'phpsessid',
+  'jsessionid',
+  'awsaccesskeyid',
+]);
+const SECRET_WORDS = new Set([
+  'secret',
+  'signature',
+  'credential',
+  'credentials',
+  'password',
+  'passwd',
+]);
+// Pagination cursors are named like tokens but carry no sign-in.
+const CURSOR_WORDS = new Set([
+  'page',
+  'next',
+  'continuation',
+  'cursor',
+  'sync',
+]);
+
+/** True for a query param that carries a credential: names split on `-`, `_` and camelCase. */
+export function isSecretParam(name: string): boolean {
+  const lower = name.toLowerCase();
+  if (SECRET_NAMES.has(lower) || /^x-(amz|goog)-/.test(lower)) return true;
+  const words = name
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[\s_.-]+/)
+    .filter(Boolean);
+  const last = words[words.length - 1] ?? '';
+  const pairs = words.slice(1).map((w, i) => `${words[i]} ${w}`);
+  return (
+    words.some((w) => SECRET_WORDS.has(w)) ||
+    ([
+      'token',
+      'apikey',
+      'accesskey',
+      'sessionid',
+      'sessid',
+      'session',
+    ].includes(last) &&
+      !(last === 'token' && words.some((w) => CURSOR_WORDS.has(w)))) ||
+    pairs.some((p) =>
+      ['api key', 'access key', 'session id', 'private key'].includes(p)
+    )
+  );
+}
 
 /** The page URL without its fragment or sign-in tokens, which the teacher never meant to send. */
 export function storedUrl(raw: string): string {
   const u = new URL(raw);
   u.hash = '';
   for (const name of [...u.searchParams.keys()])
-    if (SECRET_PARAM.test(name)) u.searchParams.delete(name);
+    if (isSecretParam(name)) u.searchParams.delete(name);
   return u.toString();
 }
 
