@@ -6,12 +6,14 @@ type Props = Omit<
 > & {
   value: number;
   onCommit: (n: number) => void;
+  normalize?: (n: number) => number;
 };
 
 /** Number field that keeps a half-typed entry like "-" or "" instead of snapping it to 0. */
 export const DraftNumberField: React.FC<Props> = ({
   value,
   onCommit,
+  normalize,
   onBlur,
   ...rest
 }) => {
@@ -23,8 +25,10 @@ export const DraftNumberField: React.FC<Props> = ({
       type="number"
       value={draft ?? String(value)}
       onChange={(e) => {
-        setDraft(e.target.value);
         const n = parseFloat(e.target.value);
+        const stored = Number.isFinite(n) ? normalize?.(n) : undefined;
+        // Show the stored value when normalizing changed what was typed.
+        setDraft(stored !== undefined && stored !== n ? null : e.target.value);
         if (Number.isFinite(n) && n !== value) onCommit(n);
       }}
       onBlur={(e) => {

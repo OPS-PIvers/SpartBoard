@@ -1043,6 +1043,203 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "backgrounds.close",
+    "label": "Close button in the Backgrounds window",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.rail-section",
+    "label": "Section in the Backgrounds window sidebar",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "backgrounds#(favorites|recent|colors|patterns|gradients|uploads|row-[1-9]\\d*)",
+    "key_hint": "backgrounds#colors; media categories are backgrounds#row-1, row-2",
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.search",
+    "label": "Search field in the Backgrounds window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.type-filter",
+    "label": "Type filter button in the Backgrounds window",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "backgrounds#(all|still|video|color|pattern|gradient|upload)",
+    "key_hint": "backgrounds#still for the Stills filter",
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.custom-color",
+    "label": "Custom color picker in the Backgrounds window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#colors"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#colors"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.custom-color-apply",
+    "label": "Apply button for the custom color in the Backgrounds window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#colors"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#colors"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.gradient-start",
+    "label": "Start color picker for the custom gradient",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.gradient-end",
+    "label": "End color picker for the custom gradient",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.gradient-direction",
+    "label": "Direction button for the custom gradient",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "backgrounds#row-[1-4]",
+    "key_hint": "backgrounds#row-1 for the first direction",
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.gradient-apply",
+    "label": "Apply button for the custom gradient",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.upload",
+    "label": "Upload an image button in the Backgrounds window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#uploads"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#uploads"
+      }
+    ]
+  },
+  {
     "id": "sidebar.classes",
     "label": "My Classes item in the menu",
     "scope": "board",

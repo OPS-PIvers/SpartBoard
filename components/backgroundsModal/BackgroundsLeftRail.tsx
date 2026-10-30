@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Star, Clock } from 'lucide-react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export type RailSection =
   | { kind: 'favorites' }
@@ -32,6 +33,11 @@ export const BackgroundsLeftRail: React.FC<BackgroundsLeftRailProps> = ({
   const item = (s: RailSection, label: React.ReactNode, indent = false) => (
     <button
       key={railSectionKey(s)}
+      {...tourFieldAttr(
+        'backgrounds.rail-section',
+        'backgrounds',
+        s.kind === 'category' ? `row-${categories.indexOf(s.name) + 1}` : s.kind
+      )}
       onClick={() => onSelect(s)}
       className={`w-full text-left px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
         indent ? 'pl-6' : ''

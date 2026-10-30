@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Loader2, Plus, School, X } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { DraftNumberField } from './DraftNumberField';
 
 const SCHOOLOGY_CATEGORIES_DOC = 'schoology_categories';
 const DEFAULT_SCHOOLOGY_CATEGORIES = [
@@ -17,6 +18,9 @@ type Row = { key: number; title: string; weight: number };
 let rowKey = 0;
 const toRows = (cats: { title: string; weight: number }[]): Row[] =>
   cats.map((c) => ({ key: ++rowKey, title: c.title, weight: c.weight }));
+
+const clampWeight = (n: number): number =>
+  Math.max(0, Math.min(100, Math.round(n)));
 
 const inputClass =
   'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
@@ -130,33 +134,22 @@ export const SchoologyCategoriesPanel: React.FC = () => {
                 }
                 className={`${inputClass} flex-1 min-w-0`}
               />
-              <input
+              <DraftNumberField
                 {...tourFieldAttr(
                   'admin.schoology.category-weight',
                   'admin',
                   String(i)
                 )}
                 aria-label={`Category ${i + 1} weight`}
-                type="number"
                 min={0}
                 max={100}
                 step={1}
                 value={r.weight}
-                onChange={(e) =>
+                normalize={clampWeight}
+                onCommit={(n) =>
                   update(
                     rows.map((x) =>
-                      x.key === r.key
-                        ? {
-                            ...x,
-                            weight: Math.max(
-                              0,
-                              Math.min(
-                                100,
-                                Math.round(Number(e.target.value) || 0)
-                              )
-                            ),
-                          }
-                        : x
+                      x.key === r.key ? { ...x, weight: clampWeight(n) } : x
                     )
                   )
                 }

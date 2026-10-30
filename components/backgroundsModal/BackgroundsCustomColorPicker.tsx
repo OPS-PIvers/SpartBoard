@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { isCustomBackground } from '@/utils/backgrounds';
+import { tourAttr } from '@/config/tourAnchors';
 import { logError } from '@/utils/logError';
 
 interface BackgroundsCustomColorPickerProps {
@@ -34,7 +35,7 @@ export const BackgroundsCustomColorPicker: React.FC<
   if (activeCustomValue !== prev) {
     setPrev(activeCustomValue);
     if (activeCustomValue.startsWith('#')) {
-      // <input type="color"> requires 6-digit hex; expand 3-digit shorthand (#abc → #aabbcc)
+      // A color input requires 6-digit hex; expand 3-digit shorthand (#abc → #aabbcc)
       const normalized =
         activeCustomValue.length === 4
           ? `#${activeCustomValue
@@ -57,6 +58,7 @@ export const BackgroundsCustomColorPicker: React.FC<
       </span>
       <div className="flex items-center gap-3">
         <input
+          {...tourAttr('backgrounds.custom-color')}
           type="color"
           value={customColor}
           onChange={(e) => setCustomColor(e.target.value)}
@@ -64,6 +66,7 @@ export const BackgroundsCustomColorPicker: React.FC<
         />
         <span className="font-mono text-xs text-slate-500">{customColor}</span>
         <button
+          {...tourAttr('backgrounds.custom-color-apply')}
           type="button"
           onClick={applyCustomColor}
           disabled={isActive}
