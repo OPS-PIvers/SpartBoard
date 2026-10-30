@@ -90,7 +90,10 @@ describe('SmartNotebookWidget', () => {
   beforeEach(() => {
     vi.resetAllMocks();
 
-    (useAuth as unknown as Mock).mockReturnValue({ user: mockUser });
+    (useAuth as unknown as Mock).mockReturnValue({
+      user: mockUser,
+      canAccessFeature: () => false,
+    });
     (useDashboard as unknown as Mock).mockReturnValue({
       updateWidget: mockUpdateWidget,
       addToast: mockAddToast,

@@ -89,6 +89,10 @@ import { glSetToLiveTour } from './utils/glToLiveTour';
 import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
 import { createGuidedLearningImportAdapter } from './adapters/guidedLearningImportAdapter';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { UNIVERSAL_IMPORT_FEATURE } from '@/utils/import/contract';
+import { readPageSource } from '@/utils/import/pageImages';
+import { ImportedPagesPreview } from '@/components/common/ImportedPagesPreview';
 import {
   buildGlExportFilename,
   defaultImportDestination,
@@ -237,6 +241,8 @@ const TeacherGuidedLearningWidget: React.FC<{
   const { user, isAdmin, getAssignmentMode, canAccessFeature, appSettings } =
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
+  const { driveService } = useGoogleDrive();
+  const slidesImportOn = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
   const canEditToursOnBoard = isAdmin === true;
   const canUseAi =
     canAccessFeature('gemini-functions') &&
@@ -1308,8 +1314,13 @@ const TeacherGuidedLearningWidget: React.FC<{
 
   // Recreated per render on purpose — the wizard holds its own parsed state,
   // and useStorage's function identities change every render anyway.
-  // eslint-disable-next-line react-hooks/refs -- adapter reads refs only when the wizard calls it
   const importAdapter = createGuidedLearningImportAdapter({
+    ...(slidesImportOn
+      ? {
+          readPages: (file: File) =>
+            readPageSource(file, { drive: driveService }),
+        }
+      : {}),
     save: async (set, title) => {
       if (!user?.uid) throw new Error('Not authenticated');
       const destination = importDestinationFor(set);
@@ -1427,6 +1438,14 @@ const TeacherGuidedLearningWidget: React.FC<{
               </p>
             </div>
           </div>
+          {slidesImportOn && (
+            <ImportedPagesPreview
+              pages={set.imageUrls.map((src, i) => {
+                const step = set.steps.find((st) => st.imageIndex === i);
+                return { src, text: step?.label };
+              })}
+            />
+          )}
           <ImportDestinationPicker
             canChoose={canImportToBuilding}
             destination={importDestinationFor(set)}
