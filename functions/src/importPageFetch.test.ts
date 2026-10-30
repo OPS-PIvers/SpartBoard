@@ -123,6 +123,32 @@ describe('htmlToPage', () => {
   });
 });
 
+describe('hostile HTML stays linear', () => {
+  const MB = 1_048_576;
+  it.each([
+    ['unclosed forms', '<form '],
+    ['unclosed buttons', '<button x'],
+    ['unclosed comments', '<!--'],
+    ['unclosed images', '<img src=a '],
+    ['unclosed meta quotes', '<meta "'],
+    ['unclosed articles', '<article>'],
+    ['unclosed inputs', '<input type=text '],
+  ])('%s', (_label, unit) => {
+    const body = unit.repeat(Math.floor(MB / unit.length));
+    const started = performance.now();
+    htmlToPage(`<p>Start</p>${body}`, new URL('https://example.org/'));
+    expect(performance.now() - started).toBeLessThan(1_500);
+  });
+
+  it('still cuts an unclosed form to the end of the page', () => {
+    const page = htmlToPage(
+      '<body><p>Keep</p><form><p>Secret</p></body>',
+      new URL('https://example.org/')
+    );
+    expect(page.blocks).toEqual([{ type: 'paragraph', text: 'Keep' }]);
+  });
+});
+
 describe('fetchImportPage', () => {
   it('returns the page for a plain public URL', async () => {
     const d = deps({

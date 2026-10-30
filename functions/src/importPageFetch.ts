@@ -22,7 +22,9 @@ import { assertViewAsAllowed } from './viewAsGuard';
 const FEATURE_ID = 'universal-import';
 const BLOCK_LIST_DOC = 'import_send_block_list';
 const MAX_REDIRECTS = 3;
-const MAX_RESPONSE_BYTES = 2_097_152;
+const MAX_RESPONSE_BYTES = 1_048_576;
+// Title tags are read from the head only; a page without one gets this much.
+const HEAD_SCAN_CHARS = 65_536;
 const FETCH_TIMEOUT_MS = 8_000;
 // Under the importInboxV1 caps, so a fetched page can be sent on as-is.
 const MAX_BLOCKS = 1_500;
@@ -109,25 +111,74 @@ const DROP_WITH_CONTENT = [
 const BLOCK_TAG =
   /<(\/?)(h[1-6]|p|div|section|article|main|li|ul|ol|dl|blockquote|pre|tr|td|th|dt|dd|figure|figcaption|br|hr|table)\b[^>]*>/gi;
 
-function stripElements(html: string): string {
-  let out = html.replace(/<!--[\s\S]*?-->/g, ' ');
-  for (const tag of DROP_WITH_CONTENT) {
-    out = out.replace(
-      new RegExp(`<${tag}\\b[\\s\\S]*?<\\/${tag}\\s*>`, 'gi'),
-      ' '
-    );
+const isNameEnd = (ch: string | undefined): boolean =>
+  ch === undefined || !/[a-z0-9-]/i.test(ch);
+
+/** Linear scan for `<tag` (whole name) at or after `from` in a lower-cased copy. */
+function findOpen(lower: string, tag: string, from: number): number {
+  let at = lower.indexOf(`<${tag}`, from);
+  while (at >= 0 && !isNameEnd(lower[at + tag.length + 1]))
+    at = lower.indexOf(`<${tag}`, at + 1);
+  return at;
+}
+
+/**
+ * Cuts every `<tag ...>...</tag>` with plain indexOf, so hostile HTML costs one pass per tag name.
+ * An element with no closer runs to the end of the page and is cut whole.
+ */
+function dropElements(html: string, tags: readonly string[]): string {
+  let out = html;
+  for (const tag of tags) {
+    const lower = out.toLowerCase();
+    const parts: string[] = [];
+    let pos = 0;
+    for (let at = findOpen(lower, tag, 0); at >= 0;) {
+      parts.push(out.slice(pos, at), ' ');
+      const close = lower.indexOf(`</${tag}`, at);
+      if (close < 0) {
+        pos = out.length;
+        break;
+      }
+      const end = lower.indexOf('>', close);
+      pos = end < 0 ? out.length : end + 1;
+      at = findOpen(lower, tag, pos);
+    }
+    parts.push(out.slice(pos));
+    out = parts.join('');
   }
+  return out;
+}
+
+function stripComments(html: string): string {
+  const parts: string[] = [];
+  let pos = 0;
+  for (let at = html.indexOf('<!--'); at >= 0;) {
+    parts.push(html.slice(pos, at), ' ');
+    const end = html.indexOf('-->', at + 4);
+    pos = end < 0 ? html.length : end + 3;
+    at = end < 0 ? -1 : html.indexOf('<!--', pos);
+  }
+  parts.push(html.slice(pos));
+  return parts.join('');
+}
+
+function stripElements(html: string): string {
+  const out = dropElements(stripComments(html), DROP_WITH_CONTENT);
   // Void form fields carry values in attributes; drop them too.
   return out.replace(/<(?:input|option)\b[^>]*>/gi, ' ');
 }
 
+/** Inner HTML of the first article, main or body with text in it; linear like dropElements. */
 function pickRegion(html: string): string {
+  const lower = html.toLowerCase();
   for (const tag of ['article', 'main', 'body']) {
-    const match = new RegExp(
-      `<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}\\s*>`,
-      'i'
-    ).exec(html);
-    if (match && match[1].replace(/<[^>]*>/g, '').trim()) return match[1];
+    const at = findOpen(lower, tag, 0);
+    if (at < 0) continue;
+    const start = lower.indexOf('>', at);
+    if (start < 0) continue;
+    const close = lower.indexOf(`</${tag}`, start);
+    const inner = html.slice(start + 1, close < 0 ? html.length : close);
+    if (inner.replace(/<[^>]*>/g, '').trim()) return inner;
   }
   return html;
 }
@@ -215,9 +266,13 @@ function extractBlocks(region: string): FetchedBlock[] {
 }
 
 /** The generic read of a fetched HTML page: title, main-content blocks and image URLs, never form values. */
-export function htmlToPage(html: string, pageUrl: URL): FetchedPage {
+export function htmlToPage(rawHtml: string, pageUrl: URL): FetchedPage {
+  // Every `<` now has a `>` after it, so the `<[^>]*>` scans below never rescan to the end.
+  const html = rawHtml.slice(0, rawHtml.lastIndexOf('>') + 1);
+  const headEnd = html.toLowerCase().indexOf('</head');
+  const head = html.slice(0, headEnd < 0 ? HEAD_SCAN_CHARS : headEnd);
   const title =
-    extractMetaContent(html, 'og:title') ?? extractTitleTag(html) ?? '';
+    extractMetaContent(head, 'og:title') ?? extractTitleTag(head) ?? '';
   const region = pickRegion(stripElements(html));
   return {
     url: pageUrl.href,
@@ -230,7 +285,9 @@ export function htmlToPage(html: string, pageUrl: URL): FetchedPage {
 }
 
 const hasPasswordField = (html: string): boolean =>
-  /<input\b[^>]*type\s*=\s*["']?password/i.test(html);
+  /<input\b[^>]*type\s*=\s*["']?password/i.test(
+    html.slice(0, html.lastIndexOf('>') + 1)
+  );
 
 /** Follows redirects hop by hop, checking the block list and sign-in pages at every hop. */
 export async function fetchImportPage(
