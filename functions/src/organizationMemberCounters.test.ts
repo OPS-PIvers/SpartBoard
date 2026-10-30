@@ -280,7 +280,7 @@ describe('planMemberCounterDeltas', () => {
 describe('resolveDomainDocId', () => {
   const DOMAIN_DOCS = [
     { id: 'primary', domain: '@orono.k12.mn.us' },
-    { id: 'students', domain: 'students.orono.k12.mn.us' },
+    { id: 'students', domain: 'hs.orono.k12.mn.us' },
     { id: 'broken', domain: null },
   ];
 
@@ -289,7 +289,7 @@ describe('resolveDomainDocId', () => {
   });
 
   it('matches stored domain without a leading @', () => {
-    expect(resolveDomainDocId('students.orono.k12.mn.us', DOMAIN_DOCS)).toBe(
+    expect(resolveDomainDocId('hs.orono.k12.mn.us', DOMAIN_DOCS)).toBe(
       'students'
     );
   });

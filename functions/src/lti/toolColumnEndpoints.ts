@@ -43,6 +43,7 @@ import {
   deleteLineItem,
   isSchoologySectionId,
   isSchoologyServiceUrl,
+  lineItemColumnId,
   listLineItems,
   schoologySectionUrls,
   updateLineItemMaximum,
@@ -68,7 +69,7 @@ import {
 } from './linkSectionByUrl';
 import { isGlobalFeatureGranted } from '../quizMediaArchive';
 import { assertViewAsAllowed } from '../viewAsGuard';
-import { isVerifiedDistrictTeacher } from './teacherAuth';
+import { isDistrictTeacher } from './teacherAuth';
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
@@ -114,15 +115,14 @@ function parseKind(kind: unknown): LtiSessionKind {
   throw new HttpsError('invalid-argument', "kind must be 'quiz' or 'va'.");
 }
 
-function requireTeacher(request: CallableRequest): {
-  uid: string;
-  email: string;
-} {
+async function requireTeacher(
+  request: CallableRequest
+): Promise<{ uid: string; email: string }> {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Sign in required.');
   }
   const email = request.auth.token.email;
-  if (!email || !isVerifiedDistrictTeacher(request.auth.token)) {
+  if (!email || !(await isDistrictTeacher(request.auth.token))) {
     throw new HttpsError('permission-denied', 'Teacher account required.');
   }
   return { uid: request.auth.uid, email };
@@ -271,13 +271,17 @@ export function firestoreColumnStore(
     if (!d || typeof d.lineitemUrl !== 'string') return null;
     const record: ToolColumnRecord = {
       lineitemUrl: d.lineitemUrl,
-      columnId: typeof d.columnId === 'string' ? d.columnId : null,
+      // Re-derived so records saved with a linked section's id as the column heal.
+      columnId:
+        lineItemColumnId(d.lineitemUrl) ??
+        (typeof d.columnId === 'string' ? d.columnId : null),
       scoreMaximum: typeof d.scoreMaximum === 'number' ? d.scoreMaximum : 0,
       categoryId: typeof d.categoryId === 'string' ? d.categoryId : null,
       lastPushed:
         d.lastPushed && typeof d.lastPushed === 'object'
           ? (d.lastPushed as Record<string, string>)
           : {},
+      ...(d.published === true ? { published: true } : {}),
     };
     return record;
   };
@@ -333,6 +337,12 @@ export function firestoreColumnStore(
         { merge: true }
       );
     },
+    async markPublished(contextId) {
+      await ref(contextId).set(
+        { published: true, updatedAt: Date.now() },
+        { merge: true }
+      );
+    },
     async getPref(contextId) {
       const v = (await prefRef(contextId).get()).data()?.categoryId as unknown;
       return typeof v === 'string' ? v : null;
@@ -363,6 +373,7 @@ function restOps(): RestOps | null {
     setColumnCategory: (s, col, cat) =>
       rest.setColumnCategory(creds, s, col, cat),
     getColumnCategory: (s, col) => rest.getColumnCategory(creds, s, col),
+    publishColumn: (s, col) => rest.publishColumn(creds, s, col),
     listColumnGrades: (s, col) => rest.listColumnGrades(creds, s, col),
     setExceptions: (s, rows) => rest.setExceptions(creds, s, rows),
     listEnrollments: (s) => rest.listEnrollments(creds, s),
@@ -468,7 +479,7 @@ export const ltiToolColumnCategoriesV1 = onCall(
   },
   async (request) => {
     assertViewAsAllowed(request, { read: true });
-    const { uid, email } = requireTeacher(request);
+    const { uid, email } = await requireTeacher(request);
     const db = admin.firestore();
     await requireFeature(db, uid, email);
     const session = await loadOwnedSession(
@@ -542,7 +553,7 @@ export const ltiCreateToolColumnCategoriesV1 = onCall(
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });
-    const { uid, email } = requireTeacher(request);
+    const { uid, email } = await requireTeacher(request);
     const db = admin.firestore();
     await requireFeature(db, uid, email);
     const data = (request.data ?? {}) as Record<string, unknown>;
@@ -634,7 +645,7 @@ export const ltiPushToolColumnV1 = onCall(
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });
-    const { uid, email } = requireTeacher(request);
+    const { uid, email } = await requireTeacher(request);
     const db = admin.firestore();
     await requireFeature(db, uid, email);
     const data = (request.data ?? {}) as Record<string, unknown>;
@@ -782,7 +793,7 @@ export const ltiDeleteToolColumnsV1 = onCall(
   { ...CALL_OPTS, secrets: [LTI_TOOL_PRIVATE_KEY] },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });
-    const { uid, email } = requireTeacher(request);
+    const { uid, email } = await requireTeacher(request);
     const data = (request.data ?? {}) as { sessionId?: unknown };
     const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
     if (!SESSION_ID_RE.test(sessionId)) {

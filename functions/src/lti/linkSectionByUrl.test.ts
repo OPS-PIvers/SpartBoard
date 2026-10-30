@@ -3,6 +3,22 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Staff is decided by an org member doc (districtStaff.ts); here any verified non-student token is staff.
+const districtStaffMock = vi.hoisted(() =>
+  vi.fn(
+    (
+      _db: unknown,
+      token: { email_verified?: boolean; studentRole?: unknown }
+    ): Promise<boolean> =>
+      Promise.resolve(
+        token.email_verified === true && token.studentRole !== true
+      )
+  )
+);
+vi.mock('../districtStaff', () => ({
+  isDistrictStaffToken: districtStaffMock,
+}));
+
 vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     code: string;
@@ -194,6 +210,20 @@ describe('parseSchoologyCourseUrl', () => {
     ['orono.schoology.com/course/7660186912', '7660186912'],
     ['https://app.schoology.com/course/123/updates?x=1', '123'],
     ['  https://schoology.com/course/9/  ', '9'],
+    [
+      'https://orono.schoology.com/course/8497573101/grades#csm_section_nid=8497641327',
+      '8497641327',
+    ],
+    [
+      'https://orono.schoology.com/course/8497573101/grades#csm_section_nid=8497573101',
+      '8497573101',
+    ],
+    ['https://orono.schoology.com/course/1/grades?csm_section_nid=22', '22'],
+    [
+      'https://orono.schoology.com/course/1/grades#x=1&csm_section_nid=22',
+      '22',
+    ],
+    ['https://orono.schoology.com/course/1/grades#csm_section_nid=2x', '1'],
   ])('%s → %s', (url, id) => {
     expect(parseSchoologyCourseUrl(url)).toBe(id);
   });
@@ -205,6 +235,7 @@ describe('parseSchoologyCourseUrl', () => {
     'https://orono.schoology.com:8080/course/123',
     'https://orono.schoology.com/course/12a3',
     'https://orono.schoology.com/group/123',
+    'https://orono.schoology.com/group/1#csm_section_nid=22',
     'https://orono.schoology.com/course/../course/123x',
     'javascript:alert(1)',
     '',

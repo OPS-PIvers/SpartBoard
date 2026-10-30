@@ -716,7 +716,7 @@ describe('organizations/domains — writes', () => {
     await assertSucceeds(
       setDoc(
         doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/students`),
-        pendingDomain('students', '@students.orono.k12.mn.us')
+        pendingDomain('students', '@hs.orono.k12.mn.us')
       )
     );
     await assertSucceeds(

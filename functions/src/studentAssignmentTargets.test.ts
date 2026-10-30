@@ -2237,22 +2237,6 @@ describe('setAssignmentTargetsV1 onCall wrapper — caller identity verification
     });
     expect(res).toMatchObject({ written: 0 });
   });
-
-  it('SECURITY: rejects a verified student-domain Google session', async () => {
-    await expect(
-      handler({
-        auth: {
-          uid: TEACHER_UID,
-          token: {
-            email: 'kid@students.orono.k12.mn.us',
-            email_verified: true,
-          },
-        },
-        data: payload,
-      })
-    ).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(state.writes).toHaveLength(0);
-  });
 });
 
 describe('loadClassLinkMembership', () => {
@@ -2295,5 +2279,49 @@ describe('loadClassLinkMembership', () => {
     );
     expect(out.size).toBe(0);
     expect(axiosGet).toHaveBeenCalledTimes(1);
+  });
+
+  // Students share the staff email domain, so only a ClassLink staff role lists classes.
+  it.each([
+    ['no role at all', [{ sourcedId: 'X1' }]],
+    [
+      'only a primary roleType',
+      [{ sourcedId: 'X1', roles: [{ roleType: 'primary' }] }],
+    ],
+    ['a guardian', [{ sourcedId: 'X1', role: 'guardian' }]],
+    ['only a student', [{ sourcedId: 'X1', role: 'student' }]],
+  ])(
+    'SECURITY: a record with %s resolves to no classes',
+    async (_label, users) => {
+      route(users);
+      const out = await loadClassLinkMembership(
+        'kid@orono.k12.mn.us',
+        [CLASS_A],
+        'id',
+        'secret',
+        'https://tenant.example'
+      );
+      expect(out.size).toBe(0);
+      expect(axiosGet).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('uses the staff record when a student record shares the address', async () => {
+    route([
+      { sourcedId: 'S1', role: 'student' },
+      { sourcedId: 'T1', roles: [{ roleType: 'primary', role: 'teacher' }] },
+    ]);
+    const out = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      [CLASS_A],
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(out.get(SOURCED_A)).toBe(CLASS_A);
+    expect(axiosGet).toHaveBeenCalledWith(
+      'https://tenant.example/ims/oneroster/v1p1/users/T1/classes',
+      expect.anything()
+    );
   });
 });

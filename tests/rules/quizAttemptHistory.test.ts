@@ -61,7 +61,7 @@ const staff = (uid: string, email = `${uid}@orono.k12.mn.us`) =>
 const student = (uid: string) =>
   testEnv
     .authenticatedContext(uid, {
-      email: `${uid}@students.orono.k12.mn.us`,
+      email: `${uid}@orono.k12.mn.us`,
       email_verified: true,
       studentRole: true,
       classIds: [],

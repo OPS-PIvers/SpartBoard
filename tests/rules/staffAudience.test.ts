@@ -1,4 +1,4 @@
-// Staff-audience sessions take only verified district staff, named from their own token, across all five assignment types.
+// Staff-audience sessions take only district staff (an active, non-student member doc), named from their own token, across all five assignment types.
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -13,6 +13,10 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { setDoc, getDoc, doc, updateDoc } from 'firebase/firestore';
+import {
+  NOT_STAFF_DISTRICT_EMAILS,
+  seedDistrictStaff,
+} from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-staff-audience';
 const TEACHER_UID = 'teacher-uid-sa';
@@ -63,6 +67,14 @@ const asStudent = () =>
     .firestore();
 
 const staffFields = { staffEmail: STAFF_EMAIL, staffName: STAFF_NAME };
+
+const seedMembers = (db: Parameters<typeof seedDistrictStaff>[0]) =>
+  seedDistrictStaff(db, [STAFF_EMAIL]);
+const notStaffGoogle = () =>
+  NOT_STAFF_DISTRICT_EMAILS.map((email) => ({
+    email,
+    db: asGoogle(STAFF_UID, email),
+  }));
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
@@ -187,6 +199,7 @@ describe.each(KINDS)('$name: staff audience', (kind) => {
     await testEnv.clearFirestore();
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
+      await seedMembers(db);
       await setDoc(doc(db, staffPath), { ...kind.session, audience: 'staff' });
       await setDoc(doc(db, studentPath), kind.session);
     });
@@ -245,6 +258,18 @@ describe.each(KINDS)('$name: staff audience', (kind) => {
     );
   });
 
+  it('refuses a student Google account and inactive or student member docs', async () => {
+    for (const { email, db } of notStaffGoogle()) {
+      await assertFails(
+        setDoc(doc(db, own(staffPath)), {
+          ...kind.join(STAFF_UID),
+          staffEmail: email,
+          staffName: STAFF_NAME,
+        })
+      );
+    }
+  });
+
   it('refuses staff fields on a student session', async () => {
     await assertFails(
       setDoc(doc(asStaff(), own(studentPath)), {
@@ -269,6 +294,7 @@ describe('flashcards: staff session reads', () => {
     await testEnv.clearFirestore();
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
+      await seedMembers(db);
       await setDoc(doc(db, 'flashcard_sessions/s1'), {
         ...KINDS[4].session,
         audience: 'staff',
@@ -283,6 +309,9 @@ describe('flashcards: staff session reads', () => {
     await assertFails(
       getDoc(doc(asGoogle(STAFF_UID, 'pat@gmail.com'), 'flashcard_sessions/s1'))
     );
+    for (const { db } of notStaffGoogle()) {
+      await assertFails(getDoc(doc(db, 'flashcard_sessions/s1')));
+    }
   });
 });
 
@@ -303,6 +332,7 @@ describe('flashcards: student joins and locked audience', () => {
     await testEnv.clearFirestore();
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
+      await seedMembers(db);
       await setDoc(doc(db, 'flashcard_sessions/s1'), {
         ...session,
         audience: 'staff',

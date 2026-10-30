@@ -1,6 +1,6 @@
 // Owns the ONNX session off the main thread (F26): single-threaded WASM, CPU only.
-import * as ort from 'onnxruntime-web-1-30';
-import wasmUrl from '../../node_modules/onnxruntime-web-1-30/dist/ort-wasm-simd-threaded.jsep.wasm?url';
+import * as ort from 'onnxruntime-web-1-31';
+import wasmUrl from '../../node_modules/onnxruntime-web-1-31/dist/ort-wasm-simd-threaded.jsep.wasm?url';
 import { PRONUNCIATION_MODEL } from '@/config/pronunciationModel';
 import vocab from './xlsr53EspeakVocab.json';
 import { normalizeForWav2Vec2 } from './audio';

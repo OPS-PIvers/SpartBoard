@@ -1,7 +1,11 @@
 // Gates for Staff-audience assignment links: district Google sign-in before the activity.
 import React, { useEffect, useState } from 'react';
 import { auth } from '@/config/firebase';
-import { readStaffIdentity, type StaffIdentity } from '@/utils/staffAudience';
+import {
+  enrollStaffMember,
+  readStaffIdentity,
+  type StaffIdentity,
+} from '@/utils/staffAudience';
 import { StaffChecking, StaffSignInScreen } from './StaffSignInGate';
 
 export type StaffGateStatus = 'off' | 'checking' | 'sign-in' | 'ok';
@@ -30,7 +34,9 @@ export function useStaffAudienceGate(active: boolean): StaffAudienceGate {
     const user = auth.currentUser;
     void readStaffIdentity(user)
       .catch(() => null)
-      .then((identity) => {
+      .then(async (identity) => {
+        // A session from an earlier staff link may predate its member doc.
+        if (identity) await enrollStaffMember(auth);
         if (!cancelled) setChecked({ uid: user?.uid ?? null, identity });
       });
     return () => {

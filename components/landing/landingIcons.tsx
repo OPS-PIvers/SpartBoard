@@ -24,7 +24,7 @@ import React from 'react';
  * package version, so a `pnpm update lucide-react` fails CI until someone
  * re-copies the paths and bumps this pin in the same change.
  */
-export const LANDING_ICONS_LUCIDE_VERSION = '1.61.0';
+export const LANDING_ICONS_LUCIDE_VERSION = '1.65.0';
 
 type IconNode = ReadonlyArray<
   readonly [string, Record<string, string | number>]

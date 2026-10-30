@@ -2887,6 +2887,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-print.written-box-lines': {
+    label: 'Written box custom line count in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
   'quiz-print.written-number': {
     label: 'Written answers question-number input in the Quiz widget',
     perWidgetType: true,

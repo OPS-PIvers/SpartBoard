@@ -25,7 +25,7 @@ import { classroomAddonNet } from '../classroomAddonAuth';
 import { isGlobalFeatureGranted } from '../quizMediaArchive';
 import { loadTestClassMembership } from '../studentAssignmentTargets';
 import { assertViewAsAllowed } from '../viewAsGuard';
-import { isVerifiedDistrictTeacher } from './teacherAuth';
+import { isDistrictTeacher } from './teacherAuth';
 
 export const SCHOOLOGY_TOOL_COLUMNS_FEATURE = 'schoology-tool-columns';
 
@@ -39,7 +39,7 @@ const MAX_CANDIDATE_CLASSES = 60;
 const FETCH_CONCURRENCY = 5;
 const ROSTER_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
-/** The section id in a pasted Schoology course link, or null for anything else. */
+/** The section id in a pasted Schoology course link (a linked section's `csm_section_nid` wins), or null. */
 export function parseSchoologyCourseUrl(raw: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed || trimmed.length > 500) return null;
@@ -61,7 +61,11 @@ export function parseSchoologyCourseUrl(raw: string): string | null {
     return null;
   }
   const m = /^\/course\/(\d{1,20})(?:\/|$)/.exec(url.pathname);
-  return m ? m[1] : null;
+  if (!m) return null;
+  const section =
+    /(?:^|[#&])csm_section_nid=(\d{1,20})(?:&|$)/.exec(url.hash) ??
+    /(?:^|[?&])csm_section_nid=(\d{1,20})(?:&|$)/.exec(url.search);
+  return section ? section[1] : m[1];
 }
 
 const isActive = (m: NrpsMember): boolean =>
@@ -247,7 +251,7 @@ export const ltiLinkSectionByUrlV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
     const email = request.auth.token.email;
-    if (!email || !isVerifiedDistrictTeacher(request.auth.token)) {
+    if (!email || !(await isDistrictTeacher(request.auth.token))) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
     const callerUid = request.auth.uid;

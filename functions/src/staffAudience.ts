@@ -1,4 +1,7 @@
 // Staff-audience identity from a caller's ID token; mirrors utils/staffAudience.ts and staffJoinOk in firestore.rules.
+import type * as admin from 'firebase-admin';
+import { isDistrictStaffEmail } from './districtStaff';
+
 export interface StaffIdentity {
   staffEmail: string;
   staffName: string;
@@ -25,4 +28,16 @@ export function staffIdentityFromToken(
     staffEmail: email,
     staffName: typeof token.name === 'string' ? token.name : '',
   };
+}
+
+/** The token's staff identity only when it also holds a staff member doc; students share the district domain. */
+export async function verifiedStaffIdentity(
+  db: admin.firestore.Firestore,
+  token: Record<string, unknown> | null | undefined
+): Promise<StaffIdentity | null> {
+  const identity = staffIdentityFromToken(token);
+  if (!identity) return null;
+  return (await isDistrictStaffEmail(db, identity.staffEmail))
+    ? identity
+    : null;
 }

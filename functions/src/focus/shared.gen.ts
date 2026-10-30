@@ -41,8 +41,6 @@ export const FOCUS_CHECK_MINUTES = 5;
 /** F11: ended sessions stay readable this long, then the TTL deletes them. */
 export const FOCUS_RETENTION_DAYS = 30;
 
-export const FOCUS_STUDENT_EMAIL_DOMAIN = 'students.orono.k12.mn.us';
-
 /** F9: sign-in hosts every session allows; each listing adds its own SpartBoard origins (D5). */
 export const FOCUS_ALWAYS_ALLOWED_HOSTS: readonly string[] = [
   'accounts.google.com',

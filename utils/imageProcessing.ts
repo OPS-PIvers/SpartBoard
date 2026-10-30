@@ -104,7 +104,8 @@ export const removeBackground = async (dataUrl: string): Promise<string> => {
     const { removeBackground: imglyRemoveBackground } =
       await import('@imgly/background-removal');
     const blob = await imglyRemoveBackground(dataUrl, {
-      progress: (key, current, total) => {
+      // Typed by hand: imgly's Config type is written against zod 3, which the zod override replaces.
+      progress: (key: string, current: number, total: number) => {
         if (current === total) {
           // Final progress log
           console.warn(`Background removal complete: ${key}`);

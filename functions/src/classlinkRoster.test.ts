@@ -87,7 +87,7 @@ describe('getClassLinkRosterV1 — caller identity verification', () => {
     h.axiosGet = vi.fn((url: string) => {
       if (url.endsWith('/users')) {
         return Promise.resolve({
-          data: { users: [{ sourcedId: 'teacher-1' }] },
+          data: { users: [{ sourcedId: 'teacher-1', role: 'teacher' }] },
         });
       }
       if (url.includes('/classes') && !url.includes('sourcedId')) {
@@ -102,5 +102,29 @@ describe('getClassLinkRosterV1 — caller identity verification', () => {
     });
 
     expect(result).toEqual({ classes: [], studentsByClass: {} });
+    expect(h.axiosGet).toHaveBeenCalledTimes(2);
+  });
+
+  // A student's own Google session shares the staff domain; their record must never list classmates.
+  it('SECURITY: returns nothing for a ClassLink student or role-less record', async () => {
+    for (const user of [
+      { sourcedId: 'kid-1', role: 'student' },
+      { sourcedId: 'kid-2', roles: [{ roleType: 'primary' }] },
+      { sourcedId: 'x-3' },
+    ]) {
+      h.axiosGet = vi.fn((url: string) =>
+        url.endsWith('/users')
+          ? Promise.resolve({ data: { users: [user] } })
+          : Promise.reject(new Error(`unexpected ${url}`))
+      );
+      const result = await callRoster({
+        auth: {
+          token: { email: '704522@orono.k12.mn.us', email_verified: true },
+        },
+        data: {},
+      });
+      expect(result).toEqual({ classes: [], studentsByClass: {} });
+      expect(h.axiosGet).toHaveBeenCalledTimes(1);
+    }
   });
 });

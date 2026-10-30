@@ -10,7 +10,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { matchFlashcardAnswer } from './flashcardMatch';
 import { isPeriodFrozen } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { staffIdentityFromToken, type StaffIdentity } from './staffAudience';
+import { verifiedStaffIdentity, type StaffIdentity } from './staffAudience';
 
 // Local mirrors of the root types.ts shapes; functions cannot import root code.
 type FlashcardMode = 'flashcards' | 'write' | 'test';
@@ -601,11 +601,11 @@ export const recordFlashcardCheckRatingsV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) => {
+  async (request) => {
     assertViewAsAllowed(request);
     return handleRecordFlashcardCheckRatings(
       admin.firestore(),
-      callerFrom(request.auth),
+      await callerFrom(request.auth),
       request.data,
       Date.now()
     );
@@ -619,11 +619,11 @@ export const submitFlashcardCheckV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) => {
+  async (request) => {
     assertViewAsAllowed(request);
     return handleSubmitFlashcardCheck(
       admin.firestore(),
-      callerFrom(request.auth),
+      await callerFrom(request.auth),
       request.data,
       Date.now()
     );
@@ -636,9 +636,9 @@ function claimClassIds(raw: unknown): string[] {
     : [];
 }
 
-function callerFrom(
+async function callerFrom(
   auth: CallableRequest['auth']
-): FlashcardCheckCaller | null {
+): Promise<FlashcardCheckCaller | null> {
   return auth
     ? {
         uid: auth.uid,
@@ -646,7 +646,7 @@ function callerFrom(
         studentRole:
           auth.token.studentRole === true && auth.token.pinLogin !== true,
         classIds: claimClassIds(auth.token.classIds),
-        staff: staffIdentityFromToken(auth.token),
+        staff: await verifiedStaffIdentity(admin.firestore(), auth.token),
       }
     : null;
 }

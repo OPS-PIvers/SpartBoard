@@ -8,6 +8,8 @@ import type {
 import {
   canTransitionPaperPrivate,
   defaultPaperBoxSize,
+  isPaperBoxSize,
+  paperBoxSizeOf,
   paperBoxLines,
   paperCropStoragePath,
   paperTranscriptionJobId,
@@ -46,8 +48,8 @@ describe('defaultPaperBoxSize', () => {
     [1, 'S'],
     [30, 'S'],
     [31, 'M'],
-    [60, 'M'],
-    [61, 'L'],
+    [80, 'M'],
+    [81, 'L'],
     [120, 'L'],
     [121, 'full'],
   ] as const)('maxWords %s gives %s', (maxWords, size) => {
@@ -56,9 +58,20 @@ describe('defaultPaperBoxSize', () => {
 
   it('maps sizes to line counts', () => {
     expect(paperBoxLines('S')).toBe(3);
-    expect(paperBoxLines('M')).toBe(6);
+    expect(paperBoxLines('M')).toBe(8);
     expect(paperBoxLines('L')).toBe(12);
     expect(paperBoxLines('full')).toBe(24);
+    expect(paperBoxLines(15)).toBe(15);
+  });
+
+  it('accepts a whole custom line count up to a page', () => {
+    expect(isPaperBoxSize(15)).toBe(true);
+    expect(isPaperBoxSize(0)).toBe(false);
+    expect(isPaperBoxSize(25)).toBe(false);
+    expect(isPaperBoxSize(2.5)).toBe(false);
+    expect(isPaperBoxSize('XL')).toBe(false);
+    expect(paperBoxSizeOf({ paperBoxSize: 15 })).toBe(15);
+    expect(paperBoxSizeOf({ paperBoxSize: 99 })).toBe('M');
   });
 });
 
