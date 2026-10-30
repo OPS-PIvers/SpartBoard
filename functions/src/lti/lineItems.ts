@@ -72,6 +72,17 @@ export function lineItemColumnId(lineitemUrl: string): string | null {
   }
 }
 
+/** True for a line item a linked section shares with its parent (`/csm/<section>` URL). */
+export function isLinkedSectionLineItem(lineitemUrl: string): boolean {
+  try {
+    return /\/lineitems\/\d{1,20}\/csm\/\d{1,20}\/?$/.test(
+      new URL(lineitemUrl).pathname
+    );
+  } catch {
+    return false;
+  }
+}
+
 export interface LineItem {
   /** The line item's own URL. */
   id: string;

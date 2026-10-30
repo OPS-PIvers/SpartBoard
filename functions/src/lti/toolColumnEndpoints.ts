@@ -366,6 +366,7 @@ function restOps(): RestOps | null {
     setColumnCategory: (s, col, cat) =>
       rest.setColumnCategory(creds, s, col, cat),
     getColumnCategory: (s, col) => rest.getColumnCategory(creds, s, col),
+    publishColumn: (s, col) => rest.publishColumn(creds, s, col),
     listColumnGrades: (s, col) => rest.listColumnGrades(creds, s, col),
     setExceptions: (s, rows) => rest.setExceptions(creds, s, rows),
     listEnrollments: (s) => rest.listEnrollments(creds, s),

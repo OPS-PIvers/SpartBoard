@@ -6,6 +6,7 @@
 import type { NrpsMember } from './nrps';
 import { deriveRole } from './jwt';
 import {
+  isLinkedSectionLineItem,
   isSchoologyServiceUrl,
   lineItemColumnId,
   schoologySectionUrls,
@@ -89,6 +90,7 @@ export interface RestOps {
     sectionId: string,
     columnId: string
   ): Promise<string | null>;
+  publishColumn(sectionId: string, columnId: string): Promise<void>;
   listColumnGrades(sectionId: string, columnId: string): Promise<ColumnGrade[]>;
   setExceptions(sectionId: string, rows: ExceptionWrite[]): Promise<boolean[]>;
   listEnrollments(sectionId: string): Promise<Enrollment[]>;
@@ -293,6 +295,13 @@ async function ensureColumn(
         savedCategory = categoryId;
       } catch (err) {
         console.warn('[toolColumns] setting the column category failed:', err);
+      }
+    }
+    if (deps.rest && columnId && isLinkedSectionLineItem(item.id)) {
+      try {
+        await deps.rest.publishColumn(contextId, columnId);
+      } catch (err) {
+        console.warn('[toolColumns] publishing a linked column failed:', err);
       }
     }
     const record: ToolColumnRecord = {
