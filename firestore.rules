@@ -2168,10 +2168,15 @@ service cloud.firestore {
     }
 
     // Synced quiz/bank/video content holds answer keys: the doc's own people, members of
-    // its PLC (a bank checks its first PLC), verified staff, or admins. A missing doc reads
+    // its PLC (a bank checks its first three), verified staff, or admins. A missing doc reads
     // so a create can probe first. Anonymous and studentRole tokens never pass.
     function syncedContentReader() {
       return signedIn() && notAnon() && !isStudentRoleUser();
+    }
+    // A member of any of a bank's first three PLCs; later ones fall back to the staff check.
+    function syncedBankPlcReader(ids) {
+      return (ids.size() > 0 && plcMember(ids[0])) || (ids.size() > 1 && plcMember(ids[1])) ||
+        (ids.size() > 2 && plcMember(ids[2]));
     }
 
     // Synced quiz groups - canonical mutable record of a quiz shared across PLC peers.
@@ -2280,7 +2285,7 @@ service cloud.firestore {
     match /synced_question_banks/{groupId} {
       allow get: if syncedContentReader() && (resource == null ||
         existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
-        (existing().get('plcIds', []).size() > 0 && plcMember(existing().plcIds[0])) || isAdmin());
+        syncedBankPlcReader(existing().get('plcIds', [])) || isAdmin());
       allow list: if false;
 
       allow create: if signedIn()

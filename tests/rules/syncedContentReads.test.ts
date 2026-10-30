@@ -113,7 +113,7 @@ const videoDoc = (over: Record<string, unknown> = {}) => ({
 const bankDoc = (over: Record<string, unknown> = {}) => ({
   id: GROUP_ID,
   ownerUid: PARTICIPANT_UID,
-  plcIds: ['plc-1'],
+  plcIds: [PLC_ID],
   version: 1,
   title: 'Fractions bank',
   questions: [{ id: 'q1', text: 'x', type: 'MC', correctAnswer: 'a' }],
@@ -281,5 +281,26 @@ describe('writes are unchanged by the read gate', () => {
     await assertFails(
       setDoc(doc(asStudentRole(), videoPath), next('student-role-uid'))
     );
+  });
+});
+
+describe('synced_question_banks shared to several PLCs', () => {
+  it('a member of a later PLC can get it; a member of none cannot', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      for (const id of ['plc-a', 'plc-b']) {
+        await setDoc(doc(db, `plcs/${id}`), {
+          name: id,
+          leadUid: PARTICIPANT_UID,
+          memberUids: [PARTICIPANT_UID],
+        });
+      }
+      await setDoc(
+        doc(db, bankPath),
+        bankDoc({ plcIds: ['plc-a', 'plc-b', PLC_ID] })
+      );
+    });
+    await assertSucceeds(getDoc(doc(asPlcMember(), bankPath)));
+    await assertFails(getDoc(doc(asOutsider(), bankPath)));
   });
 });
