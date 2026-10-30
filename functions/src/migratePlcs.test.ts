@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Module-level admin init no-ops; FieldPath.documentId() returns a sentinel
 // the stub query ignores; serverTimestamp sentinel is asserted by identity.
 const SERVER_TS = '__SERVER_TS__';
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
@@ -43,7 +43,7 @@ vi.mock('./classlinkShared', () => ({
     resolveOrgIdForDomain(db, domain),
 }));
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { runMigratePlcs, migratePlcs } from './migratePlcs';
 
 type CallableHandler = (request: {

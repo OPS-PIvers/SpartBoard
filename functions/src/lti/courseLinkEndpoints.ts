@@ -24,7 +24,7 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 
 import { getLtiPlatformConfig, NRPS_SCOPE } from './config';
 import { ALLOWED_ORIGINS } from '../classlinkShared';

@@ -1,5 +1,5 @@
 // MCP tool definitions for the Claude connector (plan: "Tools", PR 1).
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {

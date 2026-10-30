@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
@@ -59,7 +59,7 @@ import {
   type SetAssignmentTargetsInput,
   type TargetAuthorizationContext,
 } from './studentAssignmentTargets';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
 const HMAC = 'unit-test-hmac-secret';
 const TEACHER_UID = 'teacher-1';

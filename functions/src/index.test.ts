@@ -394,7 +394,7 @@ const mockFirestore = {
 };
 
 // Mock firebase-admin
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const firestoreFn = vi.fn(() => mockFirestore);
   Object.assign(firestoreFn, {
     FieldPath: {
@@ -566,7 +566,7 @@ import {
   __isVerifiedBetaMember,
 } from './index';
 import * as barrel from './index';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { computeAnalyticsForOrg } from './adminAnalyticsCompute';
 import {
   SNAPSHOT_SCHEMA_VERSION,
@@ -2074,7 +2074,7 @@ describe('adminAnalytics', () => {
     // Caller is alice@org-a.com (the verifyIdToken mock normally returns
     // admin@school.org — override for this test only).
     /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
-    const adminMock = (await import('firebase-admin')) as any;
+    const adminMock = (await import('./firebaseAdmin')) as any;
     const originalAuth = adminMock.auth;
     adminMock.auth = vi.fn(() => ({
       verifyIdToken: vi

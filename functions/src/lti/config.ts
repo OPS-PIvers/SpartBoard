@@ -5,7 +5,7 @@
 // `deploymentId` — live in Firestore at `admin_settings/lti_config` so they can be
 // set/rotated without a code change or redeploy. They are read (and cached) at runtime.
 
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 
 // ── Schoology platform endpoints (constants) ───────────────────────────────
 export const SCHOOLOGY_ISSUER = 'https://schoology.schoology.com';

@@ -1,7 +1,7 @@
 // Marks PLC assessments dirty when linked quiz sessions or responses change (plan §5.1).
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { recomputeOnePlcAssessment } from './recomputePlcAssessments';
 

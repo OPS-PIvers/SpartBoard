@@ -1,6 +1,6 @@
 /** Project uploads → Drive (D20, §5.3): the project-shaped wrapper around `activityWallArchive`. */
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import {

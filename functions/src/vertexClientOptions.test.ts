@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Same module mocks as aiQuotaExternalLimit.test.ts, so importing
 // aiGeneration.ts (which runs functionsInit + defineSecret at module load)
 // stays pure.
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: () => ({}),

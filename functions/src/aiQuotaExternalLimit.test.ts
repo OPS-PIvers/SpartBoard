@@ -23,7 +23,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const resolveOrgIdForDomainMock = vi.fn();
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: () => ({}),

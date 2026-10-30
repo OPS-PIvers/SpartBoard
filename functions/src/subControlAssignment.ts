@@ -5,7 +5,7 @@
 // be the monitor the launch stamped.
 
 import { onCall } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { logger } from 'firebase-functions';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';

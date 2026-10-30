@@ -40,7 +40,7 @@ let submissionState: Bag | null;
 let sessionState: Bag | null;
 let deletedFiles: string[];
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(

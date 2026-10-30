@@ -9,7 +9,7 @@ const state: { db: unknown; featureGranted: boolean } = {
   featureGranted: true,
 };
 
-vi.mock('firebase-admin', () => ({ firestore: () => state.db }));
+vi.mock('../firebaseAdmin', () => ({ firestore: () => state.db }));
 vi.mock('firebase-functions/v2/https', () => ({
   onRequest: (_opts: unknown, handler: unknown) => handler,
 }));

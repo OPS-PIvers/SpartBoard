@@ -4,7 +4,7 @@
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 
 /** Late alerts still send within this window, covering scheduler jitter. */

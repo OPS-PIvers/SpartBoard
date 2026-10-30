@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 
 const h = vi.hoisted(() => ({
   docs: new Map<string, Record<string, unknown>>(),
@@ -10,7 +10,7 @@ const h = vi.hoisted(() => ({
   saveSet: vi.fn(),
 }));
 
-vi.mock('firebase-admin', () => ({
+vi.mock('../firebaseAdmin', () => ({
   apps: [{}],
   storage: () => ({
     bucket: () => ({

@@ -38,7 +38,7 @@ const mockState = vi.hoisted(() => ({
   countSpy: vi.fn<(path: string) => void>(),
 }));
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const firestoreFn = vi.fn(() => ({
     collection: vi.fn((path: string) => ({
       count: () => {

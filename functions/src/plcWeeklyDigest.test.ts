@@ -26,7 +26,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Mock firebase-admin so the module-level `functionsInit` side effect no-ops.
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   // The sweep paginates with admin.firestore.FieldPath.documentId(); expose it

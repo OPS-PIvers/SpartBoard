@@ -1,5 +1,5 @@
 // Class-level result summaries (CC-D3, CC-D11): own sessions only, no student-level data, suppressed below 5 responses.
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { ToolError, type ToolContext } from './activity';

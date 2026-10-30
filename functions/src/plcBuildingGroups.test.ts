@@ -1,7 +1,7 @@
 // Unit tests for building groups: creation, auto-roster backfill and the profile trigger.
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   auth: vi.fn(),
@@ -28,7 +28,7 @@ vi.mock('firebase-functions/logger', () => ({
   error: vi.fn(),
 }));
 
-import type * as admin from 'firebase-admin';
+import type * as admin from './firebaseAdmin';
 import {
   applyAutoRosterAdds,
   applyAutoRosterRemoval,

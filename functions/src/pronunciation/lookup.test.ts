@@ -20,7 +20,7 @@ vi.mock('./voiceRefs', async (importOriginal) => ({
   createVoiceReader: () => ({ read: () => Promise.resolve([]) }),
 }));
 vi.mock('../classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
-vi.mock('firebase-admin', () => ({ firestore: () => ({}) }));
+vi.mock('../firebaseAdmin', () => ({ firestore: () => ({}) }));
 const isGlobalFeatureGranted =
   vi.fn<(...args: unknown[]) => Promise<boolean>>();
 vi.mock('../quizMediaArchive', () => ({

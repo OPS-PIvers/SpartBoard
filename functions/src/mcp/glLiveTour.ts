@@ -1,6 +1,6 @@
 // Admin-only live tour tools: create, get and update a live tour, and list Help Center categories (CLAUDE_CONNECTOR.md CC-D19).
 import { randomUUID } from 'node:crypto';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';

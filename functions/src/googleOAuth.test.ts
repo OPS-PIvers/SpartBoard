@@ -30,7 +30,7 @@ const clearFirestoreState = () => {
   deletedPaths.length = 0;
 };
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   return {
     apps: [{ name: '[DEFAULT]' }],
     initializeApp: vi.fn(),

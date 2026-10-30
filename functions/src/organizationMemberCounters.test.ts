@@ -35,7 +35,7 @@ const adminMock = vi.hoisted(() => ({
   domainDocs: [] as { id: string; data: Record<string, unknown> }[],
 }));
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const firestoreFn = vi.fn(() => ({
     doc: vi.fn((path: string) => ({
       update: (patch: Record<string, unknown>) => {

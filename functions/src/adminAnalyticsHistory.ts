@@ -9,7 +9,7 @@
  * the derived series, sign-up months and retention cohorts, never the uids.
  */
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
 export interface DayActivityDoc {
   date: string;

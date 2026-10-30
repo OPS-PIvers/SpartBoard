@@ -1,5 +1,5 @@
 // Quiz and question bank tools (plan: "Tools", PR 2). Content lives in the teacher's Drive; metadata in Firestore.
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';

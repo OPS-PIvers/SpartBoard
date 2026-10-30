@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 //      — not installed in the test node_modules; must be intercepted.
 //   2. `import * as logger from 'firebase-functions/logger'`
 //      — likewise absent; replace with no-op stubs.
-//   3. `import * as admin from 'firebase-admin'`
+//   3. `import * as admin from './firebaseAdmin'`
 //      — guard `admin.apps.length` so the initializeApp() in functionsInit
 //        no-ops instead of attempting a real connection.
 //   4. `import './functionsInit'`
@@ -19,7 +19,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // `detachPlcSyncLinkage.test.ts`, which test sibling modules with the same
 // module-level bootstrap pattern.
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
@@ -45,7 +45,7 @@ vi.mock('firebase-functions/logger', () => ({
   debug: vi.fn(),
 }));
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   buildPlcIndexMirror,
   discoveryOrgId,

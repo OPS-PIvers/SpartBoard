@@ -7,7 +7,7 @@ import { makeStubFirestore } from '../testing/stubFirestore';
 
 const state: { db: unknown } = { db: null };
 
-vi.mock('firebase-admin', () => ({ firestore: () => state.db }));
+vi.mock('../firebaseAdmin', () => ({ firestore: () => state.db }));
 vi.mock('../functionsInit', () => ({}));
 
 vi.mock('firebase-functions/v2/https', () => {

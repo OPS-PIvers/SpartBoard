@@ -1,5 +1,5 @@
 // Minimal in-memory Firestore for the focus session tests; the same tests run against the emulator when FIRESTORE_EMULATOR_HOST is set.
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 
 type Data = Record<string, unknown>;
 

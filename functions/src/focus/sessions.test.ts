@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 import { computeStudentUid } from '../classlinkShared';
 import {

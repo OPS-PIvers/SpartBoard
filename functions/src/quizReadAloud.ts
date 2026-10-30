@@ -13,7 +13,7 @@
  * counter flips new synthesis to Standard voices past the admin cap.
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { createHash } from 'node:crypto';
 import { v1beta1, protos } from '@google-cloud/text-to-speech';
 import { ALLOWED_ORIGINS } from './classlinkShared';

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
 // Mock firebase-admin before the module under test loads. The helpers we
 // test don't touch Firestore, so the mocks only need to satisfy the
 // module-load-time `admin.apps.length` guard and keep `admin.firestore()`
 // callable (it isn't actually invoked by the helpers).
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   return {
     apps: [{ name: '[DEFAULT]' }], // non-empty so initializeApp() is skipped
     initializeApp: vi.fn(),

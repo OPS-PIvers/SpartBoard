@@ -2,7 +2,7 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { parseChooseSections } from './quizSectionsChosen';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import {
   AGGREGATE_SCHEMA_VERSION,

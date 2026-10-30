@@ -108,7 +108,7 @@ vi.mock('axios', () => ({
   },
 }));
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const seg = (p: string) => p.split('/');
 
   const matches = (data: any, f: { f: string; op: string; v: unknown }) => {
@@ -275,7 +275,7 @@ import {
   PIN_LOGIN_SESSION_MAX_DAILY_FAILURES,
 } from './studentIdentity';
 import { computeStudentUid } from './classlinkShared';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
 // The onCall mock returns the raw handler, so each callable is invokable.
 const callStudentLogin = studentLoginV1 as unknown as (req: {

@@ -50,7 +50,7 @@
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
 // Mirrors SHARE_SUBCOLLECTIONS in utils/subShareContent.ts; functions/ is its
 // own package and cannot import from the app.

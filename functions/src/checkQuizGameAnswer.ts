@@ -1,6 +1,6 @@
 // Grades one self-paced Review game answer on the server (QUIZ_REVIEW_SPLIT.md D24, D25, D31).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { gradeGroupAnswer } from './plcAssessmentMath';

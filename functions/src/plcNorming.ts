@@ -5,7 +5,7 @@ import {
   onDocumentWritten,
 } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { createHash } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';

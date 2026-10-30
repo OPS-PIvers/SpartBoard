@@ -1,5 +1,5 @@
 // Queues live tour steps Claude saved with no anchor, so the tour-anchor-mapper routine can tag the control.
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import { createHash } from 'node:crypto';
 import { TOUR_ANCHOR_BATCHES, TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
 import { SETTINGS_FIELD_LIST } from './settingsFieldList';

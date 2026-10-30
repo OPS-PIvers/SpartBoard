@@ -67,7 +67,7 @@ let failGradeSyncWrite = false;
 // `.where('attachmentId','==',x)` filter and `.limit(1)` against this list.
 const submissionsByPath = new Map<string, Record<string, unknown>[]>();
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   return {
     apps: [{ name: '[DEFAULT]' }],
     initializeApp: vi.fn(),

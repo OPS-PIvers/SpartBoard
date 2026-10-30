@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
@@ -24,7 +24,7 @@ vi.mock('./recomputePlcAssessments', async (orig) => ({
   recomputeOnePlcAssessment: vi.fn(() => Promise.resolve()),
 }));
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   applyDocWrite,
   __resetGradeIndexEnabledCache,

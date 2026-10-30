@@ -1,5 +1,5 @@
 // search_standards: the MN standards SpartBoard holds, filtered by subject and grade so a result stays a few hundred tokens.
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { ToolError, type ToolContext } from './activity';

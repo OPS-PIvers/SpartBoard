@@ -1,7 +1,7 @@
 // Voiced-example references (S11a): Cloud TTS voices speak the term, the pinned model reads each take, and each distinct reading is accepted too.
 import { createHash } from 'node:crypto';
 import os from 'node:os';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import * as logger from 'firebase-functions/logger';
 import type { TextToSpeechClient } from '@google-cloud/text-to-speech';
 import type { FlashcardSpeakReference } from './types';

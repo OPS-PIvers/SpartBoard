@@ -59,7 +59,7 @@ vi.mock('firebase-functions/v2/https', () => {
   };
 });
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const snapFor = (path: string) => {
     const data = h.docStore.get(path);
     return {

@@ -96,7 +96,7 @@ const h = vi.hoisted(() => {
   return { store, db };
 });
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(
@@ -136,7 +136,7 @@ import {
   GL_INDEX_LOCK_STALE_MS,
   rebuildGlBuildingIndexV1,
 } from './glBuildingIndex';
-import type * as adminNs from 'firebase-admin';
+import type * as adminNs from './firebaseAdmin';
 
 const cases = JSON.parse(
   readFileSync(resolve(__dirname, 'glBuildingIndex.cases.json'), 'utf8')

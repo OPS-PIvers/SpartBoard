@@ -7,7 +7,7 @@
 // allowlist. Rationale for not re-deriving the whole session: see the PR.
 
 import { onCall } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { randomUUID } from 'crypto';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';

@@ -72,7 +72,7 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import './functionsInit';
 import {

@@ -4,7 +4,7 @@ import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { ThinkingLevel } from '@google/genai';
 import * as fs from 'fs/promises';
 import * as os from 'os';

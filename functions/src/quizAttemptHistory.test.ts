@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 const DELETE = '__delete__';
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {

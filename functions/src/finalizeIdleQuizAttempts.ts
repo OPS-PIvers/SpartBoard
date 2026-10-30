@@ -47,7 +47,7 @@
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
 

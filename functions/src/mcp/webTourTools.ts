@@ -1,5 +1,5 @@
 // Admin-only web tour tools: read recorded drafts and their pictures, and rewrite step titles and tips; never publish.
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';

@@ -14,7 +14,7 @@
 // replayed; the in-code expiry check is defence-in-depth on top of the TTL sweep.
 
 import { randomBytes } from 'node:crypto';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 
 type Db = admin.firestore.Firestore;
 
