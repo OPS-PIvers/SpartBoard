@@ -27,7 +27,7 @@ export function useImportConversionSettings(
             ? normalizeImportConversionSettings(snap.data())
             : DEFAULT_IMPORT_CONVERSION_SETTINGS
         ),
-      // An unreadable doc must hide the feature, never strand it half-on.
+      // An unreadable doc must keep AI off, never strand it half-on.
       () => setSettings(DEFAULT_IMPORT_CONVERSION_SETTINGS)
     );
   }, [enabled]);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
@@ -15,6 +15,7 @@ import {
 } from '@/utils/import/contract';
 import { ImportScreen } from './ImportScreen';
 import { ImportInboxNotice } from '@/components/layout/ImportInboxNotice';
+import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import {
   closeImportScreen,
   offerImportHandoff,
@@ -33,6 +34,13 @@ import { pageSourceKind } from '@/utils/import/pageImages';
 // A dropped link read on the server was never a Send, so nothing is removed for it.
 const sentIdOf = (source: PendingSource): string | undefined =>
   source.readFromLink ? undefined : source.inboxItem?.id;
+
+// The course checklist pulls in every library it saves to, so it loads only when opened.
+const CourseImportHost = lazy(() =>
+  import('./course/CourseImportHost').then((m) => ({
+    default: m.CourseImportHost,
+  }))
+);
 
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst)$/i;
 const CARTRIDGE = /\.imscc$/i;
@@ -57,6 +65,7 @@ interface BoardJob {
 export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
   const request = useImportScreenRequest();
   const { user } = useAuth();
+  const [courseFile, setCourseFile] = useState<File | null>(null);
   const inbox = useImportInbox(user?.uid, true);
   const [boardJob, setBoardJob] = useState<BoardJob | null>(null);
   // The extension's "Open in SpartBoard" lands on /?importInbox=1 after a Send.
@@ -90,6 +99,10 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
           request={request}
           inbox={inbox}
           onStartBoard={setBoardJob}
+          onCourse={(file) => {
+            closeImportScreen();
+            setCourseFile(file);
+          }}
           {...props}
         />
       )}
@@ -107,6 +120,16 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
           }}
         />
       )}
+      {courseFile && (
+        <LazyChunkErrorBoundary>
+          <Suspense fallback={null}>
+            <CourseImportHost
+              file={courseFile}
+              onClose={() => setCourseFile(null)}
+            />
+          </Suspense>
+        </LazyChunkErrorBoundary>
+      )}
     </>
   );
 };
@@ -116,8 +139,17 @@ const OpenImportScreen: React.FC<
     request: ImportScreenRequest;
     inbox: ImportInbox;
     onStartBoard: (job: BoardJob) => void;
+    onCourse: (file: File) => void;
   }
-> = ({ request, inbox, placeAt, placePdf, placeNotebook, onStartBoard }) => {
+> = ({
+  request,
+  inbox,
+  onCourse,
+  placeAt,
+  placePdf,
+  placeNotebook,
+  onStartBoard,
+}) => {
   const { canAccessWidget, canAccessFeature } = useAuth();
   const outward = useViewAsOutward();
   // AI Conversions: the org switch, the AI flag, and never from a read-only view-as tab (the server checks again).
@@ -352,6 +384,7 @@ const OpenImportScreen: React.FC<
       onContinue={route}
       onPlaceReference={placeReference}
       canAddLink={canAccessWidget('url')}
+      onCourse={isActiveBoardReadOnly ? undefined : onCourse}
     />
   );
 };
