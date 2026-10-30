@@ -4,7 +4,11 @@ import { useDashboard } from '@/context/useDashboard';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { useImportInbox } from '@/hooks/useImportInbox';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
-import type { ImportTarget } from '@/utils/import/contract';
+import {
+  IMPORT_INBOX_EVENT,
+  IMPORT_INBOX_PARAM,
+  type ImportTarget,
+} from '@/utils/import/contract';
 import { ImportScreen } from './ImportScreen';
 import {
   closeImportScreen,
@@ -17,7 +21,6 @@ import {
 } from './importHandoff';
 import { importRoute } from './importTargets';
 
-const INBOX_PARAM = 'importInbox';
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst)$/i;
 const CARTRIDGE = /\.imscc$/i;
 
@@ -37,10 +40,19 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
   // The extension's "Open in SpartBoard" lands on /?importInbox=1 after a Send.
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.searchParams.get(INBOX_PARAM) !== '1') return;
-    url.searchParams.delete(INBOX_PARAM);
+    if (url.searchParams.get(IMPORT_INBOX_PARAM) !== '1') return;
+    url.searchParams.delete(IMPORT_INBOX_PARAM);
     window.history.replaceState(window.history.state, '', url.toString());
     openImportScreen();
+  }, []);
+  // In a tab that is already open the extension fires this instead; cancelling it tells the extension it was heard.
+  useEffect(() => {
+    const onRequest = (event: Event) => {
+      event.preventDefault();
+      openImportScreen();
+    };
+    window.addEventListener(IMPORT_INBOX_EVENT, onRequest);
+    return () => window.removeEventListener(IMPORT_INBOX_EVENT, onRequest);
   }, []);
   if (!request) return null;
   // Mounted only while open, so its listeners cost nothing the rest of the time.
