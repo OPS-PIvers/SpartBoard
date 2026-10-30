@@ -117,11 +117,18 @@ async function autoEnrollMember(
   const orgSnap = await db.doc(`organizations/${orgId}`).get();
   if (orgSnap.get('autoEnrollDomainUsers') === false) return;
   // A student must never get a member doc; a ClassLink failure throws, so the next load retries.
-  const isStudent = await isKnownStudentEmail(db, orgId, email, {
-    classlinkClientId: CLASSLINK_CLIENT_ID.value(),
-    classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
-    tenantUrl: CLASSLINK_TENANT_URL.value(),
-  });
+  // spartboard-dev has placeholder ClassLink secrets and only mock-class students.
+  const isStudent = await isKnownStudentEmail(
+    db,
+    orgId,
+    email,
+    {
+      classlinkClientId: CLASSLINK_CLIENT_ID.value(),
+      classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
+      tenantUrl: CLASSLINK_TENANT_URL.value(),
+    },
+    { rosterOptional: process.env.GCLOUD_PROJECT === 'spartboard-dev' }
+  );
   if (isStudent) return;
 
   try {

@@ -186,6 +186,30 @@ describe('isKnownStudentEmail', () => {
   });
 });
 
+describe('isKnownStudentEmail on the dev project', () => {
+  it('treats an unreachable roster as not a student but still honours mock classes', async () => {
+    fetchUsersMock.mockRejectedValueOnce(new Error('placeholder secret'));
+    expect(
+      await isKnownStudentEmail(
+        fakeDb({}),
+        'orono',
+        'pat@orono.k12.mn.us',
+        SECRETS,
+        { rosterOptional: true }
+      )
+    ).toBe(false);
+    expect(
+      await isKnownStudentEmail(
+        fakeDb({}, ['sstudent25@orono.k12.mn.us']),
+        'orono',
+        'sstudent25@orono.k12.mn.us',
+        { ...SECRETS, tenantUrl: '' },
+        { rosterOptional: true }
+      )
+    ).toBe(true);
+  });
+});
+
 describe('OneRoster roles', () => {
   const rec = (o: Partial<OneRosterUserWithRole>): OneRosterUserWithRole => ({
     sourcedId: 'x',

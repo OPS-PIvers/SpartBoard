@@ -320,7 +320,8 @@ describe('resolveOrgForUser auto-enrollment', () => {
         classlinkClientId: 'cl-id',
         classlinkClientSecret: 'cl-secret',
         tenantUrl: 'https://tenant.example',
-      }
+      },
+      { rosterOptional: false }
     );
     expect(docCreateMock).not.toHaveBeenCalled();
   });
