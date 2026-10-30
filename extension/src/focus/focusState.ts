@@ -2,13 +2,13 @@
 import {
   FOCUS_LEVELS,
   FOCUS_MAX_SITES,
-  FOCUS_STUDENT_EMAIL_DOMAIN,
   type FocusActiveSession,
   type FocusLevel,
   type FocusReportedStatus,
   type FocusStatusReply,
 } from '@/utils/focus/contract';
 import { matchFocusUrl, normalizeFocusSites } from '@/utils/focus/allowlist';
+import { profileFromEmail } from '@/components/tours/web/extensionProtocol';
 
 /** `chrome.storage.session` key; extension pages read it, content scripts can't. */
 export const FOCUS_STATE_KEY = 'focus';
@@ -68,12 +68,9 @@ export function parseStatusReply(raw: unknown): FocusStatusReply | null {
   };
 }
 
-/** Only `@students.orono.k12.mn.us` profiles ever take a session; staff never enforce (F3). */
-export function isStudentEmail(email: string | undefined): boolean {
-  const trimmed = (email ?? '').trim().toLowerCase();
-  const at = trimmed.lastIndexOf('@');
-  return at > 0 && trimmed.slice(at + 1) === FOCUS_STUDENT_EMAIL_DOMAIN;
-}
+/** A district Google profile; staff and students share the domain, so only the server's roster lookup tells them apart (F3). */
+export const isDistrictEmail = (email: string | undefined) =>
+  profileFromEmail(email) === 'staff';
 
 /** Milliseconds left on the server's clock, never below 0. */
 export const msLeft = (state: FocusLocalState, deviceNow: number) =>

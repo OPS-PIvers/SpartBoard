@@ -2237,22 +2237,6 @@ describe('setAssignmentTargetsV1 onCall wrapper — caller identity verification
     });
     expect(res).toMatchObject({ written: 0 });
   });
-
-  it('SECURITY: rejects a verified student-domain Google session', async () => {
-    await expect(
-      handler({
-        auth: {
-          uid: TEACHER_UID,
-          token: {
-            email: 'kid@students.orono.k12.mn.us',
-            email_verified: true,
-          },
-        },
-        data: payload,
-      })
-    ).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(state.writes).toHaveLength(0);
-  });
 });
 
 describe('loadClassLinkMembership', () => {

@@ -142,7 +142,7 @@ describe('useOrgDomains', () => {
 
     await act(async () => {
       await result.current.addDomain({
-        domain: '@students.orono.k12.mn.us',
+        domain: '@hs.orono.k12.mn.us',
         authMethod: 'google',
         role: 'student',
       });
@@ -150,10 +150,10 @@ describe('useOrgDomains', () => {
 
     expect(mockSetDoc).toHaveBeenCalledTimes(1);
     const [ref, payload] = mockSetDoc.mock.calls[0] as [string, unknown];
-    expect(ref).toBe('organizations/orono/domains/students-orono-k12-mn-us');
+    expect(ref).toBe('organizations/orono/domains/hs-orono-k12-mn-us');
     expect(payload).toMatchObject({
       orgId: 'orono',
-      domain: '@students.orono.k12.mn.us',
+      domain: '@hs.orono.k12.mn.us',
       authMethod: 'google',
       role: 'student',
       status: 'pending',

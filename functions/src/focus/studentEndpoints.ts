@@ -26,7 +26,6 @@ import {
   FOCUS_SESSIONS_COLLECTION,
   FOCUS_SETTINGS_DOC,
   FOCUS_STUDENTS_SUBCOLLECTION,
-  FOCUS_STUDENT_EMAIL_DOMAIN,
   FOCUS_TTL_FIELD,
   type FocusSessionDoc,
   type FocusStudentDoc,
@@ -94,7 +93,8 @@ async function tokenEmail(
         return info;
       },
     },
-    FOCUS_STUDENT_EMAIL_DOMAIN,
+    // Staff and students share the district domain; the roster lookup tells them apart.
+    DISTRICT_DOMAIN,
     SIGN_IN
   );
   tokenCache.set(key, {
@@ -104,7 +104,7 @@ async function tokenEmail(
   return email;
 }
 
-/** The student's pseudonym uid, or null when they aren't on a roster or a mock class. */
+/** The student's pseudonym uid, or null when they aren't a ClassLink student or in a mock class. */
 async function studentUid(
   db: Firestore,
   email: string,
@@ -267,7 +267,7 @@ function firestoreStore(db: Firestore): FocusStudentStore {
 
 type Handler = (
   body: unknown,
-  uid: string | null,
+  uid: string,
   store: FocusStudentStore,
   now: number
 ) => Promise<unknown>;
@@ -301,6 +301,8 @@ const studentEndpoint = (handler: Handler) =>
           now
         );
         const uid = await studentUid(db, email, now);
+        // Staff never enforce (F3): only a ClassLink student or a mock-class member gets past here.
+        if (!uid) throw new FocusCallError(403, "You aren't a student.");
         res.json(await handler(req.body, uid, firestoreStore(db), now));
       } catch (error) {
         if (
@@ -322,13 +324,10 @@ const studentEndpoint = (handler: Handler) =>
 
 /** The student's one running session, or none; also keeps their Web Push subscription. */
 export const focusStatusV1 = studentEndpoint((body, uid, store, now) =>
-  uid
-    ? focusStatus(body, uid, store, now)
-    : Promise.resolve({ session: null, serverNow: now })
+  focusStatus(body, uid, store, now)
 );
 
 /** On task, away and blocked tries for the student's session, at most once a minute plus each change. */
-export const focusReportV1 = studentEndpoint((body, uid, store, now) => {
-  if (!uid) throw new FocusCallError(403, "You aren't in a focus session.");
-  return focusReport(body, uid, store, now);
-});
+export const focusReportV1 = studentEndpoint((body, uid, store, now) =>
+  focusReport(body, uid, store, now)
+);
