@@ -10,6 +10,7 @@ import {
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { isCustomBackground } from '@/utils/backgrounds';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const GRADIENT_DIRECTIONS = [
   { angle: '90deg', labelKey: 'backgrounds.directionRight', icon: ArrowRight },
@@ -98,6 +99,7 @@ export const BackgroundsCustomGradientPicker: React.FC<
             {t('backgrounds.gradientStart', { defaultValue: 'Start' })}
           </span>
           <input
+            {...tourAttr('backgrounds.gradient-start')}
             type="color"
             value={color1}
             onChange={(e) => setColor1(e.target.value)}
@@ -109,6 +111,7 @@ export const BackgroundsCustomGradientPicker: React.FC<
             {t('backgrounds.gradientEnd', { defaultValue: 'End' })}
           </span>
           <input
+            {...tourAttr('backgrounds.gradient-end')}
             type="color"
             value={color2}
             onChange={(e) => setColor2(e.target.value)}
@@ -118,12 +121,17 @@ export const BackgroundsCustomGradientPicker: React.FC<
       </div>
 
       <div className="flex items-center gap-1">
-        {GRADIENT_DIRECTIONS.map((d) => {
+        {GRADIENT_DIRECTIONS.map((d, i) => {
           const Icon = d.icon;
           const active = angle === d.angle;
           return (
             <button
               key={d.angle}
+              {...tourFieldAttr(
+                'backgrounds.gradient-direction',
+                'backgrounds',
+                `row-${i + 1}`
+              )}
               type="button"
               onClick={() => setAngle(d.angle)}
               aria-label={t(d.labelKey)}
@@ -145,6 +153,7 @@ export const BackgroundsCustomGradientPicker: React.FC<
       />
 
       <button
+        {...tourAttr('backgrounds.gradient-apply')}
         type="button"
         onClick={applyCustomGradient}
         disabled={isActive}

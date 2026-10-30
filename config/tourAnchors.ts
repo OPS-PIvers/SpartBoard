@@ -196,6 +196,62 @@ export const TOUR_ANCHORS = {
   'sidebar.boards': { label: 'Boards item in the menu', panel: true },
   'sidebar.backgrounds': { label: 'Backgrounds item in the menu', panel: true },
   'sidebar.assignments': { label: 'Assignments item in the menu', panel: true },
+  'backgrounds.close': {
+    label: 'Close button in the Backgrounds window',
+    panel: true,
+    closes: 'own',
+  },
+  'backgrounds.rail-section': {
+    label: 'Section in the Backgrounds window sidebar',
+    perField: true,
+    keyPattern:
+      'backgrounds#(favorites|recent|colors|patterns|gradients|uploads|row-[1-9]\\d*)',
+    keyHint:
+      'backgrounds#colors; media categories are backgrounds#row-1, row-2',
+    panel: true,
+  },
+  'backgrounds.search': {
+    label: 'Search field in the Backgrounds window',
+    panel: true,
+  },
+  'backgrounds.type-filter': {
+    label: 'Type filter button in the Backgrounds window',
+    perField: true,
+    keyPattern: 'backgrounds#(all|still|video|color|pattern|gradient|upload)',
+    keyHint: 'backgrounds#still for the Stills filter',
+    panel: true,
+  },
+  'backgrounds.custom-color': {
+    label: 'Custom color picker in the Backgrounds window',
+    panel: true,
+  },
+  'backgrounds.custom-color-apply': {
+    label: 'Apply button for the custom color in the Backgrounds window',
+    panel: true,
+  },
+  'backgrounds.gradient-start': {
+    label: 'Start color picker for the custom gradient',
+    panel: true,
+  },
+  'backgrounds.gradient-end': {
+    label: 'End color picker for the custom gradient',
+    panel: true,
+  },
+  'backgrounds.gradient-direction': {
+    label: 'Direction button for the custom gradient',
+    perField: true,
+    keyPattern: 'backgrounds#row-[1-4]',
+    keyHint: 'backgrounds#row-1 for the first direction',
+    panel: true,
+  },
+  'backgrounds.gradient-apply': {
+    label: 'Apply button for the custom gradient',
+    panel: true,
+  },
+  'backgrounds.upload': {
+    label: 'Upload an image button in the Backgrounds window',
+    panel: true,
+  },
   'sidebar.classes': { label: 'My Classes item in the menu', panel: true },
   'sidebar.profile-settings': {
     label: 'Profile & Settings item in the menu',

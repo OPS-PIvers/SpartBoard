@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 import { Modal } from '@/components/common/Modal';
 import { useBackgrounds } from '@/hooks/useBackgrounds';
 import { useDashboard } from '@/context/useDashboard';
@@ -244,6 +245,7 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
             {t('backgrounds.title', { defaultValue: 'Backgrounds' })}
           </h3>
           <button
+            {...tourAttr('backgrounds.close')}
             onClick={onClose}
             className="p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
             aria-label={t('common.close', { defaultValue: 'Close' })}
