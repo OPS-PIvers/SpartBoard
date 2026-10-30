@@ -63,6 +63,8 @@ export interface AssembledSheet {
   missingPages: number[];
   /** No ink on any row or box that arrived — listed as unused, never graded (Q21, D22). */
   isBlank: boolean;
+  /** Rows on a page the teacher skipped; left out of the import so earlier answers stay. */
+  skippedRows?: number[];
   flags: SheetFlag[];
 }
 
@@ -234,17 +236,16 @@ export function assemblePaperScan(
   };
 }
 
-/** Page each sheet row printed on, by row index. */
-function rowPages(batch: PaperBatch): (row: number) => number {
+/** Row indexes a page printed. */
+function rowsOnPage(batch: PaperBatch, page: number): number[] {
   if (batch.layoutVersion === 2 && batch.pageMaps) {
-    const byRow = new Map<number, number>();
-    for (const map of batch.pageMaps) {
-      for (const item of mcItemsOf(map)) byRow.set(item.sheetRow, map.page);
-    }
-    return (row) => byRow.get(row) ?? 0;
+    const map = batch.pageMaps.find((m) => m.page === page);
+    return map ? mcItemsOf(map).map((item) => item.sheetRow) : [];
   }
   const perPage = questionsPerPage(paperGridOf(batch));
-  return (row) => Math.floor(row / perPage) + 1;
+  const first = (page - 1) * perPage;
+  const last = Math.min(page * perPage, batch.questionCount);
+  return Array.from({ length: Math.max(0, last - first) }, (_, i) => first + i);
 }
 
 /** The sheets as if `page` were never printed, for a page the teacher is not importing. */
@@ -254,9 +255,10 @@ export function skipSheetPage(
   page: number | null
 ): AssembledSheet[] {
   if (page === null) return [...sheets];
-  const pageOf = rowPages(batch);
+  const skippedRows = rowsOnPage(batch, page);
+  const onPage = new Set(skippedRows);
   return sheets.map((sheet) => {
-    const answers = sheet.answers.filter((a) => pageOf(a.question) !== page);
+    const answers = sheet.answers.filter((a) => !onPage.has(a.question));
     const written = sheet.written?.filter((w) => w.page !== page);
     const missingPages = sheet.missingPages.filter((p) => p !== page);
     const flags = sheet.flags.filter(
@@ -269,6 +271,7 @@ export function skipSheetPage(
       answers,
       ...(written ? { written } : {}),
       pagesSeen: sheet.pagesSeen.filter((p) => p !== page),
+      skippedRows,
       missingPages,
       isBlank:
         answers.every((a) => a.choice === null && !a.doubt) &&

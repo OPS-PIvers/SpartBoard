@@ -1409,7 +1409,12 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       ),
     ];
     const blankSheets = importSheets.filter((s) => s.isBlank);
-    const pageCount = batch ? sheetPageCount(batch) : 0;
+    // Offered with handwritten answers only, which sit behind their own preview flag.
+    const hasWrittenBoxes = !!batch?.pageMaps?.some((m) =>
+      m.items.some((item) => item.kind === 'written')
+    );
+    const pageCount =
+      batch && isV2 && hasWrittenBoxes ? sheetPageCount(batch) : 0;
     return (
       <div className="space-y-4 px-5 pb-5 pt-4">
         <p className="text-sm text-slate-700">
@@ -1458,7 +1463,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             </select>
             {skipPage !== null && (
               <span className="mt-1 block text-xs text-slate-600">
-                Questions on page {skipPage} import blank.
+                Answers on page {skipPage} are not imported.
               </span>
             )}
           </label>

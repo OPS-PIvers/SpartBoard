@@ -279,7 +279,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             aria-pressed={darken}
             aria-label={tp('darken')}
             title={tp('darken')}
-            className={`rounded p-1 hover:bg-slate-100 disabled:opacity-30 ${
+            className={`touch-target-expand relative rounded p-1 hover:bg-slate-100 disabled:opacity-30 ${
               darken ? 'bg-slate-100 text-slate-800' : 'text-slate-500'
             }`}
           >
@@ -291,7 +291,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             disabled={zoomIdx === 0 || crop.kind !== 'ready'}
             aria-label={tp('zoomOut')}
             title={tp('zoomOut')}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            className="touch-target-expand relative rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
           >
             <ZoomOut aria-hidden className="h-4 w-4" />
           </button>
@@ -301,7 +301,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             disabled={zoomIdx === FIT_IDX || crop.kind !== 'ready'}
             aria-label={tp('zoomFit')}
             title={tp('zoomFit')}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            className="touch-target-expand relative rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
           >
             <Maximize2 aria-hidden className="h-4 w-4" />
           </button>
@@ -315,7 +315,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             }
             aria-label={tp('zoomIn')}
             title={tp('zoomIn')}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            className="touch-target-expand relative rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
           >
             <ZoomIn aria-hidden className="h-4 w-4" />
           </button>

@@ -300,7 +300,9 @@ describe('PaperImportModal with handwritten answers', () => {
     expect(screen.queryByText(/Page 2 not found in the scan/)).toBeNull();
 
     fireEvent.change(pages, { target: { value: '1' } });
-    expect(screen.getByText('Questions on page 1 import blank.')).toBeVisible();
+    expect(
+      screen.getByText('Answers on page 1 are not imported.')
+    ).toBeVisible();
     expect(screen.queryByLabelText('Written answers')).toBeNull();
     expect(
       screen.getByRole('button', { name: /^Import 0 sheets$/ })

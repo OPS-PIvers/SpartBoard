@@ -373,6 +373,7 @@ describe('assemblePaperScan on a page-map batch (layoutVersion 2)', () => {
     expect(skipped.written).toEqual([]);
     expect(skipped.pagesSeen).toEqual([2]);
     expect(skipped.isBlank).toBe(false);
+    expect(skipped.skippedRows).toEqual([0]);
     expect(skipSheetPage(v2, sheets, null)).toEqual(sheets);
   });
 
@@ -384,6 +385,8 @@ describe('assemblePaperScan on a page-map batch (layoutVersion 2)', () => {
     const [skipped] = skipSheetPage(v2, sheets, 1);
     expect(skipped.isBlank).toBe(true);
     const [other] = skipSheetPage(v2, sheets, 2);
+    // Page 2 never arrived, but its rows are still left out rather than sent blank.
+    expect(other.skippedRows).toEqual([1, 2]);
     expect(other.missingPages).toEqual([]);
     expect(other.flags).not.toContain('missing-page');
   });
@@ -395,6 +398,13 @@ describe('assemblePaperScan on a page-map batch (layoutVersion 2)', () => {
     ]);
     const [skipped] = skipSheetPage(batch, sheets, 2);
     expect(skipped.answers.map((a) => a.question)).toEqual([0]);
+    expect(skipped.skippedRows).toEqual([
+      QUESTIONS_PER_PAGE,
+      QUESTIONS_PER_PAGE + 1,
+      QUESTIONS_PER_PAGE + 2,
+      QUESTIONS_PER_PAGE + 3,
+      QUESTIONS_PER_PAGE + 4,
+    ]);
     expect(skipped.flags).not.toContain('doubtful-rows');
   });
 
