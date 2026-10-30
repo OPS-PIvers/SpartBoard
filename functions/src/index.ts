@@ -42,6 +42,7 @@ export { getAiProviderStatusV1 } from './aiProviderStatus';
 // ── External-content proxy + iframe embeddability check ────────────────────
 export { fetchExternalProxy, checkUrlCompatibility } from './embedProxy';
 export { fetchLinkPreview } from './linkPreview';
+export { fetchImportPageV1 } from './importPageFetch';
 export { fetchImportImage } from './fetchImportImage';
 
 // ── Activity Wall photo → Google Drive archive (legacy client callable) ────
