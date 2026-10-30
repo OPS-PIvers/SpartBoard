@@ -58,6 +58,20 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'modal',
     files: ['components/backgroundsModal/'],
     opensWith: 'sidebar.backgrounds',
+    inner: {
+      'backgrounds.custom-color': 'backgrounds.rail-section:backgrounds#colors',
+      'backgrounds.custom-color-apply':
+        'backgrounds.rail-section:backgrounds#colors',
+      'backgrounds.gradient-start':
+        'backgrounds.rail-section:backgrounds#gradients',
+      'backgrounds.gradient-end':
+        'backgrounds.rail-section:backgrounds#gradients',
+      'backgrounds.gradient-direction':
+        'backgrounds.rail-section:backgrounds#gradients',
+      'backgrounds.gradient-apply':
+        'backgrounds.rail-section:backgrounds#gradients',
+      'backgrounds.upload': 'backgrounds.rail-section:backgrounds#uploads',
+    },
   },
   'board.widget': {
     label: 'Widget window chrome',

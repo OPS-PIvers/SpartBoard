@@ -1122,8 +1122,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.backgrounds"
-        ]
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#colors"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#colors"
       }
     ]
   },
@@ -1138,8 +1140,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.backgrounds"
-        ]
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#colors"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#colors"
       }
     ]
   },
@@ -1154,8 +1158,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.backgrounds"
-        ]
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
       }
     ]
   },
@@ -1170,8 +1176,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.backgrounds"
-        ]
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
       }
     ]
   },
@@ -1188,8 +1196,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.backgrounds"
-        ]
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
       }
     ]
   },
@@ -1204,8 +1214,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.backgrounds"
-        ]
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
       }
     ]
   },
@@ -1220,8 +1232,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.backgrounds"
-        ]
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#uploads"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#uploads"
       }
     ]
   },
