@@ -52,6 +52,12 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ImportWizard } from '@/components/common/library/importer';
 import {
+  completeImportHandoff,
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
+import { attributionFor } from '@/components/import/attribution';
+import {
   LIBRARY_ITEM_NOUNS,
   useLibraryDeleteConfirm,
 } from '@/components/common/library/useLibraryDeleteConfirm';
@@ -172,6 +178,11 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   };
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const importHandoff = useImportHandoff(widget.id);
+  const closeImport = () => {
+    if (importHandoff) takeImportHandoff(widget.id);
+    setImportOpen(false);
+  };
   const [sharingSet, setSharingSet] = useState<FlashcardSet | null>(null);
   const [assigningSet, setAssigningSet] = useState<FlashcardSet | null>(null);
   const [publishTarget, setPublishTarget] =
@@ -275,12 +286,26 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     [ensureGoogleScope]
   );
 
+  const importSource = importHandoff?.source;
+  const importedFrom = useMemo(
+    () => attributionFor(importSource),
+    [importSource]
+  );
   const saveImportedSet = useCallback(
-    async (cards: FlashcardCard[], title: string): Promise<void> => {
-      const imported = { ...makeSet(cards), title: title.trim() };
+    async (
+      cards: FlashcardCard[],
+      title: string,
+      fromInitialSource: boolean
+    ): Promise<void> => {
+      // Only cards read from the handed-over page carry its attribution.
+      const imported = {
+        ...makeSet(cards),
+        title: title.trim(),
+        ...(importedFrom && fromInitialSource ? { importedFrom } : {}),
+      };
       await flashcardSets.saveSet(imported);
     },
-    [flashcardSets]
+    [flashcardSets, importedFrom]
   );
 
   const importAdapter = useMemo(
@@ -732,11 +757,14 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       />
 
       <ImportWizard
-        isOpen={importOpen}
-        onClose={() => setImportOpen(false)}
+        key={importHandoff?.id ?? 'import'}
+        isOpen={importOpen || importHandoff?.target === 'flashcards'}
+        onClose={closeImport}
         adapter={importAdapter}
+        initialSource={importHandoff?.source}
         onSaved={(title) => {
           addToast(`“${title}” imported.`, 'success');
+          completeImportHandoff(widget.id);
           setImportOpen(false);
         }}
       />

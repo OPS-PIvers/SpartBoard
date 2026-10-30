@@ -15192,6 +15192,26 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'import-notice.open': {
+    label: 'Add to board button on the sent-pages notice on the board',
+    panel: true,
+  },
+  // Add to board window: a sent page or a board drop into SpartBoard (IMPORT.md D1).
+  'import-screen.close': {
+    label: 'Close button in the Add to board window',
+    panel: true,
+  },
+  'import-screen.sent-remove': {
+    label:
+      'Remove button on a page sent from the browser, in the Add to board window',
+    panel: true,
+    destructive: true,
+  },
+  'import-screen.target': {
+    label:
+      'A one-tap choice (Flashcards, Quiz, Embed…) in the Add to board window',
+    panel: true,
+  },
   // Library Import wizard (Quiz, Video Activity, Guided Learning, Mini App, Flashcards).
   'import-wizard.close': {
     label: 'Close button in the Import wizard',

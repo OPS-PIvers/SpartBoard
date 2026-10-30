@@ -27,7 +27,11 @@ interface FlashcardImportAdapterDeps {
     input: ConversionInput
   ) => Promise<FlashcardsConversionResult>;
   pickSheet: () => Promise<{ url: string } | null>;
-  save: (cards: FlashcardCard[], title: string) => Promise<void>;
+  save: (
+    cards: FlashcardCard[],
+    title: string,
+    fromInitialSource: boolean
+  ) => Promise<void>;
 }
 
 export function createFlashcardImportAdapter(
@@ -109,6 +113,7 @@ export function createFlashcardImportAdapter(
       </div>
     ),
     suggestTitle: (data) => data.title,
-    save: (data, title) => deps.save(data.cards, title),
+    save: (data, title, context) =>
+      deps.save(data.cards, title, context?.fromInitialSource ?? false),
   };
 }
