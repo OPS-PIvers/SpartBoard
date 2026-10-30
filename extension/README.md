@@ -17,11 +17,12 @@ Web tours now, focus sessions later. The contract is [docs/plans/CHROME_EXTENSIO
 
 ## Publishing
 
-`.github/workflows/extension-publish.yml` publishes the prod listing whenever `version` in `manifest.json` goes up on `main` (D7):
+`.github/workflows/extension-publish.yml` runs on every `main` push and publishes the prod listing whenever `version` in `manifest.json` is higher than the newest version the Web Store has published or in review (D7):
 
 - **Dev build:** never published. Paul loads `dist/dev` unpacked, so a `dev-paul` version bump publishes nothing.
-- **Prod listing:** the `main` push that carries a raised version builds `dist/prod`, uploads it to the item in the `SPART_EXTENSION_ID` repository variable and submits it through the `chrome-web-store-dev` environment (the name is historical; it holds the prod secrets and only `main` may use it). There is no separate GitHub approval: Paul's OK on the release that carries the bump is the approval. The workflow refuses any ref but `main`, and the environment's deployment branch rule keeps its secrets on `main` too.
-- It can be re-run by hand (Actions > Publish Chrome Extension > Run workflow, from `main`). The Web Store refuses a version it already has, so a re-run only helps when the last upload never reached it.
+- **Prod listing:** a `main` push whose version is newer than the store's builds `dist/prod`, uploads it to the item in the `SPART_EXTENSION_ID` repository variable and submits it through the `chrome-web-store-dev` environment (the name is historical; it holds the prod secrets and only `main` may use it). There is no separate GitHub approval: Paul's OK on the release that carries the bump is the approval. The workflow refuses any ref but `main`, and the environment's deployment branch rule keeps its secrets on `main` too.
+- A failed upload is tried once more after two minutes, and every later `main` push tries again, because the comparison is with the store, not the previous commit. It can also be run by hand (Actions > Publish Chrome Extension > Run workflow, from `main`).
+- When a run fails it opens one issue titled "Chrome Web Store publish failed" (later failures comment on it), and Claude comments there with the cause and the fix. A later run that finds the store up to date closes it. Only a new issue gets a diagnosis, so a lasting failure does not start a Claude run on every release.
 - It still goes through Web Store review before Chrome updates installs, which can take days. The run's summary keeps the uploaded zip for 90 days.
 - `scripts/publish.ts` does the upload with the Chrome Web Store API v2 (`scripts/webStore.ts`) and stops with a plain message naming anything that isn't set up.
 
