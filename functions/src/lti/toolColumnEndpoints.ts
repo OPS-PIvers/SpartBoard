@@ -281,6 +281,7 @@ export function firestoreColumnStore(
         d.lastPushed && typeof d.lastPushed === 'object'
           ? (d.lastPushed as Record<string, string>)
           : {},
+      ...(d.published === true ? { published: true } : {}),
     };
     return record;
   };
@@ -333,6 +334,12 @@ export function firestoreColumnStore(
     async setCategoryId(contextId, categoryId) {
       await ref(contextId).set(
         { categoryId, updatedAt: Date.now() },
+        { merge: true }
+      );
+    },
+    async markPublished(contextId) {
+      await ref(contextId).set(
+        { published: true, updatedAt: Date.now() },
         { merge: true }
       );
     },

@@ -48,6 +48,8 @@ export interface ToolColumnRecord {
   categoryId: string | null;
   /** `ltiStudentUid(sub)` → fingerprint of the last value written. */
   lastPushed: Record<string, string>;
+  /** Set once a linked section's shared column has been published there. */
+  published?: boolean;
 }
 
 export interface ColumnStore {
@@ -70,6 +72,7 @@ export interface ColumnStore {
     scoreMaximum: number
   ): Promise<void>;
   setCategoryId(contextId: string, categoryId: string): Promise<void>;
+  markPublished(contextId: string): Promise<void>;
   getPref(contextId: string): Promise<string | null>;
   setPref(contextId: string, categoryId: string): Promise<void>;
 }
@@ -225,6 +228,25 @@ type ColumnResult =
   | { kind: 'skip'; status: SectionStatus; reason: string };
 
 /** Find or create the section's column, keeping its total equal to `maxPoints`. */
+/** Publishes a linked section's shared column there (it starts hidden); true once done. */
+async function publishLinkedColumn(
+  deps: ToolColumnDeps,
+  contextId: string,
+  lineitemUrl: string
+): Promise<boolean> {
+  const columnId = lineItemColumnId(lineitemUrl);
+  if (!deps.rest || !columnId || !isLinkedSectionLineItem(lineitemUrl)) {
+    return false;
+  }
+  try {
+    await deps.rest.publishColumn(contextId, columnId);
+    return true;
+  } catch (err) {
+    console.warn('[toolColumns] publishing a linked column failed:', err);
+    return false;
+  }
+}
+
 async function ensureColumn(
   deps: ToolColumnDeps,
   input: PushSectionInput,
@@ -238,8 +260,16 @@ async function ensureColumn(
       token,
       input.maxPoints
     );
-    if (r !== 'not-found')
+    if (r !== 'not-found') {
+      // Records saved before linked columns were published get it on their next push.
+      if (
+        !existing.published &&
+        (await publishLinkedColumn(deps, contextId, existing.lineitemUrl))
+      ) {
+        await deps.store.markPublished(contextId);
+      }
       return { kind: 'ready', record: existing, created: false };
+    }
     // The teacher deleted the column in Schoology; an explicit push recreates it once.
     await deps.store.clear(contextId);
   }
@@ -297,19 +327,14 @@ async function ensureColumn(
         console.warn('[toolColumns] setting the column category failed:', err);
       }
     }
-    if (deps.rest && columnId && isLinkedSectionLineItem(item.id)) {
-      try {
-        await deps.rest.publishColumn(contextId, columnId);
-      } catch (err) {
-        console.warn('[toolColumns] publishing a linked column failed:', err);
-      }
-    }
+    const published = await publishLinkedColumn(deps, contextId, item.id);
     const record: ToolColumnRecord = {
       lineitemUrl: item.id,
       columnId,
       scoreMaximum: input.maxPoints,
       categoryId: savedCategory,
       lastPushed: {},
+      ...(published ? { published: true } : {}),
     };
     await deps.store.save(contextId, record);
     if (categoryId) await deps.store.setPref(contextId, categoryId);
