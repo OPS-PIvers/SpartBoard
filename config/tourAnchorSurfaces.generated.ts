@@ -617,6 +617,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-print.student-select': ['quiz.paper-print'],
     'quiz-print.written-add': ['quiz.paper-print'],
     'quiz-print.written-box-size': ['quiz.paper-print'],
+    'quiz-print.written-box-lines': ['quiz.paper-print'],
     'quiz-print.written-number': ['quiz.paper-print'],
     'quiz-print.written-points': ['quiz.paper-print'],
     'quiz-print.written-remove': ['quiz.paper-print'],

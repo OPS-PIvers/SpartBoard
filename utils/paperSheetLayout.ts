@@ -157,6 +157,19 @@ export const WRITTEN_HEADER_X_MM = 24;
 export const WRITTEN_ONE_COLUMN_X_MM = 24;
 export const WRITTEN_ONE_COLUMN_W_MM = 58;
 
+/** A whole prompt above its box: figures sit at the right of the header, text at 11 pt beside them. */
+export const PROMPT_BASE_PT = 11;
+/** Rough Arial width of one character, and height of one line, per point. */
+export const PT_CHAR_MM = 0.19;
+export const PT_LINE_MM = 0.48;
+export const PROMPT_FIGURE_W_MM = 64;
+export const PROMPT_FIGURE_MIN_H_MM = 56;
+export const PROMPT_GUTTER_MM = 4;
+/** Height of a version label line above the prompt. */
+export const PROMPT_LABEL_MM = 7;
+/** Most header rows a prompt takes, so at least 12 lines stay to write on. */
+export const PROMPT_MAX_ROWS = 14;
+
 /** Left edge of each answer column's question-number label. */
 export const COLUMN_X_MM: readonly number[] = [24, 116];
 /** Width of the question-number label before the first bubble. */

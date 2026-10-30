@@ -12,12 +12,12 @@ import type {
 /** Contracts for handwritten paper answers; see docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md §3. */
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
 
-/** Written lines ruled in each fixed box size; a line is one 8 mm grid row. */
+/** Written lines ruled in each named box size; a line is one 8 mm grid row. L is kept for quizzes saved before custom sizes. */
 export const PAPER_BOX_LINES: Readonly<
-  Record<Exclude<PaperBoxSize, 'full'>, number>
+  Record<Exclude<PaperBoxSize, 'full' | number>, number>
 > = {
   S: 3,
-  M: 6,
+  M: 8,
   L: 12,
 };
 /** Lines on a Full box, which takes a page of its own. */
@@ -25,8 +25,10 @@ export const PAPER_FULL_PAGE_LINES = 24;
 export const PAPER_WRITTEN_LINE_MM = 8;
 /** Rough handwriting density used to size a box from `maxWords`. */
 export const PAPER_WORDS_PER_LINE = 10;
-export const PAPER_BOX_SIZES: readonly PaperBoxSize[] = ['S', 'M', 'L', 'full'];
 export const DEFAULT_PAPER_BOX_SIZE: PaperBoxSize = 'M';
+/** Custom line counts a teacher can pick; a full page is 24. */
+export const PAPER_CUSTOM_MIN_LINES = 1;
+export const PAPER_CUSTOM_MAX_LINES = PAPER_FULL_PAGE_LINES;
 
 /** Pages a teacher can transcribe per day unless an admin sets another limit. */
 export const PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT = 300;
@@ -35,7 +37,13 @@ export const PAPER_WRITTEN_CROP_MIME = 'image/webp';
 export const DEFAULT_WRITTEN_RETURN_MODE: WrittenReturnMode = 'handwriting';
 
 export function paperBoxLines(size: PaperBoxSize): number {
+  if (typeof size === 'number') return size;
   return size === 'full' ? PAPER_FULL_PAGE_LINES : PAPER_BOX_LINES[size];
+}
+
+/** A Full box, or a custom one as tall as a page, takes a page of its own. */
+export function isFullPageBox(size: PaperBoxSize): boolean {
+  return size === 'full' || paperBoxLines(size) >= PAPER_FULL_PAGE_LINES;
 }
 
 /** Smallest box that fits `maxWords` at about ten words a line; M when no limit is set. */
@@ -54,7 +62,9 @@ export function defaultPaperBoxSize(maxWords?: number): PaperBoxSize {
 export function paperBoxSizeOf(
   question: Pick<QuizQuestion, 'paperBoxSize' | 'maxWords'>
 ): PaperBoxSize {
-  return question.paperBoxSize ?? defaultPaperBoxSize(question.maxWords);
+  return isPaperBoxSize(question.paperBoxSize)
+    ? question.paperBoxSize
+    : defaultPaperBoxSize(question.maxWords);
 }
 
 /** Questions with the print dialog's box sizes applied; untouched when there are none. */
@@ -72,10 +82,14 @@ export function withPaperBoxSizes<T extends { questions: QuizQuestion[] }>(
 }
 
 export function isPaperBoxSize(value: unknown): value is PaperBoxSize {
-  return (
-    typeof value === 'string' &&
-    (PAPER_BOX_SIZES as readonly string[]).includes(value)
-  );
+  if (typeof value === 'number') {
+    return (
+      Number.isInteger(value) &&
+      value >= PAPER_CUSTOM_MIN_LINES &&
+      value <= PAPER_CUSTOM_MAX_LINES
+    );
+  }
+  return value === 'S' || value === 'M' || value === 'L' || value === 'full';
 }
 
 /** `paper_written_crops/{uid}/{scanId}/{seat}/{questionId}.webp` */
