@@ -188,7 +188,7 @@ export const ImportBlockListPanel: React.FC = () => {
                     }
                     disabled={saving}
                     aria-label={`Remove ${pattern}`}
-                    className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                    className="relative touch-target-expand p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-40"
                   >
                     <X className="w-4 h-4" />
                   </button>

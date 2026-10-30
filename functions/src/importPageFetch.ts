@@ -2,6 +2,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import axios from 'axios';
+import type { Readable } from 'stream';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   createPinnedAgent,
@@ -466,7 +467,12 @@ export async function fetchImportPage(
     current.password = '';
     current.hash = '';
     if (await deps.isBlocked(current.href)) return { status: 'blocked' };
-    if (looksLikeSignInUrl(current))
+    // A pasted path like /wiki/Login is content; only redirects are judged by path.
+    if (
+      hop === 0
+        ? SIGN_IN_HOSTS.has(current.hostname)
+        : looksLikeSignInUrl(current)
+    )
       return { status: 'use-extension', reason: 'sign-in' };
     if (Date.now() >= deadline)
       return { status: 'use-extension', reason: 'unreachable' };
@@ -546,14 +552,12 @@ async function fetchOnceGuarded(
       'That address points to a private or reserved host.'
     );
   }
-  const response = await axios.get<string>(url.href, {
-    maxContentLength: MAX_RESPONSE_BYTES,
-    maxBodyLength: MAX_RESPONSE_BYTES,
+  const response = await axios.get<Readable>(url.href, {
     maxRedirects: 0,
     timeout: FETCH_TIMEOUT_MS,
     // A total cap per hop; `timeout` alone resets on every slow byte.
     signal,
-    responseType: 'text',
+    responseType: 'stream',
     validateStatus: () => true,
     headers: {
       'User-Agent': 'SpartBoardImport/1.0',
@@ -562,12 +566,54 @@ async function fetchOnceGuarded(
     httpsAgent: createPinnedAgent(addresses),
   });
   const location = response.headers?.location as string | undefined;
+  const contentType = (response.headers?.['content-type'] as string) || '';
+  const wanted = response.status < 300 && /html/i.test(contentType);
   return {
     status: response.status,
     location,
-    contentType: (response.headers?.['content-type'] as string) || '',
-    body: typeof response.data === 'string' ? response.data : '',
+    contentType,
+    body: wanted
+      ? decodeHtmlBytes(await readCapped(response.data), contentType)
+      : (response.data.destroy(), ''),
   };
+}
+
+// Reads up to the byte cap and drops the rest, so a long page is cut rather than lost.
+export async function readCapped(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of stream) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string);
+    chunks.push(buf.subarray(0, MAX_RESPONSE_BYTES - size));
+    size += buf.length;
+    if (size >= MAX_RESPONSE_BYTES) {
+      stream.destroy();
+      break;
+    }
+  }
+  return Buffer.concat(chunks);
+}
+
+const CHARSET = /charset\s*=\s*["']?([\w.:-]+)/i;
+
+/** Decodes page bytes with the header or meta charset, falling back to UTF-8. */
+export function decodeHtmlBytes(
+  bytes: Uint8Array,
+  contentType: string
+): string {
+  let label = 'utf-8';
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) label = 'utf-16be';
+  else if (bytes[0] === 0xff && bytes[1] === 0xfe) label = 'utf-16le';
+  else {
+    const head = Buffer.from(bytes.subarray(0, 1024)).toString('latin1');
+    const meta = /<meta\b[^>]*charset\s*=\s*["']?([\w.:-]+)/i.exec(head);
+    label = CHARSET.exec(contentType)?.[1] ?? meta?.[1] ?? label;
+  }
+  try {
+    return new TextDecoder(label).decode(bytes);
+  } catch {
+    return new TextDecoder('utf-8').decode(bytes);
+  }
 }
 
 const callTimes = new Map<string, number[]>();

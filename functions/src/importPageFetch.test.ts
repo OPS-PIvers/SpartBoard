@@ -30,13 +30,16 @@ vi.mock('dns', () => {
 });
 
 import {
+  decodeHtmlBytes,
   fetchImportPage,
+  readCapped,
   htmlToPage,
   looksLikeSignInUrl,
   type FetchedResponse,
   type ImportPageDeps,
 } from './importPageFetch';
 import { isUrlBlocked } from './import/shared.gen';
+import { Readable } from 'stream';
 
 const html = (body: string, head = '<title>Cells</title>') =>
   `<!doctype html><html><head>${head}</head><body>${body}</body></html>`;
@@ -287,6 +290,25 @@ describe('fetchImportPage', () => {
     expect(d.fetched).toEqual([]);
   });
 
+  it('reads a pasted page whose path only names a sign-in topic', async () => {
+    const url = 'https://en.wikipedia.org/wiki/Login';
+    const d = deps({
+      [url]: ok(html('<p>A login is how people sign in.</p>')),
+    });
+    expect(await fetchImportPage(url, d)).toMatchObject({ status: 'ok' });
+  });
+
+  it('still catches a pasted login page by its form', async () => {
+    const url = 'https://app.example.org/login';
+    const d = deps({
+      [url]: ok(html('<p>Welcome</p><form><input type="password"></form>')),
+    });
+    expect(await fetchImportPage(url, d)).toEqual({
+      status: 'use-extension',
+      reason: 'sign-in',
+    });
+  });
+
   it('drops pictures hosted on blocked sites', async () => {
     const d = deps(
       {
@@ -462,6 +484,39 @@ describe('SSRF guard on the real fetch hop', () => {
     expect(fetchImportPageV1).toBeDefined();
     const { resolveAndValidateHost } = await import('./ssrfGuard');
     await expect(resolveAndValidateHost('intranet.example')).rejects.toThrow();
+  });
+});
+
+describe('readCapped', () => {
+  it('cuts a long page at the cap instead of failing', async () => {
+    const chunk = Buffer.alloc(400_000, 0x61);
+    const body = await readCapped(Readable.from([chunk, chunk, chunk, chunk]));
+    expect(body.length).toBe(1_048_576);
+  });
+});
+
+describe('decodeHtmlBytes', () => {
+  it('uses the header charset', () => {
+    const bytes = Buffer.from([0x93, 0x43, 0x61, 0x66, 0xe9, 0x94]);
+    expect(decodeHtmlBytes(bytes, 'text/html; charset=windows-1252')).toBe(
+      '\u201cCaf\u00e9\u201d'
+    );
+  });
+
+  it('falls back to a meta charset, then UTF-8', () => {
+    const meta = Buffer.concat([
+      Buffer.from('<meta charset="shift_jis"><p>'),
+      Buffer.from([0x82, 0xa0]),
+    ]);
+    expect(decodeHtmlBytes(meta, 'text/html')).toBe(
+      '<meta charset="shift_jis"><p>\u3042'
+    );
+    expect(decodeHtmlBytes(Buffer.from('Caf\u00e9'), 'text/html')).toBe(
+      'Caf\u00e9'
+    );
+    expect(
+      decodeHtmlBytes(Buffer.from('ok'), 'text/html; charset=nonsense')
+    ).toBe('ok');
   });
 });
 
