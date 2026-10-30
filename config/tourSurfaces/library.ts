@@ -39,6 +39,15 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/common/library/importer/'],
   },
+  // Import's AI Conversion review steps; opened from Import once a target is picked.
+  'library.import-conversion-review': {
+    label: 'Import review for an AI-made Activity Wall or board',
+    kind: 'shared',
+    files: [
+      'components/import/conversion/',
+      'components/widgets/ActivityWall/adapters/ActivityWallImportReview.tsx',
+    ],
+  },
   'library.assign-modal': {
     label: 'Assign dialog (classes, targeting, availability)',
     kind: 'shared',

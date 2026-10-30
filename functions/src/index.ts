@@ -303,6 +303,7 @@ export {
 
 // PLC goal coach: checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22).
 export { plcGoalCoachV1 } from './plcGoalCoach';
+export { importConvertV1 } from './importConversion';
 
 // Web tours: Claude writes step titles and tips (docs/plans/shipped/WEB_TOURS_CLAUDE.md C9).
 export { writeWebTourTextV1 } from './webTourWriting';

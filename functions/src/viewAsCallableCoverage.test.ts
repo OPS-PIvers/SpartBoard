@@ -103,6 +103,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   generateGuidedLearning: 'outward',
   generateVideoActivity: 'outward',
   generateWithAI: 'outward',
+  importConvertV1: 'outward',
   joinPlcAssignmentSyncGroup: 'outward',
   joinPlcQuizSyncGroup: 'outward',
   joinPlcVideoActivitySyncGroup: 'outward',

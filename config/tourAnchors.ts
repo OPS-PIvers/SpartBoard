@@ -15229,6 +15229,26 @@ export const TOUR_ANCHORS = {
     label: 'Title box on the Import wizard confirm step',
     panel: true,
   },
+  'import-review.wall-prompt': {
+    label: 'Prompt box when reviewing an imported Activity Wall',
+    panel: true,
+  },
+  'import-review.wall-layout': {
+    label: 'Layout menu when reviewing an imported Activity Wall',
+    panel: true,
+  },
+  'import-review.board-name': {
+    label: 'Board name box when reviewing an imported board',
+    panel: true,
+  },
+  'import-review.board-cancel': {
+    label: 'Cancel button when reviewing an imported board',
+    panel: true,
+  },
+  'import-review.board-create': {
+    label: 'Create board button when reviewing an imported board',
+    panel: true,
+  },
   'import-wizard.cancel': {
     label: 'Cancel button in the Import wizard',
     panel: true,
