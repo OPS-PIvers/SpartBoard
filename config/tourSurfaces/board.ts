@@ -53,6 +53,12 @@ export const SURFACES: TourSurfaceMap = {
       'share-status.stop': 'share-status.chip',
     },
   },
+  'board.backgrounds': {
+    label: 'Backgrounds window',
+    kind: 'modal',
+    files: ['components/backgroundsModal/'],
+    opensWith: 'sidebar.backgrounds',
+  },
   'board.widget': {
     label: 'Widget window chrome',
     kind: 'widget',

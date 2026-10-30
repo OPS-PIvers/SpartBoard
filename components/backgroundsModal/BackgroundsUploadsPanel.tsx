@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Upload, Loader2 } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useDashboard } from '@/context/useDashboard';
@@ -141,6 +142,7 @@ export const BackgroundsUploadsPanel: React.FC<
   return (
     <div className="flex flex-col gap-4 p-4">
       <div>
+        {/* no-tour-anchor: hidden file input, the Upload button opens it */}
         <input
           ref={fileInputRef}
           type="file"
@@ -149,6 +151,7 @@ export const BackgroundsUploadsPanel: React.FC<
           className="hidden"
         />
         <button
+          {...tourAttr('backgrounds.upload')}
           type="button"
           aria-label={t('backgrounds.uploadCta', {
             defaultValue: 'Upload an image (max 5MB)',

@@ -31,6 +31,7 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | components/settingsModal/sections/AppearanceSection.tsx:59 | Reset button in each color row | One shared control for three color rows; the anchor would need a per-row key. |
 | components/settingsModal/sections/ConnectedAppsSection.tsx:193 | Disconnect button | One per connected app, generated per row. |
 | components/widgets/GuidedLearning/components/recorder/ | Tour recorder panel, frame review and session controls | Authoring tool for recording tours; unclear whether a tour would ever walk a teacher through it. |
+| components/backgroundsModal/BackgroundThumbnail.tsx:21 | Background select and favorite buttons | One per catalog item, generated; needs an index or id prop from every caller to key them. |
 
 ## Run log
 
@@ -49,3 +50,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-10-27 | claude/tour-anchors-2026-10-27 | Widgets (Stations, TextWidget, TimeTool, UrlWidget, Weather, Webcam, RotationHandle) | 21 | 7 | 0 | 581 in 235 files |
 | 2026-10-28 | claude/tour-anchors-2026-10-28 | Widgets (math-tools, Random, StickerBook) | 14 | 3 | 0 | 35 in 8 files |
 | 2026-10-29 | claude/tour-anchors-2026-10-29 | Board chrome (layout, Profile & Settings sections) | 0 | 20 | 2 | 539 in 213 files |
+| 2026-10-30 | claude/tour-anchors-2026-10-30 | Board chrome (Backgrounds window) | 11 | 2 | 1 file | 525 in 207 files |
