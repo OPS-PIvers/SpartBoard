@@ -8,6 +8,7 @@ import { sourceFromInboxItem } from '@/components/import/sourceFromInbox';
 import {
   completeImportHandoff,
   offerImportHandoff,
+  openImportScreen,
   resetImportHandoffsForTest,
   takeImportHandoff,
 } from '@/components/import/importHandoff';
@@ -227,6 +228,17 @@ describe('import handoff into a review screen', () => {
     });
     expect(takeImportHandoff('w1')?.target).toBe('questionBank');
     expect(takeImportHandoff('w1')).toBeNull();
+  });
+
+  it('drops a handoff no widget picked up when Import opens again', () => {
+    offerImportHandoff({
+      widgetId: 'w3',
+      widgetType: 'quiz',
+      target: 'quiz',
+      source: { text: 'a' },
+    });
+    openImportScreen();
+    expect(takeImportHandoff('w3')).toBeNull();
   });
 
   it('runs onSaved only when the widget saves, not when it is closed', () => {
