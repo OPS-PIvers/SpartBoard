@@ -19,7 +19,6 @@ import { useTeamShellActions } from './teamShellActions';
 import { useTeamNav } from '@/components/plc/teams/TeamNavContext';
 import { teamUsesPlcHome } from '@/components/plc/teams/teamSections';
 import { TEAM_LANDING_CARD_CATALOG } from '@/config/teamTypePresets';
-import { useAuth } from '@/context/useAuth';
 import {
   useDataOverviewModel,
   useMeetingStrip,
@@ -64,9 +63,8 @@ export default function DataOverviewPage({
   const { openMyItems } = useTeamShellActions();
   const teamNav = useTeamNav();
   const [targetsOpen, setTargetsOpen] = useState(false);
-  const { canAccessFeature } = useAuth();
   // With PLC Home, the layout's cards pick what Home shows; this tab keeps every section.
-  const cards = teamUsesPlcHome(layout, canAccessFeature('plc-home-tab'))
+  const cards = teamUsesPlcHome(layout)
     ? (TEAM_LANDING_CARD_CATALOG.dataOverview ?? layout.cards)
     : layout.cards;
   const assessmentsOn = layout.pages.some(

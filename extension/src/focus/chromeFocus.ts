@@ -2,6 +2,7 @@
 import type { FocusPushSubscription } from '@/utils/focus/contract';
 import { FOCUS_CHECK_MINUTES } from '@/utils/focus/contract';
 import type { FocusClientDeps, PushSent } from './focusClient';
+import { ownPageUrls } from './chromeEnforce';
 import {
   FOCUS_ENDED_KEY,
   FOCUS_STATE_KEY,
@@ -12,6 +13,7 @@ export const FOCUS_CHECK_ALARM = 'focus-check';
 export const FOCUS_TICK_ALARM = 'focus-tick';
 export const FOCUS_PAGE_PATH = 'focus/index.html';
 const PUSH_SENT_KEY = 'focusPushSent';
+const TRIES_KEY = 'focusTries';
 
 const keyBytes = (base64url: string) =>
   Uint8Array.from(atob(base64url.replace(/-/g, '+').replace(/_/g, '/')), (c) =>
@@ -74,6 +76,8 @@ export const chromeFocusDeps: Pick<
   | 'activeUrl'
   | 'openFocusPage'
   | 'setBadge'
+  | 'loadTries'
+  | 'saveTries'
   | 'setTicking'
   | 'now'
 > = {
@@ -103,16 +107,28 @@ export const chromeFocusDeps: Pick<
   },
   openFocusPage: async () => {
     const url = chrome.runtime.getURL(FOCUS_PAGE_PATH);
-    const open = (await chrome.tabs.query({})).find((t) => t.url === url);
-    if (open?.id !== undefined) {
-      await chrome.tabs.update(open.id, { active: true });
-      if (open.windowId !== undefined)
-        await chrome.windows.update(open.windowId, { focused: true });
+    const open = [...(await ownPageUrls())].find(
+      ([, u]) => u === url || u.startsWith(`${url}?notice=`)
+    );
+    if (open) {
+      const tab = await chrome.tabs.update(open[0], { active: true });
+      if (tab?.windowId !== undefined)
+        await chrome.windows.update(tab.windowId, { focused: true });
       return;
     }
     await chrome.tabs.create({ url, active: true });
   },
   setBadge: (text) => chrome.action.setBadgeText({ text }),
+  // Local storage outlives a restart; only the current session's count is kept.
+  loadTries: async (sessionId) => {
+    const saved = (await chrome.storage.local.get(TRIES_KEY))[TRIES_KEY] as
+      { sessionId?: unknown; tries?: unknown } | undefined;
+    return saved?.sessionId === sessionId && typeof saved.tries === 'number'
+      ? saved.tries
+      : 0;
+  },
+  saveTries: (sessionId, tries) =>
+    chrome.storage.local.set({ [TRIES_KEY]: { sessionId, tries } }),
   setTicking: async (on) => {
     const alarm = await chrome.alarms.get(FOCUS_TICK_ALARM);
     if (on && !alarm)

@@ -9,15 +9,12 @@ export type TeamOffRailSection = 'members' | 'settings' | 'meeting' | 'targets';
 export type TeamRoute =
   | { kind: 'page'; page: TeamPageId }
   | { kind: 'section'; section: TeamOffRailSection }
-  // PLC Home when `plc-home-tab` is on; a Data overview landing opens on it.
+  // PLC Home: a Data overview landing opens on it.
   | { kind: 'plcHome' };
 
-/** PLC teams (the only type with Data overview) get PLC Home when the flag is on. */
-export function teamUsesPlcHome(
-  layout: Pick<PlcTeamLayout, 'pages'>,
-  flagOn: boolean
-): boolean {
-  return flagOn && layout.pages.some((p) => p.id === 'dataOverview');
+/** PLC teams (the only type with Data overview) get PLC Home. */
+export function teamUsesPlcHome(layout: Pick<PlcTeamLayout, 'pages'>): boolean {
+  return layout.pages.some((p) => p.id === 'dataOverview');
 }
 
 /** The section that opens PLC Home: the bare path when it is the landing, else its own. */

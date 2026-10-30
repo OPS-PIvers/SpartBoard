@@ -2225,6 +2225,12 @@
     "needsManual": "No se pudo extraer el texto automáticamente. Pégalo o escríbelo aquí.",
     "extractFailed": "La extracción de texto falló. Inténtalo de nuevo."
   },
+  "quizCrossOut": {
+    "crossOut": "Tachar",
+    "undo": "Deshacer tachado",
+    "crossOutChoice": "Tachar la opción {{n}}",
+    "crossedOut": "(tachada)"
+  },
   "quizTranslation": {
     "label": "Traducción",
     "editor": {

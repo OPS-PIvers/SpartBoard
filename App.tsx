@@ -129,6 +129,11 @@ const GuidedLearningStudentApp = lazy(() =>
     (module) => ({ default: module.GuidedLearningStudentApp })
   )
 );
+const FlashcardStaffRoute = lazy(() =>
+  import('./components/flashcards/FlashcardStaffRoute').then((module) => ({
+    default: module.FlashcardStaffRoute,
+  }))
+);
 const FlashcardAssignmentPage = lazy(() =>
   import('./components/flashcards/FlashcardAssignmentPage').then((module) => ({
     default: module.FlashcardAssignmentPage,
@@ -908,6 +913,21 @@ const App: React.FC = () => {
       <Suspense fallback={<FullPageLoader />}>
         <ActivityWallGalleryView />
       </Suspense>
+    );
+  }
+
+  // A Staff-audience Flashcards link signs in with a district Google account instead.
+  if (
+    isFlashcardAssignmentRoute &&
+    new URLSearchParams(window.location.search).get('staff') === '1'
+  ) {
+    return (
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <FlashcardStaffRoute />
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 

@@ -1,5 +1,5 @@
 // Resolves the assign stepper's Mini App choices into what the session, archive row and callable write (docs/plans/ASSIGN_STEPPER.md D20).
-import type { ClassRoster } from '@/types';
+import type { AssignmentAudience, ClassRoster } from '@/types';
 import type { AssignClassesValue } from '@/components/common/library/assignStepper/assignClassesValue';
 import type { AssignWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 import type { AssignKind } from '@/components/common/library/assignStepper/assignSteps';
@@ -24,6 +24,8 @@ export interface MiniAppStepperChoices {
   when: AssignWhenValue;
   /** Modifications and skips from the Modifications view. */
   targeting: AssignTargetingValue;
+  /** Staff: no classes; the link needs district Google sign-in. */
+  audience?: AssignmentAudience;
 }
 
 export interface MiniAppStepperAssignPlan {

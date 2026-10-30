@@ -22,7 +22,7 @@ describe('createExternalHandler', () => {
     const { handle } = handlerWith('none');
     await expect(handle({ type: 'ping' }, top)).resolves.toEqual({
       ok: true,
-      protocol: 9,
+      protocol: 11,
       version: '0.1.0',
       profile: 'none',
     });
@@ -163,5 +163,37 @@ describe('web-tour/open (protocol 8)', () => {
       staff.handle({ type: 'web-tour/open', setId: '../x' }, top)
     ).resolves.toEqual({ ok: false, error: 'invalid' });
     expect(staff.openWebTour).not.toHaveBeenCalled();
+  });
+});
+
+describe('schoology sign-in (protocol 11)', () => {
+  const signInWith = (profile: ExtensionProfile, signedIn: boolean) => {
+    const signIn = vi.fn(() => Promise.resolve(signedIn));
+    const handle = createExternalHandler({
+      origins: [ORIGIN],
+      version: '0.1.21',
+      getProfile: () => Promise.resolve(profile),
+      signIn,
+    });
+    return { handle, signIn };
+  };
+
+  it('reports the sign-in quietly and asks Google only on connect', async () => {
+    const { handle, signIn } = signInWith('staff', false);
+    await expect(handle({ type: 'schoology/signed-in' }, top)).resolves.toEqual(
+      { ok: true, signedIn: false }
+    );
+    expect(signIn).toHaveBeenLastCalledWith(false);
+    await handle({ type: 'schoology/connect' }, top);
+    expect(signIn).toHaveBeenLastCalledWith(true);
+  });
+
+  it('refuses other profiles without touching sign-in', async () => {
+    const { handle, signIn } = signInWith('other', true);
+    await expect(handle({ type: 'schoology/connect' }, top)).resolves.toEqual({
+      ok: false,
+      error: 'refused',
+    });
+    expect(signIn).not.toHaveBeenCalled();
   });
 });

@@ -37,7 +37,8 @@ import {
 import { auth, db, isAuthBypass } from '@/config/firebase';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
-import type { QuizTranslationIndexEntry } from '@/types';
+import type { AudienceSessionFields, QuizTranslationIndexEntry } from '@/types';
+import { audienceSessionFields } from '@/utils/staffAudience';
 import type { TranslationLoader } from '@/utils/quizTranslationPublish';
 import {
   enforceSessionSizeBudget,
@@ -229,7 +230,7 @@ export type SharedAssignmentImportMode = 'sync' | 'copy';
  * argument list; named fields make the read-site at every call clearer
  * and let new options land without churning every existing caller.
  */
-export interface CreateAssignmentOptions {
+export interface CreateAssignmentOptions extends AudienceSessionFields {
   /** Defaults to `'active'`. */
   initialStatus?: QuizAssignmentStatus;
   /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
@@ -1286,6 +1287,7 @@ export const useQuizAssignments = (
     authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true;
   const stimulusQuotesOn =
     authContext?.canAccessFeature?.('quiz-stimulus-quotes') === true;
+  const crossOutOn = authContext?.canAccessFeature?.('quiz-cross-out') === true;
   const pageProtectionsOn =
     authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
@@ -1629,6 +1631,7 @@ export const useQuizAssignments = (
         endedAt: null,
         code,
         allowAnonymousJoin,
+        ...audienceSessionFields(options?.audience),
         totalQuestions: hasBankSlots
           ? sessionTotalQuestions(
               sessionQuestions.map((q) => q.id),
@@ -1671,6 +1674,7 @@ export const useQuizAssignments = (
         ...(stimulusQuotesOn
           ? { allowStimulusQuotes: opts.allowStimulusQuotes ?? true }
           : {}),
+        ...(crossOutOn ? { allowCrossOut: true } : {}),
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
@@ -1896,6 +1900,7 @@ export const useQuizAssignments = (
       scoreOnSubmitOn,
       timeLimitOn,
       stimulusQuotesOn,
+      crossOutOn,
       pageProtectionsOn,
     ]
   );

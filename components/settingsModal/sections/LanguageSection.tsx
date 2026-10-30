@@ -39,7 +39,7 @@ export const LanguageSection: React.FC = () => {
         {SUPPORTED_LANGUAGES.map((lang) => {
           const isActive = language === lang.code;
           return (
-            <button
+            <button // no-tour-anchor: option inside language.options
               key={lang.code}
               onClick={() => handleLanguageChange(lang.code)}
               className={`relative flex flex-col items-center justify-center p-3.5 rounded-xl border-2 transition-all ${

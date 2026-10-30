@@ -1,9 +1,9 @@
 import React from 'react';
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { FocusActiveSession } from '@/utils/focus/contract';
 import type { FocusLocalState } from '../focusState';
-import { FocusView } from './FocusPage';
+import { FocusView, pageMode, PARKED_TITLE } from './FocusPage';
 
 const session: FocusActiveSession = {
   sessionId: 's1',
@@ -62,5 +62,49 @@ describe('FocusView', () => {
     expect(screen.getByText('Focus time is over.')).toBeTruthy();
     rerender(<FocusView state={null} now={0} />);
     expect(screen.getByText('Focus time is over.')).toBeTruthy();
+  });
+});
+
+describe('FocusView enforcement (FS7)', () => {
+  it('reads the mode from its own address', () => {
+    expect(pageMode('?parked=https%3A%2F%2Fgames.example%2F')).toBe('parked');
+    expect(pageMode('?notice=blocked')).toBe('notice');
+    expect(pageMode('')).toBe('plain');
+  });
+
+  it('says a parked tab is paused and a blocked site was sent here', () => {
+    const { rerender } = render(
+      <FocusView state={state()} now={0} mode="parked" />
+    );
+    expect(screen.getByText(PARKED_TITLE)).toBeTruthy();
+    rerender(<FocusView state={state()} now={0} mode="notice" />);
+    expect(screen.getByRole('status').textContent).toBe(
+      "That site isn't part of focus time."
+    );
+  });
+
+  it('offers fullscreen only at Lock outside it', () => {
+    const onFullscreen = vi.fn();
+    const { rerender } = render(
+      <FocusView
+        state={state()}
+        now={0}
+        needsFullscreen
+        onFullscreen={onFullscreen}
+      />
+    );
+    expect(screen.queryByRole('button')).toBeNull();
+    rerender(
+      <FocusView
+        state={state({ level: 'lock' })}
+        now={0}
+        needsFullscreen
+        onFullscreen={onFullscreen}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Return to fullscreen' })
+    );
+    expect(onFullscreen).toHaveBeenCalledTimes(1);
   });
 });

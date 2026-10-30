@@ -23,12 +23,14 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
+  AssignmentAudience,
   AssignmentMode,
   MiniAppAnswerKey,
   MiniAppItem,
   MiniAppSession,
 } from '@/types';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import { audienceSessionFields } from '@/utils/staffAudience';
 import { normalizeMiniAppSession } from '@/utils/miniAppNormalize';
 import {
   MA_CONTENT_COLLECTION,
@@ -73,6 +75,7 @@ export interface CreateMiniAppSessionOptions {
   assignmentId?: string;
   /** Per-period gate; the app then moves to `content/app`. */
   periodGate?: Pick<MiniAppSession, 'accessMode' | 'periodAccess'>;
+  audience?: AssignmentAudience;
   /** Mini App results v2 (MINI_APP_RESULTS.md D6, D8, D9); ignored unless mode is submissions. */
   results?: {
     attemptLimit: number | null;
@@ -163,6 +166,7 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
         ...(options?.assignmentId
           ? { assignmentId: options.assignmentId }
           : {}),
+        ...audienceSessionFields(options?.audience),
         ...(results
           ? {
               resultsVersion: 2 as const,

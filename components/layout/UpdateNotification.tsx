@@ -76,7 +76,7 @@ export const UpdateNotification = ({
             <p className="text-xs text-slate-300 mt-1">
               A new version of the dashboard is available. Refresh to update.
             </p>
-            <button
+            <button // no-tour-anchor: update toast appears on its own, not on a tour path
               type="button"
               onClick={() => setShowWhatsNew(true)}
               aria-label="See what's new in this update"
@@ -86,14 +86,14 @@ export const UpdateNotification = ({
             </button>
           </div>
           <div className="flex gap-2">
-            <button
+            <button // no-tour-anchor: update toast appears on its own, not on a tour path
               onClick={reloadApp}
               className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
             >
               <RefreshCw className="w-4 h-4" />
               Refresh
             </button>
-            <button
+            <button // no-tour-anchor: update toast appears on its own, not on a tour path
               onClick={dismiss}
               className="p-2 hover:bg-slate-700 rounded-md transition-colors text-slate-400 hover:text-white"
               aria-label="Dismiss"

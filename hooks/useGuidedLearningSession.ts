@@ -21,6 +21,13 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
+  audienceSessionFields,
+  hasStaffRows,
+  STAFF_CSV_HEADERS,
+  staffCsvCells,
+} from '@/utils/staffAudience';
+import {
+  AssignmentAudience,
   AssignmentMode,
   GuidedLearningSet,
   GuidedLearningSession,
@@ -90,7 +97,9 @@ export function buildGLResponsesCSV(
     return true;
   });
 
+  const staff = hasStaffRows(responseList);
   const headers = [
+    ...(staff ? STAFF_CSV_HEADERS : []),
     'Student ID',
     'PIN',
     'Started At',
@@ -123,6 +132,7 @@ export function buildGLResponsesCSV(
     });
 
     return [
+      ...(staff ? staffCsvCells(r) : []),
       r.studentAnonymousId,
       r.pin ?? '',
       // typeof guard (not truthiness) so a legitimate 0 epoch timestamp
@@ -323,7 +333,7 @@ export interface UseGuidedLearningSessionTeacherResult {
     /** Open/close/due window (epoch ms), spec §5 B3. Applies regardless of
      *  targeting mode — every field is optional and independently mirrored. */
     assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number },
-    options?: { workKind?: WorkKind },
+    options?: { workKind?: WorkKind; audience?: AssignmentAudience },
     /** Per-period gate; the steps and slides then move to `content/steps`. */
     periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>
   ) => Promise<string>;
@@ -351,7 +361,7 @@ export const useGuidedLearningSessionTeacher = (
       rosterIds: string[] = [],
       assignmentMode: AssignmentMode = 'submissions',
       assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number },
-      options?: { workKind?: WorkKind },
+      options?: { workKind?: WorkKind; audience?: AssignmentAudience },
       periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>
     ): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
@@ -411,6 +421,7 @@ export const useGuidedLearningSessionTeacher = (
           ? { dueAt: assignmentWindow.dueAt }
           : {}),
         ...(options?.workKind ? { workKind: options.workKind } : {}),
+        ...audienceSessionFields(options?.audience),
         // Schema version — mirrored so the student player applies matching
         // zoom/spotlight semantics. Absent on legacy sets/sessions.
         ...(set.schemaVersion ? { schemaVersion: set.schemaVersion } : {}),

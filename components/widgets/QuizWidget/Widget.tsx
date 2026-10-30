@@ -78,6 +78,12 @@ import {
 import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
 import { fetchImageThroughServer } from '@/utils/quizDocumentImport/remoteImageFetcher';
 import { CartridgeBankImportModal } from './components/CartridgeBankImportModal';
+import { SchoologyInboxModal } from './components/SchoologyInboxModal';
+import { useSchoologyInbox } from '@/hooks/useSchoologyInbox';
+import {
+  claimSchoologyReview,
+  subscribeSchoologyReview,
+} from '@/utils/schoologyInbox';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -93,6 +99,7 @@ import { PlcSyncConflictPrompt } from '@/components/plc/sync/PlcSyncConflictProm
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { QuizManager, PlcOptions } from './components/QuizManager';
 import { ImportWizard } from '@/components/common/library/importer';
+import { SchoologyExportGuide } from '@/components/common/library/importer/SchoologyExportGuide';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
 import {
   extractQuizFromDocument,
@@ -515,12 +522,34 @@ const TeacherQuizWidget: React.FC<{
   // Bank editor state — ephemeral, mirrors the quiz editor pair below.
   const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
-  const canImportBankCartridge = canAccessFeature('question-bank-imscc-import');
+  const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
+  // The .imscc flags fold into schoology-quiz-import and retire once it opens.
+  const canImportBankCartridge =
+    canImportFromSchoology || canAccessFeature('question-bank-imscc-import');
   const [bankCartridge, setBankCartridge] = useState<File | null>(null);
-  const canImportQuizCartridge = canAccessFeature('quiz-imscc-import');
+  const canImportQuizCartridge =
+    canImportFromSchoology || canAccessFeature('quiz-imscc-import');
   const [quizCartridge, setQuizCartridge] = useState<File | null>(null);
-  // Quizzes a Schoology import already saved, so a retry only re-runs the folder move.
+  // Quizzes a Schoology import (.imscc or the extension) already saved, so a retry only re-runs the folder move.
   const savedCartridgeQuizzes = useRef(new Map<string, string>());
+  const schoologyInbox = useSchoologyInbox(user?.uid, canImportFromSchoology);
+  const [schoologyReviewOpen, setSchoologyReviewOpen] = useState(false);
+  // The extension asks for the review by URL or by an event in an open tab; both are outside React.
+  // Only a Quiz widget on the board being shown takes it; other boards stay mounted while hidden.
+  const takesSchoologyReview =
+    canImportFromSchoology &&
+    variant === 'quiz' &&
+    !local &&
+    !!activeDashboard?.widgets.some((w) => w.id === widget.id);
+  useEffect(() => {
+    if (!takesSchoologyReview) return;
+    const open = () => {
+      if (claimSchoologyReview()) setSchoologyReviewOpen(true);
+    };
+
+    open();
+    return subscribeSchoologyReview(open);
+  }, [takesSchoologyReview]);
   const [editingBankMeta, setEditingBankMeta] =
     useState<QuestionBankMetadata | null>(null);
   const [shareBankTarget, setShareBankTarget] =
@@ -1754,6 +1783,68 @@ const TeacherQuizWidget: React.FC<{
     canUseAi: canUseQuizAi,
   };
 
+  if (schoologyReviewOpen && canImportFromSchoology) {
+    return (
+      <SchoologyInboxModal
+        items={schoologyInbox.items}
+        quizzes={{
+          existing: quizzes,
+          folders: quizFolders,
+          createFolder: createQuizFolder,
+          load: (existing) => loadQuizData(existing.driveFileId),
+          save: async (data, { folderId, replaces, behavior }) => {
+            if (replaces) {
+              await saveQuiz(data, replaces.driveFileId);
+              return;
+            }
+            // A retry after a failed move only re-runs the move, never a second save.
+            let id = savedCartridgeQuizzes.current.get(data.id);
+            if (!id) {
+              id = (await saveQuiz(data, undefined, behavior)).id;
+              savedCartridgeQuizzes.current.set(data.id, id);
+            }
+            if (folderId) await moveQuizItem(id, folderId);
+          },
+        }}
+        banks={{
+          existing: banks,
+          folders: bankFolders,
+          createFolder: createBankFolder,
+          load: (existing) => loadBankData(existing.driveFileId),
+          save: async (data, { folderId, replaces }) => {
+            const {
+              order: _order,
+              sections: _sections,
+              bankSlots: _bankSlots,
+              paperSheetStimuli: _paper,
+              ...bank
+            } = data;
+            await saveBank(
+              bank,
+              replaces?.driveFileId,
+              folderId && !replaces ? { folderId } : undefined
+            );
+          },
+        }}
+        loadImages={schoologyInbox.loadImages}
+        removeItem={schoologyInbox.remove}
+        attachPictures={(quiz, images) =>
+          attachImagesToQuiz(quiz, images, stimulusUploader)
+        }
+        canUploadPictures={!!driveService}
+        onClose={(summary) => {
+          setSchoologyReviewOpen(false);
+          if (summary && summary.saved > 0) {
+            addToast(
+              `${summary.saved} ${summary.saved === 1 ? 'item' : 'items'} saved from Schoology.`,
+              'success'
+            );
+          }
+        }}
+      />
+    );
+  }
+
   if (bankCartridge) {
     return (
       <CartridgeBankImportModal
@@ -1849,10 +1940,16 @@ const TeacherQuizWidget: React.FC<{
       ? {
           ...baseAdapter,
           bulkSource: {
-            title: 'Schoology export (.imscc)',
+            title: 'From Schoology',
             description:
-              'Brings in every question bank in the export, each in its own bank.',
+              'Choose a Schoology export (.imscc). Every question bank in it comes in as its own bank.',
             accept: '.imscc',
+            guide: (
+              <SchoologyExportGuide
+                kind="banks"
+                canSend={canImportFromSchoology}
+              />
+            ),
             onFile: (file: File) => {
               setBankImportOpen(false);
               setBankCartridge(file);
@@ -1880,9 +1977,7 @@ const TeacherQuizWidget: React.FC<{
       // tile is offered on the quiz import only.
       canImportDocuments,
       canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
-      ...(canAccessFeature('standards-from-question-text')
-        ? { loadStandardCodes: loadCatalogCodes }
-        : {}),
+      loadStandardCodes: loadCatalogCodes,
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       ...(canImportVersions
@@ -1910,10 +2005,16 @@ const TeacherQuizWidget: React.FC<{
       ? {
           ...adapter,
           bulkSource: {
-            title: 'Schoology export (.imscc)',
+            title: 'From Schoology',
             description:
-              'Brings in every quiz and test in the export as separate quizzes.',
+              'Choose a Schoology export (.imscc). Every quiz and test in it comes in as its own quiz.',
             accept: '.imscc',
+            guide: (
+              <SchoologyExportGuide
+                kind="quizzes"
+                canSend={canImportFromSchoology}
+              />
+            ),
             onFile: (file: File) => setQuizCartridge(file),
           },
         }
@@ -2665,6 +2766,9 @@ const TeacherQuizWidget: React.FC<{
                     }
                   : {}),
                 ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
+                ...(stepper?.audience === 'staff'
+                  ? { audience: 'staff' as const }
+                  : {}),
                 classIds: derived.classIds,
                 rosterIds: derived.rosterIds,
                 classPeriodByClassId: derived.classPeriodByClassId,
@@ -3113,6 +3217,8 @@ const TeacherQuizWidget: React.FC<{
         banksLoading={banksLoading}
         sharedBankSources={sharedBankSources}
         onImportBank={() => setBankImportOpen(true)}
+        schoologyInboxCount={schoologyInbox.items.length}
+        onOpenSchoologyInbox={() => setSchoologyReviewOpen(true)}
         onNewBank={() => {
           const now = Date.now();
           setEditingBankMeta(null);

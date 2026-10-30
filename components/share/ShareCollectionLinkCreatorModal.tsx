@@ -1,4 +1,4 @@
-/** Share a Collection as a copy or, behind collection-sync-sharing, Synced / View-Only. */
+/** Share a Collection as a copy, Synced or View-Only. */
 
 import { type FC, useState, useId, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +13,6 @@ import {
 import type { Collection, Dashboard, LinkedCollectionMode } from '@/types';
 import type { CopyShareTree } from '@/hooks/useSharedCollection';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 import { ModeOption } from './ShareModeOption';
 import { logError } from '@/utils/logError';
@@ -49,7 +48,6 @@ export const ShareCollectionLinkCreatorModal: FC<
 }) => {
   const { t } = useTranslation();
   const { shareCollection, shareLinkedCollection, addToast } = useDashboard();
-  const { canAccessFeature } = useAuth();
   const outward = useViewAsOutward();
   const [mode, setMode] = useState<ShareMode>('synced');
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -57,15 +55,13 @@ export const ShareCollectionLinkCreatorModal: FC<
   const [busy, setBusy] = useState(false);
   const headingId = useId();
 
-  const flagOn = canAccessFeature('collection-sync-sharing');
   const linkedLive =
     !!collection?.linkedCollectionId && !collection.linkedCollectionEnded;
   // Already in a live share, view-as, or no tree: only a copy is offered.
-  const liveSharing =
-    flagOn && !linkedLive && !inLiveShare && !outward.active && !!tree;
+  const liveSharing = !linkedLive && !inLiveShare && !outward.active && !!tree;
   const effectiveMode: ShareMode = liveSharing ? mode : 'copy';
   const existingLiveUrl =
-    flagOn && linkedLive && collection.linkedCollectionRole === 'owner'
+    linkedLive && collection.linkedCollectionRole === 'owner'
       ? `${window.location.origin}/share/collection/${collection.linkedCollectionId}`
       : null;
 

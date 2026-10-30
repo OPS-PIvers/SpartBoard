@@ -742,6 +742,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "countdown#includeWeekends",
       "drawing#shapeFill",
       "flashcards#presentShuffle",
+      "focus#hideNames",
       "lunchCount#isManualMode",
       "nextUp#autoStartTimer",
       "numberLine#showArrows",
@@ -831,6 +832,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "expectations#behavior",
       "first-5#content",
       "flashcards#behavior",
+      "focus#behavior",
       "graphic-organizer#content",
       "guided-learning#behavior",
       "hotspot-image#content",
@@ -3205,6 +3207,401 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "focus.class",
+    "label": "Class picker in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.open-classes",
+    "label": "Open Classes button in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.site-input",
+    "label": "Add a site box in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.add-site",
+    "label": "Add site button in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.remove-site",
+    "label": "Remove site button in the Focus site list",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.sites-from-board",
+    "label": "Add sites from this board's Links and Embed widgets in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.saved-lists",
+    "label": "Saved lists button in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.save-list",
+    "label": "Save these sites button in Focus saved lists",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.load-list",
+    "label": "Use button on a Focus saved list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.delete-list",
+    "label": "Delete button on a Focus saved list",
+    "scope": "widget",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.level",
+    "label": "Level choice (Monitor, Redirect, Lock) in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.length",
+    "label": "Session length picker in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.start",
+    "label": "Start focus session button in Focus",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.past-sessions",
+    "label": "Past sessions button in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.past-session",
+    "label": "A past session in the Focus past sessions list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.past-back",
+    "label": "Back button in Focus past sessions",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.extend",
+    "label": "Add 10 minutes button in a running Focus session",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.release-student",
+    "label": "Release one student button in the Focus roster",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.release-class",
+    "label": "Release class button in a running Focus session",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.open-add-site",
+    "label": "Add a site button in a running Focus session",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.live-site-input",
+    "label": "Add a site box in a running Focus session",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.live-add-site",
+    "label": "Add site button in a running Focus session",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.end",
+    "label": "End session button in a running Focus session",
+    "scope": "widget",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.sub-check",
+    "label": "Check again button in Focus on a substitute's board",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz.start",
     "label": "Start quiz session button in Quiz",
     "scope": "widget",
@@ -3336,6 +3733,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz.personal-targets",
     "label": "My learning targets button in the Quiz library",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz.schoology-inbox",
+    "label": "From Schoology review button in the Quiz library",
     "scope": "widget",
     "routes": [
       {
@@ -3513,6 +3926,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "assign-stepper.submit",
     "label": "Assign button at the bottom of the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-audience.switch",
+    "label": "Students or Staff switch in the Classes step of the Assign dialog",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -8287,6 +8714,228 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:quiz",
           "library-shell.new-menu-item:quiz#item-2",
           "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-close",
+    "label": "Close in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-select-all",
+    "label": "Select all in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-select-none",
+    "label": "Select none in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-check",
+    "label": "Item checkbox in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-expand",
+    "label": "Show or hide questions in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-mode",
+    "label": "Update or keep both in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-discard",
+    "label": "Discard an item in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-share-pictures",
+    "label": "Share pictures checkbox in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-cancel",
+    "label": "Close or Done in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-save",
+    "label": "Save N in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-retry",
+    "label": "Retry failed in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
         ],
         "needs": [
           "widget-on-stage"
@@ -56460,6 +57109,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "blooms-taxonomy.level",
+    "label": "Level tab in Bloom's Taxonomy",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.blooms-taxonomy.face",
+        "kind": "widget",
+        "widget_type": "blooms-taxonomy",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "talking-tool.category",
     "label": "Category tab in Talking Tool",
     "scope": "field",
@@ -66687,6 +67352,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "import-wizard.bulk-file",
     "label": "Choose file button on the bulk export tile in the Import wizard (Schoology .imscc)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.schoology-steps",
+    "label": "How to export from Schoology toggle on the From Schoology tile in the Import wizard",
     "scope": "board",
     "panel": true,
     "routes": [

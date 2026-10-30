@@ -10,6 +10,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { matchFlashcardAnswer } from './flashcardMatch';
 import { isPeriodFrozen } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { staffIdentityFromToken, type StaffIdentity } from './staffAudience';
 
 // Local mirrors of the root types.ts shapes; functions cannot import root code.
 type FlashcardMode = 'flashcards' | 'write' | 'test';
@@ -54,6 +55,8 @@ export interface FlashcardCheckCaller {
   uid: string;
   studentRole: boolean;
   classIds: string[];
+  /** Verified district staff from the token; only a Staff-audience session accepts it. */
+  staff?: StaffIdentity | null;
 }
 
 export interface SubmitFlashcardCheckResult {
@@ -206,13 +209,15 @@ interface CheckAccess {
   session: Record<string, unknown>;
   pointer: Record<string, unknown>;
   sharedClassId: string | undefined;
+  /** A Staff-audience progress doc's name and email; empty for students. */
+  staffFields: Record<string, string>;
 }
 
 function assertStudentCaller(
   caller: FlashcardCheckCaller | null
 ): FlashcardCheckCaller {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
-  if (!caller.studentRole)
+  if (!caller.studentRole && !caller.staff)
     throw new HttpsError('permission-denied', 'Student sign-in required.');
   return caller;
 }
@@ -241,12 +246,36 @@ async function loadOpenCheck(
     ? (pointerSnap.data() ?? {})
     : {};
 
-  if (pointer.excluded === true)
-    throw new HttpsError('permission-denied', 'Not assigned to this student.');
-  const classIds = sessionClassIds(session);
-  const sharedClassId = caller.classIds.find((c) => classIds.includes(c));
-  if (!pointerSnap.exists && sharedClassId === undefined)
-    throw new HttpsError('permission-denied', 'Not assigned to this student.');
+  // A Staff-audience session takes signed-in district staff in place of class students.
+  const staffSession = session.audience === 'staff';
+  let sharedClassId: string | undefined;
+  let staffFields: Record<string, string> = {};
+  if (staffSession) {
+    if (!caller.staff)
+      throw new HttpsError(
+        'permission-denied',
+        'Sign in with your district account.'
+      );
+    staffFields = {
+      staffEmail: caller.staff.staffEmail,
+      staffName: caller.staff.staffName,
+    };
+  } else {
+    if (!caller.studentRole)
+      throw new HttpsError('permission-denied', 'Student sign-in required.');
+    if (pointer.excluded === true)
+      throw new HttpsError(
+        'permission-denied',
+        'Not assigned to this student.'
+      );
+    const classIds = sessionClassIds(session);
+    sharedClassId = caller.classIds.find((c) => classIds.includes(c));
+    if (!pointerSnap.exists && sharedClassId === undefined)
+      throw new HttpsError(
+        'permission-denied',
+        'Not assigned to this student.'
+      );
+  }
 
   if (session.kind !== 'check')
     throw new HttpsError('failed-precondition', 'Not a Check assignment.');
@@ -276,7 +305,7 @@ async function loadOpenCheck(
         "Your class period isn't open right now."
       );
   }
-  return { sessionRef, session, pointer, sharedClassId };
+  return { sessionRef, session, pointer, sharedClassId, staffFields };
 }
 
 // Per-period sessions keep their cards in content/cards.
@@ -298,9 +327,10 @@ async function loadCheckCards(access: CheckAccess): Promise<FlashcardCard[]> {
 
 // Fields a progress doc needs when the server writes it first.
 const newProgressFields = (
-  { pointer, sharedClassId }: CheckAccess,
+  { pointer, sharedClassId, staffFields }: CheckAccess,
   mode: FlashcardMode
 ): Record<string, unknown> => ({
+  ...staffFields,
   classId:
     typeof pointer.classId === 'string'
       ? pointer.classId
@@ -616,6 +646,7 @@ function callerFrom(
         studentRole:
           auth.token.studentRole === true && auth.token.pinLogin !== true,
         classIds: claimClassIds(auth.token.classIds),
+        staff: staffIdentityFromToken(auth.token),
       }
     : null;
 }

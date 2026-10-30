@@ -60,6 +60,7 @@ import {
   Library,
 } from 'lucide-react';
 import {
+  AssignmentAudience,
   AssignmentMode,
   QuizMetadata,
   QuizConfig,
@@ -128,6 +129,7 @@ import { applyWhen, manualStartAvailable } from '@/utils/assignAvailability';
 import { QuizAssignStepper } from './QuizAssignStepper';
 import { sharingNeedsPlc } from '@/components/common/library/assignStepper/SharingStep.format';
 import { defaultWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
+import { useAssignAudience } from '@/components/common/library/assignStepper/assignAudience';
 import type { AssignWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 import type { AssignClassesValue } from '@/utils/assignTargets';
 import { useRubrics } from '@/hooks/useRubrics';
@@ -172,6 +174,8 @@ export interface QuizStepperAssign {
   classes: AssignClassesValue;
   /** Manual: every picked class gets a closed per-period gate, one class included. */
   manualStart: boolean;
+  /** Staff: no classes; the link needs district Google sign-in. */
+  audience?: AssignmentAudience;
 }
 
 interface QuizAssignOptions {
@@ -417,6 +421,9 @@ interface QuizManagerProps {
   sharedBankSources?: BankSource[];
   onNewBank?: () => void;
   onImportBank?: () => void;
+  /** Quizzes and banks the extension sent from Schoology, waiting for review. */
+  schoologyInboxCount?: number;
+  onOpenSchoologyInbox?: () => void;
   onEditBank?: (meta: QuestionBankMetadata) => void;
   onDuplicateBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
   onDeleteBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
@@ -670,6 +677,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   sharedBankSources,
   onNewBank,
   onImportBank,
+  schoologyInboxCount = 0,
+  onOpenSchoologyInbox,
   onEditBank,
   onDuplicateBank,
   onDeleteBank,
@@ -858,6 +867,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     AssignClassesValue['studentsByClass']
   >({});
   const [assignWhen, setAssignWhen] = useState<AssignWhenValue | null>(null);
+  const assignAudience = useAssignAudience();
+  const assignToStaff = assignAudience.audience === 'staff';
   // Tracks the quiz id whose full content has been loaded/in-flight for the
   // current assign modal (F1 fix) — see `handleExpandIndividualTargeting`.
   const loadedAssignQuizDataForRef = useRef<string | null>(null);
@@ -1832,6 +1843,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setAssignQuizData(null);
     setAssignStudentsByClass({});
     setAssignWhen(null);
+    assignAudience.setAudience('students');
   };
 
   // Stepper confirm: always Assessment Mode; Manual starts every class paused (D6).
@@ -1842,9 +1854,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       ...(assignBehavior ?? getQuizAssignPrefill(lastAssignSettings)),
       sessionMode: 'student',
     };
-    const validRosters = rosters.filter(
-      (r) => !r.loadError && assignOptions.picker.rosterIds.includes(r.id)
-    );
+    const validRosters = assignToStaff
+      ? []
+      : rosters.filter(
+          (r) => !r.loadError && assignOptions.picker.rosterIds.includes(r.id)
+        );
     const validRosterIds = validRosters.map((r) => r.id);
     const effectivePeriodNames = resolveEffectivePeriodNames(
       { rosterIds: validRosterIds },
@@ -1863,7 +1877,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     };
     const bellWindow = periodAccess?.bellWindow;
     const applied = applyWhen(
-      { ...assignTargeting, availability: assignWhen.availability },
+      {
+        ...(assignToStaff ? EMPTY_ASSIGN_TARGETING_VALUE : assignTargeting),
+        availability: assignWhen.availability,
+      },
       { mode: assignWhen.mode, rosters: validRosters, bellWindow }
     );
     const perClassDue = applied.dueAtByRosterId;
@@ -1886,7 +1903,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       {
         classes: { classIds: validRosterIds, studentsByClass },
         manualStart:
-          assignWhen.mode === 'manual' && manualStartAvailable(bellWindow),
+          !assignToStaff &&
+          assignWhen.mode === 'manual' &&
+          manualStartAvailable(bellWindow),
+        ...(assignToStaff ? { audience: 'staff' as const } : {}),
       }
     );
     resetAssign();
@@ -2256,6 +2276,29 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         rightSlot={
           userId ? (
             <>
+              {schoologyInboxCount > 0 && onOpenSchoologyInbox && (
+                <button
+                  type="button"
+                  onClick={onOpenSchoologyInbox}
+                  {...tourAttr('quiz.schoology-inbox', widgetId, 'quiz')}
+                  className="inline-flex items-center rounded-lg bg-brand-blue-primary font-bold uppercase tracking-wider text-white transition-colors hover:bg-brand-blue-dark"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(11px, 4cqmin)',
+                  }}
+                  title="Review what you sent from Schoology"
+                >
+                  <Inbox
+                    style={{
+                      width: 'min(14px, 3.5cqmin)',
+                      height: 'min(14px, 3.5cqmin)',
+                    }}
+                    aria-hidden="true"
+                  />
+                  {schoologyInboxCount} from Schoology
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setTargetsModalOpen(true)}
@@ -2630,6 +2673,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             plcs,
           }}
           periodAccess={periodAccess}
+          audience={assignAudience}
           hasManualGrading={quizNeedsManualGrading(
             assignQuizData?.questions ?? []
           )}

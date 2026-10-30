@@ -90,6 +90,7 @@ import {
   useLibraryDeleteConfirm,
 } from '@/components/common/library/useLibraryDeleteConfirm';
 import type {
+  AssignmentAudience,
   AssignmentMode,
   ClassRoster,
   Plc,
@@ -122,6 +123,8 @@ export interface VideoActivityAssignExtras {
   plc: Plc | null;
   /** The assignment's own rules (va-quiz-alignment); null keeps the activity's and the board's. */
   rules?: VideoAssignRules | null;
+  /** Staff: the link needs district Google sign-in. */
+  audience?: AssignmentAudience;
 }
 
 /** A self-paced assign to open pre-filled, e.g. a live session's make-up (D18). */
@@ -834,6 +837,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           manualStart: result.manualStart,
           plc: result.plc,
           rules: result.rules,
+          audience: result.audience,
         }
       );
       if (canAssignLive) lastPacing.save(result.pacing);

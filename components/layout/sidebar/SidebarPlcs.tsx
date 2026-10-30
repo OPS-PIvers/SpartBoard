@@ -7,7 +7,6 @@ import {
   LogOut,
   Trash2,
   Mail,
-  ChevronRight,
   MoreVertical,
 } from 'lucide-react';
 
@@ -54,8 +53,6 @@ interface PlcRowProps {
   /** Gate the per-row unread listeners to while the sidebar drawer is open. */
   unreadEnabled: boolean;
   rowKey: string;
-  /** `sidebar-list-rows`: divider row with a wrapping name instead of a card. */
-  listRows: boolean;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -68,7 +65,7 @@ interface PlcRowProps {
  * Click-affordance design: the entire card is a single click target that
  * opens the PLC Dashboard. Secondary actions (edit/view, delete/leave)
  * collapse into a kebab popover. Implemented as an absolute-positioned
- * backdrop `<button>` (the row click) with the visible content + kebab
+ * backdrop button element (the row click) with the visible content + kebab
  * layered above. `pointer-events-none` on the static visual content lets
  * clicks fall through to the backdrop; `pointer-events-auto` on the kebab
  * captures its own clicks. This avoids the invalid nested-button HTML
@@ -79,7 +76,6 @@ const PlcRow: React.FC<PlcRowProps> = ({
   isLead,
   unreadEnabled,
   rowKey,
-  listRows,
   onOpen,
   onEdit,
   onDelete,
@@ -207,100 +203,41 @@ const PlcRow: React.FC<PlcRowProps> = ({
     </>
   );
 
-  if (listRows) {
-    return (
-      <li className="group relative flex items-center gap-1 py-2 px-1 hover:bg-slate-50 transition-colors">
-        <button
-          type="button"
-          onClick={onOpen}
-          {...tourFieldAttr('plcs.open-plc', 'plcs', rowKey)}
-          className="absolute inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary"
-          aria-label={t('sidebar.plcs.openDashboard', {
-            defaultValue: 'Open {{name}} dashboard',
-            name: plc.name,
-          })}
-        />
-        <div className="relative flex-1 min-w-0 py-1 pl-1.5 pointer-events-none">
-          <div className="text-sm font-bold leading-snug text-slate-800 group-hover:text-brand-blue-primary transition-colors [overflow-wrap:anywhere]">
-            {plc.name}
-          </div>
-          <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
-            {isLead && (
-              <span className="text-brand-blue-primary">
-                {`${t('sidebar.plcs.leadBadge', { defaultValue: 'Lead' })} · `}
-              </span>
-            )}
-            {`${groupTypeLabel(t, getPlcGroupType(plc))} · `}
-            {t('sidebar.plcs.memberCount', {
-              count: getPlcMembers(plc).length,
-              defaultValue: '{{count}} Member',
-              defaultValue_other: '{{count}} Members',
-            })}
-          </div>
-        </div>
-        <div className="relative flex items-center gap-0.5 shrink-0 pointer-events-auto">
-          {unreadBadge}
-          {kebabMenu}
-        </div>
-      </li>
-    );
-  }
-
   return (
-    <div className="group relative flex items-center gap-2 p-2.5 bg-white border border-slate-200 hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/20 rounded-xl transition-all">
-      {/* Backdrop click target — covers the full card so clicking anywhere
-          (except the kebab) opens the dashboard. */}
+    <li className="group relative flex items-center gap-1 py-2 px-1 hover:bg-slate-50 transition-colors">
       <button
         type="button"
         onClick={onOpen}
         {...tourFieldAttr('plcs.open-plc', 'plcs', rowKey)}
-        className="absolute inset-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        className="absolute inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary"
         aria-label={t('sidebar.plcs.openDashboard', {
           defaultValue: 'Open {{name}} dashboard',
           name: plc.name,
         })}
       />
-
-      {/* Visible content. `pointer-events-none` so clicks pass through to
-          the backdrop button. */}
-      <div className="relative flex items-center gap-2 flex-1 min-w-0 pointer-events-none">
-        <div className="shrink-0 w-8 h-8 rounded-lg bg-brand-blue-lighter flex items-center justify-center">
-          <Users2 className="w-4 h-4 text-brand-blue-primary" />
+      <div className="relative flex-1 min-w-0 py-1 pl-1.5 pointer-events-none">
+        <div className="text-sm font-bold leading-snug text-slate-800 group-hover:text-brand-blue-primary transition-colors [overflow-wrap:anywhere]">
+          {plc.name}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <div className="text-sm font-bold text-slate-800 truncate">
-              {plc.name}
-            </div>
-            {isLead && (
-              <span className="text-xxs font-bold text-brand-blue-primary bg-brand-blue-lighter px-1.5 py-0.5 rounded uppercase tracking-wider">
-                {t('sidebar.plcs.leadBadge', { defaultValue: 'Lead' })}
-              </span>
-            )}
-          </div>
-          <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
-            {`${groupTypeLabel(t, getPlcGroupType(plc))} · `}
-            {t('sidebar.plcs.memberCount', {
-              count: getPlcMembers(plc).length,
-              defaultValue: '{{count}} Member',
-              defaultValue_other: '{{count}} Members',
-            })}
-          </div>
+        <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
+          {isLead && (
+            <span className="text-brand-blue-primary">
+              {`${t('sidebar.plcs.leadBadge', { defaultValue: 'Lead' })} · `}
+            </span>
+          )}
+          {`${groupTypeLabel(t, getPlcGroupType(plc))} · `}
+          {t('sidebar.plcs.memberCount', {
+            count: getPlcMembers(plc).length,
+            defaultValue: '{{count}} Member',
+            defaultValue_other: '{{count}} Members',
+          })}
         </div>
       </div>
-
-      {/* Right-side cluster: unread badge + chevron affordance + kebab.
-          `pointer-events-auto` re-enables clicks here so the kebab fires its own
-          handler. */}
       <div className="relative flex items-center gap-0.5 shrink-0 pointer-events-auto">
         {unreadBadge}
-        <ChevronRight
-          className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors"
-          aria-hidden="true"
-        />
         {kebabMenu}
       </div>
-    </div>
+    </li>
   );
 };
 
@@ -321,11 +258,9 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
   onOpenDashboard,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user } = useAuth();
   const { showConfirm } = useDialog();
   const loading = plcsLoading;
-  const listRows = canAccessFeature('sidebar-list-rows');
-  const ListTag = listRows ? 'ul' : 'div';
 
   // `editingPlcId === null` while no modal is open. The modal is open whenever
   // either `editingPlcId` is a plc id OR `isCreating` is true. Two pieces of
@@ -486,12 +421,8 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                     defaultValue: 'Your teams',
                   })}
                 </h3>
-                <ListTag
-                  className={
-                    listRows
-                      ? 'divide-y divide-slate-200 border-y border-slate-200'
-                      : 'flex flex-col gap-2'
-                  }
+                <ul
+                  className="divide-y divide-slate-200 border-y border-slate-200"
                   {...tourAttr('plcs.plc-list')}
                 >
                   {plcs.map((plc, plcIndex) => {
@@ -505,7 +436,6 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                         isLead={isLead}
                         unreadEnabled={isVisible}
                         rowKey={`row-${plcIndex + 1}`}
-                        listRows={listRows}
                         onOpen={() => onOpenDashboard(plc.id)}
                         onEdit={() => setEditingPlcId(plc.id)}
                         onDelete={() => void handleDelete(plc)}
@@ -513,7 +443,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                       />
                     );
                   })}
-                </ListTag>
+                </ul>
               </div>
             )}
           </div>

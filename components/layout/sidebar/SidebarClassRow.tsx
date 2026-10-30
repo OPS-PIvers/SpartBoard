@@ -28,7 +28,7 @@ interface SidebarClassRowProps {
   onDelete: () => void;
 }
 
-// Divider-row layout for My Classes (`sidebar-list-rows`): the name wraps instead of truncating.
+// Divider-row layout for My Classes: the name wraps instead of truncating.
 export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
   roster: r,
   isActive,

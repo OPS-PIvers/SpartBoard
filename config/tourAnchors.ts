@@ -701,6 +701,113 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'focus.class': {
+    label: 'Class picker in Focus',
+    perWidget: true,
+  },
+  'focus.open-classes': {
+    label: 'Open Classes button in Focus',
+    perWidget: true,
+  },
+  'focus.site-input': {
+    label: 'Add a site box in Focus',
+    perWidget: true,
+  },
+  'focus.add-site': {
+    label: 'Add site button in Focus',
+    perWidget: true,
+  },
+  'focus.remove-site': {
+    label: 'Remove site button in the Focus site list',
+    perWidget: true,
+    destructive: true,
+  },
+  'focus.sites-from-board': {
+    label: "Add sites from this board's Links and Embed widgets in Focus",
+    perWidget: true,
+  },
+  'focus.saved-lists': {
+    label: 'Saved lists button in Focus',
+    perWidget: true,
+  },
+  'focus.save-list': {
+    label: 'Save these sites button in Focus saved lists',
+    perWidget: true,
+    persists: true,
+  },
+  'focus.load-list': {
+    label: 'Use button on a Focus saved list',
+    perWidget: true,
+  },
+  'focus.delete-list': {
+    label: 'Delete button on a Focus saved list',
+    perWidget: true,
+    destructive: true,
+    persists: true,
+  },
+  'focus.level': {
+    label: 'Level choice (Monitor, Redirect, Lock) in Focus',
+    perWidget: true,
+  },
+  'focus.length': {
+    label: 'Session length picker in Focus',
+    perWidget: true,
+  },
+  'focus.start': {
+    label: 'Start focus session button in Focus',
+    perWidget: true,
+    persists: true,
+  },
+  'focus.past-sessions': {
+    label: 'Past sessions button in Focus',
+    perWidget: true,
+  },
+  'focus.past-session': {
+    label: 'A past session in the Focus past sessions list',
+    perWidget: true,
+  },
+  'focus.past-back': {
+    label: 'Back button in Focus past sessions',
+    perWidget: true,
+  },
+  'focus.extend': {
+    label: 'Add 10 minutes button in a running Focus session',
+    perWidget: true,
+    persists: true,
+  },
+  'focus.release-student': {
+    label: 'Release one student button in the Focus roster',
+    perWidget: true,
+    persists: true,
+  },
+  'focus.release-class': {
+    label: 'Release class button in a running Focus session',
+    perWidget: true,
+    persists: true,
+  },
+  'focus.open-add-site': {
+    label: 'Add a site button in a running Focus session',
+    perWidget: true,
+  },
+  'focus.live-site-input': {
+    label: 'Add a site box in a running Focus session',
+    perWidget: true,
+  },
+  'focus.live-add-site': {
+    label: 'Add site button in a running Focus session',
+    perWidget: true,
+    persists: true,
+  },
+  'focus.end': {
+    label: 'End session button in a running Focus session',
+    perWidget: true,
+    destructive: true,
+    persists: true,
+  },
+  'focus.sub-check': {
+    label: "Check again button in Focus on a substitute's board",
+    perWidget: true,
+  },
   'quiz.start': {
     label: 'Start quiz session button in Quiz',
     persists: true,
@@ -734,6 +841,10 @@ export const TOUR_ANCHORS = {
   },
   'quiz.personal-targets': {
     label: 'My learning targets button in the Quiz library',
+    perWidget: true,
+  },
+  'quiz.schoology-inbox': {
+    label: 'From Schoology review button in the Quiz library',
     perWidget: true,
   },
   'quiz.select-mode': {
@@ -787,6 +898,11 @@ export const TOUR_ANCHORS = {
   },
   'assign-stepper.submit': {
     label: 'Assign button at the bottom of the Assign dialog',
+    persists: true,
+    panel: true,
+  },
+  'assign-audience.switch': {
+    label: 'Students or Staff switch in the Classes step of the Assign dialog',
     persists: true,
     panel: true,
   },
@@ -1991,6 +2107,64 @@ export const TOUR_ANCHORS = {
   },
   'quiz-import.cartridge-retry': {
     label: 'Retry failed in Quiz import',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.schoology-close': {
+    label: 'Close in From Schoology review',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.schoology-select-all': {
+    label: 'Select all in From Schoology review',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.schoology-select-none': {
+    label: 'Select none in From Schoology review',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.schoology-row-check': {
+    label: 'Item checkbox in From Schoology review, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.schoology-row-expand': {
+    label: 'Show or hide questions in From Schoology review, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.schoology-row-mode': {
+    label: 'Update or keep both in From Schoology review, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.schoology-row-discard': {
+    label: 'Discard an item in From Schoology review, by item',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-import.schoology-share-pictures': {
+    label: 'Share pictures checkbox in From Schoology review',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.schoology-cancel': {
+    label: 'Close or Done in From Schoology review',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.schoology-save': {
+    label: 'Save N in From Schoology review',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.schoology-retry': {
+    label: 'Retry failed in From Schoology review',
     perWidgetType: true,
     persists: true,
     panel: true,
@@ -12542,6 +12716,10 @@ export const TOUR_ANCHORS = {
     label: 'Open in new tab button in First 5',
     perWidget: true,
   },
+  'blooms-taxonomy.level': {
+    label: "Level tab in Bloom's Taxonomy",
+    perField: true,
+  },
   'talking-tool.category': {
     label: 'Category tab in Talking Tool',
     perField: true,
@@ -14917,6 +15095,11 @@ export const TOUR_ANCHORS = {
   'import-wizard.bulk-file': {
     label:
       'Choose file button on the bulk export tile in the Import wizard (Schoology .imscc)',
+    panel: true,
+  },
+  'import-wizard.schoology-steps': {
+    label:
+      'How to export from Schoology toggle on the From Schoology tile in the Import wizard',
     panel: true,
   },
   'import-wizard.pick-sheet': {

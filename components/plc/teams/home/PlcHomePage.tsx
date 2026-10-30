@@ -1,4 +1,4 @@
-// PLC Home (`plc-home-tab`): the live data behind PlcHomeView.
+// PLC Home: the live data behind PlcHomeView.
 
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

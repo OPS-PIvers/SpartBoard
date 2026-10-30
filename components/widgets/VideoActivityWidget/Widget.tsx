@@ -788,7 +788,8 @@ const TeacherVideoActivityWidget: React.FC<{
             derived.classPeriodByClassId,
             sessionOptions,
             periodGate,
-            sessionMode
+            sessionMode,
+            extras?.audience
           );
           // A tour's sandbox hands back a made-up session with no docs behind it.
           const sandboxed = isSandboxId(sessionId);

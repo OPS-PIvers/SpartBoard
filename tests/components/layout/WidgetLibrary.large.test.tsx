@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, act } from '@testing-library/react';
 
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn() }),
@@ -74,6 +74,30 @@ describe('WidgetLibrary size', () => {
       triggerRef: { current: dock },
     });
     expect(overlay.style.paddingLeft).toBe('246px');
+    dock.remove();
+  });
+
+  it('re-measures when the dock finishes collapsing while the library is open', () => {
+    const dock = document.createElement('div');
+    const label = dock.appendChild(document.createElement('span'));
+    let top = 960;
+    dock.getBoundingClientRect = () => ({ top }) as DOMRect;
+    document.body.appendChild(dock);
+    const { overlay } = renderLibrary({
+      large: true,
+      dockPosition: 'bottom',
+      triggerRef: { current: dock },
+    });
+    expect(overlay.style.paddingBottom).toBe('16px');
+    top = window.innerHeight - 80;
+    act(() => {
+      label.dispatchEvent(new Event('transitionend', { bubbles: true }));
+    });
+    expect(overlay.style.paddingBottom).toBe('16px');
+    act(() => {
+      dock.dispatchEvent(new Event('transitionend', { bubbles: true }));
+    });
+    expect(overlay.style.paddingBottom).toBe('96px');
     dock.remove();
   });
 });

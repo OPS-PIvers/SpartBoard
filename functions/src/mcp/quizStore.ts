@@ -505,6 +505,7 @@ export function buildMetadata(
     order: existing?.order,
     sync: existing?.sync,
     claudeCreatedAt: existing?.claudeCreatedAt,
+    sourceKey: existing?.sourceKey,
     ...claude,
   };
   if (kind === 'bank') {

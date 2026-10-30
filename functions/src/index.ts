@@ -314,6 +314,13 @@ export {
   webTourRunV1,
 } from './webTourExtension';
 
+// Schoology quiz import: the extension posts read quizzes to the teacher's review inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8).
+export {
+  schoologyImportStatusV1,
+  schoologyImportInboxV1,
+  schoologyImportInboxCleanup,
+} from './schoologyQuizImport';
+
 // Focus sessions: the student's extension checks its session and reports status (docs/plans/CHROME_EXTENSION.md F3).
 export { focusStatusV1, focusReportV1 } from './focus/studentEndpoints';
 

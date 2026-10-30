@@ -5,6 +5,7 @@
 
 import { tourAttr } from '@/config/tourAnchors';
 import React, { useId, useMemo, useState } from 'react';
+import { staffResultsLabel } from '@/utils/staffAudience';
 import {
   Download,
   ExternalLink,
@@ -399,6 +400,9 @@ export const Results: React.FC<ResultsProps> = ({
         submittedAt: r.completedAt,
         tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
         tabExits: r.tabExits,
+        ...(r.staffEmail
+          ? { staffEmail: r.staffEmail, staffName: r.staffName ?? '' }
+          : {}),
       }));
 
       // Pass `byStudentUid` so SSO `studentRole` rows (no PIN) export with
@@ -1050,6 +1054,7 @@ export const Results: React.FC<ResultsProps> = ({
                   // `formatStudentName` returns '' on roster miss and legacy rows may carry '' for `r.name`.
                   const displayName =
                     [
+                      staffResultsLabel(r),
                       formatStudentName(byStudentUid.get(r.studentUid)),
                       r.name,
                       r.pin,

@@ -192,6 +192,13 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'quiz.import',
     files: [`${C}CartridgeBankImportModal.tsx`],
   },
+  'quiz.import.schoology': {
+    label: 'From Schoology review dialog',
+    kind: 'modal',
+    opensWith: 'quiz.schoology-inbox',
+    needs: ['widget-on-stage'],
+    files: [`${C}SchoologyInboxModal.tsx`],
+  },
   'quiz.banks': {
     label: 'Question banks library',
     kind: 'panel',

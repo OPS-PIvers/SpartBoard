@@ -61,4 +61,5 @@ export const WIDGET_TYPE_LIST: readonly string[] = [
   'stations',
   'projects',
   'arts-letters-agenda',
+  'focus',
 ];

@@ -64,6 +64,7 @@ export const getTitle = (
   if (widget.type === 'starter-pack') return 'Starter Pack';
   if (widget.type === 'routineGuide') return 'Routine Guide';
   if (widget.type === 'arts-letters-agenda') return 'Arts & Letters Agenda';
+  if (widget.type === 'focus') return 'Focus';
   return widget.type.charAt(0).toUpperCase() + widget.type.slice(1);
 };
 

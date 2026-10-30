@@ -225,6 +225,7 @@ describe('DashboardView Gestures & Navigation', () => {
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { uid: 'teacher-1' },
       canAccessFeature: vi.fn().mockReturnValue(true),
+      canAccessWidget: vi.fn().mockReturnValue(true),
     });
     (useLiveSession as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       session: null,

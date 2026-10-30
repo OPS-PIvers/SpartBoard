@@ -28,8 +28,7 @@ export function useStandardsFromPrompt(
   currentText: () => string | undefined,
   currentTargets: () => QuestionTargetTag[] | undefined
 ) {
-  const { canAccessFeature, subjectsTaught, effectiveGrades } = useAuth();
-  const enabled = canAccessFeature('standards-from-question-text');
+  const { subjectsTaught, effectiveGrades } = useAuth();
   const [taken, setTaken] = useState<Taken | null>(null);
 
   const onPromptBlur = useCallback(
@@ -38,7 +37,7 @@ export function useStandardsFromPrompt(
       text: string,
       targets: QuestionTargetTag[] | undefined
     ) => {
-      if (!enabled || findStandardRuns(text).length === 0) return;
+      if (findStandardRuns(text).length === 0) return;
       let benchmarks;
       try {
         benchmarks = await loadCatalog();
@@ -70,7 +69,6 @@ export function useStandardsFromPrompt(
       });
     },
     [
-      enabled,
       currentText,
       currentTargets,
       subjectsTaught,

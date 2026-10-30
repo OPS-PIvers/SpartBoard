@@ -494,10 +494,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
-  const normingEnabled =
-    canAccessFeature('plc-norming-flags') &&
-    !!session?.plcId &&
-    !!session.syncGroupId;
+  const normingEnabled = !!session?.plcId && !!session.syncGroupId;
   const myNormingFlags = useMyNormingFlags(
     user?.uid,
     session?.id,

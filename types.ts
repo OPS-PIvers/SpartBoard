@@ -1,4 +1,5 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import type { FocusSite } from '@/utils/focus/contract';
 
 export type WidgetType =
   | 'clock'
@@ -68,7 +69,8 @@ export type WidgetType =
   | 'projects'
   | 'review'
   | 'routineGuide'
-  | 'arts-letters-agenda';
+  | 'arts-letters-agenda'
+  | 'focus';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -2053,6 +2055,29 @@ export type ArtsLettersAgendaPartId = string;
 
 export type ArtsLettersAgendaVersion = 'simple' | 'detailed';
 
+/** A named list of focus sites; lives only in the profile's `savedWidgetPresets.focus`, never on a widget. */
+export interface FocusSavedSiteList {
+  id: string;
+  name: string;
+  sites: FocusSite[];
+  createdAt: number;
+}
+
+/** Focus widget (CHROME_EXTENSION.md F12); the session itself lives in `focus_sessions`. */
+export interface FocusConfig {
+  /** The teacher's roster for the class; must carry a ClassLink or mock class id. */
+  rosterId?: string;
+  /** That roster's class id, kept so a sub on a shared copy of the board can find the running session. */
+  classId?: string;
+  className?: string;
+  sites?: FocusSite[];
+  level?: FocusLevel;
+  minutes?: number;
+  savedSiteLists?: FocusSavedSiteList[];
+  /** Counts only on the face, for projecting. */
+  hideNames?: boolean;
+}
+
 export interface ArtsLettersAgendaConfig {
   version?: ArtsLettersAgendaVersion;
   /** Building whose admin lists this widget uses; set on first edit so other viewers see the same boxes. */
@@ -3003,6 +3028,8 @@ export type BloomsContent = Partial<
 
 export interface BloomsTaxonomyConfig {
   enabledCategories?: BloomsCategoryKey[];
+  cardColor?: string;
+  cardOpacity?: number;
   aiTopic?: string;
   themeColor?: string;
 }
@@ -3800,7 +3827,10 @@ export interface MiniAppConfig {
  * Created by teachers; read by students via the `/miniapp/{sessionId}` route.
  */
 export interface MiniAppSession
-  extends PeriodAccessSessionFields, SessionWorkKindFields {
+  extends
+    PeriodAccessSessionFields,
+    SessionWorkKindFields,
+    AudienceSessionFields {
   id: string;
   appId: string;
   appTitle: string;
@@ -3880,9 +3910,9 @@ export interface MiniAppSession
  *   - The anonymous Firebase Auth UID for legacy shared-link launches. Also
  *     stable per-device per-session.
  *
- * No PII is ever persisted — the submission shape is deliberately opaque.
+ * No PII is ever persisted for students; a Staff-audience submission carries the staff member's name and email.
  */
-export interface MiniAppSubmission {
+export interface MiniAppSubmission extends StaffResponseFields {
   submittedAt: number;
   /**
    * The submitting student's Firebase Auth uid. Matches `request.auth.uid` at
@@ -4560,6 +4590,16 @@ export const QUESTION_BANK_SIZE_WARN = 200;
 /** Hard cap on fixed + pool questions in one assignment (assign is blocked past it). */
 export const QUIZ_ASSIGNMENT_POOL_CAP = 150;
 
+/** Where an imported quiz or bank came from (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q11). */
+export interface ImportSource {
+  system: 'schoology';
+  kind: 'testQuiz' | 'assessment' | 'questionBank';
+  itemId: string;
+  sectionId?: string;
+  collectionId?: string;
+  importedAt: number;
+}
+
 /** Drive JSON for a question bank: the QuizData shape plus bank-level tags. */
 export interface QuestionBankData {
   id: string;
@@ -4569,6 +4609,7 @@ export interface QuestionBankData {
   /** Inherited by every question when it is copied into a quiz or frozen into a pool. */
   targets?: QuestionTargetTag[];
   language?: string;
+  source?: ImportSource;
   createdAt: number;
   updatedAt: number;
 }
@@ -4597,6 +4638,8 @@ export interface QuestionBankMetadata {
   /** targetId → questions eligible for that tag (bank tags count every question). */
   targetCounts: Record<string, number>;
   sync?: QuestionBankSyncLinkage;
+  /** `importSourceKey` of the bank's `source`, so a re-import finds it without a Drive read. */
+  sourceKey?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -4894,6 +4937,7 @@ export interface QuizData {
   order?: QuizOrderEntry[];
   /** Section records the `order` entries of kind `section` point at. */
   sections?: QuizSection[];
+  source?: ImportSource;
   createdAt: number;
   updatedAt: number;
 }
@@ -4964,6 +5008,8 @@ export interface QuizMetadata {
   translations?: Record<string, QuizTranslationIndexEntry>;
   /** Copy of `QuizData.language` (D32). Absent = English. */
   language?: string;
+  /** `importSourceKey` of the quiz's `source`, so a re-import finds it without a Drive read. */
+  sourceKey?: string;
 }
 
 /** One locale's row in `QuizMetadata.translations`; a Drive-free coverage answer (plan §3.3). */
@@ -5247,6 +5293,20 @@ export interface QuizLeaderboardEntry {
   rank: number;
 }
 
+/** Who an assignment is for; absent means students. A Staff link needs district Google sign-in. */
+export type AssignmentAudience = 'students' | 'staff';
+
+/** Frozen on a session and its assignment doc at assign time. */
+export interface AudienceSessionFields {
+  audience?: AssignmentAudience;
+}
+
+/** A Staff-audience joiner's identity, copied from their ID token; the rules check both. */
+export interface StaffResponseFields {
+  staffEmail?: string;
+  staffName?: string;
+}
+
 /**
  * Stamped on both docs a substitute's launch writes — the session and the
  * teacher's own assignment record (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.6,
@@ -5304,7 +5364,8 @@ export interface QuizSession
   extends
     SubLaunchedSessionFields,
     PeriodAccessSessionFields,
-    SessionWorkKindFields {
+    SessionWorkKindFields,
+    AudienceSessionFields {
   id: string; // session UUID (same as QuizAssignment.id)
   /** FK back to /users/{teacherUid}/quiz_assignments/{assignmentId}. 1:1 with session. */
   assignmentId: string;
@@ -5416,6 +5477,8 @@ export interface QuizSession
   focusLevel?: FocusLevel;
   /** Stamped only with the quiz-stimulus-quotes flag; absent = no quote button. */
   allowStimulusQuotes?: boolean;
+  /** Stamped only with the quiz-cross-out flag; absent = no cross-out buttons. */
+  allowCrossOut?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
   showResultToStudent?: boolean;
   /** Reveal the correct answer text to students after submit (default false) */
@@ -5893,7 +5956,7 @@ export interface TabExit {
 /** Rules refuse a log past this length; the warning count keeps going. */
 export const TAB_EXITS_MAX = 50;
 
-export interface QuizResponse {
+export interface QuizResponse extends StaffResponseFields {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
    * teacher/student hooks from snapshot.doc.id; never persisted as a field.
@@ -7591,7 +7654,8 @@ export interface VideoActivitySession
   extends
     SubLaunchedSessionFields,
     PeriodAccessSessionFields,
-    SessionWorkKindFields {
+    SessionWorkKindFields,
+    AudienceSessionFields {
   id: string;
   activityId: string;
   activityTitle: string;
@@ -7763,7 +7827,7 @@ export interface VideoActivityAnswer {
  *
  * Stored at /video_activity_sessions/{sessionId}/responses/{responseKey}
  */
-export interface VideoActivityResponse {
+export interface VideoActivityResponse extends StaffResponseFields {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
    * teacher hook from snapshot.doc.id; never persisted as a field. Callers
@@ -8969,6 +9033,7 @@ export interface GuidedLearningPublicStep {
 export interface GuidedLearningSession
   extends
     SubLaunchedSessionFields,
+    AudienceSessionFields,
     PeriodAccessSessionFields,
     SessionWorkKindFields {
   id: string;
@@ -9079,7 +9144,7 @@ export interface GuidedLearningSession
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
-export interface GuidedLearningResponse {
+export interface GuidedLearningResponse extends StaffResponseFields {
   sessionId: string;
   studentAnonymousId: string;
   pin?: string;
@@ -9453,7 +9518,8 @@ export interface FlashcardSession
   extends
     SubLaunchedSessionFields,
     PeriodAccessSessionFields,
-    SessionWorkKindFields {
+    SessionWorkKindFields,
+    AudienceSessionFields {
   id: string;
   teacherUid: string;
   setId: string;
@@ -9488,7 +9554,10 @@ export interface FlashcardSession
 
 /** `users/{uid}/flashcard_assignments/{assignmentId}`: the teacher's record (id == session id). */
 export interface FlashcardAssignment
-  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
+  extends
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields,
+    AudienceSessionFields {
   id: string;
   sessionId: string;
   setId: string;
@@ -9521,7 +9590,8 @@ export interface FlashcardAssignment
 }
 
 /** `flashcard_sessions/{assignmentId}/progress/{studentUid}`. */
-export interface FlashcardProgress extends FlashcardStudyState {
+export interface FlashcardProgress
+  extends FlashcardStudyState, StaffResponseFields {
   classId: string;
   studyMs: number;
   modesUsed: FlashcardMode[];
@@ -9886,7 +9956,8 @@ export type WidgetConfig =
   | StationsConfig
   | FlashcardsConfig
   | ProjectsConfig
-  | ArtsLettersAgendaConfig;
+  | ArtsLettersAgendaConfig
+  | FocusConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -10025,7 +10096,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                       ? RoutineGuideConfig
                                                                                                                                       : T extends 'arts-letters-agenda'
                                                                                                                                         ? ArtsLettersAgendaConfig
-                                                                                                                                        : never;
+                                                                                                                                        : T extends 'focus'
+                                                                                                                                          ? FocusConfig
+                                                                                                                                          : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -10537,6 +10610,8 @@ export type GlobalFeature =
   /** Import every question bank in a Schoology collection export (.imscc) at once. */
   | 'question-bank-imscc-import'
   | 'quiz-imscc-import'
+  /** Import Schoology Tests/Quizzes, Assessments and question banks (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q14). */
+  | 'schoology-quiz-import'
   /** Paper answer sheets; only meaningful while the district switch is on. */
   | 'paper-answer-sheets'
   /** Saved class groups inside board widgets; AND-ed with the district switch. */
@@ -10559,16 +10634,12 @@ export type GlobalFeature =
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
   | 'quiz-stimulus-quotes'
+  /** Students cross out multiple-choice options while they work; display only, never graded. */
+  | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
-  /** Per-period start/pause and windows on assignments shared by several classes. */
-  | 'per-period-access'
-  /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
-  | 'plc-norming-flags'
-  /** Standard codes typed in or imported with a question text become Learning targets tags. */
-  | 'standards-from-question-text'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -10610,6 +10681,7 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
+  | 'blooms-question-starters'
   | 'dashboard-layout'
   | 'instructional-routine'
   | 'ocr'
@@ -10625,18 +10697,12 @@ export type GlobalFeature =
   | 'library-folder-reorder'
   /** Simple/Detailed choice in Arts & Letters Agenda settings. */
   | 'agenda-versions'
-  /** PLC teams open on a Home page; Data overview becomes a regular tab. */
-  | 'plc-home-tab'
-  /** Team leads pick any page that is switched on as the team's landing page. */
-  | 'team-landing-any-page'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
   /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
   | 'schoology-tool-columns'
-  /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
-  | 'widget-whats-new'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
@@ -10653,8 +10719,6 @@ export type GlobalFeature =
   | 'activity-wall-timeline-dates'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
-  /** Synced and View-Only collection sharing (docs/plans/COLLECTION_SHARING.md). */
-  | 'collection-sync-sharing'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
   | 'seating-chart-plans'
   /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
@@ -10667,8 +10731,6 @@ export type GlobalFeature =
   | 'document-camera-pro'
   /** Drawing zoom and pan, highlighter, laser pointer, sticky notes, shape polish and copy/paste (pro-grade-2/WHITEBOARD_PLAN.md). */
   | 'whiteboard-pro'
-  /** My Classes and My Teams sidebar lists as divider rows with full names and a row actions menu. */
-  | 'sidebar-list-rows'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
   /** Widget Library fills most of the screen instead of a small fixed box. */
@@ -10682,7 +10744,9 @@ export type GlobalFeature =
   /** Timer button on the Music widget that opens a Timer linked to it. */
   | 'music-timer-link'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
-  | 'focus-sessions';
+  | 'focus-sessions'
+  /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
+  | 'staff-audience';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -11775,7 +11839,10 @@ export interface MiniAppAssignment extends PeriodAccessSessionFields {
 export type GuidedLearningAssignmentStatus = 'active' | 'archived';
 
 export interface GuidedLearningAssignment
-  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
+  extends
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields,
+    AudienceSessionFields {
   /** Document id — matches the session id. */
   id: string;
   /** ID of the set that was assigned. */

@@ -4,13 +4,11 @@ import {
   CalendarRange,
   Trophy,
   Camera,
-  FolderSync,
   PenLine,
   BarChart,
   BellRing,
   Bot,
   Building2,
-  CalendarClock,
   Cast,
   ClipboardCheck,
   Download,
@@ -21,9 +19,7 @@ import {
   FileUp,
   Gauge,
   Globe,
-  Home,
   GraduationCap,
-  Flag,
   Footprints,
   Languages,
   Layers,
@@ -31,7 +27,6 @@ import {
   LayoutGrid,
   Library,
   Link2,
-  List,
   ListChecks,
   ListOrdered,
   Mic,
@@ -56,11 +51,12 @@ import {
   Volume2,
   Wand2,
   Zap,
-  BookMarked,
   Quote,
+  Strikethrough,
   Calculator,
   Utensils,
   CloudSun,
+  Triangle,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -468,14 +464,14 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Bulk-import every question bank in a Schoology .imscc export. Admin-only until Paul has run it.
+  // Folded into schoology-quiz-import (SCHOOLOGY_QUIZ_IMPORT PR 5); retire both .imscc flags once that one opens.
   'question-bank-imscc-import': {
     label: 'Import question banks from Schoology',
     icon: FileUp,
     description:
       'Import every question bank in a Schoology export (.imscc) at once.',
     stage: 'preview',
-    afterLaunch: 'keep',
+    afterLaunch: 'retire',
     widget: 'quiz',
     modalLabel: 'Import question banks from Schoology',
     group: 'building',
@@ -488,9 +484,23 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: FileUp,
     description: 'Import every quiz in a Schoology export (.imscc) at once.',
     stage: 'preview',
-    afterLaunch: 'keep',
+    afterLaunch: 'retire',
     widget: 'quiz',
     modalLabel: 'Import quizzes from Schoology',
+    group: 'building',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'schoology-quiz-import': {
+    label: 'Send quizzes from Schoology',
+    icon: FileUp,
+    description:
+      'Bring Schoology Tests/Quizzes, Assessments and question banks into SpartBoard, with the Chrome extension or a Schoology export.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Send quizzes from Schoology',
     group: 'building',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
@@ -616,6 +626,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Cross out answer choices. Admin-only until Paul has tested it in prod.
+  'quiz-cross-out': {
+    label: 'Cross out answer choices',
+    icon: Strikethrough,
+    description:
+      'Students cross out multiple-choice options they have ruled out.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Desmos calculator stimulus on quiz questions. Admin-only until Paul has tested it in prod.
   'quiz-calculator-stimulus': {
     label: 'Calculator stimulus',
@@ -633,38 +656,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Live tour editing v2',
     icon: Footprints,
     description: 'Sandboxed tour replays, step checkpoints and tour materials.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Per-period start/pause on shared assignments. Admin-only until Paul has run a class on it.
-  'per-period-access': {
-    label: 'Start and pause each class period',
-    icon: CalendarClock,
-    description: 'Open and pause each class period.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // PLC norming flags: anonymized answer copies on the PLC page. Admin-only until Paul has tried it.
-  'plc-norming-flags': {
-    label: 'PLC norming flags',
-    icon: Flag,
-    description: 'Flag answers for PLC norming.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'standards-from-question-text': {
-    label: 'Standards typed in questions',
-    icon: BookMarked,
-    description: 'Codes in question text become Learning targets.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -766,30 +757,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ListOrdered,
     description:
       'A Simple or Detailed choice in Arts & Letters Agenda settings, using the boxes admins set for each building.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // PLC teams open on Home: charts over time, the latest assessment and team tools.
-  'plc-home-tab': {
-    label: 'PLC Home page',
-    icon: Home,
-    description:
-      'PLC teams open on a Home page with results over time and team tools. Data overview becomes its own tab.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Team layout's Landing page picker lists every page that is switched on, not only the hub page.
-  'team-landing-any-page': {
-    label: 'Team landing page choice',
-    icon: Home,
-    description:
-      'Team leads can pick any page that is switched on as the page the team opens on.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1064,6 +1031,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'blooms-question-starters': {
+    label: "Bloom's Taxonomy: question starters",
+    icon: Triangle,
+    description: 'Level tabs with question starters and key words.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'blooms-taxonomy',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'dashboard-layout': {
     label: 'Magic Layout: AI',
     icon: Sparkles,
@@ -1152,16 +1130,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'widget-whats-new': {
-    label: "Widget what's new",
-    icon: Sparkles,
-    description: "A What's new button under a widget after its look changes.",
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1257,17 +1225,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Synced and View-Only collection sharing (COLLECTION_SHARING.md). Admin-only until Paul has shared with it.
-  'collection-sync-sharing': {
-    label: 'Synced collection sharing',
-    icon: FolderSync,
-    description: 'Share a collection that you and a colleague both edit.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'seating-chart-plans': {
     label: 'Seating Chart: seating plans',
     icon: LayoutGrid,
@@ -1335,17 +1292,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'drawing',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'sidebar-list-rows': {
-    label: 'Sidebar class and team lists',
-    icon: List,
-    description:
-      'My Classes and My Teams show full names in simple rows, with row actions in a menu.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1433,6 +1379,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Assign to Staff: the link needs district Google sign-in and results show each person's name and email.
+  'staff-audience': {
+    label: 'Assign to staff',
+    icon: UsersRound,
+    description:
+      'Assign quizzes, videos, mini apps, flashcards and guided learning to district staff.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'sharing',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */
@@ -1490,6 +1449,7 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   review: 'admin',
   routineGuide: 'admin',
   'arts-letters-agenda': 'admin',
+  focus: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

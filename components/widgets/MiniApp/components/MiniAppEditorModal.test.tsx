@@ -51,22 +51,29 @@ function setup(flags: string[], resultsOn = false) {
   );
 }
 
-const codeBox = () => screen.getByPlaceholderText(/Paste your HTML/);
+const codeBox = () => {
+  if (!screen.queryByPlaceholderText(/Paste your HTML/)) {
+    fireEvent.click(screen.getByRole('tab', { name: /Code/ }));
+  }
+  return screen.getByPlaceholderText(/Paste your HTML/);
+};
 
 beforeEach(() => vi.clearAllMocks());
 
 describe('MiniAppEditorModal editor gate', () => {
-  it('keeps the dark code box and no preview without the flag', () => {
+  it('opens on the live preview with a Code toggle without the flag', () => {
     setup(AI);
-    expect(screen.queryByRole('tab', { name: /Preview/ })).toBeNull();
-    expect(codeBox()).toHaveClass('bg-slate-900');
+    const preview = screen.getByTitle(/preview$/);
+    expect(preview.tagName).toBe('IFRAME');
+    expect(preview.getAttribute('sandbox')).not.toContain('allow-same-origin');
+    expect(screen.queryByPlaceholderText(/Paste your HTML/)).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: /Code/ }));
+    expect(codeBox()).toHaveClass('bg-white');
     expect(screen.queryByRole('button', { name: /Try as student/ })).toBeNull();
   });
 
-  it('shows Preview/Code, the light box and Try as student with the flag alone', () => {
+  it('shows Try as student with the flag alone', () => {
     setup([...AI, 'mini-app-results']);
-    fireEvent.click(screen.getByRole('tab', { name: /Code/ }));
-    expect(codeBox()).toHaveClass('bg-white');
     expect(
       screen.getByRole('button', { name: /Try as student/ })
     ).toBeInTheDocument();

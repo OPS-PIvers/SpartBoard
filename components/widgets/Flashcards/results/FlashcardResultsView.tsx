@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart3, EyeOff, Loader2, Pause, Play, Send } from 'lucide-react';
+import { staffResultsLabel } from '@/utils/staffAudience';
 import type { FlashcardAssignment, FlashcardScoreVisibility } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -151,10 +152,17 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   );
 
   const nameFor = useMemo(() => {
+    // Staff-audience progress names its own staff member.
+    const staffNames = new Map<string, string>();
+    for (const result of results) {
+      const label = staffResultsLabel(result);
+      if (label) staffNames.set(result.studentUid, label);
+    }
     return (studentUid: string): string =>
-      formatStudentName(byStudentUid.get(studentUid)) ||
-      `Student ${studentUid.slice(0, 6)}`;
-  }, [byStudentUid]);
+      staffNames.get(studentUid) ??
+      (formatStudentName(byStudentUid.get(studentUid)) ||
+        `Student ${studentUid.slice(0, 6)}`);
+  }, [byStudentUid, results]);
 
   const testsByStudent = useMemo(() => {
     const map: Record<string, { at: number; count: number; score: number }[]> =

@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Play } from 'lucide-react';
 import type {
+  AssignmentAudience,
   ClassRoster,
   Plc,
   StudentTargetRef,
@@ -24,6 +25,7 @@ import {
   type AssignStepId,
 } from './assignSteps';
 import { ClassPickerMenu } from './ClassPickerMenu';
+import { useAssignAudience, withAudienceSwitch } from './assignAudience';
 import { StudentPickMenu } from './StudentPickMenu';
 import {
   formatClassesValue,
@@ -65,6 +67,8 @@ export interface VideoAssignStepperResult {
   plc: Plc | null;
   /** The assignment's rules (va-quiz-alignment); null for live or when the rule steps are off. */
   rules: VideoAssignRules | null;
+  /** Staff: no classes; the link needs district Google sign-in. Self-paced only. */
+  audience: AssignmentAudience;
 }
 
 export interface VideoAssignStepperProps {
@@ -117,10 +121,14 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
   const [classesState, setClasses] = useState<AssignClassesValue>(() =>
     initialClassesValue(rosters, initialClassIds, initialStudents)
   );
-  // Live is one whole class (D5a).
-  const classes: AssignClassesValue = live
-    ? { classIds: classesState.classIds.slice(0, 1), studentsByClass: {} }
-    : classesState;
+  const audienceState = useAssignAudience();
+  const staff = !live && audienceState.audience === 'staff';
+  // Live is one whole class (D5a); Staff has none.
+  const classes: AssignClassesValue = staff
+    ? { classIds: [], studentsByClass: {} }
+    : live
+      ? { classIds: classesState.classIds.slice(0, 1), studentsByClass: {} }
+      : classesState;
   const pickedRosters = visibleRosters.filter((r) =>
     classes.classIds.includes(r.id)
   );
@@ -233,22 +241,34 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
   };
   const steps = getAssignSteps('video', ctx)
     .map((id) => bodies[id]())
-    .filter((s): s is AssignStepDef => s !== null);
+    .filter((s): s is AssignStepDef => s !== null)
+    .map((s) =>
+      s.id === 'classes' && !live ? withAudienceSwitch(s, audienceState) : s
+    );
 
   const backwards =
     !live && whenBackwards(when, pickedRosters, periodAccess?.bellWindow);
   const submit = async () => {
-    const manualStart = !live && when.mode === 'manual' && manualAvailable;
+    const manualStart =
+      !live && !staff && when.mode === 'manual' && manualAvailable;
     const resolved = live
       ? EMPTY_ASSIGN_TARGETING_VALUE
-      : applyWhen(
-          { ...targeting, availability: when.availability },
-          {
-            mode: when.mode,
-            rosters: pickedRosters,
-            bellWindow: periodAccess?.bellWindow,
-          }
-        ).targeting;
+      : staff
+        ? applyWhen(
+            {
+              ...EMPTY_ASSIGN_TARGETING_VALUE,
+              availability: when.availability,
+            },
+            { mode: when.mode, rosters: [], bellWindow: undefined }
+          ).targeting
+        : applyWhen(
+            { ...targeting, availability: when.availability },
+            {
+              mode: when.mode,
+              rosters: pickedRosters,
+              bellWindow: periodAccess?.bellWindow,
+            }
+          ).targeting;
     await onSubmit({
       pacing,
       classes,
@@ -256,6 +276,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
       manualStart,
       plc: sharedPlc,
       rules,
+      audience: staff ? 'staff' : 'students',
     });
   };
 

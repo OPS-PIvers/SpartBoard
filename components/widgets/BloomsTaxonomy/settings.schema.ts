@@ -17,6 +17,8 @@ export default defineSettings<BloomsTaxonomyConfig>({
           key: 'enabledCategories',
           type: 'custom',
           label: 'contentCategories',
+          visibleWhen: (ctx) =>
+            !ctx.canAccessFeature('blooms-question-starters'),
           searchTerms: [
             'questionStems',
             'actionVerbs',

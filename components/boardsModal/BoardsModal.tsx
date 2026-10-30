@@ -64,7 +64,6 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const confirmLinkedCollectionMove = useConfirmLinkedCollectionMove();
   const { isAdmin, canAccessFeature } = useAuth();
   const canShare = canAccessFeature('dashboard-sharing');
-  const collectionSync = canAccessFeature('collection-sync-sharing');
   const {
     dashboards,
     activeDashboard,
@@ -762,9 +761,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               }
               subShareEndsAt={subShares.endsAtFor(c.id)}
               liveShareRole={
-                collectionSync &&
-                c.linkedCollectionId &&
-                !c.linkedCollectionEnded
+                c.linkedCollectionId && !c.linkedCollectionEnded
                   ? c.linkedCollectionRole === 'owner'
                     ? 'host'
                     : 'member'
@@ -882,17 +879,11 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         <ShareCollectionLinkCreatorModal
           isOpen
           collection={shareCollectionTarget}
-          {...(collectionSync
-            ? shareCollectionTree(
-                shareCollectionTarget,
-                collections,
-                dashboards
-              )
-            : {
-                boards: dashboards.filter(
-                  (d) => (d.collectionId ?? null) === shareCollectionTarget.id
-                ),
-              })}
+          {...shareCollectionTree(
+            shareCollectionTarget,
+            collections,
+            dashboards
+          )}
           inLiveShare={touchesLiveCollectionShare(
             shareCollectionTarget,
             collections

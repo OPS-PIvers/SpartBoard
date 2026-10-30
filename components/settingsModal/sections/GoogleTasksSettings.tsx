@@ -137,7 +137,7 @@ export const GoogleTasksSettings: React.FC = () => {
                 defaultValue: 'Google Tasks stopped syncing.',
               })}
             </span>
-            <button
+            <button // no-tour-anchor: shows only after Google Tasks sync fails
               type="button"
               onClick={() => {
                 void setEnabled(true);

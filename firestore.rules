@@ -84,6 +84,24 @@ service cloud.firestore {
       return request.auth.token.get('email_verified', false) == true &&
              request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$');
     }
+    // Staff audience: a session with audience 'staff' takes only verified district
+    // staff, whose response names them from their own token; any other session's
+    // responses carry no staff fields, so a student cannot pose as staff.
+    function staffJoinOk(s, d) {
+      return s.get('audience', '') != 'staff'
+        ? !d.keys().hasAny(['staffEmail', 'staffName'])
+        : isVerifiedDistrictEmail() && !isStudentRoleUser() &&
+          d.get('staffEmail', '') == request.auth.token.email.lower() &&
+          d.get('staffName', '') == request.auth.token.get('name', '');
+    }
+    // Quiz and Video Activity response keys: SSO and staff joiners key by uid, PIN
+    // joiners by `pin-{period}-{pin}` unless the teacher closed anonymous joins.
+    function joinKeyOk(s, key) {
+      return (isStudentRoleUser() || s.get('audience', '') == 'staff')
+        ? key == authUid()
+        : key.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$') &&
+          s.get('allowAnonymousJoin', true) != false;
+    }
 
     // ---- Optional-field type guards ----
     // optX(d, 'k') is exactly `!('k' in d) || d.k is X`, written once instead of
@@ -5046,11 +5064,8 @@ service cloud.firestore {
           // Block joins before the assignment's open time (M17).
           afterOpen(sessionData()) &&
           periodJoinOk(sessionData(), incoming()) &&
-          (isStudentRoleUser()
-            ? responseKey == authUid()
-            // PIN joins honor the teacher's anonymous-join stamp.
-            : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$') &&
-              sessionData().get('allowAnonymousJoin', true) != false);
+          staffJoinOk(sessionData(), incoming()) &&
+          joinKeyOk(sessionData(), responseKey);
         // The student branch runs first so a student's write skips the teacher and admin checks.
         allow update: if signedIn() && (
           // Students update only their own response (ownership via studentUid, not the key).
@@ -5788,7 +5803,8 @@ service cloud.firestore {
         allow create: if signedIn() &&
           // Join fields only: no session-shaped fields a server reader could trust.
           incoming().keys().hasOnly(['studentUid', 'joinedAt', 'answers', 'completedAt', 'score',
-            'completedAttempts', 'tabSwitchWarnings', 'pin', 'name', 'classPeriod', 'classId']) &&
+            'completedAttempts', 'tabSwitchWarnings', 'pin', 'name', 'classPeriod', 'classId',
+            'staffEmail', 'staffName']) &&
           incoming().studentUid == authUid() &&
           incoming().score == null &&
           incoming().completedAt == null &&
@@ -5806,11 +5822,8 @@ service cloud.firestore {
           // Block joins before the assignment's open time (M17).
           afterOpen(vaS()) &&
           periodJoinOk(vaS(), incoming()) &&
-          (isStudentRoleUser()
-            ? responseDocId == authUid()
-            // PIN joins honor the teacher's anonymous-join stamp.
-            : responseDocId.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$') &&
-              vaS().get('allowAnonymousJoin', true) != false);
+          staffJoinOk(vaS(), incoming()) &&
+          joinKeyOk(vaS(), responseDocId);
         // Update split: TEACHER branch (PR3 publish-scores: score/isCorrect/
         // scoreVisibility; gated by parent teacherUid, admins also pass) and
         // STUDENT branch (answer-submit, append-only invariants). Mutually
@@ -5979,7 +5992,8 @@ service cloud.firestore {
           passesStudentClassGateList(maSessionClassIds()) &&
           (isStudentRoleUser() || submissionId == authUid()) &&
           incoming().studentUid == authUid() &&
-          incoming().keys().hasOnly(['submittedAt', 'studentUid', 'payload']) &&
+          incoming().keys().hasOnly(['submittedAt', 'studentUid', 'payload', 'staffEmail', 'staffName']) &&
+          staffJoinOk(maSessionData(), incoming()) &&
           isInt('submittedAt') &&
           isMap('payload') &&
           incoming().payload.size() <= 50 &&
@@ -6113,8 +6127,9 @@ service cloud.firestore {
           studentUid == authUid() &&
           incoming().studentAnonymousId == authUid() &&
           incoming().sessionId == sessionId &&
-          incoming().keys().hasOnly(['sessionId', 'studentAnonymousId', 'pin', 'answers', 'startedAt', 'completedAt', 'score', 'classPeriod', 'classId']) &&
+          incoming().keys().hasOnly(['sessionId', 'studentAnonymousId', 'pin', 'answers', 'startedAt', 'completedAt', 'score', 'classPeriod', 'classId', 'staffEmail', 'staffName']) &&
           incoming().score == null &&
+          staffJoinOk(glSession(), incoming()) &&
           // Per-student publication is teacher-written only.
           incoming().get('resultsOverride', null) == null &&
           glClassGate() &&
@@ -6826,6 +6841,11 @@ service cloud.firestore {
       allow read: if ownsUserTeacher(userId);
     }
 
+    // Schoology quiz import inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8): server-written; the owner reviews, then deletes.
+    match /users/{userId}/schoology_import_inbox/{itemId} {
+      allow read, delete: if ownsUserTeacher(userId);
+    }
+
     // === Flashcards (PR 1: teacher-owned authoring library) ===
     match /users/{userId}/flashcard_sets/{setId} {
       allow read, write: if ownsUserTeacher(userId);
@@ -6909,7 +6929,8 @@ service cloud.firestore {
         existing().teacherUid == authUid() ||
         isSubMonitor(existing()) ||
         fcInSessionClass(existing().get('classIds', [])) ||
-        (isStudentRoleUser() && fcHasPointer())
+        (isStudentRoleUser() && fcHasPointer()) ||
+        (existing().get('audience', '') == 'staff' && isVerifiedDistrictEmail())
       );
       // No pointer branch here: exists() per returned doc would blow the
       // per-query document-access cap. Pointer-targeted sessions are hydrated
@@ -6933,6 +6954,8 @@ service cloud.firestore {
                     && subMonitorStampUnchanged()
                     && unchanged('teacherUid')
                     && unchanged('kind')
+                    // Audience is fixed at create, so live joiners' progress writes keep passing.
+                    && incoming().get('audience', '') == existing().get('audience', '')
                     && incoming().status in ['active', 'ended'];
       allow delete: if fcTeacherSignedIn() && existing().teacherUid == authUid();
 
@@ -6973,7 +6996,7 @@ service cloud.firestore {
           return data.keys().hasOnly([
                    'classId', 'cards', 'starred', 'round', 'studyMs', 'modesUsed',
                    'tests', 'lastActiveAt', 'checkLog', 'speak', 'speakRound',
-                   'speakSounds'
+                   'speakSounds', 'staffEmail', 'staffName'
                  ])
                  && data.classId is string
                  && fcCardsOk()
@@ -6994,15 +7017,18 @@ service cloud.firestore {
         allow get: if signedIn() && (
           fcIsSessionTeacher() ||
           isSubMonitor(fcSession()) ||
-          (studentUid == authUid() && isStudentRoleUser())
+          (studentUid == authUid() && (isStudentRoleUser() || fcSession().get('audience', '') == 'staff'))
         );
         allow list: if fcIsSessionTeacher() || isSubMonitor(fcSession());
+        // A Staff-audience session takes signed-in district staff instead of class students.
         allow create, update: if signedIn()
                               && studentUid == authUid()
-                              && isStudentRoleUser()
                               && fcSession().status == 'active'
-                              && (fcInSessionClass(fcSession().get('classIds', [])) ||
-                                  exists(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionId)))
+                              && staffJoinOk(fcSession(), incoming())
+                              && (fcSession().get('audience', '') == 'staff' ||
+                                  (isStudentRoleUser() &&
+                                   (fcInSessionClass(fcSession().get('classIds', [])) ||
+                                    exists(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionId)))))
                               && fcWithinWindow() && fcOpen()
                               && (resource == null || !('submittedAt' in existing()))
                               && fcValidProgress();

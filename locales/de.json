@@ -2225,6 +2225,12 @@
     "needsManual": "Der Text konnte nicht automatisch extrahiert werden. Hier einfügen oder eingeben.",
     "extractFailed": "Textextraktion fehlgeschlagen. Bitte erneut versuchen."
   },
+  "quizCrossOut": {
+    "crossOut": "Durchstreichen",
+    "undo": "Durchstreichen rückgängig",
+    "crossOutChoice": "Antwort {{n}} durchstreichen",
+    "crossedOut": "(durchgestrichen)"
+  },
   "quizTranslation": {
     "label": "Übersetzung",
     "editor": {

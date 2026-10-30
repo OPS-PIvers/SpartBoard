@@ -5,7 +5,7 @@
  * editors (Quiz, Video Activity, Guided Learning).
  */
 
-import React, { useEffect, useId, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Code2, Eye, FileText, Play, Undo2, Wand2 } from 'lucide-react';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { injectMiniAppHelper } from '@/utils/miniAppHelper';
@@ -28,7 +28,6 @@ import { MiniAppKeyPanel } from './MiniAppKeyPanel';
 import { MiniAppTryAsStudent } from './MiniAppTryAsStudent';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
-import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
@@ -69,8 +68,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
 }) => {
   const { canAccessFeature, user } = useAuth();
   const { addToast, activeDashboard } = useDashboard();
-  const htmlFieldId = useId();
-  // Preview/Code, the light code box and Try as student need only the flag.
+  // Try as student needs only the flag; Preview/Code shows for everyone.
   const editorOn = resultsOn || canAccessFeature('mini-app-results');
   const aiOn =
     canAccessFeature('gemini-functions') && canAccessFeature('mini-app-ai');
@@ -252,7 +250,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
       if (!editing || !title.trim()) setTitle(result.title);
       setBeforeAi(html);
       setHtml(result.html);
-      if (editorOn) setView('preview');
+      setView('preview');
       setShowPromptInput(false);
       setPrompt('');
       addToast(
@@ -481,23 +479,19 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
         >
           {/* HTML Code textarea */}
           <div className="flex-1 flex flex-col min-h-[250px]">
-            {editorOn ? (
-              <div className="mb-2">
-                <SegmentedControl
-                  value={view}
-                  onChange={setView}
-                  ariaLabel="Show the app or its code"
-                  anchor={tourTypeAttr('mini-app.view-toggle', 'miniApp')}
-                  options={[
-                    { value: 'preview', label: 'Preview', icon: Eye },
-                    { value: 'code', label: 'Code', icon: Code2 },
-                  ]}
-                />
-              </div>
-            ) : (
-              <SettingsLabel htmlFor={htmlFieldId}>HTML Code</SettingsLabel>
-            )}
-            {editorOn && view === 'preview' ? (
+            <div className="mb-2">
+              <SegmentedControl
+                value={view}
+                onChange={setView}
+                ariaLabel="Show the app or its code"
+                anchor={tourTypeAttr('mini-app.view-toggle', 'miniApp')}
+                options={[
+                  { value: 'preview', label: 'Preview', icon: Eye },
+                  { value: 'code', label: 'Code', icon: Code2 },
+                ]}
+              />
+            </div>
+            {view === 'preview' ? (
               <iframe
                 srcDoc={previewDoc}
                 title={`${title || 'Mini app'} preview`}
@@ -506,17 +500,13 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
               />
             ) : (
               <textarea
-                id={htmlFieldId}
                 value={html}
                 onChange={(e) => {
                   setHtml(e.target.value);
                   setBeforeAi(null);
                 }}
-                className={
-                  editorOn
-                    ? 'flex-1 w-full p-4 bg-white border border-slate-200 text-slate-700 placeholder-slate-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 resize-none leading-relaxed custom-scrollbar'
-                    : 'flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none leading-relaxed custom-scrollbar shadow-inner'
-                }
+                aria-label="HTML code"
+                className="flex-1 w-full p-4 bg-white border border-slate-200 text-slate-700 placeholder-slate-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 resize-none leading-relaxed custom-scrollbar"
                 spellCheck={false}
                 {...tourTypeAttr('mini-app.html-code', 'miniApp')}
                 placeholder="Paste your HTML, CSS, and JS here..."

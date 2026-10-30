@@ -69,6 +69,16 @@ describe('flashcard import', () => {
     expect(result.warnings.join(' ')).toContain('1,000 characters');
   });
 
+  it('does not split an emoji at the field limit', () => {
+    const result = parseFlashcardSheetRows([
+      ['a'.repeat(499) + '😀', 'd'.repeat(999) + '😀'],
+    ]);
+    const term = result.cards[0]?.term;
+    const definition = result.cards[0]?.definition;
+    expect(term).toBe('a'.repeat(499));
+    expect(definition).toBe('d'.repeat(999));
+  });
+
   it('keeps a lone header-like row as a card instead of dropping it silently', () => {
     const result = parseFlashcardText('Question\tAnswer');
 

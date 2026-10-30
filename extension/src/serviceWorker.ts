@@ -6,8 +6,10 @@ import {
 } from '@/components/tours/web/extensionProtocol';
 import { createExternalHandler } from './handler';
 import { getChromeEmail, getChromeProfile } from './profile';
-import { FOCUS_PROTOCOL } from '@/components/tours/web/extensionProtocol';
+import { FOCUS_ENFORCE_PROTOCOL } from '@/components/tours/web/extensionProtocol';
 import { createFocusClient } from './focus/focusClient';
+import { createChromeEnforcer } from './focus/chromeEnforce';
+import { FOCUS_FULLSCREEN_MESSAGE } from './focus/pageNotice';
 import {
   parseFocusPanelMessage,
   type FocusPanelReply,
@@ -57,6 +59,9 @@ import {
   type TourStartReply,
 } from './tourList';
 import { createTourListWorker } from './tourListWorker';
+import { createSchoologyWorker, STATUS_KEY } from './schoology/worker';
+import { SCHOOLOGY_CONTENT_FILE } from './schoology/messages';
+import { SCHOOLOGY_REVIEW_EVENT } from '@/utils/schoologyReviewProtocol';
 
 // The listing's exact origins, inlined at build time so a bundle carries only its own.
 declare const __SPART_ORIGINS__: readonly string[];
@@ -142,6 +147,88 @@ const tourList = createTourListWorker({
   now: () => Date.now(),
 });
 
+// Schoology quiz import (SCHOOLOGY_QUIZ_IMPORT Q4, Q8): staff with the flag get a Send button on quiz pages.
+const schoology = createSchoologyWorker({
+  origins,
+  isStaff: async () => (await getChromeProfile()) === 'staff',
+  status: () => callSpartBoard(api, 'schoologyImportStatusV1', {}),
+  // A click sent it, so Chrome may ask to sign in once.
+  send: (request) =>
+    callSpartBoard(api, 'schoologyImportInboxV1', request, true),
+  loadStatus: async () =>
+    (await chrome.storage.session.get(STATUS_KEY))[STATUS_KEY] as
+      { enabled: boolean; at: number } | undefined,
+  saveStatus: (status) => chrome.storage.session.set({ [STATUS_KEY]: status }),
+  inject: async (tabId) => {
+    await chrome.scripting
+      .executeScript({ target: { tabId }, files: [SCHOOLOGY_CONTENT_FILE] })
+      .catch(() => undefined);
+  },
+  boardTabs: async () => {
+    const tabs = await chrome.tabs.query({
+      url: origins.map((o) => `${o}/*`),
+    });
+    return (
+      tabs
+        .filter(
+          (t) => t.id !== undefined && t.url && new URL(t.url).pathname === '/'
+        )
+        // `lastAccessed` is Chrome 121+; on older Chrome the tab showing in its window comes first.
+        .sort(
+          (a, b) =>
+            (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0) ||
+            Number(b.active) - Number(a.active)
+        )
+        .map((t) => ({
+          id: t.id as number,
+          windowId: t.windowId,
+          origin: new URL(t.url as string).origin,
+          ready: t.status === 'complete' && !t.discarded,
+        }))
+    );
+  },
+  focus: async ({ id, windowId }) => {
+    await chrome.tabs.update(id, { active: true });
+    await chrome.windows.update(windowId, { focused: true });
+  },
+  askForReview: async (tabId) => {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      // SchoologyReviewHost cancels the event when it hears it.
+      func: (name: string) =>
+        !window.dispatchEvent(new CustomEvent(name, { cancelable: true })),
+      args: [SCHOOLOGY_REVIEW_EVENT],
+    });
+    return result?.result === true;
+  },
+  navigate: async (tabId, url) => {
+    await chrome.tabs.update(tabId, { url, active: true });
+  },
+  openTab: async (url) => {
+    await chrome.tabs.create({ url });
+  },
+  now: () => Date.now(),
+});
+
+chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
+  if (sender.id !== chrome.runtime.id || !sender.tab || sender.frameId !== 0)
+    return false;
+  const answer = schoology.message(message, sender.url);
+  if (!answer) return false;
+  answer.then(reply, () => reply({ ok: false, why: 'offline' }));
+  return true;
+});
+chrome.webNavigation.onCommitted.addListener(({ tabId, frameId, url }) => {
+  void schoology.navigated(tabId, frameId, url);
+});
+// Resources moves between folders in the page, changing only the part after `#`.
+chrome.webNavigation.onReferenceFragmentUpdated.addListener(
+  ({ tabId, frameId, url }) => {
+    void schoology.navigated(tabId, frameId, url);
+  }
+);
+
 // Focus sessions (CHROME_EXTENSION.md F3, F5): student profiles pull their session; staff never enforce.
 const scope = self as unknown as PushScope & {
   addEventListener(
@@ -155,10 +242,18 @@ const focusApi: ApiDeps = {
   fetch: (input, init) =>
     fetch(input, { ...init, signal: AbortSignal.timeout(15_000) }),
 };
+// Redirect and Lock (F2, F10): blocked navigations, parked tabs, Lock's rules and fullscreen.
+const enforcer = createChromeEnforcer({
+  origins,
+  load: chromeFocusDeps.load,
+  now: chromeFocusDeps.now,
+});
 const focus = createFocusClient({
   ...chromeFocusDeps,
+  enforce: enforcer.sync,
+  activeFullscreen: enforcer.activeFullscreen,
   origins,
-  protocol: FOCUS_PROTOCOL,
+  protocol: FOCUS_ENFORCE_PROTOCOL,
   email: getChromeEmail,
   status: (body) => callSpartBoard(focusApi, 'focusStatusV1', body),
   report: (body) => callSpartBoard(focusApi, 'focusReportV1', body),
@@ -177,6 +272,12 @@ const handle = createExternalHandler({
   openWebTour: async (setId) => {
     const opened = await openPublished(setId);
     return opened.ok ? opened.tabId : null;
+  },
+  // A new sign-in drops the cached "no", so the next Schoology page asks SpartBoard again.
+  signIn: async (ask) => {
+    const signedIn = !!(await chromeTokens.getToken(ask));
+    if (ask && signedIn) await chrome.storage.session.remove(STATUS_KEY);
+    return signedIn;
   },
 });
 
@@ -248,6 +349,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     tabId === undefined ||
     sender.frameId === undefined
   ) {
+    return false;
+  }
+  if (
+    typeof message === 'object' &&
+    message !== null &&
+    (message as { type?: unknown }).type === FOCUS_FULLSCREEN_MESSAGE
+  ) {
+    const windowId = sender.tab?.windowId;
+    if (windowId !== undefined)
+      void enforcer.returnToFullscreen(windowId).then(() => focus.observe());
     return false;
   }
   if (isFrameReport(message)) {
@@ -343,9 +454,13 @@ chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   if (change.url !== undefined || change.status === 'complete')
     void tourList.badge(tabId, tab.url);
   if (change.url !== undefined && tab.active) void focus.observe();
+  // Catches what the navigation events can't, such as a prerendered page being shown.
+  if (change.url !== undefined) blockedNavigation(tabId, change.url, true);
+  if (change.status === 'complete') void enforcer.tabShown(tabId);
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
   void playback.tabClosed(tabId);
+  enforcer.tabClosed(tabId);
 });
 
 // Focus sessions: the 5-minute check, a push wake-up, sign-in and tab changes.
@@ -356,7 +471,48 @@ scope.addEventListener('pushsubscriptionchange', (event) =>
   event.waitUntil(focus.check())
 );
 chrome.identity.onSignInChanged.addListener(() => void focus.check());
-chrome.tabs.onActivated.addListener(() => void focus.observe());
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  void focus.observe();
+  void enforcer.tabShown(tabId);
+});
 chrome.windows.onFocusChanged.addListener((windowId) => {
-  if (windowId !== chrome.windows.WINDOW_ID_NONE) void focus.observe();
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  void focus.observe();
+  void enforcer.windowChanged();
+});
+// Leaving or entering fullscreen changes the window's bounds (Lock's cover, F2).
+chrome.windows.onBoundsChanged.addListener(() => {
+  void focus.observe();
+  void enforcer.windowChanged();
+});
+
+// Redirect and Lock: a blocked top-level navigation is sent back and counts as a try (F2, F4).
+function blockedNavigation(
+  tabId: number,
+  url: string,
+  committed: boolean,
+  currentUrl?: string
+): void {
+  enforcer.navigated(tabId, url, currentUrl, committed).then(
+    (blocked) => {
+      if (blocked) void focus.blocked();
+    },
+    () => undefined
+  );
+}
+const isShownTopFrame = (d: { frameId: number; documentLifecycle?: unknown }) =>
+  d.frameId === 0 && String(d.documentLifecycle) !== 'prerender';
+chrome.webNavigation.onBeforeNavigate.addListener((d) => {
+  if (!isShownTopFrame(d)) return;
+  // The tab still shows the page it is leaving, which is where Redirect sends it back.
+  void chrome.tabs.get(d.tabId).then(
+    (tab) => blockedNavigation(d.tabId, d.url, false, tab.url),
+    () => blockedNavigation(d.tabId, d.url, false)
+  );
+});
+chrome.webNavigation.onCommitted.addListener((d) => {
+  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);
+});
+chrome.webNavigation.onHistoryStateUpdated.addListener((d) => {
+  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);
 });

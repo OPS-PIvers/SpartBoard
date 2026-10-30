@@ -50,6 +50,14 @@ Prod moved to the OPSTech billing account on 2026-10-01; a $30/mo budget and Big
 
 Each item names the plan it came from; the plan holds the detail.
 
+#### `docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md`
+
+- [ ] Upload extension 0.1.23 to the Chrome Web Store and stage it without auto-publish; publish after the `main` promotion that carries the inbox, banks and PR 5. (S)
+- [ ] Ask IT to force-install the extension once the store item is Published. (S)
+- [ ] Test in prod with `schoology-quiz-import` (admin): send a classic Test/Quiz, an Assessment, a classic bank and an item bank, the Materials/Resources checklists, and the From Schoology tile in both Import wizards; check the export-step wording against Schoology. (S)
+- [ ] Open Admin Settings > Access > Previews > "Send quizzes from Schoology" > Public; then add the changelog entry and retire `quiz-imscc-import` and `question-bank-imscc-import`. (S)
+- [ ] Tests/Quizzes saved in Resources get no Send button yet; probe one real Resources quiz page first (Paul sends a link). (M)
+
 #### `docs/plans/shipped/LIVE_TOUR_EDITOR.md`
 
 - [x] After the `main` release that carries PR 1: `node scripts/convert-tour-slides.mjs --project prod` (dry run), then with `--write --confirm-prod`. Moves each tour step's slide into its thumbnail. (S)
@@ -98,16 +106,9 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md`
 
-- [ ] Paul runs a real class through per-period access in prod on his own account, then flips 'per-period-access' from admin to Public in Admin Settings > Access > Global Settings. (S)
-
 #### `docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md`
 
 - [ ] Flip admin_settings/plc_delegated_printing (Rollouts switch) to Public in prod after Paul tests it live, per the flag-release convention. (S)
-
-#### `docs/plans/shipped/PLC_NORMING_FLAGS.md`
-
-- [ ] Paul tests the feature in prod on his own account and flips 'plc-norming-flags' from admin/preview to Public in Admin Settings > Access > Previews. (S)
-- [ ] Once Public, per afterLaunch:'retire', delete the feature gate and registry entry and add the changelog note. (S)
 
 #### `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`
 
@@ -202,7 +203,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/WEB_TOURS_HELP_PANEL.md`
 
-- [ ] Upload extension 0.1.15 to both Web Store listings; it carries 0.1.14's help panel and the smoother playback from #4698 (prod is still on 0.1.12; 0.1.13 was never uploaded). (S)
+- [ ] Upload extension 0.1.15 or later to the prod Web Store listing (the dev build is no longer published); it carries 0.1.14's help panel and the smoother playback from #4698 (prod is still on 0.1.12; 0.1.13 was never uploaded). (S)
 - [ ] Paul plays a web tour with the dev extension (0.1.15) on a Chromebook: the spotlight glides to each next step without blinking out, and a hidden-checkbox menu (Wikipedia's Tools) is found. (S)
 - [ ] IT marks both "Chrome extension" OAuth clients (prod `759666600376-3588...`, dev `258543092004-9mfh...`) as Trusted in Admin Console > Security > API Controls, so teachers get no consent prompt (H8). (S)
 - [ ] Paul tries the dev extension (0.1.14) in real Chrome: a tour link through ClassLink sign-in (waits, then starts), a LaunchPad new tab, the Tours tab with search and Start, the badge, and the not-signed-in message on a personal profile. (S)

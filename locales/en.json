@@ -1457,6 +1457,10 @@
       "ripple": "Ripple",
       "colorTheme": "Color theme"
     },
+    "focus": {
+      "hideNames": "Hide student names",
+      "hideNamesHelp": "The face shows counts only, for showing on a projector."
+    },
     "mathTools": {
       "dpiCalibration": "Palette DPI calibration (px / inch)"
     },
@@ -3503,6 +3507,12 @@
     "readingHelp": "Leave empty on reading assessments.",
     "needsManual": "Couldn't extract text automatically. Paste or type it here.",
     "extractFailed": "Text extraction failed. Try again."
+  },
+  "quizCrossOut": {
+    "crossOut": "Cross out",
+    "undo": "Undo cross out",
+    "crossOutChoice": "Cross out choice {{n}}",
+    "crossedOut": "(crossed out)"
   },
   "quizTranslation": {
     "label": "Translation",
