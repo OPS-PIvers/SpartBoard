@@ -52,7 +52,7 @@
 // Admin-SDK only; `firestore.rules` denies all client access to the membership
 // tree. Best-effort throughout: a failure here NEVER blocks the student.
 
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { normalizeQuizCode } from '../quizCode';
 import { quizJoinCodeOwner } from '../quizJoinCodeOwner';
 

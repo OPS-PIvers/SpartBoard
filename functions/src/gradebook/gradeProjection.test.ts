@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
@@ -20,7 +20,7 @@ vi.mock('firebase-functions/logger', () => ({
   error: vi.fn(),
 }));
 
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import { __resetGradeIndexEnabledCache } from './gradeIndex';
 import {
   configPathFor,

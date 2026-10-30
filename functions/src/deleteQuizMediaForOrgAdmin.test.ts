@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   auth: vi.fn(() => ({ getUser: vi.fn() })),
@@ -207,7 +207,7 @@ type FakeStore = ReturnType<typeof createFakeDb>;
 
 // The fake implements only the Firestore surface these two callables touch.
 const asFirestore = (db: FakeStore) =>
-  db as unknown as import('firebase-admin').firestore.Firestore;
+  db as unknown as import('./firebaseAdmin').firestore.Firestore;
 
 const ORG = 'orono';
 

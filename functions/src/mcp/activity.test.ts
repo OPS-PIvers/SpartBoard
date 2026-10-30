@@ -2,7 +2,7 @@
 // pre-edit revision snapshot helpers (CC-D9, CC-D16) — load-bearing for
 // every write every connector tool makes, previously untested.
 import { describe, expect, it } from 'vitest';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { makeStubFirestore } from '../testing/stubFirestore';
 import { DAILY_WRITE_LIMIT, LOG_TTL_MS } from './config';
 import {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   firestore: Object.assign(vi.fn(), {
     FieldValue: { serverTimestamp: () => 'ts' },
   }),

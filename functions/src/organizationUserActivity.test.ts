@@ -21,7 +21,7 @@ let getUsersImpl: (identifiers: { email: string }[]) => Promise<{
 // Spy we assert against in the role-gate tests.
 const getUsersSpy = vi.fn();
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   // The handler builds queries like
   //   db.collection('organizations').doc(orgId).collection('members').doc(email).get()
   // and

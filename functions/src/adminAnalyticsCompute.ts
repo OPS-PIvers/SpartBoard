@@ -14,7 +14,7 @@
  * in-memory. That cost is the reason the snapshot cache exists.
  */
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   type ActivityPoint,
   type AnalyticsHistory,

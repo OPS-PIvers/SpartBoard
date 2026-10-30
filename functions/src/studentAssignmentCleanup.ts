@@ -16,7 +16,7 @@
 
 import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';
 import {

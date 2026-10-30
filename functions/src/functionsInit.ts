@@ -13,7 +13,7 @@
  * the deploy entrypoint imports first.
  */
 import { setGlobalOptions } from 'firebase-functions/v2';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
 setGlobalOptions({ region: 'us-central1' });
 

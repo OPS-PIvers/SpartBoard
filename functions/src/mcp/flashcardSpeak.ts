@@ -1,5 +1,5 @@
 // Connector side of Flashcards Speak (docs/multilingual-pronunciation-engine.md S10): settings, save-time lookup, stamps.
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import {
   computeSpeakReferences,
   FLASHCARDS_SPEAK_FEATURE_ID,

@@ -20,7 +20,7 @@
    mock methods are async to match the real surface but don't await anything. */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import {
   persistLtiLaunchContext,
   dropLinkedSectionPeriod,

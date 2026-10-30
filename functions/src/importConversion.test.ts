@@ -1,7 +1,7 @@
 // Unit tests for Import's AI Conversions: request parsing, prompts, response parsing, gating and refunds.
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock('./aiGeneration', () => ({
 vi.mock('./districtStaff', () => ({ isDistrictStaffToken: vi.fn() }));
 vi.mock('./quizMediaArchive', () => ({ isGlobalFeatureGranted: vi.fn() }));
 
-import type * as admin from 'firebase-admin';
+import type * as admin from './firebaseAdmin';
 import {
   importFlagsOn,
   layoutFlagAllows,

@@ -1,5 +1,5 @@
 // Maps a verified student email to its pseudonym uid, shared by studentLoginV1 and the Focus endpoints (CHROME_EXTENSION.md F3).
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import {
   ONEROSTER_BASE,

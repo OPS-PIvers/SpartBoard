@@ -1,5 +1,5 @@
 // PLC meeting tools: list recorded meetings, read a transcript, write a notes draft for review (MR-D21).
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MEETING_AI_FEATURE_ID, PAGE_SIZE } from './config';

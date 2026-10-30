@@ -1,4 +1,4 @@
-import type * as admin from 'firebase-admin';
+import type * as admin from './firebaseAdmin';
 
 /** `/admins/{email}` also mirrors building_admin (org-scoped) — bare doc existence isn't proof of super-admin; a missing roleId means a legacy pre-sync doc. */
 export function isSuperAdminRoleId(roleId: unknown, orgId?: unknown): boolean {

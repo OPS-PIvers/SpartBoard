@@ -31,7 +31,7 @@ vi.mock('../quizMediaArchive', () => ({
   isGlobalFeatureGranted: () => Promise.resolve(state.granted),
 }));
 
-vi.mock('firebase-admin', () => {
+vi.mock('../firebaseAdmin', () => {
   const docRef = (session: (typeof state.sessions)[number]) => ({
     collection: (name: string) =>
       name === 'content'

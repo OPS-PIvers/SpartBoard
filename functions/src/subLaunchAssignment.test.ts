@@ -8,9 +8,9 @@
 // `doc().get()` and `batch().set()/commit()` surface the handler uses.
 
 import { describe, it, expect, vi } from 'vitest';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(),

@@ -1,4 +1,4 @@
-import type * as admin from 'firebase-admin';
+import type * as admin from './firebaseAdmin';
 
 /** Session fields a per-period session keeps in `content/questions` instead (PER_PERIOD_ASSIGNMENT_ACCESS.md). */
 export const QUIZ_CONTENT_FIELDS = [

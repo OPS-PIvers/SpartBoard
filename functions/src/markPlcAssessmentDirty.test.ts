@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
@@ -32,7 +32,7 @@ import {
   parseLinkedSession,
 } from './markPlcAssessmentDirty';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
 type Db = Parameters<typeof markDirty>[0];
 type Handler = (event: {

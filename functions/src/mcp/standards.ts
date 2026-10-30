@@ -1,5 +1,5 @@
 // Minnesota standards tags on quiz and bank questions, mirroring tagFromBenchmark in utils/learningTargets.ts.
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { ToolError } from './activity';
 
 export const STANDARD_SETS = [

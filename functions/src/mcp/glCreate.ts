@@ -1,6 +1,6 @@
 // create_guided_learning: new standard personal or building sets (CLAUDE_CONNECTOR.md CC-D18); live tours are create_live_tour.
 import { randomUUID } from 'node:crypto';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {

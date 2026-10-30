@@ -17,7 +17,7 @@ import {
   onDocumentUpdated,
 } from 'firebase-functions/v2/firestore';
 import { defineSecret } from 'firebase-functions/params';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import { GOOGLE_OAUTH_CLIENT_ID } from './secrets';
 import './functionsInit';

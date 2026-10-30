@@ -1,5 +1,5 @@
 // Staff and student checks that never trust the email domain: Orono students and staff share @orono.k12.mn.us.
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   isSafeEmailForOneRosterFilter,
   normalizeEmailDomain,

@@ -1,5 +1,5 @@
 // Narration for connector tours (LIVE_TOUR_ONE_SHOT.md D11): every step with text gets a generated take on save.
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import { createHash, randomUUID } from 'node:crypto';
 import type { ToolContext } from './activity';
 import type { GlSet } from './glTools';

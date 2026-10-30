@@ -68,7 +68,7 @@ vi.mock('../studentEmailIdentity', async () => {
     },
   };
 });
-vi.mock('firebase-admin', () => {
+vi.mock('../firebaseAdmin', () => {
   const emptyDoc = { exists: false, get: () => undefined };
   const docRef = (): Record<string, unknown> => ({
     get: () => Promise.resolve(emptyDoc),

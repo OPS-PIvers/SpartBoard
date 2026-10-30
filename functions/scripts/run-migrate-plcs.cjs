@@ -26,14 +26,15 @@
  * Project defaults to `spartboard`; override with GCLOUD_PROJECT.
  * ──────────────────────────────────────────────────────────────────────────
  */
-const admin = require('firebase-admin');
+const { initializeApp } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 
 const COMMIT = process.argv.includes('--commit');
 const DRY = process.argv.includes('--dry-run') || !COMMIT;
 const PROJECT = process.env.GCLOUD_PROJECT || 'spartboard';
 
-admin.initializeApp({ projectId: PROJECT });
-const db = admin.firestore();
+initializeApp({ projectId: PROJECT });
+const db = getFirestore();
 
 async function dryRun() {
   const snap = await db.collection('plcs').get();
@@ -107,7 +108,7 @@ async function commit() {
   }
   console.log(`=== COMMIT — running migratePlcs against project "${PROJECT}" ===`);
   const result = await runMigratePlcs(db, () =>
-    admin.firestore.FieldValue.serverTimestamp()
+    FieldValue.serverTimestamp()
   );
   console.log('Migration complete:', JSON.stringify(result, null, 2));
 }

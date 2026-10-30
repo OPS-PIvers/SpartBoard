@@ -1,5 +1,5 @@
 // Who may connect Claude (CC-D5) and whether the connector gate is open (CC-D7).
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import {
   normalizeEmailDomain,
   resolveOrgIdForDomain,

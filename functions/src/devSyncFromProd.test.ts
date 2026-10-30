@@ -15,7 +15,7 @@ const { FakeTimestamp, FakeGeoPoint } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(

@@ -1,7 +1,7 @@
 // Import inbox (docs/plans/IMPORT.md D14, D16, D18): the extension's Send to SpartBoard posts a read page with a Google token.
 import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { createHash } from 'node:crypto';
 import { isDistrictStaffEmail } from './districtStaff';
 import {

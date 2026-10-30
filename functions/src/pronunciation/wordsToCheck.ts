@@ -1,6 +1,6 @@
 // Admin "Words to check" (F10 pooled): Speak words most students miss across every assignment in the district.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import '../functionsInit';
 import { ALLOWED_ORIGINS } from '../classlinkShared';
 import { assertViewAsAllowed } from '../viewAsGuard';

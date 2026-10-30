@@ -1,7 +1,7 @@
 // Unit tests for PLC norming flags: anonymized copies, pointers and lifecycle cleanup.
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   storage: vi.fn(),

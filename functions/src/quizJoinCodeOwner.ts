@@ -1,4 +1,4 @@
-import type * as admin from 'firebase-admin';
+import type * as admin from './firebaseAdmin';
 
 /** The uid holding `quiz_join_codes/{code}` (the code's one owner), or null if unclaimed. */
 export async function quizJoinCodeOwner(

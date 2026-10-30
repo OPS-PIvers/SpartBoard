@@ -13,7 +13,7 @@ const docMock = vi.fn((path: string) => ({
   create: (data: unknown) => docCreateMock(path, data) as Promise<unknown>,
 }));
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: () => ({ doc: docMock }),

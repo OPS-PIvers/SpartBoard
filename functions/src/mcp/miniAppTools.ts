@@ -1,5 +1,5 @@
 // Mini-app tools (plan: "Tools", PR 3). Mirrors saveMiniApp / handleCreate in components/widgets/MiniApp/Widget.tsx.
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';

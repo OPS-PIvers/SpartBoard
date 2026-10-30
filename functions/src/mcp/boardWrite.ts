@@ -1,6 +1,6 @@
 // Board writes for create_board and edit_board, plus board revision restore (AI_BOARDS D1, D3, D15–D19, D21, D22, D24).
 import { randomUUID } from 'node:crypto';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import {
   ToolError,
   logActivity,

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createFakeBucket, createFakeDb } from './glMediaTestFakes';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
 }));

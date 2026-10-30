@@ -1,5 +1,5 @@
 // Builds and writes `grade_index` rows from each activity's per-student docs (docs/plans/GRADEBOOK.md D10).
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import * as logger from 'firebase-functions/logger';
 import { withQuizSessionContent } from '../quizSessionContent';
 import {

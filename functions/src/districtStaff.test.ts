@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type * as admin from 'firebase-admin';
+import type * as admin from './firebaseAdmin';
 
 const resolveOrgIdForDomainMock = vi.fn();
 const fetchUsersMock = vi.fn();

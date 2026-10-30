@@ -47,7 +47,7 @@ vi.mock('firebase-functions/params', () => ({
 let rosters: { id: string; data: Record<string, unknown> }[] = [];
 const courseLinks = new Map<string, Record<string, unknown>>();
 
-vi.mock('firebase-admin', () => ({
+vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(() => ({

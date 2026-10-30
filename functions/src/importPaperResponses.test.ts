@@ -1,7 +1,7 @@
 // Unit tests for the paper answer-sheet import callable (docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §7).
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {

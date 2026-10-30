@@ -1,7 +1,7 @@
 // Unit tests for PLC meeting notes: request gating, quota refunds, the queued job steps and draft resolve.
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   storage: vi.fn(),

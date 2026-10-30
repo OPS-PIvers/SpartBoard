@@ -1,6 +1,6 @@
 // Runs only under the emulator: firebase emulators:exec --project demo-spartboard --only firestore "pnpm -C functions exec vitest run src/pinLoginBudget.emulator.test.ts"
 import { describe, it, expect, beforeAll } from 'vitest';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   decidePinLogin,
   pinLoginRefs,

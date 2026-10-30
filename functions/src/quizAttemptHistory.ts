@@ -1,5 +1,5 @@
 // Keeps a read-only copy of every finished quiz attempt and a teacher-only score list (docs/plans/QUIZ_ATTEMPT_HISTORY.md).
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import * as logger from 'firebase-functions/logger';
 import './functionsInit';
 import {

@@ -21,7 +21,7 @@ vi.mock('./functionsInit', () => ({}));
 
 const firestoreMock = vi.fn();
 const storageMock = vi.fn();
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: firestoreMock,

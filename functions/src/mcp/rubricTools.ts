@@ -1,5 +1,5 @@
 // Rubric tools (plan: "Tools", PR 3). Mirrors useRubrics.saveRubric and RubricBuilderPanel validation.
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';

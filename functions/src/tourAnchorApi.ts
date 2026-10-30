@@ -1,7 +1,7 @@
 // Private endpoint the tour-anchor-mapper routine reads and resolves (LIVE_TOURS_V2.md PR 3).
 import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { TOUR_ANCHOR_API_TOKEN } from './secrets';
 import {

@@ -1,5 +1,5 @@
 // Single-use authorization codes, stored by hash with a TTL (plan: "Tokens").
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import { AUTH_CODE_TTL_MS } from './config';
 import { randomToken, sha256 } from './tokens';
 

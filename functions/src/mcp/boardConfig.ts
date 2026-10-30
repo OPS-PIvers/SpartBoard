@@ -1,5 +1,5 @@
 // Builds a new widget's config the way the app's addWidget does, and checks the teacher may add it (AI_BOARDS D14, D15).
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import {
   canonicalBuildingIdServer,
   canonicalizeBuildingIdsServer,

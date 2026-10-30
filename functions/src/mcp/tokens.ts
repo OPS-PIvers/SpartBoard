@@ -1,5 +1,5 @@
 // Token minting and verification for the Claude connector's OAuth server (CC-D1).
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import {

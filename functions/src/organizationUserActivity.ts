@@ -13,7 +13,7 @@
  * of that org.
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { type MemberRecord } from './organizationInvites';
 import { isRevokedMemberStatus } from './authz';
 import { assertViewAsAllowed } from './viewAsGuard';

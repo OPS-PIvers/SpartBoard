@@ -1,6 +1,6 @@
 // Handwritten paper answers: re-queues stuck, failed and over-quota jobs, and clears held crops (plan D27, D31, §3.5).
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import type { Firestore } from 'firebase-admin/firestore';
 import './functionsInit';
 import {

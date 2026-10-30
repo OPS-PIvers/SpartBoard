@@ -16,7 +16,7 @@
  * removed are written into the Drive file alongside the students they concern.
  */
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import {

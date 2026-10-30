@@ -1,6 +1,6 @@
 // Gradebook D8: map each student on a teacher's ClassLink or test-class roster to their stable uid.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import axios from 'axios';
 import '../functionsInit';
 import {

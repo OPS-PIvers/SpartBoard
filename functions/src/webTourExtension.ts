@@ -1,7 +1,7 @@
 // The extension's own tour calls (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H7): a Google access token, never Firebase auth.
 import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { isDistrictStaffEmail } from './districtStaff';
 import { GL_TOURS_COLLECTION } from './glTours';
 import { WEB_TOURS_FEATURE_ID, isWebTourPicturePath } from './mcp/webTourTools';

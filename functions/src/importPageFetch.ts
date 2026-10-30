@@ -1,6 +1,6 @@
 // Server fetch of a pasted public URL for Import (plan D17): SSRF-guarded, obeys the Send block list.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import type { Readable } from 'stream';
 import { ALLOWED_ORIGINS } from './classlinkShared';

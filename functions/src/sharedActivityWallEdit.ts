@@ -1,7 +1,7 @@
 // A Synced collaborator edits an Activity Wall another member of the shared board owns.
 import { isDistrictStaffEmail } from './districtStaff';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';

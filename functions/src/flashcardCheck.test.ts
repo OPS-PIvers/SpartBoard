@@ -1,7 +1,7 @@
 // Unit tests for server-graded Flashcards Check submissions (docs/plans/shipped/FLASHCARDS.md §7).
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(),
