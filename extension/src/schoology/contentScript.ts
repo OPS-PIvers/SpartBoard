@@ -1,7 +1,6 @@
 // The Send to SpartBoard button on Schoology quiz and bank pages, and the checklist on Materials and Resources folders (SCHOOLOGY_QUIZ_IMPORT Q4, Q5).
 
-import { readFromSchoology, type ReadDeps } from './fetchRead';
-import type { SchoologyMessage, SendReply } from './messages';
+import type { SchoologyMessage } from './messages';
 import {
   courseOf,
   isClassicBankPage,
@@ -13,57 +12,16 @@ import {
   schoologyPage,
   type SchoologyItem,
 } from './page';
-import { collectPictures, inboxRequest } from './payload';
-import { sendOutcome, type SendOutcome } from './sendOutcome';
+import { sendItem } from './sendItem';
 
 const HOST_ID = 'spartboard-schoology-import';
-const PAUSE_MS = 250;
-
-const get = (path: string) =>
-  fetch(path, { credentials: 'include', headers: { Accept: '*/*' } });
-
-const readDeps = (onProgress?: ReadDeps['onProgress']): ReadDeps => ({
-  get,
-  origin: location.origin,
-  pause: () => new Promise((r) => setTimeout(r, PAUSE_MS)),
-  onProgress,
-});
 
 const ask = <T>(message: SchoologyMessage) =>
   chrome.runtime.sendMessage<SchoologyMessage, T>(message);
 
-function itemUrl(item: SchoologyItem): string {
-  if (item.kind === 'testQuiz')
-    return `${location.origin}/assignment/${item.itemId}`;
-  if (item.kind === 'questionBank')
-    return item.bank === 'item'
-      ? `${location.origin}/common-assessment-question-banks/${item.itemId}`
-      : `${location.origin}/resources/my/${item.collectionId ?? ''}?f=${item.itemId}`;
-  return `${location.origin}/course/${item.sectionId ?? ''}/assessments/${item.itemId}`;
-}
-
-/** Reads one quiz, copies its pictures and posts it to the inbox. */
-async function sendItem(
-  item: SchoologyItem,
-  courseName: string | null,
-  onProgress?: ReadDeps['onProgress']
-): Promise<SendOutcome> {
-  try {
-    const read = await readFromSchoology(item, readDeps(onProgress));
-    const pictures = await collectPictures(
-      read.imageUrls,
-      get,
-      location.origin
-    );
-    const reply = await ask<SendReply>({
-      type: 'schoology/send',
-      request: inboxRequest(item, read, courseName, pictures, itemUrl(item)),
-    });
-    return sendOutcome(reply);
-  } catch (error) {
-    return sendOutcome(error);
-  }
-}
+// Set by the service worker when Send to SpartBoard is on; its one button then reads single quizzes (IMPORT D14).
+const universalSend = () =>
+  (globalThis as { spartUniversalSend?: boolean }).spartUniversalSend === true;
 
 const STYLE = `
 :host { all: initial; }
@@ -303,7 +261,7 @@ async function render() {
     // Moving between folders swaps the content in place, so wait for this folder's.
     if (!(await folderShown(page.folderId)) || run !== rendering) return;
     if (isClassicBankPage(document)) {
-      if (!page.folderId) return;
+      if (!page.folderId || universalSend()) return;
       const crumbs = resourcesCrumbs(document);
       singleButton(
         mount(),
@@ -323,6 +281,7 @@ async function render() {
     checklist(mount(), items, null, BANK_LABELS);
     return;
   }
+  if (universalSend()) return;
   if (page.kind === 'questionBank') {
     singleButton(mount(), { ...page, title: pageTitle(document) }, null);
     return;

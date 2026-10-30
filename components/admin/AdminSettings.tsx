@@ -24,6 +24,7 @@ import {
   Library,
   ClipboardList,
   History,
+  ShieldBan,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -49,6 +50,7 @@ import { SchoologyCategoriesPanel } from './SchoologyCategoriesPanel';
 import { AccessSearchProvider } from './access/AccessSearchProvider';
 import { GradebookAdminPanel } from './Gradebook/GradebookAdminPanel';
 import { ViewAsLogPanel } from './ViewAsLog/ViewAsLogPanel';
+import { ImportBlockListPanel } from './ImportBlockList/ImportBlockListPanel';
 import type { GlobalFeature } from '@/types';
 
 interface AdminSettingsProps {
@@ -187,6 +189,13 @@ const TAB_GROUPS = [
         label: 'Links',
         icon: Link2,
         component: LinkShortenerManager,
+      },
+      {
+        id: 'import-block-list',
+        label: 'Import block list',
+        icon: ShieldBan,
+        component: ImportBlockListPanel,
+        feature: 'universal-import',
       },
     ],
   },
