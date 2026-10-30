@@ -239,7 +239,15 @@ describe('WeatherWidget', () => {
 
     it('hides saved station readings in manual mode', () => {
       mockAuth.detailsFlag = true;
-      render(<WeatherWidget widget={detailWidget} />);
+      render(
+        <WeatherWidget
+          widget={{
+            ...detailWidget,
+            config: { ...detailWidget.config, feelsLike: 31 },
+          }}
+        />
+      );
+      expect(screen.queryByText(/31°/)).not.toBeInTheDocument();
       expect(screen.getByText('dewPoint:--')).toBeInTheDocument();
       expect(screen.getByText('humidity:--')).toBeInTheDocument();
     });

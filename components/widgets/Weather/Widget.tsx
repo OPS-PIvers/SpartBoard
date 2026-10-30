@@ -299,8 +299,11 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   }
 
+  // With details on, Manual mode shows no feels-like left over from an earlier sync.
+  const staleFeelsLike = detailsOn && !isAuto;
+  const shownFeelsLike = staleFeelsLike ? undefined : feelsLike;
   const tempText = `${Math.round(
-    showFeelsLike && feelsLike !== undefined ? feelsLike : temp
+    showFeelsLike && shownFeelsLike !== undefined ? shownFeelsLike : temp
   )}°`;
   // Approximate width in em; the 34cqmin below covers the 22cqmin icon, its gap and padding.
   const tempWidthEm = [...tempText]
@@ -312,7 +315,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       ? buildDetailRows(detailFields, {
           // Manual mode shows no station readings, even ones saved by an earlier sync.
           details: isAuto ? details : undefined,
-          feelsLike: isAuto ? feelsLike : undefined,
+          feelsLike: shownFeelsLike,
           now: new Date(now),
           lat: STATION_CONFIG.lat,
           lon: STATION_CONFIG.lon,
@@ -360,7 +363,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               fontSize: noGear
                 ? `min(75cqh, 40cqw, calc(68cqw / ${tempWidthEm}))`
                 : hasDetails
-                  ? `min(60cqmin, calc((100cqw - 40cqmin) / ${tempWidthEm}))`
+                  ? `min(60cqmin, calc((100cqw - 44cqmin) / ${tempWidthEm}))`
                   : `min(35cqmin, calc((100cqw - 34cqmin) / ${tempWidthEm}))`,
               color: fontColor,
             }}
@@ -369,7 +372,8 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </div>
         </div>
 
-        {(showFeelsLike || feelsLike !== undefined) && (
+        {((showFeelsLike && !staleFeelsLike) ||
+          shownFeelsLike !== undefined) && (
           <div
             className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
             style={{
@@ -385,7 +389,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           >
             {showFeelsLike
               ? `${t('widgets.weather.actual')} ${Math.round(temp)}°`
-              : `${t('widgets.weather.feelsLike')} ${Math.round(feelsLike ?? temp)}°`}
+              : `${t('widgets.weather.feelsLike')} ${Math.round(shownFeelsLike ?? temp)}°`}
           </div>
         )}
       </div>
