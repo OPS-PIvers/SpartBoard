@@ -48,6 +48,12 @@ async function allocateSessionCode(): Promise<string> {
     .padEnd(6, '0');
 }
 
+const isPermissionDenied = (err: unknown): boolean =>
+  typeof err === 'object' &&
+  err !== null &&
+  'code' in err &&
+  err.code === 'permission-denied';
+
 /** Claims this teacher's live code if it has no pointer yet (a session from before pointers). */
 async function claimOwnCode(teacherUid: string, code: string): Promise<void> {
   const ref = doc(db, CODES_COLLECTION, code);
@@ -292,21 +298,6 @@ export const useLiveSession = (
       throw new Error('Invalid code format');
     }
 
-    // The code's owner pointer names the only session it can resolve to.
-    const pointer = await getDoc(doc(db, CODES_COLLECTION, normalizedCode));
-    const teacherId = pointer.exists()
-      ? (pointer.data() as { teacherUid?: string }).teacherUid
-      : undefined;
-    const sessionSnap = teacherId
-      ? await getDoc(doc(db, SESSIONS_COLLECTION, teacherId))
-      : null;
-    const target = sessionSnap?.exists()
-      ? (sessionSnap.data() as LiveSession)
-      : null;
-    if (!teacherId || !target?.isActive || target.code !== normalizedCode) {
-      throw new Error('Session not found');
-    }
-
     // Sanitize PIN (max length limit, simple trim)
     const sanitizedPin = pin.trim().substring(0, MAX_PIN_LENGTH);
 
@@ -314,14 +305,22 @@ export const useLiveSession = (
       throw new Error('PIN is required');
     }
 
-    // 2. Add student to subcollection using their anonymous auth UID as the doc ID.
-    // This ties the record to the authenticated user so Firestore rules can
-    // allow students to update their own heartbeat/disconnect status.
+    // Students use their anonymous auth UID as the doc ID so rules can match it to the caller.
     const uid = auth.currentUser?.uid;
     if (!uid) {
       throw new Error('Not authenticated — please wait and try again');
     }
 
+    // The code's owner pointer names the only session it can resolve to.
+    const pointer = await getDoc(doc(db, CODES_COLLECTION, normalizedCode));
+    const teacherId = pointer.exists()
+      ? (pointer.data() as { teacherUid?: string }).teacherUid
+      : undefined;
+    if (!teacherId) {
+      throw new Error('Session not found');
+    }
+
+    // The session is readable only once this join record (carrying the live code) exists.
     const studentsRef = collection(
       db,
       SESSIONS_COLLECTION,
@@ -333,9 +332,14 @@ export const useLiveSession = (
       status: 'active',
       joinedAt: Date.now(),
       lastActive: Date.now(),
+      code: normalizedCode,
     };
 
-    await setDoc(doc(studentsRef, uid), newStudent);
+    // Rules refuse the record when the session isn't live on this code.
+    await setDoc(doc(studentsRef, uid), newStudent).catch((err: unknown) => {
+      if (isPermissionDenied(err)) throw new Error('Session not found');
+      throw err;
+    });
     dispatch({ type: 'joined', studentId: uid, pin: sanitizedPin });
     return teacherId;
   };
@@ -495,13 +499,30 @@ export const useLiveSession = (
   const endSession = useCallback(async () => {
     if (!userId) return;
     const sessionRef = doc(db, SESSIONS_COLLECTION, userId);
-    await updateDoc(sessionRef, {
+    const ended = await getDoc(sessionRef).catch(() => null);
+    const endedCode = ended?.exists()
+      ? (ended.data() as LiveSession).code
+      : undefined;
+    // An ended session keeps no widget config (it can carry roster names).
+    const endedOk = await updateDoc(sessionRef, {
       isActive: false,
       activeWidgetId: null,
+      activeWidgetType: null,
+      activeWidgetConfig: deleteField(),
       frozen: false,
-    }).catch((err) => {
-      console.error('Failed to end session:', err);
-    });
+    }).then(
+      () => true,
+      (err: unknown) => {
+        console.error('Failed to end session:', err);
+        return false;
+      }
+    );
+    // Frees the code so a stale join by it reports "not found".
+    if (endedOk && endedCode) {
+      void deleteDoc(doc(db, CODES_COLLECTION, endedCode)).catch(
+        () => undefined
+      );
+    }
 
     // Mark students as disconnected when session ends
     const studentsRef = collection(

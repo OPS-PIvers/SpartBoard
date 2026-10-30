@@ -52,6 +52,7 @@ import {
   getDocs,
   deleteDoc,
   collection,
+  deleteField,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-live-session-students-test';
@@ -129,6 +130,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: 2000,
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
   });
@@ -140,6 +142,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: 2000,
         lastActive: 2000,
+        code: 'ABC123',
         payload: 'x'.repeat(100000),
       })
     );
@@ -152,6 +155,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: 2000,
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
   });
@@ -163,6 +167,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: 2000,
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
   });
@@ -174,6 +179,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: 2000,
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
   });
@@ -185,6 +191,7 @@ describe('live session students — create', () => {
         status: 'hacked',
         joinedAt: 2000,
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
   });
@@ -196,6 +203,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: 'now',
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
   });
@@ -207,6 +215,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: 2000,
         lastActive: 'now',
+        code: 'ABC123',
       })
     );
   });
@@ -218,6 +227,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: 0,
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
     await assertFails(
@@ -226,6 +236,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: -1000,
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
   });
@@ -237,6 +248,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: 2000,
         lastActive: 0,
+        code: 'ABC123',
       })
     );
   });
@@ -247,6 +259,7 @@ describe('live session students — create', () => {
         pin: '1234',
         status: 'active',
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
   });
@@ -258,6 +271,7 @@ describe('live session students — create', () => {
         status: 'active',
         joinedAt: 2000,
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
   });
@@ -274,6 +288,7 @@ describe('live session students — read (the PIN is a pinLoginV1 credential)', 
         status: 'active',
         joinedAt: 2000,
         lastActive: 2000,
+        code: 'ABC123',
       });
       await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { roleId: 'admin' });
     });
@@ -340,6 +355,7 @@ describe('live session students — previous-client join compatibility', () => {
         status: 'active',
         joinedAt: 2000,
         lastActive: 2000,
+        code: 'ABC123',
       })
     );
     await assertSucceeds(getDoc(studentRef(db, STUDENT_UID)));
@@ -352,6 +368,7 @@ describe('live session students — previous-client join compatibility', () => {
       status: 'active',
       joinedAt: 2000,
       lastActive: 2000,
+      code: 'ABC123',
     };
     await assertSucceeds(setDoc(studentRef(db, STUDENT_UID), record));
     await assertSucceeds(
@@ -365,6 +382,7 @@ describe('live session students — previous-client join compatibility', () => {
       status: 'active',
       joinedAt: 2000,
       lastActive: 2000,
+      code: 'ABC123',
     };
     await assertSucceeds(
       setDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID), record)
@@ -384,6 +402,7 @@ describe('live session students — update', () => {
         status: 'active',
         joinedAt: 2000,
         lastActive: 2000,
+        code: 'ABC123',
       });
     });
   });
@@ -424,6 +443,7 @@ describe('live session students — update', () => {
         status: 'active',
         joinedAt: 3000,
         lastActive: 3000,
+        code: 'ABC123',
       })
     );
   });
@@ -435,6 +455,7 @@ describe('live session students — update', () => {
         status: 'active',
         joinedAt: 3000,
         lastActive: 3000,
+        code: 'ABC123',
       })
     );
   });
@@ -446,6 +467,7 @@ describe('live session students — update', () => {
         status: 'active',
         joinedAt: 3000,
         lastActive: 3000,
+        code: 'ABC123',
       })
     );
   });
@@ -501,6 +523,7 @@ describe('live session students — update', () => {
         status: 'active',
         joinedAt: 3000,
         lastActive: 3000,
+        code: 'ABC123',
       })
     );
   });
@@ -523,10 +546,10 @@ describe('live session students — update', () => {
 });
 
 describe('live session doc — teacher-only transitions', () => {
-  it('lets a joined student read the session doc and their removed (missing) record', async () => {
-    const db = asStudent(STUDENT_UID);
-    await assertSucceeds(getDoc(doc(db, `sessions/${TEACHER_UID}`)));
-    await assertSucceeds(getDoc(studentRef(db, STUDENT_UID)));
+  it('lets a student read their removed (missing) record', async () => {
+    await assertSucceeds(
+      getDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID))
+    );
   });
 
   it('allows the teacher to switch the broadcast widget in place', async () => {
@@ -573,10 +596,147 @@ describe('live session doc — teacher-only transitions', () => {
         status: 'active',
         joinedAt: 1000,
         lastActive: 1000,
+        code: 'ABC123',
       });
     });
     await assertFails(
       deleteDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID))
+    );
+  });
+});
+
+describe('live session students — the join must carry the live code', () => {
+  const join = (uid: string, code: string) =>
+    setDoc(studentRef(asStudent(uid), uid), {
+      pin: '4821',
+      status: 'active',
+      joinedAt: 2000,
+      lastActive: 2000,
+      code,
+    });
+
+  it('rejects a join without a code (the previous client shape)', async () => {
+    await assertFails(
+      setDoc(studentRef(asStudent(ATTACKER_UID), ATTACKER_UID), {
+        pin: '4821',
+        status: 'active',
+        joinedAt: 2000,
+        lastActive: 2000,
+      })
+    );
+  });
+
+  it('rejects a join with a code that is not the live one', async () => {
+    await assertFails(join(ATTACKER_UID, 'ZZZ999'));
+  });
+
+  it('rejects a join once the session has ended', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `sessions/${TEACHER_UID}`), {
+        isActive: false,
+      });
+    });
+    await assertFails(join(STUDENT_UID, 'ABC123'));
+  });
+
+  it('rejects a rejoin overwrite with a stale code', async () => {
+    await assertSucceeds(join(STUDENT_UID, 'ABC123'));
+    await assertFails(join(STUDENT_UID, 'OLD000'));
+  });
+});
+
+describe('live session doc — reads', () => {
+  const ADMIN_EMAIL = 'admin@school.edu';
+  const sessionRef = (db: ReturnType<typeof asStudent>) =>
+    doc(db, `sessions/${TEACHER_UID}`);
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
+        roleId: 'admin',
+      });
+    });
+  });
+
+  it('denies an anonymous user listing sessions', async () => {
+    await assertFails(getDocs(collection(asStudent(ATTACKER_UID), 'sessions')));
+  });
+
+  it('denies a signed-in teacher listing sessions, even their own', async () => {
+    await assertFails(getDocs(collection(asTeacher(), 'sessions')));
+  });
+
+  it('denies an anonymous user who knows the teacher uid but never joined', async () => {
+    await assertFails(getDoc(sessionRef(asStudent(ATTACKER_UID))));
+  });
+
+  it('denies a studentRole user who never joined', async () => {
+    const db = testEnv
+      .authenticatedContext('student-role-uid', {
+        email: 'kid@school.edu',
+        email_verified: true,
+        studentRole: true,
+        firebase: { sign_in_provider: 'custom' },
+      })
+      .firestore();
+    await assertFails(getDoc(sessionRef(db)));
+  });
+
+  it('denies an unrelated teacher', async () => {
+    const db = testEnv
+      .authenticatedContext('other-teacher', {
+        email: 'other@school.edu',
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+    await assertFails(getDoc(sessionRef(db)));
+  });
+
+  it('lets a student read the session once they joined with its code', async () => {
+    const db = asStudent(STUDENT_UID);
+    await assertFails(getDoc(sessionRef(db)));
+    await assertSucceeds(
+      setDoc(studentRef(db, STUDENT_UID), {
+        pin: '4821',
+        status: 'active',
+        joinedAt: 2000,
+        lastActive: 2000,
+        code: 'ABC123',
+      })
+    );
+    await assertSucceeds(getDoc(sessionRef(db)));
+  });
+
+  it('lets the owning teacher read their session', async () => {
+    await assertSucceeds(getDoc(sessionRef(asTeacher())));
+  });
+
+  it('lets an admin read a session', async () => {
+    const db = testEnv
+      .authenticatedContext('admin-uid', {
+        email: ADMIN_EMAIL,
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+    await assertSucceeds(getDoc(sessionRef(db)));
+  });
+
+  it('lets the teacher end the session and clear its widget config', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `sessions/${TEACHER_UID}`), {
+        activeWidgetConfig: { names: ['Ada'] },
+      });
+    });
+    await assertSucceeds(
+      updateDoc(sessionRef(asTeacher()), {
+        isActive: false,
+        activeWidgetId: null,
+        activeWidgetType: null,
+        activeWidgetConfig: deleteField(),
+        frozen: false,
+      })
     );
   });
 });

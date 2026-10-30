@@ -148,8 +148,10 @@ describe('useLiveSession — joinSession input validation', () => {
     expect(writtenStudent.pin.length).toBe(10);
   });
 
-  it('throws "Session not found" when the code owner\'s session has ended', async () => {
-    mockJoinLookup('teacher-uid-1', { isActive: false, code: 'ABC123' });
+  it('throws "Session not found" when rules refuse the join record (ended or moved code)', async () => {
+    asMock(firestore.setDoc).mockRejectedValueOnce({
+      code: 'permission-denied',
+    });
 
     const { result } = renderHook(() =>
       useLiveSession(undefined, 'student', 'ABC123')
@@ -159,33 +161,80 @@ describe('useLiveSession — joinSession input validation', () => {
     );
   });
 
-  it('throws "Session not found" when the owner\'s live session has moved to another code', async () => {
-    mockJoinLookup('teacher-uid-1', { isActive: true, code: 'NEW999' });
-
-    const { result } = renderHook(() =>
-      useLiveSession(undefined, 'student', 'ABC123')
-    );
-    await expect(result.current.joinSession('1234', 'ABC123')).rejects.toThrow(
-      'Session not found'
-    );
-  });
-
-  it("joins only the code owner's session, never a collection-wide code query", async () => {
-    asMock(firestore.getDocs).mockResolvedValueOnce({ docs: [] });
-    asMock(firestore.setDoc).mockResolvedValueOnce(undefined);
+  it("joins the code owner's session by a join record carrying the code, never reading or querying sessions first", async () => {
+    const setDocMock = asMock(firestore.setDoc);
+    setDocMock.mockResolvedValueOnce(undefined);
 
     const { result } = renderHook(() =>
       useLiveSession(undefined, 'student', 'ABC123')
     );
     let teacherId = '';
     await act(async () => {
-      teacherId = await result.current.joinSession('1234', 'ABC123');
+      teacherId = await result.current.joinSession('1234', 'abc123');
     });
     expect(teacherId).toBe('teacher-uid-1');
     expect(firestore.query).not.toHaveBeenCalled();
-    expect(firestore.getDoc).toHaveBeenCalledWith({
+    expect(firestore.getDoc).not.toHaveBeenCalledWith({
       path: 'sessions/teacher-uid-1',
     });
+    expect(setDocMock.mock.calls[0][1]).toMatchObject({
+      code: 'ABC123',
+      status: 'active',
+    });
+  });
+});
+
+describe('useLiveSession — endSession', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    asMock(firestore.onSnapshot).mockImplementation(() => vi.fn());
+    asMock(firestore.collection).mockReturnValue({});
+    asMock(firestore.getDocs).mockResolvedValue({ docs: [] });
+    asMock(firestore.deleteDoc).mockResolvedValue(undefined);
+    asMock(firestore.deleteField).mockReturnValue('<deleteField>');
+    mockJoinLookup('teacher-uid', { isActive: true, code: 'LIVE01' });
+  });
+
+  it('clears the widget config and frees the join code', async () => {
+    asMock(firestore.updateDoc).mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid', 'teacher')
+    );
+    await act(async () => {
+      await result.current.endSession();
+    });
+
+    expect(firestore.updateDoc).toHaveBeenCalledWith(
+      { path: 'sessions/teacher-uid' },
+      {
+        isActive: false,
+        activeWidgetId: null,
+        activeWidgetType: null,
+        activeWidgetConfig: '<deleteField>',
+        frozen: false,
+      }
+    );
+    expect(firestore.deleteDoc).toHaveBeenCalledWith({
+      path: 'live_session_codes/LIVE01',
+    });
+  });
+
+  it('keeps the join code when ending fails', async () => {
+    asMock(firestore.updateDoc).mockRejectedValueOnce(new Error('offline'));
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid', 'teacher')
+    );
+    await act(async () => {
+      await result.current.endSession();
+    });
+
+    expect(firestore.deleteDoc).not.toHaveBeenCalledWith({
+      path: 'live_session_codes/LIVE01',
+    });
+    errorSpy.mockRestore();
   });
 });
 

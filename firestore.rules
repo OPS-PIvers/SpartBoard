@@ -4555,10 +4555,9 @@ service cloud.firestore {
     }
 
     match /sessions/{userId} {
-      // Only authenticated users (including anonymous) can read sessions so a
-      // joined student can follow their teacher's broadcast.
-      // TODO: For Phase 2/Production, remove this broad read permission.
-      allow read: if signedIn();
+      // No list. The teacher, admins, and a student who joined with this session's code read it.
+      allow get: if signedIn() && (authUid() == userId || isAdmin() ||
+        exists(/databases/$(database)/documents/sessions/$(userId)/students/$(authUid())));
       // Shape-checks only the keys a write sets, so a legacy doc can still be ended, frozen or switched.
       function liveSessionOk(k) {
         return k.hasOnly(['id', 'isActive', 'activeWidgetId', 'activeWidgetType',
@@ -4589,8 +4588,11 @@ service cloud.firestore {
         // into a teacher's live roster. pin is capped at MAX_PIN_LENGTH (10).
         // Not enforced: cross-document PIN uniqueness (needs a transaction or CF); tracked
         // in firestore-rules.md.
+        // A join carries the live code, which is how a student proves they were given it.
         function isValidLiveStudentPayload(data) {
-          return data.keys().hasOnly(['pin', 'status', 'joinedAt', 'lastActive']) &&
+          let live = get(/databases/$(database)/documents/sessions/$(userId)).data;
+          return data.keys().hasOnly(['pin', 'status', 'joinedAt', 'lastActive', 'code']) &&
+            live.isActive == true && data.get('code', '') == live.code &&
             data.pin is string && data.pin.size() > 0 && data.pin.size() <= 10 &&
             data.status in ['active', 'frozen', 'disconnected'] &&
             data.joinedAt is int && data.joinedAt > 0 &&
