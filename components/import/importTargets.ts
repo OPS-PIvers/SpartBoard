@@ -26,8 +26,12 @@ const isWebUrl = (s: PendingSource): boolean =>
   !s.inboxItem?.selectionOnly;
 const isSlides = (s: PendingSource): boolean =>
   !!s.file && pageSourceKind(s.file) !== null;
+// Guided Learning's wizard picks slides by file name, so a nameless deck isn't offered there.
+const isNamedSlides = (s: PendingSource): boolean =>
+  hasExt(s, /\.(pdf|pptx)$/i);
+const PHOTO_TYPES = /^image\/(png|jpe?g|gif|webp|avif|heic|heif)$/i;
 const isPhoto = (s: PendingSource): boolean =>
-  !!s.file?.type.startsWith('image/');
+  PHOTO_TYPES.test(s.file?.type ?? '');
 const hasTabbedRows = (s: PendingSource): boolean =>
   !s.file && !!s.text && /\t|,/.test(s.text);
 
@@ -56,7 +60,7 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     label: 'Guided Learning',
     widgetType: 'guided-learning',
     landing: 'review',
-    accepts: (s) => hasExt(s, /\.json$/i) || isSlides(s),
+    accepts: (s) => hasExt(s, /\.json$/i) || isNamedSlides(s),
   },
   miniApp: {
     label: 'Mini App',

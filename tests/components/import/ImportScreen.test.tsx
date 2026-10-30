@@ -21,9 +21,9 @@ vi.mock('@/components/import/reference/ReferenceEmbedStep', () => ({
     onConvert,
   }: {
     url: string;
-    onConvert: () => void;
+    onConvert?: () => void;
   }) => (
-    <button type="button" onClick={onConvert}>
+    <button type="button" onClick={onConvert} data-convert={!!onConvert}>
       Checking {url}
     </button>
   ),
@@ -135,6 +135,18 @@ describe('targetChoices', () => {
     ).toEqual(['sticker']);
   });
 
+  it('keeps Guided Learning to named decks and Sticker to photos a board can show', () => {
+    expect(
+      targetChoices({ file: file('scan', 'application/pdf') }).targets
+    ).not.toContain('guidedLearning');
+    expect(
+      targetChoices({ file: file('scan.tiff', 'image/tiff') }).targets
+    ).toEqual([]);
+    expect(
+      targetChoices({ file: file('IMG_1.HEIC', 'image/heic') }).targets
+    ).toEqual(['sticker']);
+  });
+
   it('offers nothing for a file no route reads', () => {
     expect(
       targetChoices({ file: file('song.mp3', 'audio/mpeg') }).targets
@@ -219,6 +231,14 @@ describe('ImportScreen', () => {
     expect(
       screen.getByRole('button', { name: 'Flashcards' })
     ).toBeInTheDocument();
+  });
+
+  it('offers no Convert for a page that can only be embedded or linked', () => {
+    renderScreen({ inboxItems: [{ ...sent, blocks: [] }] });
+    fireEvent.click(screen.getByRole('button', { name: 'Embed' }));
+    expect(
+      screen.getByRole('button', { name: `Checking ${sent.url}` })
+    ).toHaveAttribute('data-convert', 'false');
   });
 
   it('says so when nothing can read the Source', () => {

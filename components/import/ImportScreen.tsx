@@ -23,6 +23,8 @@ interface ImportScreenProps {
   onContinue: (source: PendingSource, target: ImportTarget) => void;
   /** Places what the Embed check built (an Embed, or a Link when the page refuses framing). */
   onPlaceReference: (widget: ReferenceWidget, source: PendingSource) => void;
+  /** False hides the Embed check's "Add as a link" when Links is off for this teacher. */
+  canAddLink?: boolean;
 }
 
 const hostOf = (url: string): string => {
@@ -80,10 +82,16 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   allowed,
   onContinue,
   onPlaceReference,
+  canAddLink = true,
 }) => {
   // The page being checked for Embed, and rows whose page refused it.
   const [embedding, setEmbedding] = useState<Row | null>(null);
   const [noEmbed, setNoEmbed] = useState<ReadonlySet<string>>(new Set());
+  // Convert is offered only when the row has a target besides Embed and Link.
+  const canConvert = (row: Row): boolean =>
+    targetChoices(row.source, allowed).targets.some(
+      (t) => t !== 'embed' && t !== 'links'
+    );
   const rows: Row[] = [
     ...(initialSource && !initialSource.inboxItem
       ? [{ key: 'dropped', source: initialSource }]
@@ -129,10 +137,15 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
           url={embedding.source.url}
           title={embedding.source.title}
           onPlace={(widget) => onPlaceReference(widget, embedding.source)}
-          onConvert={() => {
-            setNoEmbed((prev) => new Set(prev).add(embedding.key));
-            setEmbedding(null);
-          }}
+          onConvert={
+            canConvert(embedding)
+              ? () => {
+                  setNoEmbed((prev) => new Set(prev).add(embedding.key));
+                  setEmbedding(null);
+                }
+              : undefined
+          }
+          canAddLink={canAddLink}
           onCancel={() => setEmbedding(null)}
         />
       ) : rows.length === 0 ? (

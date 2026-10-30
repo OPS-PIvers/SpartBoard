@@ -20,8 +20,10 @@ interface ReferenceEmbedStepProps {
   title?: string;
   /** Places the widget on the board; called at once when the page can be framed. */
   onPlace: (widget: ReferenceWidget) => void;
-  /** Back to the target picker with Embed removed, so the teacher can pick a Conversion. */
-  onConvert: () => void;
+  /** Back to the target picker with Embed removed; left out when there is nothing to convert to. */
+  onConvert?: () => void;
+  /** False when Links is off for this teacher. */
+  canAddLink?: boolean;
   onCancel: () => void;
   /** Test seam for the server check. */
   check?: CompatibilityCheck;
@@ -42,6 +44,7 @@ export const ReferenceEmbedStep: React.FC<ReferenceEmbedStepProps> = ({
   onPlace,
   onConvert,
   onCancel,
+  canAddLink = true,
   check,
 }) => {
   const { config: embedConfig, isLoading } = useEmbedConfig();
@@ -110,16 +113,18 @@ export const ReferenceEmbedStep: React.FC<ReferenceEmbedStepProps> = ({
           'Your building has turned off showing web pages in an Embed.'}
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-        <Button
-          variant="primary"
-          {...tourAttr('import.reference.convert')}
-          onClick={onConvert}
-        >
-          Convert instead
-        </Button>
-        {verdict.cause !== 'invalid' && (
+        {onConvert && (
           <Button
-            variant="secondary"
+            variant="primary"
+            {...tourAttr('import.reference.convert')}
+            onClick={onConvert}
+          >
+            Convert instead
+          </Button>
+        )}
+        {verdict.cause !== 'invalid' && canAddLink && (
+          <Button
+            variant={onConvert ? 'secondary' : 'primary'}
             {...tourAttr('import.reference.add-link')}
             onClick={() => onPlace(buildLinkReference(url, title))}
           >

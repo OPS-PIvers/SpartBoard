@@ -165,12 +165,13 @@ const OpenImportScreen: React.FC<
     });
   };
 
-  // A Reference widget built by the Embed check or the photo sticker.
-  const placeReference = (
+  // Puts a Reference widget on the board without touching the window, which may have reopened meanwhile.
+  const putReference = (
     widget: ReferenceWidget,
     source: PendingSource
   ): void => {
-    closeImportScreen();
+    // The window only offers allowed widgets; this catches a permission change while it was open.
+    if (!canAccessWidget(widget.type)) return;
     if (refuseReadOnly()) return;
     const defaults = WIDGET_DEFAULTS[widget.type];
     const w = widget.overrides.w ?? defaults.w ?? 400;
@@ -183,11 +184,20 @@ const OpenImportScreen: React.FC<
     if (sentId) removeSent(sentId);
   };
 
+  // A Reference widget built by the Embed check.
+  const placeReference = (
+    widget: ReferenceWidget,
+    source: PendingSource
+  ): void => {
+    closeImportScreen();
+    putReference(widget, source);
+  };
+
   const placeSticker = async (file: File, source: PendingSource) => {
     closeImportScreen();
     if (refuseReadOnly()) return;
     const sticker = await photo.toSticker(file);
-    if (sticker) placeReference(sticker, source);
+    if (sticker) putReference(sticker, source);
     else addToast('That picture couldn’t be added.', 'error');
   };
 
@@ -238,6 +248,7 @@ const OpenImportScreen: React.FC<
       allowed={allowed}
       onContinue={route}
       onPlaceReference={placeReference}
+      canAddLink={canAccessWidget('url')}
     />
   );
 };
