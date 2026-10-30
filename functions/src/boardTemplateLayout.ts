@@ -1,3 +1,4 @@
+import { HttpsError } from 'firebase-functions/v2/https';
 import { BOARD_TEMPLATES } from './mcp/boardEngine.gen';
 import { WIDGET_TYPE_LIST } from './mcp/widgetTypeList';
 
@@ -14,52 +15,71 @@ export interface TemplateLayout {
   slots: TemplateLayoutSlot[];
 }
 
-const describeTemplates = (): string =>
+const PROMPT_WIDGETS: ReadonlyArray<readonly [string, string]> = [
+  ['clock', 'Digital/analog clock'],
+  ['time-tool', 'Timer/Stopwatch'],
+  ['countdown', 'Countdown to a date or event'],
+  ['traffic', 'Traffic light for behavior/status'],
+  ['text', 'Simple sticky note/text area'],
+  ['checklist', 'To-do list'],
+  ['random', 'Student/item picker'],
+  ['dice', 'Random dice roller'],
+  ['sound', 'Noise level meter'],
+  ['drawing', 'Sketchpad'],
+  ['qr', 'QR code generator'],
+  ['embed', 'Website embedder'],
+  ['poll', 'Multiple choice poll'],
+  ['quiz', 'Interactive classroom quizzes'],
+  ['webcam', 'Live camera feed with OCR capabilities'],
+  ['scoreboard', 'Point tracker'],
+  ['expectations', 'Classroom expectations icons'],
+  ['weather', 'Local weather display'],
+  ['schedule', 'Daily class schedule'],
+  ['calendar', 'Monthly events'],
+  ['lunchCount', 'Student meal tracker'],
+  ['classes', 'Class/Period selector'],
+  [
+    'instructionalRoutines',
+    'Library of teaching strategies (e.g. Think-Pair-Share)',
+  ],
+  ['materials', 'Visual list of required student supplies'],
+  ['stickers', 'Reward/decorative stickers'],
+  ['seating-chart', 'Classroom layout manager'],
+  ['catalyst', 'Instructional warm-ups/activities'],
+];
+
+const describeTemplates = (allowed: ReadonlySet<string> | null): string =>
   BOARD_TEMPLATES.map((template) => {
     const zones = template.slots
-      .map(
-        (slot) =>
-          `    - zoneId "${slot.zoneId}": ${slot.role} (suggested: ${slot.suggestedWidgets.join(', ')})`
-      )
+      .map((slot) => {
+        const suggested = slot.suggestedWidgets.filter(
+          (type) => !allowed || allowed.has(type)
+        );
+        const hint =
+          suggested.length > 0 ? ` (suggested: ${suggested.join(', ')})` : '';
+        return `    - zoneId "${slot.zoneId}": ${slot.role}${hint}`;
+      })
       .join('\n');
     return `  - templateId "${template.id}" (${template.name}): ${template.whenToUse}\n${zones}`;
   }).join('\n');
 
-export const templateLayoutSystemPrompt = (): string => `
+const describeWidgets = (allowed: ReadonlySet<string> | null): string =>
+  PROMPT_WIDGETS.filter(([type]) => !allowed || allowed.has(type))
+    .map(([type, description]) => `          - ${type}: ${description}`)
+    .join('\n');
+
+/** `allowed` limits the widgets offered to the ones the teacher can use; null offers them all. */
+export const templateLayoutSystemPrompt = (
+  allowed: ReadonlySet<string> | null = null
+): string => `
           You are an expert instructional designer and classroom space planner. Based on the user's lesson description provided within <lesson_description> tags, choose ONE board template and fill its zones with interactive widgets.
 
           Board templates (each zone already has a fixed place on the screen):
-${describeTemplates()}
+${describeTemplates(allowed)}
 
           Available Widgets (use EXACT type strings):
-          - clock: Digital/analog clock
-          - time-tool: Timer/Stopwatch
-          - countdown: Countdown to a date or event
-          - traffic: Traffic light for behavior/status
-          - text: Simple sticky note/text area
-          - checklist: To-do list
-          - random: Student/item picker
-          - dice: Random dice roller
-          - sound: Noise level meter
-          - drawing: Sketchpad
-          - qr: QR code generator
-          - embed: Website embedder
-          - poll: Multiple choice poll
-          - quiz: Interactive classroom quizzes
-          - webcam: Live camera feed with OCR capabilities
-          - scoreboard: Point tracker
-          - expectations: Classroom expectations icons
-          - weather: Local weather display
-          - schedule: Daily class schedule
-          - calendar: Monthly events
-          - lunchCount: Student meal tracker
-          - classes: Class/Period selector
-          - instructionalRoutines: Library of teaching strategies (e.g. Think-Pair-Share)
-          - materials: Visual list of required student supplies
-          - stickers: Reward/decorative stickers
-          - seating-chart: Classroom layout manager
-          - catalyst: Instructional warm-ups/activities
-          Any widget named in a zone's suggestions may also be used.
+${describeWidgets(allowed)}
+          Any widget named in a zone's suggestions may also be used. Never use a widget that is not listed here or in a suggestion.
 
           Rules:
           1. Pick the template whose description best fits the lesson.
@@ -69,7 +89,7 @@ ${describeTemplates()}
 
           Return JSON: { "templateId": "...", "slots": [{ "zoneId": "...", "widgetType": "...", "config": {} }] }
 
-          Example Payload for a 'Review Game':
+          Example Payload for a 'Review Game' (shows the format only; use only the widgets listed above):
           {
             "templateId": "review-game",
             "slots": [
@@ -81,12 +101,41 @@ ${describeTemplates()}
 
 const KNOWN_WIDGETS = new Set(WIDGET_TYPE_LIST);
 
+// Every widget the prompt can name, in its list or in a zone's suggestions.
+const OFFERED_WIDGETS = new Set<string>([
+  ...PROMPT_WIDGETS.map(([type]) => type),
+  ...BOARD_TEMPLATES.flatMap((t) => t.slots.flatMap((s) => s.suggestedWidgets)),
+]);
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
 
-/** Keeps the AI's answer to a known template, its zones (once each) and known widget types; null when unusable. */
+/** Most widget types a request may list; more than every known type means a bad caller. */
+const MAX_ALLOWED_WIDGETS = 200;
+
+/** Reads the teacher's allowed widget types; null when not sent. Unknown types are dropped. */
+export const readAllowedWidgets = (raw: unknown): Set<string> | null => {
+  if (raw === undefined || raw === null) return null;
+  if (!Array.isArray(raw) || raw.length > MAX_ALLOWED_WIDGETS) {
+    throw new HttpsError('invalid-argument', 'Invalid allowed widget list.');
+  }
+  const allowed = new Set<string>();
+  for (const type of raw as unknown[]) {
+    if (typeof type === 'string' && KNOWN_WIDGETS.has(type)) allowed.add(type);
+  }
+  if (![...allowed].some((type) => OFFERED_WIDGETS.has(type))) {
+    throw new HttpsError(
+      'failed-precondition',
+      'No widgets are available to build a board with.'
+    );
+  }
+  return allowed;
+};
+
+/** Keeps the AI's answer to a known template, its zones (once each) and known, allowed widget types; null when unusable. */
 export const normalizeTemplateLayout = (
-  parsed: Record<string, unknown>
+  parsed: Record<string, unknown>,
+  allowed: ReadonlySet<string> | null = null
 ): TemplateLayout | null => {
   const templateId = parsed.templateId;
   if (typeof templateId !== 'string') return null;
@@ -101,6 +150,7 @@ export const normalizeTemplateLayout = (
     if (typeof zoneId !== 'string' || typeof widgetType !== 'string') continue;
     if (!zoneIds.has(zoneId) || used.has(zoneId)) continue;
     if (!KNOWN_WIDGETS.has(widgetType)) continue;
+    if (allowed && !allowed.has(widgetType)) continue;
     used.add(zoneId);
     slots.push({
       zoneId,

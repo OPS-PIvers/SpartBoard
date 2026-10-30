@@ -9,6 +9,7 @@ import {
   GuidedLearningMode,
   GuidedLearningInteractionType,
   GuidedLearningTourAction,
+  InternalToolType,
 } from '@/types';
 import { TOOLS } from '@/config/tools';
 import { getBoardTemplate } from '@/config/boardTemplates';
@@ -156,6 +157,8 @@ async function callAI(
     html?: string;
     /** `dashboard-layout` only: ask for a board template instead of grid cells. */
     layoutMode?: 'templates';
+    /** `dashboard-layout` template mode only: the widget types the teacher can use. */
+    allowedWidgets?: string[];
   },
   baseErrorMessage: string
 ): Promise<AIResponseData> {
@@ -169,6 +172,7 @@ async function callAI(
         source?: AISource;
         html?: string;
         layoutMode?: 'templates';
+        allowedWidgets?: string[];
       },
       AIResponseData
     >(functions, 'generateWithAI', { timeout: 310_000 });
@@ -337,6 +341,23 @@ export function placeTemplateLayout(
   }));
 }
 
+const INTERNAL_TOOLS: Record<InternalToolType, true> = {
+  record: true,
+  magic: true,
+  remote: true,
+};
+
+const isInternalTool = (
+  type: WidgetType | InternalToolType
+): type is InternalToolType => type in INTERNAL_TOOLS;
+
+/** The widget types the teacher can use, sent so Magic Board only picks from them. */
+function allowedWidgetTypes(canUseWidget: (type: WidgetType) => boolean) {
+  return TOOLS.flatMap(({ type }) =>
+    isInternalTool(type) || !canUseWidget(type) ? [] : [type]
+  );
+}
+
 /**
  * Generates a dashboard layout based on a natural language description using a Firebase Function proxy.
  *
@@ -355,6 +376,9 @@ export async function generateDashboardLayout(
           type: 'dashboard-layout',
           prompt: description,
           layoutMode: 'templates',
+          ...(templates.canUseWidget
+            ? { allowedWidgets: allowedWidgetTypes(templates.canUseWidget) }
+            : {}),
         }
       : { type: 'dashboard-layout', prompt: description },
     'Failed to generate layout. Please try again with a different description.'
