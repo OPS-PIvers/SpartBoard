@@ -73,6 +73,18 @@ function httpUrl(v: unknown, what: string): string {
   return raw;
 }
 
+const SECRET_PARAM =
+  /^(access_token|id_token|token|auth|code|key|api_key|sig|signature|session|x-amz-.+)$/i;
+
+/** The page URL without its fragment or sign-in tokens, which the teacher never meant to send. */
+export function storedUrl(raw: string): string {
+  const u = new URL(raw);
+  u.hash = '';
+  for (const name of [...u.searchParams.keys()])
+    if (SECRET_PARAM.test(name)) u.searchParams.delete(name);
+  return u.toString();
+}
+
 function parseBlock(v: unknown, i: number): ImportBlock {
   const what = `block ${i + 1}`;
   if (!isObj(v)) throw malformed(what);
@@ -160,7 +172,7 @@ export function parseSendRequest(body: unknown): ImportSendRequest {
   if (!title) throw malformed('title');
   const readerFailure = parseReaderFailure(body.readerFailure);
   return {
-    url: httpUrl(body.url, 'url'),
+    url: storedUrl(httpUrl(body.url, 'url')),
     title,
     platform: platformId(body.platform, 'platform'),
     selectionOnly: body.selectionOnly,

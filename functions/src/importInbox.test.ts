@@ -19,6 +19,7 @@ import { ExtensionCallError } from './webTourExtension';
 import {
   checkImporter,
   failureUrl,
+  storedUrl,
   importStatus,
   parseSendRequest,
   receiveSend,
@@ -340,6 +341,14 @@ describe('blocked pictures', () => {
     expect(() => parseSendRequest(body({ blocks }))).toThrow(
       ExtensionCallError
     );
+  });
+});
+
+describe('storedUrl', () => {
+  it('drops the fragment and sign-in tokens, keeping other params', () => {
+    expect(
+      storedUrl('https://a.example/p?id=4&access_token=s&X-Amz-Signature=t#x')
+    ).toBe('https://a.example/p?id=4');
   });
 });
 
