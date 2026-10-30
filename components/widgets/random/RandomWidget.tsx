@@ -720,7 +720,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // the widget changes in place and doesn't otherwise hint at the action).
   const [isRotating, setIsRotating] = useState(false);
   const rotateAnimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // In-flight pick timers, cleared on unmount so a closed widget stops ticking and writing.
+  // In-flight pick timers, cleared on unmount so a closed widget stops ticking.
   const spinTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
   // Saves an in-flight pick's result on unmount, since maximize and spotlight remount the widget.
   const pendingFinishRef = useRef<(() => void) | null>(null);
