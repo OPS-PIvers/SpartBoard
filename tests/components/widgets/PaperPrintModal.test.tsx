@@ -1158,8 +1158,34 @@ describe('PaperPrintModal with handwritten answers', () => {
       }),
     });
     expect(screen.getByText('Written answers')).toBeInTheDocument();
-    expect(screen.getByLabelText('Question 1 box size')).toHaveValue('L');
+    // A quiz saved with the older Large size reads as a custom 12 lines.
+    expect(screen.getByLabelText('Question 1 box size')).toHaveValue('custom');
+    expect(screen.getByLabelText('Question 1 box size, lines')).toHaveValue(12);
     expect(screen.getByLabelText('Question 2 box size')).toHaveValue('S');
+  });
+
+  it('offers a custom line count and prints it', async () => {
+    const onSavePrintSetup = vi.fn().mockResolvedValue(undefined);
+    const { onSaveBatch, print } = setup({
+      quiz: quiz({ questions: [fr('w1')] }),
+      onSavePrintSetup,
+    });
+    expect(screen.queryByLabelText('Question 1 box size, lines')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Question 1 box size'), {
+      target: { value: 'custom' },
+    });
+    fireEvent.change(screen.getByLabelText('Question 1 box size, lines'), {
+      target: { value: '15' },
+    });
+    await printIt(print);
+    expect(onSavePrintSetup).toHaveBeenCalledWith({
+      stimuli: [],
+      boxSizes: { w1: 15 },
+    });
+    const lines = onSaveBatch.mock.calls[0][0].pageMaps?.flatMap((m) =>
+      m.items.flatMap((i) => (i.kind === 'written' ? [i.lines] : []))
+    );
+    expect(lines).toEqual([15]);
   });
 
   it('prints the picked box size and saves only the sizes that changed', async () => {
@@ -1172,9 +1198,6 @@ describe('PaperPrintModal with handwritten answers', () => {
     });
     fireEvent.change(screen.getByLabelText('Question 2 box size'), {
       target: { value: 'S' },
-    });
-    fireEvent.change(screen.getByLabelText('Question 1 box size'), {
-      target: { value: 'L' },
     });
     await printIt(print);
     expect(onSavePrintSetup).toHaveBeenCalledWith({
@@ -1279,7 +1302,7 @@ describe('PaperPrintModal with handwritten answers', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.change(screen.getByLabelText('Question 3 box size'), {
-      target: { value: 'L' },
+      target: { value: 'full' },
     });
     fireEvent.change(screen.getByLabelText('Question 3 points'), {
       target: { value: '4' },
@@ -1294,7 +1317,7 @@ describe('PaperPrintModal with handwritten answers', () => {
       'MC',
     ]);
     expect(created.questions[2]).toMatchObject({
-      paperBoxSize: 'L',
+      paperBoxSize: 'full',
       points: 4,
       correctAnswer: '',
       incorrectAnswers: [],

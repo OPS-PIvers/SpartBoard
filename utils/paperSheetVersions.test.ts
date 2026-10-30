@@ -4,12 +4,12 @@ import { resolveQuizAssignment, type BankContent } from './questionBanks';
 import { analyzePaperQuiz, planPaperBatch } from './paperSheetPlan';
 import { planPaperPages } from './paperPageMap';
 import {
-  addPromptPages,
   needsPromptPage,
   pageMapsForSeat,
   planPaperVersions,
   printVersionsFor,
   promptAnalysis,
+  promptRowsFor,
   seatQuestionId,
   versionSheetQuestions,
 } from './paperSheetVersions';
@@ -181,26 +181,42 @@ describe('prompt pages', () => {
     expect(a.written.map((w) => w.size)).toEqual(['full', 'M']);
   });
 
-  it('puts the prompt page in front of its box and renumbers what follows', () => {
+  it('keeps a size the teacher picked for a long prompt', () => {
+    const split: QuizData = {
+      ...quiz,
+      bankSlots: undefined,
+      questions: [{ ...frq('p1', 'Part 1\nA. Define'), paperBoxSize: 'S' }],
+    };
+    const a = promptAnalysis(split, analyzePaperQuiz(split, { written: true }));
+    expect(a.written.map((w) => w.size)).toEqual(['S']);
+  });
+
+  it('prints the prompt on the same page as its box', () => {
     const plan = mustPlan(quiz, banks);
+    const promptRows = promptRowsFor(
+      printVersionsFor(plan, {}, false).map((v) => v.prompts ?? {}),
+      true
+    );
+    expect(Object.keys(promptRows)).toEqual(['vA']);
     const pages = planPaperPages({
       entries: plan.template.entries,
       grid: 2,
       stems: true,
       choiceCount: 4,
+      promptRows,
     });
     expect(pages.ok).toBe(true);
     if (!pages.ok) return;
-    const result = addPromptPages(pages.pageMaps, plan.promptIds);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(
-      result.pageMaps.map((m) => [m.page, m.items.length, m.prompt ?? null])
-    ).toEqual([
-      [1, 1, null],
-      [2, 0, 'vA'],
-      [3, 1, null],
+    expect(pages.pageMaps.map((m) => [m.page, m.items.length])).toEqual([
+      [1, 1],
+      [2, 1],
     ]);
+    const box = pages.pageMaps[1].items[0];
+    expect(box.kind).toBe('written');
+    if (box.kind !== 'written') return;
+    // A Full box takes every row the prompt leaves on its page.
+    expect(box.lines).toBe(26 - promptRows.vA);
+    expect(box.headerMm.h).toBe(promptRows.vA * 8 - 3);
   });
 });
 
@@ -223,10 +239,12 @@ function printedBatch() {
     grid: 2,
     stems: true,
     choiceCount: 4,
+    promptRows: promptRowsFor(
+      printVersionsFor(plan, {}, false).map((v) => v.prompts ?? {}),
+      true
+    ),
   });
   if (!pages.ok) throw new Error('pages');
-  const maps = addPromptPages(pages.pageMaps, plan.promptIds);
-  if (!maps.ok) throw new Error('maps');
   const r1 = roster('1', 3);
   const r2 = roster('2', 2);
   const { batch, sheets } = planPaperBatch({
@@ -241,7 +259,7 @@ function printedBatch() {
     spareCount: 2,
     includeKeySheet: true,
     questions: versionSheetQuestions(plan),
-    pageMaps: maps.pageMaps,
+    pageMaps: pages.pageMaps,
     versions: plan.records,
     createdAt: 1,
   });
@@ -273,11 +291,10 @@ describe('print-time dealing', () => {
     expect(seatQuestionId(batch, 2, 'vA')).toBe('vB');
     expect(seatQuestionId(batch, 8, 'vA')).toBe('vA');
     expect(
-      pageMapsForSeat(batch, 2)?.flatMap((m) => [
-        ...m.items.map((i) => i.questionId),
-        ...(m.prompt ? [`prompt:${m.prompt}`] : []),
-      ])
-    ).toEqual(['q1', 'prompt:vB', 'vB']);
+      pageMapsForSeat(batch, 2)?.flatMap((m) =>
+        m.items.map((i) => i.questionId)
+      )
+    ).toEqual(['q1', 'vB']);
   });
 
   it("prints each sheet's own version label, prompt and figures", () => {

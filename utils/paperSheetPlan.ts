@@ -26,7 +26,7 @@ import {
 } from './paperSheetLayout';
 import { MAX_SEAT } from './paperSheetMarker';
 import type { PaperSheetEntry } from './paperPageMap';
-import { defaultPaperBoxSize } from './paperWritten';
+import { paperBoxSizeOf } from './paperWritten';
 import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
 
 /** Small deterministic PRNG so an option set always shuffles the same way. */
@@ -206,8 +206,7 @@ export function analyzePaperQuiz(
         });
         return;
       }
-      const size =
-        question.paperBoxSize ?? defaultPaperBoxSize(question.maxWords);
+      const size = paperBoxSizeOf(question);
       written.push({ questionId: question.id, label, size });
       entries.push({ kind: 'written', questionId: question.id, label, size });
       return;

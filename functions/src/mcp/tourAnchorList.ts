@@ -11944,6 +11944,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-print.written-box-lines",
+    "label": "Written box custom line count in the Quiz widget",
+    "scope": "field",
+    "panel": true
+  },
+  {
     "id": "quiz-print.written-number",
     "label": "Written answers question-number input in the Quiz widget",
     "scope": "widget type",
