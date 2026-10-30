@@ -9,7 +9,7 @@ import {
   resolveAndValidateHost,
   type ResolvedAddress,
 } from './ssrfGuard';
-import { decodeHtmlEntities } from './linkPreview';
+import { decodeHtmlEntities } from './htmlEntities';
 import { isDistrictStaffToken } from './districtStaff';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import {

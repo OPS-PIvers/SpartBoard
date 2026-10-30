@@ -17,6 +17,7 @@ import {
 } from './ssrfGuard';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { decodeHtmlEntities } from './htmlEntities';
 
 const MAX_REDIRECTS = 2;
 const MAX_RESPONSE_BYTES = 1_048_576;
@@ -94,25 +95,6 @@ function youtubeVideoId(parsedUrl: URL): string | null {
     return parsedUrl.searchParams.get('v');
   }
   return null;
-}
-
-export function decodeHtmlEntities(value: string): string {
-  const named: Record<string, string> = {
-    amp: '&',
-    lt: '<',
-    gt: '>',
-    quot: '"',
-  };
-  // Single pass so `&amp;lt;` decodes to `&lt;`, never to `<`.
-  return value.replace(
-    /&(?:(amp|lt|gt|quot)|#x([0-9a-f]+)|#(\d+));/gi,
-    (match, name: string | undefined, hex?: string, dec?: string) => {
-      if (name) return named[name.toLowerCase()] ?? match;
-      const code = hex ? parseInt(hex, 16) : parseInt(dec ?? '', 10);
-      if (!Number.isFinite(code) || code > 0x10ffff) return match;
-      return String.fromCodePoint(code);
-    }
-  );
 }
 
 function extractMetaContent(html: string, propOrName: string): string | null {
