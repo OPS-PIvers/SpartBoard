@@ -1,6 +1,7 @@
 import type { WidgetType } from '@/types';
 import type { ImportTarget } from '@/utils/import/contract';
 import { guessTargets, type ImportSource } from '@/utils/import/guessTargets';
+import { pageSourceKind } from '@/utils/import/pageImages';
 import type { PendingSource } from './importHandoff';
 
 export interface ImportRoute {
@@ -23,6 +24,10 @@ const isWebUrl = (s: PendingSource): boolean =>
   !!s.url &&
   /^https?:\/\//i.test(s.url) &&
   !s.inboxItem?.selectionOnly;
+const isSlides = (s: PendingSource): boolean =>
+  !!s.file && pageSourceKind(s.file) !== null;
+const isPhoto = (s: PendingSource): boolean =>
+  !!s.file?.type.startsWith('image/');
 const hasTabbedRows = (s: PendingSource): boolean =>
   !s.file && !!s.text && /\t|,/.test(s.text);
 
@@ -51,7 +56,7 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     label: 'Guided Learning',
     widgetType: 'guided-learning',
     landing: 'review',
-    accepts: (s) => hasExt(s, /\.json$/i),
+    accepts: (s) => hasExt(s, /\.json$/i) || isSlides(s),
   },
   miniApp: {
     label: 'Mini App',
@@ -63,13 +68,19 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     label: 'Notebook',
     widgetType: 'smartNotebook',
     landing: 'place',
-    accepts: (s) => hasExt(s, /\.(notebook|olf|spartnb)$/i),
+    accepts: (s) => hasExt(s, /\.(notebook|olf|spartnb)$/i) || isSlides(s),
   },
   pdf: {
     label: 'PDF',
     widgetType: 'pdf',
     landing: 'place',
     accepts: (s) => hasExt(s, /\.pdf$/i) || s.file?.type === 'application/pdf',
+  },
+  sticker: {
+    label: 'Sticker',
+    widgetType: 'sticker',
+    landing: 'place',
+    accepts: isPhoto,
   },
   embed: {
     label: 'Embed',

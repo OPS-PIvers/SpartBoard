@@ -21,6 +21,9 @@ import {
   type PendingSource,
 } from './importHandoff';
 import { importRoute } from './importTargets';
+import type { ReferenceWidget } from './reference/referenceLanding';
+import { usePhotoReference } from './reference/usePhotoReference';
+import { pageSourceKind } from '@/utils/import/pageImages';
 
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst)$/i;
 const CARTRIDGE = /\.imscc$/i;
@@ -89,6 +92,7 @@ const OpenImportScreen: React.FC<
     isActiveBoardReadOnly,
   } = useDashboard();
   const canReadQuizDocuments = useQuizDocumentImportGate();
+  const photo = usePhotoReference();
   const schoology = canAccessFeature('schoology-quiz-import');
 
   // The same gates the Quiz widget puts on its own import, so Import never offers what the review would refuse.
@@ -161,11 +165,43 @@ const OpenImportScreen: React.FC<
     });
   };
 
+  // A Reference widget built by the Embed check or the photo sticker.
+  const placeReference = (
+    widget: ReferenceWidget,
+    source: PendingSource
+  ): void => {
+    closeImportScreen();
+    if (refuseReadOnly()) return;
+    const defaults = WIDGET_DEFAULTS[widget.type];
+    const w = widget.overrides.w ?? defaults.w ?? 400;
+    const h = widget.overrides.h ?? defaults.h ?? 300;
+    addWidget(widget.type, {
+      ...widget.overrides,
+      ...placeAt(request.dropPoint, w, h),
+    });
+    const sentId = source.inboxItem?.id;
+    if (sentId) removeSent(sentId);
+  };
+
+  const placeSticker = async (file: File, source: PendingSource) => {
+    closeImportScreen();
+    if (refuseReadOnly()) return;
+    const sticker = await photo.toSticker(file);
+    if (sticker) placeReference(sticker, source);
+    else addToast('That picture couldn’t be added.', 'error');
+  };
+
   const route = (source: PendingSource, target: ImportTarget): void => {
     const r = importRoute(target);
     if (!r) return;
+    if (target === 'sticker' && source.file) {
+      void placeSticker(source.file, source);
+      return;
+    }
     closeImportScreen();
-    if (r.landing === 'review') {
+    // Slides become Notebook pages through the Notebook widget's own review.
+    const slides = !!source.file && pageSourceKind(source.file) !== null;
+    if (r.landing === 'review' || (target === 'notebook' && slides)) {
       review(source, target);
       return;
     }
@@ -201,6 +237,7 @@ const OpenImportScreen: React.FC<
       onRemoveInboxItem={removeSent}
       allowed={allowed}
       onContinue={route}
+      onPlaceReference={placeReference}
     />
   );
 };

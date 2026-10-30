@@ -15,6 +15,20 @@ import { ImportWizard } from '@/components/common/library/importer';
 import type { ImportAdapter } from '@/components/common/library/types';
 import type { ImportInboxItem } from '@/utils/import/contract';
 
+vi.mock('@/components/import/reference/ReferenceEmbedStep', () => ({
+  ReferenceEmbedStep: ({
+    url,
+    onConvert,
+  }: {
+    url: string;
+    onConvert: () => void;
+  }) => (
+    <button type="button" onClick={onConvert}>
+      Checking {url}
+    </button>
+  ),
+}));
+
 const file = (name: string, type = '') => new File(['x'], name, { type });
 
 const sent: ImportInboxItem = {
@@ -100,7 +114,7 @@ describe('targetChoices', () => {
   it('does not offer Quiz for a photo, which only the quiz picture picker reads', () => {
     expect(
       targetChoices({ file: file('worksheet.jpg', 'image/jpeg') }).targets
-    ).toEqual([]);
+    ).not.toContain('quiz');
   });
 
   it('asks the gate per Source, so a closed import is never offered', () => {
@@ -108,7 +122,17 @@ describe('targetChoices', () => {
       { file: file('notes.pdf', 'application/pdf') },
       (t, s) => !(t === 'quiz' && s.file?.name.endsWith('.pdf'))
     );
-    expect(c.targets).toEqual(['pdf']);
+    expect(c.targets).not.toContain('quiz');
+    expect(c.targets).toContain('pdf');
+  });
+
+  it('offers Notebook and Guided Learning for slides, and a Sticker for a photo', () => {
+    expect(targetChoices({ file: file('deck.pptx') }).targets).toEqual(
+      expect.arrayContaining(['notebook', 'guidedLearning'])
+    );
+    expect(
+      targetChoices({ file: file('board.jpg', 'image/jpeg') }).targets
+    ).toEqual(['sticker']);
   });
 
   it('offers nothing for a file no route reads', () => {
@@ -152,6 +176,7 @@ describe('ImportScreen', () => {
         onRemoveInboxItem={onRemoveInboxItem}
         allowed={() => true}
         onContinue={onContinue}
+        onPlaceReference={vi.fn()}
         {...props}
       />
     );
@@ -181,6 +206,19 @@ describe('ImportScreen', () => {
       screen.getByRole('button', { name: 'Remove Cell vocabulary' })
     );
     expect(onRemoveInboxItem).toHaveBeenCalledWith('send-1');
+  });
+
+  it('checks a page before embedding it, and drops Embed when it refuses', () => {
+    const { onContinue } = renderScreen({ inboxItems: [sent] });
+    fireEvent.click(screen.getByRole('button', { name: 'Embed' }));
+    expect(onContinue).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', { name: `Checking ${sent.url}` })
+    );
+    expect(screen.queryByRole('button', { name: 'Embed' })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Flashcards' })
+    ).toBeInTheDocument();
   });
 
   it('says so when nothing can read the Source', () => {

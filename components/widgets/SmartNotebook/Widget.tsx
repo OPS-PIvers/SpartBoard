@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
@@ -68,6 +68,10 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { UNIVERSAL_IMPORT_FEATURE } from '@/utils/import/contract';
 import { pageSourceKind, readPageSource } from '@/utils/import/pageImages';
 import { ImportWizard } from '@/components/common/library/importer';
+import {
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
 import type { ImportParseResult } from '@/components/common/library/types';
 import {
   createNotebookSlidesImportAdapter,
@@ -284,6 +288,35 @@ export const SmartNotebookWidget: React.FC<{
       }
     }
   }
+
+  // Slides handed over by Import open the same review as the library's Import.
+  const importHandoff = useImportHandoff(widget.id);
+  const readHandedSlides = useEffectEvent(async (file: File) => {
+    setIsImporting(true);
+    try {
+      setSlidesReview(
+        await readNotebookSlides(
+          file,
+          (f) => readPageSource(f, { drive: driveService }),
+          slidesPreviewUrl
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      addToast(
+        err instanceof Error ? err.message : 'Failed to import these slides',
+        'error'
+      );
+    } finally {
+      setIsImporting(false);
+    }
+  });
+  useEffect(() => {
+    if (importHandoff?.target !== 'notebook') return;
+    const file = takeImportHandoff(widget.id)?.source.file;
+    if (file && pageSourceKind(file))
+      void Promise.resolve(file).then(readHandedSlides);
+  }, [importHandoff, widget.id]);
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
