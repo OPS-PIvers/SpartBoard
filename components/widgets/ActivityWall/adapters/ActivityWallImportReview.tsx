@@ -12,7 +12,7 @@ const REVIEW_LAYOUTS: readonly WallConversionLayout[] = [
 ];
 
 const inputClass =
-  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 
 interface ActivityWallImportReviewProps {
   data: ActivityWallImportData;

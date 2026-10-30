@@ -119,7 +119,7 @@ export const BoardImportReview: React.FC<BoardImportReviewProps> = ({
             {...tourAttr('import-review.board-name')}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           />
         </div>
         <div
