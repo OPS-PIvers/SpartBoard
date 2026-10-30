@@ -2289,10 +2289,7 @@ describe('loadClassLinkMembership', () => {
       [{ sourcedId: 'X1', roles: [{ roleType: 'primary' }] }],
     ],
     ['a guardian', [{ sourcedId: 'X1', role: 'guardian' }]],
-    [
-      'a student who is also an aide',
-      [{ sourcedId: 'X1', roles: [{ role: 'student' }, { role: 'aide' }] }],
-    ],
+    ['only a student', [{ sourcedId: 'X1', role: 'student' }]],
   ])(
     'SECURITY: a record with %s resolves to no classes',
     async (_label, users) => {

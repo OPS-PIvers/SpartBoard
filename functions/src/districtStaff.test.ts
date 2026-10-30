@@ -26,7 +26,11 @@ import {
   isKnownStudentEmail,
   isStaffMemberData,
 } from './districtStaff';
-import { isOneRosterStaff, isOneRosterStudent } from './studentEmailIdentity';
+import {
+  isOneRosterStaff,
+  isOneRosterStudent,
+  type OneRosterUserWithRole,
+} from './studentEmailIdentity';
 
 const SECRETS = {
   classlinkClientId: 'id',
@@ -183,22 +187,30 @@ describe('isKnownStudentEmail', () => {
 });
 
 describe('OneRoster roles', () => {
-  it('one record is never both a student and staff', () => {
+  const rec = (o: Partial<OneRosterUserWithRole>): OneRosterUserWithRole => ({
+    sourcedId: 'x',
+    email: '',
+    givenName: '',
+    familyName: '',
+    ...o,
+  });
+
+  it('a student is never staff, and a role-less record is neither', () => {
     const records = [
-      { sourcedId: 'a', role: 'student' },
-      { sourcedId: 'b', role: 'teacher' },
-      { sourcedId: 'c', roles: [{ roleType: 'primary', role: 'teacher' }] },
-      { sourcedId: 'd', roles: [{ roleType: 'primary' }] },
-      { sourcedId: 'e', roles: [{ role: 'student' }, { role: 'aide' }] },
-      { sourcedId: 'f' },
-      { sourcedId: 'g', role: 'districtAdministrator' },
+      rec({ role: 'student' }),
+      rec({ role: 'teacher' }),
+      rec({ roles: [{ roleType: 'primary', role: 'teacher' }] }),
+      rec({ roles: [{ roleType: 'primary' }] }),
+      rec({}),
+      rec({ role: 'districtAdministrator' }),
+      rec({ role: 'guardian' }),
     ];
     expect(records.map(isOneRosterStudent)).toEqual([
       true,
       false,
       false,
       true,
-      true,
+      false,
       false,
       false,
     ]);
@@ -208,8 +220,13 @@ describe('OneRoster roles', () => {
       true,
       false,
       false,
-      false,
       true,
+      false,
     ]);
+  });
+
+  it('staff also enrolled in a course stay staff', () => {
+    const mixed = rec({ roles: [{ role: 'teacher' }, { role: 'student' }] });
+    expect(isOneRosterStaff(mixed)).toBe(true);
   });
 });

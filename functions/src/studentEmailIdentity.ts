@@ -24,6 +24,7 @@ const ONEROSTER_STAFF_ROLES = new Set([
   'aide',
   'proctor',
   'principal',
+  'counselor',
   'districtadministrator',
   'siteadministrator',
   'systemadministrator',
@@ -48,12 +49,9 @@ export function isOneRosterStudent(user: OneRosterUserWithRole): boolean {
   );
 }
 
-/** A staff record: a teacher or administrator role and nothing that reads as a student. */
+/** A staff record: a teacher, aide, counselor or administrator role (staff also enrolled in a course still count). */
 export function isOneRosterStaff(user: OneRosterUserWithRole): boolean {
-  return (
-    !isOneRosterStudent(user) &&
-    oneRosterRoleNames(user).some((r) => ONEROSTER_STAFF_ROLES.has(r))
-  );
+  return oneRosterRoleNames(user).some((r) => ONEROSTER_STAFF_ROLES.has(r));
 }
 
 export interface StudentLookupSecrets {

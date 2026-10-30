@@ -49,6 +49,8 @@ if (!admin.apps.length) {
 export interface ResolveOrgForUserResponse {
   /** Resolved organization id, or null when the domain isn't registered. */
   orgId: string | null;
+  /** Set when enrollment failed, so the client skips its session cache and retries next load. */
+  enrollFailed?: true;
 }
 
 /**
@@ -199,6 +201,7 @@ export const resolveOrgForUser = onCall(
             `[resolveOrgForUser] auto-enroll failed for org ${orgId}:`,
             err
           );
+          return { orgId, enrollFailed: true };
         }
         return { orgId };
       }

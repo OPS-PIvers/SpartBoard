@@ -117,6 +117,8 @@ describe('resolveOrgForUser callable', () => {
   beforeEach(() => {
     resolveOrgIdForDomainMock.mockReset();
     docGetMock.mockReset();
+    // Resolution tests: the caller is already a member, so nothing enrolls.
+    docGetMock.mockResolvedValue({ exists: true });
     docCreateMock.mockReset();
     docMock.mockClear();
   });
@@ -327,7 +329,7 @@ describe('resolveOrgForUser auto-enrollment', () => {
     scriptDocs({ memberExists: false });
     isKnownStudentEmailMock.mockRejectedValue(new Error('roster down'));
     const res = await handler({ auth: verifiedAuth, data: {} });
-    expect(res).toEqual({ orgId: 'orono' });
+    expect(res).toEqual({ orgId: 'orono', enrollFailed: true });
     expect(docCreateMock).not.toHaveBeenCalled();
   });
 
@@ -392,7 +394,7 @@ describe('resolveOrgForUser auto-enrollment', () => {
     );
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const res = await handler({ auth: verifiedAuth, data: {} });
-    expect(res).toEqual({ orgId: 'orono' });
+    expect(res).toEqual({ orgId: 'orono', enrollFailed: true });
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });
