@@ -25,6 +25,8 @@ export type SendPanelMessage =
   | {
       type: 'send/panel';
       action: 'set';
+      /** The panel's tab, which gets the button at once if it should now show. */
+      tabId?: number;
       showOnPages?: boolean;
       host?: string;
       hidden?: boolean;
@@ -37,6 +39,8 @@ export interface SendStateReply {
   blocked: boolean;
   /** The edge tab shows: enabled, not blocked, and not hidden by the teacher. */
   show: boolean;
+  /** The Schoology quiz reader may run on this page. */
+  schoology: boolean;
 }
 
 export type SendReply =
@@ -91,10 +95,12 @@ export function parseSendPanelMessage(raw: unknown): SendPanelMessage | null {
       ? null
       : { type: 'send/panel', action: 'send', tabId };
   }
-  if (raw.action === 'set')
+  if (raw.action === 'set') {
+    const tabId = tabIdOf(raw.tabId);
     return {
       type: 'send/panel',
       action: 'set',
+      ...(tabId === null ? {} : { tabId }),
       ...(typeof raw.showOnPages === 'boolean'
         ? { showOnPages: raw.showOnPages }
         : {}),
@@ -102,5 +108,6 @@ export function parseSendPanelMessage(raw: unknown): SendPanelMessage | null {
         ? { host: raw.host, hidden: raw.hidden }
         : {}),
     };
+  }
   return null;
 }

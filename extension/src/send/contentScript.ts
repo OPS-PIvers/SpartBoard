@@ -39,8 +39,32 @@ const STYLE = `
 @media (prefers-reduced-motion: reduce) { .tab, .tab .label { transition: none; } }
 `;
 
-const SEND_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>';
+// Built node by node: pages that require Trusted Types (Gmail, YouTube, Docs) refuse an innerHTML assignment.
+const ICON_PATHS = [
+  'M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z',
+  'm21.854 2.147-10.94 10.939',
+];
+
+function sendIcon(): SVGSVGElement {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  for (const [k, v] of Object.entries({
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': '2',
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round',
+    'aria-hidden': 'true',
+  }))
+    svg.setAttribute(k, v);
+  for (const d of ICON_PATHS) {
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', d);
+    svg.append(path);
+  }
+  return svg;
+}
 
 const LABEL = 'Send to SpartBoard';
 
@@ -72,8 +96,7 @@ function mount(): Ui {
   const label = el('span', { className: 'label', textContent: LABEL });
   const tab = el('button', { className: 'tab', type: 'button', title: LABEL });
   tab.setAttribute('aria-label', LABEL);
-  tab.innerHTML = SEND_ICON;
-  tab.append(label);
+  tab.append(sendIcon(), label);
   tab.onclick = () => void send(false);
   const note = el('div', { className: 'note', hidden: true });
   note.setAttribute('role', 'status');
@@ -147,7 +170,8 @@ function showNote(n: SendNote) {
 async function sendGeneric(failure?: ImportReaderFailure): Promise<SendNote> {
   progress('Reading…');
   const request = readPage(window);
-  if (!request.blocks.length) return sendNote({ kind: 'empty' });
+  if (!request.blocks.length)
+    return sendNote({ kind: 'empty', selectionOnly: request.selectionOnly });
   progress('Sending…');
   const reply = await ask<SendReply>({
     type: 'send/page',
@@ -170,8 +194,14 @@ async function send(blocked: boolean) {
   ui?.note.setAttribute('hidden', '');
   try {
     // Platform readers first; a selection always means the teacher wants just that text.
-    const selected = !(window.getSelection()?.isCollapsed ?? true);
-    const schoology = selected ? null : singleItem(document, location.href);
+    const selected = !!window.getSelection()?.toString().trim();
+    const state = await ask<SendStateReply>({ type: 'send/state' }).catch(
+      () => undefined
+    );
+    const schoology =
+      selected || !state?.schoology
+        ? null
+        : singleItem(document, location.href);
     if (schoology) {
       progress('Reading…');
       const outcome = await sendItem(

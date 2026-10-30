@@ -119,8 +119,29 @@ function skipped(el: Element): boolean {
     return true;
   const view = el.ownerDocument.defaultView;
   if (!view || !el.isConnected) return false;
+  if ((el as HTMLElement).isContentEditable) return true;
   const style = view.getComputedStyle(el);
   return style.display === 'none' || style.visibility === 'hidden';
+}
+
+/** `el` or anything between it and the page root is skipped; answers are kept per read. */
+function skippedWithin(el: Element, memo: Map<Element, boolean>): boolean {
+  const seen: Element[] = [];
+  let found = false;
+  for (let at: Element | null = el; at; at = at.parentElement) {
+    const known = memo.get(at);
+    if (known !== undefined) {
+      found = known;
+      break;
+    }
+    seen.push(at);
+    if (skipped(at)) {
+      found = true;
+      break;
+    }
+  }
+  for (const at of seen) memo.set(at, found);
+  return found;
 }
 
 const clean = (text: string) =>
@@ -183,7 +204,7 @@ class Collector {
     const tag = tagOf(el);
     const heading = /^H([1-6])$/.exec(tag);
     if (heading) return this.push('heading', inlineText(el), +heading[1]);
-    if (tag === 'PRE') return this.push('paragraph', el.textContent ?? '');
+    if (tag === 'PRE') return this.push('paragraph', inlineText(el));
     if (tag === 'TABLE') return this.table(el);
     if (tag === 'LI') return this.listItem(el);
     if (tag === 'BLOCKQUOTE' && !hasBlockChild(el))
@@ -254,38 +275,50 @@ class Collector {
 /** Readability-style pick: the element whose paragraphs hold the most text, with links counting against it. */
 export function mainContent(doc: Document): Element {
   const body = doc.body ?? doc.documentElement;
+  const memo = new Map<Element, boolean>();
+  const lengths = new Map<Element, number>();
+  const textLength = (el: Element) => {
+    let len = lengths.get(el);
+    if (len === undefined) {
+      len = clean(inlineText(el)).length;
+      lengths.set(el, len);
+    }
+    return len;
+  };
   const marked = [
     ...Array.from(doc.querySelectorAll('main, [role="main"]')),
     ...Array.from(doc.querySelectorAll('article')),
-  ].filter((el) => !skipped(el));
-  const textLength = (el: Element) => clean(inlineText(el)).length;
-  const best = (els: Element[]) =>
-    els
-      .map((el) => ({ el, len: textLength(el) }))
-      .sort((a, b) => b.len - a.len)[0];
-  const markedBest = best(marked);
+  ].filter((el) => !skippedWithin(el, memo));
+  const markedBest = marked
+    .map((el) => ({ el, len: textLength(el) }))
+    .sort((a, b) => b.len - a.len)[0];
   if (markedBest && markedBest.len >= MIN_MAIN_CHARS) return markedBest.el;
 
+  // Only text the read would keep counts, so a hidden or editable region never wins.
   const scores = new Map<Element, number>();
+  const linked = new Map<Element, number>();
   for (const p of Array.from(
     body.querySelectorAll('p, pre, li, td, blockquote, h2, h3')
   )) {
-    const len = clean(inlineText(p)).length;
+    if (skippedWithin(p, memo)) continue;
+    const len = textLength(p);
     if (len < 25) continue;
     const parent = p.parentElement;
     const grand = parent?.parentElement;
     if (parent) scores.set(parent, (scores.get(parent) ?? 0) + len);
     if (grand) scores.set(grand, (scores.get(grand) ?? 0) + len / 2);
   }
+  for (const a of Array.from(body.querySelectorAll('a'))) {
+    if (skippedWithin(a, memo)) continue;
+    const len = textLength(a);
+    for (let at = a.parentElement; at; at = at.parentElement)
+      if (scores.has(at)) linked.set(at, (linked.get(at) ?? 0) + len);
+  }
   let top: Element | null = null;
   let topScore = 0;
   for (const [el, score] of scores) {
     const all = textLength(el) || 1;
-    const linked = Array.from(el.querySelectorAll('a')).reduce(
-      (n, a) => n + clean(inlineText(a)).length,
-      0
-    );
-    const adjusted = score * (1 - Math.min(linked / all, 1));
+    const adjusted = score * (1 - Math.min((linked.get(el) ?? 0) / all, 1));
     if (adjusted > topScore) {
       top = el;
       topScore = adjusted;
@@ -294,11 +327,13 @@ export function mainContent(doc: Document): Element {
   return top && topScore >= MIN_MAIN_CHARS ? top : body;
 }
 
-function images(root: ParentNode, baseUrl: string): ImportImage[] {
+function images(root: Element, baseUrl: string): ImportImage[] {
   const found = new Map<string, ImportImage>();
+  const memo = new Map<Element, boolean>();
   for (const img of Array.from(root.querySelectorAll('img'))) {
     if (found.size >= MAX_IMAGES) break;
-    if (img.closest('[aria-hidden="true"], nav, footer, aside')) continue;
+    // Pictures in a hidden, editable or chrome region stay with it.
+    if (img.closest('nav, footer, aside') || skippedWithin(img, memo)) continue;
     const width = Number(img.getAttribute('width') ?? img.naturalWidth ?? 0);
     const height = Number(img.getAttribute('height') ?? img.naturalHeight ?? 0);
     // Icons and tracking pixels; an image with no size known yet is kept.
@@ -325,35 +360,54 @@ function images(root: ParentNode, baseUrl: string): ImportImage[] {
   return [...found.values()];
 }
 
-/** The selection's contents as a detached tree; null when nothing readable is selected. */
+/** A copy of the selected part of `node`, checked against the live page so CSS-hidden text stays out. */
+function selectedCopy(node: Node, range: Range, doc: Document): Node | null {
+  if (!range.intersectsNode(node)) return null;
+  if (node.nodeType === Node.TEXT_NODE) {
+    let text = node.textContent ?? '';
+    if (node === range.endContainer) text = text.slice(0, range.endOffset);
+    if (node === range.startContainer) text = text.slice(range.startOffset);
+    return doc.createTextNode(text);
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE || skipped(node as Element))
+    return null;
+  const copy = node.cloneNode(false) as Element;
+  for (const child of Array.from(node.childNodes)) {
+    const part = selectedCopy(child, range, doc);
+    if (part) copy.append(part);
+  }
+  return copy;
+}
+
+/** The selection's readable contents as a detached tree; null when the teacher selected nothing. */
 function selectionRoot(win: Window): Element | null {
   const selection = win.getSelection();
-  if (!selection || selection.isCollapsed || selection.rangeCount === 0)
+  if (
+    !selection ||
+    selection.isCollapsed ||
+    selection.rangeCount === 0 ||
+    !selection.toString().trim()
+  )
     return null;
-  const holder = win.document.createElement('div');
+  const doc = win.document;
+  const memo = new Map<Element, boolean>();
+  const holder = doc.createElement('div');
   for (let i = 0; i < selection.rangeCount; i++) {
     const range = selection.getRangeAt(i);
-    const start = range.commonAncestorContainer;
+    const common = range.commonAncestorContainer;
     const host =
-      start.nodeType === Node.ELEMENT_NODE
-        ? (start as Element)
-        : start.parentElement;
-    // A selection inside a control or hidden region reads nothing.
-    let inside: Element | null = host;
-    let blocked = false;
-    while (inside) {
-      if (skipped(inside)) {
-        blocked = true;
-        break;
-      }
-      inside = inside.parentElement;
-    }
-    if (blocked) continue;
-    const part = win.document.createElement('div');
-    part.append(range.cloneContents());
-    holder.append(part);
+      common.nodeType === Node.ELEMENT_NODE
+        ? (common as Element)
+        : common.parentElement;
+    // A selection inside a control, an editable or a hidden region reads nothing.
+    if (!host || skippedWithin(host, memo)) continue;
+    const part = selectedCopy(common, range, doc);
+    if (!part) continue;
+    const wrap = doc.createElement('div');
+    wrap.append(part);
+    holder.append(wrap);
   }
-  return holder.childNodes.length ? holder : null;
+  return holder;
 }
 
 const titleOf = (doc: Document) =>
@@ -370,16 +424,16 @@ export function readPage(win: Window): ImportSendRequest {
   const url = doc.location?.href ?? '';
   const base = { url, title: titleOf(doc), platform: GENERIC_PLATFORM };
   const selected = selectionRoot(win);
+  // A selection that holds nothing readable sends nothing, rather than the whole page.
   if (selected) {
     const read = new Collector();
     read.walk(selected);
-    if (read.blocks.length)
-      return {
-        ...base,
-        selectionOnly: true,
-        blocks: read.blocks,
-        images: images(selected, url),
-      };
+    return {
+      ...base,
+      selectionOnly: true,
+      blocks: read.blocks,
+      images: read.blocks.length ? images(selected, url) : [],
+    };
   }
   const root = mainContent(doc);
   const read = new Collector();

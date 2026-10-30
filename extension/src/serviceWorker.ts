@@ -195,6 +195,8 @@ const send = createSendWorker({
         documentUrlPatterns: ['https://*/*', 'http://*/*'],
       });
   },
+  // Declared below; only called after the worker has started.
+  schoologyEnabled: () => schoology.enabled(),
   boardTabs: async () => {
     const tabs = await chrome.tabs.query({
       url: origins.map((o) => `${o}/*`),
@@ -247,9 +249,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 chrome.webNavigation.onCommitted.addListener(({ tabId, frameId, url }) => {
   void send.navigated(tabId, frameId, url);
 });
-chrome.webNavigation.onHistoryStateUpdated.addListener(({ tabId, frameId }) => {
-  void send.changedInPlace(tabId, frameId);
-});
+chrome.webNavigation.onHistoryStateUpdated.addListener(
+  ({ tabId, frameId, url }) => {
+    void send.changedInPlace(tabId, frameId, url);
+  }
+);
 
 // Schoology quiz import (SCHOOLOGY_QUIZ_IMPORT Q4, Q8): staff with the flag get a Send button on quiz pages.
 const schoology = createSchoologyWorker({

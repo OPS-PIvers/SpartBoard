@@ -28,7 +28,7 @@ const isReply = (v: unknown): v is SendReply =>
 
 export type SendNoteInput =
   | { kind: 'blocked' }
-  | { kind: 'empty' }
+  | { kind: 'empty'; selectionOnly?: boolean }
   | {
       kind: 'reply';
       reply: unknown;
@@ -38,6 +38,11 @@ export type SendNoteInput =
 
 export function sendNote(input: SendNoteInput): SendNote {
   if (input.kind === 'blocked') return { ok: false, text: WHY.blocked };
+  if (input.kind === 'empty' && input.selectionOnly)
+    return {
+      ok: false,
+      text: "Text in a box you type in can't be sent. Select text on the page instead.",
+    };
   if (input.kind === 'empty')
     return {
       ok: false,

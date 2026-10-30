@@ -23,17 +23,17 @@ const request = (url = ARTICLE): ImportSendRequest => ({
 });
 
 function setup(
-  over: Partial<SendWorkerDeps> & {
+  over: Partial<Omit<SendWorkerDeps, 'tabUrl'>> & {
     statusReply?: ApiResult<{
       enabled: boolean;
       hasAccount: boolean;
       blockPatterns: string[];
     }>;
     settings?: SendSettings;
-    tabUrl?: string;
+    pageUrl?: string;
   } = {}
 ) {
-  const { statusReply, settings: startSettings, tabUrl, ...rest } = over;
+  const { statusReply, settings: startSettings, pageUrl, ...rest } = over;
   let cache: SendStatusCache | undefined;
   let settings = startSettings ?? DEFAULT_SEND_SETTINGS;
   const deps: SendWorkerDeps = {
@@ -69,7 +69,8 @@ function setup(
     }),
     inject: vi.fn(() => Promise.resolve(true)),
     tell: vi.fn(() => Promise.resolve(undefined)),
-    tabUrl: () => Promise.resolve(tabUrl ?? ARTICLE),
+    tabUrl: () => Promise.resolve(pageUrl ?? ARTICLE),
+    schoologyEnabled: () => Promise.resolve(true),
     syncMenu: vi.fn(() => Promise.resolve(undefined)),
     boardTabs: () => Promise.resolve([]),
     focus: () => Promise.resolve(undefined),
@@ -132,6 +133,7 @@ describe('send worker', () => {
       enabled: true,
       blocked: true,
       show: false,
+      schoology: false,
     });
     expect(
       await worker.message(
@@ -207,7 +209,7 @@ describe('send worker', () => {
   });
 
   it('tells the page to show the refusal when the right-click item is used on a blocked page', async () => {
-    const { worker, deps } = setup({ tabUrl: GRADEBOOK });
+    const { worker, deps } = setup({ pageUrl: GRADEBOOK });
     expect(await worker.sendFromBrowser(3)).toBe(true);
     expect(deps.tell).toHaveBeenCalledWith(3, {
       type: 'send/now',
@@ -241,6 +243,74 @@ describe('send worker', () => {
       hiddenHere: true,
       blocked: false,
     });
+  });
+
+  it('offers the Schoology reader only on Schoology pages with that import on', async () => {
+    const QUIZ = 'https://orono.schoology.com/assignment/5';
+    const on = setup();
+    expect(await on.worker.stateFor(QUIZ)).toMatchObject({ schoology: true });
+    expect(await on.worker.stateFor(ARTICLE)).toMatchObject({
+      schoology: false,
+    });
+    const off = setup({ schoologyEnabled: () => Promise.resolve(false) });
+    expect(await off.worker.stateFor(QUIZ)).toMatchObject({
+      show: true,
+      schoology: false,
+    });
+  });
+
+  it('asks SpartBoard once for many tabs loading together', async () => {
+    const { worker, deps } = setup();
+    await Promise.all([1, 2, 3].map((t) => worker.navigated(t, 0, ARTICLE)));
+    expect(deps.status).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the block list when SpartBoard stops answering', async () => {
+    let now = 0;
+    let reachable = true;
+    const { worker } = setup({
+      now: () => now,
+      status: () =>
+        Promise.resolve(
+          reachable
+            ? {
+                ok: true as const,
+                value: {
+                  enabled: true,
+                  hasAccount: true,
+                  blockPatterns: [...DEFAULT_SEND_BLOCK_PATTERNS],
+                },
+              }
+            : { ok: false as const, why: 'offline' as const }
+        ),
+    });
+    await worker.status();
+    reachable = false;
+    now = 31 * 60_000;
+    expect(await worker.stateFor(GRADEBOOK)).toMatchObject({
+      enabled: true,
+      blocked: true,
+    });
+  });
+
+  it('adds the button to a tab whose address changed in place to an allowed page', async () => {
+    const { worker, deps } = setup();
+    await worker.changedInPlace(4, 0, ARTICLE);
+    expect(deps.tell).toHaveBeenCalledWith(4, { type: 'send/recheck' });
+    expect(deps.inject).toHaveBeenCalledWith(4);
+  });
+
+  it("shows the button at once in the panel's tab when the teacher turns it back on", async () => {
+    const { worker, deps } = setup({
+      settings: { showOnPages: false, hiddenHosts: [] },
+    });
+    await worker.panel({
+      type: 'send/panel',
+      action: 'set',
+      tabId: 2,
+      showOnPages: true,
+    });
+    expect(deps.inject).toHaveBeenCalledWith(2);
   });
 
   it('ignores messages that are not its own', () => {

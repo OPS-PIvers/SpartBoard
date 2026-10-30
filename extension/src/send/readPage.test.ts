@@ -101,7 +101,7 @@ describe('readPage', () => {
     ]);
   });
 
-  it('reads the whole page when the selection is inside a form control', () => {
+  it('sends nothing when the selection is only inside a form control', () => {
     show(
       `<main><p>${LONG}</p><div><textarea id="t">draft</textarea></div></main>`
     );
@@ -109,8 +109,59 @@ describe('readPage', () => {
     range.selectNodeContents(document.getElementById('t') as HTMLElement);
     window.getSelection()?.addRange(range);
     const read = readPage(window);
-    expect(read.selectionOnly).toBe(false);
+    expect(read.selectionOnly).toBe(true);
+    expect(read.blocks).toEqual([]);
     expect(JSON.stringify(read)).not.toContain('draft');
+  });
+
+  it('sends nothing when the selection is only inside an editable area', () => {
+    show(
+      `<main><p>${LONG}</p><div contenteditable="true"><p id="t">my draft reply</p></div></main>`
+    );
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById('t') as HTMLElement);
+    window.getSelection()?.addRange(range);
+    const read = readPage(window);
+    expect(read.blocks).toEqual([]);
+    expect(JSON.stringify(read)).not.toContain('draft');
+  });
+
+  it('leaves CSS-hidden text out of a selection', () => {
+    show(
+      `<style>.key{display:none}</style><main><div id="q"><p>Question one</p><p class="key">Answer: B</p><p>Question two</p></div></main>`
+    );
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById('q') as HTMLElement);
+    window.getSelection()?.addRange(range);
+    expect(readPage(window).blocks).toEqual([
+      { type: 'paragraph', text: 'Question one' },
+      { type: 'paragraph', text: 'Question two' },
+    ]);
+  });
+
+  it('trims a selection to the selected characters', () => {
+    show(`<main><p id="p">Keep this part, drop the rest.</p></main>`);
+    const text = (document.getElementById('p') as HTMLElement)
+      .firstChild as Text;
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, 14);
+    window.getSelection()?.addRange(range);
+    expect(readPage(window).blocks).toEqual([
+      { type: 'paragraph', text: 'Keep this part' },
+    ]);
+  });
+
+  it('never picks a typed draft or a hidden region as the main content', () => {
+    show(`
+      <div id="real"><p>${LONG}</p><p>${LONG}</p></div>
+      <div contenteditable="true"><div><p>Draft ${LONG}</p><p>Draft ${LONG}</p><p>Draft ${LONG}</p><img src="/draft.png"/></div></div>
+      <div style="display:none"><div><p>Hidden ${LONG}</p><p>Hidden ${LONG}</p><p>Hidden ${LONG}</p></div></div>`);
+    const all = JSON.stringify(readPage(window));
+    expect(all).toContain('Photosynthesis');
+    expect(all).not.toContain('Draft');
+    expect(all).not.toContain('Hidden');
+    expect(all).not.toContain('draft.png');
   });
 
   it('keeps inline icons and links inside one paragraph', () => {

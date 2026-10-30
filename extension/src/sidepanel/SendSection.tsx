@@ -15,7 +15,9 @@ export const SendSection: React.FC = () => {
   const tab = useActiveTab();
   const tabId = tab?.id ?? null;
   const [state, setState] = useState<PanelStateReply | null>(null);
-  const [problem, setProblem] = useState(false);
+  // Which tab the "can't read" message is about, so it clears on another tab.
+  const [problemTab, setProblemTab] = useState<number | null>(null);
+  const problem = problemTab !== null && problemTab === tabId;
 
   const load = useCallback(() => {
     void send<unknown>({ type: 'send/panel', action: 'state', tabId }).then(
@@ -30,19 +32,21 @@ export const SendSection: React.FC = () => {
   if (!state?.enabled) return null;
 
   const set = (change: object) => {
-    void send({ type: 'send/panel', action: 'set', ...change }).then(load);
+    void send({ type: 'send/panel', action: 'set', tabId, ...change }).then(
+      load
+    );
   };
 
   const sendPage = () => {
     if (tabId === null) return;
-    setProblem(false);
+    setProblemTab(null);
     void send<{ ok: boolean }>({
       type: 'send/panel',
       action: 'send',
       tabId,
     }).then(
-      (r) => setProblem(!r?.ok),
-      () => setProblem(true)
+      (r) => setProblemTab(r?.ok ? null : tabId),
+      () => setProblemTab(tabId)
     );
   };
 

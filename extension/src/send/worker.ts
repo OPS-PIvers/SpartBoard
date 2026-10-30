@@ -7,6 +7,7 @@ import type {
   ImportStatusReply,
 } from '@/utils/import/contract';
 import { isUrlBlocked } from '@/utils/import/sendBlockList';
+import { schoologyPage } from '../schoology/page';
 import {
   parseSendPageMessage,
   parseSendPanelMessage,
@@ -51,6 +52,8 @@ export interface SendWorkerDeps {
   tabUrl: (tabId: number) => Promise<string | undefined>;
   /** Adds or removes the right-click "Send to SpartBoard" item. */
   syncMenu: (on: boolean) => Promise<void>;
+  /** Whether the Schoology quiz import is on for this teacher (its own flag). */
+  schoologyEnabled: () => Promise<boolean>;
   boardTabs: () => Promise<SendBoardTab[]>;
   focus: (tab: SendBoardTab) => Promise<void>;
   navigate: (tabId: number, url: string) => Promise<void>;
@@ -64,7 +67,33 @@ export const INBOX_PARAM = 'importInbox';
 export function createSendWorker(deps: SendWorkerDeps) {
   let menuOn: boolean | null = null;
 
-  /** `importStatusV1`, cached; a profile that isn't staff never asks. */
+  let asking: Promise<SendStatusCache> | null = null;
+
+  async function fetchStatus(
+    cached: SendStatusCache | undefined
+  ): Promise<SendStatusCache> {
+    const result = await deps.status();
+    // A failed check keeps the last answer, so the block list still holds while SpartBoard is unreachable.
+    const fresh: SendStatusCache = result.ok
+      ? {
+          enabled: result.value.enabled && result.value.hasAccount,
+          blockPatterns:
+            result.value.enabled && Array.isArray(result.value.blockPatterns)
+              ? result.value.blockPatterns.filter((p) => typeof p === 'string')
+              : [],
+          at: deps.now(),
+        }
+      : {
+          enabled: cached?.enabled ?? false,
+          blockPatterns: cached?.blockPatterns ?? [],
+          at: deps.now(),
+          failed: true,
+        };
+    await deps.saveStatus(fresh);
+    return fresh;
+  }
+
+  /** `importStatusV1`, cached and shared by every tab asking at once; a profile that isn't staff never asks. */
   async function status(): Promise<SendStatusCache> {
     if (!(await deps.isStaff()))
       return { enabled: false, blockPatterns: [], at: deps.now() };
@@ -73,20 +102,10 @@ export function createSendWorker(deps: SendWorkerDeps) {
     const ttl =
       (cached?.failed ? FAILED_STATUS_MINUTES : STATUS_MINUTES) * 60_000;
     if (cached && deps.now() - cached.at < ttl) return cached;
-    const result = await deps.status();
-    const on = result.ok && result.value.enabled && result.value.hasAccount;
-    const patterns =
-      result.ok && Array.isArray(result.value.blockPatterns)
-        ? result.value.blockPatterns.filter((p) => typeof p === 'string')
-        : [];
-    const fresh: SendStatusCache = {
-      enabled: on,
-      blockPatterns: on ? patterns : [],
-      at: deps.now(),
-      ...(result.ok ? {} : { failed: true }),
-    };
-    await deps.saveStatus(fresh);
-    return fresh;
+    asking ??= fetchStatus(cached).finally(() => {
+      asking = null;
+    });
+    return asking;
   }
 
   async function syncMenu(on: boolean) {
@@ -102,10 +121,13 @@ export function createSendWorker(deps: SendWorkerDeps) {
     const s = await status();
     void syncMenu(s.enabled);
     if (!s.enabled || !url || isSpartBoard(url))
-      return { enabled: false, blocked: false, show: false };
+      return { enabled: false, blocked: false, show: false, schoology: false };
     const blocked = isUrlBlocked(url, s.blockPatterns);
     const show = !blocked && buttonShown(await deps.loadSettings(), url);
-    return { enabled: true, blocked, show };
+    // The Schoology reader posts to its own inbox, which needs its own flag.
+    const schoology =
+      !blocked && !!schoologyPage(url) && (await deps.schoologyEnabled());
+    return { enabled: true, blocked, show, schoology };
   }
 
   /** A new page in a top frame: inject the edge tab when it should show there. */
@@ -115,10 +137,11 @@ export function createSendWorker(deps: SendWorkerDeps) {
     if (state.show) await deps.inject(tabId);
   }
 
-  /** The address changed without a new document; a tab already showing the button checks again. */
-  async function changedInPlace(tabId: number, frameId: number) {
+  /** The address changed without a new document: a tab showing the button checks again, and one that now should show gets it. */
+  async function changedInPlace(tabId: number, frameId: number, url: string) {
     if (frameId !== 0) return;
     await deps.tell(tabId, { type: 'send/recheck' }).catch(() => undefined);
+    await navigated(tabId, frameId, url);
   }
 
   /** The toolbar's "Send this page" or the right-click item: works even where the teacher hid the button. */
@@ -188,6 +211,10 @@ export function createSendWorker(deps: SendWorkerDeps) {
         if (host && msg.hidden !== undefined)
           next = withHidden(next, host, msg.hidden);
         await deps.saveSettings(next);
+        // Open pages hear the change themselves; the panel's tab gets the button if it had none.
+        const url =
+          msg.tabId === undefined ? undefined : await deps.tabUrl(msg.tabId);
+        if (msg.tabId !== undefined && url) await navigated(msg.tabId, 0, url);
         return { ok: true };
       }
       const url = msg.tabId === null ? undefined : await deps.tabUrl(msg.tabId);
