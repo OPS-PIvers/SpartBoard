@@ -6,6 +6,7 @@ import { isSchoologyHost, schoologyPage } from './page';
 import type { InboxRequest } from './payload';
 
 export const STATUS_KEY = 'schoologyImportStatus';
+const BLOCKED_MESSAGE = 'Your district turned off sending from this page.';
 const STATUS_MINUTES = 30;
 const FAILED_STATUS_MINUTES = 5;
 
@@ -33,6 +34,8 @@ export interface SchoologyWorkerDeps {
   loadStatus: () => Promise<StatusCache | undefined>;
   saveStatus: (status: StatusCache) => Promise<void>;
   inject: (tabId: number) => Promise<void>;
+  /** True on a page the district's Send block list covers (IMPORT D16); readers are refused there too. */
+  blocked?: (url: string) => Promise<boolean>;
   /** Open SpartBoard tabs showing a board, most recent first. */
   boardTabs: () => Promise<BoardTab[]>;
   focus: (tab: BoardTab) => Promise<void>;
@@ -60,6 +63,7 @@ export function createSchoologyWorker(deps: SchoologyWorkerDeps) {
 
   async function navigated(tabId: number, frameId: number, url: string) {
     if (frameId !== 0 || !schoologyPage(url)) return;
+    if (await deps.blocked?.(url)) return;
     if (await enabled()) await deps.inject(tabId);
   }
 
@@ -95,9 +99,13 @@ export function createSchoologyWorker(deps: SchoologyWorkerDeps) {
       return Promise.resolve({ ok: false, why: 'no-access' });
     if (msg.type === 'schoology/open')
       return openReview().then(() => ({ ok: true as const }));
-    return deps
-      .send(msg.request)
-      .then((result) => (result.ok ? { ok: true, ...result.value } : result));
+    const send = async (): Promise<SendReply> => {
+      if (await deps.blocked?.(senderUrl ?? ''))
+        return { ok: false, why: 'no-access', message: BLOCKED_MESSAGE };
+      const result = await deps.send(msg.request);
+      return result.ok ? { ok: true, ...result.value } : result;
+    };
+    return send();
   }
 
   return { enabled, navigated, message, openReview };
