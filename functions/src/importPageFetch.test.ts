@@ -21,7 +21,7 @@ vi.mock('./classlinkShared', () => ({
 }));
 vi.mock('./districtStaff', () => ({ isDistrictStaffToken: vi.fn() }));
 vi.mock('./quizMediaArchive', () => ({ isGlobalFeatureGranted: vi.fn() }));
-vi.mock('firebase-admin', () => ({ firestore: vi.fn() }));
+vi.mock('./firebaseAdmin', () => ({ firestore: vi.fn() }));
 
 const dnsLookup = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 vi.mock('dns', () => {
