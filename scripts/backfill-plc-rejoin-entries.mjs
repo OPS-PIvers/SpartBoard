@@ -1,7 +1,7 @@
 // One-off (#4695): reset `removed` PLC member entries whose uid is back in memberUids to active members; dry run unless --apply.
 
 import { initializeApp, applicationDefault, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
@@ -20,9 +20,17 @@ export function staleRejoinUids(plc) {
   );
 }
 
-/** The reset entry: role member, status active, every other key kept. */
-export function resetEntry(entry) {
-  return { ...entry, role: 'member', status: 'active' };
+/** The same six-key entry acceptInvite writes on a rejoin, so stale keys like addedBy and mentorRole go. */
+export function resetEntry(uid, entry, memberEmail, joinedAt) {
+  const email = String(memberEmail ?? entry?.email ?? '').toLowerCase();
+  return {
+    uid,
+    email,
+    displayName: entry?.displayName ?? email.split('@')[0],
+    role: 'member',
+    status: 'active',
+    joinedAt,
+  };
 }
 
 function parseArgs(argv) {
@@ -92,7 +100,12 @@ async function main() {
       const fresh = (await tx.get(p.ref)).data();
       if (!staleRejoinUids(fresh).includes(p.uid)) return false;
       tx.update(p.ref, {
-        [`members.${p.uid}`]: resetEntry(fresh.members[p.uid]),
+        [`members.${p.uid}`]: resetEntry(
+          p.uid,
+          fresh.members[p.uid],
+          fresh.memberEmails?.[p.uid],
+          FieldValue.serverTimestamp()
+        ),
         updatedAt: Date.now(),
       });
       return true;

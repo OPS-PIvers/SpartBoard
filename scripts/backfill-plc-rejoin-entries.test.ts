@@ -34,14 +34,40 @@ describe('staleRejoinUids', () => {
 });
 
 describe('resetEntry', () => {
-  it('makes the entry an active member and keeps its other keys', () => {
+  it('writes only the keys acceptInvite writes, dropping stale ones', () => {
     expect(
-      resetEntry({
-        uid: 'a',
-        email: 'a@x.org',
-        role: 'coLead',
-        status: 'removed',
-      })
-    ).toEqual({ uid: 'a', email: 'a@x.org', role: 'member', status: 'active' });
+      resetEntry(
+        'a',
+        {
+          uid: 'a',
+          email: 'old@x.org',
+          displayName: 'Ann',
+          role: 'coLead',
+          status: 'removed',
+          addedBy: 'autoRoster',
+          mentorRole: 'mentor',
+        },
+        'A@X.org',
+        'now'
+      )
+    ).toEqual({
+      uid: 'a',
+      email: 'a@x.org',
+      displayName: 'Ann',
+      role: 'member',
+      status: 'active',
+      joinedAt: 'now',
+    });
+  });
+
+  it('falls back to the entry email and its local part for the name', () => {
+    expect(resetEntry('b', { email: 'b@x.org' }, undefined, 1)).toEqual({
+      uid: 'b',
+      email: 'b@x.org',
+      displayName: 'b',
+      role: 'member',
+      status: 'active',
+      joinedAt: 1,
+    });
   });
 });
