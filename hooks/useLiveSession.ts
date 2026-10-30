@@ -30,22 +30,22 @@ const CODES_COLLECTION = 'live_session_codes';
 const MAX_PIN_LENGTH = 10; // Prevent storage abuse; the sibling #2625 rules-hardening PR adds a matching (not yet merged) server-side size() cap — keep both in sync once it lands
 
 /** Unique 6-char join code generator with collision check against claimed codes. */
+const CODE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+/** The join code is what lets a student read the session, so it comes from a CSPRNG. */
+function randomSessionCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, (b) => CODE_ALPHABET[b % 36]).join('');
+}
+
 async function allocateSessionCode(): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const candidate = Math.random()
-      .toString(36)
-      .substring(2, 8)
-      .toUpperCase()
-      .padEnd(6, '0');
+    const candidate = randomSessionCode();
     const snap = await getDoc(doc(db, CODES_COLLECTION, candidate));
     if (!snap.exists()) return candidate;
   }
   // Last-resort fallback: an unchecked code (a claimed one fails the start batch).
-  return Math.random()
-    .toString(36)
-    .substring(2, 8)
-    .toUpperCase()
-    .padEnd(6, '0');
+  return randomSessionCode();
 }
 
 const isPermissionDenied = (err: unknown): boolean =>
@@ -146,6 +146,8 @@ export const useLiveSession = (
   const studentId = connection.kind === 'joined' ? connection.studentId : null;
   const studentPin = connection.kind === 'joined' ? connection.pin : null;
   const individualFrozen = connection.kind === 'joined' && connection.frozen;
+  // Bumped on each join: a removed student's session read is revoked, so a rejoin must re-listen.
+  const [joinSeq, setJoinSeq] = useState(0);
 
   // ⚡ REACT BEST PRACTICE: Adjusting state during rendering
   // We track prop/state changes that require resetting other state to prevent extra re-renders
@@ -215,7 +217,7 @@ export const useLiveSession = (
       isCurrent = false;
       unsubscribeSession();
     };
-  }, [userId, joinCode, role]);
+  }, [userId, joinCode, role, joinSeq]);
 
   // TEACHER: Subscribe to students (only when live)
   useEffect(() => {
@@ -341,6 +343,7 @@ export const useLiveSession = (
       throw err;
     });
     dispatch({ type: 'joined', studentId: uid, pin: sanitizedPin });
+    setJoinSeq((n) => n + 1);
     return teacherId;
   };
 

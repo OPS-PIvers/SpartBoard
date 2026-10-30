@@ -889,6 +889,22 @@ describe('useLiveSession — student follows the teacher', () => {
     expect(result.current.session?.activeWidgetId).toBe('w1');
   });
 
+  it('re-listens to the session after a rejoin, since removal revoked the old read', async () => {
+    const { result } = await joinAndWatch();
+    const sessionListens = () =>
+      asMock(firestore.onSnapshot).mock.calls.filter(
+        ([ref]) => (ref as { path: string }).path === 'sessions/teacher-uid-1'
+      ).length;
+    const before = sessionListens();
+    act(() => pushMyDoc?.(false));
+    await act(async () => {
+      await result.current.joinSession('1234', 'ABC123');
+    });
+    expect(sessionListens()).toBe(before + 1);
+    act(() => pushSession?.(live({ activeWidgetId: 'w3' })));
+    expect(result.current.session?.activeWidgetId).toBe('w3');
+  });
+
   it('drops the old session when a student switches to another code', () => {
     const { result, rerender } = renderHook(
       ({ code }: { code: string }) =>

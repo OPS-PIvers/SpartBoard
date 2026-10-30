@@ -2,36 +2,13 @@
 // (the live-session join roster written by hooks/useLiveSession.ts).
 //
 // Contract under test:
-//   - create: only the joining student (auth.uid == studentId), payload must
-//     be EXACTLY {pin, status, joinedAt, lastActive} — pin a non-empty string
-//     capped at 10 chars (MAX_PIN_LENGTH in useLiveSession.ts), status one of
-//     the three LiveStudent enum values, joinedAt/lastActive ints.
-//   - update: teacher/admin may flip `status` to ANY value — that's the
-//     freeze control itself (toggleFreezeStudent, endSession's disconnect
-//     sweep). The owning student may only flip their own `status` to
-//     'disconnected' (leaveSession) — never 'active'/'frozen' directly,
-//     which would let a student self-unfreeze. The owning student may ALSO
-//     overwrite the full valid shape (matching create's constraints) —
-//     joinSession's rejoin path (persisted anonymous auth across a
-//     refresh) `setDoc`s the full record over an existing doc, which
-//     Firestore evaluates as an update, not a create — but only while NOT
-//     currently frozen, so a fabricated rejoin write can't be used to
-//     escape an active freeze either.
-//
-// Regression coverage: before this rule tightened, `create` had no schema
-// check at all, so any authenticated user who learned a live sessionId
-// (broad `sessions` read/list is a tracked, deliberately-unfixed MEDIUM —
-// see docs/scheduled-tasks/firestore-rules.md) could spray unbounded
-// arbitrary-shape docs into a teacher's roster; `update` was equally
-// unconstrained for the same three actors. A first attempt at this fix
-// restricted ALL updates to `status`-only, which broke the rejoin path
-// above — caught by automated review before merge, fixed by widening the
-// owning-student branch to also accept the full valid shape. A second
-// review round then caught that the widened rule let a student set
-// `status` to ANY value (including escaping a teacher-applied freeze) via
-// either the status-only or full-rejoin branch — fixed by restricting the
-// student's own allowed status transitions and gating the rejoin branch on
-// the pre-write status not already being 'frozen'.
+//   - create: only the joining student (auth.uid == studentId), payload exactly
+//     {pin, status, joinedAt, lastActive, code}, where `code` is the session's current code and
+//     the session is live. Holding that record is what lets a student read the session doc.
+//   - update: teacher/admin may set `status` to any value (freeze, disconnect sweep); the owning
+//     student may only mark themselves disconnected, or rejoin with the full shape while not frozen.
+//   - session doc: never listable; get only for the owner, admins, and a student whose record
+//     holds the current code (so a stale record from an earlier session reads nothing).
 //
 // Requires a running Firestore emulator. Invoke via: pnpm run test:rules
 
@@ -339,11 +316,11 @@ describe('live session students — read (the PIN is a pinLoginV1 credential)', 
   });
 });
 
-describe('live session students — previous-client join compatibility', () => {
+describe('live session students — joins without a roster read', () => {
   const roster = (db: ReturnType<typeof asStudent>) =>
     collection(db, `sessions/${TEACHER_UID}/students`);
 
-  it('denies the previous client roster scan even on an empty roster', async () => {
+  it('denies a roster scan even on an empty roster', async () => {
     await assertFails(getDocs(roster(asStudent(STUDENT_UID))));
   });
 
@@ -706,6 +683,81 @@ describe('live session doc — reads', () => {
       })
     );
     await assertSucceeds(getDoc(sessionRef(db)));
+  });
+
+  it('lets a studentRole user who joined with the code read the session', async () => {
+    const db = testEnv
+      .authenticatedContext('student-role-uid', {
+        email: 'kid@school.edu',
+        email_verified: true,
+        studentRole: true,
+        firebase: { sign_in_provider: 'custom' },
+      })
+      .firestore();
+    await assertSucceeds(
+      setDoc(doc(db, `sessions/${TEACHER_UID}/students/student-role-uid`), {
+        pin: '11',
+        status: 'active',
+        joinedAt: 2000,
+        lastActive: 2000,
+        code: 'ABC123',
+      })
+    );
+    await assertSucceeds(getDoc(sessionRef(db)));
+  });
+
+  it("denies a record from an earlier session (stale code) reading the teacher's next session", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(studentRef(ctx.firestore(), STUDENT_UID), {
+        pin: '4821',
+        status: 'disconnected',
+        joinedAt: 1000,
+        lastActive: 1000,
+        code: 'OLD000',
+      });
+    });
+    await assertFails(getDoc(sessionRef(asStudent(STUDENT_UID))));
+  });
+
+  it('denies a record with no code (written by the previous client)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(studentRef(ctx.firestore(), STUDENT_UID), {
+        pin: '4821',
+        status: 'active',
+        joinedAt: 1000,
+        lastActive: 1000,
+      });
+    });
+    await assertFails(getDoc(sessionRef(asStudent(STUDENT_UID))));
+  });
+
+  it('denies a student the teacher removed', async () => {
+    const db = asStudent(STUDENT_UID);
+    await assertSucceeds(
+      setDoc(studentRef(db, STUDENT_UID), {
+        pin: '4821',
+        status: 'active',
+        joinedAt: 2000,
+        lastActive: 2000,
+        code: 'ABC123',
+      })
+    );
+    await assertSucceeds(deleteDoc(studentRef(asTeacher(), STUDENT_UID)));
+    await assertFails(getDoc(sessionRef(db)));
+  });
+
+  it('denies an anonymous user or unrelated teacher writing the session doc', async () => {
+    await assertFails(
+      updateDoc(sessionRef(asStudent(ATTACKER_UID)), { frozen: true })
+    );
+    const other = testEnv
+      .authenticatedContext('other-teacher', {
+        email: 'other@school.edu',
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+    await assertFails(updateDoc(sessionRef(other), { frozen: true }));
   });
 
   it('lets the owning teacher read their session', async () => {

@@ -4555,9 +4555,9 @@ service cloud.firestore {
     }
 
     match /sessions/{userId} {
-      // No list. The teacher, admins, and a student who joined with this session's code read it.
+      // No list. The teacher, admins, and a student whose join record holds the current code read it.
       allow get: if signedIn() && (authUid() == userId || isAdmin() ||
-        exists(/databases/$(database)/documents/sessions/$(userId)/students/$(authUid())));
+        get(/databases/$(database)/documents/sessions/$(userId)/students/$(authUid())).data.get('code', '') == existing().code);
       // Shape-checks only the keys a write sets, so a legacy doc can still be ended, frozen or switched.
       function liveSessionOk(k) {
         return k.hasOnly(['id', 'isActive', 'activeWidgetId', 'activeWidgetType',
