@@ -75,7 +75,7 @@ export function bearerToken(header: unknown): string {
 export async function verifiedTokenEmail(
   token: string,
   deps: Pick<ExtensionDeps, 'clientId' | 'tokenInfo'>,
-  domain: string | readonly string[],
+  domain: string,
   message: string
 ): Promise<string> {
   const info = await deps.tokenInfo(token).catch(() => null);
@@ -87,12 +87,7 @@ export async function verifiedTokenEmail(
     !(Number(info.expires_in) > 0)
   )
     throw fail(401, message);
-  const domains: readonly string[] =
-    typeof domain === 'string' ? [domain] : domain;
-  if (
-    String(info.email_verified) !== 'true' ||
-    !domains.some((d) => email.endsWith(`@${d}`))
-  )
+  if (String(info.email_verified) !== 'true' || !email.endsWith(`@${domain}`))
     throw fail(403, message);
   return email;
 }

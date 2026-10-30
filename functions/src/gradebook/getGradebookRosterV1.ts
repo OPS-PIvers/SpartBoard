@@ -9,11 +9,7 @@ import {
   CLASSLINK_TENANT_URL,
   STUDENT_PSEUDONYM_HMAC_SECRET,
 } from '../secrets';
-import {
-  ALLOWED_ORIGINS,
-  computeStudentUid,
-  isStudentDomainEmail,
-} from '../classlinkShared';
+import { ALLOWED_ORIGINS, computeStudentUid } from '../classlinkShared';
 import {
   loadClassLinkMembership,
   loadTestClassMembership,
@@ -137,11 +133,7 @@ export const getGradebookRosterV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
     const teacherEmail = request.auth.token.email;
-    if (
-      !teacherEmail ||
-      request.auth.token.studentRole === true ||
-      isStudentDomainEmail(teacherEmail)
-    ) {
+    if (!teacherEmail || request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
     if (request.auth.token.email_verified !== true) {

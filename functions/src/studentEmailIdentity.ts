@@ -58,8 +58,7 @@ export async function resolveStudentByEmail(
   db: admin.firestore.Firestore,
   verified: { email: string; hd?: string },
   secrets: StudentLookupSecrets,
-  logTag: string,
-  mockClassesOnly = false
+  logTag: string
 ): Promise<ResolvedStudent> {
   const { email, hd } = verified;
   const emailDomain = normalizeEmailDomain(email);
@@ -93,7 +92,7 @@ export async function resolveStudentByEmail(
   }
 
   // OneRoster lookup; the sourcedId is held in memory only, never written.
-  if (mockClassesOnly || !isSafeEmailForOneRosterFilter(email)) {
+  if (!isSafeEmailForOneRosterFilter(email)) {
     console.warn(`[${logTag}] students_not_in_roster`);
     throw new StudentLookupError('not-in-roster');
   }

@@ -191,9 +191,6 @@ describe('focusStartV1', () => {
     await expect(start(teacher({ studentRole: true }))).rejects.toThrow(
       /teacher accounts/
     );
-    await expect(
-      start(teacher({ email: 'kid@students.orono.k12.mn.us' }))
-    ).rejects.toThrow(/teacher accounts/);
     await expect(start(teacher({ emailVerified: false }))).rejects.toThrow(
       /verified/
     );
@@ -258,7 +255,7 @@ describe('focusStartV1', () => {
   it('uses the mock class for a teacher who owns its roster', async () => {
     await db
       .doc('organizations/orono/testClasses/mock-1')
-      .set({ memberEmails: ['Kid@students.orono.k12.mn.us'] });
+      .set({ memberEmails: ['Kid@orono.k12.mn.us'] });
     await expect(start(teacher(), { classId: 'mock-1' })).rejects.toThrow(
       /do not teach/
     );
@@ -270,7 +267,7 @@ describe('focusStartV1', () => {
       .set({ testClassId: 'mock-1', name: 'Mock' });
     const reply = await start(teacher(), { classId: 'mock-1' });
     expect((await sessionDoc(reply.sessionId)).studentUids).toEqual([
-      computeStudentUid('test:kid@students.orono.k12.mn.us', HMAC),
+      computeStudentUid('test:kid@orono.k12.mn.us', HMAC),
     ]);
   });
 
@@ -278,7 +275,7 @@ describe('focusStartV1', () => {
     mockOpen = false;
     await db
       .doc('organizations/orono/testClasses/mock-1')
-      .set({ memberEmails: ['kid@students.orono.k12.mn.us'] });
+      .set({ memberEmails: ['kid@orono.k12.mn.us'] });
     for (const t of [teacher(), coTeacher]) {
       await db
         .doc(`organizations/orono/members/${t.email}`)

@@ -1,11 +1,10 @@
-// The student endpoints' outer checks: method, Chrome token, student or mock-class staff domain, roster lookup and error bodies.
+// The student endpoints' outer checks: method, Chrome token, district domain, roster lookup and error bodies.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 interface Hoisted {
   tokenInfo: Record<string, unknown> | null;
   lookups: number;
   lookup: 'roster' | 'test' | 'not-in-roster' | 'roster-unavailable';
-  mockOnly: boolean[];
   sessions: Array<{ id: string; data: Record<string, unknown> }>;
   errors: unknown[][];
 }
@@ -14,7 +13,6 @@ const h = vi.hoisted((): Hoisted => ({
   tokenInfo: null,
   lookups: 0,
   lookup: 'roster',
-  mockOnly: [],
   sessions: [],
   errors: [],
 }));
@@ -50,15 +48,8 @@ vi.mock('../studentEmailIdentity', async () => {
   >('../studentEmailIdentity');
   return {
     ...actual,
-    resolveStudentByEmail: (
-      _db: unknown,
-      _verified: unknown,
-      _secrets: unknown,
-      _tag: string,
-      mockClassesOnly = false
-    ) => {
+    resolveStudentByEmail: () => {
       h.lookups++;
-      h.mockOnly.push(mockClassesOnly);
       if (h.lookup === 'test')
         return Promise.resolve({
           kind: 'test',
@@ -66,9 +57,6 @@ vi.mock('../studentEmailIdentity', async () => {
           uid: 'test-uid',
           mockClassIds: ['mock-period-1'],
         });
-      // Mock classes only: a roster student is never looked up in ClassLink.
-      if (mockClassesOnly)
-        return Promise.reject(new actual.StudentLookupError('not-in-roster'));
       if (h.lookup !== 'roster')
         return Promise.reject(new actual.StudentLookupError(h.lookup));
       return Promise.resolve({
@@ -151,13 +139,12 @@ beforeEach(() => {
   process.env.GCLOUD_PROJECT = 'spartboard-dev';
   h.tokenInfo = {
     aud: 'client-dev',
-    email: `kid${tokenCounter + 1}@students.orono.k12.mn.us`,
+    email: `kid${tokenCounter + 1}@orono.k12.mn.us`,
     email_verified: 'true',
     expires_in: '3000',
   };
   h.lookup = 'roster';
   h.lookups = 0;
-  h.mockOnly = [];
   h.sessions = [];
   h.errors = [];
   vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
@@ -203,7 +190,8 @@ describe('focusStatusV1', () => {
     });
   });
 
-  it('refuses a staff token outside a mock class without asking ClassLink', async () => {
+  it('refuses a district account that ClassLink says is no student', async () => {
+    h.lookup = 'not-in-roster';
     h.tokenInfo = { ...h.tokenInfo, email: 'teacher@orono.k12.mn.us' };
     expect(
       (await call(focusStatusV1, { protocol: 9 }, { auth: freshToken() }))
@@ -212,10 +200,9 @@ describe('focusStatusV1', () => {
     expect(
       (await call(focusReportV1, reportBody, { auth: freshToken() })).status
     ).toBe(403);
-    expect(h.mockOnly).toEqual([true]);
   });
 
-  it('serves a staff-domain test account in a mock class', async () => {
+  it('serves a mock-class member', async () => {
     h.lookup = 'test';
     h.tokenInfo = { ...h.tokenInfo, email: 'sstudent25@orono.k12.mn.us' };
     const now = Date.now();
@@ -242,23 +229,19 @@ describe('focusStatusV1', () => {
       status: 200,
       body: { session: { sessionId: 's1' } },
     });
-    expect(h.mockOnly).toEqual([true]);
-  });
-
-  it('asks ClassLink for a student-domain account', async () => {
-    await call(focusStatusV1, { protocol: 9 }, { auth: freshToken() });
-    expect(h.mockOnly).toEqual([false]);
   });
 
   it('refuses another domain, another listing, and a missing token', async () => {
-    h.tokenInfo = { ...h.tokenInfo, email: 'kid@gmail.com' };
-    expect(
-      (await call(focusStatusV1, { protocol: 9 }, { auth: freshToken() }))
-        .status
-    ).toBe(403);
+    for (const email of ['kid@gmail.com', 'kid@sub.orono.k12.mn.us']) {
+      h.tokenInfo = { ...h.tokenInfo, email };
+      expect(
+        (await call(focusStatusV1, { protocol: 9 }, { auth: freshToken() }))
+          .status
+      ).toBe(403);
+    }
     h.tokenInfo = {
       ...h.tokenInfo,
-      email: 'kid@students.orono.k12.mn.us',
+      email: 'kid@orono.k12.mn.us',
       aud: 'other',
     };
     expect(
@@ -275,16 +258,8 @@ describe('focusStatusV1', () => {
     expect((await call(focusStatusV1, {}, { method: 'GET' })).status).toBe(405);
   });
 
-  it('says none for a student not on any roster, and 503 when ClassLink is down', async () => {
-    h.lookup = 'not-in-roster';
-    const r = await call(
-      focusStatusV1,
-      { protocol: 9 },
-      { auth: freshToken() }
-    );
-    expect(r).toMatchObject({ status: 200, body: { session: null } });
+  it('returns 503 when ClassLink is down', async () => {
     h.lookup = 'roster-unavailable';
-    h.tokenInfo = { ...h.tokenInfo, email: 'other@students.orono.k12.mn.us' };
     expect(
       (await call(focusStatusV1, { protocol: 9 }, { auth: freshToken() }))
         .status
@@ -310,7 +285,7 @@ describe('focusStatusV1', () => {
 describe('focusReportV1', () => {
   it('refuses a student not on any roster', async () => {
     h.lookup = 'not-in-roster';
-    h.tokenInfo = { ...h.tokenInfo, email: 'norost@students.orono.k12.mn.us' };
+    h.tokenInfo = { ...h.tokenInfo, email: 'norost@orono.k12.mn.us' };
     const r = await call(
       focusReportV1,
       { sessionId: 's1', protocol: 9, status: 'on-task', blockedTries: 0 },
@@ -322,7 +297,7 @@ describe('focusReportV1', () => {
   it('never logs the email', async () => {
     h.tokenInfo = {
       ...h.tokenInfo,
-      email: 'secret-kid@students.orono.k12.mn.us',
+      email: 'secret-kid@orono.k12.mn.us',
     };
     await call(focusReportV1, { sessionId: 's1' }, { auth: freshToken() });
     expect(JSON.stringify(h.errors)).not.toContain('secret-kid');

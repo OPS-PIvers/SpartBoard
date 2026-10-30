@@ -229,7 +229,7 @@ chrome.webNavigation.onReferenceFragmentUpdated.addListener(
   }
 );
 
-// Focus sessions (CHROME_EXTENSION.md F3, F5): student profiles pull their session; staff only as a mock-class test account.
+// Focus sessions (CHROME_EXTENSION.md F3, F5): every district profile asks; the server's roster lookup refuses staff, who never enforce.
 const scope = self as unknown as PushScope & {
   addEventListener(
     type: 'push' | 'pushsubscriptionchange',
@@ -419,7 +419,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   if (sender.id !== chrome.runtime.id || sender.tab) return false;
   const msg = parseFocusPanelMessage(message);
   if (!msg) return false;
-  // Opening the panel pulls this profile's own session at once, even for a staff profile refused earlier.
+  // Opening the panel pulls this profile's own session at once, even for a profile refused earlier.
   if (msg.body.action === 'list') void focus.check(true);
   const answer = async (): Promise<FocusPanelReply> =>
     (await getChromeProfile()) === 'staff'

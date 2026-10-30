@@ -87,7 +87,6 @@ import {
   computeStudentUid,
   getOAuthHeaders,
   isSafeEmailForOneRosterFilter,
-  isStudentDomainEmail,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
   type ClassLinkClass,
@@ -1584,11 +1583,7 @@ export const setAssignmentTargetsV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
     const teacherEmail = request.auth.token.email;
-    if (
-      !teacherEmail ||
-      request.auth.token.studentRole === true ||
-      isStudentDomainEmail(teacherEmail)
-    ) {
+    if (!teacherEmail || request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
     // teacherEmail drives org/test-class resolution below, so it must be verified (same rail as isAdmin()).

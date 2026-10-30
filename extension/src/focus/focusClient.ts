@@ -8,9 +8,8 @@ import {
 import type { ApiResult } from '../spartboardApi';
 import {
   badgeText,
+  isDistrictEmail,
   isEnforcing,
-  isStaffEmail,
-  isStudentEmail,
   liveHostFor,
   parseStatusReply,
   statusFor,
@@ -23,16 +22,16 @@ export const TRIES_REPORT_GAP_MS = 5_000;
 /** A subscription already sent is sent again after this long, in case the server dropped it. */
 export const PUSH_RESEND_MS = 24 * 60 * 60_000;
 
-/** A staff profile the server refused is asked again after this long, or at once on start-up or sign-in. */
-export const STAFF_RECHECK_MS = 6 * 60 * 60_000;
+/** A profile the server says is no student is asked again after this long, or at once on start-up, sign-in or opening the panel. */
+export const REFUSED_RECHECK_MS = 6 * 60 * 60_000;
 
 export interface PushSent {
   endpoint: string;
   at: number;
 }
 
-/** The staff profile the server last said is no test student, and when. */
-export interface StaffRefused {
+/** The profile the server last said is no student (a teacher), and when. */
+export interface ProfileRefused {
   email: string;
   at: number;
 }
@@ -51,8 +50,8 @@ export interface FocusClientDeps {
   pushSubscription(): Promise<FocusPushSubscription | null>;
   loadPushSent(): Promise<PushSent | undefined>;
   savePushSent(sent: PushSent): Promise<void>;
-  loadStaffRefused(): Promise<StaffRefused | undefined>;
-  saveStaffRefused(refused: StaffRefused | null): Promise<void>;
+  loadRefused(): Promise<ProfileRefused | undefined>;
+  saveRefused(refused: ProfileRefused | null): Promise<void>;
   /** The address of the active tab in the last focused window. */
   activeUrl(): Promise<string | undefined>;
   /** Whether the student's window is fullscreen; Lock counts time outside it as away. */
@@ -145,15 +144,14 @@ export function createFocusClient(deps: FocusClientDeps) {
     if (recheck && isActiveFalse(res.value)) await check();
   };
 
-  // A staff profile asks only now and then: the server answers for it only as a mock-class test account.
+  // Teachers share the students' domain, so every district profile asks; one the server refused waits a while.
   const mayAsk = async (email: string | undefined, fresh: boolean) => {
-    if (isStudentEmail(email)) return true;
-    if (!email || !isStaffEmail(email)) return false;
+    if (!email || !isDistrictEmail(email)) return false;
     if (fresh) return true;
-    const refused = await deps.loadStaffRefused().catch(() => undefined);
+    const refused = await deps.loadRefused().catch(() => undefined);
     return (
       refused?.email !== email.toLowerCase() ||
-      deps.now() - refused.at >= STAFF_RECHECK_MS
+      deps.now() - refused.at >= REFUSED_RECHECK_MS
     );
   };
 
@@ -176,14 +174,13 @@ export function createFocusClient(deps: FocusClientDeps) {
         (res.why === 'signed-out' && !isEnforcing(prev, deps.now()));
       if (refused) await clear();
       else await redraw(prev);
-      if (res.why === 'no-access' && email && isStaffEmail(email))
+      if (res.why === 'no-access' && email)
         await deps
-          .saveStaffRefused({ email: email.toLowerCase(), at: deps.now() })
+          .saveRefused({ email: email.toLowerCase(), at: deps.now() })
           .catch(() => undefined);
       return;
     }
-    if (isStaffEmail(email))
-      await deps.saveStaffRefused(null).catch(() => undefined);
+    await deps.saveRefused(null).catch(() => undefined);
     const reply = parseStatusReply(res.value);
     if (!reply) {
       await redraw(prev);
@@ -221,7 +218,7 @@ export function createFocusClient(deps: FocusClientDeps) {
   };
 
   return {
-    /** Pulls the session: on the 5-minute alarm, at browser start, on sign-in and on a push (F5); `fresh` asks for a refused staff profile too. */
+    /** Pulls the session: on the 5-minute alarm, at browser start, on sign-in and on a push (F5); `fresh` asks for a refused profile too. */
     check: (fresh = false) => serial(() => check(fresh)),
     /** Reports on a status change, or when a minute has passed since the last report. */
     observe: () => serial(() => observe(false)),
