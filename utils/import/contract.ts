@@ -3,13 +3,13 @@
 /** D29 preview flag gating Import, drop-to-import and the any-page Send. */
 export const UNIVERSAL_IMPORT_FEATURE = 'universal-import';
 
-/** `users/{uid}/import_inbox/{id}`: server-written Sends; the owner reads, then deletes. */
 /** The URL parameter a new SpartBoard tab opens with after a Send. */
 export const IMPORT_INBOX_PARAM = 'importInbox';
 
 /** The event the extension fires in an already-open SpartBoard tab after a Send; cancelled when heard. */
 export const IMPORT_INBOX_EVENT = 'spartboard:import-inbox';
 
+/** `users/{uid}/import_inbox/{id}`: server-written Sends; the owner reads, then deletes. */
 export const IMPORT_INBOX_COLLECTION = 'import_inbox';
 export const IMPORT_INBOX_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const IMPORT_MAX_INBOX_ITEMS = 200;
