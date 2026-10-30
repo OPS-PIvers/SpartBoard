@@ -221,7 +221,7 @@ describe('activity wall submissions — legacy compatibility', () => {
     );
   });
 
-  it('legacy photo create with storage metadata still passes', async () => {
+  it('legacy-session photo create with its own storage path still passes', async () => {
     await seedSession(legacySession());
     await assertSucceeds(
       setDoc(doc(asAnonymous(), submissionPath('legacy-3')), {
@@ -229,7 +229,7 @@ describe('activity wall submissions — legacy compatibility', () => {
         content: 'https://example.com/photo.jpg',
         submittedAt: 1_700_000,
         status: 'approved',
-        storagePath: 'activity_wall_photos/x/y',
+        storagePath: `activity_wall_media/${SESSION_ID}/legacy-3/photo.jpg`,
         archiveStatus: 'firebase',
       })
     );
@@ -307,7 +307,7 @@ describe('activity wall submissions — type gating', () => {
         newSubmission({
           type: 'photo',
           content: 'https://example.com/p.jpg',
-          storagePath: 'activity_wall_media/a/b/c.jpg',
+          storagePath: `activity_wall_media/${SESSION_ID}/sub-1/c.jpg`,
           archiveStatus: 'firebase',
           fileName: 'c.jpg',
           mimeType: 'image/jpeg',
@@ -616,6 +616,205 @@ describe('activity wall submissions — owner update whitelist', () => {
       updateDoc(doc(asTeacher(), submissionPath('sub-1')), {
         adminBackdoor: true,
       })
+    );
+  });
+});
+
+describe('activity wall submissions — storagePath stays inside its own submission', () => {
+  const OTHER_TEACHER_UID = 'other-teacher-uid';
+  const ADMIN_EMAIL = 'admin@example.com';
+  const own = (sub = 'sub-1') =>
+    `activity_wall_media/${SESSION_ID}/${sub}/photo.jpg`;
+  const foreignPaths = [
+    'quiz_response_media/other-teacher/quiz-1/answer.webm',
+    `activity_wall_media/${OTHER_TEACHER_UID}_wall/sub-1/photo.jpg`,
+    `activity_wall_media/${SESSION_ID}/sub-other/photo.jpg`,
+    `activity_wall_media/${SESSION_ID}/sub-1`,
+    `activity_wall_media/${SESSION_ID}/sub-1/`,
+    `activity_wall_media/${SESSION_ID}/sub-1/photo.jpg/`,
+    `activity_wall_media/${SESSION_ID}/sub-1/photo.jpg//`,
+    `activity_wall_media/${SESSION_ID}/sub-1/nested/photo.jpg`,
+    `activity_wall_photos/${SESSION_ID}/sub-1`,
+    `activity_wall_media/${TEACHER_UID}_.*/sub-1/photo.jpg`,
+  ];
+  const photo = (sub: string, path: string, authorUid = STUDENT_UID) =>
+    newSubmission({
+      id: sub,
+      type: 'photo',
+      content: 'https://example.com/p.jpg',
+      storagePath: path,
+      archiveStatus: 'firebase',
+      authorUid,
+    });
+  const asOtherTeacher = () =>
+    testEnv
+      .authenticatedContext(OTHER_TEACHER_UID, {
+        email: 'other-teacher@example.com',
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+  const asAdmin = () =>
+    testEnv
+      .authenticatedContext('admin-uid', {
+        email: ADMIN_EMAIL,
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+  const seedAdmin = () =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
+        email: ADMIN_EMAIL,
+      });
+    });
+
+  it.each(foreignPaths)('student create with %s is denied', async (path) => {
+    await seedSession(padletSession());
+    await assertFails(
+      setDoc(doc(asStudent(), submissionPath('sub-1')), photo('sub-1', path))
+    );
+  });
+
+  it('student create with its own path is allowed', async () => {
+    await seedSession(padletSession());
+    await assertSucceeds(
+      setDoc(doc(asStudent(), submissionPath('sub-1')), photo('sub-1', own()))
+    );
+  });
+
+  it('anonymous guest create with a foreign path is denied, own path allowed', async () => {
+    await seedSession(padletSession({ allowGuests: true }));
+    await assertFails(
+      setDoc(
+        doc(asAnonymous(), submissionPath('sub-1')),
+        photo('sub-1', foreignPaths[0], ANON_UID)
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asAnonymous(), submissionPath('sub-1')),
+        photo('sub-1', own(), ANON_UID)
+      )
+    );
+  });
+
+  it('legacy-session create with a foreign path is denied', async () => {
+    await seedSession(legacySession());
+    await assertFails(
+      setDoc(doc(asAnonymous(), submissionPath('legacy-1')), {
+        id: 'legacy-1',
+        content: 'https://example.com/photo.jpg',
+        submittedAt: 1_700_000,
+        status: 'approved',
+        storagePath: foreignPaths[0],
+        archiveStatus: 'firebase',
+      })
+    );
+  });
+
+  it('owner teacher post with a foreign path is denied, own path allowed', async () => {
+    await seedSession(padletSession());
+    const teacherPost = (path: string) => ({
+      ...photo('sub-1', path, TEACHER_UID),
+      authorRole: 'teacher',
+    });
+    await assertFails(
+      setDoc(
+        doc(asTeacher(), submissionPath('sub-1')),
+        teacherPost(foreignPaths[0])
+      )
+    );
+    await assertSucceeds(
+      setDoc(doc(asTeacher(), submissionPath('sub-1')), teacherPost(own()))
+    );
+  });
+
+  it.each(foreignPaths)('owner update to %s is denied', async (path) => {
+    await seedSession(padletSession());
+    await seedSubmission('sub-1', photo('sub-1', own()));
+    await assertFails(
+      updateDoc(doc(asTeacher(), submissionPath('sub-1')), {
+        storagePath: path,
+      })
+    );
+  });
+
+  it.each(foreignPaths)('author self-edit to %s is denied', async (path) => {
+    await seedSession(padletSession({ allowStudentEdit: true }));
+    await seedSubmission('sub-1', photo('sub-1', own()));
+    await assertFails(
+      updateDoc(doc(asStudent(), submissionPath('sub-1')), {
+        storagePath: path,
+      })
+    );
+  });
+
+  it('owner update to its own path, or leaving it alone, is allowed', async () => {
+    await seedSession(padletSession());
+    await seedSubmission('sub-1', photo('sub-1', own()));
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), submissionPath('sub-1')), {
+        storagePath: own().replace('photo.jpg', 'retake.jpg'),
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), submissionPath('sub-1')), {
+        status: 'approved',
+      })
+    );
+  });
+
+  it('owner can still approve a pre-existing legacy-path post', async () => {
+    await seedSession(legacySession());
+    await seedSubmission(
+      'sub-1',
+      photo('sub-1', `activity_wall_photos/${SESSION_ID}/sub-1`)
+    );
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), submissionPath('sub-1')), {
+        status: 'pending',
+      })
+    );
+  });
+
+  it('admin update to a foreign path is denied, own path allowed', async () => {
+    await seedAdmin();
+    await seedSession(padletSession());
+    await seedSubmission('sub-1', photo('sub-1', own()));
+    await assertFails(
+      updateDoc(doc(asAdmin(), submissionPath('sub-1')), {
+        storagePath: foreignPaths[0],
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), submissionPath('sub-1')), {
+        storagePath: own().replace('photo.jpg', 'retake.jpg'),
+      })
+    );
+  });
+
+  it('unrelated teacher can neither rewrite the path nor read the post', async () => {
+    await seedSession(padletSession());
+    await seedSubmission('sub-1', photo('sub-1', own()));
+    await assertFails(
+      updateDoc(doc(asOtherTeacher(), submissionPath('sub-1')), {
+        storagePath: own().replace('photo.jpg', 'retake.jpg'),
+      })
+    );
+    await assertFails(getDoc(doc(asOtherTeacher(), submissionPath('sub-1'))));
+  });
+
+  it('reads: owner, admin and the author allowed; anonymous and another student denied', async () => {
+    await seedAdmin();
+    await seedSession(padletSession({ studentsCanSeePosts: false }));
+    await seedSubmission('sub-1', photo('sub-1', own()));
+    await assertSucceeds(getDoc(doc(asTeacher(), submissionPath('sub-1'))));
+    await assertSucceeds(getDoc(doc(asAdmin(), submissionPath('sub-1'))));
+    await assertSucceeds(getDoc(doc(asStudent(), submissionPath('sub-1'))));
+    await assertFails(getDoc(doc(asAnonymous(), submissionPath('sub-1'))));
+    await assertFails(
+      getDoc(doc(asStudent(OTHER_STUDENT_UID), submissionPath('sub-1')))
     );
   });
 });
