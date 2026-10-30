@@ -73,6 +73,57 @@ export async function accessToken(
   return token;
 }
 
+/** Compares dotted versions part by part: negative, zero or positive like a sort comparator. */
+export function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d) return d;
+  }
+  return 0;
+}
+
+const revisionVersions = (revision: unknown): string[] => {
+  const channels =
+    typeof revision === 'object' && revision !== null
+      ? (revision as Record<string, unknown>).distributionChannels
+      : undefined;
+  return Array.isArray(channels)
+    ? channels.flatMap((c) => field(c, 'crxVersion') ?? [])
+    : [];
+};
+
+/** The highest version the item has published or submitted for review, or undefined if it reports none. */
+export async function storeVersion({
+  creds,
+  itemId,
+  fetchImpl = fetch,
+}: {
+  creds: Credentials;
+  itemId: string;
+  fetchImpl?: Fetch;
+}): Promise<string | undefined> {
+  const token = await accessToken(creds, fetchImpl);
+  const item = `publishers/${encodeURIComponent(creds.CWS_PUBLISHER_ID)}/items/${itemId}`;
+  const status = await json(
+    await fetchImpl(`${API}/v2/${item}:fetchStatus`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+    'Reading the listing'
+  );
+  const body =
+    typeof status === 'object' && status !== null
+      ? (status as Record<string, unknown>)
+      : {};
+  return [
+    ...revisionVersions(body.publishedItemRevisionStatus),
+    ...revisionVersions(body.submittedItemRevisionStatus),
+  ]
+    .sort(compareVersions)
+    .at(-1);
+}
+
 export interface PublishOptions {
   creds: Credentials;
   itemId: string;
