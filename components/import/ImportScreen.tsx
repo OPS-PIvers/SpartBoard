@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
-import { FileText, Globe, Link2, Type, X } from 'lucide-react';
+import {
+  FileText,
+  Globe,
+  LayoutTemplate,
+  Link2,
+  Sparkles,
+  Type,
+  X,
+} from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
 import type { ImportInboxItem, ImportTarget } from '@/utils/import/contract';
 import type { PendingSource } from './importHandoff';
-import { importRoute, targetChoices } from './importTargets';
+import { importRoute, targetChoices, usesAi } from './importTargets';
+import { AI_CONVERSION_LIMIT_NOTE } from '@/utils/import/aiConversion';
 import { sourceFromInboxItem } from './sourceFromInbox';
 
 interface ImportScreenProps {
@@ -18,6 +27,8 @@ interface ImportScreenProps {
   onRemoveInboxItem: (id: string) => void;
   /** Targets this teacher may use for this Source (widget access and import gates). */
   allowed: (target: ImportTarget, source: PendingSource) => boolean;
+  /** AI Conversions are on for this teacher (switch, flags and view-as). */
+  aiOn?: boolean;
   onContinue: (source: PendingSource, target: ImportTarget) => void;
 }
 
@@ -74,6 +85,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   inboxItems,
   onRemoveInboxItem,
   allowed,
+  aiOn = false,
   onContinue,
 }) => {
   const rows: Row[] = [
@@ -127,6 +139,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
               key={row.key}
               source={row.source}
               allowed={allowed}
+              aiOn={aiOn}
               onPick={(target) => onContinue(row.source, target)}
               onRemove={
                 row.removeId
@@ -141,8 +154,8 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   );
 };
 
-const toolFor = (widgetType: string) =>
-  TOOLS.find((tool) => tool.type === widgetType);
+const toolFor = (widgetType: string | undefined) =>
+  widgetType ? TOOLS.find((tool) => tool.type === widgetType) : undefined;
 
 const Thumbnail: React.FC<{ source: PendingSource; icon: React.ReactNode }> = ({
   source,
@@ -170,11 +183,13 @@ const Thumbnail: React.FC<{ source: PendingSource; icon: React.ReactNode }> = ({
 const SourceRow: React.FC<{
   source: PendingSource;
   allowed: ImportScreenProps['allowed'];
+  aiOn: boolean;
   onPick: (target: ImportTarget) => void;
   onRemove?: () => void;
-}> = ({ source, allowed, onPick, onRemove }) => {
+}> = ({ source, allowed, aiOn, onPick, onRemove }) => {
   const described = describeSource(source);
-  const { targets, guess } = targetChoices(source, allowed);
+  const { targets, guess } = targetChoices(source, allowed, aiOn);
+  const anyAi = targets.some((t) => usesAi(t, source, aiOn));
   return (
     <li className="py-4">
       <div className="flex items-start gap-3">
@@ -211,7 +226,11 @@ const SourceRow: React.FC<{
                 const route = importRoute(target);
                 if (!route) return null;
                 const tool = toolFor(route.widgetType);
-                const Icon = tool?.icon ?? Globe;
+                const Icon =
+                  route.landing === 'board'
+                    ? LayoutTemplate
+                    : (tool?.icon ?? Globe);
+                const ai = usesAi(target, source, aiOn);
                 return (
                   <button
                     key={target}
@@ -225,15 +244,30 @@ const SourceRow: React.FC<{
                     }`}
                   >
                     <span
-                      className={`flex h-6 w-6 items-center justify-center rounded-md text-white ${tool?.color ?? 'bg-slate-500'}`}
+                      className={`flex h-6 w-6 items-center justify-center rounded-md text-white ${tool?.color ?? 'bg-brand-blue-primary'}`}
                     >
                       <Icon className="h-3.5 w-3.5" />
                     </span>
                     {route.label}
+                    {ai && (
+                      <>
+                        <Sparkles
+                          className="h-3.5 w-3.5 text-slate-400"
+                          aria-hidden="true"
+                        />
+                        <span className="sr-only">(uses AI)</span>
+                      </>
+                    )}
                   </button>
                 );
               })}
             </div>
+          )}
+          {anyAi && (
+            <p className="flex items-center gap-1.5 text-xs text-slate-500">
+              <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              {AI_CONVERSION_LIMIT_NOTE}
+            </p>
           )}
         </div>
       </div>

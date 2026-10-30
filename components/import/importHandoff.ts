@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { WidgetType } from '@/types';
 import type { ImportInboxItem, ImportTarget } from '@/utils/import/contract';
+import type { ConversionInput } from '@/utils/import/aiConversion';
 
 /** What the teacher gave Import, as live browser objects (a File is not serializable). */
 export interface PendingSource {
@@ -13,6 +14,8 @@ export interface PendingSource {
   platform?: string;
   /** The page the extension sent, when this came from the inbox. */
   inboxItem?: ImportInboxItem;
+  /** Set when the teacher picked an AI Conversion; the review screen reads this text with AI. */
+  conversion?: ConversionInput;
 }
 
 /** A Source waiting for a widget to open its own review screen with it. */

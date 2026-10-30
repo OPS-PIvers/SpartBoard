@@ -1,9 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { useImportInbox, type ImportInbox } from '@/hooks/useImportInbox';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
+import { useImportConversionSettings } from '@/hooks/useImportConversionSettings';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import type { ConversionInput } from '@/utils/import/aiConversion';
+import { BoardImportFlow } from './conversion/BoardImportFlow';
 import {
   IMPORT_INBOX_EVENT,
   IMPORT_INBOX_PARAM,
@@ -20,7 +24,7 @@ import {
   type ImportScreenRequest,
   type PendingSource,
 } from './importHandoff';
-import { importRoute } from './importTargets';
+import { conversionInputFor, importRoute, usesAi } from './importTargets';
 
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst)$/i;
 const CARTRIDGE = /\.imscc$/i;
@@ -35,11 +39,18 @@ interface ImportScreenHostProps {
   placeNotebook: (file: File, point?: ImportDropPoint) => void;
 }
 
+interface BoardJob {
+  id: string;
+  input: ConversionInput;
+  sentId?: string;
+}
+
 /** Shows Import on the board and sends the teacher's pick to a review screen or onto the board (D3, D4). */
 export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
   const request = useImportScreenRequest();
   const { user } = useAuth();
   const inbox = useImportInbox(user?.uid, true);
+  const [boardJob, setBoardJob] = useState<BoardJob | null>(null);
   // The extension's "Open in SpartBoard" lands on /?importInbox=1 after a Send.
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -70,7 +81,22 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
           key={request.openId}
           request={request}
           inbox={inbox}
+          onStartBoard={setBoardJob}
           {...props}
+        />
+      )}
+      {boardJob && (
+        <BoardImportFlow
+          key={boardJob.id}
+          input={boardJob.input}
+          onClose={() => setBoardJob(null)}
+          onCreated={() => {
+            const sentId = boardJob.sentId;
+            if (!sentId) return;
+            void inbox.remove(sentId).catch((err: unknown) => {
+              console.error('[Import] could not remove a sent page', err);
+            });
+          }}
         />
       )}
     </>
@@ -78,9 +104,19 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
 };
 
 const OpenImportScreen: React.FC<
-  ImportScreenHostProps & { request: ImportScreenRequest; inbox: ImportInbox }
-> = ({ request, inbox, placeAt, placePdf, placeNotebook }) => {
+  ImportScreenHostProps & {
+    request: ImportScreenRequest;
+    inbox: ImportInbox;
+    onStartBoard: (job: BoardJob) => void;
+  }
+> = ({ request, inbox, placeAt, placePdf, placeNotebook, onStartBoard }) => {
   const { canAccessWidget, canAccessFeature } = useAuth();
+  const outward = useViewAsOutward();
+  // AI Conversions: the org switch, the AI flag, and never from a read-only view-as tab (the server checks again).
+  const aiOn =
+    useImportConversionSettings().enabled &&
+    canAccessFeature('gemini-functions') &&
+    !outward.locked;
   const {
     activeDashboard,
     addWidget,
@@ -94,7 +130,10 @@ const OpenImportScreen: React.FC<
   // The same gates the Quiz widget puts on its own import, so Import never offers what the review would refuse.
   const allowed = (target: ImportTarget, source: PendingSource): boolean => {
     const route = importRoute(target);
-    if (!route || !canAccessWidget(route.widgetType)) return false;
+    if (!route) return false;
+    if (route.widgetType && !canAccessWidget(route.widgetType)) return false;
+    // A board from a page is Magic Layout's engine, so it follows that flag.
+    if (target === 'board') return canAccessFeature('dashboard-layout');
     const name = source.file?.name ?? '';
     if (target === 'quiz' && QUIZ_DOCUMENT.test(name))
       return canReadQuizDocuments;
@@ -134,19 +173,20 @@ const OpenImportScreen: React.FC<
   // Hands a Source to a widget's review screen.
   const review = (source: PendingSource, target: ImportTarget): void => {
     const r = importRoute(target);
-    if (!r) return;
+    if (!r?.widgetType) return;
+    const widgetType = r.widgetType;
     const point = request.dropPoint;
     // Outside a drop, reuse one already on this board.
     const existing = point
       ? undefined
-      : activeDashboard?.widgets.find((w) => w.type === r.widgetType);
+      : activeDashboard?.widgets.find((w) => w.type === widgetType);
     let widgetId = existing?.id;
     if (existing?.minimized) updateWidget(existing.id, { minimized: false });
     if (!widgetId) {
       if (refuseReadOnly()) return;
       widgetId = crypto.randomUUID();
-      const defaults = WIDGET_DEFAULTS[r.widgetType];
-      addWidget(r.widgetType, {
+      const defaults = WIDGET_DEFAULTS[widgetType];
+      addWidget(widgetType, {
         id: widgetId,
         ...(point ? placeAt(point, defaults.w ?? 400, defaults.h ?? 400) : {}),
       });
@@ -154,21 +194,47 @@ const OpenImportScreen: React.FC<
     const sentId = source.inboxItem?.id;
     offerImportHandoff({
       widgetId,
-      widgetType: r.widgetType,
+      widgetType,
       target,
       source,
       ...(sentId ? { onSaved: () => removeSent(sentId) } : {}),
     });
   };
 
+  // AI picks confirm in a view-as tab first, since importConvertV1 is outward.
+  const convert = async (
+    source: PendingSource,
+    target: ImportTarget
+  ): Promise<void> => {
+    const r = importRoute(target);
+    const input = conversionInputFor(source);
+    if (!r || !input) return;
+    closeImportScreen();
+    if (outward.active && !(await outward.confirm('Import with AI'))) return;
+    if (r.landing === 'board') {
+      onStartBoard({
+        id: crypto.randomUUID(),
+        input,
+        ...(source.inboxItem ? { sentId: source.inboxItem.id } : {}),
+      });
+      return;
+    }
+    review({ ...source, conversion: input }, target);
+  };
+
   const route = (source: PendingSource, target: ImportTarget): void => {
     const r = importRoute(target);
     if (!r) return;
+    if (usesAi(target, source, aiOn)) {
+      void convert(source, target);
+      return;
+    }
     closeImportScreen();
     if (r.landing === 'review') {
       review(source, target);
       return;
     }
+    if (r.landing === 'board') return;
     if (refuseReadOnly()) return;
     const point = request.dropPoint;
     let placed = true;
@@ -200,6 +266,7 @@ const OpenImportScreen: React.FC<
       inboxItems={inbox.items}
       onRemoveInboxItem={removeSent}
       allowed={allowed}
+      aiOn={aiOn}
       onContinue={route}
     />
   );

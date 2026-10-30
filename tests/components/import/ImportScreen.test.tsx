@@ -2,7 +2,11 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ImportScreen } from '@/components/import/ImportScreen';
-import { targetChoices } from '@/components/import/importTargets';
+import {
+  conversionInputFor,
+  targetChoices,
+  usesAi,
+} from '@/components/import/importTargets';
 import { attributionFor } from '@/components/import/attribution';
 import { sourceFromInboxItem } from '@/components/import/sourceFromInbox';
 import {
@@ -111,6 +115,43 @@ describe('targetChoices', () => {
     expect(c.targets).toEqual(['pdf']);
   });
 
+  it('adds the AI Conversions for page text only when AI is on', () => {
+    const prose = {
+      ...sent,
+      blocks: [
+        { type: 'paragraph' as const, text: 'Cells are the unit of life.' },
+      ],
+    };
+    const source = sourceFromInboxItem(prose);
+    expect(targetChoices(source).targets).not.toContain('board');
+    const on = targetChoices(source, () => true, true).targets;
+    expect(on).toEqual(
+      expect.arrayContaining(['flashcards', 'activityWall', 'board'])
+    );
+    expect(usesAi('flashcards', source, true)).toBe(true);
+    expect(usesAi('flashcards', source, false)).toBe(false);
+    expect(conversionInputFor(source)).toMatchObject({
+      title: 'Cell vocabulary',
+      text: 'Cells are the unit of life.',
+    });
+  });
+
+  it('reads a two-column page as rows, not with AI', () => {
+    expect(usesAi('flashcards', sourceFromInboxItem(sent), true)).toBe(false);
+  });
+
+  it('never offers AI for a bare link or an unread file', () => {
+    const c = targetChoices(
+      { url: 'https://example.org/page' },
+      () => true,
+      true
+    );
+    expect(c.targets).not.toContain('board');
+    expect(
+      targetChoices({ file: file('a.html') }, () => true, true).targets
+    ).toEqual(['miniApp']);
+  });
+
   it('offers nothing for a file no route reads', () => {
     expect(
       targetChoices({ file: file('song.mp3', 'audio/mpeg') }).targets
@@ -181,6 +222,18 @@ describe('ImportScreen', () => {
       screen.getByRole('button', { name: 'Remove Cell vocabulary' })
     );
     expect(onRemoveInboxItem).toHaveBeenCalledWith('send-1');
+  });
+
+  it('marks AI choices and says they count toward the AI limit', () => {
+    const { onContinue } = renderScreen({
+      aiOn: true,
+      initialSource: { text: 'Photosynthesis turns light into sugar.' },
+    });
+    expect(
+      screen.getByText('Converting with AI counts toward your daily AI limit.')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /New board/ }));
+    expect(onContinue.mock.calls[0][1]).toBe('board');
   });
 
   it('says so when nothing can read the Source', () => {
