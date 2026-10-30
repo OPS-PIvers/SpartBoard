@@ -26,6 +26,8 @@ const STAFF_EMAIL = 'peer.teacher@orono.k12.mn.us';
 const ADMIN_UID = 'admin-uid';
 const ADMIN_EMAIL = 'admin@orono.k12.mn.us';
 const OUTSIDER_UID = 'outsider-uid';
+const PLC_MEMBER_UID = 'plc-member-uid';
+const PLC_ID = 'plc-1';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -48,6 +50,22 @@ const asParticipant = () =>
 const asStaff = () => google(STAFF_UID, STAFF_EMAIL);
 const asAdmin = () => google(ADMIN_UID, ADMIN_EMAIL);
 const asOutsider = () => google(OUTSIDER_UID, 'someone@example.com');
+// In the owning PLC but holds no staff member doc.
+const asPlcMember = () => google(PLC_MEMBER_UID, 'plc.member@example.com');
+const asPinLogin = () =>
+  google('pin-uid', STAFF_EMAIL, {
+    studentRole: true,
+    pinLogin: true,
+    pinSessionId: 'session-1',
+  });
+const asUnverifiedStaff = () =>
+  testEnv
+    .authenticatedContext('unverified-uid', {
+      email: STAFF_EMAIL,
+      email_verified: false,
+      firebase: { sign_in_provider: 'password' },
+    })
+    .firestore();
 const asAnonymous = () =>
   testEnv
     .authenticatedContext('anon-uid', {
@@ -71,6 +89,7 @@ const quizDoc = (over: Record<string, unknown> = {}) => ({
   title: 'Fractions check',
   questions: [{ id: 'q1', text: '1/2 + 1/4?', correctAnswer: '3/4' }],
   participants: { [PARTICIPANT_UID]: { joinedAt: 1000 } },
+  plcId: PLC_ID,
   createdAt: 1000,
   updatedAt: 1000,
   updatedBy: PARTICIPANT_UID,
@@ -84,6 +103,7 @@ const videoDoc = (over: Record<string, unknown> = {}) => ({
   youtubeUrl: 'https://www.youtube.com/watch?v=abc',
   questions: [{ id: 'q1', text: 'What is it?', correctAnswer: 'B' }],
   participants: { [PARTICIPANT_UID]: { joinedAt: 1000 } },
+  plcId: PLC_ID,
   createdAt: 1000,
   updatedAt: 1000,
   updatedBy: PARTICIPANT_UID,
@@ -128,6 +148,17 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await seedDistrictStaff(db, [STAFF_EMAIL]);
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { email: ADMIN_EMAIL });
+    await setDoc(doc(db, `plcs/${PLC_ID}`), {
+      name: 'Grade 6 math',
+      leadUid: PARTICIPANT_UID,
+      // The studentRole and PIN uids sit in the PLC to prove the claim still denies them.
+      memberUids: [
+        PARTICIPANT_UID,
+        PLC_MEMBER_UID,
+        'student-role-uid',
+        'pin-uid',
+      ],
+    });
     await setDoc(doc(db, quizPath), quizDoc());
     await setDoc(doc(db, bankPath), bankDoc());
     await setDoc(doc(db, videoPath), videoDoc());
@@ -155,6 +186,15 @@ describe.each([
 
   it('an unrelated signed-in user with no member doc cannot get it', async () => {
     await assertFails(getDoc(doc(asOutsider(), path)));
+  });
+
+  it('PIN-login and unverified staff-address tokens cannot get it', async () => {
+    await assertFails(getDoc(doc(asPinLogin(), path)));
+    await assertFails(getDoc(doc(asUnverifiedStaff(), path)));
+  });
+
+  it('a member of the owning PLC can get it without a staff member doc', async () => {
+    await assertSucceeds(getDoc(doc(asPlcMember(), path)));
   });
 
   it('the participant or owner, verified staff and admins can get it', async () => {
@@ -185,6 +225,9 @@ describe('writes are unchanged by the read gate', () => {
       setDoc(doc(asParticipant(), quizPath), next(PARTICIPANT_UID))
     );
     await assertFails(setDoc(doc(asStaff(), quizPath), next(STAFF_UID)));
+    await assertFails(
+      setDoc(doc(asPlcMember(), quizPath), next(PLC_MEMBER_UID))
+    );
     await assertFails(setDoc(doc(asAnonymous(), quizPath), next('anon-uid')));
     await assertFails(
       setDoc(doc(asStudentRole(), quizPath), next('student-role-uid'))
@@ -210,6 +253,9 @@ describe('writes are unchanged by the read gate', () => {
     );
     await assertFails(
       setDoc(doc(asStaff(), bankPath), bankDoc({ version: 3 }))
+    );
+    await assertFails(
+      setDoc(doc(asPlcMember(), bankPath), bankDoc({ version: 3 }))
     );
     await assertFails(
       setDoc(doc(asAnonymous(), bankPath), bankDoc({ version: 3 }))

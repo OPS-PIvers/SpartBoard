@@ -2167,9 +2167,9 @@ service cloud.firestore {
       ]);
     }
 
-    // Synced quiz/bank/video content holds answer keys: verified staff (members of the
-    // owning PLC are staff), admins, or the doc's own people. A missing doc reads so a
-    // create can probe first. Anonymous and studentRole tokens never pass.
+    // Synced quiz/bank/video content holds answer keys: the doc's own people, members of
+    // its PLC (a bank checks its first PLC), verified staff, or admins. A missing doc reads
+    // so a create can probe first. Anonymous and studentRole tokens never pass.
     function syncedContentReader() {
       return signedIn() && notAnon() && !isStudentRoleUser();
     }
@@ -2183,7 +2183,8 @@ service cloud.firestore {
     // caller's uid.
     match /synced_quizzes/{groupId} {
       allow get: if syncedContentReader() && (resource == null ||
-        authUid() in existing().get('participants', {}) || isDistrictStaff() || isAdmin());
+        authUid() in existing().get('participants', {}) || isDistrictStaff() ||
+        (existing().get('plcId', '') != '' && plcMember(existing().plcId)) || isAdmin());
       // list closed: it would let any authed user enumerate every synced quiz
       // (defeating the unguessable-id gate on get). Clients always know the
       // groupId via their quiz_metadata or a share URL, so get suffices.
@@ -2273,12 +2274,13 @@ service cloud.firestore {
 
     // ---- Synced QUESTION BANKS (plan §4.2, decision 1) ----
     // Read-only PLC share of a personal bank: only the owner writes (the bank
-    // editor republishes on every save); the owner, verified staff and admins get
-    // by id (handed out via plcs/{plcId}/question_banks headers).
+    // editor republishes on every save); the owner, its PLC, verified staff and admins
+    // get by id (handed out via plcs/{plcId}/question_banks headers).
     // No participants/join function - members never co-edit.
     match /synced_question_banks/{groupId} {
       allow get: if syncedContentReader() && (resource == null ||
-        existing().get('ownerUid', '') == authUid() || isDistrictStaff() || isAdmin());
+        existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
+        (existing().get('plcIds', []).size() > 0 && plcMember(existing().plcIds[0])) || isAdmin());
       allow list: if false;
 
       allow create: if signedIn()
@@ -2344,7 +2346,8 @@ service cloud.firestore {
 
     match /synced_video_activities/{groupId} {
       allow get: if syncedContentReader() && (resource == null ||
-        authUid() in existing().get('participants', {}) || isDistrictStaff() || isAdmin());
+        authUid() in existing().get('participants', {}) || isDistrictStaff() ||
+        (existing().get('plcId', '') != '' && plcMember(existing().plcId)) || isAdmin());
       // list closed (see synced_quizzes): would let any authed user enumerate
       // every synced activity. Clients know the groupId via their
       // video_activity_metadata or a share URL.
