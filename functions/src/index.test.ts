@@ -2822,7 +2822,13 @@ describe('getPseudonymsForAssignmentV1', () => {
   it('returns pseudonyms when the teacher actually teaches the requested class', async () => {
     installAxiosMock({
       teacher: {
-        users: [{ sourcedId: 'teacher-sid', email: 'teacher@district.org' }],
+        users: [
+          {
+            sourcedId: 'teacher-sid',
+            email: 'teacher@district.org',
+            role: 'teacher',
+          },
+        ],
       },
       classes: { classes: [{ sourcedId: 'c-1', title: 'Period 1' }] },
       students: {
@@ -2857,7 +2863,13 @@ describe('getPseudonymsForAssignmentV1', () => {
   it("rejects with permission-denied when the requested classId isn't in the teacher's classes", async () => {
     installAxiosMock({
       teacher: {
-        users: [{ sourcedId: 'teacher-sid', email: 'teacher@district.org' }],
+        users: [
+          {
+            sourcedId: 'teacher-sid',
+            email: 'teacher@district.org',
+            role: 'teacher',
+          },
+        ],
       },
       classes: { classes: [{ sourcedId: 'c-1', title: 'Period 1' }] },
       // students should never be requested if the gate denies — but harmless if it is.
@@ -2877,7 +2889,13 @@ describe('getPseudonymsForAssignmentV1', () => {
     // updating the test.
     installAxiosMock({
       teacher: {
-        users: [{ sourcedId: 'teacher-sid', email: 'teacher@district.org' }],
+        users: [
+          {
+            sourcedId: 'teacher-sid',
+            email: 'teacher@district.org',
+            role: 'teacher',
+          },
+        ],
       },
       classes: { classes: [{ sourcedId: 'c-1', title: 'Period 1' }] },
       students: { users: [] },
@@ -2892,7 +2910,13 @@ describe('getPseudonymsForAssignmentV1', () => {
   it('rejects when the teacher record has no classes', async () => {
     installAxiosMock({
       teacher: {
-        users: [{ sourcedId: 'teacher-sid', email: 'teacher@district.org' }],
+        users: [
+          {
+            sourcedId: 'teacher-sid',
+            email: 'teacher@district.org',
+            role: 'teacher',
+          },
+        ],
       },
       classes: { classes: [] },
       students: { users: [] },
@@ -3151,7 +3175,13 @@ describe('getPseudonymsForAssignmentV1', () => {
     // can complete and we can assert the existing branch behavior.
     installAxiosMock({
       teacher: {
-        users: [{ sourcedId: 'teacher-sid', email: 'teacher@district.org' }],
+        users: [
+          {
+            sourcedId: 'teacher-sid',
+            email: 'teacher@district.org',
+            role: 'teacher',
+          },
+        ],
       },
       classes: { classes: [{ sourcedId: 'c-1', title: 'Period 1' }] },
       students: {
@@ -3203,7 +3233,7 @@ describe('getClassLinkRosterV1 chunked fan-out', () => {
     vi.mocked(axios.get).mockImplementation((url: string) => {
       if (url.endsWith('/users')) {
         return Promise.resolve({
-          data: { users: [{ sourcedId: 'teacher-sid' }] },
+          data: { users: [{ sourcedId: 'teacher-sid', role: 'teacher' }] },
         });
       }
       if (url.endsWith('/teacher-sid/classes')) {

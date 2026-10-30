@@ -29,6 +29,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-aw-board-members';
 const HOST_UID = 'host-uid';
@@ -188,6 +189,14 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(
+      ctx.firestore(),
+      [HOST_UID, COLLAB_UID, VIEWER_UID, OUTSIDER_UID].map(
+        (uid) => `${uid}@orono.k12.mn.us`
+      )
+    )
+  );
 });
 
 describe('board members read the owner wall', () => {
@@ -292,6 +301,13 @@ describe('board members read the owner wall', () => {
       )
     );
     await assertFails(approvedQuery(asAnonymous('anon-uid'), HOST_SESSION));
+    // A student's own Google account shares the staff domain but holds no staff member doc.
+    await assertFails(
+      approvedQuery(
+        asOutsideAccount(VIEWER_UID, '704522@orono.k12.mn.us'),
+        HOST_SESSION
+      )
+    );
   });
 });
 

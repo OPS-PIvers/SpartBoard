@@ -26,7 +26,7 @@ interface Props {
 }
 
 export const SubsAuthGate: React.FC<Props> = ({ children }) => {
-  const { user, loading, signInWithGoogle, signOut } = useAuth();
+  const { user, loading, roleResolved, signInWithGoogle, signOut } = useAuth();
   const email = user?.email ?? null;
   const allowed = isAllowedEmail(email);
 
@@ -40,7 +40,8 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
     }
   }, [loading, user, allowed, signOut]);
 
-  if (loading) {
+  // Rules admit subs by their org member doc, which the first sign-in creates; wait for it.
+  if (loading || (user && allowed && !roleResolved)) {
     return (
       <PortalShell>
         <div className="flex flex-col items-center gap-3 text-slate-500">

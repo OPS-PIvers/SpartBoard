@@ -6,6 +6,7 @@ import {
   type Auth,
   type User,
 } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import type {
   AssignmentAudience,
   AudienceSessionFields,
@@ -77,7 +78,18 @@ export async function signInAsStaff(auth: Auth): Promise<StaffIdentity> {
     await signOut(auth);
     throw new Error('not-district-staff');
   }
+  await enrollStaffMember(auth);
   return identity;
+}
+
+/** Rules admit staff by their org member doc, which a first SpartBoard load creates; best effort. */
+export async function enrollStaffMember(auth: Auth): Promise<void> {
+  await httpsCallable(
+    getFunctions(auth.app),
+    'resolveOrgForUser'
+  )({}).catch((err: unknown) =>
+    console.warn('[staffAudience] org enrol failed:', err)
+  );
 }
 
 /** Response fields for a staff joiner; empty for a student session so its writes are unchanged. */

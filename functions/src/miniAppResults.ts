@@ -18,7 +18,7 @@ import {
 } from './miniAppGrading';
 import { isPeriodFrozen } from './quizSessionContent';
 import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';
-import { staffIdentityFromToken, type StaffIdentity } from './staffAudience';
+import { verifiedStaffIdentity, type StaffIdentity } from './staffAudience';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 export const WINDOW_GRACE_MS = 120_000;
@@ -382,7 +382,7 @@ export const submitMiniAppResultV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) => {
+  async (request) => {
     assertViewAsAllowed(request);
     return handleSubmitMiniAppResult(
       admin.firestore(),
@@ -395,7 +395,10 @@ export const submitMiniAppResultV1 = onCall(
                   (c): c is string => typeof c === 'string' && c.length > 0
                 )
               : [],
-            staff: staffIdentityFromToken(request.auth.token),
+            staff: await verifiedStaffIdentity(
+              admin.firestore(),
+              request.auth.token
+            ),
           }
         : null,
       request.data,

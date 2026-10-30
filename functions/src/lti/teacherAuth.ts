@@ -1,16 +1,19 @@
-// Shared teacher gate for the LTI callables; mirrors firestore.rules isVerifiedDistrictEmail().
+// Shared teacher gate for the LTI callables; mirrors firestore.rules isDistrictStaff().
+import * as admin from '../firebaseAdmin';
+import { isDistrictStaffToken } from '../districtStaff';
+
 const DISTRICT_EMAIL = /^[^@]+@orono\.k12\.mn\.us$/i;
 
-/** True only for a verified district email that is not a student token. */
-export function isVerifiedDistrictTeacher(token: {
+/** True only for a verified district address holding a staff member doc; students share the domain. */
+export async function isDistrictTeacher(token: {
   email?: string;
   email_verified?: boolean;
   studentRole?: unknown;
-}): boolean {
+  pinLogin?: unknown;
+}): Promise<boolean> {
   return (
-    token.email_verified === true &&
     typeof token.email === 'string' &&
     DISTRICT_EMAIL.test(token.email) &&
-    token.studentRole !== true
+    (await isDistrictStaffToken(admin.firestore(), token))
   );
 }

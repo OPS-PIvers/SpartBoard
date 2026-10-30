@@ -154,14 +154,15 @@ async function resolveOrgIdForUser(emailLower: string): Promise<string | null> {
     // sessionStorage unavailable (private mode / SSR) — fall through to the call.
   }
 
-  const callable = httpsCallable<unknown, { orgId: string | null }>(
-    functions,
-    'resolveOrgForUser'
-  );
+  const callable = httpsCallable<
+    unknown,
+    { orgId: string | null; enrollFailed?: true }
+  >(functions, 'resolveOrgForUser');
   const { data } = await callable({});
   const orgId = data?.orgId ?? null;
 
-  if (orgId) {
+  // A failed enrollment isn't cached, so the next load retries it.
+  if (orgId && !data?.enrollFailed) {
     try {
       sessionStorage.setItem(RESOLVED_ORG_CACHE_PREFIX + emailLower, orgId);
     } catch {

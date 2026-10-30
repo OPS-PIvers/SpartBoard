@@ -14,6 +14,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-shared-board-items';
 const HOST_UID = 'host-uid';
@@ -120,6 +121,14 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(
+      ctx.firestore(),
+      [HOST_UID, COLLAB_UID, VIEWER_UID, OUTSIDER_UID].map(
+        (uid) => `${uid}@orono.k12.mn.us`
+      )
+    )
+  );
 });
 
 describe('reading a shared board item', () => {
@@ -128,6 +137,14 @@ describe('reading a shared board item', () => {
     for (const uid of [HOST_UID, COLLAB_UID, VIEWER_UID]) {
       await assertSucceeds(getDoc(doc(asTeacher(uid), ITEM_PATH)));
     }
+  });
+
+  it('a member whose Google account is not staff cannot read it', async () => {
+    await seed({ itemOwner: HOST_UID });
+    // A student shares the staff domain; without a staff member doc the viewer is refused.
+    await assertFails(
+      getDoc(doc(asTeacher(VIEWER_UID, '704522@orono.k12.mn.us'), ITEM_PATH))
+    );
   });
 
   it('a member reads a missing item as missing, not denied', async () => {

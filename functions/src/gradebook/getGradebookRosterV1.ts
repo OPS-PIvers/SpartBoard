@@ -133,6 +133,7 @@ export const getGradebookRosterV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
     const teacherEmail = request.auth.token.email;
+    // Students share the staff domain; the ClassLink staff-role lookup below is what keeps them out.
     if (!teacherEmail || request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }

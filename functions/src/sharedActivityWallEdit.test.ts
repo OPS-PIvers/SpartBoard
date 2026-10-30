@@ -30,6 +30,7 @@ import {
 } from './sharedActivityWallEdit';
 
 type Doc = Record<string, unknown>;
+const STUDENT_EMAIL = '704522@orono.k12.mn.us';
 
 function makeDeps(docs: Record<string, Doc>): SharedWallEditDeps {
   const apply = (path: string, data: Doc) => {
@@ -59,6 +60,8 @@ function makeDeps(docs: Record<string, Doc>): SharedWallEditDeps {
   return {
     db: db as unknown as SharedWallEditDeps['db'],
     now: () => 1000,
+    // A student's own Google account shares the domain but holds no staff member doc.
+    isStaff: (email: string) => Promise.resolve(email !== STUDENT_EMAIL),
   };
 }
 
@@ -241,6 +244,14 @@ describe('handleSaveSharedActivityWall', () => {
       handleSaveSharedActivityWall(
         makeDeps(seed()),
         caller({ email: 'a@gmail.com' }),
+        input()
+      ),
+      'permission-denied'
+    );
+    await expectCode(
+      handleSaveSharedActivityWall(
+        makeDeps(seed()),
+        caller({ email: STUDENT_EMAIL }),
         input()
       ),
       'permission-denied'

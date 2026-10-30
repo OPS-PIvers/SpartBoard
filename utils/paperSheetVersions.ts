@@ -24,7 +24,8 @@ import {
   type AnalyzePaperQuizOptions,
   type PaperQuizAnalysis,
 } from './paperSheetPlan';
-import { MAX_PAGE } from './paperSheetMarker';
+import { promptHeaderRows } from './paperPageMap';
+import { isPaperBoxSize, paperBoxLines } from './paperWritten';
 import type { PaperPrintVersion, PaperPromptPage } from './paperSheetPrint';
 
 /** Most distinct versions one stack prints; past it the slots stay off paper. */
@@ -32,8 +33,6 @@ export const MAX_PAPER_VERSIONS = 26;
 
 /** A stem this long, or with a line break, has more than a written header can show. */
 const LONG_PROMPT_CHARS = 200;
-
-const SIZE_RANK: Record<PaperBoxSize, number> = { S: 0, M: 1, L: 2, full: 3 };
 
 /** One version's questions in print order, before the analysis lays them out. */
 export interface PaperVersionDraft {
@@ -51,7 +50,7 @@ export interface PaperVersionPlan {
   records: PaperBatchVersion[];
   /** Every question any version prints, by id. */
   questionsById: Map<string, QuizQuestion>;
-  /** Template question ids whose box gets a prompt page, because some version's question needs one. */
+  /** Template question ids whose box prints the whole prompt above it, because some version's question needs it. */
   promptIds: Set<string>;
   stimuli: QuizStimulus[];
 }
@@ -89,7 +88,7 @@ export function promptStimuliFor(
   });
 }
 
-/** Written questions that print a prompt page, with their box raised to Full. */
+/** Written questions that print their whole prompt, raised to Full unless the teacher picked a size. */
 function withPromptBoxes(
   analysis: PaperQuizAnalysis,
   questionsById: ReadonlyMap<string, QuizQuestion>,
@@ -99,7 +98,9 @@ function withPromptBoxes(
     analysis.written
       .filter((w) => {
         const q = questionsById.get(w.questionId);
-        return !!q && needsPromptPage(q, stimuli);
+        return (
+          !!q && needsPromptPage(q, stimuli) && !isPaperBoxSize(q.paperBoxSize)
+        );
       })
       .map((w) => w.questionId)
   );
@@ -205,7 +206,7 @@ export function planPaperVersions(
   const sizeAt = (i: number): PaperBoxSize =>
     versions.reduce<PaperBoxSize>((size, v) => {
       const e = v.analysis.entries[i];
-      return e.kind === 'written' && SIZE_RANK[e.size] > SIZE_RANK[size]
+      return e.kind === 'written' && paperBoxLines(e.size) > paperBoxLines(size)
         ? e.size
         : size;
     }, 'S');
@@ -296,37 +297,22 @@ export function pageMapsForSeat(
 export const versionForTurn = (turn: number, versionCount: number): number =>
   versionCount > 0 ? turn % versionCount : 0;
 
-export type AddPromptPagesResult =
-  | { ok: true; pageMaps: PaperPageMap[] }
-  | { ok: false; reason: 'too-many-pages'; pageCount: number };
-
-/** Put a prompt page in front of each listed question's Full box page, renumbering what follows. */
-export function addPromptPages(
-  pageMaps: readonly PaperPageMap[],
-  promptIds: ReadonlySet<string>
-): AddPromptPagesResult {
-  if (promptIds.size === 0) return { ok: true, pageMaps: [...pageMaps] };
-  const out: PaperPageMap[] = [];
-  for (const map of pageMaps) {
-    const written = map.items.find(
-      (item) => item.kind === 'written' && promptIds.has(item.questionId)
-    );
-    if (written) {
-      out.push({
-        page: out.length + 1,
-        grid: map.grid,
-        items: [],
-        prompt: written.questionId,
-      });
+/** Header rows each prompted question needs, the most any version's prompt takes. */
+export function promptRowsFor(
+  promptSets: readonly Readonly<Record<string, PaperPromptPage>>[],
+  labelled: boolean
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const prompts of promptSets) {
+    for (const [id, page] of Object.entries(prompts)) {
+      const rows = promptHeaderRows(page.text, page.stimuli.length, labelled);
+      out[id] = Math.max(out[id] ?? 0, rows);
     }
-    out.push({ ...map, page: out.length + 1 });
   }
-  if (out.length > MAX_PAGE)
-    return { ok: false, reason: 'too-many-pages', pageCount: out.length };
-  return { ok: true, pageMaps: out };
+  return out;
 }
 
-/** Ids of the written questions in `analysis` that take a prompt page. */
+/** Ids of the written questions in `analysis` that print their whole prompt above the box. */
 export function promptQuestionIds(
   analysis: Pick<PaperQuizAnalysis, 'written'>,
   questionsById: ReadonlyMap<string, QuizQuestion>,
@@ -336,7 +322,7 @@ export function promptQuestionIds(
     analysis.written
       .filter((w) => {
         const q = questionsById.get(w.questionId);
-        return w.size === 'full' && !!q && needsPromptPage(q, stimuli);
+        return !!q && needsPromptPage(q, stimuli);
       })
       .map((w) => w.questionId)
   );

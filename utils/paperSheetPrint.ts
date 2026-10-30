@@ -26,6 +26,11 @@ import {
   WRITTEN_LINE_PITCH_MM,
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
+  PROMPT_FIGURE_W_MM,
+  PROMPT_GUTTER_MM,
+  PROMPT_LABEL_MM,
+  PT_CHAR_MM,
+  PT_LINE_MM,
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
   ROWS_PER_COLUMN,
@@ -43,6 +48,7 @@ import {
   questionsPerPage,
   type PaperGrid,
   type PointMm,
+  type RectMm,
 } from './paperSheetLayout';
 import { isStimulusFreePage, mcItemsOf, writtenRuleYsMm } from './paperPageMap';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
@@ -448,13 +454,61 @@ const STEM_LINE_MM = 3.6;
 /** Header lines a written header can hold at the stem's line height. */
 const headerStemLines = (h: number): number => Math.floor(h / STEM_LINE_MM);
 
+/** A whole prompt printed in its box's header, with the sheet's version label and figure sources. */
+interface WrittenPrompt {
+  page: PaperPromptPage;
+  label?: string;
+  imageSrc?: Readonly<Record<string, string>>;
+}
+
+/** Version label, prompt text and figures inside a written header, so the prompt shares its box's page. */
+function promptHeaderHtml(
+  prompt: WrittenPrompt,
+  h: RectMm,
+  pointsW: number
+): string {
+  const right = h.x + h.w - pointsW;
+  const band: RectMm = {
+    x: right - PROMPT_FIGURE_W_MM,
+    y: h.y,
+    w: PROMPT_FIGURE_W_MM,
+    h: h.h,
+  };
+  const placed = layoutSheetStimuli(prompt.page.stimuli, 1, band).items.filter(
+    (item) => !!prompt.imageSrc?.[item.stimulus.id]
+  );
+  const x = h.x + NUMBER_WIDTH_MM;
+  const w = (placed.length > 0 ? band.x - PROMPT_GUTTER_MM : right) - x;
+  const parts: string[] = [];
+  let top = h.y;
+  if (prompt.label) {
+    parts.push(
+      `<div class="pr-label" style="left:${mm(x)};top:${mm(top)};width:${mm(w)}">${escapeHtml(prompt.label)}</div>`
+    );
+    top += PROMPT_LABEL_MM;
+  }
+  const textH = h.y + h.h - top;
+  const pt = promptFontPt(prompt.page.text, w, textH);
+  parts.push(
+    `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(textH)};font-size:${pt}pt">${escapeHtml(prompt.page.text)}</div>`
+  );
+  for (const item of placed) {
+    const r = item.rect;
+    parts.push(
+      `<img class="stim" alt="" src="${escapeHtml(prompt.imageSrc?.[item.stimulus.id] ?? '')}" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(r.h)}" />`
+    );
+  }
+  return parts.join('');
+}
+
 /** A written question: number and stem in its header, then ruled lines to write on (D9, D12). */
 function writtenItemHtml(
   item: WrittenPageItem,
   grid: PaperGrid,
   isKeySheet: boolean,
   stem?: string,
-  fill?: SheetWrittenFill
+  fill?: SheetWrittenFill,
+  prompt?: WrittenPrompt
 ): string {
   const h = item.headerMm;
   const pointsW = fill?.points ? WRITTEN_POINTS_MM : 0;
@@ -465,8 +519,11 @@ function writtenItemHtml(
     )}">${escapeHtml(item.label)}</div>`,
   ];
   const lines = headerStemLines(h.h);
-  if (stem?.trim() && lines >= 2) {
-    const shown = Math.min(lines, 3);
+  if (prompt) {
+    parts.push(promptHeaderHtml(prompt, h, pointsW));
+  } else if (stem?.trim() && lines >= 2) {
+    // A reprint of a prompt-above-box page fills its taller header with the whole stem.
+    const shown = lines;
     const x = grid === 'questions' ? QUESTION_STEM_X_MM : h.x + NUMBER_WIDTH_MM;
     parts.push(
       `<div class="qt-stem wr-stem" style="left:${mm(x)};top:${mm(h.y)};width:${mm(
@@ -547,20 +604,17 @@ function mapLegendsHtml(map: PaperPageMap, choiceCount: number): string {
   return parts.join('');
 }
 
-/** Gap between a prompt's text column and its figures. */
-const PROMPT_GUTTER_MM = 4;
-
 /** Point sizes a prompt tries, largest first, until its text fits the column. */
 const PROMPT_SIZES_PT = [11, 10, 9, 8, 7] as const;
 
 /** Rough Arial line count, enough to pick a size that keeps a prompt on its page. */
 function promptFontPt(text: string, widthMm: number, heightMm: number): number {
   for (const pt of PROMPT_SIZES_PT) {
-    const charsPerLine = Math.max(1, Math.floor(widthMm / (pt * 0.19)));
+    const charsPerLine = Math.max(1, Math.floor(widthMm / (pt * PT_CHAR_MM)));
     const lines = text
       .split('\n')
       .reduce((n, p) => n + Math.max(1, Math.ceil(p.length / charsPerLine)), 0);
-    if (lines * pt * 0.48 <= heightMm) return pt;
+    if (lines * pt * PT_LINE_MM <= heightMm) return pt;
   }
   return PROMPT_SIZES_PT[PROMPT_SIZES_PT.length - 1];
 }
@@ -633,13 +687,21 @@ function mapPageBodyHtml(
         )
       );
     } else {
+      const page = job.prompts?.[item.questionId];
+      // Older batches printed the prompt on an item-free page before the box.
+      const ownPromptPage = job.pageMaps?.some(
+        (m) => m.prompt === item.questionId
+      );
       parts.push(
         writtenItemHtml(
           item,
           map.grid,
           sheet.isKeySheet,
           job.writtenTexts?.[item.questionId],
-          fill?.written?.[item.questionId]
+          fill?.written?.[item.questionId],
+          page && !ownPromptPage
+            ? { page, label: versionLabel, imageSrc: job.stimulusImageSrc }
+            : undefined
         )
       );
     }
