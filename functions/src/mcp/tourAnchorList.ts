@@ -8691,6 +8691,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import.reference.convert",
+    "label": "Convert instead button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import.reference.add-link",
+    "label": "Add as a link button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import.reference.cancel",
+    "label": "Cancel button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-import.cartridge-close",
     "label": "Close in Quiz import",
     "scope": "widget type",

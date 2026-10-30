@@ -643,6 +643,12 @@ export interface ImportAdapter<TData> {
    * then offers a slot for one beside the test document.
    */
   supportsKeyFile?: boolean;
+  /**
+   * Extra upload extensions (e.g. `.pdf,.pptx`) the "Choose file" button and
+   * drop zone take, handed to `parse` as `{ kind: 'file' }`, with the label
+   * the drop hint shows for them.
+   */
+  extraUpload?: { accept: string; hint: string };
   /** True when this adapter can read a document with AI; the wizard offers a switch. */
   supportsAiReader?: boolean;
   /** A one-file import that saves many items; the wizard hands the file off and closes. */
@@ -698,6 +704,8 @@ export interface ImportWizardProps<TData> {
   defaultTitle?: string;
   /** Called after a successful save closes the wizard. */
   onSaved?: (title: string) => void;
+  /** A file the caller already read; the wizard opens on its preview. */
+  initialParse?: ImportParseResult<TData>;
 }
 
 /* ─── Re-exports ──────────────────────────────────────────────────────────── */

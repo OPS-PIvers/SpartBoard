@@ -19,7 +19,8 @@
     "sidePanel",
     "identity",
     "identity.email",
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "contextMenus"
   ],
   "host_permissions": ["<all_urls>"],
   "action": {

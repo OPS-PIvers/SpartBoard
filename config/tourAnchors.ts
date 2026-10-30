@@ -2115,6 +2115,19 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'import.reference.convert': {
+    label: 'Convert instead button when a page refuses to show in an Embed',
+    panel: true,
+  },
+  'import.reference.add-link': {
+    label: 'Add as a link button when a page refuses to show in an Embed',
+    panel: true,
+  },
+  'import.reference.cancel': {
+    label: 'Cancel button when a page refuses to show in an Embed',
+    panel: true,
+    closes: 'own',
+  },
   'quiz-import.cartridge-close': {
     label: 'Close in Quiz import',
     perWidgetType: true,

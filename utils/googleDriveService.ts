@@ -16,6 +16,10 @@ const DOCX_MIME_TYPE =
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const DEFAULT_TIMEOUT = 15000; // 15 seconds
+// Uploading or exporting a whole slide deck can take minutes on school Wi-Fi.
+const UPLOAD_TIMEOUT = 5 * 60 * 1000;
+const DRIVE_RECONNECT_MESSAGE =
+  'Google Drive needs you to sign in again. Reconnect Google Drive and try again.';
 
 // Consumer email domains that don't support Google Workspace domain-level sharing.
 // Files shared with these domains fall back to anyone-with-link.
@@ -76,10 +80,11 @@ export class GoogleDriveService {
    */
   private async fetchWithTimeout(
     url: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    timeoutMs = DEFAULT_TIMEOUT
   ): Promise<Response> {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+    const id = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(url, {
@@ -105,9 +110,10 @@ export class GoogleDriveService {
    */
   private async fetchWithRetry(
     url: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    timeoutMs = DEFAULT_TIMEOUT
   ): Promise<Response> {
-    const response = await this.fetchWithTimeout(url, options);
+    const response = await this.fetchWithTimeout(url, options, timeoutMs);
 
     if (response.status === 401 && this.onTokenExpire) {
       const newToken = await this.onTokenExpire();
@@ -115,10 +121,11 @@ export class GoogleDriveService {
         this.accessToken = newToken;
         const newHeaders = new Headers(options.headers);
         newHeaders.set('Authorization', `Bearer ${newToken}`);
-        return this.fetchWithTimeout(url, {
-          ...options,
-          headers: newHeaders,
-        });
+        return this.fetchWithTimeout(
+          url,
+          { ...options, headers: newHeaders },
+          timeoutMs
+        );
       }
     }
 
@@ -1078,5 +1085,85 @@ export class GoogleDriveService {
       // but the name becomes the quiz title so give it the right suffix.
       name: name.toLowerCase().endsWith('.docx') ? name : `${name}.docx`,
     };
+  }
+
+  /**
+   * Upload an Office file so Drive converts it to its Google equivalent (a
+   * .pptx becomes Google Slides). Resumable, so a large deck isn't capped at
+   * multipart's 5 MB.
+   */
+  async importAsGoogleFile(
+    file: Blob,
+    name: string,
+    googleMimeType: string,
+    folderPath = 'Imports'
+  ): Promise<string> {
+    const folderId = await this.getFolderPath(folderPath);
+    const start = await this.fetchWithRetry(
+      `${UPLOAD_API_URL}/files?uploadType=resumable&fields=id`,
+      {
+        method: 'POST',
+        headers: {
+          ...this.headers,
+          'X-Upload-Content-Type': file.type || 'application/octet-stream',
+          'X-Upload-Content-Length': String(file.size),
+        },
+        body: JSON.stringify({
+          name,
+          mimeType: googleMimeType,
+          parents: [folderId],
+        }),
+      }
+    );
+    const location = start.headers.get('Location');
+    if (start.status === 401 || start.status === 403) {
+      throw new Error(DRIVE_RECONNECT_MESSAGE);
+    }
+    if (!start.ok || !location) {
+      throw new Error(`Could not start the Drive upload (${start.status}).`);
+    }
+    const upload = await this.fetchWithRetry(
+      location,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': file.type || 'application/octet-stream',
+        },
+        body: file,
+      },
+      UPLOAD_TIMEOUT
+    );
+    if (!upload.ok) {
+      throw new Error(
+        `Google Drive could not convert this file (${upload.status}).`
+      );
+    }
+    return ((await upload.json()) as { id: string }).id;
+  }
+
+  /** Export a Google Docs, Sheets or Slides file as a PDF. */
+  async exportAsPdf(fileId: string): Promise<Blob> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}/export?mimeType=application%2Fpdf`,
+      { headers: this.headers },
+      UPLOAD_TIMEOUT
+    );
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      // Drive refuses exports over 10 MB with this reason.
+      if (body.includes('exportSizeLimitExceeded')) {
+        throw new Error(
+          'These slides are too large for Google Drive to convert. Save them as a PDF and import the PDF.'
+        );
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new Error(DRIVE_RECONNECT_MESSAGE);
+      }
+      throw new Error(
+        `Could not export the file as a PDF (${response.status} ${response.statusText || 'Unknown error'}).`
+      );
+    }
+    return response.blob();
   }
 }

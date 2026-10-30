@@ -1,6 +1,9 @@
 /**
  * Quiz join-code -> session lookup.
  *
+ * `quiz_join_codes/{code}` is the code's owner record (create-if-absent, so a code
+ * has one owner); join resolves a code only to that owner's sessions.
+ *
  * The PIN join resolves a 6-char code to a session. It used to do that with
  * `where('code','==',code)` against `quiz_sessions`, which forces that collection
  * to answer `list` to every authed caller: a list rule is evaluated against the
@@ -21,7 +24,6 @@ import {
   limit,
   orderBy,
   query,
-  where,
   type WriteBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -30,15 +32,6 @@ import type { QuizSession } from '@/types';
 export const QUIZ_JOIN_CODES_COLLECTION = 'quiz_join_codes';
 const POINTERS_SUBCOLLECTION = 'sessions';
 const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
-
-/**
- * Transitional. Sessions created before the pointer collection shipped have no
- * pointer, so their codes resolve only through the legacy query — including the
- * older sessions a student reaches from the review screen after a code was
- * recycled. Flip to false (and drop the legacy branch) once the backfill has run
- * and `quiz_sessions` list is scoped; see docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md.
- */
-export const LEGACY_CODE_QUERY_ENABLED = true;
 
 /**
  * Cap on pointers read per code — a code accumulates one per session that used
@@ -51,6 +44,32 @@ const MAX_POINTERS_PER_CODE = 25;
 export interface QuizSessionMatch {
   id: string;
   data: QuizSession;
+}
+
+/** Owner record for a code; its `teacherUid` is the only account that may use it. */
+export function joinCodeOwnerRef(code: string) {
+  return doc(db, QUIZ_JOIN_CODES_COLLECTION, code);
+}
+
+/** The code's owner uid, or null when nobody holds it yet. */
+export async function readJoinCodeOwner(
+  normCode: string
+): Promise<string | null> {
+  if (!normCode) return null;
+  const snap = await getDoc(joinCodeOwnerRef(normCode));
+  const owner: unknown = snap.exists() ? snap.data().teacherUid : null;
+  return typeof owner === 'string' && owner ? owner : null;
+}
+
+/** Claim a fresh code for this teacher, in the batch that creates its session. */
+export function addJoinCodeOwnerToBatch(
+  batch: WriteBatch,
+  code: string,
+  teacherUid: string,
+  createdAt: number
+): void {
+  if (!code) return;
+  batch.set(joinCodeOwnerRef(code), { teacherUid, createdAt });
 }
 
 /** Pointer doc for one (code, session) pair. */
@@ -136,46 +155,27 @@ async function sessionsByPointer(
     .map((s) => ({ id: s.id, data: s.data() as QuizSession }));
 }
 
-async function sessionsByLegacyQuery(
-  normCode: string
-): Promise<QuizSessionMatch[]> {
-  const snap = await getDocs(
-    query(
-      collection(db, QUIZ_SESSIONS_COLLECTION),
-      where('code', '==', normCode)
-    )
-  );
-  return snap.docs.map((d) => ({ id: d.id, data: d.data() as QuizSession }));
-}
-
 /**
- * Every session carrying this join code. Callers pick among them — a code can
- * appear on more than one session when an old one is recycled — so this returns
- * all matches rather than guessing which one the caller wants.
+ * Every session the code's owner holds under this code. A code can carry more than
+ * one of that teacher's sessions (an ended one plus a live one), so callers pick.
+ * Pointers written by anyone else are ignored, so a colliding session never wins.
  *
- * `normCode` must already be through `normalizeQuizCode`. A `teacherUid` keeps
- * only that teacher's sessions (a Schoology link names the teacher who added it).
+ * `normCode` must already be through `normalizeQuizCode`. A `teacherUid` that is not
+ * the code's owner (a Schoology link names the teacher who added it) matches nothing.
  */
 export async function findQuizSessionsByCode(
   normCode: string,
   teacherUid?: string
 ): Promise<QuizSessionMatch[]> {
   if (!normCode) return [];
-  const branches = LEGACY_CODE_QUERY_ENABLED
-    ? [sessionsByPointer(normCode), sessionsByLegacyQuery(normCode)]
-    : [sessionsByPointer(normCode)];
-  const settled = await Promise.allSettled(branches);
-  // While both branches run, either one alone answers the code — a rules deploy
-  // that lands before this client (or after the flag flips) must not break join.
-  // Only a total failure is a real error, and it keeps the caller's error UI.
-  if (settled.every((r) => r.status === 'rejected')) throw settled[0].reason;
-  const byId = new Map<string, QuizSessionMatch>();
-  for (const result of settled) {
-    if (result.status !== 'fulfilled') continue;
-    for (const match of result.value) byId.set(match.id, match);
-  }
-  const matches = [...byId.values()];
-  return teacherUid
-    ? matches.filter((m) => m.data.teacherUid === teacherUid)
-    : matches;
+  const [owner, matches] = await Promise.all([
+    readJoinCodeOwner(normCode),
+    sessionsByPointer(normCode),
+  ]);
+  if (owner && teacherUid && teacherUid !== owner) return [];
+  const ownerUid = owner ?? teacherUid;
+  if (ownerUid) return matches.filter((m) => m.data.teacherUid === ownerUid);
+  // An unowned code predates owner records; with two teachers on it, neither can be trusted.
+  const teachers = new Set(matches.map((m) => m.data.teacherUid));
+  return teachers.size > 1 ? [] : matches;
 }
