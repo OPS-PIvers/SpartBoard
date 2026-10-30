@@ -156,6 +156,8 @@ async function callAI(
     html?: string;
     /** `dashboard-layout` only: ask for a board template instead of grid cells. */
     layoutMode?: 'templates';
+    /** `dashboard-layout` template mode only: the widget types the teacher can use. */
+    allowedWidgets?: string[];
   },
   baseErrorMessage: string
 ): Promise<AIResponseData> {
@@ -169,6 +171,7 @@ async function callAI(
         source?: AISource;
         html?: string;
         layoutMode?: 'templates';
+        allowedWidgets?: string[];
       },
       AIResponseData
     >(functions, 'generateWithAI', { timeout: 310_000 });
@@ -337,6 +340,11 @@ export function placeTemplateLayout(
   }));
 }
 
+/** The widget types the teacher can use, sent so Magic Board only picks from them. */
+function allowedWidgetTypes(canUseWidget: (type: WidgetType) => boolean) {
+  return TOOLS.map((t) => t.type).filter((type) => canUseWidget(type));
+}
+
 /**
  * Generates a dashboard layout based on a natural language description using a Firebase Function proxy.
  *
@@ -355,6 +363,9 @@ export async function generateDashboardLayout(
           type: 'dashboard-layout',
           prompt: description,
           layoutMode: 'templates',
+          ...(templates.canUseWidget
+            ? { allowedWidgets: allowedWidgetTypes(templates.canUseWidget) }
+            : {}),
         }
       : { type: 'dashboard-layout', prompt: description },
     'Failed to generate layout. Please try again with a different description.'
