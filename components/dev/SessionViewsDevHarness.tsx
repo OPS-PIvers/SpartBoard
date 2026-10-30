@@ -414,7 +414,17 @@ export const SessionViewsDevHarness: React.FC = () => {
           <CustomWidgetsProvider>
             <SavedWidgetsProvider>
               <DashboardProvider>
-                <SessionView view={view} state={state} showNames={showNames} />
+                {/* Sized like the framed preview, so footers pin to the bottom as in the widget. */}
+                <div
+                  className="h-screen w-screen"
+                  style={{ containerType: 'size' }}
+                >
+                  <SessionView
+                    view={view}
+                    state={state}
+                    showNames={showNames}
+                  />
+                </div>
               </DashboardProvider>
             </SavedWidgetsProvider>
           </CustomWidgetsProvider>
