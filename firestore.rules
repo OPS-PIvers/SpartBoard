@@ -6640,7 +6640,8 @@ service cloud.firestore {
                             // A re-upload may only re-enter the pipeline at 'firebase', under its own object path.
                             (!changed(['archiveStatus']) ||
                              incoming().archiveStatus == 'firebase') &&
-                            (!changed(['storagePath']) || awStoragePathOk());
+                            (!changed(['storagePath']) ||
+                             ('storagePath' in incoming() && awStoragePathOk()));
         // Board co-moderator: moderation and content fields only, never archive or authorship
         // fields; a content edit is stamped, and an upload's or link's content is its pointer.
         allow update: if signedIn() &&

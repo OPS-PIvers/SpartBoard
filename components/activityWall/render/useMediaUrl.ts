@@ -28,7 +28,10 @@ export const useMediaUrl = (
   submission: ActivityWallSubmission
 ): MediaUrlState => {
   const archived = isArchived(submission);
-  const transitPath = submission.storagePath ?? submission.content;
+  // Only the rules-checked storagePath is resolved as a Storage object; content counts only as an http(s) URL.
+  const transitPath =
+    submission.storagePath ??
+    (isSafeHttpUrl(submission.content) ? submission.content : '');
   const storageBacked = STORAGE_BACKED_TYPES.has(submission.type ?? 'text');
   const [resolvedByPath, setResolvedByPath] = useState<Record<string, string>>(
     {}

@@ -22,6 +22,7 @@ import {
 import {
   setDoc,
   updateDoc,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
@@ -746,6 +747,16 @@ describe('activity wall submissions — storagePath stays inside its own submiss
     await assertFails(
       updateDoc(doc(asStudent(), submissionPath('sub-1')), {
         storagePath: path,
+      })
+    );
+  });
+
+  it('author self-edit cannot drop storagePath', async () => {
+    await seedSession(padletSession({ allowStudentEdit: true }));
+    await seedSubmission('sub-1', photo('sub-1', own()));
+    await assertFails(
+      updateDoc(doc(asStudent(), submissionPath('sub-1')), {
+        storagePath: deleteField(),
       })
     );
   });
