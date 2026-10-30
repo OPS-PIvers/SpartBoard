@@ -33,9 +33,12 @@ vi.mock('@/context/useDashboard', () => ({
   }),
 }));
 const inboxItems: ImportInboxItem[] = [];
+const inboxRemove = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 vi.mock('@/hooks/useImportInbox', () => ({
-  useImportInbox: () => ({ items: inboxItems, remove: vi.fn() }),
+  useImportInbox: () => ({ items: inboxItems, remove: inboxRemove }),
 }));
+const readDroppedPage = vi.hoisted(() => vi.fn());
+vi.mock('@/components/import/fetchImportPage', () => ({ readDroppedPage }));
 vi.mock('@/hooks/useQuizDocumentImportGate', () => ({
   useQuizDocumentImportGate: () => true,
 }));
@@ -125,5 +128,28 @@ describe('ImportScreenHost', () => {
       'smartNotebook',
       expect.objectContaining({ id: expect.any(String) as unknown })
     );
+  });
+
+  it('reads a dropped link on the server and never removes a Send for it', async () => {
+    readDroppedPage.mockResolvedValue({
+      status: 'read',
+      item: {
+        id: 'page:https://example.org/v',
+        url: 'https://example.org/v',
+        title: 'Vocab',
+        platform: 'generic',
+        selectionOnly: false,
+        receivedAt: 1,
+        images: [],
+        blocks: [{ type: 'paragraph', text: 'cell, unit of life' }],
+      },
+    });
+    renderHost();
+    act(() => openImportScreen({ source: { url: 'https://example.org/v' } }));
+    expect(readDroppedPage).toHaveBeenCalledWith('https://example.org/v');
+    expect(await screen.findByText('Vocab')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Link' }));
+    expect(dashboard.addWidget).toHaveBeenCalledWith('url', expect.anything());
+    expect(inboxRemove).not.toHaveBeenCalled();
   });
 });

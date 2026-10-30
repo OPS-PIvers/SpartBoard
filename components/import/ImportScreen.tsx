@@ -14,6 +14,7 @@ import { tourAttr } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
 import type { ImportInboxItem, ImportTarget } from '@/utils/import/contract';
 import type { PendingSource } from './importHandoff';
+import type { DroppedPage } from './fetchImportPage';
 import { importRoute, targetChoices, usesAi } from './importTargets';
 import { AI_CONVERSION_LIMIT_NOTE } from '@/utils/import/aiConversion';
 import { sourceFromInboxItem } from './sourceFromInbox';
@@ -25,6 +26,8 @@ interface ImportScreenProps {
   onClose: () => void;
   /** Something dropped on the board; listed above any sent pages. */
   initialSource?: PendingSource;
+  /** The server's read of a dropped link, while and after it runs. */
+  droppedPage?: DroppedPage | null;
   /** Pages the extension sent (S1 inbox), newest first. */
   inboxItems: readonly ImportInboxItem[];
   onRemoveInboxItem: (id: string) => void;
@@ -83,12 +86,22 @@ interface Row {
   key: string;
   source: PendingSource;
   removeId?: string;
+  /** Replaces the row's detail line, e.g. while its page is read. */
+  detail?: string;
+  note?: string;
 }
+
+const PAGE_NOTES: Partial<Record<DroppedPage['status'], string>> = {
+  blocked: 'Your district doesn’t allow importing from this site.',
+  'use-extension':
+    'To use what’s on this page, send it with the SpartBoard extension.',
+};
 
 export const ImportScreen: React.FC<ImportScreenProps> = ({
   isOpen,
   onClose,
   initialSource,
+  droppedPage,
   inboxItems,
   onRemoveInboxItem,
   allowed,
@@ -107,7 +120,27 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
     );
   const rows: Row[] = [
     ...(initialSource && !initialSource.inboxItem
-      ? [{ key: 'dropped', source: initialSource }]
+      ? [
+          {
+            key: 'dropped',
+            source:
+              droppedPage?.status === 'read'
+                ? {
+                    ...sourceFromInboxItem(droppedPage.item),
+                    // Embed and Link keep the exact link dropped, not the server's final address.
+                    url: initialSource.url,
+                    sourceUrl: initialSource.url,
+                    readFromLink: true,
+                  }
+                : initialSource,
+            ...(droppedPage?.status === 'reading'
+              ? { detail: 'Reading this page…' }
+              : {}),
+            ...(droppedPage && PAGE_NOTES[droppedPage.status]
+              ? { note: PAGE_NOTES[droppedPage.status] }
+              : {}),
+          },
+        ]
       : []),
     ...inboxItems.map((item) => ({
       key: item.id,
@@ -172,6 +205,8 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
               key={row.key}
               source={row.source}
               aiOn={aiOn}
+              detail={row.detail}
+              note={row.note}
               allowed={(target, source) =>
                 !(target === 'embed' && noEmbed.has(row.key)) &&
                 allowed(target, source)
@@ -222,11 +257,13 @@ const Thumbnail: React.FC<{ source: PendingSource; icon: React.ReactNode }> = ({
 
 const SourceRow: React.FC<{
   source: PendingSource;
+  detail?: string;
+  note?: string;
   allowed: ImportScreenProps['allowed'];
   aiOn: boolean;
   onPick: (target: ImportTarget) => void;
   onRemove?: () => void;
-}> = ({ source, allowed, aiOn, onPick, onRemove }) => {
+}> = ({ source, detail, note, allowed, aiOn, onPick, onRemove }) => {
   const described = describeSource(source);
   const { targets, guess } = targetChoices(source, allowed, aiOn);
   const anyAi = targets.some((t) => usesAi(t, source, aiOn));
@@ -241,7 +278,7 @@ const SourceRow: React.FC<{
                 {described.title}
               </span>
               <span className="block truncate text-xs text-slate-500">
-                {described.detail}
+                {detail ?? described.detail}
               </span>
             </span>
             {onRemove && (
@@ -304,6 +341,7 @@ const SourceRow: React.FC<{
               })}
             </div>
           )}
+          {note && <p className="text-xs text-slate-600">{note}</p>}
           {anyAi && (
             <p className="flex items-center gap-1.5 text-xs text-slate-500">
               <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

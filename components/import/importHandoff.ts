@@ -16,6 +16,8 @@ export interface PendingSource {
   inboxItem?: ImportInboxItem;
   /** Set when the teacher picked an AI Conversion; the review screen reads this text with AI. */
   conversion?: ConversionInput;
+  /** True when inboxItem is a dropped link read on the server, so there is no Send to remove. */
+  readFromLink?: boolean;
 }
 
 /** A Source waiting for a widget to open its own review screen with it. */

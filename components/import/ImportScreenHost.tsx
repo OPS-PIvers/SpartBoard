@@ -25,9 +25,14 @@ import {
   type PendingSource,
 } from './importHandoff';
 import { conversionInputFor, importRoute, usesAi } from './importTargets';
+import { readDroppedPage, type DroppedPage } from './fetchImportPage';
 import type { ReferenceWidget } from './reference/referenceLanding';
 import { usePhotoReference } from './reference/usePhotoReference';
 import { pageSourceKind } from '@/utils/import/pageImages';
+
+// A dropped link read on the server was never a Send, so nothing is removed for it.
+const sentIdOf = (source: PendingSource): string | undefined =>
+  source.readFromLink ? undefined : source.inboxItem?.id;
 
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst)$/i;
 const CARTRIDGE = /\.imscc$/i;
@@ -130,6 +135,28 @@ const OpenImportScreen: React.FC<
   const canReadQuizDocuments = useQuizDocumentImportGate();
   const photo = usePhotoReference();
   const schoology = canAccessFeature('schoology-quiz-import');
+  const dropped = request.source;
+  const droppedLink =
+    dropped && !dropped.file && !dropped.inboxItem && dropped.url
+      ? dropped.url
+      : null;
+  const [droppedPage, setDroppedPage] = useState<DroppedPage | null>(
+    droppedLink && /^https?:\/\//i.test(droppedLink)
+      ? { status: 'reading' }
+      : null
+  );
+  const reading = droppedPage?.status === 'reading';
+  // A dropped public link is read on the server so its content can become more than an Embed (D17).
+  useEffect(() => {
+    if (!droppedLink || !reading) return;
+    let live = true;
+    void readDroppedPage(droppedLink).then((page) => {
+      if (live) setDroppedPage(page);
+    });
+    return () => {
+      live = false;
+    };
+  }, [droppedLink, reading]);
 
   // The same gates the Quiz widget puts on its own import, so Import never offers what the review would refuse.
   const allowed = (target: ImportTarget, source: PendingSource): boolean => {
@@ -201,7 +228,7 @@ const OpenImportScreen: React.FC<
         ...(point ? placeAt(point, defaults.w ?? 400, defaults.h ?? 400) : {}),
       });
     }
-    const sentId = source.inboxItem?.id;
+    const sentId = sentIdOf(source);
     offerImportHandoff({
       widgetId,
       widgetType,
@@ -226,7 +253,7 @@ const OpenImportScreen: React.FC<
       ...widget.overrides,
       ...placeAt(request.dropPoint, w, h),
     });
-    const sentId = source.inboxItem?.id;
+    const sentId = sentIdOf(source);
     if (sentId) removeSent(sentId);
   };
 
@@ -259,10 +286,11 @@ const OpenImportScreen: React.FC<
     if (outward.active && !(await outward.confirm('Import with AI'))) return;
     closeImportScreen();
     if (r.landing === 'board') {
+      const sentId = sentIdOf(source);
       onStartBoard({
         id: crypto.randomUUID(),
         input,
-        ...(source.inboxItem ? { sentId: source.inboxItem.id } : {}),
+        ...(sentId ? { sentId } : {}),
       });
       return;
     }
@@ -307,7 +335,7 @@ const OpenImportScreen: React.FC<
         ],
       });
     else placed = false;
-    const sentId = source.inboxItem?.id;
+    const sentId = sentIdOf(source);
     if (placed && sentId) removeSent(sentId);
   };
 
@@ -316,6 +344,7 @@ const OpenImportScreen: React.FC<
       isOpen
       onClose={closeImportScreen}
       initialSource={request.source}
+      droppedPage={droppedPage}
       inboxItems={inbox.items}
       onRemoveInboxItem={removeSent}
       allowed={allowed}

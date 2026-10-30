@@ -1,6 +1,12 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react';
 import { ImportScreen } from '@/components/import/ImportScreen';
 import {
   conversionInputFor,
@@ -294,6 +300,42 @@ describe('ImportScreen', () => {
     expect(
       screen.getByRole('button', { name: `Checking ${sent.url}` })
     ).toHaveAttribute('data-convert', 'false');
+  });
+
+  it('reads a dropped link and offers what its page can become', () => {
+    const link = { url: sent.url, sourceUrl: sent.url };
+    const { onContinue } = renderScreen({
+      initialSource: link,
+      droppedPage: { status: 'reading' },
+    });
+    expect(screen.getByText('Reading this page…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Flashcards' })).toBeNull();
+    cleanup();
+    const read = renderScreen({
+      initialSource: link,
+      droppedPage: {
+        status: 'read',
+        item: { ...sent, url: 'https://example.org/after-redirect' },
+      },
+    });
+    expect(screen.getByText('Cell vocabulary')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Flashcards' }));
+    expect(read.onContinue).toHaveBeenCalledWith(
+      expect.objectContaining({ url: sent.url, readFromLink: true }),
+      'flashcards'
+    );
+    expect(onContinue).not.toHaveBeenCalled();
+  });
+
+  it('says why a dropped link could not be read', () => {
+    renderScreen({
+      initialSource: { url: sent.url },
+      droppedPage: { status: 'use-extension' },
+    });
+    expect(
+      screen.getByText(/send it with the SpartBoard extension/)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Link' })).toBeInTheDocument();
   });
 
   it('says so when nothing can read the Source', () => {
