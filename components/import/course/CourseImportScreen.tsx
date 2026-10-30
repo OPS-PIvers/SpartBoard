@@ -443,7 +443,7 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
   }
 
   const footerButton =
-    'inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed';
   const chosen = parser.length + ai.length;
   const footer = (
     <div className="flex items-center justify-center gap-3 px-6 py-3 bg-white">
@@ -548,7 +548,7 @@ const Checklist: React.FC<ChecklistProps> = ({
           value={name}
           onChange={(e) => onName(e.target.value)}
           {...tourAttr('import-course.folder-name')}
-          className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2 font-medium text-slate-800 transition-colors focus:border-brand-blue-primary focus:outline-none"
+          className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2 font-medium text-slate-800 transition-colors focus:border-brand-blue-primary focus:outline-hidden"
         />
         <p className="mt-1 text-xs text-slate-500">
           Quizzes, question banks and flashcards keep their Schoology folders
@@ -639,7 +639,7 @@ const CourseRowItem: React.FC<{
       disabled={row.options.length < 2}
       aria-label={`Import ${row.title} as`}
       {...tourAttr('import-course.row-target')}
-      className="w-52 shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm font-medium text-slate-700 focus:border-brand-blue-primary focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+      className="w-52 shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm font-medium text-slate-700 focus:border-brand-blue-primary focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-400"
     >
       {row.options.map((option) => (
         <option key={option} value={option}>
