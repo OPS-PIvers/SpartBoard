@@ -416,6 +416,17 @@ describe('live session roster', () => {
     status: 'active',
     joinedAt: 1000,
     lastActive: 1000,
+    code: 'ABC123',
+  });
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `sessions/${TEACHER_UID}`), {
+        isActive: true,
+        code: 'ABC123',
+        frozen: false,
+      });
+    });
   });
 
   it('never adds the preview to the live roster', async () => {
