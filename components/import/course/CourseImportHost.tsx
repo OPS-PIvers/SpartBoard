@@ -96,6 +96,8 @@ export const CourseImportHost: React.FC<{
     [featurePermissions, selectedBuildings]
   );
 
+  const readFile = useMemo(() => courseFileReader(file), [file]);
+
   const api = useMemo<CourseImportApi>(() => {
     const foldersOf = (library: FolderLibrary) => {
       const now = latest.current;
@@ -138,8 +140,6 @@ export const CourseImportHost: React.FC<{
         await driveService?.deleteFile(id);
       },
     });
-    const readFile = courseFileReader(file);
-
     const flashcardAdapter = (folderPath: readonly string[]) =>
       createFlashcardImportAdapter({
         loadSheet: () => Promise.resolve([]),
@@ -183,9 +183,11 @@ export const CourseImportHost: React.FC<{
             const meta = await saveQuiz(quiz);
             // The quiz is saved by now, so a failed move leaves it at the top rather than failing the row.
             if (folderId)
-              await quizFolders.moveItem(meta.id, folderId).catch((err) => {
-                console.error('[CourseImport] quiz folder move failed', err);
-              });
+              await latest.current.quizFolders
+                .moveItem(meta.id, folderId)
+                .catch((err) => {
+                  console.error('[CourseImport] quiz folder move failed', err);
+                });
             return;
           }
           await saveBank(
@@ -329,7 +331,6 @@ export const CourseImportHost: React.FC<{
       },
     };
   }, [
-    file,
     uid,
     driveService,
     quizzes,
@@ -344,7 +345,7 @@ export const CourseImportHost: React.FC<{
     conversion.enabled,
     canAccessWidget,
     canAccessFeature,
-    quizFolders,
+    readFile,
     schoology,
   ]);
 
