@@ -350,14 +350,21 @@ describe('a code has one owner', () => {
     );
   });
 
-  it('denies a session with a code but no owner record', async () => {
-    await assertFails(
-      setDoc(doc(asTeacher(), 'quiz_sessions', 'unclaimed'), {
-        teacherUid: TEACHER_UID,
-        code: 'UNCLAIMED',
-        status: 'active',
-      })
-    );
+  // Transitional, for a tab on the previous client, which writes no owner record.
+  it('lets staff use a code nobody has claimed yet', async () => {
+    const db = asTeacher();
+    const batch = writeBatch(db);
+    batch.set(pointerRef(db, 'UNCLAIMED', 'unclaimed'), {
+      sessionId: 'unclaimed',
+      teacherUid: TEACHER_UID,
+      createdAt: 50,
+    });
+    batch.set(doc(db, 'quiz_sessions', 'unclaimed'), {
+      teacherUid: TEACHER_UID,
+      code: 'UNCLAIMED',
+      status: 'active',
+    });
+    await assertSucceeds(batch.commit());
   });
 
   it('lets staff create a session with no code', async () => {

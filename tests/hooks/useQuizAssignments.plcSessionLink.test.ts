@@ -19,10 +19,11 @@ import {
   type AssignmentQuizRef,
 } from '@/hooks/useQuizAssignments';
 
-// Every candidate code is unclaimed, so allocateJoinCode takes the first one.
+// Every candidate code is unclaimed and unused, so allocateJoinCode takes the first one.
 vi.mock('@/utils/quizJoinCodes', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/utils/quizJoinCodes')>()),
   readJoinCodeOwner: vi.fn(() => Promise.resolve(null)),
+  findQuizSessionsByCode: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock('firebase/firestore', () => ({

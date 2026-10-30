@@ -64,6 +64,7 @@ import {
   addJoinCodeOwnerToBatch,
   addJoinCodePointerToBatch,
   deleteJoinCodePointerFromBatch,
+  findQuizSessionsByCode,
   readJoinCodeOwner,
 } from '@/utils/quizJoinCodes';
 import { invalidateSessionViewCount } from './useSessionViewCount';
@@ -184,6 +185,7 @@ import { useSetAssignmentTargets } from './useSetAssignmentTargets';
 import { hasStudentPointers } from '@/utils/studentTargetRef';
 import { QUIZ_WHITEBOARD_FEATURE_ID } from '@/utils/quizMediaAccess';
 import {
+  acceptsStudents,
   assignmentLifecyclePatches,
   deriveRunState,
   type AssignmentLifecycleEvent,
@@ -918,7 +920,10 @@ async function allocateJoinCode(): Promise<string> {
     Math.random().toString(36).substring(2, 8).toUpperCase().padEnd(6, '0');
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = candidate();
-    if ((await readJoinCodeOwner(code)) === null) return code;
+    if ((await readJoinCodeOwner(code)) !== null) continue;
+    // An unclaimed legacy code may still carry a live session; claiming it would take it over.
+    const matches = await findQuizSessionsByCode(code);
+    if (!matches.some((m) => acceptsStudents('quiz', m.data))) return code;
   }
   // Last resort: an owned code fails the assign batch, which the teacher can retry.
   return candidate();

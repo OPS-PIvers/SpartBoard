@@ -4850,8 +4850,11 @@ service cloud.firestore {
         staffMemberOk(operatorMember());
     }
     // The caller owns this code once the write lands (getAfter: claimed in the same batch).
+    // TRANSITIONAL: a still-unclaimed code also passes, so a tab on the client before
+    // owner records can assign until it reloads; drop `o == null` the release after.
     function ownsJoinCode(c) {
-      return getAfter(/databases/$(database)/documents/quiz_join_codes/$(c)).data.teacherUid == authUid();
+      let o = getAfter(/databases/$(database)/documents/quiz_join_codes/$(c));
+      return o == null || o.data.teacherUid == authUid();
     }
     match /quiz_join_codes/{code} {
       allow get: if signedIn();

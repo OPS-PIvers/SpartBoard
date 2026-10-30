@@ -621,6 +621,14 @@ describe('persistLtiLaunchContext — quiz', () => {
     expect(writes.some((w) => w.path.includes('squat'))).toBe(false);
   });
 
+  it("files nothing when the section was filed under a teacher who doesn't own the code", async () => {
+    quizSessions = [row('sess-1', 'teacher-1'), row('later', 'teacher-2')];
+    codeOwners.set('ABC123', 'teacher-2');
+    fileSection('sess-1');
+    expect(await persistLtiLaunchContext(db(), OLDER)).toBeNull();
+    expect(writes).toHaveLength(0);
+  });
+
   it('files nothing when the section was filed under two teachers', async () => {
     quizSessions = [row('sess-1', 'teacher-1'), row('squat', 'attacker')];
     fileSection('sess-1');
