@@ -30,6 +30,11 @@ import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResu
 import { QuizAttemptSourceContext } from '@/hooks/useQuizResponseAttempts';
 import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor';
 import { Results as VideoActivityResults } from '@/components/widgets/VideoActivityWidget/components/Results';
+import { toVideoActivityPublicQuestion } from '@/utils/videoActivityPublicQuestions';
+import type {
+  VideoActivityPublicQuestion,
+  VideoActivityQuestion,
+} from '@/types';
 import { PresentScreen } from '@/components/widgets/QuizWidget/components/present/PresentScreen';
 import { AudioCaptureDevView } from './AudioCaptureDevView';
 import { RecordingControlsDevView } from './RecordingControlsDevView';
@@ -319,8 +324,25 @@ const SessionView: React.FC<{
   }
 
   if (view === 'va-monitor') {
-    const status = state === 'ended' || state === 'paused' ? 'ended' : 'active';
+    const status =
+      state === 'ended' || state === 'paused'
+        ? 'ended'
+        : state === 'waiting'
+          ? 'waiting'
+          : 'active';
     const multi = state === 'multi-class' || state === 'per-period';
+    const base = multi
+      ? makeVaMultiClassSession(state === 'per-period', status)
+      : makeVaSession(status);
+    // Public questions only, so the monitor reads the key doc (loading, then failed off-network).
+    const session =
+      state === 'no-answer-key'
+        ? {
+            ...base,
+            questions: [],
+            publicQuestions: vaPublicQuestions(base.questions),
+          }
+        : base;
     const responses =
       state === 'waiting'
         ? []
@@ -329,11 +351,7 @@ const SessionView: React.FC<{
           : makeVaResponses();
     return (
       <VideoActivityLiveMonitor
-        session={
-          multi
-            ? makeVaMultiClassSession(state === 'per-period', status)
-            : makeVaSession(status)
-        }
+        session={session}
         responses={responses}
         onEnd={noop}
         onPause={noop}
@@ -354,6 +372,11 @@ const SessionView: React.FC<{
     />
   );
 };
+
+// Built once: the projection shuffles options, and a new shuffle each render refetches the key.
+let vaPublicCache: VideoActivityPublicQuestion[] | null = null;
+const vaPublicQuestions = (questions: VideoActivityQuestion[]) =>
+  (vaPublicCache ??= questions.map((q) => toVideoActivityPublicQuestion(q)));
 
 const urlParams = new URLSearchParams(window.location.search);
 const isViewKey = (v: string | null): v is ViewKey =>

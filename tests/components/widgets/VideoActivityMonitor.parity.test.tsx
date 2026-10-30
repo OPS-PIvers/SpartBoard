@@ -83,12 +83,12 @@ const QUESTIONS: VideoActivityQuestion[] = vi.hoisted(() => [
   },
 ]);
 
+const keyState = vi.hoisted(() => ({ loading: false, failed: false }));
 vi.mock('@/hooks/useVideoActivityKeyQuestions', () => ({
-  useVideoActivityKeyQuestions: () => ({
-    questions: QUESTIONS,
-    loading: false,
-    failed: false,
-  }),
+  useVideoActivityKeyQuestions: () =>
+    keyState.loading || keyState.failed
+      ? { questions: [], ...keyState }
+      : { questions: QUESTIONS, loading: false, failed: false },
 }));
 
 const period = (over: Partial<PeriodAccess>): PeriodAccess => ({
@@ -183,27 +183,59 @@ const bucket = (label: string) =>
   screen.getByRole('button', { name: new RegExp(label) });
 
 describe('VideoActivityLiveMonitor — monitor-parity layout', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    keyState.loading = false;
+    keyState.failed = false;
+  });
 
-  it('counts the first class by default and the whole assignment under All classes', () => {
+  it('labels a session that has not started as Not started', () => {
+    renderMonitor(session({ status: 'waiting', periodNames: ['P1'] }));
+    expect(
+      screen.getByText('Not started', { selector: 'span.rounded-full' })
+    ).toBeVisible();
+    expect(screen.queryByText('Paused')).toBeNull();
+  });
+
+  it('says the questions are loading while the answer key loads', () => {
+    keyState.loading = true;
+    renderMonitor(session({ periodNames: ['P1'] }));
+    fireEvent.click(screen.getByRole('button', { name: 'Question results' }));
+    expect(screen.getByText('Loading questions…')).toBeVisible();
+  });
+
+  it('says when the answer key could not load', () => {
+    keyState.failed = true;
+    renderMonitor(session({ periodNames: ['P1'] }));
+    fireEvent.click(screen.getByRole('button', { name: 'Question results' }));
+    expect(screen.getByText("Couldn't load the answer key")).toBeVisible();
+    expect(
+      screen.getByText(
+        'Reload to try again. Scores stay hidden until it loads.'
+      )
+    ).toBeVisible();
+  });
+
+  it('opens on All classes and counts one class once picked', () => {
     renderMonitor(session());
+    expect(screen.getByRole('combobox', { name: 'Class' })).toHaveValue('');
+    expect(bucket('Done')).toHaveTextContent('2');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
+      target: { value: 'P1' },
+    });
     expect(bucket('Not started')).toHaveTextContent('1');
     expect(bucket('In progress')).toHaveTextContent('1');
     expect(bucket('Done')).toHaveTextContent('1');
-    fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
-      target: { value: '' },
-    });
-    expect(bucket('Done')).toHaveTextContent('2');
   });
 
   it('shows the shared Pause only beside All classes', () => {
     renderMonitor(session());
-    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
-    fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
-      target: { value: '' },
-    });
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     expect(onPause).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
+      target: { value: 'P1' },
+    });
+    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
   });
 
   it('keeps Pause in the footer for one class', () => {
@@ -251,6 +283,10 @@ describe('VideoActivityLiveMonitor — monitor-parity layout', () => {
         response({ studentUid: 'u3', pin: '3333', classId: 'cl-3' }),
       ]
     );
+    expect(bucket('Not started')).toHaveTextContent('2');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
+      target: { value: 'cl-1' },
+    });
     expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
     fireEvent.click(bucket('Not started'));
