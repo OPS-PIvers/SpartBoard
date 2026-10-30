@@ -722,6 +722,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const rotateAnimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // In-flight pick timers, cleared on unmount so a closed widget stops ticking and writing.
   const spinTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
+  // Saves an in-flight pick's result on unmount, since maximize and spotlight remount the widget.
+  const pendingFinishRef = useRef<(() => void) | null>(null);
 
   // Rotate students one group forward (Group N's unlocked members go to
   // Group N+1; wraps around). Group IDs / names / colors stay put, so
@@ -761,6 +763,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         clearInterval(id);
       });
       spinTimers.clear();
+      const finish = pendingFinishRef.current;
+      pendingFinishRef.current = null;
+      finish?.();
     };
   }, []);
 
@@ -1020,6 +1025,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }, ms);
       timers.add(id);
     };
+    const scheduleFinal = (fn: () => void, ms: number) => {
+      const run = () => {
+        pendingFinishRef.current = null;
+        fn();
+      };
+      pendingFinishRef.current = run;
+      schedule(run, ms);
+    };
     const repeat = (fn: () => void, ms: number) => {
       const id = setInterval(fn, ms);
       timers.add(id);
@@ -1151,6 +1164,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const winnerIndexInPool = Math.floor(Math.random() * pool.length);
       const winnerName = pool[winnerIndexInPool];
       const nextRemaining = pool.filter((_, i) => i !== winnerIndexInPool);
+      const finish = () => {
+        pendingFinishRef.current = null;
+        performUpdate(winnerName, nextRemaining);
+      };
+      pendingFinishRef.current = finish;
 
       if (visualStyle === 'flash') {
         let count = 0;
@@ -1169,7 +1187,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
             endSpin();
-            performUpdate(winnerName, nextRemaining);
+            finish();
           }
         }, 80);
       } else if (visualStyle === 'wheel') {
@@ -1195,7 +1213,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
             endSpin();
-            performUpdate(winnerName, nextRemaining);
+            finish();
             return;
           }
           if (soundEnabledRef.current) playTick(150);
@@ -1224,13 +1242,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
             endSpin();
-            performUpdate(winnerName, nextRemaining);
+            finish();
           }
         }, 100);
       }
     } else if (mode === 'jigsaw') {
       const myGen = ++spinGenRef.current;
-      schedule(() => {
+      scheduleFinal(() => {
         // Bail if the user reset / cycled mode / changed class while the
         // 500 ms timeout was pending — otherwise we'd write home/expert
         // groups for a mode the user already moved away from.
@@ -1420,7 +1438,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }, 500);
     } else {
       const myGen = ++spinGenRef.current;
-      schedule(() => {
+      scheduleFinal(() => {
         if (myGen !== spinGenRef.current) {
           endSpin();
           return;

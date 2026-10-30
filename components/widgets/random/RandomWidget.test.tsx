@@ -1235,6 +1235,8 @@ describe('RandomWidget double pick while audio is suspended', () => {
 describe('RandomWidget unmount mid-spin', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // An earlier test leaves a suspended AudioContext whose resume never settles.
+    vi.mocked(audioUtils.getAudioCtx).mockReturnValue(null);
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
       mockDashboardContext
     );
@@ -1244,7 +1246,7 @@ describe('RandomWidget unmount mid-spin', () => {
   });
 
   it.each(['flash', 'slots', 'wheel'])(
-    '%s: stops ticking and never writes after the widget unmounts',
+    '%s: saves the pick once on unmount, then stops ticking and writing',
     (visualStyle) => {
       vi.useFakeTimers();
       const widget: WidgetData = {
@@ -1275,7 +1277,14 @@ describe('RandomWidget unmount mid-spin', () => {
       act(() => {
         vi.advanceTimersByTime(300);
       });
+      mockUpdateWidget.mockClear();
       unmount();
+      expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+      expect(mockUpdateWidget).toHaveBeenCalledWith('test-id', {
+        config: expect.objectContaining({
+          lastResult: expect.any(String) as unknown,
+        }) as unknown,
+      });
       vi.mocked(audioUtils.playTick).mockClear();
       mockUpdateWidget.mockClear();
       act(() => {
