@@ -64,7 +64,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/ACTIVITY_WALL_REDESIGN.md`
 
-- [ ] P3-3: delete archiveActivityWallPhoto callable, activity_wall_photos Storage rule block, ?data= decoder remnants, and deprecated mode/identificationMode writes (functions/src/driveArchive.ts, functions/src/index.ts, storage.rules, types.ts, components/widgets/ActivityWall/\*). (S)
+- [ ] P3-3: delete the archiveActivityWallPhoto stub (now a no-op), activity_wall_photos Storage rule block, ?data= decoder remnants, and deprecated mode/identificationMode writes (functions/src/driveArchive.ts, functions/src/index.ts, storage.rules, types.ts, components/widgets/ActivityWall/\*). (S)
 
 #### `docs/plans/shipped/ADMIN_ACCESS_PAGES.md`
 

@@ -6467,6 +6467,19 @@ service cloud.firestore {
                  awLinkPreviewOk();
         }
 
+        // storagePath names only this submission's own transit object; compared literally, since ids aren't regex-safe.
+        function awStoragePathOk() {
+          let p = incoming().get('storagePath', null);
+          let parts = p is string ? p.split('/') : [];
+          return p == null ||
+                 (parts.size() == 4 &&
+                  parts[0] == 'activity_wall_media' &&
+                  parts[1] == sessionId &&
+                  parts[2] == submissionId &&
+                  parts[3].size() > 0 &&
+                  p.size() == sessionId.size() + submissionId.size() + parts[3].size() + 22);
+        }
+
         // Any authed user (incl. anon) can create a submission (photo subs may carry storage
         // metadata for Drive archiving). studentRole users must be enrolled; uses the
         // Phase-5A compat gate (classIds ?? legacy classId). hasOnly() closes an
@@ -6497,6 +6510,7 @@ service cloud.firestore {
            (incoming().authorUid == authUid() &&
             incoming().authorUid.size() <= 200)) &&
           (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
+          awStoragePathOk() &&
           (!awIsPadletSession() ||
             (awAcceptingResponses() &&
              awPadletAccessOk() &&
@@ -6527,6 +6541,7 @@ service cloud.firestore {
           awFieldTypesOk() &&
           awTypeAllowed() &&
           (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
+          awStoragePathOk() &&
           // Storage takes uploads only from the owner, so a co-teacher posts text, words and links.
           (awIsOwner() ||
            (incoming().get('type', 'text') in ['text', 'word', 'link'] &&
@@ -6596,7 +6611,8 @@ service cloud.firestore {
                             optInt(incoming(), 'attemptCount') &&
                             optInt(incoming(), 'lastAttemptAt') &&
                             optBool(incoming(), 'storageCleanupPending') &&
-                            optString(incoming(), 'drivePermission');
+                            optString(incoming(), 'drivePermission') &&
+                            (!changed(['storagePath']) || awStoragePathOk());
         // Student self-edit: only the author, only while the wall is open and the teacher
         // enabled editing, only content-shaped fields. `status` is writable in exactly one
         // direction: when moderation is on and the edit touches `content`, the post returns
@@ -6625,7 +6641,7 @@ service cloud.firestore {
                             (!changed(['archiveStatus']) ||
                              incoming().archiveStatus == 'firebase') &&
                             (!changed(['storagePath']) ||
-                             incoming().storagePath.matches('^activity_wall_media/' + sessionId + '/' + submissionId + '/.+'));
+                             ('storagePath' in incoming() && awStoragePathOk()));
         // Board co-moderator: moderation and content fields only, never archive or authorship
         // fields; a content edit is stamped, and an upload's or link's content is its pointer.
         allow update: if signedIn() &&
