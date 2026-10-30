@@ -72,6 +72,14 @@ describe('lineItemColumnId', () => {
     expect(lineItemColumnId(`${ITEM_URL}/`)).toBe('8604205395');
   });
 
+  it('reads the column id, not the section, from a linked section URL', () => {
+    expect(
+      lineItemColumnId(
+        `${schoologySectionUrls('8497573101').lineitemsUrl}/8631284348/csm/8497641327`
+      )
+    ).toBe('8631284348');
+  });
+
   it('returns null for a non-numeric segment', () => {
     expect(lineItemColumnId(`${lineitemsUrl}/abc`)).toBeNull();
   });

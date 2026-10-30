@@ -110,9 +110,7 @@ const generateContentMock = vi.fn(() =>
   Promise.reject(new Error('generateContentMock: no response configured'))
 );
 
-// Storage mocks for archiveActivityWallPhoto size-guard tests. Each
-// stub is independently resettable so tests can install different
-// metadata responses without rebuilding the whole storage tree.
+// Storage mocks; the retired archiveActivityWallPhoto test asserts none are touched.
 const storageFileGetMetadata = vi.fn(() =>
   Promise.resolve([{ size: '0', contentType: 'image/jpeg' }])
 );
@@ -3279,70 +3277,30 @@ describe('getClassLinkRosterV1 chunked fan-out', () => {
   });
 });
 
-describe('archiveActivityWallPhoto size guard', () => {
-  // The handler buffers the full Storage object into the 512MiB function
-  // instance's memory via `file.download()`. Without a size check before
-  // the download, a misbehaving client could OOM the function. Audit
-  // item #4 — the guard must read metadata first and abort if the file
-  // is over 50 MB.
-  const UID = 'teacher-uid';
-  const SESSION_ID = `${UID}_session1`;
-  const validRequest = {
-    accessToken: 'token',
-    sessionId: SESSION_ID,
-    submissionId: 'sub1',
-    activityId: 'act1',
-    status: 'approved' as const,
-  };
-
-  beforeEach(() => {
+describe('archiveActivityWallPhoto (retired)', () => {
+  it('touches no Storage object or submission doc, whatever the caller sends', () => {
     vi.clearAllMocks();
-    submissionRefGet.mockResolvedValue({
-      exists: true,
-      data: () => ({ storagePath: 'activity-wall/test.jpg' }),
-    });
-    submissionRefSet.mockResolvedValue(undefined);
-  });
-
-  it('rejects photos over 50 MB before calling download()', async () => {
-    storageFileGetMetadata.mockResolvedValueOnce([
-      { size: String(60 * 1024 * 1024), contentType: 'image/jpeg' },
-    ]);
-
     const handler = archiveActivityWallPhoto as unknown as (
-      req: unknown,
+      data: unknown,
       context: unknown
-    ) => Promise<unknown>;
+    ) => unknown;
 
-    await expect(
-      handler(validRequest, { auth: { uid: UID, token: { email: 'a@b.c' } } })
-    ).rejects.toThrow(/50 MB/);
+    expect(
+      handler(
+        {
+          accessToken: 'token',
+          sessionId: 'teacher-uid_session1',
+          submissionId: 'sub1',
+          activityId: 'act1',
+        },
+        { auth: { uid: 'teacher-uid', token: { email: 'a@b.c' } } }
+      )
+    ).toEqual({ skipped: true, archiveStatus: 'retired' });
 
-    expect(storageFileGetMetadata).toHaveBeenCalledTimes(1);
-    expect(storageFileDownload).not.toHaveBeenCalled();
-  });
-
-  it('proceeds past the size guard when metadata reports a small file', async () => {
-    storageFileGetMetadata.mockResolvedValueOnce([
-      { size: String(100 * 1024), contentType: 'image/jpeg' },
-    ]);
-    // We want the handler to reach `download()` to prove the guard
-    // doesn't reject small files. Once download is called, the test's
-    // contract is satisfied; we let the rest of the flow fail naturally
-    // (no real Drive client) and assert via the spy.
-    storageFileDownload.mockRejectedValueOnce(new Error('drive client absent'));
-
-    const handler = archiveActivityWallPhoto as unknown as (
-      req: unknown,
-      context: unknown
-    ) => Promise<unknown>;
-
-    await expect(
-      handler(validRequest, { auth: { uid: UID, token: { email: 'a@b.c' } } })
-    ).rejects.toThrow();
-
-    expect(storageFileGetMetadata).toHaveBeenCalledTimes(1);
-    expect(storageFileDownload).toHaveBeenCalledTimes(1);
+    expect(mockStorageBucket.file).not.toHaveBeenCalled();
+    expect(submissionRefGet).not.toHaveBeenCalled();
+    expect(submissionRefSet).not.toHaveBeenCalled();
+    expect(runTransactionMock).not.toHaveBeenCalled();
   });
 });
 

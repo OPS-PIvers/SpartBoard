@@ -65,6 +65,7 @@ describe('wallPostsReader', () => {
         {
           id: 'p1',
           content: 'activity_wall_media/s/p1/photo.png',
+          storagePath: 'activity_wall_media/s/p1/photo.png',
           submittedAt: 1,
           status: 'approved',
           type: 'photo',
@@ -86,6 +87,7 @@ describe('wallPostsReader', () => {
         {
           id: 'p1',
           content: 'activity_wall_media/s/p1/photo.png',
+          storagePath: 'activity_wall_media/s/p1/photo.png',
           submittedAt: 1,
           status: 'approved',
           type: 'photo',
@@ -99,8 +101,26 @@ describe('wallPostsReader', () => {
       content: string;
     }[];
 
-    expect(posts[0].storagePath).toBeUndefined();
+    expect(posts[0].storagePath).toBe('activity_wall_media/s/p1/photo.png');
     expect(posts[0].content).toBe('activity_wall_media/s/p1/photo.png');
+  });
+
+  it('never resolves a Storage path carried only in content', async () => {
+    mockGetDocs.mockResolvedValue(
+      submissions([
+        {
+          id: 'p1',
+          content: 'quiz_response_media/other/quiz/answer.webm',
+          submittedAt: 1,
+          status: 'approved',
+          type: 'photo',
+        },
+      ])
+    );
+
+    await wallPostsReader('teacher-1')?.('wall-1');
+
+    expect(mockGetDownloadURL).not.toHaveBeenCalled();
   });
 
   it('reads no Storage for a post already archived to Drive', async () => {

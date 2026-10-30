@@ -147,6 +147,17 @@ describe('buildImportPayload', () => {
     ]);
   });
 
+  it('leaves rows on a skipped page out, so a rescan keeps their earlier answers', () => {
+    const { payload } = buildImportPayload({
+      batch,
+      quiz: authored,
+      rosters,
+      sheets: [sheet(1, [answer(0, 2)], { skippedRows: [1] })],
+      spareAssignments: {},
+    });
+    expect(payload[0].answers).toEqual([{ questionId: 'q1', answer: 'Lyon' }]);
+  });
+
   it('skips blank sheets, unassigned spares and the key, and imports an assigned spare', () => {
     const { payload, skipped } = buildImportPayload({
       batch,

@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as firestore from 'firebase/firestore';
 import {
+  isSyncedQuizGroupParticipant,
   publishSyncedQuiz,
   listSyncedVersions,
   restoreSyncedVersion,
@@ -296,6 +297,34 @@ describe('restoreSyncedVersion', () => {
     seedGroup({ version: 1 });
     await expect(restoreSyncedVersion(GROUP_ID, 99, UID)).rejects.toThrow(
       /snapshot not found/i
+    );
+  });
+});
+
+describe('isSyncedQuizGroupParticipant', () => {
+  it('reports a participant, and a non-participant as false', async () => {
+    seedGroup();
+    expect(await isSyncedQuizGroupParticipant(GROUP_ID, UID)).toBe(true);
+    expect(await isSyncedQuizGroupParticipant(GROUP_ID, 'teacher-z')).toBe(
+      false
+    );
+  });
+
+  it('treats a denied read as not a participant so a share falls back to a copy', async () => {
+    const getDoc = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    getDoc.mockRejectedValueOnce(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+    expect(await isSyncedQuizGroupParticipant(GROUP_ID, UID)).toBe(false);
+  });
+
+  it('still throws other read errors', async () => {
+    const getDoc = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    getDoc.mockRejectedValueOnce(
+      Object.assign(new Error('offline'), { code: 'unavailable' })
+    );
+    await expect(isSyncedQuizGroupParticipant(GROUP_ID, UID)).rejects.toThrow(
+      'offline'
     );
   });
 });

@@ -1752,6 +1752,8 @@ export interface LiveStudent {
   status: 'active' | 'frozen' | 'disconnected';
   joinedAt: number;
   lastActive: number;
+  /** The join code the student typed; rules let only a holder of the live code read the session. */
+  code?: string;
 }
 
 // Supporting types for widget configs

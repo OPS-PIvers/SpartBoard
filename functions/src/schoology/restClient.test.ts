@@ -8,6 +8,7 @@ import {
   listGradingCategories,
   schoologyOAuthHeader,
   schoologyUidFromSub,
+  publishColumn,
   setColumnCategory,
   setExceptions,
   SchoologyRestError,
@@ -176,6 +177,16 @@ describe('column category', () => {
     expect(bodyOf(fetchMock.mock.calls[0])).toEqual({
       grading_category: 97895530,
     });
+  });
+
+  it('publishes a column in one section', async () => {
+    const fetchMock = stubFetch(new Response(null, { status: 204 }));
+    await publishColumn(CREDS, SECTION, '8604205395');
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${API}/sections/${SECTION}/assignments/8604205395`
+    );
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('PUT');
+    expect(bodyOf(fetchMock.mock.calls[0])).toEqual({ published: 1 });
   });
 
   it('reads a column category across pages', async () => {

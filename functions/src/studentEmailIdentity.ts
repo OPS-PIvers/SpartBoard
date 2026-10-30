@@ -154,7 +154,8 @@ export async function fetchOneRosterUsersByEmail(
   secrets: Pick<
     StudentLookupSecrets,
     'classlinkClientId' | 'classlinkClientSecret' | 'tenantUrl'
-  >
+  >,
+  timeoutMs = 20000
 ): Promise<OneRosterUserWithRole[]> {
   const usersBaseUrl = `${secrets.tenantUrl.replace(/\/$/, '')}${ONEROSTER_BASE}/users`;
   const userParams = { filter: `email='${email}'` };
@@ -167,7 +168,7 @@ export async function fetchOneRosterUsersByEmail(
   );
   const userResp = await axios.get<{ users: OneRosterUserWithRole[] }>(
     usersBaseUrl,
-    { params: userParams, headers: { ...userHeaders }, timeout: 8000 }
+    { params: userParams, headers: { ...userHeaders }, timeout: timeoutMs }
   );
   return userResp.data.users ?? [];
 }

@@ -9,6 +9,7 @@ import {
   questionsPerPage,
   type PaperGrid,
 } from './paperSheetLayout';
+import { mcItemsOf } from './paperPageMap';
 import { paperBatchTag } from './paperSheetMarker';
 import { seatQuestionId } from './paperSheetVersions';
 import type {
@@ -62,6 +63,8 @@ export interface AssembledSheet {
   missingPages: number[];
   /** No ink on any row or box that arrived — listed as unused, never graded (Q21, D22). */
   isBlank: boolean;
+  /** Rows on a page the teacher skipped; left out of the import so earlier answers stay. */
+  skippedRows?: number[];
   flags: SheetFlag[];
 }
 
@@ -231,4 +234,49 @@ export function assemblePaperScan(
     foreignPages,
     unknownPages,
   };
+}
+
+/** Row indexes a page printed. */
+function rowsOnPage(batch: PaperBatch, page: number): number[] {
+  if (batch.layoutVersion === 2 && batch.pageMaps) {
+    const map = batch.pageMaps.find((m) => m.page === page);
+    return map ? mcItemsOf(map).map((item) => item.sheetRow) : [];
+  }
+  const perPage = questionsPerPage(paperGridOf(batch));
+  const first = (page - 1) * perPage;
+  const last = Math.min(page * perPage, batch.questionCount);
+  return Array.from({ length: Math.max(0, last - first) }, (_, i) => first + i);
+}
+
+/** The sheets as if `page` were never printed, for a page the teacher is not importing. */
+export function skipSheetPage(
+  batch: PaperBatch,
+  sheets: readonly AssembledSheet[],
+  page: number | null
+): AssembledSheet[] {
+  if (page === null) return [...sheets];
+  const skippedRows = rowsOnPage(batch, page);
+  const onPage = new Set(skippedRows);
+  return sheets.map((sheet) => {
+    const answers = sheet.answers.filter((a) => !onPage.has(a.question));
+    const written = sheet.written?.filter((w) => w.page !== page);
+    const missingPages = sheet.missingPages.filter((p) => p !== page);
+    const flags = sheet.flags.filter(
+      (f) =>
+        (f !== 'missing-page' || missingPages.length > 0) &&
+        (f !== 'doubtful-rows' || answers.some((a) => a.doubt))
+    );
+    return {
+      ...sheet,
+      answers,
+      ...(written ? { written } : {}),
+      pagesSeen: sheet.pagesSeen.filter((p) => p !== page),
+      skippedRows,
+      missingPages,
+      isBlank:
+        answers.every((a) => a.choice === null && !a.doubt) &&
+        (written ?? []).every((w) => w.state === 'blank'),
+      flags,
+    };
+  });
 }

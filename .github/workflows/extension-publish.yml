@@ -62,9 +62,12 @@ jobs:
           fi
           node scripts/publish.ts prod --check
 
+      # No Actions cache: the shipped zip and the CWS_* secrets must not depend on a restored pnpm store.
       - name: Setup pnpm and dependencies
         if: steps.check.outputs.publish == 'true'
         uses: ./.github/actions/setup
+        with:
+          cache: ''
 
       - name: Build and zip the extension
         if: steps.check.outputs.publish == 'true'
