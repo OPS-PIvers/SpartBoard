@@ -243,7 +243,11 @@ export function ImportWizard<TData>({
   ): Promise<void> => {
     const session = sessionRef.current;
     setLoadingLabel(
-      payload.kind === 'document' ? 'Importing…' : 'Importing your file…'
+      payload.kind === 'conversion'
+        ? 'Converting…'
+        : payload.kind === 'document'
+          ? 'Importing…'
+          : 'Importing your file…'
     );
     setLoading(true);
     setParseError(null);
@@ -414,8 +418,10 @@ export function ImportWizard<TData>({
   // Read a Source handed over by Import once per open; the parse itself is async work.
   const readInitial = useEffectEvent((): void => {
     if (!initialSource) return;
-    const { file, text } = initialSource;
-    if (file) {
+    const { file, text, conversion } = initialSource;
+    if (conversion) {
+      void runParse({ kind: 'conversion', input: conversion }, true);
+    } else if (file) {
       void importFile(file, true);
     } else if (text && supportsCsv) {
       void runParse({ kind: 'csv', text }, true);

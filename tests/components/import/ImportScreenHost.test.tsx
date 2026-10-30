@@ -42,6 +42,12 @@ vi.mock('@/components/import/fetchImportPage', () => ({ readDroppedPage }));
 vi.mock('@/hooks/useQuizDocumentImportGate', () => ({
   useQuizDocumentImportGate: () => true,
 }));
+vi.mock('@/hooks/useImportConversionSettings', () => ({
+  useImportConversionSettings: () => ({ enabled: false }),
+}));
+vi.mock('@/hooks/useViewAsOutward', () => ({
+  useViewAsOutward: () => ({ active: false, locked: false }),
+}));
 
 describe('ImportScreenHost', () => {
   afterEach(() => {

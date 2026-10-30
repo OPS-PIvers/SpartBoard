@@ -22,12 +22,15 @@ const toolLabel = (type: string): string =>
 interface BoardImportReviewProps {
   plan: BoardPlan;
   onClose: () => void;
+  /** Runs once the board is made and filled. */
+  onCreated?: () => void;
 }
 
 /** Review step for a Board Conversion: a sketch of where each widget lands, then a new board. */
 export const BoardImportReview: React.FC<BoardImportReviewProps> = ({
   plan,
   onClose,
+  onCreated,
 }) => {
   const dashboard = useDashboard();
   const outward = useViewAsOutward();
@@ -70,6 +73,7 @@ export const BoardImportReview: React.FC<BoardImportReviewProps> = ({
       return;
     }
     latest.current.addWidgets(plan.widgets);
+    onCreated?.();
     onClose();
   };
 
