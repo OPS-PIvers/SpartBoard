@@ -140,10 +140,14 @@ const OpenImportScreen: React.FC<
     const r = importRoute(target);
     if (!r) return;
     const point = request.dropPoint;
-    // Outside a drop, reuse one already on this board.
+    // Outside a drop, reuse one on this board; a Notebook shows the review only in its library.
     const existing = point
       ? undefined
-      : activeDashboard?.widgets.find((w) => w.type === r.widgetType);
+      : activeDashboard?.widgets.find(
+          (w) =>
+            w.type === r.widgetType &&
+            !('activeNotebookId' in w.config && w.config.activeNotebookId)
+        );
     let widgetId = existing?.id;
     if (existing?.minimized) updateWidget(existing.id, { minimized: false });
     if (!widgetId) {
