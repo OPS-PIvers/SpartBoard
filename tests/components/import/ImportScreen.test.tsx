@@ -208,6 +208,19 @@ describe('ImportScreen', () => {
     expect(onContinue).toHaveBeenCalledWith({ file: pdf }, 'pdf');
   });
 
+  it('offers Whole course for a Schoology export only when the host allows it', () => {
+    const cartridge = file('biology.imscc');
+    const onCourse = vi.fn();
+    renderScreen({ initialSource: { file: cartridge }, onCourse });
+    fireEvent.click(screen.getByRole('button', { name: 'Whole course' }));
+    expect(onCourse).toHaveBeenCalledWith(cartridge);
+  });
+
+  it('leaves Whole course out without the course handler or for other files', () => {
+    renderScreen({ initialSource: { file: file('biology.imscc') } });
+    expect(screen.queryByRole('button', { name: 'Whole course' })).toBeNull();
+  });
+
   it('lists sent pages with their choices, and removes one', () => {
     const { onContinue, onRemoveInboxItem } = renderScreen({
       inboxItems: [sent],
