@@ -162,17 +162,22 @@ export function guessTargets(source: ImportSource): TargetGuess {
     }
     case 'send': {
       const { item } = source;
-      const lines = blockLines(item.blocks);
       // A selection is the content the teacher wants, so it isn't offered as a whole-page embed.
-      const targets = item.selectionOnly
-        ? DOCUMENT
-        : guessUrl(item.url).targets.length === PAGE.length
-          ? PAGE
-          : [...new Set([...guessUrl(item.url).targets, ...DOCUMENT])];
-      const fallback = item.selectionOnly
-        ? 'flashcards'
-        : guessUrl(item.url).guess;
-      return byContent(targets, lines, item.blocks, fallback);
+      if (item.selectionOnly)
+        return byContent(
+          DOCUMENT,
+          blockLines(item.blocks),
+          item.blocks,
+          'flashcards'
+        );
+      const page = guessUrl(item.url);
+      const targets = [...new Set([...page.targets, ...DOCUMENT])];
+      return byContent(
+        targets,
+        blockLines(item.blocks),
+        item.blocks,
+        page.guess
+      );
     }
   }
 }

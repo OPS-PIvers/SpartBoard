@@ -6873,6 +6873,16 @@ service cloud.firestore {
       allow read, delete: if ownsUserTeacher(userId);
     }
 
+    // Import inbox (docs/plans/IMPORT.md D14): pages the extension sent; server-written, the owner reads, then deletes.
+    match /users/{userId}/import_inbox/{itemId} {
+      allow read, delete: if ownsUserTeacher(userId);
+    }
+
+    // Platform reader failures (docs/plans/IMPORT.md D18): server-written, admins read.
+    match /import_reader_failures/{failureId} {
+      allow read: if isAdmin();
+    }
+
     // === Flashcards (PR 1: teacher-owned authoring library) ===
     match /users/{userId}/flashcard_sets/{setId} {
       allow read, write: if ownsUserTeacher(userId);

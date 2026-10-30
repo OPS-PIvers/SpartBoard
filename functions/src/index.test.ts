@@ -3910,6 +3910,8 @@ describe('index barrel — deployed export set', () => {
     'schoologyImportStatusV1',
     'schoologyImportInboxV1',
     'schoologyImportInboxCleanup',
+    'importStatusV1',
+    'importInboxV1',
     'focusStatusV1',
     'focusReportV1',
     // Dev-only prod → dev materials sync

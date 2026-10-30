@@ -321,6 +321,9 @@ export {
   schoologyImportInboxCleanup,
 } from './schoologyQuizImport';
 
+// Import: the extension's Send to SpartBoard posts a read page to the teacher's inbox (docs/plans/IMPORT.md D14).
+export { importStatusV1, importInboxV1 } from './importInbox';
+
 // Focus sessions: the student's extension checks its session and reports status (docs/plans/CHROME_EXTENSION.md F3).
 export { focusStatusV1, focusReportV1 } from './focus/studentEndpoints';
 
