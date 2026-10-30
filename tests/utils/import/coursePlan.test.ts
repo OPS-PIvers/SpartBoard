@@ -19,7 +19,9 @@ const bank = (id: string, folderPath: string[], count = 1): CartridgeBank => ({
   questions: Array.from({ length: count }, () => question),
   images: [],
 });
-const material = (m: Partial<CourseMaterial> & { id: string }) => ({
+const material = (
+  m: Partial<CourseMaterial> & { id: string }
+): CourseMaterial => ({
   kind: 'page',
   title: m.id,
   folderPath: [],
