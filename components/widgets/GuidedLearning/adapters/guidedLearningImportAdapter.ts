@@ -18,12 +18,30 @@ import type {
 import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { parseGuidedLearningJson } from '../utils/glTransfer';
 import { isValidCalloutBox, isValidCalloutStyle } from '../utils/calloutStyle';
+import {
+  PAGE_SOURCE_ACCEPT,
+  pageSourceKind,
+  type PageImagesResult,
+} from '@/utils/import/pageImages';
+import { pagesToGuidedLearningSet } from './slidesToGuidedLearning';
 
 export interface GuidedLearningImportAdapterDeps {
   /** Persist a parsed set to the widget's library (rehosts media first). */
   save: (set: GuidedLearningSet, title: string) => Promise<void>;
   /** Renders a compact preview of the parsed set inside the wizard body. */
   renderPreview: (set: GuidedLearningSet) => ReactNode;
+  /** Present when slides and PDFs may be imported: draws each page with its text. */
+  readPages?: (file: File) => Promise<PageImagesResult>;
+}
+
+/** A PDF or PowerPoint becomes a set with one slide and step per page. */
+async function parseSlidesImport(
+  file: File,
+  readPages: (file: File) => Promise<PageImagesResult>
+): Promise<ImportParseResult<GuidedLearningSet>> {
+  const { pages, warnings } = await readPages(file);
+  const title = file.name.replace(/\.[^./\\]+$/, '').trim() || 'Slides';
+  return { data: await pagesToGuidedLearningSet(title, pages), warnings };
 }
 
 export async function parseGuidedLearningImport(
@@ -188,12 +206,24 @@ export function validateGuidedLearningImport(
 export function createGuidedLearningImportAdapter(
   deps: GuidedLearningImportAdapterDeps
 ): ImportAdapter<GuidedLearningSet> {
+  const { readPages } = deps;
   return {
     widgetLabel: 'Guided Learning',
     supportedSources: ['json'],
     supportsJsonPaste: true,
+    ...(readPages
+      ? {
+          extraUpload: {
+            accept: PAGE_SOURCE_ACCEPT,
+            hint: 'PDF or PowerPoint',
+          },
+        }
+      : {}),
 
-    parse: parseGuidedLearningImport,
+    parse: (source) =>
+      readPages && source.kind === 'file' && pageSourceKind(source.file)
+        ? parseSlidesImport(source.file, readPages)
+        : parseGuidedLearningImport(source),
 
     validate: validateGuidedLearningImport,
 

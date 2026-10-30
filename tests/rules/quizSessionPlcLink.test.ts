@@ -25,6 +25,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { setDoc, updateDoc, deleteField, doc } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -49,17 +50,26 @@ let testEnv: RulesTestEnvironment;
 
 const asMember = () =>
   testEnv
-    .authenticatedContext(MEMBER_UID, { email: 'member@example.com' })
+    .authenticatedContext(MEMBER_UID, {
+      email: 'member@example.com',
+      email_verified: true,
+    })
     .firestore();
 
 const asOtherMember = () =>
   testEnv
-    .authenticatedContext(OTHER_MEMBER_UID, { email: 'other@example.com' })
+    .authenticatedContext(OTHER_MEMBER_UID, {
+      email: 'other@example.com',
+      email_verified: true,
+    })
     .firestore();
 
 const asNonMember = () =>
   testEnv
-    .authenticatedContext(NON_MEMBER_UID, { email: 'nonmember@example.com' })
+    .authenticatedContext(NON_MEMBER_UID, {
+      email: 'nonmember@example.com',
+      email_verified: true,
+    })
     .firestore();
 
 const sessionRef = (db: ReturnType<typeof asMember>) =>
@@ -72,7 +82,6 @@ const baseSession = (
 ): Record<string, unknown> => ({
   teacherUid,
   status: 'active',
-  code: 'LNKTST',
   ...overrides,
 });
 
@@ -112,6 +121,13 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [
+      'member@example.com',
+      'other@example.com',
+      'nonmember@example.com',
+    ])
+  );
   // Two PLCs: the caller belongs to PLC_ID only, so OTHER_PLC_ID exercises the
   // "changed plcId re-runs the gate" path against a PLC they are not in.
   await testEnv.withSecurityRulesDisabled(async (ctx) => {

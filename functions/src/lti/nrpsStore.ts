@@ -54,6 +54,7 @@
 
 import type * as admin from '../firebaseAdmin';
 import { normalizeQuizCode } from '../quizCode';
+import { quizJoinCodeOwner } from '../quizJoinCodeOwner';
 
 type Db = admin.firestore.Firestore;
 
@@ -402,8 +403,14 @@ export async function resolveLtiTargetSession(
     }
     return { sessionId: snap.id, sessionData };
   }
-  const docs = await quizSessionsByCode(db, args.quizCode);
-  const owner = await quizLinkOwner(db, docs, args.teacherUid, args.contextId);
+  const codeSessions = await quizSessionsByCode(db, args.quizCode);
+  const { docs } = codeSessions;
+  const owner = await quizLinkOwner(
+    db,
+    codeSessions,
+    args.teacherUid,
+    args.contextId
+  );
   if (!owner) return null;
   // Filter to the owner's joinable docs and prefer the most recently started —
   // identical to the client's join-target selection, so the context is filed
@@ -424,17 +431,23 @@ export async function resolveLtiTargetSession(
   return { sessionId: sessionDoc.id, sessionData: sessionDoc.data() ?? {} };
 }
 
+interface CodeSessions {
+  docs: admin.firestore.QueryDocumentSnapshot[];
+  /** The code's owner record, or null for an unclaimed legacy code. */
+  owner: string | null;
+}
+
 async function quizSessionsByCode(
   db: Db,
   quizCode: string
-): Promise<admin.firestore.QueryDocumentSnapshot[]> {
+): Promise<CodeSessions> {
   const normCode = normalizeQuizCode(quizCode);
-  if (!normCode) return [];
-  const snap = await db
-    .collection(QUIZ_SESSIONS_COLLECTION)
-    .where('code', '==', normCode)
-    .get();
-  return snap.docs;
+  if (!normCode) return { docs: [], owner: null };
+  const [snap, owner] = await Promise.all([
+    db.collection(QUIZ_SESSIONS_COLLECTION).where('code', '==', normCode).get(),
+    quizJoinCodeOwner(db, normCode),
+  ]);
+  return { docs: snap.docs, owner };
 }
 
 /** The one teacher among these sessions, or null when there are none or several. */
@@ -446,15 +459,16 @@ function soleTeacher(
   return uids.size === 1 && typeof uid === 'string' && uid ? uid : null;
 }
 
-/** An older link (no signer) trusts only server records: the section's filed session, else the code's sole teacher. */
+/** An older link (no signer) trusts only server records: the section's filed session, else the code's owner or sole teacher. */
 async function quizLinkOwner(
   db: Db,
-  docs: admin.firestore.QueryDocumentSnapshot[],
+  { docs, owner }: CodeSessions,
   teacherUid: string | null,
   contextId: string | null
 ): Promise<string | null> {
   if (teacherUid) return teacherUid;
-  if (!contextId) return soleTeacher(docs);
+  const fallback = owner ?? soleTeacher(docs);
+  if (!contextId) return fallback;
   const filed = await Promise.all(
     docs.map((d) =>
       db
@@ -466,7 +480,10 @@ async function quizLinkOwner(
     )
   );
   const anchored = docs.filter((_, i) => filed[i].exists);
-  return soleTeacher(anchored.length > 0 ? anchored : docs);
+  if (anchored.length === 0) return fallback;
+  // A section filed under a teacher who doesn't own the code can't be told apart safely.
+  const filedTeacher = soleTeacher(anchored);
+  return owner && filedTeacher !== owner ? null : filedTeacher;
 }
 
 /** The teacher a quiz link belongs to (see quizLinkOwner); null when it can't be told safely. */
@@ -477,8 +494,12 @@ export async function ltiQuizOwner(
   contextId: string | null
 ): Promise<string | null> {
   if (teacherUid) return teacherUid;
-  const docs = await quizSessionsByCode(db, quizCode);
-  return quizLinkOwner(db, docs, null, contextId);
+  return quizLinkOwner(
+    db,
+    await quizSessionsByCode(db, quizCode),
+    null,
+    contextId
+  );
 }
 
 /**

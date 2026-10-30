@@ -14,6 +14,7 @@ import { NotebookItem } from '@/types';
 import { getButtonAccessibilityProps } from '@/utils/accessibility';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { PAGE_SOURCE_ACCEPT } from '@/utils/import/pageImages';
 
 interface LibraryProps {
   notebooks: NotebookItem[];
@@ -26,6 +27,8 @@ interface LibraryProps {
   displayMode: 'cards' | 'list';
   onChangeDisplayMode: (mode: 'cards' | 'list') => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
+  /** True when PDFs and PowerPoint decks can be imported too. */
+  acceptsSlides?: boolean;
 }
 
 export const Library: React.FC<LibraryProps> = ({
@@ -39,6 +42,7 @@ export const Library: React.FC<LibraryProps> = ({
   displayMode,
   onChangeDisplayMode,
   fileInputRef,
+  acceptsSlides = false,
 }) => {
   return (
     <WidgetLayout
@@ -162,7 +166,11 @@ export const Library: React.FC<LibraryProps> = ({
               type="file"
               ref={fileInputRef}
               onChange={handleImport}
-              accept=".notebook,.spartnb,.olf"
+              accept={
+                acceptsSlides
+                  ? `.notebook,.spartnb,.olf,${PAGE_SOURCE_ACCEPT}`
+                  : '.notebook,.spartnb,.olf'
+              }
               className="hidden"
             />
           </div>
@@ -208,7 +216,9 @@ export const Library: React.FC<LibraryProps> = ({
                   className="font-bold uppercase tracking-tighter opacity-60"
                   style={{ fontSize: 'min(12px, 3cqmin)' }}
                 >
-                  Import a .notebook or .spartnb file to begin.
+                  {acceptsSlides
+                    ? 'Import a .notebook or .spartnb file, a PDF or a PowerPoint to begin.'
+                    : 'Import a .notebook or .spartnb file to begin.'}
                 </p>
               </div>
             </div>
