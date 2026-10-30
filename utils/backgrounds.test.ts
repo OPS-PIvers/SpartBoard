@@ -29,7 +29,9 @@ describe('backgrounds', () => {
 
     it('returns false for Tailwind class strings', () => {
       expect(isExternalBackground('bg-slate-900')).toBe(false);
-      expect(isExternalBackground('bg-linear-to-br from-blue-500')).toBe(false);
+      expect(isExternalBackground('bg-gradient-to-br from-blue-500')).toBe(
+        false
+      );
     });
 
     it('returns false for custom: prefixed values', () => {

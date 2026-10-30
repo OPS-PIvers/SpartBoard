@@ -2504,7 +2504,7 @@ export interface ActivityWallAppearance {
 /** Default appearance for a newly-created wall (see docs/plans/shipped/ACTIVITY_WALL_REDESIGN.md). */
 export const ACTIVITY_WALL_DEFAULT_APPEARANCE: ActivityWallAppearance = {
   kind: 'gradient',
-  value: 'bg-linear-to-br from-slate-900 to-slate-700',
+  value: 'bg-gradient-to-br from-slate-900 to-slate-700',
 };
 
 export interface ActivityWallSection {
@@ -10361,7 +10361,7 @@ export interface UserProfile {
   hiddenTools?: (WidgetType | InternalToolType)[];
   /**
    * IDs of backgrounds the user has starred as favorites. May be preset IDs
-   * (Tailwind class strings like `'bg-linear-to-br from-blue-400'`), HTTPS
+   * (Tailwind class strings like `'bg-gradient-to-br from-blue-400'`), HTTPS
    * URLs (Drive uploads or preset images), or `custom:` values (custom solid
    * colors or gradients entered via the color picker).
    */

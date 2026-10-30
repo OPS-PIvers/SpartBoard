@@ -459,7 +459,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
               value={
                 draft.appearance ?? {
                   kind: 'gradient',
-                  value: 'bg-linear-to-br from-slate-900 to-slate-700',
+                  value: 'bg-gradient-to-br from-slate-900 to-slate-700',
                 }
               }
               onChange={(appearance) => patch({ appearance })}

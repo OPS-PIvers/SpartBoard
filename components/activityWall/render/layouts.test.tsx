@@ -516,7 +516,7 @@ describe('wall layouts', () => {
     expect(screen.getByTestId('aw-layout-timeline')).toBeInTheDocument();
     expect(
       container.querySelector('[data-testid="aw-layout-router"]')
-    ).toHaveClass('bg-linear-to-br');
+    ).toHaveClass('bg-gradient-to-br');
 
     rerender(
       <LayoutRouter

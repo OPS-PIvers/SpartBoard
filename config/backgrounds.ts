@@ -20,11 +20,11 @@ export const BACKGROUND_COLORS = [
 
 export const BACKGROUND_PATTERNS = [
   {
-    id: 'bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[16px_16px] bg-slate-100',
+    id: 'bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] bg-slate-100',
     label: 'Dot Grid',
   },
   {
-    id: 'bg-[radial-gradient(#94a3b8_2px,transparent_2px)] bg-size-[24px_24px] bg-white',
+    id: 'bg-[radial-gradient(#94a3b8_2px,transparent_2px)] [background-size:24px_24px] bg-white',
     label: 'Polka Dots',
   },
   {
@@ -36,7 +36,7 @@ export const BACKGROUND_PATTERNS = [
     label: 'Graph Paper',
   },
   {
-    id: 'bg-[repeating-linear-gradient(0deg,#93c5fd_0_1px,transparent_1px_28px),linear-gradient(90deg,#fca5a5_0_1px,transparent_1px_100%)] bg-size-[100%_28px,100%_100%] bg-position-[0_40px,32px_0] bg-[#fffef5]',
+    id: 'bg-[repeating-linear-gradient(0deg,#93c5fd_0_1px,transparent_1px_28px),linear-gradient(90deg,#fca5a5_0_1px,transparent_1px_100%)] [background-size:100%_28px,100%_100%] [background-position:0_40px,32px_0] bg-[#fffef5]',
     label: 'Notebook',
   },
   {
@@ -62,71 +62,71 @@ export const BACKGROUND_PATTERNS = [
 ];
 
 export const BACKGROUND_GRADIENTS = [
-  { id: 'bg-linear-to-br from-slate-900 to-slate-700', label: 'Slate' },
+  { id: 'bg-gradient-to-br from-slate-900 to-slate-700', label: 'Slate' },
   {
-    id: 'bg-linear-to-br from-brand-blue-primary to-brand-blue-dark',
+    id: 'bg-gradient-to-br from-brand-blue-primary to-brand-blue-dark',
     label: 'Brand',
   },
   {
-    id: 'bg-linear-to-br from-emerald-400 to-cyan-500',
+    id: 'bg-gradient-to-br from-emerald-400 to-cyan-500',
     label: 'Tropical',
   },
-  { id: 'bg-linear-to-br from-rose-400 to-orange-400', label: 'Sunset' },
+  { id: 'bg-gradient-to-br from-rose-400 to-orange-400', label: 'Sunset' },
   {
-    id: 'bg-linear-to-br from-blue-600 via-cyan-500 to-teal-400',
+    id: 'bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-400',
     label: 'Ocean',
   },
   {
-    id: 'bg-linear-to-br from-green-800 via-emerald-600 to-lime-500',
+    id: 'bg-gradient-to-br from-green-800 via-emerald-600 to-lime-500',
     label: 'Forest',
   },
   {
-    id: 'bg-linear-to-br from-purple-500 via-violet-400 to-indigo-300',
+    id: 'bg-gradient-to-br from-purple-500 via-violet-400 to-indigo-300',
     label: 'Lavender',
   },
   {
-    id: 'bg-linear-to-br from-pink-400 via-fuchsia-400 to-purple-500',
+    id: 'bg-gradient-to-br from-pink-400 via-fuchsia-400 to-purple-500',
     label: 'Candy',
   },
   {
-    id: 'bg-linear-to-br from-amber-700 via-orange-600 to-yellow-500',
+    id: 'bg-gradient-to-br from-amber-700 via-orange-600 to-yellow-500',
     label: 'Earth',
   },
   {
-    id: 'bg-linear-to-br from-indigo-950 via-blue-900 to-violet-900',
+    id: 'bg-gradient-to-br from-indigo-950 via-blue-900 to-violet-900',
     label: 'Night Sky',
   },
   {
-    id: 'bg-linear-to-br from-green-300 via-yellow-200 to-pink-300',
+    id: 'bg-gradient-to-br from-green-300 via-yellow-200 to-pink-300',
     label: 'Spring',
   },
   {
-    id: 'bg-linear-to-br from-emerald-950 via-green-900 to-slate-800',
+    id: 'bg-gradient-to-br from-emerald-950 via-green-900 to-slate-800',
     label: 'Chalkboard',
   },
   // Weather-specific gradients (used by Weather Widget Nexus sync)
   {
-    id: 'bg-linear-to-br from-blue-400 via-sky-300 to-blue-200',
+    id: 'bg-gradient-to-br from-blue-400 via-sky-300 to-blue-200',
     label: 'Sunny',
   },
   {
-    id: 'bg-linear-to-br from-slate-500 via-slate-400 to-slate-300',
+    id: 'bg-gradient-to-br from-slate-500 via-slate-400 to-slate-300',
     label: 'Cloudy',
   },
   {
-    id: 'bg-linear-to-br from-slate-800 via-blue-900 to-slate-900',
+    id: 'bg-gradient-to-br from-slate-800 via-blue-900 to-slate-900',
     label: 'Rainy',
   },
   {
-    id: 'bg-linear-to-br from-blue-100 via-white to-blue-50',
+    id: 'bg-gradient-to-br from-blue-100 via-white to-blue-50',
     label: 'Snowy',
   },
   {
-    id: 'bg-linear-to-br from-teal-600 via-emerald-500 to-teal-400',
+    id: 'bg-gradient-to-br from-teal-600 via-emerald-500 to-teal-400',
     label: 'Windy',
   },
   {
-    id: 'bg-linear-to-br from-slate-300 via-slate-200 to-slate-100',
+    id: 'bg-gradient-to-br from-slate-300 via-slate-200 to-slate-100',
     label: 'Default',
   },
 ];
