@@ -218,7 +218,8 @@ function tokenize(html: string): Token[] {
     });
     i = j + 1;
     if (!closing && RAW_TEXT.has(name)) {
-      lower ??= html.toLowerCase();
+      // ASCII only, so indices still line up with `html` (`İ` lower-cases to two units).
+      lower ??= html.replace(/[A-Z]+/g, (c) => c.toLowerCase());
       const close = lower.indexOf(`</${name}`, i);
       const end = close < 0 ? len : close;
       if (end > i) tokens.push({ kind: 'text', text: html.slice(i, end) });

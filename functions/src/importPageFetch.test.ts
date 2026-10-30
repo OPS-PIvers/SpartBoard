@@ -145,6 +145,17 @@ describe('htmlToPage', () => {
     expect(page.blocks).toEqual([{ type: 'paragraph', text: 'Real content' }]);
   });
 
+  it('keeps content after a script on a page with İ', () => {
+    const page = htmlToPage(
+      '<body><p>İİİİ</p><script>x</script><p>after</p></body>',
+      new URL('https://example.org/')
+    );
+    expect(page.blocks.map((b) => ('text' in b ? b.text : ''))).toEqual([
+      'İİİİ',
+      'after',
+    ]);
+  });
+
   it('keeps inline markup from splitting words', () => {
     const page = htmlToPage(
       '<p>Hello, <a href=x>world</a>. Sp<b>art</b>Board</p>',
