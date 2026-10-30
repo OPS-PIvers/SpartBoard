@@ -177,9 +177,11 @@ const OpenImportScreen: React.FC<
     const widgetType = r.widgetType;
     const point = request.dropPoint;
     // Outside a drop, reuse one already on this board.
-    const existing = point
-      ? undefined
-      : activeDashboard?.widgets.find((w) => w.type === widgetType);
+    // An Activity Wall from a page gets its own widget, since one on the board may be showing a shared wall.
+    const existing =
+      point || target === 'activityWall'
+        ? undefined
+        : activeDashboard?.widgets.find((w) => w.type === widgetType);
     let widgetId = existing?.id;
     if (existing?.minimized) updateWidget(existing.id, { minimized: false });
     if (!widgetId) {
@@ -209,8 +211,9 @@ const OpenImportScreen: React.FC<
     const r = importRoute(target);
     const input = conversionInputFor(source);
     if (!r || !input) return;
-    closeImportScreen();
+    // A declined confirm leaves the window open, so the teacher keeps their list.
     if (outward.active && !(await outward.confirm('Import with AI'))) return;
+    closeImportScreen();
     if (r.landing === 'board') {
       onStartBoard({
         id: crypto.randomUUID(),
