@@ -131,8 +131,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md`
 
-- [ ] Run scripts/backfill-quiz-join-codes.mjs --all --apply against production. (S)
-- [ ] Tighten quiz_sessions rules to get/scoped-list matching the other four collections. (S)
+- [ ] Before the next main release: run scripts/backfill-quiz-join-codes.mjs --all (dry run, then --apply) against production, which writes missing pointers and code owner records; quiz_sessions list is scoped on dev-paul and an unbackfilled live session is unjoinable by code. Needs Paul's OK. (S)
 
 #### `docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md`
 
@@ -364,10 +363,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] Remove dead 'editor' member from QuizConfig.view union in types.ts (Phase 3 cleanup). (S)
 - [ ] Confirm Phase 1.5 (QuizResults.tsx visual alignment to monitor shell language) reached full parity with monitor toggle/sort/filter conventions. (S)
 - [ ] Move ephemeral view-state (tab clicks, view-mode toggles) out of Firestore config into local state per Phase 3 item 2 — not verified as done. (M)
-
-#### `docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md`
-
-- [ ] Set LEGACY_CODE_QUERY_ENABLED = false and delete sessionsByLegacyQuery in utils/quizJoinCodes.ts. (S)
 
 #### `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`
 
