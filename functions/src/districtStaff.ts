@@ -7,6 +7,7 @@ import {
 } from './classlinkShared';
 import {
   fetchOneRosterUsersByEmail,
+  isOneRosterStaff,
   isOneRosterStudent,
   type StudentLookupSecrets,
 } from './studentEmailIdentity';
@@ -62,7 +63,7 @@ export async function isDistrictStaffToken(
   return isDistrictStaffEmail(db, token.email);
 }
 
-/** True for a mock-class member or a OneRoster student record; throws when ClassLink can't answer unless rosterOptional. */
+/** True for a mock-class member or a OneRoster student with no staff record; throws when ClassLink can't answer unless rosterOptional. */
 export async function isKnownStudentEmail(
   db: Firestore,
   orgId: string,
@@ -79,8 +80,8 @@ export async function isKnownStudentEmail(
     .where('memberEmails', 'array-contains', emailLower)
     .limit(1)
     .get();
-  if (!mock.empty) return true;
-  if (!isSafeEmailForOneRosterFilter(emailLower)) return true;
+  // ClassLink can't be asked about an address with a quote; treat it as not known, as before this check existed.
+  if (!isSafeEmailForOneRosterFilter(emailLower)) return !mock.empty;
   try {
     if (
       !secrets.classlinkClientId ||
@@ -90,10 +91,11 @@ export async function isKnownStudentEmail(
       throw new Error('ClassLink is not configured.');
     }
     const users = await fetchOneRosterUsersByEmail(emailLower, secrets);
-    return users.some(isOneRosterStudent);
+    if (users.some(isOneRosterStaff)) return false;
+    return !mock.empty || users.some(isOneRosterStudent);
   } catch (err) {
-    // The dev project has placeholder ClassLink secrets and no real students; mock classes were checked above.
-    if (opts.rosterOptional) return false;
+    // The dev project has placeholder ClassLink secrets and no real students.
+    if (!mock.empty || opts.rosterOptional) return !mock.empty;
     throw err;
   }
 }

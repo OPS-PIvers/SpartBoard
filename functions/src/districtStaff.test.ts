@@ -129,8 +129,9 @@ describe('isDistrictStaffToken', () => {
 });
 
 describe('isKnownStudentEmail', () => {
-  it('is true for a mock-class member without asking ClassLink', async () => {
+  it('is true for a mock-class member unless ClassLink lists them as staff', async () => {
     const db = fakeDb({}, ['sstudent25@orono.k12.mn.us']);
+    fetchUsersMock.mockResolvedValueOnce([]);
     expect(
       await isKnownStudentEmail(
         db,
@@ -139,7 +140,47 @@ describe('isKnownStudentEmail', () => {
         SECRETS
       )
     ).toBe(true);
-    expect(fetchUsersMock).not.toHaveBeenCalled();
+    fetchUsersMock.mockResolvedValueOnce([{ sourcedId: 'T', role: 'teacher' }]);
+    expect(
+      await isKnownStudentEmail(
+        db,
+        'orono',
+        'sstudent25@orono.k12.mn.us',
+        SECRETS
+      )
+    ).toBe(false);
+    fetchUsersMock.mockRejectedValueOnce(new Error('down'));
+    expect(
+      await isKnownStudentEmail(
+        db,
+        'orono',
+        'sstudent25@orono.k12.mn.us',
+        SECRETS
+      )
+    ).toBe(true);
+  });
+
+  it('keeps staff with a student role too, and never calls a quoted address a student', async () => {
+    fetchUsersMock.mockResolvedValueOnce([
+      { sourcedId: 'M', roles: [{ role: 'teacher' }, { role: 'student' }] },
+    ]);
+    expect(
+      await isKnownStudentEmail(
+        fakeDb({}),
+        'orono',
+        'pat@orono.k12.mn.us',
+        SECRETS
+      )
+    ).toBe(false);
+    expect(
+      await isKnownStudentEmail(
+        fakeDb({}),
+        'orono',
+        "o'brien@orono.k12.mn.us",
+        SECRETS
+      )
+    ).toBe(false);
+    expect(fetchUsersMock).toHaveBeenCalledTimes(1);
   });
 
   it('follows the OneRoster role', async () => {

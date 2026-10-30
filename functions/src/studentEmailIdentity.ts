@@ -167,7 +167,7 @@ export async function fetchOneRosterUsersByEmail(
   );
   const userResp = await axios.get<{ users: OneRosterUserWithRole[] }>(
     usersBaseUrl,
-    { params: userParams, headers: { ...userHeaders } }
+    { params: userParams, headers: { ...userHeaders }, timeout: 8000 }
   );
   return userResp.data.users ?? [];
 }

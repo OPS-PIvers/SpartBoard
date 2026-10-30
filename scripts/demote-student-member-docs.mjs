@@ -55,14 +55,31 @@ const oauth = new OAuth({
     CryptoJS.HmacSHA1(base, key).toString(CryptoJS.enc.Base64),
 });
 
-// Same rule as functions/src/studentEmailIdentity.ts isOneRosterStudent.
-function isOneRosterStudent(user) {
+function roleNames(user) {
   const names = [];
-  if (typeof user.role === 'string') names.push(user.role);
+  if (typeof user.role === 'string') names.push(user.role.toLowerCase());
   for (const r of Array.isArray(user.roles) ? user.roles : []) {
-    if (typeof r?.role === 'string') names.push(r.role);
+    if (typeof r?.role === 'string') names.push(r.role.toLowerCase());
   }
-  if (names.some((n) => n.toLowerCase() === 'student')) return true;
+  return names;
+}
+
+// Same rules as functions/src/studentEmailIdentity.ts isOneRosterStaff / isOneRosterStudent.
+const STAFF_ROLES = new Set([
+  'teacher',
+  'administrator',
+  'aide',
+  'proctor',
+  'principal',
+  'counselor',
+  'districtadministrator',
+  'siteadministrator',
+  'systemadministrator',
+]);
+const isOneRosterStaff = (user) => roleNames(user).some((n) => STAFF_ROLES.has(n));
+
+function isOneRosterStudent(user) {
+  if (roleNames(user).includes('student')) return true;
   return (
     Array.isArray(user.roles) &&
     user.roles.some(
@@ -101,14 +118,14 @@ for (const doc of members.docs) {
   if (doc.get('roleId') !== 'teacher') continue;
   const email = doc.id.toLowerCase();
   checked += 1;
-  if (mockEmails.has(email)) {
-    students.push(doc.ref);
-    continue;
-  }
   if (email.includes("'")) continue;
   try {
-    if ((await oneRosterUsers(email)).some(isOneRosterStudent)) {
-      students.push(doc.ref);
+    const users = await oneRosterUsers(email);
+    if (users.some(isOneRosterStaff)) continue;
+    if (mockEmails.has(email)) {
+      students.push({ ref: doc.ref, why: 'mock class' });
+    } else if (users.some(isOneRosterStudent)) {
+      students.push({ ref: doc.ref, why: 'ClassLink student' });
     }
   } catch (err) {
     failed += 1;
@@ -119,13 +136,13 @@ for (const doc of members.docs) {
 console.log(`Auto-enrolled teacher docs checked: ${checked}`);
 console.log(`ClassLink lookups that failed: ${failed}`);
 console.log(`Student docs found: ${students.length}`);
-for (const ref of students) console.log(`  ${ref.id}`);
+for (const { ref, why } of students) console.log(`  ${ref.id} (${why})`);
 
 if (!apply) {
   console.log('Dry run. Re-run with --apply to set roleId to student.');
   process.exit(0);
 }
-for (const ref of students) {
+for (const { ref } of students) {
   await ref.update({ roleId: 'student', demotedBy: 'demote-student-member-docs' });
 }
 console.log(`Updated ${students.length} member docs.`);
