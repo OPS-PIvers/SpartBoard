@@ -350,6 +350,13 @@ describe('storedUrl', () => {
       storedUrl('https://a.example/p?id=4&access_token=s&X-Amz-Signature=t#x')
     ).toBe('https://a.example/p?id=4');
   });
+
+  it('drops signed-link and API credentials by family', () => {
+    const url = storedUrl(
+      'https://a.example/p?page=2&X-Goog-Signature=a&X-Goog-Credential=b&Policy=c&Key-Pair-Id=d&refresh_token=e&apikey=f&client_secret=g&password=h&jwt=i'
+    );
+    expect(url).toBe('https://a.example/p?page=2');
+  });
 });
 
 describe('failureUrl', () => {

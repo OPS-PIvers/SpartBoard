@@ -74,7 +74,7 @@ function httpUrl(v: unknown, what: string): string {
 }
 
 const SECRET_PARAM =
-  /^(access_token|id_token|token|auth|code|key|api_key|sig|signature|session|x-amz-.+)$/i;
+  /^(auth|code|key|sig|session|policy|key-pair-id|jwt|x-amz-.+|x-goog-.+)$|token|secret|signature|credential|password|api_?key/i;
 
 /** The page URL without its fragment or sign-in tokens, which the teacher never meant to send. */
 export function storedUrl(raw: string): string {
