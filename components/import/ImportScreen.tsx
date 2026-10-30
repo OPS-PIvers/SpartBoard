@@ -5,6 +5,7 @@ import { tourAttr } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
 import type { ImportInboxItem, ImportTarget } from '@/utils/import/contract';
 import type { PendingSource } from './importHandoff';
+import type { DroppedPage } from './fetchImportPage';
 import { importRoute, targetChoices } from './importTargets';
 import { sourceFromInboxItem } from './sourceFromInbox';
 import { ReferenceEmbedStep } from './reference/ReferenceEmbedStep';
@@ -15,6 +16,8 @@ interface ImportScreenProps {
   onClose: () => void;
   /** Something dropped on the board; listed above any sent pages. */
   initialSource?: PendingSource;
+  /** The server's read of a dropped link, while and after it runs. */
+  droppedPage?: DroppedPage | null;
   /** Pages the extension sent (S1 inbox), newest first. */
   inboxItems: readonly ImportInboxItem[];
   onRemoveInboxItem: (id: string) => void;
@@ -71,12 +74,22 @@ interface Row {
   key: string;
   source: PendingSource;
   removeId?: string;
+  /** Replaces the row's detail line, e.g. while its page is read. */
+  detail?: string;
+  note?: string;
 }
+
+const PAGE_NOTES: Partial<Record<DroppedPage['status'], string>> = {
+  blocked: 'Your district doesn’t allow importing from this site.',
+  'use-extension':
+    'To use what’s on this page, send it with the SpartBoard extension.',
+};
 
 export const ImportScreen: React.FC<ImportScreenProps> = ({
   isOpen,
   onClose,
   initialSource,
+  droppedPage,
   inboxItems,
   onRemoveInboxItem,
   allowed,
@@ -94,7 +107,24 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
     );
   const rows: Row[] = [
     ...(initialSource && !initialSource.inboxItem
-      ? [{ key: 'dropped', source: initialSource }]
+      ? [
+          {
+            key: 'dropped',
+            source:
+              droppedPage?.status === 'read'
+                ? {
+                    ...sourceFromInboxItem(droppedPage.item),
+                    readFromLink: true,
+                  }
+                : initialSource,
+            ...(droppedPage?.status === 'reading'
+              ? { detail: 'Reading this page…' }
+              : {}),
+            ...(droppedPage && PAGE_NOTES[droppedPage.status]
+              ? { note: PAGE_NOTES[droppedPage.status] }
+              : {}),
+          },
+        ]
       : []),
     ...inboxItems.map((item) => ({
       key: item.id,
@@ -158,6 +188,8 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
             <SourceRow
               key={row.key}
               source={row.source}
+              detail={row.detail}
+              note={row.note}
               allowed={(target, source) =>
                 !(target === 'embed' && noEmbed.has(row.key)) &&
                 allowed(target, source)
@@ -208,10 +240,12 @@ const Thumbnail: React.FC<{ source: PendingSource; icon: React.ReactNode }> = ({
 
 const SourceRow: React.FC<{
   source: PendingSource;
+  detail?: string;
+  note?: string;
   allowed: ImportScreenProps['allowed'];
   onPick: (target: ImportTarget) => void;
   onRemove?: () => void;
-}> = ({ source, allowed, onPick, onRemove }) => {
+}> = ({ source, detail, note, allowed, onPick, onRemove }) => {
   const described = describeSource(source);
   const { targets, guess } = targetChoices(source, allowed);
   return (
@@ -225,7 +259,7 @@ const SourceRow: React.FC<{
                 {described.title}
               </span>
               <span className="block truncate text-xs text-slate-500">
-                {described.detail}
+                {detail ?? described.detail}
               </span>
             </span>
             {onRemove && (
@@ -276,6 +310,7 @@ const SourceRow: React.FC<{
               })}
             </div>
           )}
+          {note && <p className="text-xs text-slate-600">{note}</p>}
         </div>
       </div>
     </li>
