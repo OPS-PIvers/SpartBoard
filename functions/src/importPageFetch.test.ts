@@ -32,6 +32,7 @@ vi.mock('dns', () => {
 import {
   decodeHtmlBytes,
   fetchImportPage,
+  fetchOnceGuarded,
   readCapped,
   htmlToPage,
   looksLikeSignInUrl,
@@ -478,12 +479,23 @@ describe('fetchImportPage', () => {
 });
 
 describe('SSRF guard on the real fetch hop', () => {
-  it('rejects a host that resolves to a private address', async () => {
+  it('refuses a host that resolves to a private address', async () => {
     dnsLookup.mockResolvedValueOnce([{ address: '10.0.0.5', family: 4 }]);
-    const { fetchImportPageV1 } = await import('./importPageFetch');
-    expect(fetchImportPageV1).toBeDefined();
-    const { resolveAndValidateHost } = await import('./ssrfGuard');
-    await expect(resolveAndValidateHost('intranet.example')).rejects.toThrow();
+    await expect(
+      fetchOnceGuarded(new URL('https://intranet.example/'), 1_000)
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+
+  it('calls a name that does not resolve unreachable', async () => {
+    dnsLookup.mockRejectedValueOnce(
+      Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' })
+    );
+    expect(
+      await fetchImportPage('https://exmaple.org/lesson', {
+        isBlocked: () => Promise.resolve(false),
+        fetchOnce: fetchOnceGuarded,
+      })
+    ).toEqual({ status: 'use-extension', reason: 'unreachable' });
   });
 });
 

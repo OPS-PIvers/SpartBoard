@@ -6,7 +6,6 @@ import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
-  DEFAULT_SEND_BLOCK_PATTERNS,
   isUrlBlocked,
   normalizeBlockPattern,
 } from '@/utils/import/sendBlockList';
@@ -109,12 +108,13 @@ export const ImportBlockListPanel: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const persist = async (next: readonly string[]) => {
+  // Null saves no list, so the district follows the built-in defaults again.
+  const persist = async (next: readonly string[] | null) => {
     setSaving(true);
     setError(null);
     try {
       await setDoc(doc(db, 'admin_settings', IMPORT_SEND_BLOCK_LIST_DOC), {
-        patterns: [...next],
+        ...(next ? { patterns: [...next] } : {}),
         // eslint-disable-next-line react-hooks/purity -- runs in an async save handler, not render
         updatedAt: Date.now(),
         updatedBy: user?.email ?? '',
@@ -260,7 +260,7 @@ export const ImportBlockListPanel: React.FC = () => {
             <button
               {...tourAttr('admin.import-block-list.restore-defaults')}
               type="button"
-              onClick={() => void persist(DEFAULT_SEND_BLOCK_PATTERNS)}
+              onClick={() => void persist(null)}
               disabled={saving}
               className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:underline disabled:opacity-50"
             >

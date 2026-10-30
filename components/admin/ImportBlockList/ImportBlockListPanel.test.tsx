@@ -91,7 +91,9 @@ describe('ImportBlockListPanel', () => {
     patterns = [];
     rerender(<ImportBlockListPanel />);
     fireEvent.click(screen.getByText('Restore defaults'));
-    expect(savedPatterns()).toEqual([...DEFAULT_SEND_BLOCK_PATTERNS]);
+    const saved = setDocMock.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(saved).not.toHaveProperty('patterns');
+    expect(readBlockListDoc(saved).usingDefaults).toBe(true);
   });
 
   it('lists reader problems and never links a non-web URL', () => {

@@ -157,10 +157,7 @@ type Token = TagToken | { kind: 'text'; text: string };
 
 const TAG_NAME = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)/y;
 
-/**
- * One left-to-right pass over the HTML, so hostile markup costs linear time. Quotes are honoured only
- * after `=`, a tag with no `>` ends the page, and comments are skipped. Text never comes from attributes.
- */
+// One linear pass; quotes only after =, comments skipped, no text from attributes.
 function tokenize(html: string): Token[] {
   const tokens: Token[] = [];
   const len = html.length;
@@ -529,7 +526,7 @@ export async function fetchImportPage(
   return { status: 'use-extension', reason: 'unreachable' };
 }
 
-async function fetchOnceGuarded(
+export async function fetchOnceGuarded(
   url: URL,
   timeoutMs: number
 ): Promise<FetchedResponse> {
@@ -545,8 +542,9 @@ async function fetchOnceGuarded(
       aborted,
     ]);
   } catch (error) {
-    // A slow resolver is unreachable, not a private host.
-    if (signal.aborted) throw error;
+    // Only a private or blocked host is the caller's error; a dead or slow name is unreachable.
+    const message = error instanceof Error ? error.message : '';
+    if (signal.aborted || !/private|Blocked host/.test(message)) throw error;
     throw new HttpsError(
       'invalid-argument',
       'That address points to a private or reserved host.'
@@ -649,7 +647,11 @@ export const fetchImportPageV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign in to import a page.');
     const db = admin.firestore();
     const token = request.auth.token;
-    const staff = await isDistrictStaffToken(db, token);
+    const staff =
+      (await isDistrictStaffToken(db, token)) ||
+      (token.email_verified === true &&
+        !!token.email &&
+        (await db.collection('admins').doc(token.email).get()).exists);
     const granted =
       staff &&
       (await isGlobalFeatureGranted(
