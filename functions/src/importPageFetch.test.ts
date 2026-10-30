@@ -287,6 +287,22 @@ describe('fetchImportPage', () => {
     expect(d.fetched).toEqual([]);
   });
 
+  it('drops pictures hosted on blocked sites', async () => {
+    const d = deps(
+      {
+        'https://example.org/a': ok(
+          html(
+            '<p>Hi</p><img src="https://app.schoology.com/user/9/photo.png"><img src="/ok.png">'
+          )
+        ),
+      },
+      ['*.schoology.com/user/*']
+    );
+    expect(await fetchImportPage('https://example.org/a', d)).toMatchObject({
+      page: { images: [{ url: 'https://example.org/ok.png' }] },
+    });
+  });
+
   it('upgrades http to https', async () => {
     const d = deps({ 'https://example.org/a': ok(html('<p>Hi</p>')) });
     await fetchImportPage('http://example.org/a', d);

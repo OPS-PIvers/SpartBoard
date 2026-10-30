@@ -514,7 +514,11 @@ export async function fetchImportPage(
       return { status: 'use-extension', reason: 'sign-in' };
     if (page.blocks.length === 0 && page.images.length === 0)
       return { status: 'use-extension', reason: 'no-content' };
-    return { status: 'ok', page };
+    // Pictures hosted on blocked sites stay out, as importInboxV1 does.
+    const images: FetchedPage['images'] = [];
+    for (const image of page.images)
+      if (!(await deps.isBlocked(image.url))) images.push(image);
+    return { status: 'ok', page: { ...page, images } };
   }
   return { status: 'use-extension', reason: 'unreachable' };
 }
