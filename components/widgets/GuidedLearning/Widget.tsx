@@ -88,6 +88,11 @@ import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import { glSetToLiveTour } from './utils/glToLiveTour';
 import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
+import {
+  openImportScreen,
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
 import { createGuidedLearningImportAdapter } from './adapters/guidedLearningImportAdapter';
 import {
   buildGlExportFilename,
@@ -1247,6 +1252,15 @@ const TeacherGuidedLearningWidget: React.FC<{
     setImportDestination(null);
     setShowImportWizard(true);
   };
+  const importHandoff = useImportHandoff(widget.id);
+  const universalImport = canAccessFeature('universal-import');
+  const glHandoff =
+    importHandoff?.target === 'guidedLearning' ? importHandoff : null;
+  const openGlHandoff = useEffectEvent(openImportWizard);
+  // The handoff store lives outside React; open the review when a Source arrives.
+  useEffect(() => {
+    if (glHandoff) openGlHandoff();
+  }, [glHandoff]);
 
   // Best-effort deletion of uploads whose save never succeeded.
   const discardRehostedUploads = (cached: {
@@ -1719,7 +1733,15 @@ const TeacherGuidedLearningWidget: React.FC<{
                   onExport={(setId, driveFileId, buildingEntry) => {
                     void handleExport(setId, driveFileId, buildingEntry);
                   }}
-                  onImport={openImportWizard}
+                  onImport={
+                    universalImport
+                      ? () =>
+                          openImportScreen({
+                            presetTarget: 'guidedLearning',
+                            fromWidgetId: widget.id,
+                          })
+                      : openImportWizard
+                  }
                   importFocusCounter={importFocusCounter}
                   assignmentMode={assignmentMode}
                   onError={(message) => addToast(message, 'error')}
@@ -1918,7 +1940,9 @@ const TeacherGuidedLearningWidget: React.FC<{
 
       <ImportWizard<GuidedLearningSet>
         isOpen={showImportWizard}
+        initialSource={glHandoff?.source}
         onClose={() => {
+          if (glHandoff) takeImportHandoff(widget.id);
           setShowImportWizard(false);
           importWizardClosedRef.current = true;
           // Defer cleanup to the save's settle handler while a save is in flight.

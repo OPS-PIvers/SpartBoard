@@ -11756,6 +11756,7 @@ export const TOUR_ANCHORS = {
   'sidebar.quick-link': { label: 'Shorten URL button in the top bar' },
   'sidebar.back': { label: 'Back button in the menu', panel: true },
   'sidebar.gradebook': { label: 'Gradebook item in the menu', panel: true },
+  'sidebar.import': { label: 'Import item in the menu', panel: true },
   'sidebar.google-drive': {
     label: 'Google Drive item in the menu',
     panel: true,
@@ -15151,6 +15152,53 @@ export const TOUR_ANCHORS = {
     label:
       'Formatting button in the Text toolbar More options menu, by action (bold, bulleted, align-left, indent-increase, link)',
     perField: true,
+    panel: true,
+  },
+  // Import window: any file, link, text or sent page into SpartBoard (IMPORT.md D1).
+  'import-screen.close': {
+    label: 'Close button in the Import window',
+    panel: true,
+  },
+  'import-screen.choose-file': {
+    label: 'Choose file button in the Import window',
+    panel: true,
+  },
+  'import-screen.link': {
+    label: 'Paste a link field in the Import window',
+    panel: true,
+  },
+  'import-screen.link-next': {
+    label: 'Next button beside the link field in the Import window',
+    panel: true,
+  },
+  'import-screen.text': {
+    label: 'Paste text field in the Import window',
+    panel: true,
+  },
+  'import-screen.text-next': {
+    label: 'Next button under the text field in the Import window',
+    panel: true,
+  },
+  'import-screen.sent-item': {
+    label: 'A page sent from the browser, in the Import window',
+    panel: true,
+  },
+  'import-screen.sent-remove': {
+    label:
+      'Remove button on a page sent from the browser, in the Import window',
+    panel: true,
+    destructive: true,
+  },
+  'import-screen.target': {
+    label: 'A Make it into choice in the Import window',
+    panel: true,
+  },
+  'import-screen.back': {
+    label: 'Back button in the Import window',
+    panel: true,
+  },
+  'import-screen.continue': {
+    label: 'Continue button in the Import window',
     panel: true,
   },
   // Library Import wizard (Quiz, Video Activity, Guided Learning, Mini App, Flashcards).

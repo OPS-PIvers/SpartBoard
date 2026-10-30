@@ -23,6 +23,7 @@ import type { LucideIcon } from 'lucide-react';
 import type { ClassRoster, WidgetType } from '@/types';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
+import type { PendingSource } from '@/components/import/importHandoff';
 
 /* ─── Shared enums / tokens ───────────────────────────────────────────────── */
 
@@ -695,6 +696,8 @@ export interface ImportWizardProps<TData> {
   defaultTitle?: string;
   /** Called after a successful save closes the wizard. */
   onSaved?: (title: string) => void;
+  /** A Source handed over by Import; the wizard reads it on open and skips to review. */
+  initialSource?: PendingSource;
 }
 
 /* ─── Re-exports ──────────────────────────────────────────────────────────── */

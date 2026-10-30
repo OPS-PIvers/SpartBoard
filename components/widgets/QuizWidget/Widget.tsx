@@ -81,6 +81,11 @@ import { CartridgeBankImportModal } from './components/CartridgeBankImportModal'
 import { SchoologyInboxModal } from './components/SchoologyInboxModal';
 import { useSchoologyInbox } from '@/hooks/useSchoologyInbox';
 import {
+  openImportScreen,
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
+import {
   claimSchoologyReview,
   subscribeSchoologyReview,
 } from '@/utils/schoologyInbox';
@@ -522,6 +527,8 @@ const TeacherQuizWidget: React.FC<{
   // Bank editor state — ephemeral, mirrors the quiz editor pair below.
   const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
+  const importHandoff = useImportHandoff(widget.id);
+  const universalImport = canAccessFeature('universal-import');
   const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
   // The .imscc flags fold into schoology-quiz-import and retire once it opens.
   const canImportBankCartridge =
@@ -1919,7 +1926,11 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
-  if (bankImportOpen) {
+  if (bankImportOpen || importHandoff?.target === 'questionBank') {
+    const closeBankImport = () => {
+      takeImportHandoff(widget.id);
+      setBankImportOpen(false);
+    };
     const baseAdapter = createQuizImportAdapter({
       ...sharedImportDeps,
       widgetLabel: 'Question bank',
@@ -1951,7 +1962,7 @@ const TeacherQuizWidget: React.FC<{
               />
             ),
             onFile: (file: File) => {
-              setBankImportOpen(false);
+              closeBankImport();
               setBankCartridge(file);
             },
           },
@@ -1960,17 +1971,22 @@ const TeacherQuizWidget: React.FC<{
     return (
       <ImportWizard
         isOpen
-        onClose={() => setBankImportOpen(false)}
+        onClose={closeBankImport}
         adapter={adapter}
+        initialSource={importHandoff?.source}
         onSaved={() => {
           addToast('Question bank saved to Drive!', 'success');
-          setBankImportOpen(false);
+          closeBankImport();
         }}
       />
     );
   }
 
-  if (view === 'import') {
+  if (view === 'import' || importHandoff?.target === 'quiz') {
+    const closeQuizImport = () => {
+      if (importHandoff) takeImportHandoff(widget.id);
+      else setView('manager');
+    };
     const adapter = createQuizImportAdapter({
       ...sharedImportDeps,
       // A question bank has no review table of its own, so the test-document
@@ -2015,18 +2031,22 @@ const TeacherQuizWidget: React.FC<{
                 canSend={canImportFromSchoology}
               />
             ),
-            onFile: (file: File) => setQuizCartridge(file),
+            onFile: (file: File) => {
+              if (importHandoff) takeImportHandoff(widget.id);
+              setQuizCartridge(file);
+            },
           },
         }
       : adapter;
     return (
       <ImportWizard
         isOpen
-        onClose={() => setView('manager')}
+        onClose={closeQuizImport}
         adapter={quizAdapter}
+        initialSource={importHandoff?.source}
         onSaved={() => {
           addToast('Quiz saved to Drive!', 'success');
-          setView('manager');
+          closeQuizImport();
         }}
       />
     );
@@ -2386,7 +2406,11 @@ const TeacherQuizWidget: React.FC<{
           });
           setEditingMeta(null);
         }}
-        onImport={() => setView('import')}
+        onImport={() =>
+          universalImport
+            ? openImportScreen({ presetTarget: 'quiz', fromWidgetId: widget.id })
+            : setView('import')
+        }
         onPrintPaperSheets={
           paperSheets.enabled && !isReview
             ? async (meta) => {
@@ -3216,7 +3240,14 @@ const TeacherQuizWidget: React.FC<{
         banks={banks}
         banksLoading={banksLoading}
         sharedBankSources={sharedBankSources}
-        onImportBank={() => setBankImportOpen(true)}
+        onImportBank={() =>
+          universalImport
+            ? openImportScreen({
+                presetTarget: 'questionBank',
+                fromWidgetId: widget.id,
+              })
+            : setBankImportOpen(true)
+        }
         schoologyInboxCount={schoologyInbox.items.length}
         onOpenSchoologyInbox={() => setSchoologyReviewOpen(true)}
         onNewBank={() => {

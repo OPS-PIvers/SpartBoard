@@ -52,6 +52,12 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ImportWizard } from '@/components/common/library/importer';
 import {
+  openImportScreen,
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
+import { attributionFor } from '@/components/import/attribution';
+import {
   LIBRARY_ITEM_NOUNS,
   useLibraryDeleteConfirm,
 } from '@/components/common/library/useLibraryDeleteConfirm';
@@ -124,7 +130,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const config = widget.config as FlashcardsConfig;
-  const { user, ensureGoogleScope } = useAuth();
+  const { user, ensureGoogleScope, canAccessFeature } = useAuth();
   const claudeReview = useClaudeReview('flashcard_sets');
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -172,6 +178,12 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   };
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const importHandoff = useImportHandoff(widget.id);
+  const universalImport = canAccessFeature('universal-import');
+  const closeImport = () => {
+    if (importHandoff) takeImportHandoff(widget.id);
+    setImportOpen(false);
+  };
   const [sharingSet, setSharingSet] = useState<FlashcardSet | null>(null);
   const [assigningSet, setAssigningSet] = useState<FlashcardSet | null>(null);
   const [publishTarget, setPublishTarget] =
@@ -275,12 +287,21 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     [ensureGoogleScope]
   );
 
+  const importSource = importHandoff?.source;
+  const importedFrom = useMemo(
+    () => attributionFor(importSource),
+    [importSource]
+  );
   const saveImportedSet = useCallback(
     async (cards: FlashcardCard[], title: string): Promise<void> => {
-      const imported = { ...makeSet(cards), title: title.trim() };
+      const imported = {
+        ...makeSet(cards),
+        title: title.trim(),
+        ...(importedFrom ? { importedFrom } : {}),
+      };
       await flashcardSets.saveSet(imported);
     },
-    [flashcardSets]
+    [flashcardSets, importedFrom]
   );
 
   const importAdapter = useMemo(
@@ -670,7 +691,14 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 error={flashcardSets.error}
                 folders={folders}
                 onNew={() => setEditingSet(makeSet())}
-                onImport={() => setImportOpen(true)}
+                onImport={() =>
+                  universalImport
+                    ? openImportScreen({
+                        presetTarget: 'flashcards',
+                        fromWidgetId: widget.id,
+                      })
+                    : setImportOpen(true)
+                }
                 onEdit={handleEditSet}
                 badgesFor={(set) => {
                   const review = claudeReview.badge(set, () =>
@@ -732,12 +760,13 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       />
 
       <ImportWizard
-        isOpen={importOpen}
-        onClose={() => setImportOpen(false)}
+        isOpen={importOpen || importHandoff?.target === 'flashcards'}
+        onClose={closeImport}
         adapter={importAdapter}
+        initialSource={importHandoff?.source}
         onSaved={(title) => {
           addToast(`“${title}” imported.`, 'success');
-          setImportOpen(false);
+          closeImport();
         }}
       />
 

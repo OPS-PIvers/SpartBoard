@@ -42,6 +42,7 @@ export const SURFACES: TourSurfaceMap = {
       'sidebar.boards': MENU,
       'sidebar.backgrounds': MENU,
       'sidebar.gradebook': MENU,
+      'sidebar.import': MENU,
       'sidebar.assignments': MENU,
       'sidebar.classes': MENU,
       'sidebar.profile-settings': MENU,
@@ -120,6 +121,12 @@ export const SURFACES: TourSurfaceMap = {
       'components/common/EditorModalShell.tsx',
       'components/common/PenColorSwatches.tsx',
     ],
+  },
+  'board.import': {
+    label: 'Import window (file, link, text or a page sent from the browser)',
+    kind: 'modal',
+    files: ['components/import/'],
+    opensWith: 'sidebar.import',
   },
   'board.assignments-hub': {
     label: 'Assignments hub',

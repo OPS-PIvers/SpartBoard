@@ -5,6 +5,8 @@ import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { LibraryPrimaryAction } from './types';
 import { LibraryPreviewSlotContext } from './LibraryPreviewSlotContext';
+import type { ImportAttribution } from '@/utils/import/contract';
+import { ImportAttributionLine } from '@/components/import/ImportAttributionLine';
 
 interface LibraryPreviewPaneProps {
   /** When false the pane is unmounted; when true it slides in. */
@@ -14,6 +16,8 @@ interface LibraryPreviewPaneProps {
   title: string;
   /** Optional small subtitle line under the title. */
   subtitle?: React.ReactNode;
+  /** Where Import got this item, shown under the subtitle (teacher only). */
+  importedFrom?: ImportAttribution;
   /**
    * Primary CTA shown in the pane footer. Typically "Edit" or "Open" — a
    * shortcut that takes the user from preview into the editor.
@@ -55,6 +59,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
   onClose,
   title,
   subtitle,
+  importedFrom,
   primaryAction,
   secondaryActions,
   children,
@@ -151,6 +156,13 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
             >
               {subtitle}
             </p>
+          )}
+          {importedFrom && (
+            <ImportAttributionLine
+              attribution={importedFrom}
+              className="text-xxs text-slate-500"
+              style={{ marginTop: 'min(2px, 0.5cqmin)' }}
+            />
           )}
         </div>
         {/* WCAG 2.5.5: 44×44 minimum touch target. `min-w/min-h` ensures the

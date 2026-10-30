@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
+import { ImportAttributionLine } from '@/components/import/ImportAttributionLine';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -594,6 +595,13 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                   placeholder="Unit vocabulary"
                   {...tourTypeAttr('editor.title', 'flashcards')}
                 />
+                {initialSet.importedFrom && (
+                  <ImportAttributionLine
+                    attribution={initialSet.importedFrom}
+                    className="mt-1 text-slate-500"
+                    style={{ fontSize: 'min(11px, 3.4cqmin)' }}
+                  />
+                )}
               </label>
               <label className="[@container(min-width:680px)]:col-span-2">
                 <span

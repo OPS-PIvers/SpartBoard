@@ -13,7 +13,7 @@
  * red banners, not toasts.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { AiRetryLink } from './AiRetryLink';
 import {
   TestAndKeyUploader,
@@ -112,6 +112,7 @@ export function ImportWizard<TData>({
   adapter,
   defaultTitle,
   onSaved,
+  initialSource,
 }: ImportWizardProps<TData>): React.ReactElement | null {
   const [step, setStep] = useState<Step>('source');
   const [sheetUrl, setSheetUrl] = useState('');
@@ -166,7 +167,7 @@ export function ImportWizard<TData>({
       setWarnings([]);
       setNote('');
       setAiRetrySource(null);
-      setTitle(defaultTitle ?? '');
+      setTitle(defaultTitle ?? initialSource?.title ?? '');
       setParseError(null);
       setValidationErrors([]);
       setSaveError(null);
@@ -369,6 +370,24 @@ export function ImportWizard<TData>({
   const uploadDrop = useFileDrop((file) => void importFile(file), loading);
 
   const bulkDrop = useFileDrop(handBulkFile, loading || !bulkSource);
+
+  // Read a Source handed over by Import once per open; the parse itself is async work.
+  const readInitial = useEffectEvent((): void => {
+    if (!initialSource) return;
+    const { file, url, text } = initialSource;
+    if (file) {
+      void importFile(file);
+    } else if (text && supportsCsv) {
+      void runParse({ kind: 'csv', text });
+    } else if (url && supportsSheet && GOOGLE_SHEET_URL_PATTERN.test(url)) {
+      void runParse({ kind: 'sheet', url });
+    }
+  });
+  useEffect(() => {
+    if (!isOpen) return;
+    // Starts the async read after this commit, like a picked file would.
+    void Promise.resolve().then(readInitial);
+  }, [isOpen]);
 
   const handleCreateTemplate = async (): Promise<void> => {
     if (!adapter.templateHelper) return;

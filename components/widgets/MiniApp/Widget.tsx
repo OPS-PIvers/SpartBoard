@@ -91,6 +91,11 @@ import { useDialog } from '@/context/useDialog';
 import { useSavedWidgets } from '@/context/useSavedWidgets';
 import { ImportWizard } from '@/components/common/library/importer';
 import {
+  openImportScreen,
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
+import {
   createMiniAppImportAdapter,
   type MiniAppImportData,
 } from './adapters/miniAppImportAdapter';
@@ -478,6 +483,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const [managerTab, setManagerTab] = useState<LibraryTab>('library');
   const [savingGlobalId, setSavingGlobalId] = useState<string | null>(null);
   const [showImportWizard, setShowImportWizard] = useState(false);
+  const importHandoff = useImportHandoff(widget.id);
+  const miniAppHandoff =
+    importHandoff?.target === 'miniApp' ? importHandoff : null;
+  const closeImportWizard = () => {
+    if (miniAppHandoff) takeImportHandoff(widget.id);
+    setShowImportWizard(false);
+  };
   // Shared rapid-click guard. See `hooks/useBusyIdSet.ts`.
   const duplicateBusy = useBusyIdSet();
 
@@ -1840,8 +1852,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       {/* Import wizard (Wave 2 shared primitive) */}
       {importAdapter && (
         <ImportWizard<MiniAppImportData>
-          isOpen={showImportWizard}
-          onClose={() => setShowImportWizard(false)}
+          isOpen={showImportWizard || !!miniAppHandoff}
+          onClose={closeImportWizard}
+          initialSource={miniAppHandoff?.source}
           adapter={importAdapter}
           onSaved={handleImportSaved}
         />
@@ -1885,7 +1898,14 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onReorder={handleReorder}
               onSaveGlobalToLibrary={(app) => void handleSaveToLibrary(app)}
               savingGlobalId={savingGlobalId}
-              onImport={() => setShowImportWizard(true)}
+              onImport={() =>
+                canAccessFeature('universal-import')
+                  ? openImportScreen({
+                      presetTarget: 'miniApp',
+                      fromWidgetId: widget.id,
+                    })
+                  : setShowImportWizard(true)
+              }
               onExport={handleExport}
               onArchiveCopyUrl={(a) => void handleArchiveCopyUrl(a)}
               onArchiveEnd={(a) => void handleArchiveEnd(a)}

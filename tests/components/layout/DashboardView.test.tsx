@@ -1,4 +1,15 @@
-import { render, fireEvent, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  render,
+  renderHook,
+  fireEvent,
+  screen,
+  waitFor,
+} from '@testing-library/react';
+import {
+  closeImportScreen,
+  useImportScreenRequest,
+} from '@/components/import/importHandoff';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardView } from '@/components/layout/DashboardView';
 import { useDashboard } from '@/context/useDashboard';
@@ -67,6 +78,10 @@ const { mockUseGesture, gestureState } = vi.hoisted(() => {
 // Mock context
 vi.mock('@/components/groupReminders/GroupReminderHost', () => ({
   GroupReminderHost: () => null,
+}));
+
+vi.mock('@/components/import/ImportScreenHost', () => ({
+  ImportScreenHost: () => null,
 }));
 
 vi.mock('@/context/useDashboard', () => ({
@@ -224,7 +239,7 @@ describe('DashboardView Gestures & Navigation', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { uid: 'teacher-1' },
-      canAccessFeature: vi.fn().mockReturnValue(true),
+      canAccessFeature: vi.fn((id: string) => id !== 'universal-import'),
       canAccessWidget: vi.fn().mockReturnValue(true),
     });
     (useLiveSession as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -846,6 +861,41 @@ describe('DashboardView Gestures & Navigation', () => {
         expect.objectContaining({ x: 206, y: 67, w: 600, h: 750 })
       )
     );
+  });
+
+  it('opens Import at the drop point instead of placing a PDF when universal-import is on', () => {
+    Object.defineProperty(window, 'innerWidth', {
+      value: 1024,
+      writable: true,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      value: 768,
+      writable: true,
+    });
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { uid: 'teacher-1' },
+      canAccessFeature: vi.fn().mockReturnValue(true),
+      canAccessWidget: vi.fn().mockReturnValue(true),
+    });
+    const request = renderHook(() => useImportScreenRequest());
+    const { container } = renderView();
+    const dashboardRoot = container.querySelector('#dashboard-root');
+    if (!dashboardRoot) throw new Error('Dashboard root not found');
+    const pdfFile = new File(['%PDF-1.4'], 'doc.pdf', {
+      type: 'application/pdf',
+    });
+    const dropEvent = Object.assign(new Event('drop', { bubbles: true }), {
+      clientX: 500,
+      clientY: 500,
+      dataTransfer: { files: [pdfFile], getData: vi.fn(() => '') },
+    });
+    fireEvent(dashboardRoot, dropEvent);
+    expect(mockAddWidget).not.toHaveBeenCalled();
+    expect(request.result.current).toMatchObject({
+      source: { file: pdfFile },
+      dropPoint: { x: expect.any(Number), y: expect.any(Number) },
+    });
+    act(() => closeImportScreen());
   });
 
   it('ignores swipe gestures that occur while a widget drag is active', () => {
