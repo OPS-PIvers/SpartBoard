@@ -1,7 +1,10 @@
 /**
  * Backfill `quiz_join_codes/{code}/sessions/{sessionId}` pointers for quiz
  * sessions created before the lookup collection shipped
- * (docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md).
+ * (docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md), and the `quiz_join_codes/{code}`
+ * owner record for every code that has none. A code's owner is the teacher of its
+ * joinable session(s), else of its newest session by server create time; a code
+ * with joinable sessions from two teachers is reported, not claimed.
  *
  * Without a pointer a session is reachable only through the legacy
  * `where('code','==',code)` query, which is the query that keeps `quiz_sessions`
@@ -87,8 +90,14 @@ const report = {
   skippedNoCode: 0,
   skippedNoTeacher: 0,
   skippedBadCode: 0,
+  ownersWritten: 0,
+  ownersPresent: 0,
+  ownerConflicts: [],
   pending: [],
 };
+
+/** code -> { joinable: Set<teacherUid>, newest: { teacherUid, createMs } } */
+const codes = new Map();
 
 let batch = db.batch();
 let batched = 0;
@@ -126,6 +135,14 @@ for await (const sessionDoc of pagedSessions()) {
     continue;
   }
 
+  const seen = codes.get(code) ?? { joinable: new Set(), newest: null };
+  const createMs = sessionDoc.createTime?.toMillis() ?? 0;
+  if (JOINABLE.has(status)) seen.joinable.add(data.teacherUid);
+  if (!seen.newest || createMs > seen.newest.createMs) {
+    seen.newest = { teacherUid: data.teacherUid, createMs };
+  }
+  codes.set(code, seen);
+
   const ref = db
     .collection('quiz_join_codes')
     .doc(code)
@@ -159,6 +176,26 @@ for await (const sessionDoc of pagedSessions()) {
 }
 await flush();
 
+for (const [code, seen] of codes) {
+  const ownerRef = db.collection('quiz_join_codes').doc(code);
+  if ((await ownerRef.get()).exists) {
+    report.ownersPresent += 1;
+    continue;
+  }
+  if (seen.joinable.size > 1) {
+    report.ownerConflicts.push({ code, teachers: [...seen.joinable] });
+    continue;
+  }
+  const [teacherUid] =
+    seen.joinable.size === 1 ? [...seen.joinable] : [seen.newest.teacherUid];
+  report.ownersWritten += 1;
+  // create, not set: never overwrite an owner a live client claimed meanwhile.
+  batch.create(ownerRef, { teacherUid, createdAt: Date.now() });
+  batched += 1;
+  if (batched >= BATCH_LIMIT) await flush();
+}
+await flush();
+
 report.finishedAt = new Date().toISOString();
 const outDir = join(__dirname, 'output');
 if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
@@ -178,6 +215,9 @@ console.log(
     `  skipped no code:      ${report.skippedNoCode}`,
     `  skipped no teacherUid:${report.skippedNoTeacher}`,
     `  skipped bad code:     ${report.skippedBadCode}`,
+    `  owners ${apply ? 'written' : 'to write'}:   ${report.ownersWritten}`,
+    `  owners present:       ${report.ownersPresent}`,
+    `  owner conflicts:      ${report.ownerConflicts.length} (see report)`,
     `  report: ${outPath}`,
   ].join('\n')
 );

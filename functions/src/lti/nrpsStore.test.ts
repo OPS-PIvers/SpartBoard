@@ -58,6 +58,8 @@ let responseRows: Map<
 >;
 // Writes recorded when the batch commits.
 let writes: Write[];
+// quiz_join_codes/{code} owner records, by code.
+let codeOwners: Map<string, string>;
 // Response updates recorded when the batch commits.
 let updates: Write[];
 
@@ -96,6 +98,10 @@ function docRef(path: string) {
         const id = path.split('/')[1];
         const row = quizSessions.find((s) => s.id === id);
         return { id, exists: !!row, data: () => row?.data };
+      }
+      if (path.startsWith('quiz_join_codes/')) {
+        const owner = codeOwners.get(path.split('/')[1]);
+        return { exists: !!owner, data: () => ({ teacherUid: owner }) };
       }
       throw new Error(`unexpected get on ${path}`);
     },
@@ -185,6 +191,7 @@ function writeAt(prefix: string): Write | undefined {
 }
 
 beforeEach(() => {
+  codeOwners = new Map();
   quizSessions = [];
   vaSessions = new Map();
   contextDocs = new Map();
@@ -603,6 +610,13 @@ describe('persistLtiLaunchContext — quiz', () => {
   it('keeps an older link on the session its section was filed under', async () => {
     quizSessions = [row('sess-1', 'teacher-1'), row('squat', 'attacker')];
     fileSection('sess-1');
+    expect(await persistLtiLaunchContext(db(), OLDER)).toBe('sess-1');
+    expect(writes.some((w) => w.path.includes('squat'))).toBe(false);
+  });
+
+  it("keeps an older link on the code's owner when another teacher reuses it", async () => {
+    quizSessions = [row('sess-1', 'teacher-1'), row('squat', 'attacker')];
+    codeOwners.set('ABC123', 'teacher-1');
     expect(await persistLtiLaunchContext(db(), OLDER)).toBe('sess-1');
     expect(writes.some((w) => w.path.includes('squat'))).toBe(false);
   });

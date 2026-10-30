@@ -32,6 +32,12 @@ import type {
 // depending on the real SDK.
 const DELETE_FIELD_SENTINEL = Symbol('test:deleteField()');
 const SERVER_TIMESTAMP_SENTINEL = Symbol('test:serverTimestamp()');
+// Every candidate code is unclaimed, so allocateJoinCode takes the first one.
+vi.mock('@/utils/quizJoinCodes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/quizJoinCodes')>()),
+  readJoinCodeOwner: vi.fn(() => Promise.resolve(null)),
+}));
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),

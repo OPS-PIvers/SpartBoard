@@ -61,9 +61,10 @@ import {
 } from '@/utils/pageProtections';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import {
+  addJoinCodeOwnerToBatch,
   addJoinCodePointerToBatch,
   deleteJoinCodePointerFromBatch,
-  findQuizSessionsByCode,
+  readJoinCodeOwner,
 } from '@/utils/quizJoinCodes';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
@@ -183,7 +184,6 @@ import { useSetAssignmentTargets } from './useSetAssignmentTargets';
 import { hasStudentPointers } from '@/utils/studentTargetRef';
 import { QUIZ_WHITEBOARD_FEATURE_ID } from '@/utils/quizMediaAccess';
 import {
-  acceptsStudents,
   assignmentLifecyclePatches,
   deriveRunState,
   type AssignmentLifecycleEvent,
@@ -912,25 +912,16 @@ function migrateLegacyAssignmentShape<T extends LegacyPlcShape>(
   return cleaned;
 }
 
-/** Unique 6-char join code generator with collision check against live sessions. */
+/** Unique 6-char join code: one nobody has claimed yet, since a code has one owner for good. */
 async function allocateJoinCode(): Promise<string> {
+  const candidate = () =>
+    Math.random().toString(36).substring(2, 8).toUpperCase().padEnd(6, '0');
   for (let attempt = 0; attempt < 5; attempt++) {
-    const candidate = Math.random()
-      .toString(36)
-      .substring(2, 8)
-      .toUpperCase()
-      .padEnd(6, '0');
-    const matches = await findQuizSessionsByCode(candidate);
-    const collision = matches.some((m) => acceptsStudents('quiz', m.data));
-    if (!collision) return candidate;
+    const code = candidate();
+    if ((await readJoinCodeOwner(code)) === null) return code;
   }
-  // Last-resort fallback: we accept a theoretical collision rather than
-  // blocking the teacher from starting a quiz.
-  return Math.random()
-    .toString(36)
-    .substring(2, 8)
-    .toUpperCase()
-    .padEnd(6, '0');
+  // Last resort: an owned code fails the assign batch, which the teacher can retry.
+  return candidate();
 }
 
 /** Per-quiz sidecars at publish, keyed by BCP-47 code. */
@@ -1834,6 +1825,7 @@ export const useQuizAssignments = (
       }
       // Same batch as the session: a session whose pointer never landed would be
       // unjoinable by code.
+      addJoinCodeOwnerToBatch(batch, code, userId, now);
       addJoinCodePointerToBatch(batch, code, assignmentId, userId, now);
       await batch.commit();
 

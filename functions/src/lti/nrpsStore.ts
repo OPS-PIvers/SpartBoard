@@ -54,6 +54,7 @@
 
 import type * as admin from 'firebase-admin';
 import { normalizeQuizCode } from '../quizCode';
+import { quizJoinCodeOwner } from '../quizJoinCodeOwner';
 
 type Db = admin.firestore.Firestore;
 
@@ -430,11 +431,14 @@ async function quizSessionsByCode(
 ): Promise<admin.firestore.QueryDocumentSnapshot[]> {
   const normCode = normalizeQuizCode(quizCode);
   if (!normCode) return [];
-  const snap = await db
-    .collection(QUIZ_SESSIONS_COLLECTION)
-    .where('code', '==', normCode)
-    .get();
-  return snap.docs;
+  const [snap, owner] = await Promise.all([
+    db.collection(QUIZ_SESSIONS_COLLECTION).where('code', '==', normCode).get(),
+    quizJoinCodeOwner(db, normCode),
+  ]);
+  // A claimed code belongs to its owner alone; anyone else's session under it is ignored.
+  return owner
+    ? snap.docs.filter((d) => d.data().teacherUid === owner)
+    : snap.docs;
 }
 
 /** The one teacher among these sessions, or null when there are none or several. */

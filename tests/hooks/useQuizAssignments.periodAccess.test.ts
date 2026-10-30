@@ -14,6 +14,12 @@ import {
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import type { PeriodAccess, QuizQuestion } from '@/types';
 
+// Every candidate code is unclaimed, so allocateJoinCode takes the first one.
+vi.mock('@/utils/quizJoinCodes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/quizJoinCodes')>()),
+  readJoinCodeOwner: vi.fn(() => Promise.resolve(null)),
+}));
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),
