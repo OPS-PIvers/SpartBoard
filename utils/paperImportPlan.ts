@@ -164,20 +164,26 @@ export function buildImportPayload(input: BuildImportInput): BuildImportResult {
       continue;
     }
     const byQuestion = new Map(sheet.answers.map((a) => [a.question, a]));
-    const answers: ImportPaperAnswerPayload[] = rowIdsFor(sheet.seat).map(
-      (questionId, i) => {
+    const leftOut = new Set(sheet.skippedRows);
+    const answers: ImportPaperAnswerPayload[] = rowIdsFor(sheet.seat).flatMap(
+      (questionId, i): ImportPaperAnswerPayload[] => {
+        if (leftOut.has(i)) return [];
         const read = byQuestion.get(i);
         if (read && read.choice !== null) {
-          return {
-            questionId,
-            answer: answerTextFor(input.batch, questionId, read.choice),
-          };
+          return [
+            {
+              questionId,
+              answer: answerTextFor(input.batch, questionId, read.choice),
+            },
+          ];
         }
-        return {
-          questionId,
-          answer: '',
-          unresponded: read?.doubt ? 'paper-unclear' : 'passed',
-        };
+        return [
+          {
+            questionId,
+            answer: '',
+            unresponded: read?.doubt ? 'paper-unclear' : 'passed',
+          },
+        ];
       }
     );
     const scan = input.scan;

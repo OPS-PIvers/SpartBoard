@@ -394,8 +394,14 @@ export async function isSyncedQuizGroupParticipant(
   groupId: string,
   uid: string
 ): Promise<boolean> {
-  const snap = await getDoc(doc(db, SYNCED_QUIZZES_COLLECTION, groupId));
-  const participants = snap.exists()
+  // A teacher outside the group, its PLC and staff can't read it; treat that as not offerable.
+  const snap = await getDoc(doc(db, SYNCED_QUIZZES_COLLECTION, groupId)).catch(
+    (err: unknown) => {
+      if ((err as { code?: string }).code === 'permission-denied') return null;
+      throw err;
+    }
+  );
+  const participants = snap?.exists()
     ? (snap.data() as SyncedQuizGroup).participants
     : undefined;
   return (

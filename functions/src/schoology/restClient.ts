@@ -274,6 +274,22 @@ export async function setColumnCategory(
   );
 }
 
+/** Publish a column in one section (a linked section's shared column starts unpublished there). */
+export async function publishColumn(
+  creds: SchoologyApiCredentials,
+  sectionId: string,
+  columnId: string
+): Promise<void> {
+  assertId(sectionId, 'section id');
+  assertId(columnId, 'column id');
+  await sgyFetch(
+    creds,
+    'PUT',
+    `/sections/${sectionId}/assignments/${columnId}`,
+    { published: 1 }
+  );
+}
+
 /** A column's category id ('0' for none), or null when the column isn't in the section. */
 export async function getColumnCategory(
   creds: SchoologyApiCredentials,

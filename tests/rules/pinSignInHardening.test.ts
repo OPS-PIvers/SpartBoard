@@ -255,6 +255,7 @@ describe('PIN sign-in token scope', () => {
       quizId: 'quiz-1',
       completedAttempts: 1,
       lastAttemptAt: 1,
+      lastSessionId: 'sess-a',
     };
     await assertSucceeds(
       setDoc(doc(asPin(), `quiz_attempt_ledger/sess-a__${STUDENT_UID}`), entry)

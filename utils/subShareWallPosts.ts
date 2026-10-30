@@ -30,7 +30,8 @@ const STORAGE_BACKED_TYPES = new Set(['photo', 'video', 'file']);
 function storagePathOf(post: ActivityWallSubmission): string | null {
   if (isArchived(post)) return null;
   if (!STORAGE_BACKED_TYPES.has(post.type ?? 'text')) return null;
-  const path = post.storagePath ?? post.content;
+  // content is never resolved as a Storage path; only the rules-checked storagePath is.
+  const path = post.storagePath;
   if (!path || isSafeHttpUrl(path)) return null;
   return path;
 }

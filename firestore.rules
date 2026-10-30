@@ -2167,14 +2167,29 @@ service cloud.firestore {
       ]);
     }
 
+    // Synced quiz/bank/video content holds answer keys: the doc's own people, members of
+    // its PLC (a bank checks its first three), verified staff, or admins. A missing doc reads
+    // so a create can probe first. Anonymous and studentRole tokens never pass.
+    function syncedContentReader() {
+      return signedIn() && notAnon() && !isStudentRoleUser();
+    }
+    // A member of any of a bank's first three PLCs; later ones fall back to the staff check.
+    function syncedBankPlcReader(ids) {
+      return (ids.size() > 0 && plcMember(ids[0])) || (ids.size() > 1 && plcMember(ids[1])) ||
+        (ids.size() > 2 && plcMember(ids[2]));
+    }
+
     // Synced quiz groups - canonical mutable record of a quiz shared across PLC peers.
-    // Group id is an unguessable v4 UUID, so reads are auth-only. Content writes
+    // It holds the answer key and its id sits on student-readable sessions, so reads
+    // need participation, verified staff or admin (see syncedContentReader). Content writes
     // require existing participation; version increments monotonically so a
     // non-participant can't overwrite. The participants map is client-immutable
     // (joins/leaves go through CFs); create is open iff participants carries only the
     // caller's uid.
     match /synced_quizzes/{groupId} {
-      allow get: if signedIn();
+      allow get: if syncedContentReader() && (resource == null ||
+        authUid() in existing().get('participants', {}) || isDistrictStaff() ||
+        (existing().get('plcId', '') != '' && plcMember(existing().plcId)) || isAdmin());
       // list closed: it would let any authed user enumerate every synced quiz
       // (defeating the unguessable-id gate on get). Clients always know the
       // groupId via their quiz_metadata or a share URL, so get suffices.
@@ -2264,11 +2279,13 @@ service cloud.firestore {
 
     // ---- Synced QUESTION BANKS (plan §4.2, decision 1) ----
     // Read-only PLC share of a personal bank: only the owner writes (the bank
-    // editor republishes on every save); any authed user may get by id (ids are
-    // unguessable uuids, handed out via plcs/{plcId}/question_banks headers).
+    // editor republishes on every save); the owner, its PLC, verified staff and admins
+    // get by id (handed out via plcs/{plcId}/question_banks headers).
     // No participants/join function - members never co-edit.
     match /synced_question_banks/{groupId} {
-      allow get: if signedIn();
+      allow get: if syncedContentReader() && (resource == null ||
+        existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
+        syncedBankPlcReader(existing().get('plcIds', [])) || isAdmin());
       allow list: if false;
 
       allow create: if signedIn()
@@ -2333,7 +2350,9 @@ service cloud.firestore {
     }
 
     match /synced_video_activities/{groupId} {
-      allow get: if signedIn();
+      allow get: if syncedContentReader() && (resource == null ||
+        authUid() in existing().get('participants', {}) || isDistrictStaff() ||
+        (existing().get('plcId', '') != '' && plcMember(existing().plcId)) || isAdmin());
       // list closed (see synced_quizzes): would let any authed user enumerate
       // every synced activity. Clients know the groupId via their
       // video_activity_metadata or a share URL.
@@ -4555,10 +4574,9 @@ service cloud.firestore {
     }
 
     match /sessions/{userId} {
-      // Only authenticated users (including anonymous) can read sessions so a
-      // joined student can follow their teacher's broadcast.
-      // TODO: For Phase 2/Production, remove this broad read permission.
-      allow read: if signedIn();
+      // No list. The teacher, admins, and a student whose join record holds the current code read it.
+      allow get: if signedIn() && (authUid() == userId || isAdmin() ||
+        get(/databases/$(database)/documents/sessions/$(userId)/students/$(authUid())).data.get('code', '') == existing().code);
       // Shape-checks only the keys a write sets, so a legacy doc can still be ended, frozen or switched.
       function liveSessionOk(k) {
         return k.hasOnly(['id', 'isActive', 'activeWidgetId', 'activeWidgetType',
@@ -4589,8 +4607,11 @@ service cloud.firestore {
         // into a teacher's live roster. pin is capped at MAX_PIN_LENGTH (10).
         // Not enforced: cross-document PIN uniqueness (needs a transaction or CF); tracked
         // in firestore-rules.md.
+        // A join carries the live code, which is how a student proves they were given it.
         function isValidLiveStudentPayload(data) {
-          return data.keys().hasOnly(['pin', 'status', 'joinedAt', 'lastActive']) &&
+          let live = get(/databases/$(database)/documents/sessions/$(userId)).data;
+          return data.keys().hasOnly(['pin', 'status', 'joinedAt', 'lastActive', 'code']) &&
+            live.isActive == true && data.get('code', '') == live.code &&
             data.pin is string && data.pin.size() > 0 && data.pin.size() <= 10 &&
             data.status in ['active', 'frozen', 'disconnected'] &&
             data.joinedAt is int && data.joinedAt > 0 &&
@@ -5357,10 +5378,33 @@ service cloud.firestore {
       }
     }
 
+    // Attempt ledgers (quiz and video): id `{sessionId}__{uid}`. ledgerS is the session doc.
+    function ledgerS(c, id) {
+      return get(/databases/$(database)/documents/$(c)/$(id.split('__')[0])).data;
+    }
+    // The id's uid half is the caller, so a row can't sit at another student's key.
+    function ledgerMine(id) {
+      return id.split('__').size() == 2 && id.split('__')[1] == authUid();
+    }
+    // First completion: only at `{lastSessionId}__{auth uid}`, naming that session's
+    // teacher, from a non-anonymous account past the class gate; k is the template id field.
+    // completedAttempts == exactly 1 (can't forge prior history).
+    function ledgerCreateOk(id, s, k) {
+      return notAnon() &&
+        incoming().studentUid == authUid() &&
+        isStr('lastSessionId') &&
+        id == incoming().lastSessionId + '__' + authUid() &&
+        incoming().completedAttempts == 1 &&
+        isStr(k) &&
+        isNumber('lastAttemptAt') &&
+        incoming().teacherUid == s.teacherUid &&
+        passesStudentClassGateCompat(s.get('classIds', []), s.get('classId', ''));
+    }
+
     // Quiz Attempt Ledger — top-level cross-launch attempt counter per
     // (ASSIGNMENT, student), not per quiz template. Doc id
-    // `${assignmentId}__${studentUid}`; studentUid field must equal the caller's
-    // auth uid (rules can't split the id). Writes happen inside completeQuiz, so
+    // `${assignmentId}__${studentUid}` (assignmentId = session id); create binds
+    // the id to the caller's uid and the session's teacher. Writes happen inside completeQuiz, so
     // the append-only completedAttempts invariant is the last line of defense
     // against rollback; removeStudent deletes the ledger atomically.
     match /quiz_attempt_ledger/{ledgerId} {
@@ -5370,24 +5414,20 @@ service cloud.firestore {
       // isn't realistic without already knowing that uid.
       allow read: if signedIn() && (
         resource == null ||
-        isAdmin() ||
+        authUid() == existing().studentUid ||
         authUid() == existing().teacherUid ||
-        authUid() == existing().studentUid
+        isAdmin() ||
+        authUid() == ledgerS('quiz_sessions', ledgerId).teacherUid
       );
-      // Student creates their own ledger entry on first completion: studentUid ==
-      // auth uid; completedAttempts == exactly 1 (entry exists only after the first
-      // completion, and can't forge prior history); identity fields well-typed.
+      // Student creates their own entry on first completion (see ledgerCreateOk).
       allow create: if signedIn() &&
-        incoming().studentUid == authUid() &&
-        incoming().completedAttempts == 1 &&
-        isStr('quizId') &&
-        isStr('teacherUid') &&
-        isNumber('lastAttemptAt');
+        ledgerCreateOk(ledgerId, ledgerS('quiz_sessions', ledgerId), 'quizId');
       // Update split: STUDENT branch (increment by 1) and TEACHER branch (decrease/
       // reset). Identity fields immutable on both.
       allow update: if signedIn() && (
-        // Student branch — increment by exactly 1.
+        // Student branch — increment by exactly 1, only on their own key.
         (authUid() == existing().studentUid &&
+         ledgerMine(ledgerId) &&
          unchanged('studentUid') &&
          unchanged('quizId') &&
          unchanged('teacherUid') &&
@@ -5397,7 +5437,8 @@ service cloud.firestore {
         // Teacher reset/refund branch — may only DECREASE completedAttempts
         // (removeStudent reset, unlockStudentAttempt refund); never inflate, so the
         // cap stays an anti-cheating defense.
-        (authUid() == existing().teacherUid &&
+        (((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
+          authUid() == ledgerS('quiz_sessions', ledgerId).teacherUid) &&
          unchanged('studentUid') &&
          unchanged('quizId') &&
          unchanged('teacherUid') &&
@@ -5411,10 +5452,13 @@ service cloud.firestore {
       // can't (they'd wipe their own cap). resource == null makes deleting a
       // non-existent ledger a no-op — without it removeStudent's atomic
       // archive+delete batch breaks for responses that never wrote a ledger
-      // (anon PIN, idle blanks, stubs, legacy).
+      // (anon PIN, idle blanks, stubs, legacy). The session's teacher may also
+      // delete a row whose stored teacherUid is wrong (pre-fix squats); a stored
+      // teacherUid naming the student never lets them undo their own cap.
       allow delete: if signedIn() && (
         resource == null ||
-        authUid() == existing().teacherUid || isAdmin()
+        (authUid() == existing().teacherUid && authUid() != existing().studentUid) || isAdmin() ||
+        authUid() == ledgerS('quiz_sessions', ledgerId).teacherUid
       );
     }
 
@@ -5422,22 +5466,20 @@ service cloud.firestore {
     // Doc id: `${assignmentId}__${studentUid}` (assignmentId = session id);
     // scoped per assignment, not per activity template.
     match /video_activity_attempt_ledger/{ledgerId} {
-      // See `quiz_attempt_ledger` above for the `resource == null`
-      // rationale — same pattern, same threat model.
+      // See `quiz_attempt_ledger` above for the `resource == null`, own-key
+      // and session-teacher rationale — same pattern, same threat model.
       allow read: if signedIn() && (
         resource == null ||
-        isAdmin() ||
+        authUid() == existing().studentUid ||
         authUid() == existing().teacherUid ||
-        authUid() == existing().studentUid
+        isAdmin() ||
+        authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid
       );
       allow create: if signedIn() &&
-        incoming().studentUid == authUid() &&
-        incoming().completedAttempts == 1 &&
-        isStr('activityId') &&
-        isStr('teacherUid') &&
-        isNumber('lastAttemptAt');
+        ledgerCreateOk(ledgerId, ledgerS('video_activity_sessions', ledgerId), 'activityId');
       allow update: if signedIn() && (
         (authUid() == existing().studentUid &&
+         ledgerMine(ledgerId) &&
          unchanged('studentUid') &&
          unchanged('activityId') &&
          unchanged('teacherUid') &&
@@ -5446,7 +5488,8 @@ service cloud.firestore {
         ||
         // Teacher reset/refund branch (see quiz_attempt_ledger): may only DECREASE
         // completedAttempts (removeStudent reset + unlockStudentAttempt refund).
-        (authUid() == existing().teacherUid &&
+        (((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
+          authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid) &&
          unchanged('studentUid') &&
          unchanged('activityId') &&
          unchanged('teacherUid') &&
@@ -5461,7 +5504,8 @@ service cloud.firestore {
       // ledgers symmetric.
       allow delete: if signedIn() && (
         resource == null ||
-        authUid() == existing().teacherUid || isAdmin()
+        (authUid() == existing().teacherUid && authUid() != existing().studentUid) || isAdmin() ||
+        authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid
       );
     }
 
@@ -6423,6 +6467,19 @@ service cloud.firestore {
                  awLinkPreviewOk();
         }
 
+        // storagePath names only this submission's own transit object; compared literally, since ids aren't regex-safe.
+        function awStoragePathOk() {
+          let p = incoming().get('storagePath', null);
+          let parts = p is string ? p.split('/') : [];
+          return p == null ||
+                 (parts.size() == 4 &&
+                  parts[0] == 'activity_wall_media' &&
+                  parts[1] == sessionId &&
+                  parts[2] == submissionId &&
+                  parts[3].size() > 0 &&
+                  p.size() == sessionId.size() + submissionId.size() + parts[3].size() + 22);
+        }
+
         // Any authed user (incl. anon) can create a submission (photo subs may carry storage
         // metadata for Drive archiving). studentRole users must be enrolled; uses the
         // Phase-5A compat gate (classIds ?? legacy classId). hasOnly() closes an
@@ -6453,6 +6510,7 @@ service cloud.firestore {
            (incoming().authorUid == authUid() &&
             incoming().authorUid.size() <= 200)) &&
           (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
+          awStoragePathOk() &&
           (!awIsPadletSession() ||
             (awAcceptingResponses() &&
              awPadletAccessOk() &&
@@ -6483,6 +6541,7 @@ service cloud.firestore {
           awFieldTypesOk() &&
           awTypeAllowed() &&
           (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
+          awStoragePathOk() &&
           // Storage takes uploads only from the owner, so a co-teacher posts text, words and links.
           (awIsOwner() ||
            (incoming().get('type', 'text') in ['text', 'word', 'link'] &&
@@ -6552,7 +6611,8 @@ service cloud.firestore {
                             optInt(incoming(), 'attemptCount') &&
                             optInt(incoming(), 'lastAttemptAt') &&
                             optBool(incoming(), 'storageCleanupPending') &&
-                            optString(incoming(), 'drivePermission');
+                            optString(incoming(), 'drivePermission') &&
+                            (!changed(['storagePath']) || awStoragePathOk());
         // Student self-edit: only the author, only while the wall is open and the teacher
         // enabled editing, only content-shaped fields. `status` is writable in exactly one
         // direction: when moderation is on and the edit touches `content`, the post returns
@@ -6581,7 +6641,7 @@ service cloud.firestore {
                             (!changed(['archiveStatus']) ||
                              incoming().archiveStatus == 'firebase') &&
                             (!changed(['storagePath']) ||
-                             incoming().storagePath.matches('^activity_wall_media/' + sessionId + '/' + submissionId + '/.+'));
+                             ('storagePath' in incoming() && awStoragePathOk()));
         // Board co-moderator: moderation and content fields only, never archive or authorship
         // fields; a content edit is stamped, and an upload's or link's content is its pointer.
         allow update: if signedIn() &&

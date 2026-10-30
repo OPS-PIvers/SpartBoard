@@ -147,8 +147,7 @@ async function retryStragglers(
       summary.scanned++;
       const data = (docSnap.data() ?? {}) as Record<string, unknown>;
       if (typeof data.storagePath !== 'string' || !data.storagePath) continue;
-      // New-client submissions only; the legacy callable owns the rest (see
-      // shouldArchiveSubmission in activityWallArchive.ts).
+      // New-client submissions only (see shouldArchiveSubmission in activityWallArchive.ts).
       if (!data.storagePath.startsWith(`${ACTIVITY_WALL_MEDIA_ROOT}/`)) {
         continue;
       }
