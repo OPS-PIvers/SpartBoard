@@ -95,12 +95,11 @@ jobs:
           retention-days: 90
 
       - name: Close the failure issue
-        if: steps.check.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           for n in $(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$ISSUE_TITLE\"" --json number,title --jq ".[] | select(.title == env.ISSUE_TITLE) | .number"); do
-            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --comment "Published from ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --comment "The store is up to date as of ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
           done
 
   # Files or reuses one issue, then Claude reads the failed log and comments with the cause and the fix.
@@ -118,23 +117,31 @@ jobs:
         with:
           fetch-depth: 1
 
+      # The run is still in progress, so the failed job's log is read by job id and saved for Claude.
       - name: File or reuse the issue
         id: issue
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          job=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" --jq '.jobs[] | select(.name == "Publish prod listing") | .id')
+          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > publish-failure.log 2>/dev/null || echo "The log could not be read." > publish-failure.log
+          errors=$(grep -o '##\[error\].*' publish-failure.log | sed 's/^##\[error\]//' | head -5 || true)
           n=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$ISSUE_TITLE\"" --json number,title --jq "[.[] | select(.title == env.ISSUE_TITLE)][0].number // empty")
           if [[ -n "$n" ]]; then
-            gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body "Failed again: $run_url"
+            gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body "Failed again: $run_url"$'\n\n```\n'"$errors"$'\n```'
+            echo "new=false" >> "$GITHUB_OUTPUT"
           else
             url=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" \
-              --body "Publishing the Chrome extension to the Web Store failed: $run_url. The next release to main tries again by itself, or run Actions > Publish Chrome Extension > Run workflow from main once the cause is fixed. This issue closes when a publish succeeds.")
+              --body "Publishing the Chrome extension to the Web Store failed: $run_url. The next release to main tries again by itself, or run Actions > Publish Chrome Extension > Run workflow from main once the cause is fixed. This issue closes when a run finds the store up to date.")
             n=${url##*/}
+            echo "new=true" >> "$GITHUB_OUTPUT"
           fi
           echo "number=$n" >> "$GITHUB_OUTPUT"
 
+      # Only a new issue gets a diagnosis, so a lasting failure doesn't start a Claude run on every release.
       - name: Claude diagnoses the failure
+        if: steps.issue.outputs.new == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -145,12 +152,12 @@ jobs:
 
             The Chrome extension publish workflow (.github/workflows/extension-publish.yml,
             extension/scripts/publish.ts, extension/scripts/webStore.ts) failed in run
-            ${{ github.run_id }}. Read its log with `gh run view ${{ github.run_id }} --log-failed`
-            and the scripts, then post one comment on issue #${{ steps.issue.outputs.number }} with
+            ${{ github.run_id }}. Its log is saved as `publish-failure.log` in the working directory;
+            read it and the scripts with the Read and Grep tools, then post one comment on issue #${{ steps.issue.outputs.number }} with
             `gh issue comment`. Say in plain words what failed, whether it looks temporary (the next
             release retries it) or needs Paul, and if it needs Paul the exact fix: which secret or
             variable of the chrome-web-store-dev environment, what to do in the Web Store Developer
             Dashboard, or which code change. Keep it under 120 words. Do not change any files.
           claude_args: |
             --model claude-sonnet-5-5
-            --allowedTools "Read,Grep,Glob,Bash(gh run view:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(git log:*),Bash(git show:*)"
+            --allowedTools "Read,Grep,Glob,Bash(gh issue view:*),Bash(gh issue comment:*),Bash(git log:*),Bash(git show:*)"
