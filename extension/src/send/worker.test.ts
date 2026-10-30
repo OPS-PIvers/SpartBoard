@@ -354,3 +354,27 @@ describe('send worker', () => {
     expect(deps.openTab).toHaveBeenCalledWith(`${ORIGIN}/?importInbox=1`);
   });
 });
+
+describe('right-click inside an embedded frame', () => {
+  it("sends the frame's selection, and refuses a blocked frame", async () => {
+    const { worker, deps } = setup();
+    await worker.sendFromBrowser(5, {
+      url: 'https://docs.example.org/embed',
+      selectionText: 'Picked text',
+    });
+    expect(deps.tell).toHaveBeenCalledWith(5, {
+      type: 'send/now',
+      blocked: false,
+      selectionText: 'Picked text',
+    });
+    const blocked = setup();
+    await blocked.worker.sendFromBrowser(5, {
+      url: GRADEBOOK,
+      selectionText: 'Grades',
+    });
+    expect(blocked.deps.tell).toHaveBeenCalledWith(5, {
+      type: 'send/now',
+      blocked: true,
+    });
+  });
+});

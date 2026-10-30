@@ -9,6 +9,7 @@ import {
   IMPORT_MAX_TABLE_ROWS,
   IMPORT_MAX_TEXT_CHARS,
   IMPORT_MAX_TITLE_CHARS,
+  IMPORT_MAX_URL_CHARS,
   type ImportBlock,
   type ImportImage,
   type ImportSendRequest,
@@ -251,7 +252,8 @@ class Collector {
             .slice(0, IMPORT_MAX_BLOCK_CHARS)
         );
       if (!cells.some(Boolean)) continue;
-      chars += cells.reduce((n, c) => n + c.length, 0);
+      // Counted as the server counts it: one per row and per cell, plus the text.
+      chars += 1 + cells.reduce((n, c) => n + 1 + c.length, 0);
       rows.push({ cells });
     }
     if (!rows.length || !this.fits(chars)) return;
@@ -417,6 +419,20 @@ function selectionRoot(win: Window): Element | null {
   return holder;
 }
 
+/** The address the server accepts: no sign-in part or fragment, and the query dropped when it would run past the cap. */
+export function pageUrl(href: string): string {
+  try {
+    const u = new URL(href);
+    u.username = '';
+    u.password = '';
+    u.hash = '';
+    if (u.href.length > IMPORT_MAX_URL_CHARS) u.search = '';
+    return u.href.length > IMPORT_MAX_URL_CHARS ? u.origin : u.href;
+  } catch {
+    return href;
+  }
+}
+
 const titleOf = (doc: Document) =>
   (
     clean(doc.title) ||
@@ -428,7 +444,7 @@ const titleOf = (doc: Document) =>
 /** Reads the page the teacher is on, as the inbox request; only a click calls this. */
 export function readPage(win: Window): ImportSendRequest {
   const doc = win.document;
-  const url = doc.location?.href ?? '';
+  const url = pageUrl(doc.location?.href ?? '');
   const base = { url, title: titleOf(doc), platform: GENERIC_PLATFORM };
   const selected = selectionRoot(win);
   // A selection that holds nothing readable sends nothing, rather than the whole page.
@@ -450,5 +466,33 @@ export function readPage(win: Window): ImportSendRequest {
     selectionOnly: false,
     blocks: read.blocks,
     images: images(root, url),
+  };
+}
+
+/** A selection Chrome copied from an embedded frame, as paragraphs under the top page's address. */
+export function readSelectionText(
+  win: Window,
+  text: string
+): ImportSendRequest {
+  const blocks: ImportBlock[] = [];
+  let chars = 0;
+  for (const line of text.split(/\n+/)) {
+    const t = clean(line).slice(0, IMPORT_MAX_BLOCK_CHARS);
+    if (!t) continue;
+    if (
+      blocks.length >= IMPORT_MAX_BLOCKS ||
+      chars + t.length > IMPORT_MAX_TEXT_CHARS
+    )
+      break;
+    chars += t.length;
+    blocks.push({ type: 'paragraph', text: t });
+  }
+  return {
+    url: pageUrl(win.document.location?.href ?? ''),
+    title: titleOf(win.document),
+    platform: GENERIC_PLATFORM,
+    selectionOnly: true,
+    blocks,
+    images: [],
   };
 }

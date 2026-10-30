@@ -1,6 +1,6 @@
 // The Send to SpartBoard edge tab on every page (IMPORT D14, D15): a Platform reader where one matches, the generic read elsewhere.
 
-import { readPage } from './readPage';
+import { readPage, readSelectionText } from './readPage';
 import {
   parseSendTabMessage,
   SEND_HOST_ID,
@@ -167,9 +167,14 @@ function showNote(n: SendNote) {
 }
 
 /** The generic read, sent to the Import inbox; `failure` says which reader fell back (D18). */
-async function sendGeneric(failure?: ImportReaderFailure): Promise<SendNote> {
+async function sendGeneric(
+  failure?: ImportReaderFailure,
+  frameText?: string
+): Promise<SendNote> {
   progress('Reading…');
-  const request = readPage(window);
+  const request = frameText
+    ? readSelectionText(window, frameText)
+    : readPage(window);
   if (!request.blocks.length)
     return sendNote({ kind: 'empty', selectionOnly: request.selectionOnly });
   progress('Sending…');
@@ -185,7 +190,7 @@ async function sendGeneric(failure?: ImportReaderFailure): Promise<SendNote> {
   });
 }
 
-async function send(blocked: boolean) {
+async function send(blocked: boolean, frameText?: string) {
   if (busy) return;
   if (blocked) {
     showNote(sendNote({ kind: 'blocked' }));
@@ -193,6 +198,10 @@ async function send(blocked: boolean) {
   }
   ui?.note.setAttribute('hidden', '');
   try {
+    if (frameText) {
+      showNote(await sendGeneric(undefined, frameText));
+      return;
+    }
     // Platform readers first; a selection always means the teacher wants just that text.
     const selected = !!window.getSelection()?.toString().trim();
     const state = await ask<SendStateReply>({ type: 'send/state' }).catch(
@@ -247,7 +256,7 @@ if (!injected.spartSendListening) {
   chrome.runtime.onMessage.addListener((raw: unknown, sender) => {
     if (sender.id !== chrome.runtime.id || sender.tab) return false;
     const msg = parseSendTabMessage(raw);
-    if (msg?.type === 'send/now') void send(msg.blocked);
+    if (msg?.type === 'send/now') void send(msg.blocked, msg.selectionText);
     if (msg?.type === 'send/recheck') void recheck();
     return false;
   });

@@ -15,7 +15,7 @@ export type SendPageMessage =
 /** From the service worker to the content script. */
 export type SendTabMessage =
   /** The toolbar or right-click asked to send; `blocked` shows the refusal instead of reading. */
-  | { type: 'send/now'; blocked: boolean }
+  | { type: 'send/now'; blocked: boolean; selectionText?: string }
   /** The page's address changed in place; ask for the state again. */
   | { type: 'send/recheck' };
 
@@ -77,7 +77,13 @@ export function parseSendPageMessage(raw: unknown): SendPageMessage | null {
 export function parseSendTabMessage(raw: unknown): SendTabMessage | null {
   if (!isObject(raw)) return null;
   if (raw.type === 'send/now')
-    return { type: 'send/now', blocked: raw.blocked === true };
+    return {
+      type: 'send/now',
+      blocked: raw.blocked === true,
+      ...(typeof raw.selectionText === 'string' && raw.selectionText.trim()
+        ? { selectionText: raw.selectionText }
+        : {}),
+    };
   if (raw.type === 'send/recheck') return { type: 'send/recheck' };
   return null;
 }

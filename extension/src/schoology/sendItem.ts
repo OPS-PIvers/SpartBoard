@@ -51,8 +51,8 @@ export async function sendItem(
     });
     return sendOutcome(reply);
   } catch (error) {
-    // A reader that no longer matches Schoology's page lets the universal Send fall back (IMPORT D18).
-    if (error instanceof SchoologyReadError)
+    // A reader that no longer matches Schoology's page lets the universal Send fall back (IMPORT D18); a refusal or outage doesn't.
+    if (error instanceof SchoologyReadError && !error.transport)
       return { ...sendOutcome(error), readError: error.message };
     return sendOutcome(error);
   }

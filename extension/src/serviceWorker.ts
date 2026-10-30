@@ -243,8 +243,14 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   return true;
 });
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === SEND_MENU_ID && tab?.id !== undefined)
-    void send.sendFromBrowser(tab.id);
+  if (info.menuItemId !== SEND_MENU_ID || tab?.id === undefined) return;
+  // The top page can't see a selection made inside an embedded frame, so Chrome's copy of it is sent.
+  void send.sendFromBrowser(
+    tab.id,
+    info.frameId && info.frameUrl
+      ? { url: info.frameUrl, selectionText: info.selectionText }
+      : undefined
+  );
 });
 chrome.webNavigation.onCommitted.addListener(({ tabId, frameId, url }) => {
   void send.navigated(tabId, frameId, url);
@@ -580,6 +586,8 @@ chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   if (change.url !== undefined && tab.active) void focus.observe();
   // Catches what the navigation events can't, such as a prerendered page being shown.
   if (change.url !== undefined) blockedNavigation(tabId, change.url, true);
+  // A prerendered page that is shown fires no new commit, so it gets the Send button here.
+  if (change.url !== undefined) void send.changedInPlace(tabId, 0, change.url);
   if (change.status === 'complete') void enforcer.tabShown(tabId);
 });
 chrome.tabs.onRemoved.addListener((tabId) => {

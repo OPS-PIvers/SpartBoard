@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { MAX_IMAGES, mainContent, readPage } from './readPage';
+import { MAX_IMAGES, mainContent, pageUrl, readPage } from './readPage';
 
 const LONG =
   'Photosynthesis is the process plants use to turn light, water and carbon dioxide into sugar and oxygen. ';
@@ -211,5 +211,17 @@ describe('readPage', () => {
       `<main><p>${LONG}</p></main><div id="spartboard-send">Send to SpartBoard</div>`
     );
     expect(JSON.stringify(readPage(window))).not.toContain('Send to');
+  });
+});
+
+describe('pageUrl', () => {
+  it('drops the sign-in part and fragment, and a query that runs past the cap', () => {
+    expect(pageUrl('https://me:pw@a.org/x?q=1#top')).toBe(
+      'https://a.org/x?q=1'
+    );
+    expect(pageUrl(`https://a.org/x?q=${'z'.repeat(3000)}`)).toBe(
+      'https://a.org/x'
+    );
+    expect(pageUrl(`https://a.org/${'p'.repeat(3000)}`)).toBe('https://a.org');
   });
 });

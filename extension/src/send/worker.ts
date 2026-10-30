@@ -151,13 +151,25 @@ export function createSendWorker(deps: SendWorkerDeps) {
   }
 
   /** The toolbar's "Send this page" or the right-click item: works even where the teacher hid the button. */
-  async function sendFromBrowser(tabId: number): Promise<boolean> {
+  async function sendFromBrowser(
+    tabId: number,
+    frame?: { url: string; selectionText?: string }
+  ): Promise<boolean> {
     const url = await deps.tabUrl(tabId);
     const state = await stateFor(url);
     if (!state.enabled) return false;
+    // A right-click inside an embedded frame sends that frame's selection, if that frame is allowed too.
+    const s = await status();
+    const blocked =
+      state.blocked || (!!frame && isUrlBlocked(frame.url, s.blockPatterns));
+    const text = frame?.selectionText?.trim();
     if (!(await deps.inject(tabId))) return false;
     await deps
-      .tell(tabId, { type: 'send/now', blocked: state.blocked })
+      .tell(tabId, {
+        type: 'send/now',
+        blocked,
+        ...(text && !blocked ? { selectionText: text } : {}),
+      })
       .catch(() => undefined);
     return true;
   }
