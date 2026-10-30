@@ -188,11 +188,13 @@ function checklist(
   };
   for (const b of boxes) b.box.onchange = count;
   count();
+  const host = (wrap.getRootNode() as ShadowRoot).host;
   const hide = () => {
     if (panel.hidden || close.disabled) return;
+    const focusInside = document.activeElement === host;
     panel.hidden = true;
     opener.hidden = false;
-    opener.focus();
+    if (focusInside) opener.focus();
   };
   const close = el('button', {
     className: 'ghost',
@@ -210,11 +212,11 @@ function checklist(
     panel.hidden = false;
   };
   // Escape or a click elsewhere on the page closes the list; clicks inside the closed shadow root reach the document as the host.
-  const host = (wrap.getRootNode() as ShadowRoot).host;
   const listening = new AbortController();
   const outside = (event: Event) => {
     if (!host.isConnected) return listening.abort();
-    if (event instanceof KeyboardEvent && event.key !== 'Escape') return;
+    if (event.type === 'keydown' && (event as KeyboardEvent).key !== 'Escape')
+      return;
     if (event.type === 'pointerdown' && event.target === host) return;
     hide();
   };
