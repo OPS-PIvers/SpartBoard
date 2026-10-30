@@ -22,8 +22,8 @@ export const TRIES_REPORT_GAP_MS = 5_000;
 /** A subscription already sent is sent again after this long, in case the server dropped it. */
 export const PUSH_RESEND_MS = 24 * 60 * 60_000;
 
-/** A profile the server says is no student is asked again after this long, or at once on start-up, sign-in or opening the panel. */
-export const REFUSED_RECHECK_MS = 6 * 60 * 60_000;
+/** A profile the server refused is asked again after this long, short so a student ClassLink just added is picked up soon, or at once on start-up, sign-in or opening the panel. */
+export const REFUSED_RECHECK_MS = 30 * 60_000;
 
 export interface PushSent {
   endpoint: string;
