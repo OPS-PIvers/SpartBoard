@@ -300,7 +300,7 @@ const IconActionButton: React.FC<{
       // them behind `enabled:` keeps the disabled state visually inert
       // (Tailwind's `enabled:` variant matches `:not(:disabled)`). Without
       // this, a disabled button still glowed on hover, which is misleading.
-      className={`inline-flex shrink-0 items-center justify-center rounded-xl shadow-sm transition-all enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`inline-flex shrink-0 items-center justify-center rounded-xl shadow-xs transition-all enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
         isPrimary
           ? 'bg-brand-blue-primary text-white enabled:hover:bg-brand-blue-dark'
           : 'border border-slate-200 bg-white text-slate-600 enabled:hover:border-brand-blue-primary/40 enabled:hover:bg-brand-blue-lighter/30 enabled:hover:text-brand-blue-dark'
@@ -370,7 +370,7 @@ const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
     const accessibleLabel = badge.actionLabel ?? badge.label;
     const interactiveClasses = badge.disabled
       ? 'cursor-default'
-      : `${tone.hoverBg} cursor-pointer transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1`;
+      : `${tone.hoverBg} cursor-pointer transition-colors active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1`;
     return (
       <button
         type="button"
@@ -404,7 +404,7 @@ const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
 /** Where an item lives, shown when it appears outside its own folder. */
 const FolderPathChip: React.FC<{ label: string }> = ({ label }) => (
   <span
-    className="inline-flex items-center rounded-full bg-slate-100 font-semibold text-slate-600 break-words"
+    className="inline-flex items-center rounded-full bg-slate-100 font-semibold text-slate-600 wrap-break-word"
     style={{
       fontSize: 'min(11px, 4cqmin)',
       paddingInline: 'min(8px, 2.5cqmin)',
@@ -527,7 +527,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
         // List rows sit between hairline dividers drawn by LibraryGrid; grid keeps the card box.
         isList
           ? 'flex-row items-center transition-colors'
-          : 'flex-col rounded-2xl border shadow-sm transition-shadow hover:shadow-md',
+          : 'flex-col rounded-2xl border shadow-xs transition-shadow hover:shadow-md',
         selectionMode && selected
           ? `${isList ? '' : 'border-brand-blue-primary/60 '}bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-inset ring-brand-blue-primary/30`
           : isList
@@ -695,7 +695,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
             // Same outer shape/size as `primaryAction` but inverted palette:
             // white surface with brand-blue border so it reads as the
             // secondary CTA. Icon-only on grid cards and tight list rows.
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-blue-primary/30 bg-white font-bold text-brand-blue-dark shadow-sm transition-all hover:bg-brand-blue-lighter/30 hover:border-brand-blue-primary/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-blue-primary/30 bg-white font-bold text-brand-blue-dark shadow-xs transition-all hover:bg-brand-blue-lighter/30 hover:border-brand-blue-primary/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               paddingInline: 'min(14px, 3.2cqmin)',
               paddingBlock: 'min(6px, 1.6cqmin)',

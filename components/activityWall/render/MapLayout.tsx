@@ -87,7 +87,7 @@ export const MapLayout: React.FC<WallRenderProps> = ({
           placement={{}}
           onAddAt={onAddAt}
           alwaysVisible
-          className="absolute z-[1000] shadow-lg"
+          className="absolute z-1000 shadow-lg"
           style={{ right: scale.pad, bottom: scale.pad }}
         />
       )}

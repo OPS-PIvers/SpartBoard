@@ -1251,7 +1251,7 @@ export const Dock: React.FC = () => {
               );
             })}
             {dockItems.length === 0 && pinnedTools.length === 0 && (
-              <div className="px-3 py-2 text-xxs font-black uppercase text-slate-400 italic flex-shrink-0">
+              <div className="px-3 py-2 text-xxs font-black uppercase text-slate-400 italic shrink-0">
                 {t('dock.noAppsSelected')}
               </div>
             )}
@@ -1534,10 +1534,10 @@ export const Dock: React.FC = () => {
                               color="bg-slate-200/80"
                               className="backdrop-blur-md shadow-2xl ring-2 ring-white/50 border border-white/20 grid grid-cols-2 gap-0.5 p-1.5"
                             >
-                              <div className="w-3 h-3 bg-slate-400 rounded-sm" />
-                              <div className="w-3 h-3 bg-slate-400 rounded-sm" />
-                              <div className="w-3 h-3 bg-slate-400 rounded-sm" />
-                              <div className="w-3 h-3 bg-slate-400 rounded-sm" />
+                              <div className="w-3 h-3 bg-slate-400 rounded-xs" />
+                              <div className="w-3 h-3 bg-slate-400 rounded-xs" />
+                              <div className="w-3 h-3 bg-slate-400 rounded-xs" />
+                              <div className="w-3 h-3 bg-slate-400 rounded-xs" />
                             </DockIcon>
                           )}
                         </div>
@@ -1568,7 +1568,7 @@ export const Dock: React.FC = () => {
                         }
                       }}
                       aria-label={t('dock.viewLiveSession')}
-                      className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x relative focus-visible:outline-none"
+                      className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x relative focus-visible:outline-hidden"
                     >
                       <DockIcon
                         color="bg-red-500"
@@ -1602,10 +1602,10 @@ export const Dock: React.FC = () => {
                         <h3 className="text-xs font-black uppercase text-slate-600 tracking-wider">
                           {t('dock.liveSession')}
                         </h3>
-                        <div className="text-3xl font-black text-brand-blue-dark font-mono tracking-widest my-1 drop-shadow-sm">
+                        <div className="text-3xl font-black text-brand-blue-dark font-mono tracking-widest my-1 drop-shadow-xs">
                           {session.code}
                         </div>
-                        <div className="text-xxs text-slate-600 bg-white/50 px-2 py-1 rounded border border-white/30">
+                        <div className="text-xxs text-slate-600 bg-white/50 px-2 py-1 rounded-sm border border-white/30">
                           {getJoinUrl()}
                         </div>
                       </div>
@@ -1613,7 +1613,7 @@ export const Dock: React.FC = () => {
                         <button
                           onClick={() => setShowLiveInfo(false)}
                           {...tourAttr('dock.live-popover-close')}
-                          className="w-full py-2 bg-white/50 hover:bg-white/60 text-slate-700 rounded-lg text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-400 focus-visible:ring-offset-white"
+                          className="w-full py-2 bg-white/50 hover:bg-white/60 text-slate-700 rounded-lg text-xs font-bold transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-400 focus-visible:ring-offset-white"
                         >
                           {t('common.close')}
                         </button>
@@ -1630,7 +1630,7 @@ export const Dock: React.FC = () => {
                 {pinnedSavedWidgets.length > 0 && (
                   <>
                     <div
-                      className={`bg-slate-200 flex-shrink-0 ${
+                      className={`bg-slate-200 shrink-0 ${
                         isVerticalDock ? 'h-px w-8 my-1' : 'w-px h-8 mx-1'
                       }`}
                     />
@@ -1653,7 +1653,7 @@ export const Dock: React.FC = () => {
                     surfaced here so they can always be restored */}
                 {minimizedCustomWidgets.length > 0 && (
                   <>
-                    <div className="w-px h-8 bg-slate-200 mx-1 flex-shrink-0" />
+                    <div className="w-px h-8 bg-slate-200 mx-1 shrink-0" />
                     {minimizedCustomWidgets.map((cw) => (
                       <button
                         key={cw.id}
@@ -1661,7 +1661,7 @@ export const Dock: React.FC = () => {
                           updateWidget(cw.id, { minimized: false })
                         }
                         {...tourAttr('dock.restore-custom')}
-                        className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x flex-shrink-0"
+                        className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x shrink-0"
                         title={`Restore: ${customWidgetTitleById.get((cw.config as { customWidgetId?: string }).customWidgetId ?? '') ?? 'Custom Widget'}`}
                       >
                         <DockIcon
@@ -1685,7 +1685,7 @@ export const Dock: React.FC = () => {
                 recover from. */}
             {dockItems.length > 0 && (
               <div
-                className={`bg-slate-200 flex-shrink-0 ${
+                className={`bg-slate-200 shrink-0 ${
                   isVerticalDock
                     ? 'h-px w-8 my-1 md:my-2'
                     : 'w-px h-8 mx-1 md:mx-2'
@@ -1696,7 +1696,7 @@ export const Dock: React.FC = () => {
               ref={moreButtonRef}
               onClick={() => setShowMoreMenu(!showMoreMenu)}
               {...tourAttr('dock.more-widgets')}
-              className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x flex-shrink-0"
+              className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x shrink-0"
               title={t('sidebar.header.moreWidgets')}
             >
               <DockIcon

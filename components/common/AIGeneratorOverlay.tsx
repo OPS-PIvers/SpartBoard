@@ -96,7 +96,7 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
     <div
       role="dialog"
       aria-label={title}
-      className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200"
+      className="absolute inset-0 z-20 bg-white/95 backdrop-blur-xs flex items-center justify-center p-6 animate-in fade-in duration-200"
     >
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-start justify-between gap-3">
@@ -134,7 +134,7 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
             disabled={generating || !canGenerate || outward.locked}
             title={outward.lockedTitle}
             {...generateAnchor}
-            className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {generating ? (
               <>

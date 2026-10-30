@@ -1,7 +1,6 @@
 import tailwindcssAnimate from 'tailwindcss-animate';
 import plugin from 'tailwindcss/plugin';
 import { Z_INDEX } from './config/zIndex';
-import { HIGHLIGHT_BG_CLASSES } from './utils/writtenAnnotations';
 
 // Global `prefers-reduced-motion: reduce` handling (WCAG 2.3.3 / SC 2.3.3).
 // Injected as a base-layer rule so it applies app-wide regardless of which
@@ -69,111 +68,7 @@ export default {
     './*.{js,ts,jsx,tsx}',
     './config/**/*.ts',
   ],
-  safelist: [
-    // Dynamic font classes used by Clock and TimeTool widgets via font-${globalStyle.fontFamily}
-    {
-      pattern:
-        /^font-(sans|serif|mono|handwritten|rounded|fun|comic|slab|retro|marker|cursive)$/,
-    },
-    // Quiz written-response highlight colors. Sourced from
-    // utils/writtenAnnotations.ts so the list can't drift from
-    // `highlightClass`. Without this safelist (and without scanning
-    // utils/), Tailwind would purge these and <mark> would fall back to
-    // the browser default (yellow) regardless of the teacher's color
-    // choice — the symptom of the "all highlights look yellow" bug.
-    ...HIGHLIGHT_BG_CLASSES,
-    'bg-blue-500',
-    'bg-red-500',
-    'bg-amber-500',
-    'bg-yellow-400',
-    'bg-green-500',
-    'bg-indigo-500',
-    'bg-purple-500',
-    'bg-pink-500',
-    'bg-cyan-500',
-    'bg-slate-700',
-    'bg-sky-600',
-    'bg-orange-500',
-    'bg-gray-800',
-    'bg-yellow-600',
-    'bg-emerald-600',
-    'bg-sky-400',
-    'bg-teal-600',
-    'bg-rose-500',
-    'bg-orange-600',
-    'bg-indigo-600',
-    'bg-violet-600',
-    // Background solid color classes
-    'bg-brand-gray-darkest',
-    'bg-brand-blue-dark',
-    'bg-emerald-950',
-    'bg-brand-red-dark',
-    'bg-sky-900',
-    'bg-purple-950',
-    'bg-amber-900',
-    'bg-stone-800',
-    'bg-slate-600',
-    'bg-lime-900',
-    'bg-pink-900',
-    'bg-brand-gray-lightest',
-    'bg-white',
-    'bg-slate-400',
-    // Background pattern classes
-    'bg-[radial-gradient(#e5e7eb_1px,transparent_1px)]',
-    '[background-size:16px_16px]',
-    'bg-slate-100',
-    'bg-[radial-gradient(#94a3b8_2px,transparent_2px)]',
-    '[background-size:24px_24px]',
-    'bg-[repeating-linear-gradient(0deg,#e5e7eb,#e5e7eb_1px,transparent_1px,transparent_24px)]',
-    'bg-[repeating-linear-gradient(0deg,#cbd5e1,#cbd5e1_1px,transparent_1px,transparent_24px),repeating-linear-gradient(90deg,#cbd5e1,#cbd5e1_1px,transparent_1px,transparent_24px)]',
-    'bg-[repeating-linear-gradient(0deg,#93c5fd_0_1px,transparent_1px_28px),linear-gradient(90deg,#fca5a5_0_1px,transparent_1px_100%)]',
-    '[background-size:100%_28px,100%_100%]',
-    '[background-position:0_40px,32px_0]',
-    'bg-[#fffef5]',
-    'bg-[repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0_1px,transparent_1px,transparent_12px)]',
-    'bg-[repeating-linear-gradient(0deg,#475569,#475569_1px,transparent_1px,transparent_20px),repeating-linear-gradient(90deg,#475569,#475569_1px,transparent_1px,transparent_20px)]',
-    'bg-slate-700',
-    'bg-[repeating-linear-gradient(0deg,rgba(255,255,255,0.05),rgba(255,255,255,0.05)_1px,transparent_1px,transparent_20px),repeating-linear-gradient(90deg,rgba(255,255,255,0.05),rgba(255,255,255,0.05)_1px,transparent_1px,transparent_20px)]',
-    'bg-[#2d5016]',
-    'bg-[repeating-linear-gradient(0deg,#e2e8f0,#e2e8f0_1px,transparent_1px,transparent_40px),repeating-linear-gradient(90deg,#e2e8f0,#e2e8f0_1px,transparent_1px,transparent_40px)]',
-    'bg-[#f8fafc]',
-    'bg-[repeating-linear-gradient(0deg,rgba(96,165,250,0.3),rgba(96,165,250,0.3)_1px,transparent_1px,transparent_20px),repeating-linear-gradient(90deg,rgba(96,165,250,0.3),rgba(96,165,250,0.3)_1px,transparent_1px,transparent_20px)]',
-    'bg-[#1e3a5f]',
-    // Background gradient classes
-    'bg-gradient-to-br',
-    'from-slate-900',
-    'to-slate-700',
-    'from-brand-blue-primary',
-    'to-brand-blue-dark',
-    'from-emerald-400',
-    'to-cyan-500',
-    'from-rose-400',
-    'to-orange-400',
-    'from-blue-600',
-    'via-cyan-500',
-    'to-teal-400',
-    'from-green-800',
-    'via-emerald-600',
-    'to-lime-500',
-    'from-purple-500',
-    'via-violet-400',
-    'to-indigo-300',
-    'from-pink-400',
-    'via-fuchsia-400',
-    'to-purple-500',
-    'from-amber-700',
-    'via-orange-600',
-    'to-yellow-500',
-    'from-indigo-950',
-    'via-blue-900',
-    'to-violet-900',
-    'from-green-300',
-    'via-yellow-200',
-    'to-pink-300',
-    'from-emerald-950',
-    'via-green-900',
-    'to-slate-800',
-  ],
+
   theme: {
     extend: {
       zIndex: {

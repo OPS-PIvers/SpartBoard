@@ -75,10 +75,8 @@ export const ScaleResults: React.FC<ScaleResultsProps> = ({
           className="shrink-0 flex justify-between font-bold uppercase tracking-wider text-slate-500"
           style={{ fontSize: 'min(12px, 4cqmin)', gap: 'min(16px, 3cqmin)' }}
         >
-          <span className="min-w-0 [overflow-wrap:anywhere]">{low}</span>
-          <span className="min-w-0 text-right [overflow-wrap:anywhere]">
-            {high}
-          </span>
+          <span className="min-w-0 wrap-anywhere">{low}</span>
+          <span className="min-w-0 text-right wrap-anywhere">{high}</span>
         </div>
       )}
     </div>

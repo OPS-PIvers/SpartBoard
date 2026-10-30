@@ -240,10 +240,10 @@ const PanelBody: React.FC<{ dark: boolean; children: React.ReactNode }> = ({
 );
 
 const primaryButton =
-  'inline-flex items-center justify-center rounded-full bg-rose-600 font-black text-white shadow-sm transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-45';
+  'inline-flex items-center justify-center rounded-full bg-rose-600 font-black text-white shadow-xs transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-45';
 const secondaryButton = (dark: boolean) =>
   cx(
-    'inline-flex items-center justify-center rounded-full font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300',
+    'inline-flex items-center justify-center rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300',
     dark
       ? 'bg-white/10 text-white hover:bg-white/20'
       : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
@@ -1161,7 +1161,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
           </div>
           <h2
             lang={language}
-            className="mx-auto max-w-[26ch] font-black leading-tight [overflow-wrap:anywhere] [text-wrap:balance]"
+            className="mx-auto max-w-[26ch] font-black leading-tight wrap-anywhere text-balance"
             style={{
               marginTop: 'min(10px, 2.5cqmin)',
               fontSize: 'clamp(20px, 8cqmin, 46px)',
@@ -1214,7 +1214,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
               )}
               aria-pressed={isStarred}
               className={cx(
-                'absolute rounded-full transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300',
+                'absolute rounded-full transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-amber-300',
                 isStarred
                   ? 'bg-amber-400 text-amber-950'
                   : dark
@@ -1333,7 +1333,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
               // aria-disabled keeps focus here while the mic opens; startTake ignores the press.
               aria-disabled={capture.phase === 'requesting-permission'}
               className={cx(
-                'inline-flex items-center rounded-full font-black text-white shadow-lg transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 aria-disabled:opacity-60',
+                'inline-flex items-center rounded-full font-black text-white shadow-lg transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300 aria-disabled:opacity-60',
                 capture.phase === 'recording'
                   ? 'bg-slate-900 hover:bg-slate-800'
                   : 'bg-rose-600 shadow-rose-600/20 hover:bg-rose-700'

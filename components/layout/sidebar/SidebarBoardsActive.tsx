@@ -60,7 +60,7 @@ export const SidebarBoardsActive: React.FC<SidebarBoardsActiveProps> = ({
             >
               {db.isDefault && (
                 <Star
-                  className={`w-3.5 h-3.5 flex-shrink-0 ${
+                  className={`w-3.5 h-3.5 shrink-0 ${
                     isActive
                       ? 'fill-white text-white'
                       : 'fill-amber-400 text-amber-400'
@@ -76,7 +76,7 @@ export const SidebarBoardsActive: React.FC<SidebarBoardsActiveProps> = ({
       <button
         onClick={onOpenModal}
         {...tourAttr('sidebar.manage-boards')}
-        className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-xxs font-bold uppercase tracking-wider text-white bg-brand-blue-primary hover:bg-brand-blue-dark shadow-sm transition mt-auto"
+        className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-xxs font-bold uppercase tracking-wider text-white bg-brand-blue-primary hover:bg-brand-blue-dark shadow-xs transition mt-auto"
       >
         <Settings2 className="w-4 h-4" />
         {t('sidebar.boards.manageAll', { defaultValue: 'Manage all boards' })}

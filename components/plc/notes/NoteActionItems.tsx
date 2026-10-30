@@ -113,7 +113,7 @@ const DueDateText: React.FC<{
               }
             }}
             aria-label={label}
-            className={`rounded hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${tone}`}
+            className={`rounded-sm hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${tone}`}
           >
             {text}
           </button>
@@ -249,7 +249,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
                   defaultValue: 'Mark done',
                 })
           }
-          className="shrink-0 h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+          className="shrink-0 h-4 w-4 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
         />
         {panel ? (
           <textarea
@@ -260,7 +260,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
             onChange={(e) =>
               updateItem(item.id, { text: e.target.value.replace(/\n/g, ' ') })
             }
-            className={`flex-1 min-w-0 p-0 bg-transparent border-0 resize-none [field-sizing:content] focus:ring-0 focus:outline-none text-sm leading-snug ${
+            className={`flex-1 min-w-0 p-0 bg-transparent border-0 resize-none field-sizing-content focus:ring-0 focus:outline-hidden text-sm leading-snug ${
               item.done ? 'line-through text-slate-400' : 'text-slate-700'
             }`}
           />
@@ -271,7 +271,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
             value={item.text}
             readOnly={!canEdit}
             onChange={(e) => updateItem(item.id, { text: e.target.value })}
-            className={`flex-1 min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-sm ${
+            className={`flex-1 min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-hidden text-sm ${
               item.done ? 'line-through text-slate-400' : 'text-slate-700'
             }`}
           />
@@ -292,7 +292,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
             aria-label={t('plcDashboard.notes.actionItems.assignee', {
               defaultValue: 'Assignee',
             })}
-            className="shrink-0 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xxs text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+            className="shrink-0 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xxs text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
           >
             <option value="">
               {t('plcDashboard.notes.actionItems.unassigned', {
@@ -325,7 +325,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
           aria-label={t('plcDashboard.notes.actionItems.dueDate', {
             defaultValue: 'Due date',
           })}
-          className={`shrink-0 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xxs focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 ${
+          className={`shrink-0 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xxs focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 ${
             overdue ? 'text-amber-600 font-semibold' : 'text-slate-600'
           }`}
         />
@@ -348,7 +348,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
               aria-label={t('plcDashboard.notes.actionItems.assignee', {
                 defaultValue: 'Assignee',
               })}
-              className={`w-32 truncate appearance-none bg-none bg-transparent border-0 p-0 text-xs cursor-pointer rounded hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+              className={`w-32 truncate appearance-none bg-none bg-transparent border-0 p-0 text-xs cursor-pointer rounded hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
                 item.assigneeUid ? 'text-slate-600' : 'text-slate-400'
               }`}
             >
@@ -393,7 +393,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
             aria-label={t('plcDashboard.notes.actionItems.remove', {
               defaultValue: 'Remove action item',
             })}
-            className="shrink-0 p-1 text-slate-300 hover:text-red-500 rounded transition-colors"
+            className="shrink-0 p-1 text-slate-300 hover:text-red-500 rounded-sm transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -446,7 +446,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
           placeholder={t('plcDashboard.notes.actionItems.addPlaceholder', {
             defaultValue: 'What needs to happen?',
           })}
-          className="flex-1 min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+          className="flex-1 min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
         />
         <button
           {...tourAttr('plc-notes.add-action')}
@@ -482,7 +482,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
       {...tourAttr('plc-notes.remove-completed')}
       type="button"
       onClick={() => emit(clearCompletedActionItems(items, Date.now()))}
-      className="inline-flex items-center px-1.5 py-1 rounded-md whitespace-nowrap text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+      className="inline-flex items-center px-1.5 py-1 rounded-md whitespace-nowrap text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
     >
       {t('plcDashboard.notes.actionItems.removeCompleted', {
         defaultValue: 'Remove completed',
@@ -538,7 +538,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
               type="button"
               aria-expanded={showCleared}
               onClick={() => setShowCleared((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-md px-1 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+              className="inline-flex items-center gap-1 rounded-md px-1 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
             >
               {showCleared ? (
                 <ChevronDown className="w-3.5 h-3.5" aria-hidden />

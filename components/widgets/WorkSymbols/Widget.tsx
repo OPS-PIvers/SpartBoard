@@ -133,7 +133,7 @@ export const WorkSymbolsWidget: React.FC<{ widget: WidgetData }> = ({
               if (unselected.length === 0) return null;
               return (
                 <div
-                  className="w-full flex-shrink-0 flex justify-center"
+                  className="w-full shrink-0 flex justify-center"
                   style={{
                     gap: 'min(8px, 2cqmin)',
                     marginTop: 'min(6px, 1.5cqmin)',

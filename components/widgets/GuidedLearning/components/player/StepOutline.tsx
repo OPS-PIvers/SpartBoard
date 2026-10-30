@@ -56,7 +56,7 @@ export const StepOutline: React.FC<Props> = ({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative flex-shrink-0">
+    <div ref={rootRef} className="relative shrink-0">
       <button
         {...tourAttr('gl-player.outline-open')}
         ref={buttonRef}
@@ -154,9 +154,7 @@ export const StepOutline: React.FC<Props> = ({
                         fontSize: 'var(--gl-text-body, min(13px, 3.4cqmin))',
                       }}
                     >
-                      <span
-                        className={`tabular-nums ${chromeMuted} flex-shrink-0`}
-                      >
+                      <span className={`tabular-nums ${chromeMuted} shrink-0`}>
                         {i + 1}
                       </span>
                       <span className="flex-1 truncate">{label}</span>
@@ -168,7 +166,7 @@ export const StepOutline: React.FC<Props> = ({
                       {done && (
                         <Check
                           aria-label={t('glPlayer.outline.done')}
-                          className="text-emerald-600 flex-shrink-0"
+                          className="text-emerald-600 shrink-0"
                           style={{
                             width: 'min(14px, 3.5cqmin)',
                             height: 'min(14px, 3.5cqmin)',

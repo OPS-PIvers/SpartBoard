@@ -47,7 +47,7 @@ const StepCell: React.FC<StepCellProps> = ({
   const label = locked ? 'Approved' : STEP_STATE_LABELS[state];
 
   return (
-    <li ref={wrapperRef} className="relative min-w-[8.5rem] flex-1 basis-36">
+    <li ref={wrapperRef} className="relative min-w-34 flex-1 basis-36">
       <button
         ref={triggerRef}
         type="button"
@@ -59,7 +59,7 @@ const StepCell: React.FC<StepCellProps> = ({
           locked ? ', locked' : ''
         }`}
         title={step.description}
-        className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left transition hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:cursor-default disabled:hover:border-slate-200"
+        className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left transition hover:border-slate-300 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:cursor-default disabled:hover:border-slate-200"
       >
         <span
           aria-hidden

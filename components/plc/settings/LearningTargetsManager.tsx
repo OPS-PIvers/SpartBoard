@@ -44,7 +44,7 @@ interface LearningTargetsManagerProps {
 type Panel = 'add' | 'paste' | 'csv' | null;
 
 const INPUT_CLASS =
-  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 const PRIMARY_BTN =
   'inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50';
 const SECONDARY_BTN =
@@ -579,7 +579,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                               : [...cur, grade]
                           )
                         }
-                        className={`min-w-[2rem] rounded-md border px-2 py-1 text-xxs font-bold transition-colors ${
+                        className={`min-w-8 rounded-md border px-2 py-1 text-xxs font-bold transition-colors ${
                           selected
                             ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
                             : 'border-slate-200 bg-white text-slate-600 hover:border-brand-blue-light'

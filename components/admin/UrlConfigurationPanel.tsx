@@ -124,7 +124,7 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
                   addUrl();
                 }
               }}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
               placeholder="e.g. google.com"
             />
           </div>
@@ -138,7 +138,7 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
               {...tourFieldAttr('admin.widget-config.field', 'url', 'newTitle')}
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
               placeholder="e.g. Google"
             />
           </div>
@@ -160,7 +160,7 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
                   )}
                   className={`w-8 h-8 rounded-full border-2 transition-all ${
                     newColor === c
-                      ? 'border-slate-800 scale-110 shadow-sm'
+                      ? 'border-slate-800 scale-110 shadow-xs'
                       : 'border-transparent hover:scale-105'
                   }`}
                   style={{ backgroundColor: c }}
@@ -190,11 +190,11 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
               {urls.map((u) => (
                 <div
                   key={u.id}
-                  className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm"
+                  className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-xs"
                 >
                   <div className="flex items-center gap-3 overflow-hidden">
                     <div
-                      className="w-4 h-4 rounded-full flex-shrink-0"
+                      className="w-4 h-4 rounded-full shrink-0"
                       style={{ backgroundColor: u.color ?? DEFAULT_URL_COLOR }}
                     />
                     <div className="flex flex-col overflow-hidden">

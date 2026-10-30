@@ -394,7 +394,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       data-widget-id={widget.id}
-      className="absolute group select-none widget focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50"
+      className="absolute group select-none widget focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-400/50"
       style={{
         left: widget.x,
         top: widget.y,
@@ -428,7 +428,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                   onPointerDown={handleRotateStart}
                   {...tourAttr('sticker.rotate-handle', widget.id, widget.type)}
                 >
-                  <div className="p-1.5 bg-white shadow rounded-full text-blue-600 border border-blue-100">
+                  <div className="p-1.5 bg-white shadow-sm rounded-full text-blue-600 border border-blue-100">
                     <RotateCw size={14} />
                   </div>
                   <div className="h-4 w-0.5 bg-blue-400 mx-auto" />

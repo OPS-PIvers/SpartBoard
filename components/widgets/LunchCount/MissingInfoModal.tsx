@@ -246,7 +246,7 @@ const MissingInfoForm: React.FC<Omit<MissingInfoModalProps, 'isOpen'>> = ({
             onClick={handleSave}
             disabled={needsTime && !timeTouched}
             variant="success"
-            className="flex-[2] py-4 rounded-2xl font-black uppercase tracking-widest"
+            className="flex-2 py-4 rounded-2xl font-black uppercase tracking-widest"
           >
             Save and continue
           </Button>

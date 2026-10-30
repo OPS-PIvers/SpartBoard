@@ -57,7 +57,7 @@ const Example: React.FC<{
   return (
     <section className="space-y-2">
       <p className="text-xs font-bold text-slate-500">{label}</p>
-      <div className="rounded-xl border border-brand-blue-primary/40 bg-white shadow-sm">
+      <div className="rounded-xl border border-brand-blue-primary/40 bg-white shadow-xs">
         <div className="flex items-center gap-3 px-4 py-2.5">
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-brand-blue-primary bg-white text-xs font-bold text-brand-blue-primary">
             2
@@ -66,7 +66,7 @@ const Example: React.FC<{
             {title}
           </span>
         </div>
-        <div className="px-4 pb-4 pl-[3.25rem]">
+        <div className="px-4 pb-4 pl-13">
           <AssignWhenStep
             value={value}
             onChange={setValue}

@@ -695,7 +695,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         if (readAloud) handleVoiceDone();
         setReadAloud(!readAloud);
       }}
-      className={`relative flex items-center justify-center rounded-full border transition-colors flex-shrink-0 ${focusRing} ${
+      className={`relative flex items-center justify-center rounded-full border transition-colors shrink-0 ${focusRing} ${
         readAloud
           ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
           : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'

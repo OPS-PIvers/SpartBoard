@@ -51,7 +51,7 @@ const NUMBER = new Intl.NumberFormat();
 const Panel: React.FC<
   React.PropsWithChildren<{ title: string; actions?: React.ReactNode }>
 > = ({ title, actions, children }) => (
-  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm min-w-0">
+  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs min-w-0">
     <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
       <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
         {title}
@@ -82,7 +82,7 @@ const LegendSwatch: React.FC<{ color: string; label: string }> = ({
 }) => (
   <span className="inline-flex items-center gap-1.5">
     <span
-      className="inline-block w-3 h-3 rounded-sm"
+      className="inline-block w-3 h-3 rounded-xs"
       style={{ background: color }}
     />
     {label}
@@ -381,7 +381,7 @@ export const DailyHeatmapPanel: React.FC<{
             {[0, 0.25, 0.5, 0.75, 1].map((t) => (
               <span
                 key={t}
-                className="inline-block w-3 h-3 rounded-sm"
+                className="inline-block w-3 h-3 rounded-xs"
                 style={{ background: t === 0 ? ESTIMATED_FILL : heatColor(t) }}
               />
             ))}
@@ -696,7 +696,7 @@ export const CohortPanel: React.FC<{
                     return (
                       <td
                         key={i}
-                        className="text-center text-slate-400 rounded"
+                        className="text-center text-slate-400 rounded-sm"
                         style={{ background: ESTIMATED_FILL }}
                       >
                         –
@@ -705,7 +705,7 @@ export const CohortPanel: React.FC<{
                   return (
                     <td
                       key={i}
-                      className="text-center h-6 rounded tabular-nums"
+                      className="text-center h-6 rounded-sm tabular-nums"
                       style={cohortCellStyle(cell)}
                       title={`${cell.active} of ${cell.n} teachers`}
                     >
@@ -738,7 +738,7 @@ export const CohortPanel: React.FC<{
         {retention && hasPartial && (
           <span className="inline-flex items-center gap-1.5">
             <span
-              className="inline-block w-3 h-3 rounded-sm"
+              className="inline-block w-3 h-3 rounded-xs"
               style={cohortCellStyle({
                 pct: 60,
                 active: 18,
@@ -780,11 +780,11 @@ export const BuildingAdoptionPanel: React.FC<{
             </span>
             <div className="relative h-5">
               <div
-                className="absolute inset-y-0 left-0 rounded"
+                className="absolute inset-y-0 left-0 rounded-sm"
                 style={{ width: `${(r.total / max) * 100}%`, background: GRID }}
               />
               <div
-                className="absolute inset-y-0 left-0 rounded"
+                className="absolute inset-y-0 left-0 rounded-sm"
                 style={{
                   width: `${(r.monthly / max) * 100}%`,
                   background: NAVY,

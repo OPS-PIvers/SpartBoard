@@ -49,9 +49,9 @@ const SIZES: ReadonlyArray<{ size: WhiteboardSize; dot: number }> = [
 ];
 
 const btnBase =
-  'h-11 w-11 rounded-xl flex items-center justify-center transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed';
+  'h-11 w-11 rounded-xl flex items-center justify-center transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed';
 const btnIdle = 'text-slate-600 hover:bg-slate-100';
-const btnActive = 'bg-brand-blue-primary text-white shadow-sm';
+const btnActive = 'bg-brand-blue-primary text-white shadow-xs';
 
 interface WhiteboardToolbarProps {
   tool: WhiteboardTool;
@@ -96,7 +96,7 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
 
   return (
     <div
-      className="flex max-h-full shrink-0 flex-col gap-2 self-center overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 pb-2 shadow-sm"
+      className="flex max-h-full shrink-0 flex-col gap-2 self-center overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 pb-2 shadow-xs"
       data-testid="whiteboard-toolbar"
     >
       <div

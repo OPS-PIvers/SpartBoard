@@ -415,7 +415,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
       maxWidth="max-w-5xl"
       customHeader={header}
       footer={footer}
-      className="!p-0"
+      className="p-0!"
       contentClassName=""
       footerClassName="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between w-full shrink-0"
     >
@@ -446,7 +446,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                 <BuildingSelector
                   selectedId={selectedBuildingId}
                   onSelect={setSelectedBuildingId}
-                  activeClassName="bg-teal-500 text-white border-teal-500 shadow-sm"
+                  activeClassName="bg-teal-500 text-white border-teal-500 shadow-xs"
                 />
               </div>
 
@@ -472,7 +472,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                             'rotationMode-calendar'
                           )}
                           aria-pressed={!isBlockMode}
-                          className={`px-3 py-1 text-xs font-bold rounded ${!isBlockMode ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                          className={`px-3 py-1 text-xs font-bold rounded-sm ${!isBlockMode ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-500 hover:bg-slate-50'}`}
                         >
                           Day Cycle
                         </button>
@@ -484,7 +484,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                             'rotationMode-blocks'
                           )}
                           aria-pressed={isBlockMode}
-                          className={`px-3 py-1 text-xs font-bold rounded ${isBlockMode ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                          className={`px-3 py-1 text-xs font-bold rounded-sm ${isBlockMode ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-500 hover:bg-slate-50'}`}
                         >
                           Date Blocks
                         </button>
@@ -511,7 +511,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         step={1}
                         value={currentBuildingConfig.cycleLength}
                         onChange={(e) => setCycleLength(e.target.valueAsNumber)}
-                        className="w-24 px-2 py-1 text-sm border border-slate-200 rounded-lg text-right font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-none"
+                        className="w-24 px-2 py-1 text-sm border border-slate-200 rounded-lg text-right font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-hidden"
                       />
                     </div>
 
@@ -530,7 +530,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         onChange={(e) =>
                           updateBuilding({ dayLabel: e.target.value })
                         }
-                        className="w-24 px-2 py-1 text-sm border border-slate-200 rounded-lg text-right font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-none"
+                        className="w-24 px-2 py-1 text-sm border border-slate-200 rounded-lg text-right font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-hidden"
                         placeholder="e.g. Day"
                       />
                     </div>
@@ -551,7 +551,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                           onChange={(e) =>
                             updateBuilding({ startDate: e.target.value })
                           }
-                          className="px-2 py-1 text-sm border border-slate-200 rounded-lg font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-none"
+                          className="px-2 py-1 text-sm border border-slate-200 rounded-lg font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-hidden"
                         />
                       </div>
                     )}
@@ -615,7 +615,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                             }
                             onChange={(e) => updateDayName(num, e.target.value)}
                             placeholder={`${currentBuildingConfig.dayLabel ?? 'Day'} ${num}`}
-                            className="flex-1 text-xs font-bold text-slate-700 focus:outline-none"
+                            className="flex-1 text-xs font-bold text-slate-700 focus:outline-hidden"
                           />
                         </div>
                       ))}
@@ -646,7 +646,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         onChange={(e) => setNewOption(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && addOption()}
                         placeholder="e.g. 🎨 Art"
-                        className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none font-bold"
+                        className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-hidden font-bold"
                       />
                       <button
                         onClick={addOption}
@@ -774,7 +774,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                                   onChange={(e) =>
                                     updateBlock(i, 'startDate', e.target.value)
                                   }
-                                  className="w-full px-2 py-1 text-xs border border-slate-200 rounded font-bold text-slate-600 focus:ring-1 focus:ring-teal-500 outline-none"
+                                  className="w-full px-2 py-1 text-xs border border-slate-200 rounded-sm font-bold text-slate-600 focus:ring-1 focus:ring-teal-500 outline-hidden"
                                 />
                               </div>
                               <div className="space-y-1">
@@ -799,7 +799,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                                   onChange={(e) =>
                                     updateBlock(i, 'endDate', e.target.value)
                                   }
-                                  className="w-full px-2 py-1 text-xs border border-slate-200 rounded font-bold text-slate-600 focus:ring-1 focus:ring-teal-500 outline-none"
+                                  className="w-full px-2 py-1 text-xs border border-slate-200 rounded-sm font-bold text-slate-600 focus:ring-1 focus:ring-teal-500 outline-hidden"
                                 />
                               </div>
                             </div>
@@ -892,7 +892,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                                 onClick={() => toggleSchoolDay(date)}
                                 className={`
                                   aspect-square flex items-center justify-center text-xs rounded-lg font-bold transition-all
-                                  ${isSelected ? 'bg-teal-600 text-white shadow-sm scale-105' : 'hover:bg-slate-100 text-slate-600'}
+                                  ${isSelected ? 'bg-teal-600 text-white shadow-xs scale-105' : 'hover:bg-slate-100 text-slate-600'}
                                   ${isToday ? 'ring-2 ring-teal-200' : ''}
                                 `}
                               >

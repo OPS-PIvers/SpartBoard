@@ -59,7 +59,7 @@ export const ResultsProtectionFieldset: React.FC<
           }
           disabled={disabled}
           {...tourAttr('assign-results-protection.watermark')}
-          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+          className="mt-0.5 h-4 w-4 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
         />
         <span className="flex-1">
           <span className="block text-sm font-semibold text-slate-900">
@@ -81,7 +81,7 @@ export const ResultsProtectionFieldset: React.FC<
           }}
           disabled={disabled}
           {...tourAttr('assign-results-protection.tab-warning')}
-          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+          className="mt-0.5 h-4 w-4 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
         />
         <span className="flex-1">
           <span className="block text-sm font-semibold text-slate-900">
@@ -106,7 +106,7 @@ export const ResultsProtectionFieldset: React.FC<
             onBlur={handleThresholdBlur}
             {...tourAttr('assign-results-protection.threshold')}
             disabled={disabled}
-            className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+            className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
           />
         </label>
       )}

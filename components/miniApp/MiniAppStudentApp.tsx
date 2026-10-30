@@ -348,7 +348,7 @@ const PeriodPicker: React.FC<{
     ...new Set(Object.values(session.periodAccess ?? {}).map((p) => p.label)),
   ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900 flex items-center [align-items:safe_center] justify-center p-6">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-900 flex items-center items-center-safe justify-center p-6">
       <div className="bg-slate-800 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
         <p className="text-slate-300 text-sm font-semibold truncate mb-2">
           {session.appTitle}
@@ -945,7 +945,7 @@ const AppViewer: React.FC<{
           onClick={() => void markDone()}
           disabled={status.kind === 'submitting'}
           aria-label="Mark this assignment as done"
-          className="fixed bottom-4 right-4 z-20 inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/90 text-white text-xs font-semibold hover:bg-slate-700 border border-slate-600/50 shadow-lg backdrop-blur-sm transition-all disabled:opacity-50 select-none"
+          className="fixed bottom-4 right-4 z-20 inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/90 text-white text-xs font-semibold hover:bg-slate-700 border border-slate-600/50 shadow-lg backdrop-blur-xs transition-all disabled:opacity-50 select-none"
         >
           {status.kind === 'submitting' ? (
             <>

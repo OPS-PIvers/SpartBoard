@@ -122,13 +122,13 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
             className="pointer-events-none h-full w-full object-contain"
           />
         )}
-        <span className="absolute left-1 top-1 flex items-center gap-1 rounded bg-slate-900/80 px-1.5 text-xxs font-bold text-white">
+        <span className="absolute left-1 top-1 flex items-center gap-1 rounded-sm bg-slate-900/80 px-1.5 text-xxs font-bold text-white">
           {slide.kind === 'video' && (
             <Film className="h-3 w-3" aria-hidden="true" />
           )}
           {n}
         </span>
-        <span className="absolute bottom-1 left-1 rounded bg-white/90 px-1.5 text-xxs font-bold text-slate-700">
+        <span className="absolute bottom-1 left-1 rounded-sm bg-white/90 px-1.5 text-xxs font-bold text-slate-700">
           {t('glStudio.stepCount', {
             count: count,
           })}
@@ -140,11 +140,11 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
         onClick={() => onDelete(slide.index)}
         aria-label={t('glStudio.deleteSlideN', { n })}
         title={t('glStudio.deleteSlideN', { n })}
-        className="absolute right-1 top-1 rounded-md bg-white/90 p-1 text-slate-600 opacity-0 shadow-sm transition-opacity hover:text-red-700 focus:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+        className="absolute right-1 top-1 rounded-md bg-white/90 p-1 text-slate-600 opacity-0 shadow-xs transition-opacity hover:text-red-700 focus:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
       >
         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
-      <div className="absolute bottom-1 right-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 has-[[aria-expanded=true]]:opacity-100 [@media(hover:none)]:opacity-100">
+      <div className="absolute bottom-1 right-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 has-aria-expanded:opacity-100 [@media(hover:none)]:opacity-100">
         <StudioMenu
           label={t('glStudio.slideActionsN', { n })}
           testId={`gl-studio-slide-menu-${slide.index}`}
@@ -152,7 +152,7 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
           itemAnchor={(id) =>
             tourFieldAttr('studio.menu-item', 'guided-learning', id)
           }
-          triggerClassName="rounded-md bg-white/90 p-1 text-slate-600 shadow-sm hover:text-slate-900"
+          triggerClassName="rounded-md bg-white/90 p-1 text-slate-600 shadow-xs hover:text-slate-900"
           items={[
             {
               id: 'duplicate',
@@ -418,7 +418,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
           title={t('glStudio.showSlides')}
           {...tourAttr('studio.slides-show')}
           data-testid="gl-studio-filmstrip-toggle"
-          className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+          className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
         >
           <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -469,7 +469,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
             title={t('glStudio.hideSlides')}
             {...tourAttr('studio.slides-hide')}
             data-testid="gl-studio-filmstrip-toggle"
-            className="shrink-0 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="shrink-0 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -538,7 +538,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
           <Upload className="h-4 w-4" aria-hidden="true" />
           {t('glStudio.addMedia')}
         </button>
-        <div className="flex [&_button]:w-full [&_button]:justify-center [&>*]:flex-1">
+        <div className="flex [&_button]:w-full [&_button]:justify-center *:flex-1">
           <CaptureMenuButton
             onPick={setCaptureMode}
             anchor={tourAttr('gl-capture.menu')}

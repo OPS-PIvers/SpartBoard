@@ -33,7 +33,7 @@ const ICON_OPTIONS: ReadonlyArray<{
 ];
 
 const inputClass =
-  'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-blue-primary';
+  'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary';
 
 const getConfig = (ctx: CustomRenderCtx): HotspotImageConfig =>
   ctx.config as unknown as HotspotImageConfig;
@@ -414,7 +414,7 @@ export const HotspotImagePinsField: React.FC<{ ctx: CustomRenderCtx }> = ({
                     onClick={() =>
                       updateHotspot(hotspot.id, { icon: option.value })
                     }
-                    className={`rounded-md border p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary ${selected ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}`}
+                    className={`rounded-md border p-2 transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary ${selected ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}`}
                   >
                     <Icon className="h-4 w-4" aria-hidden="true" />
                   </button>

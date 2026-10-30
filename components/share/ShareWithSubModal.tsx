@@ -417,7 +417,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               disabled={Boolean(existing)}
               onChange={(e) => setBuildingIdPick(e.target.value)}
               {...tourAttr('sub-share.building')}
-              className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded bg-white disabled:bg-slate-100"
+              className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-sm bg-white disabled:bg-slate-100"
             >
               {teacherBuildings.length === 0 && (
                 <option value="">
@@ -447,7 +447,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               type="datetime-local"
               value={expiresAtIso}
               onChange={(e) => setExpiresAtIso(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded bg-white"
+              className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-sm bg-white"
             />
             <p className="text-[10px] text-slate-500">
               {t('shareWithSub.endsAtHint', {
@@ -567,7 +567,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               type="button"
               onClick={onClose}
               {...tourAttr('sub-share.cancel')}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded"
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-sm"
             >
               {t('common.cancel', { defaultValue: 'Cancel' })}
             </button>
@@ -576,7 +576,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               onClick={() => void handleSave()}
               {...tourAttr('sub-share.save')}
               disabled={busy}
-              className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-50"
+              className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded-sm hover:bg-brand-blue-dark disabled:opacity-50"
             >
               {busy
                 ? t('shareWithSub.saving', { defaultValue: 'Saving…' })
@@ -604,7 +604,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                 })}
           </p>
           {missed.length > 0 && (
-            <div className="p-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded">
+            <div className="p-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-sm">
               <p className="font-bold">
                 {t('shareWithSub.missedTitle', {
                   defaultValue: 'Some widget content did not come along',
@@ -632,7 +632,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               aria-label={t('shareWithSub.urlLabel', {
                 defaultValue: 'Sub share link',
               })}
-              className="flex-1 px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded select-all"
+              className="flex-1 px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded-sm select-all"
               onFocus={(e) => e.currentTarget.select()}
             />
             <button
@@ -648,7 +648,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                 })();
               }}
               {...tourAttr('sub-share.copy-link')}
-              className="px-2 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 rounded hover:bg-slate-200"
+              className="px-2 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 rounded-sm hover:bg-slate-200"
             >
               {t('shareCollection.copy', { defaultValue: 'Copy' })}
             </button>
@@ -658,7 +658,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               type="button"
               onClick={onClose}
               {...tourAttr('sub-share.done')}
-              className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark"
+              className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded-sm hover:bg-brand-blue-dark"
             >
               {t('common.done', { defaultValue: 'Done' })}
             </button>

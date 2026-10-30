@@ -37,7 +37,7 @@ export const AssignStep = React.forwardRef<HTMLDivElement, AssignStepProps>(
     return (
       <div
         ref={ref}
-        className={`rounded-xl border bg-white ${open ? 'border-brand-blue-primary/40 shadow-sm' : 'border-slate-200'}`}
+        className={`rounded-xl border bg-white ${open ? 'border-brand-blue-primary/40 shadow-xs' : 'border-slate-200'}`}
       >
         <button
           {...STEP_TOUR[id]}
@@ -67,7 +67,7 @@ export const AssignStep = React.forwardRef<HTMLDivElement, AssignStepProps>(
           )}
         </button>
         {open && (
-          <div id={bodyId} className="space-y-4 px-4 pb-4 pl-[3.25rem]">
+          <div id={bodyId} className="space-y-4 px-4 pb-4 pl-13">
             {children}
             {onContinue && (
               <div className="flex justify-end">
@@ -75,7 +75,7 @@ export const AssignStep = React.forwardRef<HTMLDivElement, AssignStepProps>(
                   {...tourAttr('assign-step.continue')}
                   type="button"
                   onClick={onContinue}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs"
                 >
                   Continue
                   <ArrowRight className="w-4 h-4" aria-hidden="true" />

@@ -651,7 +651,7 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
       aria-label={t('plcDashboard.notes.titlePlaceholder', {
         defaultValue: 'Note title',
       })}
-      className="w-full border-0 bg-transparent p-0 text-2xl font-extrabold text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-0"
+      className="w-full border-0 bg-transparent p-0 text-2xl font-extrabold text-slate-800 placeholder:text-slate-300 focus:outline-hidden focus:ring-0"
     />
   ) : (
     <h2 className="text-2xl font-extrabold text-slate-800">

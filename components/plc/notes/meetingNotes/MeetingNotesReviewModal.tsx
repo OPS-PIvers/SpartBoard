@@ -161,7 +161,7 @@ export const MeetingNotesReviewModal: React.FC<
                   aria-label={t('plcDashboard.notes.actionItems.assignee', {
                     defaultValue: 'Assignee',
                   })}
-                  className="shrink-0 min-w-[9rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                  className="shrink-0 min-w-36 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                 >
                   <option value="">
                     {t('plcDashboard.notes.actionItems.unassigned', {

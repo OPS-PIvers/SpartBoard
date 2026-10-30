@@ -349,7 +349,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     return (
       <div
         className={`h-full w-full rounded-xl overflow-hidden relative ${
-          isDrawing ? 'bg-transparent' : 'bg-white shadow-sm'
+          isDrawing ? 'bg-transparent' : 'bg-white shadow-xs'
         }`}
       >
         {finalContent}

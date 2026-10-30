@@ -236,7 +236,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
   return (
     <div
       ref={editable ? setNodeRef : null}
-      className={`rounded-xl flex flex-col shadow-sm min-w-0 min-h-0 border transition-colors bg-white ${
+      className={`rounded-xl flex flex-col shadow-xs min-w-0 min-h-0 border transition-colors bg-white ${
         isOver
           ? 'border-brand-blue-primary/60 ring-2 ring-brand-blue-primary/30'
           : 'border-slate-200'
@@ -252,7 +252,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
           overflow:hidden on the card — which would clip the color-picker
           popover beyond the card edge. */}
       <div
-        className={`${headerColorClass} text-white flex items-center flex-shrink-0 relative rounded-t-[calc(0.75rem-1px)]`}
+        className={`${headerColorClass} text-white flex items-center shrink-0 relative rounded-t-[calc(0.75rem-1px)]`}
         style={{
           padding: 'clamp(2px, 0.8cqmin, 6px) clamp(6px, 2cqmin, 12px)',
           gap: 'clamp(4px, 1.5cqmin, 10px)',
@@ -284,7 +284,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex-1 min-w-0 bg-white/15 text-white tracking-wider font-black border-0 rounded outline-none focus:bg-white/25 placeholder:text-white/60"
+            className="flex-1 min-w-0 bg-white/15 text-white tracking-wider font-black border-0 rounded-sm outline-hidden focus:bg-white/25 placeholder:text-white/60"
             style={{
               fontSize: 'clamp(11px, 6cqmin, 22px)',
               padding: 'clamp(2px, 0.8cqmin, 6px) clamp(4px, 1.5cqmin, 8px)',
@@ -310,7 +310,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
         {renameEnabled && !editingName && (
           <button
             type="button"
-            className="shrink-0 text-white/70 hover:text-white transition-colors rounded"
+            className="shrink-0 text-white/70 hover:text-white transition-colors rounded-sm"
             onClick={(e) => {
               e.stopPropagation();
               startRename();
@@ -337,7 +337,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
           <button
             ref={paletteButtonRef}
             type="button"
-            className="shrink-0 text-white/70 hover:text-white transition-colors rounded"
+            className="shrink-0 text-white/70 hover:text-white transition-colors rounded-sm"
             onClick={(e) => {
               e.stopPropagation();
               setColorPickerOpen((prev) => !prev);
@@ -371,7 +371,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
           createPortal(
             <div
               ref={colorPickerRef}
-              className="fixed z-[1000] bg-white border border-slate-200 rounded-lg shadow-xl p-2"
+              className="fixed z-1000 bg-white border border-slate-200 rounded-lg shadow-xl p-2"
               style={{
                 top: colorPickerAnchor.top,
                 right: colorPickerAnchor.right,

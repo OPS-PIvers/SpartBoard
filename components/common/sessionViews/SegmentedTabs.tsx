@@ -125,13 +125,13 @@ export function SegmentedTabs<K extends string = string>({
             {...(tourId && tourScope
               ? tourFieldAttr(tourId, tourScope, key)
               : {})}
-            className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-lg font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+            className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-lg font-bold transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 ${
               onDark
                 ? 'focus-visible:ring-white'
                 : 'focus-visible:ring-brand-blue-primary'
             } ${
               selected
-                ? 'bg-white text-brand-blue-dark shadow-sm'
+                ? 'bg-white text-brand-blue-dark shadow-xs'
                 : onDark
                   ? 'text-white/80 hover:text-white'
                   : 'text-slate-500 hover:text-slate-800'

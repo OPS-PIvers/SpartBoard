@@ -306,7 +306,7 @@ const ReadOnlyView: React.FC<ReadProps> = ({
       <div className="flex flex-col gap-3">
         <article
           ref={articleRef}
-          className={`rich-text-content rounded-xl border p-4 text-sm leading-relaxed max-w-none min-w-0 break-words [&_mark]:transition-colors ${articleCls}`}
+          className={`rich-text-content rounded-xl border p-4 text-sm leading-relaxed max-w-none min-w-0 wrap-break-word [&_mark]:transition-colors ${articleCls}`}
           onMouseOver={(e) => {
             const t = (e.target as HTMLElement).closest('mark');
             if (t) setHoveredId(t.getAttribute('data-annotation-id'));
@@ -398,7 +398,7 @@ const CommentChip: React.FC<{
     className={`rounded-lg border p-2.5 text-xs leading-relaxed transition-colors ${
       highlighted
         ? light
-          ? 'border-brand-blue-light/60 bg-brand-blue-lighter text-slate-800 shadow-sm shadow-brand-blue-primary/10'
+          ? 'border-brand-blue-light/60 bg-brand-blue-lighter text-slate-800 shadow-xs shadow-brand-blue-primary/10'
           : 'border-violet-400/60 bg-violet-500/10 text-slate-100 shadow-lg shadow-violet-500/10'
         : light
           ? 'border-slate-200 bg-slate-50 text-slate-600'
@@ -790,7 +790,7 @@ const EditView: React.FC<EditProps> = ({
       <article
         ref={articleRef}
         {...tourTypeAttr('quiz-grading.annotate-text', 'quiz')}
-        className="rich-text-content rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none min-w-0 break-words cursor-text select-text"
+        className="rich-text-content rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none min-w-0 wrap-break-word cursor-text select-text"
         // The response is evidence: selectable for highlighting, never editable.
         contentEditable={false}
         onBeforeInput={preventEdit}
@@ -987,7 +987,7 @@ const AnchoredAnnotationEditor: React.FC<{
               title="Delete"
               onClick={onDelete}
               {...tourTypeAttr('quiz-grading.annotate-delete', 'quiz')}
-              className="p-1 rounded text-slate-500 hover:bg-brand-red-lighter/40 hover:text-brand-red-dark transition-colors"
+              className="p-1 rounded-sm text-slate-500 hover:bg-brand-red-lighter/40 hover:text-brand-red-dark transition-colors"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -998,7 +998,7 @@ const AnchoredAnnotationEditor: React.FC<{
             title="Close"
             onClick={onClose}
             {...tourTypeAttr('quiz-grading.annotate-close', 'quiz')}
-            className="p-1 rounded text-slate-500 hover:bg-slate-200 transition-colors"
+            className="p-1 rounded-sm text-slate-500 hover:bg-slate-200 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -1037,7 +1037,7 @@ const AnchoredAnnotationEditor: React.FC<{
             ? 'Margin comment (optional) — pick a color to commit'
             : 'Margin comment (optional)'
         }
-        className="w-full px-2 py-1.5 bg-violet-50/60 border border-violet-200 rounded text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 resize-none"
+        className="w-full px-2 py-1.5 bg-violet-50/60 border border-violet-200 rounded-sm text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 resize-none"
       />
     </div>
   );

@@ -526,7 +526,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
           id={titleId}
           ref={heading}
           tabIndex={-1}
-          className="text-sm font-bold text-slate-800 truncate outline-none"
+          className="text-sm font-bold text-slate-800 truncate outline-hidden"
         >
           {widget.customTitle ?? title}
         </h2>
@@ -567,7 +567,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
             aria-label={t('widgetSettings.common.findSetting')}
             {...tourAttr('settings.search', widget.id, widget.type)}
             placeholder={t('widgetSettings.common.findSetting')}
-            className="w-full pl-8 pr-8 py-1.5 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            className="w-full pl-8 pr-8 py-1.5 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
           />
           {query !== '' && (
             <button
@@ -613,7 +613,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
                 : tourAttr('settings.tab-style', widget.id, widget.type))}
               className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-[color,background-color,box-shadow] ${
                 activeTab === tab
-                  ? 'bg-white shadow-sm text-slate-800'
+                  ? 'bg-white shadow-xs text-slate-800'
                   : 'text-slate-700 hover:text-slate-900'
               }`}
             >
@@ -646,7 +646,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         data-testid="settings-drawer-resize"
-        className={`absolute focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+        className={`absolute focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
           isSheet
             ? 'top-0 left-0 right-0 h-2 cursor-row-resize'
             : `top-0 bottom-0 w-2 cursor-col-resize ${

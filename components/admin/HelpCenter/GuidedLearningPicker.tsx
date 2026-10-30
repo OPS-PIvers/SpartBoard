@@ -263,7 +263,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
             />
           )}
           <span
-            className={`flex-1 break-words text-sm ${selected || selectedWeb ? 'text-slate-800' : 'text-slate-500'}`}
+            className={`flex-1 wrap-break-word text-sm ${selected || selectedWeb ? 'text-slate-800' : 'text-slate-500'}`}
           >
             {selectedLabel}
           </span>
@@ -351,7 +351,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
               placeholder="Search activities..."
               {...tourAttr('admin.help-center.gl-search')}
               aria-label="Search activities"
-              className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30"
+              className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-300 text-sm focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30"
             />
           </div>
           {groups.map((group) => (
@@ -383,9 +383,9 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
                       'help',
                       row.id
                     )}
-                    className={`flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${row.id === selectedSetId ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
+                    className={`flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-50 focus:bg-slate-50 focus:outline-hidden ${row.id === selectedSetId ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
                   >
-                    <span className="flex-1 break-words">{row.title}</span>
+                    <span className="flex-1 wrap-break-word">{row.title}</span>
                     {row.id === selectedSetId && (
                       <Check
                         className="w-4 h-4 mt-0.5 text-brand-blue-primary shrink-0"

@@ -77,7 +77,7 @@ type SheetState =
   | { kind: 'edit'; post: ActivityWallSubmission };
 
 const inputClass =
-  'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+  'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 
 /** Arrival screen for name / PIN walls; remembered per session in localStorage. */
 const IdentityScreen: React.FC<{
@@ -141,7 +141,7 @@ const IdentityScreen: React.FC<{
         <button
           type="submit"
           disabled={!valid}
-          className="w-full rounded-xl bg-brand-blue-primary py-2 font-bold text-white transition hover:bg-brand-blue-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 disabled:opacity-60"
+          className="w-full rounded-xl bg-brand-blue-primary py-2 font-bold text-white transition hover:bg-brand-blue-light focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 disabled:opacity-60"
         >
           Continue
         </button>
@@ -399,7 +399,7 @@ export const ActivityWallStudentApp: React.FC = () => {
         <button
           type="button"
           onClick={() => openCreate()}
-          className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-base font-bold text-white shadow-lg transition hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+          className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-base font-bold text-white shadow-lg transition hover:bg-emerald-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/80"
         >
           <Plus className="h-5 w-5" aria-hidden="true" />
           {isWordCloud ? 'Add word' : 'Add post'}

@@ -24,7 +24,7 @@ export const GoogleCalendarFrame: React.FC<{ url: string; tall?: boolean }> = ({
       title="Google Calendar"
       loading="lazy"
       sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      className={`block w-full border-0 ${tall ? 'h-[32rem]' : 'h-96'}`}
+      className={`block w-full border-0 ${tall ? 'h-128' : 'h-96'}`}
     />
   </DocEmbed>
 );

@@ -445,7 +445,7 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
       aria-modal="true"
       aria-labelledby="gl-frame-review-title"
       data-tour-ignore=""
-      className="fixed inset-0 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs"
       style={{ zIndex: Z_INDEX.tour }}
     >
       <div className="flex max-h-full w-full max-w-5xl flex-col gap-3 overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
@@ -503,7 +503,7 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
                   <div
                     key={`locked-${i}`}
                     data-testid="gl-frame-review-blurred"
-                    className="pointer-events-none absolute rounded-sm ring-2 ring-sky-500/60"
+                    className="pointer-events-none absolute rounded-xs ring-2 ring-sky-500/60"
                     style={boxStyle(r)}
                   />
                 ))}
@@ -517,7 +517,7 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
                       aria-pressed={isSelected}
                       aria-label={t('glRecorder.reviewBlurArea', { n: i + 1 })}
                       data-testid="gl-frame-review-blurred"
-                      className={`absolute cursor-move rounded-sm focus:outline-none ${
+                      className={`absolute cursor-move rounded-xs focus:outline-hidden ${
                         isSelected
                           ? 'ring-2 ring-brand-blue-primary'
                           : 'ring-2 ring-sky-500 focus-visible:ring-brand-blue-primary'
@@ -543,7 +543,7 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
                             key={c}
                             data-testid={`gl-frame-review-handle-${c}`}
                             aria-hidden="true"
-                            className={`absolute h-3 w-3 rounded-sm border-2 border-brand-blue-primary bg-white ${cornerClass[c]}`}
+                            className={`absolute h-3 w-3 rounded-xs border-2 border-brand-blue-primary bg-white ${cornerClass[c]}`}
                             onPointerDown={(e) => {
                               if (
                                 beginDrag(e, {
@@ -564,7 +564,7 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
                           disabled={locked}
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={() => removeBox(i)}
-                          className="absolute -right-3 -top-8 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-700 shadow ring-1 ring-slate-300 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                          className="absolute -right-3 -top-8 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-300 hover:bg-slate-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                         >
                           <X className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>
@@ -574,7 +574,7 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
                 })}
                 {draft && (
                   <div
-                    className="pointer-events-none absolute rounded-sm ring-2 ring-sky-500"
+                    className="pointer-events-none absolute rounded-xs ring-2 ring-sky-500"
                     style={boxStyle(draft)}
                   />
                 )}
@@ -683,7 +683,7 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
                     {blurred && (
                       <span
                         data-testid="gl-frame-review-strip-blurred"
-                        className="absolute bottom-1 right-1 rounded bg-slate-900/75 p-0.5 text-white"
+                        className="absolute bottom-1 right-1 rounded-sm bg-slate-900/75 p-0.5 text-white"
                       >
                         <EyeOff className="h-3 w-3" aria-hidden="true" />
                       </span>
@@ -761,7 +761,7 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
             <ul className="flex flex-col gap-1">
               {untagged.map((s) => (
                 <li key={s.id} className="flex items-center gap-2 text-sm">
-                  <code className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-800">
+                  <code className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-slate-800">
                     {s.suggestedId ?? t('glRecorder.untaggedNoId')}
                   </code>
                   {s.suggestedId && (

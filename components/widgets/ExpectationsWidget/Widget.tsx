@@ -181,7 +181,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
                 className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
                   voiceLevel === v.id
-                    ? `${v.bg} border-current ${v.color} shadow-sm`
+                    ? `${v.bg} border-current ${v.color} shadow-xs`
                     : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                 }`}
                 style={{
@@ -190,7 +190,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
               >
                 <div
-                  className={`rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-sm border ${
+                  className={`rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-xs border ${
                     voiceLevel === v.id
                       ? 'bg-white border-white/50'
                       : 'bg-slate-50 border-slate-100'
@@ -284,7 +284,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
                 className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
                   workMode === g.id
-                    ? `${g.bg} border-current ${g.color} shadow-sm`
+                    ? `${g.bg} border-current ${g.color} shadow-xs`
                     : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                 }`}
                 style={{
@@ -293,7 +293,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
               >
                 <div
-                  className={`rounded-2xl flex items-center justify-center shrink-0 shadow-sm border ${
+                  className={`rounded-2xl flex items-center justify-center shrink-0 shadow-xs border ${
                     workMode === g.id
                       ? 'bg-white border-white/50'
                       : 'bg-slate-50 border-slate-100'
@@ -366,7 +366,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
                 className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
                   interactionMode === i.id
-                    ? `${i.bg} border-current ${i.color} shadow-sm`
+                    ? `${i.bg} border-current ${i.color} shadow-xs`
                     : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                 }`}
                 style={{
@@ -375,7 +375,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
               >
                 <div
-                  className={`rounded-2xl flex items-center justify-center shrink-0 shadow-sm border ${
+                  className={`rounded-2xl flex items-center justify-center shrink-0 shadow-xs border ${
                     interactionMode === i.id
                       ? 'bg-white border-white/50'
                       : 'bg-slate-50 border-slate-100'
@@ -473,8 +473,8 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               {...tourAttr('expectations.volume', widget.id, widget.type)}
               className={`flex-1 min-h-0 flex items-center rounded-2xl border-2 transition-all group ${
                 selectedVolume
-                  ? `${selectedVolume.bg} border-current ${selectedVolume.color} shadow-sm`
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm'
+                  ? `${selectedVolume.bg} border-current ${selectedVolume.color} shadow-xs`
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 shadow-xs'
               }`}
               style={{
                 gap: 'min(20px, 4cqmin)',
@@ -483,7 +483,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-2xl transition-all shadow-sm border relative overflow-hidden ${
+                className={`rounded-2xl transition-all shadow-xs border relative overflow-hidden ${
                   selectedVolume
                     ? 'bg-white border-white/50'
                     : 'bg-slate-50 border-slate-100'
@@ -566,8 +566,8 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               {...tourAttr('expectations.groups', widget.id, widget.type)}
               className={`flex-1 min-h-0 flex items-center rounded-2xl border-2 transition-all group ${
                 selectedGroup
-                  ? `${selectedGroup.bg} border-current ${selectedGroup.color} shadow-sm`
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm'
+                  ? `${selectedGroup.bg} border-current ${selectedGroup.color} shadow-xs`
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 shadow-xs'
               }`}
               style={{
                 gap: 'min(20px, 4cqmin)',
@@ -576,7 +576,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-2xl transition-all shadow-sm border relative overflow-hidden ${
+                className={`rounded-2xl transition-all shadow-xs border relative overflow-hidden ${
                   selectedGroup
                     ? 'bg-white border-white/50'
                     : 'bg-slate-50 border-slate-100'
@@ -640,8 +640,8 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               {...tourAttr('expectations.interaction', widget.id, widget.type)}
               className={`flex-1 min-h-0 flex items-center rounded-2xl border-2 transition-all group ${
                 selectedInteraction
-                  ? `${selectedInteraction.bg} border-current ${selectedInteraction.color} shadow-sm`
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm'
+                  ? `${selectedInteraction.bg} border-current ${selectedInteraction.color} shadow-xs`
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 shadow-xs'
               }`}
               style={{
                 gap: 'min(20px, 4cqmin)',
@@ -650,7 +650,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-2xl transition-all shadow-sm border relative overflow-hidden ${
+                className={`rounded-2xl transition-all shadow-xs border relative overflow-hidden ${
                   selectedInteraction
                     ? 'bg-white border-white/50'
                     : 'bg-slate-50 border-slate-100'

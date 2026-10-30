@@ -40,7 +40,7 @@ export const QuizAttemptsStep: React.FC<QuizRuleStepProps> = ({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex min-h-[2rem] flex-col justify-center">
+      <div className="flex min-h-8 flex-col justify-center">
         <AttemptLimitRow
           label="Attempts allowed"
           value={value.attemptLimit}
@@ -48,7 +48,7 @@ export const QuizAttemptsStep: React.FC<QuizRuleStepProps> = ({
         />
       </div>
       {finalScoreOn && value.attemptLimit !== 1 && (
-        <div className="flex min-h-[2rem] items-center justify-between gap-3">
+        <div className="flex min-h-8 items-center justify-between gap-3">
           <span className="text-sm font-bold text-brand-blue-dark">
             Final score
           </span>

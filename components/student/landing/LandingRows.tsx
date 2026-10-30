@@ -59,7 +59,7 @@ const kindLabel = (a: AssignmentSummary): string => {
 };
 
 const ROW_CLASS =
-  'group flex w-full min-w-0 items-center gap-3 px-1 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary';
+  'group flex w-full min-w-0 items-center gap-3 px-1 py-3 text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary';
 
 const Title: React.FC<{ children: string; muted?: boolean }> = ({
   children,
@@ -263,7 +263,7 @@ export const ResourceRow: React.FC<{ row: LandingRow; nowMs: number }> = ({
           href={gallery}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 rounded px-2 py-1 text-xs font-semibold text-brand-blue-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+          className="shrink-0 rounded-sm px-2 py-1 text-xs font-semibold text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
         >
           Gallery
         </a>
@@ -520,7 +520,7 @@ export const LiveBanner: React.FC<{
       <a
         key={a.compositeId}
         href={a.openHref}
-        className="flex w-full items-center gap-3 rounded-2xl bg-brand-blue-primary px-4 py-3 text-left text-white shadow-sm transition hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2"
+        className="flex w-full items-center gap-3 rounded-2xl bg-brand-blue-primary px-4 py-3 text-left text-white shadow-xs transition hover:bg-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2"
       >
         <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-white">
           <span

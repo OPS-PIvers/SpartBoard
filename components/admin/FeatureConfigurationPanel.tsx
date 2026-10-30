@@ -290,7 +290,7 @@ export const FeatureConfigurationPanel: React.FC<
                       className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                         config.fetchingStrategy === 'client' ||
                         !config.fetchingStrategy
-                          ? 'bg-brand-blue-primary text-white shadow-sm'
+                          ? 'bg-brand-blue-primary text-white shadow-xs'
                           : 'text-slate-500 hover:bg-slate-50'
                       }`}
                     >
@@ -313,7 +313,7 @@ export const FeatureConfigurationPanel: React.FC<
                       )}
                       className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                         config.fetchingStrategy === 'admin_proxy'
-                          ? 'bg-brand-blue-primary text-white shadow-sm'
+                          ? 'bg-brand-blue-primary text-white shadow-xs'
                           : 'text-slate-500 hover:bg-slate-50'
                       }`}
                     >
@@ -345,7 +345,7 @@ export const FeatureConfigurationPanel: React.FC<
                           )}
                           className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                             config.source === 'openweather' || !config.source
-                              ? 'bg-brand-blue-primary text-white shadow-sm'
+                              ? 'bg-brand-blue-primary text-white shadow-xs'
                               : 'text-slate-500 hover:bg-slate-50'
                           }`}
                         >
@@ -367,7 +367,7 @@ export const FeatureConfigurationPanel: React.FC<
                           )}
                           className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                             config.source === 'earth_networks'
-                              ? 'bg-brand-blue-primary text-white shadow-sm'
+                              ? 'bg-brand-blue-primary text-white shadow-xs'
                               : 'text-slate-500 hover:bg-slate-50'
                           }`}
                         >
@@ -398,7 +398,7 @@ export const FeatureConfigurationPanel: React.FC<
                               },
                             })
                           }
-                          className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
+                          className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden"
                         />
                       </div>
                     )}
@@ -423,7 +423,7 @@ export const FeatureConfigurationPanel: React.FC<
                         config: { ...config, updateFrequencyMinutes: val },
                       })
                     }
-                    className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
+                    className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden"
                   />
                 </div>
 
@@ -495,7 +495,7 @@ export const FeatureConfigurationPanel: React.FC<
                                   .value as WeatherTemperatureRange['type'],
                               })
                             }
-                            className="text-xxs font-bold border border-slate-200 rounded px-1 py-1"
+                            className="text-xxs font-bold border border-slate-200 rounded-sm px-1 py-1"
                           >
                             <option value="range">Range</option>
                             <option value="above">Above</option>
@@ -512,7 +512,7 @@ export const FeatureConfigurationPanel: React.FC<
                                     min: val,
                                   })
                                 }
-                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
+                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded-sm text-center"
                                 title="Min Temp"
                                 {...tourFieldAttr(
                                   'admin.widget-config.field',
@@ -529,7 +529,7 @@ export const FeatureConfigurationPanel: React.FC<
                                     max: val,
                                   })
                                 }
-                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
+                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded-sm text-center"
                                 title="Max Temp"
                                 {...tourFieldAttr(
                                   'admin.widget-config.field',
@@ -558,7 +558,7 @@ export const FeatureConfigurationPanel: React.FC<
                                     min: val,
                                   })
                                 }
-                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
+                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded-sm text-center"
                               />
                             </div>
                           )}
@@ -581,7 +581,7 @@ export const FeatureConfigurationPanel: React.FC<
                                     max: val,
                                   })
                                 }
-                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
+                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded-sm text-center"
                               />
                             </div>
                           )}
@@ -615,12 +615,12 @@ export const FeatureConfigurationPanel: React.FC<
                               message: e.target.value,
                             })
                           }
-                          className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
+                          className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:border-brand-blue-primary outline-hidden"
                         />
 
                         <div className="flex items-center gap-2">
                           {range.imageUrl ? (
-                            <div className="relative w-10 h-10 rounded bg-slate-100 overflow-hidden shrink-0 group">
+                            <div className="relative w-10 h-10 rounded-sm bg-slate-100 overflow-hidden shrink-0 group">
                               <img
                                 src={range.imageUrl}
                                 alt="Range"
@@ -643,13 +643,13 @@ export const FeatureConfigurationPanel: React.FC<
                               </button>
                             </div>
                           ) : (
-                            <div className="w-10 h-10 rounded bg-slate-50 border border-dashed border-slate-300 flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 rounded-sm bg-slate-50 border border-dashed border-slate-300 flex items-center justify-center shrink-0">
                               <ImageIcon className="w-4 h-4 text-slate-300" />
                             </div>
                           )}
 
                           <div className="flex-1">
-                            <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded px-3 py-1.5 transition-colors w-max">
+                            <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-sm px-3 py-1.5 transition-colors w-max">
                               {uploadingRangeId === range.id ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-blue-primary" />
                               ) : (

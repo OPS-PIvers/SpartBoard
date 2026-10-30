@@ -186,7 +186,7 @@ export const StaffEmailInput: React.FC<StaffEmailInputProps> = ({
                 }`}
               >
                 {entry.name && (
-                  <div className="text-sm font-semibold text-slate-800 break-words">
+                  <div className="text-sm font-semibold text-slate-800 wrap-break-word">
                     {entry.name}
                   </div>
                 )}

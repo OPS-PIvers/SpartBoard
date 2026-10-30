@@ -29,7 +29,7 @@ export const AdminSearchField: React.FC<{
           aria-label={placeholder}
           data-testid={`access-search-${tab}`}
           {...tourFieldAttr('admin.access.search', 'admin', tab)}
-          className="w-full pl-9 pr-9 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          className="w-full pl-9 pr-9 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
         />
         {query && (
           <button

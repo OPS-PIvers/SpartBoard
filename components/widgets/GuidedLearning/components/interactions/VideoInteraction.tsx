@@ -105,7 +105,7 @@ export const VideoInteraction: React.FC<Props> = ({
 
   return (
     <div
-      className="w-full h-full flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="w-full h-full flex items-center justify-center bg-black/60 backdrop-blur-xs"
       style={{ padding: 'min(12px, 3cqmin)' }}
     >
       <div

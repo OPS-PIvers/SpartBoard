@@ -178,7 +178,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
         <div className="flex items-center gap-2">
           {timeLeft !== null && !showAnswer && (
             <div
-              className={`flex items-center font-black px-3 py-1 rounded-full shadow-sm ${timeLeft <= 5 ? 'bg-brand-red-primary text-white animate-pulse' : 'bg-brand-blue-primary text-white'}`}
+              className={`flex items-center font-black px-3 py-1 rounded-full shadow-xs ${timeLeft <= 5 ? 'bg-brand-red-primary text-white animate-pulse' : 'bg-brand-blue-primary text-white'}`}
               style={{
                 gap: 'min(4px, 1cqmin)',
                 fontSize: 'min(12px, 3.5cqmin)',
@@ -214,7 +214,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
         className="flex-1 overflow-y-auto custom-scrollbar"
         style={{ padding: 'min(16px, 4cqmin)' }}
       >
-        <div className="bg-white border-2 border-brand-blue-primary/10 rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="bg-white border-2 border-brand-blue-primary/10 rounded-2xl p-5 shadow-xs space-y-4">
           <div>
             <span
               className={`font-black rounded-md px-2 py-0.5 uppercase tracking-widest ${
@@ -663,7 +663,7 @@ const FIBAnswerArea: React.FC<{
             'quiz',
             String(i + 1)
           )}
-          className="w-full bg-white border-2 border-brand-blue-primary/10 rounded-2xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-inner disabled:bg-brand-gray-lightest/50"
+          className="w-full bg-white border-2 border-brand-blue-primary/10 rounded-2xl text-brand-blue-dark font-bold focus:outline-hidden focus:border-brand-blue-primary shadow-inner disabled:bg-brand-gray-lightest/50"
           style={{
             padding: 'min(12px, 3cqmin) min(16px, 4cqmin)',
             fontSize: 'min(14px, 4.5cqmin)',
@@ -731,7 +731,7 @@ const StructuredAnswerArea: React.FC<{
                 className={`font-bold transition-all duration-500 ${
                   showAnswer
                     ? 'text-emerald-700'
-                    : 'text-transparent bg-brand-blue-primary/5 rounded blur-[4px] select-none'
+                    : 'text-transparent bg-brand-blue-primary/5 rounded-sm blur-xs select-none'
                 }`}
               >
                 {pair.right}

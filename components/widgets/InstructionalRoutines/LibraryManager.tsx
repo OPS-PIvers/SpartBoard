@@ -206,7 +206,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
           onClick={() => setShowPromptDialog(true)}
           {...tourAttr('admin.routines.editor-ai')}
           disabled={isGenerating}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xxs font-black uppercase tracking-wider disabled:opacity-50 transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xxs font-black uppercase tracking-wider disabled:opacity-50 transition-colors shadow-xs"
         >
           {isGenerating ? (
             <Loader2 size={14} className="animate-spin" />
@@ -367,7 +367,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                     }}
                     className={`px-2 py-1 rounded-lg text-xxs font-black uppercase transition-all ${
                       isSelected
-                        ? 'bg-blue-600 text-white shadow-sm'
+                        ? 'bg-blue-600 text-white shadow-xs'
                         : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
                     }`}
                   >
@@ -492,7 +492,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                           <img
                             src={step.imageUrl}
                             alt="Display"
-                            className="w-6 h-6 object-cover rounded"
+                            className="w-6 h-6 object-cover rounded-sm"
                           />
                           <button
                             onClick={(e) => {
@@ -551,7 +551,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                       });
                     }}
                     placeholder="Label"
-                    className="w-16 bg-white border-none rounded px-2 py-0.5 text-xxs font-bold text-emerald-600"
+                    className="w-16 bg-white border-none rounded-sm px-2 py-0.5 text-xxs font-bold text-emerald-600"
                   />
                   <select
                     value={step.color ?? 'blue'}
@@ -568,7 +568,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                         steps: nextSteps,
                       });
                     }}
-                    className="bg-white border-none rounded px-2 py-0.5 text-xxs font-bold text-slate-600"
+                    className="bg-white border-none rounded-sm px-2 py-0.5 text-xxs font-bold text-slate-600"
                   >
                     {ROUTINE_STEP_COLORS.map((c) => (
                       <option key={c} value={c}>
@@ -624,7 +624,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                       }
                       onChange({ ...routine, steps: nextSteps });
                     }}
-                    className="bg-white border border-slate-200 rounded px-2 py-0.5 text-xxs font-bold text-slate-700 flex-1"
+                    className="bg-white border border-slate-200 rounded-sm px-2 py-0.5 text-xxs font-bold text-slate-700 flex-1"
                   >
                     <option value="">None</option>
                     {WIDGET_TYPES.map((t) => (

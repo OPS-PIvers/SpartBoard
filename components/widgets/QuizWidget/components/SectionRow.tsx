@@ -59,7 +59,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
           aria-label="Section title"
           placeholder="Section title"
           {...tourTypeAttr('quiz-editor.section-title', 'quiz')}
-          className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm font-bold text-slate-800 focus:border-brand-blue-primary focus:outline-none"
+          className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm font-bold text-slate-800 focus:border-brand-blue-primary focus:outline-hidden"
         />
         <textarea
           value={section.directions ?? ''}
@@ -72,7 +72,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
           placeholder="Directions (optional)"
           {...tourTypeAttr('quiz-editor.section-directions', 'quiz')}
           rows={2}
-          className="w-full resize-y rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-none"
+          className="w-full resize-y rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-hidden"
         />
         <label className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
           Students answer
@@ -86,7 +86,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
             }
             disabled={questionCount < 2}
             {...tourTypeAttr('quiz-editor.section-choose-count', 'quiz')}
-            className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-none disabled:opacity-60"
+            className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-hidden disabled:opacity-60"
           >
             <option value="all">all</option>
             {choices.map((n) => (
@@ -108,7 +108,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
                 })
               }
               {...tourTypeAttr('quiz-editor.section-stop', 'quiz')}
-              className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-none"
+              className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-hidden"
             >
               <option value="go">Go on</option>
               <option value="wait">Wait for teacher</option>
@@ -122,7 +122,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
         aria-label="Remove section"
         title="Remove section"
         {...tourTypeAttr('quiz-editor.section-remove', 'quiz')}
-        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-sm p-1 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>

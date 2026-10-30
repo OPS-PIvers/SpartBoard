@@ -25,7 +25,7 @@ export const SubmitBlockedNotice: React.FC<{
   return (
     <section
       role="status"
-      className={`rounded-3xl border p-5 shadow-sm backdrop-blur-sm ${
+      className={`rounded-3xl border p-5 shadow-xs backdrop-blur-xs ${
         light
           ? 'border-slate-200 bg-white/90'
           : 'border-slate-700 bg-slate-800/60'
@@ -69,7 +69,7 @@ export const SubmitBlockedNotice: React.FC<{
               aria-label={t('quizMediaResponse.capture.submitBlockedJump', {
                 number: q.index + 1,
               })}
-              className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+              className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 ${
                 light
                   ? 'border-slate-200 bg-white hover:border-brand-blue-primary/40 hover:bg-brand-blue-primary/5 focus-visible:outline-brand-blue-primary'
                   : 'border-slate-700 bg-slate-900/40 hover:border-brand-blue-lighter/40 hover:bg-slate-900/70 focus-visible:outline-brand-blue-lighter'

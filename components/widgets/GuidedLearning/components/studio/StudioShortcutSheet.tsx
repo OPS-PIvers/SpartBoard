@@ -104,7 +104,7 @@ export const StudioShortcutSheet: React.FC<{ onClose: () => void }> = ({
           e.stopPropagation();
           onClose();
         }}
-        className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl focus:outline-none"
+        className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl focus:outline-hidden"
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2
@@ -118,7 +118,7 @@ export const StudioShortcutSheet: React.FC<{ onClose: () => void }> = ({
             onClick={onClose}
             {...tourAttr('modal.close')}
             aria-label={t('glStudio.shortcutsClose')}
-            className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -148,7 +148,7 @@ export const StudioShortcutSheet: React.FC<{ onClose: () => void }> = ({
                       {row.keys.map((k) => (
                         <kbd
                           key={k}
-                          className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-xs text-slate-700"
+                          className="rounded-sm border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-xs text-slate-700"
                         >
                           {k}
                         </kbd>

@@ -82,7 +82,7 @@ export const DiceConfigurationPanel: React.FC<DiceConfigurationPanelProps> = ({
                 onClick={() => handleUpdateBuilding({ count })}
                 className={`flex-1 py-2 rounded-lg border-2 text-sm font-black transition-all ${
                   currentCount === count
-                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                     : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                 }`}
               >

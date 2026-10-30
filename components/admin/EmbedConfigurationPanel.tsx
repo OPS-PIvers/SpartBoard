@@ -156,7 +156,7 @@ export const EmbedConfigurationPanel: React.FC<
               onChange={(e) => setNewUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
               placeholder="e.g. example.com"
-              className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-blue-primary outline-none font-medium"
+              className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-blue-primary outline-hidden font-medium"
             />
             <button
               {...tourTypeAttr('admin.widget-config.add', 'embed')}
@@ -188,7 +188,7 @@ export const EmbedConfigurationPanel: React.FC<
                       `remove-${domain}`
                     )}
                     onClick={() => handleRemoveUrl(domain)}
-                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-sm transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

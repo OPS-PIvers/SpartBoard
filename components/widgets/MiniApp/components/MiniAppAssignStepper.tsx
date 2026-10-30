@@ -198,7 +198,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
           value={assignmentName}
           onChange={(e) => onNameChange(e.target.value)}
           placeholder="1st period"
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-hidden focus:border-brand-blue-primary"
         />
       </div>
       <AssignTopSwitch

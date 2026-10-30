@@ -76,7 +76,7 @@ export const PersonalSpotifyNowPlayingTab: React.FC<
           type="button"
           onClick={onSwitchToLibrary}
           {...tourTypeAttr('music.spotify-open-library', 'music')}
-          className="text-green-400 hover:text-green-300 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 rounded"
+          className="text-green-400 hover:text-green-300 underline-offset-2 hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-green-400/70 rounded-sm"
           style={{
             fontSize: 'min(12px, 3.5cqmin)',
             padding: 'min(2px, 0.5cqmin) min(4px, 1cqmin)',
@@ -103,7 +103,7 @@ export const PersonalSpotifyNowPlayingTab: React.FC<
   const displayArtist = currentTrack?.artist ?? '';
 
   return (
-    <div className="w-full h-full rounded-[var(--window-radius,0px)] overflow-hidden relative bg-gradient-to-br from-slate-900 via-slate-800 to-green-950 flex flex-col">
+    <div className="w-full h-full rounded-(--window-radius,0px) overflow-hidden relative bg-linear-to-br from-slate-900 via-slate-800 to-green-950 flex flex-col">
       <div
         className="flex-1 min-h-0 flex flex-col items-center justify-center text-center"
         style={{

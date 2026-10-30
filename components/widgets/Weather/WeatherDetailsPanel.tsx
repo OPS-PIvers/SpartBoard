@@ -369,7 +369,7 @@ export const WeatherDetailsLayout: React.FC<{
       className={`flex h-full w-full ${wide ? 'flex-row' : 'flex-col'} ${className}`}
     >
       <div
-        className="shrink-0 min-h-0 min-w-0 [container-type:size]"
+        className="shrink-0 min-h-0 min-w-0 @container-size"
         style={
           wide
             ? { width: `${WIDE_HERO_SHARE * 100}%` }

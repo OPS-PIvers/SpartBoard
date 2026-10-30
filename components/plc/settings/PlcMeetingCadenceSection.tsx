@@ -29,7 +29,7 @@ const NTH_OPTIONS: readonly { value: number; key: string; label: string }[] = [
 ];
 
 const inputClass =
-  'mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30';
+  'mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30';
 const labelClass = 'block text-xs font-semibold text-slate-600';
 
 function draftFrom(cadence: PlcMeetingCadence | undefined): Draft {
@@ -229,7 +229,7 @@ const CadenceEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
           {...tourAttr('plc-settings.cadence-save')}
           type="submit"
           disabled={busy || !valid}
-          className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
+          className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark disabled:opacity-60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
         >
           {t('plcDashboard.meetingCadence.save', {
             defaultValue: 'Save schedule',
@@ -241,7 +241,7 @@ const CadenceEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
             type="button"
             disabled={busy}
             onClick={() => void save(null)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
           >
             {t('plcDashboard.meetingCadence.remove', {
               defaultValue: 'Remove schedule',

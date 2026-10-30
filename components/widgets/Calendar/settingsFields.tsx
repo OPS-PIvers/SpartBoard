@@ -166,7 +166,7 @@ export const CalendarPersonalCalendarsField: React.FC<{
               placeholder={ctx.t(
                 'widgetSettings.calendar.calendarIdPlaceholder'
               )}
-              className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-blue-500"
               {...tourAttr(
                 'widget-settings.calendar.calendar-id',
                 ctx.widget.id,
@@ -191,7 +191,7 @@ export const CalendarPersonalCalendarsField: React.FC<{
             {personalIds.map((id, calendarIndex) => (
               <div
                 key={id}
-                className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white px-3 py-2 shadow-sm"
+                className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white px-3 py-2 shadow-xs"
               >
                 <span className="min-w-0 truncate text-xs font-medium text-slate-600">
                   {id}

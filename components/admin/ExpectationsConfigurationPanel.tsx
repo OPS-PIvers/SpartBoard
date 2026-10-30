@@ -135,7 +135,7 @@ export const ExpectationsConfigurationPanel: React.FC<
                   )}
                 />
                 {Icon && (
-                  <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-sm bg-slate-100 flex items-center justify-center shrink-0">
                     <Icon className="w-5 h-5 text-slate-500" />
                   </div>
                 )}
@@ -162,7 +162,7 @@ export const ExpectationsConfigurationPanel: React.FC<
                         'expectations',
                         `label-${title}-${opt.id}`
                       )}
-                      className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
+                      className="w-full px-2 py-1 text-xs border border-slate-300 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden"
                       disabled={!override.enabled}
                     />
                   </div>
@@ -189,7 +189,7 @@ export const ExpectationsConfigurationPanel: React.FC<
                           'expectations',
                           `sub-${title}-${opt.id}`
                         )}
-                        className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
+                        className="w-full px-2 py-1 text-xs border border-slate-300 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden"
                         disabled={!override.enabled}
                       />
                     </div>

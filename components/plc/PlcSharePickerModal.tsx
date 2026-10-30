@@ -154,7 +154,7 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
                 placeholder={t('plcDashboard.sharePicker.searchPlaceholder', {
                   defaultValue: 'Search…',
                 })}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary"
               />
             </div>
 

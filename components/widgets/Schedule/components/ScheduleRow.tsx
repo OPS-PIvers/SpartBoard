@@ -276,7 +276,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           : `rounded-2xl ${
               isActive
                 ? 'border-brand-blue-primary shadow-md z-10'
-                : 'border-slate-200 shadow-sm'
+                : 'border-slate-200 shadow-xs'
             }`
       }`}
       style={rowStyle}
@@ -344,7 +344,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           <span
             className={`font-black leading-tight text-left min-w-0 ${
               isExpanded
-                ? 'break-words overflow-y-auto no-scrollbar'
+                ? 'wrap-break-word overflow-y-auto no-scrollbar'
                 : 'truncate'
             } ${item.done ? 'text-slate-400 line-through' : 'text-slate-700'}`}
             style={{

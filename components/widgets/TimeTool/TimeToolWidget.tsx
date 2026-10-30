@@ -234,7 +234,7 @@ const Keypad: React.FC<{
       ref={containerRef}
       tabIndex={-1}
       onKeyDown={handleKeyDown}
-      className="flex flex-col items-center justify-center w-full h-full animate-in fade-in zoom-in-95 duration-200 overflow-hidden focus:outline-none"
+      className="flex flex-col items-center justify-center w-full h-full animate-in fade-in zoom-in-95 duration-200 overflow-hidden focus:outline-hidden"
     >
       <div
         className="flex flex-col items-center w-full h-full"
@@ -698,7 +698,7 @@ export const TimeToolWidget: React.FC<{
                     <button
                       {...tourAttr('time-tool.reset', widget.id, widget.type)}
                       onClick={handleReset}
-                      className={`${isCompact ? 'relative touch-target-expand ' : ''}flex items-center justify-center rounded-xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-sm`}
+                      className={`${isCompact ? 'relative touch-target-expand ' : ''}flex items-center justify-center rounded-xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-xs`}
                       style={{
                         width: ctrlSize,
                         height: ctrlSize,

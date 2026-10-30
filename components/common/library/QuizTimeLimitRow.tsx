@@ -54,7 +54,7 @@ export const QuizTimeLimitRow: React.FC<{
             onBlur={commit}
             aria-label={t('quizTimeLimit.minutes', 'Minutes')}
             {...tourAttr('assign-quiz-time.minutes')}
-            className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+            className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 tabular-nums focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
           />
           <span className="text-xs text-slate-700">
             {t('quizTimeLimit.unit', 'min')}

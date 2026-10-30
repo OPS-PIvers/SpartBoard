@@ -82,7 +82,7 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
             type="button"
             onClick={() => void toggleLike()}
             disabled={likeBusy || !writable}
-            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50 ${
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50 ${
               likeInfo.viewerLiked
                 ? 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
                 : 'bg-white/10 text-slate-200 hover:bg-white/20'

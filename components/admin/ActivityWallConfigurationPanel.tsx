@@ -125,7 +125,7 @@ export const ActivityWallConfigurationPanel: React.FC<
                 defaultLayout: event.target.value as ActivityWallLayout,
               })
             }
-            className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+            className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
           >
             {LAYOUT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -200,7 +200,7 @@ export const ActivityWallConfigurationPanel: React.FC<
                   : 0,
               });
             }}
-            className="w-32 px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+            className="w-32 px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
           />
         </div>
 
@@ -225,7 +225,7 @@ export const ActivityWallConfigurationPanel: React.FC<
                   onClick={() => handleUpdateBuilding({ defaultMode: mode })}
                   className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
                     currentBuildingConfig.defaultMode === mode
-                      ? 'bg-brand-blue-primary border-brand-blue-primary text-white shadow-sm'
+                      ? 'bg-brand-blue-primary border-brand-blue-primary text-white shadow-xs'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                   }`}
                 >
@@ -282,7 +282,7 @@ export const ActivityWallConfigurationPanel: React.FC<
                   .value as ActivityWallIdentificationMode,
               })
             }
-            className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+            className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
           >
             {IDENTIFICATION_OPTIONS.map((option) => (
               <option key={option} value={option}>
@@ -325,7 +325,7 @@ export const ActivityWallConfigurationPanel: React.FC<
                   fontFamily: selected === 'global' ? undefined : selected,
                 });
               }}
-              className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+              className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
             >
               {FONTS.map((f) => (
                 <option key={f.id} value={f.id}>
@@ -420,7 +420,7 @@ export const ActivityWallConfigurationPanel: React.FC<
                     .value as BuildingActivityWallDefaults['imageSize'],
                 })
               }
-              className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+              className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
             >
               {IMAGE_SIZE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>

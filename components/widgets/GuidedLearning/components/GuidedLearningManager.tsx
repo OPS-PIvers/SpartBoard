@@ -2237,7 +2237,7 @@ const GuidedLearningPreviewPane: React.FC<{
                   type="button"
                   {...tourAttr('gl-manager.preview-play')}
                   onClick={handlePlayPreview}
-                  className="rounded-full border border-white/20 bg-slate-900/70 font-medium text-slate-100 shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900/85"
+                  className="rounded-full border border-white/20 bg-slate-900/70 font-medium text-slate-100 shadow-lg backdrop-blur-xs transition-colors hover:bg-slate-900/85"
                   style={{
                     paddingInline: 'min(12px, 3cqmin)',
                     paddingBlock: 'min(6px, 1.5cqmin)',

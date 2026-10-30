@@ -57,7 +57,7 @@ export const RecordingConsentNotice: React.FC<{
   return (
     <section
       aria-labelledby="recording-notice-heading"
-      className={`rounded-3xl border p-6 shadow-sm backdrop-blur-sm ${
+      className={`rounded-3xl border p-6 shadow-xs backdrop-blur-xs ${
         light
           ? 'border-slate-200 bg-white/90'
           : 'border-slate-700 bg-slate-800/60'
@@ -127,7 +127,7 @@ export const RecordingConsentNotice: React.FC<{
         type="button"
         onClick={onAcknowledge}
         disabled={busy}
-        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-60"
       >
         {variant === 'reminder' ? (
           <X aria-hidden className="h-4 w-4" />
@@ -156,7 +156,7 @@ export const RecordingNoticeReminder = React.forwardRef<
       type="button"
       onClick={onOpen}
       disabled={disabled}
-      className={`rounded-lg text-xs font-semibold underline underline-offset-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:no-underline ${
+      className={`rounded-lg text-xs font-semibold underline underline-offset-2 transition focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:no-underline ${
         light
           ? 'text-brand-blue-primary hover:text-brand-blue-dark focus-visible:outline-brand-blue-primary disabled:text-slate-500'
           : 'text-brand-blue-lighter hover:text-white focus-visible:outline-brand-blue-lighter disabled:text-slate-400'

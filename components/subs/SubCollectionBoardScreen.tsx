@@ -195,7 +195,7 @@ export const SubCollectionBoardScreen: React.FC<
   // Expiry takes the screen down; a failed read of the next board does not.
   if (expired || (!!error && !shown)) {
     return (
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50">
+      <div className="h-screen h-dvh overflow-y-auto bg-slate-50">
         <ExpiredOrErrorPanel
           message={
             expired ? 'This share has expired.' : (error ?? 'Board not found.')
@@ -215,7 +215,7 @@ export const SubCollectionBoardScreen: React.FC<
       );
     }
     return (
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50">
+      <div className="h-screen h-dvh overflow-y-auto bg-slate-50">
         <ExpiredOrErrorPanel
           message="Board not found."
           onBack={onBackToDirectory}
@@ -265,7 +265,7 @@ export const SubCollectionBoardScreen: React.FC<
       {loading && (
         <div
           role="status"
-          className="fixed bottom-6 right-4 z-dock flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-sm border border-slate-200 shadow-md px-3 py-1.5 text-xs text-slate-600"
+          className="fixed bottom-6 right-4 z-dock flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-xs border border-slate-200 shadow-md px-3 py-1.5 text-xs text-slate-600"
         >
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
           {t('subShare.nav.opening', { defaultValue: 'Opening…' })}
@@ -292,7 +292,7 @@ export const SubCollectionBoardScreen: React.FC<
               );
               setAttempt(attempt + 1);
             }}
-            className="shrink-0 rounded-full bg-amber-100 hover:bg-amber-200 px-2 py-0.5 font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+            className="shrink-0 rounded-full bg-amber-100 hover:bg-amber-200 px-2 py-0.5 font-bold transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500"
           >
             {t('subShare.nav.tryAgain', { defaultValue: 'Try again' })}
           </button>

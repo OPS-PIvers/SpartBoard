@@ -78,7 +78,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
           return (
             <div
               key={part.id}
-              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-sm"
+              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-xs"
             >
               <input
                 type="text"
@@ -97,7 +97,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
                     )
                   )
                 }
-                className="flex-1 text-xs border-none outline-none bg-transparent"
+                className="flex-1 text-xs border-none outline-hidden bg-transparent"
                 placeholder="Box name"
               />
               <button
@@ -166,7 +166,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
             }
           }}
           placeholder={atMax ? 'Box limit reached' : 'New box name...'}
-          className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white disabled:opacity-50"
+          className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white disabled:opacity-50"
         />
         <button
           type="button"
@@ -177,7 +177,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
           )}
           onClick={add}
           disabled={!newLabel.trim() || atMax}
-          className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded-sm hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <Plus className="w-3 h-3" /> Add
         </button>

@@ -125,7 +125,7 @@ export const SavedPollsPanel: React.FC<SavedPollsPanelProps> = ({
         >
           {savedLibrary.map((p) => (
             <li key={p.id} className="flex items-center gap-2 py-1.5">
-              <span className="flex-1 min-w-0 text-xs font-semibold text-slate-700 [overflow-wrap:anywhere]">
+              <span className="flex-1 min-w-0 text-xs font-semibold text-slate-700 wrap-anywhere">
                 {p.name}
               </span>
               <span className="shrink-0 text-xxs text-slate-400 tabular-nums">

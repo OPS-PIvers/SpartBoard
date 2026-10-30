@@ -61,7 +61,7 @@ export const ProjectStepStatePicker: React.FC<ProjectStepStatePickerProps> = ({
       ref={panelRef}
       role="dialog"
       aria-label={`Set ${step.title}`}
-      className="absolute left-0 top-full z-20 mt-1.5 w-full min-w-[12rem] rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
+      className="absolute left-0 top-full z-20 mt-1.5 w-full min-w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
     >
       <div role="group" aria-label="Status" className="flex flex-col gap-1">
         {(asTeacher ? STEP_STATE_ORDER : studentStateOptions(step)).map(
@@ -73,7 +73,7 @@ export const ProjectStepStatePicker: React.FC<ProjectStepStatePickerProps> = ({
                 type="button"
                 aria-pressed={selected}
                 onClick={() => onPick(state)}
-                className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+                className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm font-semibold transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                   selected
                     ? 'bg-slate-100 text-slate-900'
                     : 'text-slate-700 hover:bg-slate-50'

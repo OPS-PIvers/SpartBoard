@@ -52,7 +52,7 @@ export const StudentLobby: React.FC<StudentLobbyProps> = ({
             placeholder="Teacher ID / Room Code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono text-center tracking-widest uppercase"
+            className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 transition-all font-mono text-center tracking-widest uppercase"
             required
           />
         </div>
@@ -63,7 +63,7 @@ export const StudentLobby: React.FC<StudentLobbyProps> = ({
             placeholder="Your PIN"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-center font-mono tracking-widest"
+            className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 transition-all text-center font-mono tracking-widest"
             required
           />
         </div>

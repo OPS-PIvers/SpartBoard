@@ -390,7 +390,7 @@ export const NumberLineConfigurationPanel: React.FC<
               disabled={!Number.isFinite(newMarkerValue)}
               aria-label="Add default marker"
               title="Add default marker"
-              className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -439,7 +439,7 @@ export const NumberLineConfigurationPanel: React.FC<
                   }
                   aria-label="Remove default marker"
                   title="Remove default marker"
-                  className="text-slate-400 hover:text-red-500 p-1 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                  className="text-slate-400 hover:text-red-500 p-1 rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-500"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -535,7 +535,7 @@ export const NumberLineConfigurationPanel: React.FC<
               }
               aria-label="Add default jump"
               title="Add default jump"
-              className="bg-emerald-600 text-white p-2 rounded-lg hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-emerald-600 text-white p-2 rounded-lg hover:bg-emerald-700 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -574,7 +574,7 @@ export const NumberLineConfigurationPanel: React.FC<
                   }
                   aria-label="Remove default jump"
                   title="Remove default jump"
-                  className="text-slate-400 hover:text-red-500 p-1 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                  className="text-slate-400 hover:text-red-500 p-1 rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-500"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -638,7 +638,7 @@ export const NumberLineConfigurationPanel: React.FC<
                 onChange={(e) =>
                   handleUpdateBuilding({ fontColor: e.target.value })
                 }
-                className="w-10 h-8 rounded border border-slate-300 cursor-pointer p-0.5 bg-white"
+                className="w-10 h-8 rounded-sm border border-slate-300 cursor-pointer p-0.5 bg-white"
                 aria-label="Pick default text color"
               />
               <HexColorTextInput
@@ -646,7 +646,7 @@ export const NumberLineConfigurationPanel: React.FC<
                 onCommit={(next) => handleUpdateBuilding({ fontColor: next })}
                 fieldKey="fontColorText"
                 placeholder="#334155"
-                className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded-sm focus:ring-1 focus:ring-blue-500 outline-hidden"
               />
               {currentBuildingConfig.fontColor && (
                 <button
@@ -685,7 +685,7 @@ export const NumberLineConfigurationPanel: React.FC<
                 onChange={(e) =>
                   handleUpdateBuilding({ cardColor: e.target.value })
                 }
-                className="w-10 h-8 rounded border border-slate-300 cursor-pointer p-0.5 bg-white"
+                className="w-10 h-8 rounded-sm border border-slate-300 cursor-pointer p-0.5 bg-white"
                 aria-label="Pick default surface color"
               />
               <HexColorTextInput
@@ -693,7 +693,7 @@ export const NumberLineConfigurationPanel: React.FC<
                 onCommit={(next) => handleUpdateBuilding({ cardColor: next })}
                 fieldKey="cardColorText"
                 placeholder="#ffffff"
-                className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded-sm focus:ring-1 focus:ring-blue-500 outline-hidden"
               />
               {currentBuildingConfig.cardColor && (
                 <button

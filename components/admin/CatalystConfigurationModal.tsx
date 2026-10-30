@@ -450,7 +450,7 @@ export const CatalystConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
@@ -550,7 +550,7 @@ export const CatalystConfigurationModal: React.FC<
                       `set-${set.id}`
                     )}
                     onClick={() => openSetEditor(set)}
-                    className="relative rounded-xl overflow-hidden border border-slate-200 shadow-sm group hover:ring-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-left"
+                    className="relative rounded-xl overflow-hidden border border-slate-200 shadow-xs group hover:ring-2 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 text-left"
                     style={{ minHeight: 140 }}
                   >
                     {set.imageUrl && isSafeIconUrl(set.imageUrl) ? (
@@ -565,10 +565,10 @@ export const CatalystConfigurationModal: React.FC<
                         <Layers className="w-8 h-8 text-slate-300" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
 
                     <div className="absolute bottom-0 left-0 right-0 px-4 py-3">
-                      <p className="text-white font-black uppercase tracking-widest text-sm truncate drop-shadow">
+                      <p className="text-white font-black uppercase tracking-widest text-sm truncate drop-shadow-sm">
                         {set.title || `Unnamed Set`}
                       </p>
                       <p className="text-white/80 text-xs mt-0.5">
@@ -577,7 +577,7 @@ export const CatalystConfigurationModal: React.FC<
                       </p>
                     </div>
 
-                    <div className="absolute top-2 right-2 p-1.5 bg-white/20 backdrop-blur-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-2 right-2 p-1.5 bg-white/20 backdrop-blur-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
                       <Edit2 className="w-4 h-4 text-white" />
                     </div>
                   </button>
@@ -611,7 +611,7 @@ export const CatalystConfigurationModal: React.FC<
                           )
                         }
                         placeholder="e.g. Morning Blocks"
-                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
                       />
                     </div>
                     <div>
@@ -631,7 +631,7 @@ export const CatalystConfigurationModal: React.FC<
                           )
                         }
                         placeholder="Brief description..."
-                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none h-20"
+                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none h-20"
                       />
                     </div>
                   </div>
@@ -739,7 +739,7 @@ export const CatalystConfigurationModal: React.FC<
                           {routine.widgets.length} widget(s)
                         </div>
 
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-slate-50 shadow-sm rounded-md border border-slate-200 p-0.5">
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-slate-50 shadow-xs rounded-md border border-slate-200 p-0.5">
                           <button
                             {...tourFieldAttr(
                               'admin.widget-config.field',
@@ -747,7 +747,7 @@ export const CatalystConfigurationModal: React.FC<
                               `editRoutine-${routine.id}`
                             )}
                             onClick={() => openRoutineEditor(routine)}
-                            className="p-1 hover:bg-slate-200 rounded text-slate-600"
+                            className="p-1 hover:bg-slate-200 rounded-sm text-slate-600"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -758,7 +758,7 @@ export const CatalystConfigurationModal: React.FC<
                               `removeRoutine-${routine.id}`
                             )}
                             onClick={() => void handleDeleteRoutine(routine.id)}
-                            className="p-1 hover:bg-red-100 rounded text-red-600"
+                            className="p-1 hover:bg-red-100 rounded-sm text-red-600"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -792,7 +792,7 @@ export const CatalystConfigurationModal: React.FC<
                         }))
                       }
                       placeholder="e.g. Brain Break"
-                      className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
                     />
                   </div>
                   <div>
@@ -813,7 +813,7 @@ export const CatalystConfigurationModal: React.FC<
                         }))
                       }
                       placeholder="Brief description..."
-                      className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none h-20"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none h-20"
                     />
                   </div>
                   <div>
@@ -833,7 +833,7 @@ export const CatalystConfigurationModal: React.FC<
                           value={iconSearch}
                           onChange={(e) => setIconSearch(e.target.value)}
                           placeholder="Search icon names..."
-                          className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-400"
                         />
                       </div>
                       <div className="grid grid-cols-8 gap-2 max-h-44 overflow-y-auto custom-scrollbar">
@@ -1009,7 +1009,7 @@ export const CatalystConfigurationModal: React.FC<
                       {routineEditor.widgets.map((w, i) => (
                         <span
                           key={i}
-                          className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 shadow-sm"
+                          className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 shadow-xs"
                         >
                           {w.type}
                         </span>

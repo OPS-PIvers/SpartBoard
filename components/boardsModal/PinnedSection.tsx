@@ -61,7 +61,7 @@ export const PinnedSection: React.FC<PinnedSectionProps> = ({
                   defaultValue: 'Unpin Board',
                 })}
                 {...tourAttr('boards-modal.pinned-unpin')}
-                className="p-0.5 rounded text-amber-500 opacity-0 group-hover:opacity-100 hover:bg-amber-100 transition"
+                className="p-0.5 rounded-sm text-amber-500 opacity-0 group-hover:opacity-100 hover:bg-amber-100 transition"
               >
                 <Pin className="w-3 h-3 fill-current" />
               </button>

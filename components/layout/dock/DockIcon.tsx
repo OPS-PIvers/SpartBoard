@@ -27,7 +27,7 @@ export const DockIcon: React.FC<DockIconProps> = ({
     <div className={finalClassName} title={title}>
       {children}
       {badgeCount !== undefined && badgeCount > 0 && (
-        <div className="absolute -top-1 -right-1 bg-brand-red-primary text-white text-xxs font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white shadow-sm">
+        <div className="absolute -top-1 -right-1 bg-brand-red-primary text-white text-xxs font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white shadow-xs">
           {badgeCount}
         </div>
       )}

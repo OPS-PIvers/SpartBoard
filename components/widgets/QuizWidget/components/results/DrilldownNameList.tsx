@@ -37,7 +37,7 @@ export const DrilldownNameList: React.FC<DrilldownNameListProps> = ({
                 'quiz',
                 String(index)
               )}
-              className="max-w-full truncate text-left rounded hover:underline hover:text-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+              className="max-w-full truncate text-left rounded-sm hover:underline hover:text-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             >
               {name}
             </button>

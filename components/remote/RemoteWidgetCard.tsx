@@ -192,7 +192,7 @@ export const RemoteWidgetCard: React.FC<RemoteWidgetCardProps> = ({
     widget.type.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
-    <div className="w-screen flex-shrink-0 flex flex-col h-full snap-start">
+    <div className="w-screen shrink-0 flex flex-col h-full snap-start">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
         <span className="text-white font-black text-base uppercase tracking-wide truncate max-w-[60%]">

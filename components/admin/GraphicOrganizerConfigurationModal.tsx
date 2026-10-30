@@ -308,7 +308,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-modal-nested flex items-center justify-center bg-slate-900/50 p-4 font-sans backdrop-blur-sm">
+    <div className="fixed inset-0 z-modal-nested flex items-center justify-center bg-slate-900/50 p-4 font-sans backdrop-blur-xs">
       <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
@@ -402,7 +402,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                               : (selected as GraphicOrganizerLayoutType),
                         });
                       }}
-                      className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                     >
                       <option value="">
                         Widget default (no override — Frayer)
@@ -437,7 +437,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                             selected === 'global' ? undefined : selected,
                         });
                       }}
-                      className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                     >
                       {FONTS.map((f) => (
                         <option key={f.id} value={f.id}>
@@ -555,7 +555,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                                 )?.label
                               }
                             </div>
-                            <div className="text-xs font-mono bg-slate-100 p-1 rounded inline-block text-slate-600 mb-4">
+                            <div className="text-xs font-mono bg-slate-100 p-1 rounded-sm inline-block text-slate-600 mb-4">
                               {template.fontFamily}
                             </div>
                           </div>
@@ -600,7 +600,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                           'graphic-organizer',
                           'backFromTemplate'
                         )}
-                        className="p-1 hover:bg-slate-100 rounded text-slate-500"
+                        className="p-1 hover:bg-slate-100 rounded-sm text-slate-500"
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
@@ -634,7 +634,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                               name: e.target.value,
                             })
                           }
-                          className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                          className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                           placeholder="e.g., Weekly Frayer Model"
                         />
                       </div>
@@ -656,7 +656,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                               e.target.value as GraphicOrganizerLayoutType
                             )
                           }
-                          className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                          className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                         >
                           {LAYOUT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -684,7 +684,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                               fontFamily: e.target.value as GlobalFontFamily,
                             })
                           }
-                          className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                          className="w-full rounded-lg border-slate-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                         >
                           {FONT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -722,7 +722,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                                       e.target.value
                                     )
                                   }
-                                  className="w-full rounded-md border-slate-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                  className="w-full rounded-md border-slate-300 shadow-xs text-sm focus:border-indigo-500 focus:ring-indigo-500"
                                   placeholder={`Enter ${nodeKey} text...`}
                                 />
                               </div>

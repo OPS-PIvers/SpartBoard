@@ -130,7 +130,7 @@ export function AssignModal<TOptions>({
             ? confirmDisabledReason
             : undefined)
         }
-        className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitting ? (
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
@@ -174,7 +174,7 @@ export function AssignModal<TOptions>({
             onChange={(e) => onAssignmentNameChange?.(e.target.value)}
             {...tourAttr('assign-modal.name')}
             placeholder="e.g. Period 2"
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
           />
         </div>
       )}

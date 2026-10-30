@@ -144,7 +144,7 @@ const CardPreview: React.FC<{
         <img
           src={url}
           alt={submission.title ?? 'Student photo'}
-          className="min-h-0 w-full flex-1 rounded object-cover"
+          className="min-h-0 w-full flex-1 rounded-sm object-cover"
         />
       );
     }
@@ -179,7 +179,7 @@ const CardPreview: React.FC<{
     return (
       <div ref={bodyRef} className="min-h-0 flex-1 overflow-hidden">
         <p
-          className="whitespace-pre-wrap break-words"
+          className="whitespace-pre-wrap wrap-break-word"
           style={{
             fontSize: font.body,
             lineHeight: 1.3,
@@ -203,7 +203,7 @@ const CardPreview: React.FC<{
         style={{ fontSize: font.meta }}
       >
         <span
-          className={`${metrics.cardH < 60 ? 'line-clamp-1' : 'line-clamp-2'} break-words`}
+          className={`${metrics.cardH < 60 ? 'line-clamp-1' : 'line-clamp-2'} wrap-break-word`}
         >
           {hideDate ? '' : (submission.label ?? 'No date')}
         </span>
@@ -448,7 +448,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
   const hasDated = geometry.knots.length > 0;
 
   const toolButton =
-    'flex items-center justify-center rounded-md p-1 text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-30';
+    'flex items-center justify-center rounded-md p-1 text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-30';
 
   const renderBand = (
     band: (typeof bands)[number],
@@ -681,7 +681,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
                   aria-label={`Open post: ${[dateText, submission.title].filter(Boolean).join(', ') || 'Post'}`}
                   data-testid={`aw-timeline-card-${p.id}`}
                   data-timeline-card
-                  className="absolute flex flex-col overflow-hidden rounded-lg border border-white/15 bg-slate-900/80 text-left text-white shadow-lg transition hover:border-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                  className="absolute flex flex-col overflow-hidden rounded-lg border border-white/15 bg-slate-900/80 text-left text-white shadow-lg transition hover:border-white/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
                   style={{
                     left: p.cardX,
                     top: cardTop(p),
@@ -890,7 +890,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
               autoFocus
               onClick={() => setOpenId(null)}
               aria-label="Close post"
-              className="absolute right-1 top-1 rounded-full p-1 text-current opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              className="absolute right-1 top-1 rounded-full p-1 text-current opacity-70 hover:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
             >
               <X size={16} />
             </button>

@@ -342,7 +342,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
 
   // --- Render ---
   return (
-    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-3xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
@@ -374,7 +374,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                   onClick={() => setView('list')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all ${
                     view === 'list'
-                      ? 'bg-white text-red-600 shadow-sm'
+                      ? 'bg-white text-red-600 shadow-xs'
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
@@ -386,7 +386,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                   onClick={() => setView('settings')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all ${
                     view === 'settings'
-                      ? 'bg-white text-red-600 shadow-sm'
+                      ? 'bg-white text-red-600 shadow-xs'
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
@@ -432,7 +432,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                 {pdfs.map((pdf, idx) => (
                   <div
                     key={pdf.id}
-                    className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-3 shadow-sm hover:shadow-md hover:border-red-200 transition-all"
+                    className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-3 shadow-xs hover:shadow-md hover:border-red-200 transition-all"
                   >
                     {/* Reorder handle / index */}
                     <div className="flex flex-col items-center gap-0.5 shrink-0">
@@ -593,7 +593,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   placeholder="e.g. District Policy"
-                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-red-500 shadow-xs"
                 />
               </div>
 
@@ -624,7 +624,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                         onClick={() => toggleBuilding(building.id)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-xs font-bold transition-colors ${
                           isSelected
-                            ? 'bg-red-600 text-white border-red-600 shadow-sm'
+                            ? 'bg-red-600 text-white border-red-600 shadow-xs'
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         }`}
                       >

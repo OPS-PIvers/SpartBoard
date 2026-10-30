@@ -10,7 +10,7 @@ export const MiniAppResultsStep: React.FC<{
   onChange: (next: MiniAppResultsChoice) => void;
 }> = ({ value, onChange }) => (
   <div className="space-y-1.5">
-    <div className="flex min-h-[2rem] flex-col justify-center">
+    <div className="flex min-h-8 flex-col justify-center">
       <AttemptLimitRow
         label="Attempts allowed"
         tooltip="The best attempt counts."

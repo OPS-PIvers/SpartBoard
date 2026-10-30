@@ -39,7 +39,7 @@ export const ReadAloudButton: React.FC<{
       title={active ? t('quizReadAloud.stop', 'Stop') : label}
       onClick={active ? onStop : onClick}
       onPointerDown={(e) => e.stopPropagation()}
-      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
+      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
         active ? PLAYING : VARIANT[variant]
       } ${className}`}
     >

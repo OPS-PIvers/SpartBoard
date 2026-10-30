@@ -470,12 +470,12 @@ export const LiveTourViewsDevHarness: React.FC = () => {
         }
         stopwatch={state === 'edit-flipped'}
       />
-      <label className="absolute bottom-4 left-4 z-[20000] flex items-center gap-2 rounded-lg bg-white px-2 py-1 text-xs text-slate-700 shadow">
+      <label className="absolute bottom-4 left-4 z-20000 flex items-center gap-2 rounded-lg bg-white px-2 py-1 text-xs text-slate-700 shadow-sm">
         State
         <select
           value={state}
           onChange={(e) => pick(e.target.value as State)}
-          className="rounded border border-slate-300 px-1 py-0.5"
+          className="rounded-sm border border-slate-300 px-1 py-0.5"
         >
           {STATES.map((s) => (
             <option key={s} value={s}>

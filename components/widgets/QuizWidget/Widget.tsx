@@ -2187,7 +2187,7 @@ const TeacherQuizWidget: React.FC<{
                 },
               })
             }
-            className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
+            className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-xs transition-colors"
             style={{
               marginTop: 'min(8px, 2cqmin)',
               gap: 'min(6px, 1.5cqmin)',

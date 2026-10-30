@@ -33,7 +33,7 @@ export const ResultsTabWarningModal: React.FC<ResultsTabWarningModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-xs"
       style={{ zIndex: Z_INDEX.modal }}
     >
       <div className="mx-4 max-w-md rounded-xl border border-white/20 bg-slate-900 p-6 shadow-2xl">

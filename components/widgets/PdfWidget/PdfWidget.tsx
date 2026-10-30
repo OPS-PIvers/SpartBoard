@@ -294,7 +294,7 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-black uppercase tracking-wider shadow transition-all active:scale-95 flex items-center"
+            className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 flex items-center"
             style={{
               padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
               gap: 'min(6px, 1.5cqmin)',

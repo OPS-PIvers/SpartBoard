@@ -33,7 +33,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
       aria-modal="true"
       aria-label={alt}
       data-click-outside-ignore="true"
-      className="fixed inset-0 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xs animate-in fade-in duration-150"
       style={{ zIndex: Z_INDEX.dialog }}
       onClick={onClose}
     >
@@ -41,7 +41,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         type="button"
         onClick={onClose}
         aria-label="Close image"
-        className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/30 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
       >
         <X size={20} />
       </button>

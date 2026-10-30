@@ -148,7 +148,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
           onClick={() =>
             editDraft ? requestEditTour({ setId }) : requestStartTour({ setId })
           }
-          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light"
           {...tourAttr('help-center.viewer.show-live')}
         >
           {editDraft ? (
@@ -338,7 +338,7 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm hover:bg-slate-900/90 transition-colors"
+            className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-xs hover:bg-slate-900/90 transition-colors"
             {...tourAttr('help-center.viewer.fullscreen')}
           >
             <Minimize2 className="w-3.5 h-3.5" />

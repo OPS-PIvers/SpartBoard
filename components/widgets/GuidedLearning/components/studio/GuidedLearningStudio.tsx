@@ -888,7 +888,7 @@ const StudioSession: React.FC<
       aria-label={t('glStudio.dialogLabel')}
       tabIndex={-1}
       data-testid="gl-studio"
-      className="fixed inset-0 flex flex-col bg-slate-100 focus:outline-none"
+      className="fixed inset-0 flex flex-col bg-slate-100 focus:outline-hidden"
       style={{ zIndex: Z_INDEX.modalContent }}
     >
       <EditorHeader
@@ -1012,7 +1012,7 @@ const StudioSession: React.FC<
                     tourFieldAttr('studio.menu-item', 'guided-learning', id)
                   }
                   iconClassName="h-5 w-5"
-                  triggerClassName="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                  triggerClassName="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                 />
               </div>
             )}
@@ -1113,7 +1113,7 @@ const StudioSession: React.FC<
             onClick={dismissNote}
             aria-label={t('glStudio.dismissSmallScreenNote')}
             title={t('glStudio.dismissSmallScreenNote')}
-            className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>

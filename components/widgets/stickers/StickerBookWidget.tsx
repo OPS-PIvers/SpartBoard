@@ -92,7 +92,7 @@ const SortableSticker: React.FC<{
       }}
       onClick={() => onStickerClick(sticker.url)}
       {...tourTypeAttr('stickers.sticker', 'stickers')}
-      className={`group relative aspect-square flex items-center justify-center bg-white rounded-2xl shadow-sm hover:shadow-md transition-all border border-slate-100 hover:border-blue-200 cursor-pointer ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
+      className={`group relative aspect-square flex items-center justify-center bg-white rounded-2xl shadow-xs hover:shadow-md transition-all border border-slate-100 hover:border-blue-200 cursor-pointer ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
       title={t('widgets.stickers.dragOrClick')}
     >
       {/* Drag handle for reorganizing */}
@@ -106,7 +106,7 @@ const SortableSticker: React.FC<{
         onClick={(e) => {
           e.stopPropagation();
         }}
-        className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 transition-all p-1 z-20 bg-white/80 rounded"
+        className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 transition-all p-1 z-20 bg-white/80 rounded-sm"
         title={t('widgets.stickers.reorganizeSticker', 'Reorder')}
       >
         <GripHorizontal
@@ -489,7 +489,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
             <button
               onClick={clearAllStickers}
               {...tourAttr('stickers.clear-all', widget.id, widget.type)}
-              className="flex items-center bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors uppercase font-black tracking-widest border border-red-100 shadow-sm"
+              className="flex items-center bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors uppercase font-black tracking-widest border border-red-100 shadow-xs"
               style={{
                 gap: 'min(4px, 1cqmin)',
                 fontSize: 'min(10px, 2.5cqmin)',
@@ -558,7 +558,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
               type="button"
               onClick={() => setFilter('all')}
               {...tourFieldAttr('stickers.filter', 'stickers', 'all')}
-              className={`flex-1 text-center font-bold uppercase tracking-widest rounded-lg transition-all ${filter === 'all' ? 'bg-white text-slate-700 shadow-sm scale-100' : 'text-slate-500 hover:text-slate-600 hover:bg-white/50 scale-95'}`}
+              className={`flex-1 text-center font-bold uppercase tracking-widest rounded-lg transition-all ${filter === 'all' ? 'bg-white text-slate-700 shadow-xs scale-100' : 'text-slate-500 hover:text-slate-600 hover:bg-white/50 scale-95'}`}
               style={{
                 fontSize: 'min(10px, 2.5cqmin)',
                 padding: 'min(8px, 2cqmin)',
@@ -570,7 +570,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
               type="button"
               onClick={() => setFilter('favorites')}
               {...tourFieldAttr('stickers.filter', 'stickers', 'favorites')}
-              className={`flex-1 text-center font-bold uppercase tracking-widest rounded-lg transition-all ${filter === 'favorites' ? 'bg-white text-slate-700 shadow-sm scale-100' : 'text-slate-500 hover:text-slate-600 hover:bg-white/50 scale-95'}`}
+              className={`flex-1 text-center font-bold uppercase tracking-widest rounded-lg transition-all ${filter === 'favorites' ? 'bg-white text-slate-700 shadow-xs scale-100' : 'text-slate-500 hover:text-slate-600 hover:bg-white/50 scale-95'}`}
               style={{
                 fontSize: 'min(10px, 2.5cqmin)',
                 padding: 'min(8px, 2cqmin)',
@@ -582,7 +582,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
               type="button"
               onClick={() => setFilter('mine')}
               {...tourFieldAttr('stickers.filter', 'stickers', 'mine')}
-              className={`flex-1 text-center font-bold uppercase tracking-widest rounded-lg transition-all ${filter === 'mine' ? 'bg-white text-slate-700 shadow-sm scale-100' : 'text-slate-500 hover:text-slate-600 hover:bg-white/50 scale-95'}`}
+              className={`flex-1 text-center font-bold uppercase tracking-widest rounded-lg transition-all ${filter === 'mine' ? 'bg-white text-slate-700 shadow-xs scale-100' : 'text-slate-500 hover:text-slate-600 hover:bg-white/50 scale-95'}`}
               style={{
                 fontSize: 'min(10px, 2.5cqmin)',
                 padding: 'min(8px, 2cqmin)',
@@ -596,7 +596,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
           <div
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            className={`border-2 border-dashed border-slate-200 rounded-2xl bg-white flex flex-col items-center justify-center transition-all hover:bg-blue-50 hover:border-blue-200 group shadow-sm ${uploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}
+            className={`border-2 border-dashed border-slate-200 rounded-2xl bg-white flex flex-col items-center justify-center transition-all hover:bg-blue-50 hover:border-blue-200 group shadow-xs ${uploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}
             style={{
               marginBottom: 'min(24px, 5cqmin)',
               padding: 'min(20px, 4cqmin)',

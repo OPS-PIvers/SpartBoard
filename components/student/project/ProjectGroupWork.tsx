@@ -38,7 +38,7 @@ const StepPicker: React.FC<StepPickerProps> = ({
       id={id}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="rounded-xl border border-slate-200 px-2 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+      className="rounded-xl border border-slate-200 px-2 py-2 text-sm text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
     >
       <option value="">No step</option>
       {steps.map((step) => (
@@ -195,7 +195,7 @@ export const ProjectGroupWork: React.FC<ProjectGroupWorkProps> = ({
               value={urlDraft}
               onChange={(event) => setUrlDraft(event.target.value)}
               placeholder="Paste a link"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
             />
             <div className="flex gap-2">
               <label className="sr-only" htmlFor="project-link-label">
@@ -207,7 +207,7 @@ export const ProjectGroupWork: React.FC<ProjectGroupWorkProps> = ({
                 value={labelDraft}
                 onChange={(event) => setLabelDraft(event.target.value)}
                 placeholder="What it is (optional)"
-                className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
               />
               {steps.length > 0 && (
                 <StepPicker

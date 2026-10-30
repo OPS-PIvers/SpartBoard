@@ -218,7 +218,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
               {...tourTypeAttr('quiz-banks.picker-back', 'quiz')}
               onClick={() => setSource(null)}
               aria-label="Back to banks"
-              className="p-1 rounded text-slate-500 hover:bg-slate-100"
+              className="p-1 rounded-sm text-slate-500 hover:bg-slate-100"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -231,7 +231,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
             {...tourTypeAttr('quiz-banks.picker-close', 'quiz')}
             onClick={onClose}
             aria-label="Close"
-            className="p-1 rounded text-slate-500 hover:bg-slate-100"
+            className="p-1 rounded-sm text-slate-500 hover:bg-slate-100"
           >
             <X className="w-4 h-4" />
           </button>
@@ -250,7 +250,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search banks"
                   aria-label="Search banks"
-                  className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:outline-none"
+                  className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:outline-hidden"
                 />
               </div>
             </div>
@@ -313,7 +313,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                         onChange={(e) => setPickQuery(e.target.value)}
                         placeholder="Search questions"
                         aria-label="Search questions"
-                        className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:outline-none"
+                        className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:outline-hidden"
                       />
                     </div>
                     <button
@@ -341,7 +341,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                     pickRows.map((question) => (
                       <label
                         key={question.id}
-                        className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-slate-100 cursor-pointer"
+                        className="flex items-start gap-2 px-2 py-1.5 rounded-sm hover:bg-slate-100 cursor-pointer"
                       >
                         <input
                           type="checkbox"

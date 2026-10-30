@@ -17,7 +17,7 @@ export const StimulusZoomBar: React.FC<{
   const iconStyle = cqScaled
     ? { width: mm(14, 3.5), height: mm(14, 3.5) }
     : undefined;
-  const btnCls = `relative touch-target-expand rounded hover:bg-slate-500/20 disabled:opacity-30 ${cqScaled ? '' : 'p-1'}`;
+  const btnCls = `relative touch-target-expand rounded-sm hover:bg-slate-500/20 disabled:opacity-30 ${cqScaled ? '' : 'p-1'}`;
   const btnStyle = cqScaled ? { padding: mm(4, 1) } : undefined;
   return (
     <div

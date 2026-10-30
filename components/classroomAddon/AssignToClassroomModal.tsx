@@ -498,7 +498,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                   value={dueDate}
                   disabled={phase === 'assigning'}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                  className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                 />
                 <input
                   type="time"
@@ -508,7 +508,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                   onChange={(e) =>
                     setDueTime(e.target.value || DEFAULT_DUE_TIME)
                   }
-                  className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               <p className="mt-1 text-xs text-slate-400">

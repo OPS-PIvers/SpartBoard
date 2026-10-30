@@ -37,7 +37,7 @@ export const Card: React.FC<CardProps> = ({
 
   const shadowStyles = {
     none: 'shadow-none',
-    sm: 'shadow-sm',
+    sm: 'shadow-xs',
     md: 'shadow-md',
     lg: 'shadow-lg',
     xl: 'shadow-xl',

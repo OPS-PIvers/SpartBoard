@@ -293,7 +293,9 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
               <div className="text-sm font-bold text-slate-900">
                 {t('admin.mediaReview.errorTitle')}
               </div>
-              <p className="text-xs text-slate-600 mt-1 break-words">{error}</p>
+              <p className="text-xs text-slate-600 mt-1 wrap-break-word">
+                {error}
+              </p>
               <div className="mt-3">
                 <Btn
                   {...tourAttr('admin.org.media-retry')}
@@ -349,7 +351,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
                       <input
                         {...tourAttr('admin.org.media-select-all')}
                         type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                        className="h-4 w-4 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
                         checked={allSelected}
                         onChange={toggleAll}
                         disabled={selectableRows.length === 0}
@@ -389,7 +391,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
                           <input
                             {...tourAttr('admin.org.media-select-row')}
                             type="checkbox"
-                            className="h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                            className="h-4 w-4 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
                             checked={selected.has(key)}
                             disabled={deletable === 0 || deleting}
                             onChange={() => toggleRow(key)}

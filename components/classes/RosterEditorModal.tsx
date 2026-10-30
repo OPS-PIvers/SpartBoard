@@ -230,7 +230,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
       <div className="flex flex-col h-full gap-3 min-h-0">
         <div className="flex flex-wrap items-center gap-3 shrink-0">
           <input
-            className="flex-1 min-w-[240px] px-3 py-2 text-base border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary font-bold"
+            className="flex-1 min-w-[240px] px-3 py-2 text-base border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary font-bold"
             placeholder={t('sidebar.classes.classNamePlaceholder', {
               defaultValue: 'Class Name',
             })}
@@ -245,7 +245,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                 defaultValue: 'Bell period',
               })}
               <select
-                className="px-2 py-2 text-sm border border-slate-200 rounded-xl bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                className="px-2 py-2 text-sm border border-slate-200 rounded-xl bg-white font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                 value={bellKey(bellPeriod)}
                 {...tourAttr('roster-editor.bell-period')}
                 onChange={(e) => {
@@ -276,7 +276,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             onClick={handleSave}
             disabled={!name.trim() || saving}
             {...tourAttr('roster-editor.save')}
-            className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={16} /> {t('common.save', { defaultValue: 'Save' })}
           </button>
@@ -500,7 +500,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                       />
                     ))}
                   </ul>
-                  <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
+                  <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-xs border-t border-slate-200">
                     <button
                       onClick={addRow}
                       {...tourAttr('roster-editor.add-student')}
@@ -650,7 +650,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
       </span>
       {showPins && (
         <input
-          className={`px-2 py-1.5 text-sm font-mono text-center rounded-md border outline-none focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors ${
+          className={`px-2 py-1.5 text-sm font-mono text-center rounded-md border outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors ${
             isDuplicatePin
               ? 'border-yellow-400 bg-yellow-50 focus:border-yellow-500'
               : 'border-slate-200 bg-white focus:border-brand-blue-primary'
@@ -668,7 +668,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
         />
       )}
       <input
-        className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
+        className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-hidden focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
         value={row.firstName}
         onChange={(e) => onChange({ firstName: e.target.value })}
         onPaste={handleFirstNamePaste}
@@ -681,7 +681,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
       />
       {showLastNames && (
         <input
-          className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
+          className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-hidden focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
           value={row.lastName}
           onChange={(e) => onChange({ lastName: e.target.value })}
           {...tourFieldAttr(
@@ -695,7 +695,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
       {showEmails && (
         <input
           type="email"
-          className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
+          className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-hidden focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
           value={row.email ?? ''}
           onChange={(e) => onChange({ email: e.target.value })}
           {...tourFieldAttr(
@@ -833,7 +833,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                     <UsersRound size={16} />
                   </button>
                   <input
-                    className="flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none transition-colors"
+                    className="flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden transition-colors"
                     value={group.name}
                     onChange={(e) => renameGroup(group.id, e.target.value)}
                     {...tourFieldAttr(
@@ -880,7 +880,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                               type="checkbox"
                               checked={group.studentIds.includes(s.id)}
                               onChange={() => toggleMember(group.id, s.id)}
-                              className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                              className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
                             />
                             {`${s.firstName} ${s.lastName}`.trim() || s.id}
                           </label>

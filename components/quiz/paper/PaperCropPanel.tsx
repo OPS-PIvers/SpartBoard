@@ -213,7 +213,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   };
 
   const chip =
-    'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider';
+    'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider';
   const button =
     'inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50';
   const zoom = ZOOM_STEPS[zoomIdx];
@@ -271,7 +271,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             disabled={zoomIdx === 0 || crop.kind !== 'ready'}
             aria-label={tp('zoomOut')}
             title={tp('zoomOut')}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            className="rounded-sm p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
           >
             <ZoomOut aria-hidden className="h-4 w-4" />
           </button>
@@ -281,7 +281,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             disabled={zoomIdx === 0 || crop.kind !== 'ready'}
             aria-label={tp('zoomFit')}
             title={tp('zoomFit')}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            className="rounded-sm p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
           >
             <Maximize2 aria-hidden className="h-4 w-4" />
           </button>
@@ -295,14 +295,14 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             }
             aria-label={tp('zoomIn')}
             title={tp('zoomIn')}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            className="rounded-sm p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
           >
             <ZoomIn aria-hidden className="h-4 w-4" />
           </button>
         </span>
       </div>
 
-      <div className="max-h-[50vh] overflow-auto rounded border border-slate-200 bg-slate-50 pb-2">
+      <div className="max-h-[50vh] overflow-auto rounded-sm border border-slate-200 bg-slate-50 pb-2">
         {crop.kind === 'loading' && (
           <div
             role="status"
@@ -355,7 +355,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           {snippets.map((s, i) => (
             <li key={i} className="text-xs text-slate-600">
               {s.before}
-              <mark className="rounded bg-amber-200 px-0.5 text-amber-950">
+              <mark className="rounded-sm bg-amber-200 px-0.5 text-amber-950">
                 {s.flagged}
               </mark>
               {s.after}
@@ -431,7 +431,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={6}
-              className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm font-normal normal-case tracking-normal text-slate-900 focus:border-brand-blue-primary focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm font-normal normal-case tracking-normal text-slate-900 focus:border-brand-blue-primary focus:outline-hidden"
             />
           </label>
           <div className="flex items-center gap-2">

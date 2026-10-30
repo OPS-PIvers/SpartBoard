@@ -145,7 +145,7 @@ export const ShareStatusBanner: React.FC = () => {
         aria-expanded={open}
         {...tourAttr('share-status.chip')}
         title={accessibleLabel}
-        className={`group relative w-9 h-9 rounded-full bg-white/85 backdrop-blur-md ring-2 shadow-md transition-all hover:scale-105 hover:bg-white focus:outline-none focus:ring-offset-2 cursor-pointer ${ringClass}`}
+        className={`group relative w-9 h-9 rounded-full bg-white/85 backdrop-blur-md ring-2 shadow-md transition-all hover:scale-105 hover:bg-white focus:outline-hidden focus:ring-offset-2 cursor-pointer ${ringClass}`}
       >
         <Icon className="w-4 h-4 mx-auto" />
         <span

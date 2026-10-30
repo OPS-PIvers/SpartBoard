@@ -217,7 +217,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
         const target = e.currentTarget;
         setFlagAnchor((a) => (a ? null : target));
       }}
-      className="inline-flex h-10 min-w-0 max-w-[170px] items-center gap-1.5 rounded-lg border border-slate-300 bg-white pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 aria-expanded:border-brand-blue-primary aria-expanded:ring-[3px] aria-expanded:ring-brand-blue-primary/30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
+      className="inline-flex h-10 min-w-0 max-w-[170px] items-center gap-1.5 rounded-lg border border-slate-300 bg-white pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 aria-expanded:border-brand-blue-primary aria-expanded:ring-[3px] aria-expanded:ring-brand-blue-primary/30 focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
     >
       {activeDefs.length > 0 ? (
         <>
@@ -302,7 +302,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
                         if (commit()) onClose('enter');
                       }
                     }}
-                    className="h-[38px] w-[72px] border-0 bg-transparent pl-3 pr-1 text-base font-semibold tabular-nums text-slate-900 [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="h-[38px] w-[72px] border-0 bg-transparent pl-3 pr-1 text-base font-semibold tabular-nums text-slate-900 [appearance:textfield] focus:outline-hidden [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                   <button
                     type="button"
@@ -328,7 +328,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
                       setScore(fmtPoints(parsed));
                       setSavedScore(fmtPoints(parsed));
                     }}
-                    className="grid h-[30px] w-[30px] place-items-center rounded-md text-slate-400 hover:enabled:bg-brand-blue-lighter hover:enabled:text-brand-blue-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary disabled:opacity-40"
+                    className="grid h-[30px] w-[30px] place-items-center rounded-md text-slate-400 hover:enabled:bg-brand-blue-lighter hover:enabled:text-brand-blue-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary disabled:opacity-40"
                   >
                     <ArrowDownToLine size={16} aria-hidden />
                   </button>
@@ -378,7 +378,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
               {...tourAttr('gradebook.cell.comment')}
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              className="resize-y rounded-lg border border-slate-300 px-2.5 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30"
+              className="resize-y rounded-lg border border-slate-300 px-2.5 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-[3px] focus:ring-brand-blue-primary/30"
             />
           </div>
         </>

@@ -378,7 +378,7 @@ export const CartridgeBankImportModal: React.FC<
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary transition-colors"
+            className="w-full px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-hidden focus:border-brand-blue-primary transition-colors"
           />
           <p className="mt-1 text-xs text-slate-500">
             {isQuiz ? 'Quizzes' : 'Banks'} keep their Schoology folders inside
@@ -537,7 +537,7 @@ export const CartridgeBankImportModal: React.FC<
   }
 
   const footerButton =
-    'inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed';
 
   const footer = (
     <div className="flex items-center justify-between gap-3 px-6 py-3 bg-white">

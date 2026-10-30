@@ -68,11 +68,11 @@ export const BoardBreadcrumb: FC = () => {
         }`}
       >
         <Folder
-          className="w-3 h-3 flex-shrink-0"
+          className="w-3 h-3 shrink-0"
           style={collection?.color ? { color: collection.color } : undefined}
         />
         <span className="truncate">{collectionLabel}</span>
-        <ChevronRight className="w-3 h-3 flex-shrink-0 text-white/40" />
+        <ChevronRight className="w-3 h-3 shrink-0 text-white/40" />
         <span className="truncate font-bold text-white">
           {activeDashboard.name}
         </span>

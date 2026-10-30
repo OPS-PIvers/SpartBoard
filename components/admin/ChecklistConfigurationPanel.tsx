@@ -162,7 +162,7 @@ export const ChecklistConfigurationPanel: React.FC<
                       : (selected as GlobalFontFamily),
                 });
               }}
-              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
             >
               <option value="global">Global (Dashboard default)</option>
               {GLOBAL_FONT_FAMILY_OPTIONS.map((opt) => (
@@ -236,7 +236,7 @@ export const ChecklistConfigurationPanel: React.FC<
             {items.map((item) => (
               <div
                 key={item.id}
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-sm"
+                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-xs"
               >
                 <GripVertical className="w-3.5 h-3.5 text-slate-300 shrink-0" />
                 <input
@@ -248,7 +248,7 @@ export const ChecklistConfigurationPanel: React.FC<
                   )}
                   value={item.text}
                   onChange={(e) => handleUpdateItem(item.id, e.target.value)}
-                  className="flex-1 text-xs border-none outline-none bg-transparent"
+                  className="flex-1 text-xs border-none outline-hidden bg-transparent"
                   placeholder="Item text..."
                 />
                 <button
@@ -284,13 +284,13 @@ export const ChecklistConfigurationPanel: React.FC<
               onChange={(e) => setNewItemText(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="New default item..."
-              className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+              className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
             />
             <button
               {...tourTypeAttr('admin.widget-config.add', 'checklist')}
               onClick={handleAddItem}
               disabled={!newItemText.trim()}
-              className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded-sm hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Plus className="w-3 h-3" /> Add
             </button>

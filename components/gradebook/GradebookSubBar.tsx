@@ -22,8 +22,8 @@ import { GradebookExportMenu } from './export/GradebookExportMenu';
 
 type Menu = 'view' | 'filter' | 'help' | null;
 
-const selectCls = `appearance-none h-[34px] rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-[13px] font-semibold text-slate-700 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30`;
-const menuSelectCls = `appearance-none h-10 w-full rounded-lg border border-slate-300 bg-white pl-3 pr-8 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30`;
+const selectCls = `appearance-none h-[34px] rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-[13px] font-semibold text-slate-700 focus:border-brand-blue-primary focus:outline-hidden focus:ring-[3px] focus:ring-brand-blue-primary/30`;
+const menuSelectCls = `appearance-none h-10 w-full rounded-lg border border-slate-300 bg-white pl-3 pr-8 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden focus:ring-[3px] focus:ring-brand-blue-primary/30`;
 /** Native select with the prototype's chevron. */
 const Sel: React.FC<
   React.SelectHTMLAttributes<HTMLSelectElement> & { wrapClassName?: string }
@@ -249,7 +249,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
         open={menu === 'view'}
         onClose={close}
         anchorRef={viewRef}
-        className="w-[300px] !p-4"
+        className="w-[300px] p-4!"
       >
         <div className="flex flex-col gap-4">
           <div>
@@ -339,7 +339,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
         open={menu === 'filter'}
         onClose={close}
         anchorRef={filterRef}
-        className="w-[300px] !p-4"
+        className="w-[300px] p-4!"
       >
         <div className="flex flex-col gap-4">
           <div>
@@ -425,7 +425,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
         open={menu === 'help'}
         onClose={close}
         anchorRef={helpRef}
-        className="w-[320px] !p-4"
+        className="w-[320px] p-4!"
       >
         <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-[13px] text-slate-700">
           {[
@@ -438,7 +438,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
           ].map(([k, v]) => (
             <React.Fragment key={v}>
               <dt>
-                <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-sans text-xs font-semibold text-slate-700">
+                <kbd className="rounded-sm border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-sans text-xs font-semibold text-slate-700">
                   {k}
                 </kbd>
               </dt>
@@ -457,7 +457,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
           <dd>Column has unpublished scores</dd>
           <dt>
             <span
-              className={`grid h-4 min-w-4 place-items-center rounded px-[3px] text-[9.5px] font-bold ${flagChipClasses('rose', true)}`}
+              className={`grid h-4 min-w-4 place-items-center rounded-sm px-[3px] text-[9.5px] font-bold ${flagChipClasses('rose', true)}`}
             >
               M
             </span>
@@ -465,7 +465,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
           <dd>Flag applied automatically</dd>
           <dt>
             <span
-              className={`grid h-4 min-w-4 place-items-center rounded px-[3px] text-[9.5px] font-bold ${flagChipClasses('rose', false)}`}
+              className={`grid h-4 min-w-4 place-items-center rounded-sm px-[3px] text-[9.5px] font-bold ${flagChipClasses('rose', false)}`}
             >
               M+
             </span>

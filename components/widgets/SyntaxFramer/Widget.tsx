@@ -115,9 +115,9 @@ const SortableToken: React.FC<SortableTokenProps> = ({
       }}
       className={`
         syntax-token flex items-center justify-center
-        relative cursor-grab active:cursor-grabbing shadow-sm
+        relative cursor-grab active:cursor-grabbing shadow-xs
         transition-colors select-none whitespace-pre
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+        focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500
         ${colorClass}
         ${isMath ? 'font-serif italic' : 'font-sans font-medium'}
       `}

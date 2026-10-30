@@ -58,7 +58,7 @@ export function buildItemRows(
           <span className="w-7 shrink-0 font-bold tabular-nums text-slate-800">
             Q{q.number}
           </span>
-          <span className="min-w-0 break-words">{q.text}</span>
+          <span className="min-w-0 wrap-break-word">{q.text}</span>
           {q.reteach && (
             <span className="inline-flex shrink-0 items-center gap-1 pt-0.5 text-xxs font-bold uppercase tracking-wider text-brand-red-primary">
               <RotateCcw className="h-3 w-3" aria-hidden="true" />
@@ -77,7 +77,7 @@ export function buildItemRows(
           <span className="w-9 shrink-0 text-right text-sm font-bold tabular-nums text-slate-800">
             {q.correctPercent === null ? '' : `${correct}%`}
           </span>
-          {chose && <span className="min-w-0 break-words">{chose}</span>}
+          {chose && <span className="min-w-0 wrap-break-word">{chose}</span>}
         </span>
       ),
       ariaLabel: `Q${q.number}, ${correct}%${chose ? `, ${chose}` : ''}`,

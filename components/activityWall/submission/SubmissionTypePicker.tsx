@@ -37,7 +37,7 @@ export const SubmissionTypePicker: React.FC<SubmissionTypePickerProps> = ({
             type="button"
             aria-pressed={selected}
             onClick={() => onChange(type)}
-            className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+            className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
               selected
                 ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
                 : 'border-slate-300 bg-white text-slate-700 hover:border-brand-blue-primary'

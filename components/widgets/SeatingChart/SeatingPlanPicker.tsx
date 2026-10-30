@@ -119,7 +119,7 @@ export const SeatingPlanPicker: React.FC<SeatingPlanPickerProps> = ({
             onChange={(e) => {
               if (e.target.value) void handleSwitch(e.target.value);
             }}
-            className="flex-1 min-w-0 p-1.5 text-xs border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700"
+            className="flex-1 min-w-0 p-1.5 text-xs border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 outline-hidden font-bold text-slate-700"
           >
             {!active && <option value="">Unsaved seats</option>}
             {plans.map((p) => (

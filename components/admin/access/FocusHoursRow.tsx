@@ -124,7 +124,7 @@ export const FocusHoursRow: React.FC = () => {
             value={shown.start}
             disabled={locked || saving}
             onChange={(e) => edit({ start: e.target.value })}
-            className="px-1 py-1 text-xs border border-slate-200 rounded outline-none focus:border-brand-blue-primary disabled:opacity-50"
+            className="px-1 py-1 text-xs border border-slate-200 rounded-sm outline-hidden focus:border-brand-blue-primary disabled:opacity-50"
           />
           <span className="text-xs text-slate-500">to</span>
           <input
@@ -134,7 +134,7 @@ export const FocusHoursRow: React.FC = () => {
             value={shown.end}
             disabled={locked || saving}
             onChange={(e) => edit({ end: e.target.value })}
-            className="px-1 py-1 text-xs border border-slate-200 rounded outline-none focus:border-brand-blue-primary disabled:opacity-50"
+            className="px-1 py-1 text-xs border border-slate-200 rounded-sm outline-hidden focus:border-brand-blue-primary disabled:opacity-50"
           />
           <span className="flex" role="group" aria-label="Days">
             {DAYS.map((label, day) => {

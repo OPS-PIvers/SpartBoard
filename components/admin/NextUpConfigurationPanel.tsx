@@ -149,7 +149,7 @@ export const NextUpConfigurationPanel: React.FC<
               onChange={(e) =>
                 handleUpdateBuilding({ fontFamily: e.target.value })
               }
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-brand-blue-primary transition-colors shadow-sm"
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-hidden focus:border-brand-blue-primary transition-colors shadow-xs"
             >
               <option value="lexend">Lexend (Modern)</option>
               <option value="patrick-hand">Patrick Hand (Playful)</option>

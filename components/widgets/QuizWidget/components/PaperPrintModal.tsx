@@ -1743,7 +1743,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                         roster.id
                       )}
                       disabled={sorted.length === 0}
-                      className="h-4 w-4 rounded border-slate-300"
+                      className="h-4 w-4 rounded-sm border-slate-300"
                     />
                     <label
                       htmlFor={`paper-roster-${roster.id}`}
@@ -1769,7 +1769,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                         roster.id
                       )}
                       disabled={sorted.length === 0}
-                      className="rounded p-0.5 text-slate-400 hover:bg-slate-100 disabled:opacity-40"
+                      className="rounded-sm p-0.5 text-slate-400 hover:bg-slate-100 disabled:opacity-40"
                     >
                       {expanded ? (
                         <ChevronDown className="h-4 w-4" />
@@ -1801,7 +1801,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                               'quiz',
                               student.id
                             )}
-                            className="h-3.5 w-3.5 rounded border-slate-300"
+                            className="h-3.5 w-3.5 rounded-sm border-slate-300"
                           />
                           <label
                             htmlFor={`paper-student-${roster.id}-${student.id}`}

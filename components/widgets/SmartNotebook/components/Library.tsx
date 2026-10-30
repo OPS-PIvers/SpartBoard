@@ -90,7 +90,7 @@ export const Library: React.FC<LibraryProps> = ({
                   title="Card view"
                   className={`rounded-lg transition-all ${
                     displayMode === 'cards'
-                      ? 'bg-white text-indigo-600 shadow-sm'
+                      ? 'bg-white text-indigo-600 shadow-xs'
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                   style={{ padding: 'min(6px, 1.5cqmin)' }}
@@ -114,7 +114,7 @@ export const Library: React.FC<LibraryProps> = ({
                   title="List view"
                   className={`rounded-lg transition-all ${
                     displayMode === 'list'
-                      ? 'bg-white text-indigo-600 shadow-sm'
+                      ? 'bg-white text-indigo-600 shadow-xs'
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                   style={{ padding: 'min(6px, 1.5cqmin)' }}
@@ -183,7 +183,7 @@ export const Library: React.FC<LibraryProps> = ({
               }}
             >
               <div
-                className="bg-white rounded-3xl border border-slate-200 shadow-sm"
+                className="bg-white rounded-3xl border border-slate-200 shadow-xs"
                 style={{ padding: 'min(24px, 5cqmin)' }}
               >
                 <FileText
@@ -224,7 +224,7 @@ export const Library: React.FC<LibraryProps> = ({
                       handleSelect(notebook.id)
                     )}
                     {...tourTypeAttr('smart-notebook.open', 'smartNotebook')}
-                    className="group flex items-center bg-white rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all border border-slate-200 shadow-sm"
+                    className="group flex items-center bg-white rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all border border-slate-200 shadow-xs"
                     style={{
                       gap: 'min(12px, 3cqmin)',
                       padding: 'min(8px, 2cqmin)',
@@ -346,7 +346,7 @@ export const Library: React.FC<LibraryProps> = ({
                       handleSelect(notebook.id)
                     )}
                     {...tourTypeAttr('smart-notebook.open', 'smartNotebook')}
-                    className="group relative aspect-[4/3] bg-white rounded-2xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all border border-slate-200 shadow-sm"
+                    className="group relative aspect-4/3 bg-white rounded-2xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all border border-slate-200 shadow-xs"
                   >
                     {firstPageUrl ? (
                       <img
@@ -363,7 +363,7 @@ export const Library: React.FC<LibraryProps> = ({
                       </div>
                     )}
                     <div
-                      className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/90 to-transparent"
+                      className="absolute inset-x-0 bottom-0 bg-linear-to-t from-slate-900/90 to-transparent"
                       style={{
                         padding:
                           'min(40px, 8cqmin) min(16px, 4cqmin) min(16px, 4cqmin)',

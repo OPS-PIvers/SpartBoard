@@ -13,7 +13,7 @@ interface AppearancePickerProps {
 }
 
 const swatchClass = (selected: boolean) =>
-  `relative h-12 w-full overflow-hidden rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+  `relative h-12 w-full overflow-hidden rounded-lg border transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
     selected
       ? 'border-brand-blue-primary ring-2 ring-brand-blue-primary/40'
       : 'border-slate-200 hover:border-slate-300'

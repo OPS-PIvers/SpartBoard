@@ -21,7 +21,7 @@ export const SpotifyResultRow: React.FC<Props> = ({
     type="button"
     onClick={onClick}
     {...tourTypeAttr('music.spotify-result', 'music')}
-    className="w-full flex items-center rounded-lg hover:bg-white/5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+    className="w-full flex items-center rounded-lg hover:bg-white/5 text-left transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-green-400/70"
     style={{
       gap: 'min(12px, 3cqmin)',
       padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
@@ -31,12 +31,12 @@ export const SpotifyResultRow: React.FC<Props> = ({
       <img
         src={imageUrl}
         alt={name}
-        className="rounded-md object-cover flex-shrink-0 shadow-sm"
+        className="rounded-md object-cover shrink-0 shadow-xs"
         style={{ width: 'min(56px, 14cqmin)', height: 'min(56px, 14cqmin)' }}
       />
     ) : (
       <div
-        className="rounded-md bg-slate-700 flex items-center justify-center flex-shrink-0"
+        className="rounded-md bg-slate-700 flex items-center justify-center shrink-0"
         style={{ width: 'min(56px, 14cqmin)', height: 'min(56px, 14cqmin)' }}
       >
         <Music2
@@ -71,7 +71,7 @@ export const SpotifyResultRow: React.FC<Props> = ({
       <Play
         aria-label="Currently playing"
         fill="currentColor"
-        className="text-green-400 flex-shrink-0"
+        className="text-green-400 shrink-0"
         style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
       />
     )}

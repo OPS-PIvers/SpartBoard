@@ -20,7 +20,7 @@ interface BuildingSelectorProps {
 export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
   selectedId,
   onSelect,
-  activeClassName = 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm',
+  activeClassName = 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs',
   idPrefix,
   ariaLabel = 'Building Selection',
 }) => {

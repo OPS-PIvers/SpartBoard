@@ -279,7 +279,7 @@ const StatusCard: React.FC<{
   title: string;
   subtitle?: string;
 }> = ({ icon, title, subtitle }) => (
-  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-10 flex flex-col items-center text-center gap-3">
+  <div className="bg-white rounded-2xl border border-slate-200 shadow-xs px-6 py-10 flex flex-col items-center text-center gap-3">
     <span aria-hidden>{icon}</span>
     <h1 className="text-2xl font-black text-slate-900">{title}</h1>
     {subtitle && <p className="text-slate-600 text-base">{subtitle}</p>}
@@ -313,7 +313,7 @@ const QuestionShell: React.FC<{
   number: number;
   children: React.ReactNode;
 }> = ({ question, number, children }) => (
-  <div className="w-full rounded-2xl border border-slate-200 shadow-sm overflow-hidden bg-white">
+  <div className="w-full rounded-2xl border border-slate-200 shadow-xs overflow-hidden bg-white">
     <div className="bg-brand-blue-primary px-5 py-3">
       <span className="text-white text-xs font-bold uppercase tracking-wider">
         Question {number}
@@ -416,7 +416,7 @@ const LiveQuestionCard: React.FC<{
           onClick={handleSubmit}
           disabled={!canSubmit}
           aria-busy={sending}
-          className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-base transition-colors shadow-sm"
+          className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-base transition-colors shadow-xs"
         >
           {sending ? 'Sending…' : 'Submit'}
         </button>

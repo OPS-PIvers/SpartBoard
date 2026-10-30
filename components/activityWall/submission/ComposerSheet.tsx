@@ -232,7 +232,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
         aria-modal="true"
         aria-labelledby="aw-composer-title"
         tabIndex={-1}
-        className="relative flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl outline-none sm:rounded-2xl"
+        className="relative flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl outline-hidden sm:rounded-2xl"
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2
@@ -245,7 +245,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close composer"
-            className="rounded-full p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="rounded-full p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -256,7 +256,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
           onSubmit={submit}
         >
           {session.prompt && (
-            <p className="whitespace-pre-line break-words text-sm text-slate-600">
+            <p className="whitespace-pre-line wrap-break-word text-sm text-slate-600">
               {session.prompt}
             </p>
           )}
@@ -356,7 +356,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
           <button
             type="submit"
             disabled={busy || !valid}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 font-bold text-white transition hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 font-bold text-white transition hover:bg-emerald-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:opacity-60"
           >
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

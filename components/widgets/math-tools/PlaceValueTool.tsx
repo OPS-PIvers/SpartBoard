@@ -238,7 +238,7 @@ export const PlaceValueTool: React.FC<PlaceValueToolProps> = ({
               `place-value.${type}`
             )}
             onClick={() => addBlock(type)}
-            className={`${color} text-white font-bold rounded shadow-sm hover:opacity-90 px-2 py-1 text-xs`}
+            className={`${color} text-white font-bold rounded-sm shadow-xs hover:opacity-90 px-2 py-1 text-xs`}
           >
             + {label}
           </button>

@@ -44,12 +44,12 @@ const LinkIcon: React.FC<{ id?: string; style: React.CSSProperties }> = ({
   style,
 }) =>
   React.createElement(getUrlIcon(id), {
-    className: 'text-white drop-shadow-sm z-10',
+    className: 'text-white drop-shadow-xs z-10',
     style,
   });
 
 const PRESS_CLASS =
-  'cursor-pointer outline-none transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset [-webkit-tap-highlight-color:transparent]';
+  'cursor-pointer outline-hidden transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset [-webkit-tap-highlight-color:transparent]';
 
 /** One link as a square-ish tile: icon and label, or a background image with a label plate. */
 export const LinkTile: React.FC<LinkProps> = ({ link, widgetType }) => {
@@ -67,7 +67,7 @@ export const LinkTile: React.FC<LinkProps> = ({ link, widgetType }) => {
       style={{ containerType: 'size' }}
     >
       <div
-        className={`relative overflow-hidden transition-all group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110 ${radiusClass} ${
+        className={`relative overflow-hidden transition-all group shadow-xs hover:shadow-md border border-white/20 hover:brightness-110 ${radiusClass} ${
           isCircle ? 'aspect-square' : 'h-full w-full'
         }`}
         style={{
@@ -92,7 +92,7 @@ export const LinkTile: React.FC<LinkProps> = ({ link, widgetType }) => {
           />
           {image ? (
             <span
-              className="absolute left-0 right-0 bottom-0 z-10 font-black text-white text-center leading-tight break-words"
+              className="absolute left-0 right-0 bottom-0 z-10 font-black text-white text-center leading-tight wrap-break-word"
               style={{
                 fontSize: labelSize,
                 padding: 'min(8px, 4cqmin) min(10px, 5cqmin)',
@@ -114,7 +114,7 @@ export const LinkTile: React.FC<LinkProps> = ({ link, widgetType }) => {
                 }}
               />
               <span
-                className="font-black text-white text-center leading-tight drop-shadow-md break-words max-w-full z-10"
+                className="font-black text-white text-center leading-tight drop-shadow-md wrap-break-word max-w-full z-10"
                 style={{
                   fontSize: labelSize,
                   padding: '0 min(6px, 1.5cqmin)',
@@ -140,7 +140,7 @@ export const LinkRow: React.FC<LinkProps> = ({ link, widgetType }) => {
       {...tourFieldAttr('url.open-link', widgetType, link.id)}
       onClick={() => openLink(link.url)}
       aria-label={`Open ${label}`}
-      className={`relative overflow-hidden flex items-center justify-center border border-white/20 shadow-sm hover:brightness-110 rounded-[min(10px,3cqmin)] ${PRESS_CLASS}`}
+      className={`relative overflow-hidden flex items-center justify-center border border-white/20 shadow-xs hover:brightness-110 rounded-[min(10px,3cqmin)] ${PRESS_CLASS}`}
       style={{
         backgroundColor: image ? '#1e293b' : (link.color ?? DEFAULT_URL_COLOR),
         minHeight: 'max(28px, 12cqmin)',
@@ -156,7 +156,7 @@ export const LinkRow: React.FC<LinkProps> = ({ link, widgetType }) => {
         />
       )}
       <span
-        className="relative font-black text-white text-center leading-tight [overflow-wrap:anywhere]"
+        className="relative font-black text-white text-center leading-tight wrap-anywhere"
         style={{ fontSize: 'clamp(10px, 8cqmin, 16px)' }}
       >
         {label}

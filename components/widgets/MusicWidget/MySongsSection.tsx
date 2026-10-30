@@ -102,13 +102,13 @@ export const MySongsSection: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
                   data-tour-widget={ctx.widget.id}
                   className={`flex w-full flex-col items-center gap-1.5 rounded-xl border-2 p-3 text-center transition-all ${
                     active
-                      ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                      ? 'border-indigo-500 bg-indigo-50 shadow-xs'
                       : 'border-slate-100 bg-white hover:border-slate-300'
                   }`}
                 >
                   {song.thumbnail ? (
                     <div
-                      className="h-10 w-10 rounded-full bg-cover bg-center shadow-sm"
+                      className="h-10 w-10 rounded-full bg-cover bg-center shadow-xs"
                       style={{ backgroundImage: `url(${song.thumbnail})` }}
                     />
                   ) : (
@@ -179,7 +179,7 @@ export const MySongsSection: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
             ctx.widget.id,
             ctx.widget.type
           )}
-          className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
+          className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-hidden"
         />
         <button
           type="submit"

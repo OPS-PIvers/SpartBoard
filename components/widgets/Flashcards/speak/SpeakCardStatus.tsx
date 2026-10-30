@@ -229,7 +229,7 @@ export const SpeakCardRow: React.FC<SpeakCardRowProps> = ({
                       [dialect]: event.target.value,
                     })
                   }
-                  className={`mt-1 w-full rounded-lg border bg-white font-mono text-slate-800 outline-none focus:ring-2 ${
+                  className={`mt-1 w-full rounded-lg border bg-white font-mono text-slate-800 outline-hidden focus:ring-2 ${
                     valid
                       ? 'border-slate-200 focus:border-rose-400 focus:ring-rose-500/20'
                       : 'border-rose-400 focus:ring-rose-500/20'

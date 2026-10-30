@@ -155,7 +155,7 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
               type="button"
               onClick={() => void handleCopy()}
               {...tourAttr('view-only-share.copy')}
-              className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm"
+              className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-xs py-3 text-sm"
             >
               {copied ? (
                 <>
@@ -214,7 +214,7 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
             onClick={onConfirm}
             disabled={isCreating}
             {...tourAttr('view-only-share.confirm')}
-            className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-xs py-3 text-sm disabled:opacity-60"
           >
             {isCreating ? (
               <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin" />

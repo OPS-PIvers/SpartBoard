@@ -55,7 +55,7 @@ export const AgendaRow = React.memo<AgendaRowProps>(
           onClick={() => onToggle(id)}
           className={`shrink-0 transition-all hover:scale-105 hover:ring-2 hover:ring-green-500/50 active:scale-90 [@container(max-height:48px)]:after:hidden ${
             isDone
-              ? 'bg-green-500 shadow-sm hover:!bg-green-600'
+              ? 'bg-green-500 shadow-xs hover:bg-green-600!'
               : 'border-2 border-slate-400 bg-white/70 hover:border-green-500'
           }`}
           style={{ width: boxSize, height: boxSize, padding: 0 }}
@@ -69,7 +69,7 @@ export const AgendaRow = React.memo<AgendaRowProps>(
           }
         />
         <div
-          className="flex-1 h-full flex flex-col justify-center rounded-2xl border border-slate-300/70 shadow-sm overflow-hidden transition-colors"
+          className="flex-1 h-full flex flex-col justify-center rounded-2xl border border-slate-300/70 shadow-xs overflow-hidden transition-colors"
           style={{
             backgroundColor: hexToRgba(cardColor, cardOpacity),
             padding: 'clamp(2px, 4cqh, 14px) clamp(8px, 3.5cqw, 20px)',
@@ -104,7 +104,7 @@ export const AgendaRow = React.memo<AgendaRowProps>(
                 e.currentTarget.blur();
               }
             }}
-            className={`w-full flex-1 resize-none bg-transparent italic leading-tight outline-none overflow-hidden rounded placeholder:opacity-0 hover:placeholder:opacity-50 focus:placeholder:opacity-50 focus:bg-white/40 [@container(max-height:48px)]:hidden ${textClass}`}
+            className={`w-full flex-1 resize-none bg-transparent italic leading-tight outline-hidden overflow-hidden rounded-sm placeholder:opacity-0 hover:placeholder:opacity-50 focus:placeholder:opacity-50 focus:bg-white/40 [@container(max-height:48px)]:hidden ${textClass}`}
             placeholder="Add details"
             style={{ fontSize: descSize, ...textStyle }}
           />

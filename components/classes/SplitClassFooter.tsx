@@ -53,7 +53,7 @@ export const SplitClassFooter: React.FC<SplitClassFooterProps> = ({
   };
 
   return (
-    <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
+    <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-xs border-t border-slate-200">
       {splitOpen ? (
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
@@ -74,7 +74,7 @@ export const SplitClassFooter: React.FC<SplitClassFooterProps> = ({
               onChange={(e) => setSplitCount(Number(e.target.value))}
               onKeyDown={(e) => e.key === 'Enter' && runSplit()}
               {...tourAttr('roster-groups.split-count')}
-              className="w-16 px-2 py-1 text-sm rounded-md border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+              className="w-16 px-2 py-1 text-sm rounded-md border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
             />
             <input
               aria-label={t('sidebar.classes.splitNameLabel', {
@@ -84,7 +84,7 @@ export const SplitClassFooter: React.FC<SplitClassFooterProps> = ({
               onChange={(e) => setSplitName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && runSplit()}
               {...tourAttr('roster-groups.split-name')}
-              className="flex-1 min-w-0 px-2 py-1 text-sm rounded-md border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+              className="flex-1 min-w-0 px-2 py-1 text-sm rounded-md border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
             />
           </div>
           <div className="flex gap-2">

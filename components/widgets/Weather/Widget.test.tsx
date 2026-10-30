@@ -184,8 +184,7 @@ describe('WeatherWidget', () => {
     render(<WeatherWidget widget={widget} />);
 
     // Expected sunny gradient
-    const expectedBg =
-      'bg-gradient-to-br from-blue-400 via-sky-300 to-blue-200';
+    const expectedBg = 'bg-linear-to-br from-blue-400 via-sky-300 to-blue-200';
     await waitFor(() => {
       expect(mockSetBackground).toHaveBeenCalledWith(expectedBg);
     });

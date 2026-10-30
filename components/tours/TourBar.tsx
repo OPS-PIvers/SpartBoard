@@ -125,7 +125,7 @@ export const TourBar: React.FC<TourBarProps> = ({
             }`}
           >
             <span
-              className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none ${
+              className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow-xs transition-transform motion-reduce:transition-none ${
                 autopilot.on ? 'translate-x-3.5' : 'translate-x-0.5'
               }`}
             />

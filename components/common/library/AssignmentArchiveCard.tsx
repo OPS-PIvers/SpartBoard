@@ -56,25 +56,25 @@ const TONE_STYLES: Record<LibraryBadgeTone, ToneStyles> = {
     badgeBg: 'bg-amber-100',
     badgeFg: 'text-amber-700',
     dot: 'bg-amber-500',
-    activeBorder: 'border-amber-200/60 hover:shadow',
+    activeBorder: 'border-amber-200/60 hover:shadow-sm',
   },
   neutral: {
     badgeBg: 'bg-slate-200',
     badgeFg: 'text-slate-500',
     dot: 'bg-slate-400',
-    activeBorder: 'border-slate-200/60 hover:shadow',
+    activeBorder: 'border-slate-200/60 hover:shadow-sm',
   },
   info: {
     badgeBg: 'bg-blue-100',
     badgeFg: 'text-blue-700',
     dot: 'bg-blue-500',
-    activeBorder: 'border-blue-200/60 hover:shadow',
+    activeBorder: 'border-blue-200/60 hover:shadow-sm',
   },
   danger: {
     badgeBg: 'bg-red-100',
     badgeFg: 'text-red-700',
     dot: 'bg-red-500',
-    activeBorder: 'border-red-200/60 hover:shadow',
+    activeBorder: 'border-red-200/60 hover:shadow-sm',
   },
 };
 
@@ -404,7 +404,7 @@ export function AssignmentArchiveCard<TAssignment>({
               primaryAction.badgeCount > 0 && (
                 <span
                   aria-hidden="true"
-                  className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-1 ring-white"
+                  className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white shadow-xs ring-1 ring-white"
                 >
                   {primaryAction.badgeCount}
                 </span>

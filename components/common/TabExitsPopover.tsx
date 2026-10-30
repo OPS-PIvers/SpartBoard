@@ -190,7 +190,7 @@ export const TabExitsPopover: React.FC<TabExitsPopoverProps> = ({
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        className="inline-flex rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        className="inline-flex rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
       >
         {children}
       </button>
@@ -217,7 +217,7 @@ export const TabExitsPopover: React.FC<TabExitsPopoverProps> = ({
               maxWidth: 'calc(100vw - 16px)',
               zIndex: Z_INDEX.dropdown,
             }}
-            className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-lg focus:outline-none"
+            className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-lg focus:outline-hidden"
           >
             <p className="mb-2 font-bold text-slate-800">
               {studentName} left {logProps.warnings}{' '}

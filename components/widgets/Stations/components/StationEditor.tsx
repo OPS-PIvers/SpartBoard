@@ -45,7 +45,7 @@ export const StationEditor: React.FC<StationEditorProps> = ({
 
   return (
     <div
-      className="rounded-2xl border-2 bg-white overflow-hidden transition-shadow shadow-sm hover:shadow-md"
+      className="rounded-2xl border-2 bg-white overflow-hidden transition-shadow shadow-xs hover:shadow-md"
       style={{ borderColor: station.color || '#e2e8f0' }}
     >
       <div
@@ -147,7 +147,7 @@ export const StationEditor: React.FC<StationEditorProps> = ({
                 fieldKey
               )}
               data-tour-widget={widgetId}
-              className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+              className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
             />
           </div>
 
@@ -168,7 +168,7 @@ export const StationEditor: React.FC<StationEditorProps> = ({
                 fieldKey
               )}
               data-tour-widget={widgetId}
-              className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+              className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
             />
           </div>
 
@@ -195,7 +195,7 @@ export const StationEditor: React.FC<StationEditorProps> = ({
                   fieldKey
                 )}
                 data-tour-widget={widgetId}
-                className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+                className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-hidden"
               />
             </div>
 
@@ -223,7 +223,7 @@ export const StationEditor: React.FC<StationEditorProps> = ({
                   type="color"
                   value={station.color}
                   onChange={(e) => onChange({ color: e.target.value })}
-                  className="w-6 h-6 rounded border border-slate-200 cursor-pointer"
+                  className="w-6 h-6 rounded-sm border border-slate-200 cursor-pointer"
                   aria-label="Custom color"
                   {...tourFieldAttr(
                     'widget-settings.stations.custom-color',

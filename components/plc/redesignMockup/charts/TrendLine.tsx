@@ -135,7 +135,7 @@ export const TrendLine: React.FC<{
             y={M.t}
             width={iw + 20}
             height={ih}
-            className="fill-transparent focus:outline-none"
+            className="fill-transparent focus:outline-hidden"
             tabIndex={0}
             aria-label={`${ariaLabel}. Use arrow keys for each assessment.`}
             onPointerMove={(e) =>

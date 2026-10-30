@@ -74,11 +74,11 @@ export interface AudioResponseCaptureProps {
 }
 
 const cardClass = (light: boolean) =>
-  `rounded-3xl border p-6 shadow-sm backdrop-blur-sm ${
+  `rounded-3xl border p-6 shadow-xs backdrop-blur-xs ${
     light ? 'border-slate-200 bg-white/90' : 'border-slate-700 bg-slate-800/60'
   }`;
 const primaryBtn =
-  'inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
 export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   config,
@@ -558,7 +558,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
           <div
             ref={statusBannerRef}
             tabIndex={-1}
-            className={`mt-4 rounded-2xl p-3 text-sm focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-slate-400 ${
+            className={`mt-4 rounded-2xl p-3 text-sm focus:outline-solid focus:outline-2 focus:outline-offset-2 focus:outline-slate-400 ${
               archiveFailed
                 ? light
                   ? 'bg-amber-50 text-amber-800'

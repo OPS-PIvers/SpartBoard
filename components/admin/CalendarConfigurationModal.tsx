@@ -354,7 +354,7 @@ export const CalendarConfigurationModal: React.FC<
       maxWidth="max-w-4xl"
       customHeader={header}
       footer={footer}
-      className="!p-0"
+      className="p-0!"
       contentClassName=""
       footerClassName="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between w-full shrink-0"
     >
@@ -415,7 +415,7 @@ export const CalendarConfigurationModal: React.FC<
                           });
                         }
                       }}
-                      className="w-10 text-xs font-black text-blue-700 text-center bg-transparent outline-none"
+                      className="w-10 text-xs font-black text-blue-700 text-center bg-transparent outline-hidden"
                     />
                     <span className="text-xxs font-bold text-slate-500 uppercase tracking-widest">
                       Hours
@@ -505,7 +505,7 @@ export const CalendarConfigurationModal: React.FC<
                     'addBlockedDate'
                   )}
                   onClick={addBlockedDate}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white text-red-600 border border-red-200 rounded-xl text-xs font-black hover:bg-red-100 transition-colors shadow-sm"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white text-red-600 border border-red-200 rounded-xl text-xs font-black hover:bg-red-100 transition-colors shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add Date
                 </button>
@@ -515,7 +515,7 @@ export const CalendarConfigurationModal: React.FC<
                 {config.blockedDates.map((date, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center gap-2 bg-white border border-red-200 px-2 py-1.5 rounded-xl shadow-sm group animate-in zoom-in-95"
+                    className="flex items-center gap-2 bg-white border border-red-200 px-2 py-1.5 rounded-xl shadow-xs group animate-in zoom-in-95"
                   >
                     <input
                       type="date"
@@ -530,7 +530,7 @@ export const CalendarConfigurationModal: React.FC<
                         next[idx] = e.target.value;
                         updateGlobal({ blockedDates: next });
                       }}
-                      className="text-xs font-black text-red-700 outline-none bg-transparent"
+                      className="text-xs font-black text-red-700 outline-hidden bg-transparent"
                     />
                     <button
                       {...tourFieldAttr(
@@ -592,7 +592,7 @@ export const CalendarConfigurationModal: React.FC<
                         'addDefaultEvent'
                       )}
                       onClick={addDefaultEvent}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-white text-brand-blue-primary border border-slate-200 rounded-xl text-xs font-black hover:bg-blue-50 transition-colors shadow-sm"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white text-brand-blue-primary border border-slate-200 rounded-xl text-xs font-black hover:bg-blue-50 transition-colors shadow-xs"
                     >
                       <Plus className="w-3.5 h-3.5" /> Add Event
                     </button>
@@ -602,7 +602,7 @@ export const CalendarConfigurationModal: React.FC<
                     {currentBuildingConfig.events.map((event, idx) => (
                       <div
                         key={idx}
-                        className="bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-4 shadow-sm group animate-in zoom-in-95"
+                        className="bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-4 shadow-xs group animate-in zoom-in-95"
                       >
                         <div className="flex-1 grid grid-cols-12 gap-3">
                           <div className="col-span-4">
@@ -622,7 +622,7 @@ export const CalendarConfigurationModal: React.FC<
                                 };
                                 updateBuilding({ events: next });
                               }}
-                              className="w-full px-3 py-2 text-xs font-bold border border-slate-100 rounded-lg focus:border-rose-400 outline-none bg-slate-50/50"
+                              className="w-full px-3 py-2 text-xs font-bold border border-slate-100 rounded-lg focus:border-rose-400 outline-hidden bg-slate-50/50"
                             />
                           </div>
                           <div className="col-span-8">
@@ -643,7 +643,7 @@ export const CalendarConfigurationModal: React.FC<
                                 updateBuilding({ events: next });
                               }}
                               placeholder="Event Title (e.g. Day A)"
-                              className="w-full px-3 py-2 text-xs font-bold border border-slate-100 rounded-lg focus:border-rose-400 outline-none bg-slate-50/50"
+                              className="w-full px-3 py-2 text-xs font-bold border border-slate-100 rounded-lg focus:border-rose-400 outline-hidden bg-slate-50/50"
                             />
                           </div>
                         </div>
@@ -709,7 +709,7 @@ export const CalendarConfigurationModal: React.FC<
                           ];
                           updateBuilding({ googleCalendarIds: nextIds });
                         }}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-white text-brand-blue-primary border border-slate-200 rounded-xl text-xs font-black hover:bg-blue-50 transition-colors shadow-sm"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-white text-brand-blue-primary border border-slate-200 rounded-xl text-xs font-black hover:bg-blue-50 transition-colors shadow-xs"
                       >
                         <Plus className="w-3.5 h-3.5" /> Add ID
                       </button>
@@ -740,7 +740,7 @@ export const CalendarConfigurationModal: React.FC<
                               updateBuilding({ googleCalendarIds: next });
                             }}
                             placeholder="email@group.calendar.google.com"
-                            className="flex-1 px-3 py-2 text-xs font-mono border border-slate-100 rounded-lg focus:border-blue-400 outline-none bg-slate-50/50"
+                            className="flex-1 px-3 py-2 text-xs font-mono border border-slate-100 rounded-lg focus:border-blue-400 outline-hidden bg-slate-50/50"
                           />
                           <a
                             href={`https://calendar.google.com/calendar/u/0/embed?src=${id}`}
@@ -821,7 +821,7 @@ export const CalendarConfigurationModal: React.FC<
                           });
                         }
                       }}
-                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
                     />
                   </div>
 
@@ -847,7 +847,7 @@ export const CalendarConfigurationModal: React.FC<
                             selected === 'global' ? undefined : selected,
                         });
                       }}
-                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
                     >
                       {FONTS.map((f) => (
                         <option key={f.id} value={f.id}>
@@ -879,7 +879,7 @@ export const CalendarConfigurationModal: React.FC<
                           textSizePreset: e.target.value as TextSizePreset,
                         })
                       }
-                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
                     >
                       {TEXT_SIZE_PRESET_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>

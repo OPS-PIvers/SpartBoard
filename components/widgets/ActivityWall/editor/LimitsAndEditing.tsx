@@ -53,7 +53,7 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
                 type="button"
                 aria-pressed={selected}
                 onClick={() => onChange({ maxPostsPerStudent: preset.value })}
-                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                   selected
                     ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
@@ -72,7 +72,7 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
               widgetType
             )}
             onClick={() => onChange({ maxPostsPerStudent: 10 })}
-            className={`rounded-xl border px-3 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+            className={`rounded-xl border px-3 py-2 text-sm font-semibold transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
               !isPreset
                 ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
@@ -108,7 +108,7 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
                     : 1,
                 });
               }}
-              className="w-32 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+              className="w-32 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
             />
           </div>
         )}

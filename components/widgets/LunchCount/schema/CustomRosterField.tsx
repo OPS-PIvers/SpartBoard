@@ -37,7 +37,7 @@ const CustomRosterFieldImpl: React.FC<CustomRenderCtx> = ({
       }}
       placeholder={resolveLabel(t, widget.type, 'rosterPlaceholder')}
       rows={8}
-      className="w-full p-3 text-xs bg-white border border-slate-200 rounded-2xl outline-none resize-none leading-relaxed"
+      className="w-full p-3 text-xs bg-white border border-slate-200 rounded-2xl outline-hidden resize-none leading-relaxed"
     />
   );
 };

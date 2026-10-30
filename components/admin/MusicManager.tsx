@@ -156,7 +156,7 @@ const ThumbnailInput: React.FC<ThumbnailInputProps> = ({
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         tabIndex={0}
-        className="relative flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 focus:outline-none focus:border-indigo-400 hover:border-slate-300 transition-colors"
+        className="relative flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 focus:outline-hidden focus:border-indigo-400 hover:border-slate-300 transition-colors"
       >
         {/* Preview */}
         <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center">
@@ -180,7 +180,7 @@ const ThumbnailInput: React.FC<ThumbnailInputProps> = ({
             placeholder="https://… image URL"
             value={thumbnail.startsWith('data:') ? '' : thumbnail}
             onChange={handleUrlChange}
-            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
           />
           <p className="text-xs text-slate-400">
             Paste an image (Ctrl+V here), drop a file, or{' '}
@@ -403,7 +403,7 @@ export const MusicManager: React.FC = () => {
           stations.map((station) => (
             <div
               key={station.id}
-              className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden"
+              className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden"
             >
               {editingId === station.id ? (
                 <div className="p-4 space-y-3 bg-slate-50">
@@ -417,7 +417,7 @@ export const MusicManager: React.FC = () => {
                       onChange={(e) =>
                         setEditForm({ ...editForm, title: e.target.value })
                       }
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
                     />
                     <input
                       {...tourAttr('admin.music.channel')}
@@ -427,7 +427,7 @@ export const MusicManager: React.FC = () => {
                       onChange={(e) =>
                         setEditForm({ ...editForm, channel: e.target.value })
                       }
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
                     />
                   </div>
 
@@ -439,7 +439,7 @@ export const MusicManager: React.FC = () => {
                       placeholder="YouTube or Spotify URL"
                       value={editForm.url ?? ''}
                       onChange={(e) => handleUrlChange(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
                     />
                     {extractYouTubeId(editForm.url ?? '') && (
                       <p className="text-xs text-emerald-600 mt-1">
@@ -475,7 +475,7 @@ export const MusicManager: React.FC = () => {
                           genre: (e.target.value as MusicGenre) || undefined,
                         })
                       }
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
                     >
                       <option value="">— No genre —</option>
                       {MUSIC_GENRES.map((g) => (
@@ -581,10 +581,10 @@ export const MusicManager: React.FC = () => {
                     <img
                       src={station.thumbnail}
                       alt={station.title}
-                      className="w-12 h-12 rounded-lg object-cover shadow-sm shrink-0"
+                      className="w-12 h-12 rounded-lg object-cover shadow-xs shrink-0"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center shadow-sm shrink-0">
+                    <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center shadow-xs shrink-0">
                       <Music className="w-5 h-5 text-slate-400" />
                     </div>
                   )}

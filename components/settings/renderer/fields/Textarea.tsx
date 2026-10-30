@@ -4,7 +4,7 @@ import type { TextareaField as TextareaFieldSchema } from '@/components/settings
 import { resolveLabel } from '../resolveLabel';
 
 const BASE_CLASS =
-  'w-full text-xs border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50';
+  'w-full text-xs border rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-500 disabled:opacity-50';
 const PROSE_CLASS = 'bg-white border-slate-200';
 const CODE_CLASS =
   'font-mono bg-slate-900 border-slate-700 text-emerald-200 placeholder:text-slate-400';

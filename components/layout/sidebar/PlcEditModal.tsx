@@ -209,7 +209,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             {t('sidebar.groups.nameLabel', { defaultValue: 'Team name' })}
           </label>
           <input
-            className="w-full px-3 py-2 text-base border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary font-bold disabled:bg-slate-50 disabled:text-slate-500"
+            className="w-full px-3 py-2 text-base border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary font-bold disabled:bg-slate-50 disabled:text-slate-500"
             placeholder={t('sidebar.plcs.namePlaceholder', {
               defaultValue: 'e.g. 4th Grade Math PLC',
             })}
@@ -245,7 +245,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               id="plc-edit-group-type"
               value={groupType}
               onChange={(e) => setGroupType(e.target.value as PlcGroupType)}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary font-bold text-slate-700"
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary font-bold text-slate-700"
             >
               {TEACHER_PLC_GROUP_TYPES.map((type) => (
                 <option key={type} value={type}>
@@ -338,7 +338,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
                 wrapperClassName="flex-1 relative"
                 orgId={suggestOrgId}
                 exclude={suggestExclude}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary"
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary"
                 placeholder={t('sidebar.plcs.invitePlaceholder', {
                   defaultValue: 'colleague@school.edu',
                 })}
@@ -351,7 +351,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
                 type="submit"
                 disabled={busy || !inviteEmail.trim()}
                 {...tourAttr('plc-edit.send-invite')}
-                className="bg-brand-blue-primary text-white px-3.5 py-2 rounded-xl flex gap-1.5 items-center text-xs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-brand-blue-primary text-white px-3.5 py-2 rounded-xl flex gap-1.5 items-center text-xs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Mail className="w-3.5 h-3.5" />
                 {t('sidebar.plcs.sendInvite', {
@@ -424,7 +424,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               onClick={() => void handleSave()}
               disabled={busy || !name.trim()}
               {...tourAttr('plc-edit.save')}
-              className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />
               {isCreate

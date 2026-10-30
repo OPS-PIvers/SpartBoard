@@ -313,7 +313,7 @@ export const VideoActivityEditorModal: React.FC<
           {...tourAttr('video-activity.editor-draft-ai')}
           onClick={() => setShowAiPrompt(true)}
           disabled={!hasYoutubeUrl}
-          className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           title={
             hasYoutubeUrl
               ? 'Generate questions with AI'
@@ -349,7 +349,7 @@ export const VideoActivityEditorModal: React.FC<
       saveLabel="Save Activity"
       footerExtras={footerExtras}
       contextRatio={56}
-      contextPaneClassName="bg-slate-50 border-r border-slate-200 !overflow-hidden"
+      contextPaneClassName="bg-slate-50 border-r border-slate-200 overflow-hidden!"
       contextPane={
         <div className="flex flex-col h-full">
           {/* Questions / Settings segmented tab toggle */}

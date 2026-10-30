@@ -201,7 +201,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               {...tourAttr('share-link.url')}
               value={createdUrl}
               onFocus={(e) => e.currentTarget.select()}
-              className="flex-1 bg-transparent text-xs text-slate-700 truncate focus:outline-none"
+              className="flex-1 bg-transparent text-xs text-slate-700 truncate focus:outline-hidden"
               aria-label={t('shareLinkCreatorModal.urlAriaLabel', {
                 defaultValue: 'Share link URL',
               })}
@@ -318,7 +318,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                 {...tourAttr('share-link.plc-scope')}
                 value={plcId ?? ''}
                 onChange={(e) => setPlcId(e.target.value || null)}
-                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <option value="">
                   {t('shareLinkCreatorModal.plcScope.none', {

@@ -347,7 +347,7 @@ export const ScoreboardSettings: React.FC<{
               onClick={() => setLayout('cards')}
               className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                 layout === 'cards'
-                  ? 'bg-white text-slate-700 shadow-sm'
+                  ? 'bg-white text-slate-700 shadow-xs'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -362,7 +362,7 @@ export const ScoreboardSettings: React.FC<{
               onClick={() => setLayout('rows')}
               className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                 layout === 'rows'
-                  ? 'bg-white text-slate-700 shadow-sm'
+                  ? 'bg-white text-slate-700 shadow-xs'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -417,7 +417,7 @@ export const ScoreboardSettings: React.FC<{
               type="checkbox"
               checked={useGroupNames}
               onChange={(e) => setUseGroupNames(e.target.checked)}
-              className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+              className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
               {...tourAttr(
                 'widget-settings.scoreboard.use-group-names',
                 widget.id,
@@ -474,7 +474,7 @@ export const ScoreboardSettings: React.FC<{
               </span>
               <button
                 onClick={handleReset}
-                className="text-xxs font-bold text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors"
+                className="text-xxs font-bold text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded-sm transition-colors"
                 {...tourAttr(
                   'widget-settings.scoreboard.confirm-reset',
                   widget.id,
@@ -522,7 +522,7 @@ export const ScoreboardSettings: React.FC<{
               <TeamNameInput
                 value={team.name}
                 onUpdate={(val) => updateTeamName(team.id, val)}
-                className="flex-1 text-xs font-bold text-slate-700 bg-transparent outline-none"
+                className="flex-1 text-xs font-bold text-slate-700 bg-transparent outline-hidden"
                 placeholder={t('widgetSettings.scoreboard.teamNamePlaceholder')}
                 {...tourFieldAttr(
                   'widget-settings.scoreboard.team-name',

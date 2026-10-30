@@ -8,7 +8,7 @@ export const ThermometerView: React.FC<{
   const { color } = getLevelData(volume);
   return (
     <div className="relative w-full h-full flex items-center justify-center py-4">
-      <svg viewBox="0 0 40 100" className="h-full drop-shadow-sm">
+      <svg viewBox="0 0 40 100" className="h-full drop-shadow-xs">
         {/* Tube Background */}
         <rect
           x="15"

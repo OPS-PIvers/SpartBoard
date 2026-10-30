@@ -54,7 +54,7 @@ export const BehaviorSection: React.FC = () => {
       <div className="space-y-2">
         {/* Close Warning */}
         <Card className="flex items-start gap-4" hoverable>
-          <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center shrink-0 mt-0.5">
             <ShieldX className="w-[18px] h-[18px] text-red-400" />
           </div>
           <div className="flex-1 min-w-0">
@@ -80,7 +80,7 @@ export const BehaviorSection: React.FC = () => {
 
         {canAccessFeature('alignment-guides') && (
           <Card className="flex items-start gap-4" hoverable>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 mt-0.5">
               <Ruler className="w-[18px] h-[18px] text-emerald-500" />
             </div>
             <div className="flex-1 min-w-0">
@@ -112,7 +112,7 @@ export const BehaviorSection: React.FC = () => {
 
         {canAccessFeature('spell-check-setting') && (
           <Card className="flex items-start gap-4" hoverable>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0 mt-0.5">
               <SpellCheck className="w-[18px] h-[18px] text-amber-500" />
             </div>
             <div className="flex-1 min-w-0">
@@ -143,7 +143,7 @@ export const BehaviorSection: React.FC = () => {
 
         {/* Remote Control */}
         <Card className="flex items-start gap-4" hoverable>
-          <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
             <MousePointerClick className="w-[18px] h-[18px] text-blue-400" />
           </div>
           <div className="flex-1 min-w-0">
@@ -173,7 +173,7 @@ export const BehaviorSection: React.FC = () => {
               pose="idle"
               size={32}
               decorative
-              className="flex-shrink-0 mt-0.5"
+              className="shrink-0 mt-0.5"
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-3">

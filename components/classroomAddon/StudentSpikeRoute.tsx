@@ -62,7 +62,7 @@ const VideoActivityStudentApp = lazy(() =>
 );
 
 const FullPage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 font-sans text-slate-100">
+  <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-slate-900 via-slate-900 to-slate-950 font-sans text-slate-100">
     {children}
   </div>
 );

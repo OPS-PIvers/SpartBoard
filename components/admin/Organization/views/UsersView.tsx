@@ -325,10 +325,7 @@ export const UsersView: React.FC<Props> = ({
           role="status"
           className="mb-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
         >
-          <AlertTriangle
-            size={16}
-            className="mt-0.5 flex-shrink-0 text-amber-600"
-          />
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-600" />
           <div>
             <div className="font-medium">Last-active data is incomplete.</div>
             <div className="text-amber-800/90">
@@ -923,7 +920,7 @@ const UserRow: React.FC<{
           type="button"
           disabled={!canEditRole}
           onClick={() => setRolePopoverOpen((o) => !o)}
-          className="inline-flex items-center gap-1 -mx-2 px-2 py-1 rounded-md hover:bg-slate-100 disabled:hover:bg-transparent disabled:cursor-not-allowed focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
+          className="inline-flex items-center gap-1 -mx-2 px-2 py-1 rounded-md hover:bg-slate-100 disabled:hover:bg-transparent disabled:cursor-not-allowed focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
           title={!canEditRole ? 'Domain admin only' : undefined}
         >
           {roleRecord ? (
@@ -979,7 +976,7 @@ const UserRow: React.FC<{
           type="button"
           disabled={!canEditBuildings}
           onClick={() => setBuildingPopoverOpen((o) => !o)}
-          className="inline-flex flex-wrap items-center gap-1 -mx-2 px-2 py-1 rounded-md hover:bg-slate-100 disabled:hover:bg-transparent disabled:cursor-not-allowed focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 text-left"
+          className="inline-flex flex-wrap items-center gap-1 -mx-2 px-2 py-1 rounded-md hover:bg-slate-100 disabled:hover:bg-transparent disabled:cursor-not-allowed focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 text-left"
           title={!canEditBuildings ? 'Domain admin only' : undefined}
         >
           {userBuildings.length === 0 ? (
@@ -1065,7 +1062,7 @@ const UserRow: React.FC<{
           type="button"
           disabled={!canEditStatus}
           onClick={() => setStatusPopoverOpen((o) => !o)}
-          className="-mx-2 px-2 py-1 rounded-md hover:bg-slate-100 disabled:hover:bg-transparent disabled:cursor-not-allowed focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
+          className="-mx-2 px-2 py-1 rounded-md hover:bg-slate-100 disabled:hover:bg-transparent disabled:cursor-not-allowed focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
         >
           <StatusPill status={user.status} />
         </button>

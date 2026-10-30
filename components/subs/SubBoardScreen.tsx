@@ -82,7 +82,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
 
   if (!!error || !share || isExpired) {
     return (
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50">
+      <div className="h-screen h-dvh overflow-y-auto bg-slate-50">
         <ExpiredOrErrorPanel
           message={
             isExpired
@@ -198,7 +198,7 @@ const RosterLoadButton: React.FC<{
     <button
       type="button"
       onClick={onLoad}
-      className={`flex items-center gap-2 rounded-full backdrop-blur-xl border px-3 py-1.5 text-xs font-bold shadow-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+      className={`flex items-center gap-2 rounded-full backdrop-blur-xl border px-3 py-1.5 text-xs font-bold shadow-md transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
         failed
           ? 'bg-amber-50/95 hover:bg-amber-100 border-amber-300 text-amber-800'
           : 'bg-white/85 hover:bg-white border-slate-200/70 text-brand-blue-primary'

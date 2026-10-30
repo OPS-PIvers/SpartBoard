@@ -74,7 +74,7 @@ export const Toast: React.FC<ToastProps> = ({
               e.stopPropagation();
               action.onClick();
             }}
-            className="text-xxs font-black uppercase tracking-widest px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded transition-colors text-left w-fit"
+            className="text-xxs font-black uppercase tracking-widest px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded-sm transition-colors text-left w-fit"
           >
             {action.label}
           </button>

@@ -241,7 +241,7 @@ const TrackedPlayer: React.FC<{
       {paused && (
         <div
           role="status"
-          className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/85 p-6 text-center backdrop-blur-sm"
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/85 p-6 text-center backdrop-blur-xs"
         >
           <PauseCircle
             aria-hidden="true"
@@ -581,12 +581,12 @@ export const FlashcardAssignmentPage: React.FC<{
 
   return (
     <div className="flex h-screen h-dvh flex-col overflow-hidden bg-slate-100">
-      <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-6">
+      <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 shadow-xs sm:px-6">
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           <a
             href="/my-assignments"
             aria-label={t('flashcards.assignment.back')}
-            className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+            className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300"
           >
             <ArrowLeft aria-hidden="true" className="h-5 w-5" />
           </a>

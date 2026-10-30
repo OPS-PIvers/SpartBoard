@@ -45,7 +45,7 @@ const SchoolSiteControlImpl: React.FC<CustomRenderCtx> = ({
           gradeLevel: validGrades.includes(gradeLevel) ? gradeLevel : '',
         });
       }}
-      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 appearance-none cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-blue-500"
     >
       {SCHOOL_SITE_OPTIONS.map((opt) => (
         <option key={opt.value} value={opt.value}>

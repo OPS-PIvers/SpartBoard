@@ -96,7 +96,7 @@ export const TourTip: React.FC<TourTipProps> = ({
       data-testid="tour-callout"
       data-plain={plain ? '' : undefined}
       data-tether={tether?.edge}
-      className={`fixed flex flex-col gap-2 rounded-2xl px-4 py-3 leading-relaxed focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 ${chromeSurface}`}
+      className={`fixed flex flex-col gap-2 rounded-2xl px-4 py-3 leading-relaxed focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 ${chromeSurface}`}
       style={{
         zIndex: Z_INDEX.tourCallout,
         left,
@@ -113,7 +113,7 @@ export const TourTip: React.FC<TourTipProps> = ({
           aria-hidden="true"
           data-testid="tour-tip-arrow"
           viewBox={`0 0 ${ARROW_W} ${ARROW_H}`}
-          className="overflow-visible fill-white stroke-slate-900/[0.08]"
+          className="overflow-visible fill-white stroke-slate-900/8"
           style={arrowStyle(tether)}
         >
           <path d={`M0 ${ARROW_H} L${ARROW_W / 2} 0 L${ARROW_W} ${ARROW_H}`} />
@@ -124,7 +124,7 @@ export const TourTip: React.FC<TourTipProps> = ({
         ref={headingRef}
         tabIndex={-1}
         data-testid="tour-step-title"
-        className="rounded font-bold tracking-tight text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50"
+        className="rounded-sm font-bold tracking-tight text-slate-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50"
       >
         {title}
       </div>

@@ -40,7 +40,7 @@ export const AiPanel: React.FC<AiPanelProps> = ({
           value={topic}
           onChange={(e) => onTopicChange(e.target.value)}
           placeholder="Enter a topic, then click a level…"
-          className="flex-1 min-w-0 bg-white/10 border border-white/20 rounded text-white placeholder-white/40 outline-none focus:border-amber-400/60"
+          className="flex-1 min-w-0 bg-white/10 border border-white/20 rounded-sm text-white placeholder-white/40 outline-hidden focus:border-amber-400/60"
           style={{
             fontSize: 'min(12px, 3.5cqmin)',
             padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
@@ -60,7 +60,7 @@ export const AiPanel: React.FC<AiPanelProps> = ({
       {/* Result overlay */}
       {result && (
         <div
-          className="absolute left-0 right-0 bg-slate-900/95 backdrop-blur-sm border border-white/20 rounded-lg shadow-xl overflow-auto z-10"
+          className="absolute left-0 right-0 bg-slate-900/95 backdrop-blur-xs border border-white/20 rounded-lg shadow-xl overflow-auto z-10"
           style={{
             top: '100%',
             maxHeight: 'min(300px, 60cqmin)',

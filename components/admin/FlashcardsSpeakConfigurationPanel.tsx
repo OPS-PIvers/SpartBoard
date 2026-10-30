@@ -21,7 +21,7 @@ import { useFlashcardsSpeakAdminConfig } from '@/hooks/useFlashcardsSpeakAdminCo
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 const fieldClass =
-  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 
 const ATTEMPT_OPTIONS = Array.from(
   { length: SPEAK_ATTEMPTS_MAX - SPEAK_ATTEMPTS_MIN + 1 },

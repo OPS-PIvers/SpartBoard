@@ -194,7 +194,7 @@ const QRConfigEditor: React.FC<{
       {...tourAttr('admin.announcements.qr-url')}
       value={(config.url as string) ?? ''}
       onChange={(e) => onChange({ ...config, url: e.target.value })}
-      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
       placeholder="https://example.com"
     />
   </div>
@@ -245,7 +245,7 @@ const ExpectationsConfigEditor: React.FC<{
           onChange={(e) =>
             onChange({ ...config, workMode: e.target.value || null })
           }
-          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
         >
           <option value="">None</option>
           <option value="individual">Individual</option>
@@ -263,7 +263,7 @@ const ExpectationsConfigEditor: React.FC<{
           onChange={(e) =>
             onChange({ ...config, interactionMode: e.target.value || null })
           }
-          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
         >
           <option value="">None</option>
           <option value="none">Silent</option>
@@ -324,7 +324,7 @@ const GenericConfigEditor: React.FC<{
         value={jsonStr}
         onChange={(e) => setJsonStr(e.target.value)}
         onBlur={handleBlur}
-        className={`w-full h-36 px-3 py-2 text-xs font-mono border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue-primary ${
+        className={`w-full h-36 px-3 py-2 text-xs font-mono border rounded-lg resize-none focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary ${
           jsonError ? 'border-red-400 bg-red-50' : 'border-slate-300'
         }`}
         spellCheck={false}
@@ -606,7 +606,7 @@ export const PollResponsesPanel: React.FC<{
         <button
           {...tourAttr('admin.announcements.poll-results-close')}
           onClick={onClose}
-          className="p-1 text-slate-400 hover:text-slate-600 rounded"
+          className="p-1 text-slate-400 hover:text-slate-600 rounded-sm"
         >
           <X className="w-4 h-4" />
         </button>
@@ -1019,7 +1019,7 @@ export const AnnouncementsManager: React.FC = () => {
           <button
             {...tourAttr('admin.announcements.new')}
             onClick={openCreate}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary text-white text-xs font-semibold rounded-lg hover:bg-brand-blue-dark transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary text-white text-xs font-semibold rounded-lg hover:bg-brand-blue-dark transition-colors shadow-xs"
           >
             <Plus className="w-4 h-4" />
             New Announcement
@@ -1255,7 +1255,7 @@ export const AnnouncementsManager: React.FC = () => {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, name: e.target.value }))
                 }
-                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                 placeholder="e.g. Morning Announcement, Fire Drill Notice…"
               />
             </div>
@@ -1272,7 +1272,7 @@ export const AnnouncementsManager: React.FC = () => {
                   onChange={(e) =>
                     handleWidgetTypeChange(e.target.value as WidgetType)
                   }
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                 >
                   {ANNOUNCEMENT_WIDGET_TYPES.map((type) => (
                     <option key={type} value={type}>
@@ -1328,7 +1328,7 @@ export const AnnouncementsManager: React.FC = () => {
                           },
                         }));
                       }}
-                      className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                      className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                     />
                   </div>
                   <div className="flex-1">
@@ -1353,7 +1353,7 @@ export const AnnouncementsManager: React.FC = () => {
                           },
                         }));
                       }}
-                      className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                      className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                     />
                   </div>
                 </div>
@@ -1421,7 +1421,7 @@ export const AnnouncementsManager: React.FC = () => {
                             scheduledActivationDate: e.target.value,
                           }))
                         }
-                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                       />
                     </div>
                     <div>
@@ -1438,7 +1438,7 @@ export const AnnouncementsManager: React.FC = () => {
                             scheduledActivationTime: e.target.value,
                           }))
                         }
-                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                       />
                     </div>
                   </div>
@@ -1480,7 +1480,7 @@ export const AnnouncementsManager: React.FC = () => {
                             scheduledEndDate: e.target.value,
                           }))
                         }
-                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                       />
                     </div>
                     <div>
@@ -1497,7 +1497,7 @@ export const AnnouncementsManager: React.FC = () => {
                             scheduledEndTime: e.target.value,
                           }))
                         }
-                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                       />
                     </div>
                   </div>
@@ -1556,7 +1556,7 @@ export const AnnouncementsManager: React.FC = () => {
                         scheduledDismissalTime: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                   />
                 </div>
               )}
@@ -1583,7 +1583,7 @@ export const AnnouncementsManager: React.FC = () => {
                           ),
                         }));
                       }}
-                      className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                      className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                     />
                     <select
                       {...tourAttr('admin.announcements.dismissal-unit')}
@@ -1601,7 +1601,7 @@ export const AnnouncementsManager: React.FC = () => {
                           ),
                         }))
                       }
-                      className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                      className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                     >
                       <option value="seconds">seconds</option>
                       <option value="minutes">minutes</option>
@@ -1666,7 +1666,7 @@ export const AnnouncementsManager: React.FC = () => {
                     }
                   }}
                   placeholder="teacher@example.com"
-                  className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                  className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                 />
                 <button
                   type="button"

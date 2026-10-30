@@ -84,7 +84,7 @@ export const CatalystSetPickerPopover: React.FC<Props> = ({
                   key={routine.id}
                   {...tourTypeAttr('catalyst.picker-routine', 'catalyst')}
                   onClick={() => onSelectRoutine(selectedSet.id, routine.id)}
-                  className="w-8 h-8 rounded-lg border border-slate-200 shadow-sm hover:scale-105 transition-all flex items-center justify-center"
+                  className="w-8 h-8 rounded-lg border border-slate-200 shadow-xs hover:scale-105 transition-all flex items-center justify-center"
                   style={{
                     backgroundColor: routine.buttonColor?.trim() ?? '#eef2ff',
                     color: routine.iconColor?.trim() ?? '#4338ca',
@@ -123,7 +123,7 @@ export const CatalystSetPickerPopover: React.FC<Props> = ({
                   setSelectedSetId(set.id);
                 }}
                 disabled={set.routines.length === 0 && !set.title}
-                className="relative rounded-xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.04] hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                className="relative rounded-xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.04] hover:shadow-lg transition-all focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                 style={{ width: 144, height: 188 }}
               >
                 {set.imageUrl && isSafeIconUrl(set.imageUrl) ? (
@@ -134,7 +134,7 @@ export const CatalystSetPickerPopover: React.FC<Props> = ({
                       className="absolute inset-0 w-full h-full object-contain bg-slate-100"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
                   </>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-300 border-2 border-dashed border-slate-400">
@@ -150,7 +150,7 @@ export const CatalystSetPickerPopover: React.FC<Props> = ({
                       'linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.4))',
                   }}
                 >
-                  <span className="font-black uppercase tracking-widest text-white drop-shadow text-center leading-tight truncate text-xs">
+                  <span className="font-black uppercase tracking-widest text-white drop-shadow-sm text-center leading-tight truncate text-xs">
                     {set.title || 'Empty Set'}
                   </span>
                   <span className="text-indigo-200 font-bold text-center mt-0.5 text-xxs">

@@ -36,7 +36,7 @@ export const DocEmbedModal: React.FC<{
             target="_blank"
             rel="noopener noreferrer"
             {...tourAttr('teams.doc-embed.open-docs')}
-            className="inline-flex items-center gap-1 rounded text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+            className="inline-flex items-center gap-1 rounded-sm text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
           >
             Open in Docs
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />

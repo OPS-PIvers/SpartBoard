@@ -136,7 +136,7 @@ export const TextPopoverInteraction: React.FC<Props> = ({
         data-gl-callout-overflow={overflowing || undefined}
         className={`${tone.popoverCard} rounded-2xl shadow-2xl ${
           placed ? 'absolute' : 'relative w-full'
-        }${overflowing ? ' outline outline-2 outline-offset-2 outline-amber-400' : ''}`}
+        }${overflowing ? ' outline-solid outline-2 outline-offset-2 outline-amber-400' : ''}`}
         style={
           explicitBox && placed
             ? ({

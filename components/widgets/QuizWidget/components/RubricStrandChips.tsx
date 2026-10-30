@@ -21,7 +21,7 @@ import {
 } from '@/utils/rubricStrandTags';
 
 const CHIP_BASE =
-  'max-w-[9rem] truncate rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-tight transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1';
+  'max-w-36 truncate rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-tight transition focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-1';
 
 interface ChipsProps {
   /** Effective rubric for this response; no chips render without one. */

@@ -78,7 +78,7 @@ export const ReadAloudPreviewButton: React.FC<{
         aria-pressed={state === 'playing'}
         aria-busy={state === 'loading'}
         {...anchor}
-        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
           active
             ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary'
             : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'

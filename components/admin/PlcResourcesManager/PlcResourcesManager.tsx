@@ -196,7 +196,7 @@ export const PlcResourcesManager: React.FC = () => {
       {showForm && (
         <form
           onSubmit={handleSubmit}
-          className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-sm"
+          className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-xs"
           aria-label={
             form.editingId
               ? t('plcDashboard.resources.editFormLabel', {
@@ -221,7 +221,7 @@ export const PlcResourcesManager: React.FC = () => {
               {...tourAttr('admin-plc.resource-close')}
               type="button"
               onClick={resetForm}
-              className="p-1 text-slate-400 hover:text-slate-600 rounded"
+              className="p-1 text-slate-400 hover:text-slate-600 rounded-sm"
               aria-label={t('plcDashboard.resources.cancelForm', {
                 defaultValue: 'Cancel',
               })}
@@ -244,7 +244,7 @@ export const PlcResourcesManager: React.FC = () => {
                   kind: e.target.value as PlcResourceKind,
                 }))
               }
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
             >
               {(Object.keys(KIND_LABELS) as PlcResourceKind[]).map((k) => (
                 <option key={k} value={k}>
@@ -271,7 +271,7 @@ export const PlcResourcesManager: React.FC = () => {
               placeholder={t('plcDashboard.resources.titlePlaceholder', {
                 defaultValue: 'e.g. Unit 3 Planning Doc',
               })}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
             />
           </div>
 
@@ -298,7 +298,7 @@ export const PlcResourcesManager: React.FC = () => {
                   ? 'https://docs.google.com/…'
                   : 'group-id or shareId'
               }
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
             />
           </div>
 
@@ -323,7 +323,7 @@ export const PlcResourcesManager: React.FC = () => {
               placeholder={t('plcDashboard.resources.descriptionPlaceholder', {
                 defaultValue: 'Context or instructions…',
               })}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 resize-none"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 resize-none"
             />
           </div>
 
@@ -400,7 +400,7 @@ export const PlcResourcesManager: React.FC = () => {
             {resources.map((res) => (
               <li
                 key={res.id}
-                className="flex items-start justify-between gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm"
+                className="flex items-start justify-between gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-xs"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">

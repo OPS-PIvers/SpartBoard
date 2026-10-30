@@ -576,7 +576,7 @@ const DropZone: React.FC<DropZoneProps> = ({
                     onMovePhoto(i, i + 1);
                   }
                 }}
-                className="group relative aspect-[3/4] cursor-grab overflow-hidden rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                className="group relative aspect-3/4 cursor-grab overflow-hidden rounded-lg border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
               >
                 {photo.url && (
                   <img

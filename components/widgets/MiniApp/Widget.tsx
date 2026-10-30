@@ -179,7 +179,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
 
   return (
     <div
-      className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-sm flex items-center justify-center"
+      className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-xs flex items-center justify-center"
       style={{ padding: 'min(16px, 4cqmin)' }}
     >
       <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -282,7 +282,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                 <button
                   onClick={() => void handleCopy()}
                   {...tourTypeAttr('mini-app.copy-link', 'miniApp')}
-                  className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm"
+                  className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-xs"
                   style={{
                     gap: 'min(8px, 2cqmin)',
                     paddingTop: 'min(12px, 3cqmin)',
@@ -386,7 +386,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                 disabled={isCreating || outward.locked}
                 {...tourTypeAttr('mini-app.assign-confirm', 'miniApp')}
                 title={outward.lockedTitle}
-                className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm disabled:opacity-60"
+                className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-xs disabled:opacity-60"
                 style={{
                   gap: 'min(8px, 2cqmin)',
                   paddingTop: 'min(12px, 3cqmin)',
@@ -1533,7 +1533,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                             <>
                               <button
                                 onClick={() => handleOpenAssign(activeApp)}
-                                className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm"
+                                className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-xs"
                                 style={buttonBaseStyle}
                                 title="Assign (copy student link)"
                                 {...tourTypeAttr(
@@ -1546,7 +1546,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                               </button>
                               <button
                                 onClick={() => handleOpenAssignments(activeApp)}
-                                className="bg-white hover:bg-slate-50 text-slate-700 flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm border border-slate-200/60"
+                                className="bg-white hover:bg-slate-50 text-slate-700 flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-xs border border-slate-200/60"
                                 style={buttonBaseStyle}
                                 title="View assignments"
                                 {...tourTypeAttr(
@@ -1580,7 +1580,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                         {config.activeAppUnsaved && !isActiveBoardReadOnly && (
                           <>
                             <div
-                              className="bg-red-500 text-white font-black uppercase tracking-tighter rounded-lg shadow-sm animate-pulse flex items-center justify-center border border-red-400"
+                              className="bg-red-500 text-white font-black uppercase tracking-tighter rounded-lg shadow-xs animate-pulse flex items-center justify-center border border-red-400"
                               style={{
                                 height: sz.buttonHeight,
                                 paddingLeft: sz.badgePaddingX,
@@ -1599,7 +1599,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                                 );
                                 setShowSaveForm(true);
                               }}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-indigo-500 font-black transition-colors"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-xs border border-indigo-500 font-black transition-colors"
                               style={buttonBaseStyle}
                               title="Save to library"
                               {...tourTypeAttr(
@@ -1616,7 +1616,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                           <button
                             onClick={() => void handleCreateQrShare()}
                             disabled={isCreatingQrShare || !user}
-                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-xs border border-slate-200/60 font-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                             style={buttonBaseStyle}
                             title="Share via QR — drops a QR-code widget that students can scan"
                             {...tourTypeAttr('mini-app.toolbar-qr', 'miniApp')}
@@ -1637,7 +1637,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                           !isActiveBoardReadOnly && (
                             <button
                               onClick={() => setShowSaveAsWidget(true)}
-                              className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors"
+                              className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-xs border border-slate-200/60 font-black transition-colors"
                               style={buttonBaseStyle}
                               title="Save as widget — pin this mini app to your dock"
                               {...tourTypeAttr(
@@ -1654,7 +1654,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                         {!inShare && (
                           <button
                             onClick={handleCloseActive}
-                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors"
+                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-xs border border-slate-200/60 font-black transition-colors"
                             style={buttonBaseStyle}
                             title="Back to library"
                             {...tourTypeAttr(
@@ -1683,7 +1683,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             {/* Save-to-library overlay (shown when user pastes HTML and hasn't saved yet) */}
             {showSaveForm && (
               <div
-                className="absolute inset-0 z-20 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-150"
+                className="absolute inset-0 z-20 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center animate-in fade-in duration-150"
                 style={{ padding: 'min(16px, 4cqmin)' }}
               >
                 <div
@@ -1732,7 +1732,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                     placeholder="App title…"
                     autoFocus
                     {...tourTypeAttr('mini-app.save-title', 'miniApp')}
-                    className="w-full bg-slate-100 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-100 rounded-xl font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
                     style={{
                       paddingLeft: 'min(12px, 3cqmin)',
                       paddingRight: 'min(12px, 3cqmin)',

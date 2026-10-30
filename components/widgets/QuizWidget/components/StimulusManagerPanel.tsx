@@ -49,7 +49,7 @@ import type { QuizEditorController } from './useQuizEditorState';
 const labelClass =
   'block text-slate-600 font-bold uppercase tracking-wider mb-1 text-xs';
 const inputClass =
-  'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
+  'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
 
 const TYPE_BADGE: Record<QuizStimulusType, string> = {
   image: 'bg-emerald-100 text-emerald-700',
@@ -748,7 +748,7 @@ const StimulusCard: React.FC<{
           )}
         </button>
         <span
-          className={`shrink-0 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
+          className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
         >
           {STIMULUS_TYPE_LABELS[s.type]}
         </span>
@@ -758,7 +758,7 @@ const StimulusCard: React.FC<{
           onChange={(e) => updateStimulus(s.id, { label: e.target.value })}
           placeholder="Label (only you see this)"
           {...tourFieldAttr('quiz-stimuli.card-label', 'quiz', String(index))}
-          className="flex-1 min-w-0 bg-transparent border-0 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
+          className="flex-1 min-w-0 bg-transparent border-0 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden"
         />
         <span className="shrink-0 text-xxs text-slate-400 tabular-nums">
           {coveredCount === 0
@@ -779,7 +779,7 @@ const StimulusCard: React.FC<{
           onClick={() => deleteStimulus(s.id)}
           aria-label="Delete stimulus"
           {...tourFieldAttr('quiz-stimuli.card-delete', 'quiz', String(index))}
-          className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors"
+          className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-sm p-1 transition-colors"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -802,7 +802,7 @@ const StimulusCard: React.FC<{
                 onChange={(e) => updateStimulus(s.id, { text: e.target.value })}
                 rows={6}
                 placeholder="Paste or type the passage students will read."
-                className="w-full px-2.5 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary/50"
+                className="w-full px-2.5 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary/50"
               />
             </div>
           ) : s.type === 'calculator' ? null : (
@@ -879,7 +879,7 @@ const StimulusCard: React.FC<{
               <ul className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
                 {questions.map((q, i) => (
                   <li key={q.id}>
-                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded px-1.5 py-1 hover:bg-slate-50">
+                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
                       <input
                         type="checkbox"
                         checked={q.stimulusIds?.includes(s.id) ?? false}
@@ -906,7 +906,7 @@ const StimulusCard: React.FC<{
                 ))}
                 {bankSlots.map((slot, slotIndex) => (
                   <li key={slot.id}>
-                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded px-1.5 py-1 hover:bg-slate-50">
+                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
                       <input
                         type="checkbox"
                         checked={slot.stimulusIds?.includes(s.id) ?? false}
@@ -1027,7 +1027,7 @@ const AttachStimulusSection: React.FC<{
                 ];
                 return (
                   <li key={s.id}>
-                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded px-1.5 py-1 hover:bg-slate-50">
+                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
                       <input
                         type="checkbox"
                         checked={attachedIds?.includes(s.id) ?? false}
@@ -1040,7 +1040,7 @@ const AttachStimulusSection: React.FC<{
                         className="w-3.5 h-3.5 accent-brand-blue-primary"
                       />
                       <span
-                        className={`shrink-0 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
+                        className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
                       >
                         {STIMULUS_TYPE_LABELS[s.type]}
                       </span>

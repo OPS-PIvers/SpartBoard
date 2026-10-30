@@ -163,7 +163,7 @@ const MenuItemBlock: React.FC<MenuItemBlockProps> = ({
         <button
           type="button"
           onClick={() => item && onPeekItem(item)}
-          className="shrink-0 rounded-lg overflow-hidden bg-white/40 border border-white/60 shadow-sm transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          className="shrink-0 rounded-lg overflow-hidden bg-white/40 border border-white/60 shadow-xs transition-transform hover:scale-105 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
           style={{
             width: 'min(40px, 14cqmin)',
             height: 'min(40px, 14cqmin)',
@@ -205,7 +205,7 @@ const MenuItemBlock: React.FC<MenuItemBlockProps> = ({
                   <button
                     type="button"
                     onClick={() => onPeekItem(s)}
-                    className="hover:underline focus:outline-none focus:underline cursor-pointer"
+                    className="hover:underline focus:outline-hidden focus:underline cursor-pointer"
                     aria-label={`Show photo of ${s.name}`}
                   >
                     {s.name}
@@ -619,7 +619,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const studentItemClass =
-    'bg-white border-b-2 border-slate-200 rounded-xl font-black text-slate-700 shadow-sm hover:border-brand-blue-primary hover:-translate-y-0.5 transition-all active:scale-90';
+    'bg-white border-b-2 border-slate-200 rounded-xl font-black text-slate-700 shadow-xs hover:border-brand-blue-primary hover:-translate-y-0.5 transition-all active:scale-90';
 
   const studentItemStyle: React.CSSProperties = {
     fontSize: 'min(16px, 6cqmin)',
@@ -794,7 +794,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                     ? 'primary'
                     : 'secondary'
                 }
-                className="flex-1 min-w-0 mx-auto rounded-xl font-black uppercase tracking-widest leading-tight text-center transition-all shadow-sm"
+                className="flex-1 min-w-0 mx-auto rounded-xl font-black uppercase tracking-widest leading-tight text-center transition-all shadow-xs"
                 style={{
                   padding: 'min(6px, 1.5cqmin) min(16px, 4cqmin)',
                   fontSize: 'min(12px, 4cqmin)',
@@ -1229,7 +1229,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             type="button"
             {...tourAttr('lunch-count.photo-close', widget.id, widget.type)}
             onClick={closePeek}
-            className="absolute z-10 rounded-full bg-white/80 hover:bg-white text-slate-600 shadow-md focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            className="absolute z-10 rounded-full bg-white/80 hover:bg-white text-slate-600 shadow-md focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
             style={{
               top: 'min(12px, 1.5vmin)',
               right: 'min(12px, 1.5vmin)',
@@ -1271,7 +1271,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             <div
               key={drag.pointerId}
               data-no-drag="true"
-              className="fixed z-[10000] bg-brand-blue-primary border-b-4 border-brand-blue-dark rounded-2xl font-black text-white shadow-2xl opacity-95 cursor-grabbing pointer-events-none whitespace-nowrap"
+              className="fixed z-10000 bg-brand-blue-primary border-b-4 border-brand-blue-dark rounded-2xl font-black text-white shadow-2xl opacity-95 cursor-grabbing pointer-events-none whitespace-nowrap"
               style={{
                 left: drag.x,
                 top: drag.y,

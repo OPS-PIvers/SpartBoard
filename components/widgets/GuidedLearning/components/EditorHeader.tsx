@@ -54,7 +54,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
           placeholder={titlePlaceholder}
           {...tourTypeAttr('editor.title', 'guided-learning')}
           aria-label={t('glStudio.titleLabel')}
-          className="w-full truncate border-0 bg-transparent p-0 text-lg font-black text-slate-800 placeholder:font-bold placeholder:text-slate-400 focus:outline-none focus:ring-0"
+          className="w-full truncate border-0 bg-transparent p-0 text-lg font-black text-slate-800 placeholder:font-bold placeholder:text-slate-400 focus:outline-hidden focus:ring-0"
         />
         {notice ? (
           <div
@@ -79,7 +79,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
           type="button"
           {...tourAttr('gl-editor.draft-ai')}
           onClick={onDraftWithAi}
-          className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold uppercase tracking-wider text-slate-700 shadow-sm transition-colors hover:border-brand-blue-light"
+          className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold uppercase tracking-wider text-slate-700 shadow-xs transition-colors hover:border-brand-blue-light"
         >
           <Wand2 className="h-4 w-4" aria-hidden="true" />
           {t('glStudio.draftWithAi')}

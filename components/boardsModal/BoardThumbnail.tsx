@@ -25,7 +25,7 @@ const MIN_CANVAS_H = 675;
 interface BoardThumbnailProps {
   widgets: WidgetData[];
   // Same shape as `Dashboard.background`: either a Tailwind class string
-  // ("bg-slate-800", "bg-gradient-to-br from-..."), or a URL / data URI.
+  // ("bg-slate-800", "bg-linear-to-br from-..."), or a URL / data URI.
   background?: string;
   className?: string;
 }
@@ -94,7 +94,7 @@ export const BoardThumbnail: React.FC<BoardThumbnailProps> = ({
         return (
           <div
             key={w.id}
-            className="absolute rounded-[2px] bg-white/30 border border-white/40 shadow-sm flex items-center justify-center text-white/85"
+            className="absolute rounded-[2px] bg-white/30 border border-white/40 shadow-xs flex items-center justify-center text-white/85"
             style={{
               left: `${left}%`,
               top: `${top}%`,

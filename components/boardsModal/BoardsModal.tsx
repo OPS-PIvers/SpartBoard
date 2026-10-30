@@ -579,7 +579,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       aria-labelledby="boards-modal-title"
     >
       <div className="bg-white w-full h-full overflow-hidden flex flex-col">
-        <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark text-white h-14 md:h-16 px-4 flex items-center shadow-sm shrink-0 gap-2">
+        <div className="bg-linear-to-r from-brand-blue-primary to-brand-blue-dark text-white h-14 md:h-16 px-4 flex items-center shadow-xs shrink-0 gap-2">
           <button
             onClick={onClose}
             aria-label={t('boardsModal.backToBoard', {

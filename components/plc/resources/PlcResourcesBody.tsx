@@ -301,7 +301,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
                 return (
                   <li
                     key={res.id}
-                    className="flex items-start justify-between gap-3 bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-3 shadow-sm"
+                    className="flex items-start justify-between gap-3 bg-white/70 backdrop-blur-xs border border-slate-200 rounded-xl px-4 py-3 shadow-xs"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-slate-800 text-sm truncate">

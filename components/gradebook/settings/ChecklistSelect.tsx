@@ -11,7 +11,7 @@ export interface ChecklistOption {
 }
 
 const FIELD =
-  'h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 disabled:bg-slate-50 disabled:text-slate-500';
+  'h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 disabled:bg-slate-50 disabled:text-slate-500';
 
 /** Select-style button that opens a checklist menu and stays open while picking. */
 export const ChecklistSelect: React.FC<{
@@ -99,7 +99,7 @@ export const ChecklistSelect: React.FC<{
                 role="menuitemcheckbox"
                 aria-checked={on}
                 onClick={() => onToggle(o.id, !on)}
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
+                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-slate-50 focus:bg-slate-50 focus:outline-hidden ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
               >
                 <span className="w-4 shrink-0 text-brand-blue-primary">
                   {on && <Check size={16} aria-hidden />}

@@ -152,7 +152,7 @@ export const AppSettingsView: React.FC = () => {
                 {...tourAttr('admin.org.upload-logo')}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="px-4 py-2 bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-xs hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
               >
                 {uploading ? 'Uploading...' : 'Upload Logo'}
               </button>
@@ -234,7 +234,7 @@ export const AppSettingsView: React.FC = () => {
                         onClick={() => setMode(key, 'submissions')}
                         className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
                           currentMode === 'submissions'
-                            ? 'bg-brand-blue-primary text-white shadow-sm'
+                            ? 'bg-brand-blue-primary text-white shadow-xs'
                             : 'text-slate-600 hover:text-slate-800'
                         }`}
                         aria-pressed={currentMode === 'submissions'}
@@ -252,7 +252,7 @@ export const AppSettingsView: React.FC = () => {
                         onClick={() => setMode(key, 'view-only')}
                         className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
                           currentMode === 'view-only'
-                            ? 'bg-brand-blue-primary text-white shadow-sm'
+                            ? 'bg-brand-blue-primary text-white shadow-xs'
                             : 'text-slate-600 hover:text-slate-800'
                         }`}
                         aria-pressed={currentMode === 'view-only'}

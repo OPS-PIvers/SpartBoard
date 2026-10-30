@@ -115,7 +115,7 @@ export const StockPhotoPicker: React.FC<StockPhotoPickerProps> = ({
               {...tourAttr('admin.backgrounds.stock-search')}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search photos (e.g. classroom, nature, chalkboard)..."
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-light focus:border-transparent"
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-light focus:border-transparent"
             />
           </div>
         </div>
@@ -144,7 +144,7 @@ export const StockPhotoPicker: React.FC<StockPhotoPickerProps> = ({
                     String(photo.id)
                   )}
                   onClick={() => handleSelect(photo)}
-                  className="group relative aspect-video rounded-lg overflow-hidden border-2 border-transparent hover:border-brand-blue-light transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-light"
+                  className="group relative aspect-video rounded-lg overflow-hidden border-2 border-transparent hover:border-brand-blue-light transition-all focus:outline-hidden focus:ring-2 focus:ring-brand-blue-light"
                 >
                   <img
                     src={photo.src.medium}
@@ -152,7 +152,7 @@ export const StockPhotoPicker: React.FC<StockPhotoPickerProps> = ({
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <p className="text-white text-xs truncate">
                       {photo.photographer}
                     </p>

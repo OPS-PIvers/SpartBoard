@@ -200,7 +200,7 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
-          className="w-full rounded-lg bg-white/15 hover:bg-white/20 focus:bg-white/25 border border-white/20 focus:border-white/40 pl-8 pr-8 py-1.5 text-sm text-white placeholder:text-white/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          className="w-full rounded-lg bg-white/15 hover:bg-white/20 focus:bg-white/25 border border-white/20 focus:border-white/40 pl-8 pr-8 py-1.5 text-sm text-white placeholder:text-white/60 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
         />
         {query && (
           <button
@@ -214,7 +214,7 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
             aria-label={t('plcDashboard.search.clear', {
               defaultValue: 'Clear search',
             })}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-white/70 hover:text-white hover:bg-white/15 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-white/70 hover:text-white hover:bg-white/15 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
           >
             <X className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
@@ -288,7 +288,7 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
                                 selectResult(result);
                               }}
                               onMouseEnter={() => setActiveIndex(flatIndex)}
-                              className={`flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors focus:outline-none ${
+                              className={`flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors focus:outline-hidden ${
                                 isActive
                                   ? 'bg-brand-blue-primary/10'
                                   : 'hover:bg-slate-50'

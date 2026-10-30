@@ -22,10 +22,10 @@ interface SectionsEditorProps {
 }
 
 const inputClass =
-  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 
 const iconButtonClass =
-  'rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+  'rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 
 const newSection = (): ActivityWallSection => ({
   id: crypto.randomUUID(),
@@ -144,7 +144,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
         type="button"
         onClick={() => onChange([...items, newSection()])}
         {...tourAttr('activity-wall-editor.section-add')}
-        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-brand-blue-primary transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-brand-blue-primary transition hover:bg-slate-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
       >
         <Plus className="h-4 w-4" />
         {addLabel}
@@ -285,7 +285,7 @@ const TimePeriodsList: React.FC<{
           ])
         }
         {...tourAttr('activity-wall-editor.period-add')}
-        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-brand-blue-primary transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-brand-blue-primary transition hover:bg-slate-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
       >
         <Plus className="h-4 w-4" />
         Add time period

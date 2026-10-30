@@ -168,7 +168,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
     <div
       role="toolbar"
       aria-label="Selected students"
-      className="sticky top-0 z-10 flex flex-wrap items-center rounded-lg bg-brand-blue-primary text-white shadow-sm"
+      className="sticky top-0 z-10 flex flex-wrap items-center rounded-lg bg-brand-blue-primary text-white shadow-xs"
       style={{
         gap: 'min(6px, 1.5cqmin)',
         padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',

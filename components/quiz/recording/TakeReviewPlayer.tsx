@@ -104,7 +104,7 @@ export const TakeReviewPlayer: React.FC<{
             ? t('quizMediaResponse.capture.pausePlayback')
             : t('quizMediaResponse.capture.playPlayback')
         }
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-white transition hover:bg-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
       >
         {playing ? (
           <Pause aria-hidden className="h-4 w-4" />

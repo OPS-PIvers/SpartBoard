@@ -41,7 +41,7 @@ interface WallEditorModalProps {
 }
 
 const inputClass =
-  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 
 const CHANGE_LAYOUT_WARNING =
   'Changing the layout keeps every existing post and the fields it was submitted with. Posts may land in a default spot until you move them.';
@@ -299,7 +299,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       onClose={requestClose}
       title={entry ? 'Edit wall' : 'New wall'}
       maxWidth="max-w-2xl"
-      contentClassName="px-6 [scrollbar-gutter:stable]"
+      contentClassName="px-6 scrollbar-gutter-stable"
       footer={
         step === 2 ? (
           <div className="flex items-center justify-between gap-3">
@@ -459,7 +459,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
               value={
                 draft.appearance ?? {
                   kind: 'gradient',
-                  value: 'bg-gradient-to-br from-slate-900 to-slate-700',
+                  value: 'bg-linear-to-br from-slate-900 to-slate-700',
                 }
               }
               onChange={(appearance) => patch({ appearance })}

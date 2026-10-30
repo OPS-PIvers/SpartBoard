@@ -59,7 +59,7 @@ export const GradebookCellContent: React.FC<{
       {inner}
       {first && (
         <span
-          className={`absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded px-[3px] text-[9.5px] font-bold leading-none ${flagChipClasses(first.color, flags[0].auto)}`}
+          className={`absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-sm px-[3px] text-[9.5px] font-bold leading-none ${flagChipClasses(first.color, flags[0].auto)}`}
           title={flagNames}
         >
           {first.key}
@@ -68,7 +68,7 @@ export const GradebookCellContent: React.FC<{
       )}
       {mark?.comment?.text && (
         <span
-          className={`absolute bottom-0 left-0 h-0 w-0 border-l-[8px] border-t-[8px] border-t-transparent ${
+          className={`absolute bottom-0 left-0 h-0 w-0 border-l-8 border-t-8 border-t-transparent ${
             mark.comment.shared
               ? 'border-l-brand-blue-primary'
               : 'border-l-slate-400'

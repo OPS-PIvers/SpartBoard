@@ -183,7 +183,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
                         [s.contextId]: ev.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                   >
                     <option value="">Choose a category…</option>
                     {s.categories.map((c) => (
@@ -237,7 +237,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
                               ),
                             })
                           }
-                          className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                          className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                         />
                         <input
                           aria-label={`Category ${i + 1} weight`}
@@ -266,7 +266,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
                               ),
                             })
                           }
-                          className="w-20 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                          className="w-20 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-right focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                         />
                         <span className="text-slate-500" aria-hidden>
                           %

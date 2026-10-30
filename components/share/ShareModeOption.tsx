@@ -24,10 +24,10 @@ export const ModeOption: React.FC<ModeOptionProps> = ({
       type="button"
       onClick={onPick}
       {...(tourId ? tourAttr(tourId) : {})}
-      className={`w-full text-left rounded-xl border bg-white px-4 py-4 transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer ${
+      className={`w-full text-left rounded-xl border bg-white px-4 py-4 transition-all focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer ${
         selected
           ? 'border-brand-blue-primary shadow-md ring-1 ring-brand-blue-lighter'
-          : 'border-slate-200 hover:border-brand-blue-primary hover:shadow-sm'
+          : 'border-slate-200 hover:border-brand-blue-primary hover:shadow-xs'
       }`}
       aria-pressed={selected}
     >

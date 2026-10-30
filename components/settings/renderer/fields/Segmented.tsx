@@ -34,9 +34,9 @@ export const SegmentedField: React.FC<
             tabIndex={tabbable ? 0 : -1}
             disabled={disabled}
             onClick={() => onChange(option.value)}
-            className={`flex-1 flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`flex-1 flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md transition-colors cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-offset-1 focus:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed ${
               selected
-                ? 'bg-white text-slate-900 shadow-sm font-semibold'
+                ? 'bg-white text-slate-900 shadow-xs font-semibold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >

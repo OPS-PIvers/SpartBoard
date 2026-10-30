@@ -763,7 +763,7 @@ const LegacyVideoActivityLiveMonitor: React.FC<
                 }
               />
             ) : (
-              <div className="flex flex-col rounded-2xl bg-white/50 border border-slate-200/60 backdrop-blur-sm overflow-hidden">
+              <div className="flex flex-col rounded-2xl bg-white/50 border border-slate-200/60 backdrop-blur-xs overflow-hidden">
                 {sortedResponses.map((r) => {
                   const rowKey = r._responseKey ?? r.studentUid;
                   return (

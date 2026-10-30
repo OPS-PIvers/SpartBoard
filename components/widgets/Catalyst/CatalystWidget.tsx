@@ -109,7 +109,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                   key={routine.id}
                   {...tourAttr('catalyst.routine', widget.id, widget.type)}
                   onClick={() => handleExecute(routine.id)}
-                  className="relative rounded-2xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.03] hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200"
+                  className="relative rounded-2xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.03] hover:shadow-lg transition-all focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200"
                   style={{ minHeight: 'min(100px, 25cqmin)' }}
                 >
                   {routine.imageUrl && isSafeIconUrl(routine.imageUrl) ? (
@@ -120,7 +120,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                         className="absolute inset-0 w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                      <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent" />
                     </>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-300 border-2 border-dashed border-slate-400">
@@ -140,7 +140,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
 
                   {routine.icon && (
                     <div
-                      className="absolute top-2 left-2 z-10 rounded-full flex items-center justify-center shadow-sm"
+                      className="absolute top-2 left-2 z-10 rounded-full flex items-center justify-center shadow-xs"
                       style={{
                         width: 'min(24px, 8cqmin)',
                         height: 'min(24px, 8cqmin)',
@@ -166,7 +166,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                     }}
                   >
                     <span
-                      className="font-black uppercase tracking-widest text-white drop-shadow block text-center leading-tight truncate"
+                      className="font-black uppercase tracking-widest text-white drop-shadow-sm block text-center leading-tight truncate"
                       style={{ fontSize: 'min(11px, 3.5cqmin)' }}
                     >
                       {routine.title}
@@ -227,7 +227,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                 {...tourAttr('catalyst.set', widget.id, widget.type)}
                 onClick={() => setActiveSetId(set.id)}
                 disabled={!set.title && set.routines.length === 0}
-                className="relative rounded-2xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.03] hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                className="relative rounded-2xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.03] hover:shadow-lg transition-all focus:outline-hidden focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
               >
                 {set.imageUrl && isSafeIconUrl(set.imageUrl) ? (
                   <>
@@ -237,7 +237,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                       className="absolute inset-0 w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
                   </>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-300 border-2 border-dashed border-slate-400">
@@ -265,7 +265,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 >
                   <span
-                    className="font-black uppercase tracking-widest text-white drop-shadow truncate block leading-tight"
+                    className="font-black uppercase tracking-widest text-white drop-shadow-sm truncate block leading-tight"
                     style={{ fontSize: 'min(14px, 5cqmin)' }}
                   >
                     {set.title || 'Empty Set'}

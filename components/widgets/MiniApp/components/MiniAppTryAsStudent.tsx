@@ -147,7 +147,7 @@ export const MiniAppTryAsStudent: React.FC<{
 
   return createPortal(
     <div
-      className="fixed inset-0 z-modal-nested flex flex-col bg-slate-900/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-modal-nested flex flex-col bg-slate-900/60 backdrop-blur-xs p-4"
       role="dialog"
       aria-modal="true"
       aria-label={`Try ${title} as a student`}

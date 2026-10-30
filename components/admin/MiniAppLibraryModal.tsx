@@ -217,7 +217,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
 
   // --- Render ---
   return (
-    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-3xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
@@ -275,7 +275,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                 {apps.map((app, idx) => (
                   <div
                     key={app.id}
-                    className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-3 shadow-sm hover:shadow-md hover:border-violet-200 transition-all"
+                    className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-3 shadow-xs hover:shadow-md hover:border-violet-200 transition-all"
                   >
                     {/* Reorder handle / index */}
                     <div className="flex flex-col items-center gap-0.5 shrink-0">
@@ -372,7 +372,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   placeholder="e.g. Vocabulary Flashcards"
-                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 shadow-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-violet-500 shadow-xs"
                 />
               </div>
 
@@ -403,7 +403,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                         onClick={() => toggleBuilding(building.id)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-xs font-bold transition-colors ${
                           isSelected
-                            ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                            ? 'bg-violet-600 text-white border-violet-600 shadow-xs'
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         }`}
                       >
@@ -437,7 +437,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                   id={htmlCodeId}
                   value={editCode}
                   onChange={(e) => setEditCode(e.target.value)}
-                  className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
+                  className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-hidden focus:ring-2 focus:ring-violet-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
                   style={{ minHeight: 240 }}
                   spellCheck={false}
                   placeholder="Paste your HTML, CSS, and JS here…"

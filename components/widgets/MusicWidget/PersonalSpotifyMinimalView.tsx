@@ -111,7 +111,7 @@ export const PersonalSpotifyMinimalView: React.FC<Props> = ({
           bright artwork (mockup: controls live at the bottom-center, not the
           middle of the art). */}
       <div
-        className="absolute bottom-0 left-0 right-0 flex flex-col items-center bg-gradient-to-t from-black/80 via-black/40 to-transparent"
+        className="absolute bottom-0 left-0 right-0 flex flex-col items-center bg-linear-to-t from-black/80 via-black/40 to-transparent"
         style={{
           padding: 'min(20px, 15cqh) min(12px, 4cqw) min(10px, 8cqh)',
           gap: 'min(8px, 6cqh)',

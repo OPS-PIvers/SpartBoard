@@ -22,7 +22,7 @@ const VARIANTS: Record<PenColorVariant, VariantStyles> = {
   whiteboard: {
     swatch:
       'w-6 h-6 rounded-full focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
-    active: 'ring-2 ring-white scale-110 shadow-sm',
+    active: 'ring-2 ring-white scale-110 shadow-xs',
     inactive: 'ring-1 ring-white/20 hover:scale-110',
     action:
       'w-6 h-6 rounded-full bg-slate-800/60 ring-1 ring-white/20 text-slate-300 hover:bg-slate-700/80 hover:text-white disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
@@ -31,7 +31,7 @@ const VARIANTS: Record<PenColorVariant, VariantStyles> = {
   annotation: {
     swatch:
       'w-7 h-7 rounded-md focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100',
-    active: 'scale-110 shadow-sm ring-2 ring-indigo-500',
+    active: 'scale-110 shadow-xs ring-2 ring-indigo-500',
     inactive: 'hover:scale-105',
     action:
       'w-7 h-7 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-indigo-500',
@@ -185,7 +185,7 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
               e.stopPropagation();
               editInputRef.current?.click();
             }}
-            className={`shrink-0 transition-transform focus-visible:outline-none ${styles.swatch} ${styles.active}`}
+            className={`shrink-0 transition-transform focus-visible:outline-hidden ${styles.swatch} ${styles.active}`}
             style={{ backgroundColor: colors[index] }}
             aria-label={t('penColors.change', { index: index + 1 })}
             title={t('penColors.change', { index: index + 1 })}
@@ -197,7 +197,7 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
               resetColors();
             }}
             disabled={!isCustomized}
-            className={`shrink-0 flex items-center justify-center transition-colors focus-visible:outline-none ${styles.action}`}
+            className={`shrink-0 flex items-center justify-center transition-colors focus-visible:outline-hidden ${styles.action}`}
             aria-label={t('penColors.reset')}
             title={t('penColors.reset')}
           >
@@ -215,7 +215,7 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
               e.stopPropagation();
               stopEditing();
             }}
-            className={`shrink-0 flex items-center justify-center transition-colors focus-visible:outline-none ${styles.action}`}
+            className={`shrink-0 flex items-center justify-center transition-colors focus-visible:outline-hidden ${styles.action}`}
             aria-label={t('penColors.done')}
             title={t('penColors.done')}
           >
@@ -276,7 +276,7 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
               }
               onSelect(c);
             }}
-            className={`relative shrink-0 select-none transition-transform focus-visible:outline-none ${styles.swatch} ${
+            className={`relative shrink-0 select-none transition-transform focus-visible:outline-hidden ${styles.swatch} ${
               currentHex === c ? styles.active : styles.inactive
             }`}
             style={{ backgroundColor: c, WebkitTouchCallout: 'none' }}
@@ -292,7 +292,7 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
           e.stopPropagation();
           customInputRef.current?.click();
         }}
-        className={`relative shrink-0 flex items-center justify-center transition-transform focus-visible:outline-none ${
+        className={`relative shrink-0 flex items-center justify-center transition-transform focus-visible:outline-hidden ${
           isCustomActive ? `${styles.swatch} ${styles.active}` : styles.action
         }`}
         style={

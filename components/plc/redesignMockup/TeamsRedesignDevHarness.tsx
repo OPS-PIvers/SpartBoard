@@ -231,7 +231,7 @@ export const TeamsRedesignDevHarness: React.FC = () => {
 
   return (
     <div
-      className={`flex flex-col bg-white font-sans ${initial.capture ? 'min-h-screen' : 'h-screen [height:100dvh] overflow-hidden'}`}
+      className={`flex flex-col bg-white font-sans ${initial.capture ? 'min-h-screen' : 'h-screen h-dvh overflow-hidden'}`}
       data-capture={initial.capture || undefined}
     >
       <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-slate-200 bg-slate-100 px-4 py-2 text-xs text-slate-700">
@@ -243,7 +243,7 @@ export const TeamsRedesignDevHarness: React.FC = () => {
           <select
             value={screen}
             onChange={(e) => setScreen(e.target.value as ScreenId)}
-            className="rounded border border-slate-300 bg-white px-2 py-1"
+            className="rounded-sm border border-slate-300 bg-white px-2 py-1"
           >
             {SCREENS.map(([id, label]) => (
               <option key={id} value={id}>
@@ -257,7 +257,7 @@ export const TeamsRedesignDevHarness: React.FC = () => {
           <select
             value={lead ? 'lead' : 'member'}
             onChange={(e) => setLead(e.target.value === 'lead')}
-            className="rounded border border-slate-300 bg-white px-2 py-1"
+            className="rounded-sm border border-slate-300 bg-white px-2 py-1"
           >
             <option value="lead">Lead</option>
             <option value="member">Member</option>

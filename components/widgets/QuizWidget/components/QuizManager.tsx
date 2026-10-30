@@ -2082,7 +2082,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     return (
       <span className="flex items-center gap-2">
         <span
-          className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded uppercase"
+          className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded-sm uppercase"
           style={{
             paddingInline: 'min(6px, 1.5cqmin)',
             fontSize: 'min(10px, 3.5cqmin)',

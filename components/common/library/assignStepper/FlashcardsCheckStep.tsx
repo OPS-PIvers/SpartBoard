@@ -31,11 +31,11 @@ export interface FlashcardsCheckStepProps extends FlashcardsCheckContext {
 const MASTERY_MIN = 2;
 const MASTERY_MAX = 4;
 
-const ROW_CLASS = 'flex min-h-[2rem] items-center justify-between gap-3';
+const ROW_CLASS = 'flex min-h-8 items-center justify-between gap-3';
 const LABEL_CLASS = 'text-sm font-bold text-brand-blue-dark';
 const SUB_LABEL_CLASS = 'text-sm font-medium text-slate-700';
 const SELECT_CLASS =
-  'h-8 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none';
+  'h-8 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden';
 
 const parseMastery = (raw: string): FlashcardMasteryThreshold | null => {
   const n = Number(raw);
@@ -202,7 +202,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
               const masteryThreshold = parseMastery(event.target.value);
               if (masteryThreshold !== null) update({ masteryThreshold });
             }}
-            className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
           />
         </div>
       )}

@@ -166,7 +166,7 @@ export const WhiteboardReplayDevHarness: React.FC = () => {
   const startingPage = STARTING_PAGE;
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100 pb-16 font-sans">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-100 pb-16 font-sans">
       <div className="mx-auto flex max-w-4xl flex-col gap-10 p-6">
         <section data-state="grader">
           <h2 className="mb-2 text-sm font-bold text-slate-700">

@@ -31,7 +31,7 @@ export const RosterModeControl: React.FC<RosterModeControlProps> = ({
             onClick={() => onModeChange('class')}
             className={`px-3 py-1 text-xxs font-bold uppercase rounded-md transition-[color,background-color,box-shadow] ${
               rosterMode === 'class'
-                ? 'bg-white text-brand-blue-primary shadow-sm'
+                ? 'bg-white text-brand-blue-primary shadow-xs'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -42,7 +42,7 @@ export const RosterModeControl: React.FC<RosterModeControlProps> = ({
             onClick={() => onModeChange('custom')}
             className={`px-3 py-1 text-xxs font-bold uppercase rounded-md transition-[color,background-color,box-shadow] ${
               rosterMode === 'custom'
-                ? 'bg-white text-brand-blue-primary shadow-sm'
+                ? 'bg-white text-brand-blue-primary shadow-xs'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >

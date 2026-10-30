@@ -82,7 +82,7 @@ const numberField = (
         const next = Number(e.target.value);
         if (Number.isFinite(next)) onChange(next);
       }}
-      className="w-14 rounded border border-slate-200 px-1.5 py-0.5 text-xs"
+      className="w-14 rounded-sm border border-slate-200 px-1.5 py-0.5 text-xs"
       {...extra}
     />
   </label>
@@ -133,7 +133,7 @@ function templateFields(
                   min: quadrants === 1 ? 0 : Math.min(template.min, 0),
                 });
               }}
-              className="rounded border border-slate-200 px-1.5 py-0.5 text-xs"
+              className="rounded-sm border border-slate-200 px-1.5 py-0.5 text-xs"
             >
               <option value={1}>1</option>
               <option value={4}>4</option>
@@ -163,7 +163,7 @@ function templateFields(
               onChange={(e) =>
                 onChange({ ...template, showNumbers: e.target.checked })
               }
-              className="h-3.5 w-3.5 rounded border-slate-300"
+              className="h-3.5 w-3.5 rounded-sm border-slate-300"
             />
             Number the axes
           </label>
@@ -207,7 +207,7 @@ const SheetPreview: React.FC<{
   const layout = layoutSheetStimuli(stimuli, 1);
   return (
     <div
-      className="relative w-32 shrink-0 overflow-hidden rounded border border-slate-300 bg-white"
+      className="relative w-32 shrink-0 overflow-hidden rounded-sm border border-slate-300 bg-white"
       style={{ aspectRatio: `${PAGE_WIDTH_MM} / ${PAGE_HEIGHT_MM}` }}
       aria-hidden
     >
@@ -457,7 +457,7 @@ export const PaperSheetStimuliSection: React.FC<
                       });
                       setShowTemplatePicker(false);
                     }}
-                    className="w-full truncate rounded px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-50"
+                    className="w-full truncate rounded-sm px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-50"
                   >
                     {templateLabel(template)}
                   </button>
@@ -489,7 +489,7 @@ export const PaperSheetStimuliSection: React.FC<
                       });
                       setShowQuizPicker(false);
                     }}
-                    className="w-full truncate rounded px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-50"
+                    className="w-full truncate rounded-sm px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-50"
                   >
                     {s.label}
                   </button>
@@ -521,7 +521,7 @@ export const PaperSheetStimuliSection: React.FC<
                           'quiz',
                           String(index + 1)
                         )}
-                        className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
+                        className="rounded-sm p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
                       >
                         <ArrowUp className="h-3.5 w-3.5" />
                       </button>
@@ -535,7 +535,7 @@ export const PaperSheetStimuliSection: React.FC<
                           'quiz',
                           String(index + 1)
                         )}
-                        className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
+                        className="rounded-sm p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
                       >
                         <ArrowDown className="h-3.5 w-3.5" />
                       </button>
@@ -550,7 +550,7 @@ export const PaperSheetStimuliSection: React.FC<
                           'quiz',
                           String(index + 1)
                         )}
-                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600"
+                        className="rounded-sm p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -585,7 +585,7 @@ export const PaperSheetStimuliSection: React.FC<
                         onChange={(e) =>
                           update(stimulus.id, { caption: e.target.value })
                         }
-                        className="min-w-0 flex-1 rounded border border-slate-200 px-2 py-1 text-xs"
+                        className="min-w-0 flex-1 rounded-sm border border-slate-200 px-2 py-1 text-xs"
                       />
                       <select
                         value={stimulus.page ?? 0}
@@ -601,7 +601,7 @@ export const PaperSheetStimuliSection: React.FC<
                             page: page === 0 ? undefined : page,
                           });
                         }}
-                        className="rounded border border-slate-200 px-2 py-1 text-xs"
+                        className="rounded-sm border border-slate-200 px-2 py-1 text-xs"
                       >
                         <option value={0}>Every page</option>
                         {Array.from({ length: pageCount }, (_, i) => (

@@ -282,7 +282,7 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
   }
 
   return (
-    <div className="absolute inset-0 z-overlay bg-brand-blue-dark/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="absolute inset-0 z-overlay bg-brand-blue-dark/70 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="bg-indigo-600 p-4 flex items-center justify-between">
