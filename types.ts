@@ -6478,6 +6478,8 @@ export interface WrittenAnswerGrade {
   gradedBy: string;
   /** Client timestamp (ms) when the grade was saved. */
   gradedAt: number;
+  /** Video Activity short answer: the marked answer's `answeredAt`, so a retake's new answer starts unmarked. */
+  answeredAt?: number;
 }
 
 /**

@@ -19,11 +19,12 @@ vi.mock('firebase-functions/logger', () => ({
 
 import {
   assembleRow,
+  currentShortAnswerGrading,
   effectiveDueAt,
   keyQuestions,
-  parseStepTargets,
   mergeAttempts,
   parseSessionMeta,
+  parseStepTargets,
   scoreFlashcardProgress,
   scoreGuidedLearningResponse,
   scoreProjectMember,
@@ -571,5 +572,19 @@ describe('toMillis', () => {
     expect(toMillis({ seconds: 2 })).toBe(2000);
     expect(toMillis('1970-01-01T00:00:01.000Z')).toBe(1000);
     expect(toMillis(null)).toBeNull();
+  });
+});
+
+describe('currentShortAnswerGrading', () => {
+  it('drops a VA mark whose answeredAt no longer matches an answer', () => {
+    expect(
+      currentShortAnswerGrading(
+        {
+          q1: { pointsAwarded: 1, answeredAt: 100 },
+          q2: { pointsAwarded: 2 },
+        },
+        [{ questionId: 'q1', answer: 'retake', answeredAt: 200 }]
+      )
+    ).toEqual({ q2: { pointsAwarded: 2 } });
   });
 });

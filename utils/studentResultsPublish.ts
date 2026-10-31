@@ -19,6 +19,7 @@ import type {
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
 import {
+  currentShortAnswerGrading,
   dedupeQuestionsById,
   gradeVideoActivityAnswer,
 } from '@/utils/videoActivityGrading';
@@ -66,6 +67,7 @@ export function gradeVideoActivityResponseForPublish(
   questionsById: ReadonlyMap<string, VideoActivityQuestion>
 ): { score: number | null; answers: VideoActivityAnswer[] } {
   const answers = Array.isArray(data.answers) ? data.answers : [];
+  const grading = currentShortAnswerGrading(data);
   let pointsEarned = 0;
   let pointsMax = 0;
   let awaiting = false;
@@ -81,7 +83,7 @@ export function gradeVideoActivityResponseForPublish(
     const result = gradeVideoActivityAnswer(
       q,
       a.answer,
-      data.grading?.[a.questionId]
+      grading?.[a.questionId]
     );
     if (representativeAnswers.get(a.questionId) === a) {
       pointsEarned += result.pointsEarned;

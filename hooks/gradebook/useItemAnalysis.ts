@@ -5,7 +5,10 @@ import { AuthContext } from '@/context/AuthContextValue';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
 import { computeQuestionStats } from '@/utils/quizQuestionStats';
-import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
+import {
+  currentShortAnswerGrading,
+  gradeVideoActivityAnswer,
+} from '@/utils/videoActivityGrading';
 import { logError } from '@/utils/logError';
 import type {
   QuestionTargetTag,
@@ -154,7 +157,10 @@ export function useItemAnalysis(
           key,
           session: { ...(s.data() as VideoActivitySession), id: s.id },
           responses: snap.docs
-            .map((d) => d.data() as VideoActivityResponse)
+            .map((d) => {
+              const r = d.data() as VideoActivityResponse;
+              return { ...r, grading: currentShortAnswerGrading(r) };
+            })
             .filter((r) => inClass.has(r.studentUid)),
         });
       })().catch(fail);

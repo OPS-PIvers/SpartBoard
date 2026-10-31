@@ -216,8 +216,11 @@ export function isVideoActivityResponseAwaitingGrade(
     if (q.type !== 'SA') return false;
     const a = (response.answers ?? []).find((x) => x.questionId === q.id);
     return (
-      gradeVideoActivityAnswer(q, a?.answer ?? '', response.grading?.[q.id])
-        .state === 'awaiting-grade'
+      gradeVideoActivityAnswer(
+        q,
+        a?.answer ?? '',
+        currentShortAnswerGrading(response)?.[q.id]
+      ).state === 'awaiting-grade'
     );
   });
 }
@@ -369,7 +372,11 @@ export function buildVideoActivityGradeEntries(
         !isVideoActivityResponseAwaitingGrade(questions, r)
     )
     .map((r) => {
-      const pct = computeVideoActivityScorePct(questions, r.answers, r.grading);
+      const pct = computeVideoActivityScorePct(
+        questions,
+        r.answers,
+        currentShortAnswerGrading(r)
+      );
       const safePct = Number.isFinite(pct) ? pct : 0;
       const pointsEarned = Math.max(
         0,
@@ -377,4 +384,24 @@ export function buildVideoActivityGradeEntries(
       );
       return { pseudonymUid: r.studentUid, pointsEarned };
     });
+}
+
+/** The response's marks minus any left over from an earlier attempt's answer. */
+export function currentShortAnswerGrading(
+  response: Pick<VideoActivityResponse, 'answers' | 'grading'>
+): VideoActivityResponse['grading'] {
+  const grading = response.grading;
+  if (!grading) return grading;
+  const answers = Array.isArray(response.answers) ? response.answers : [];
+  const kept = Object.fromEntries(
+    Object.entries(grading).filter(
+      ([questionId, grade]) =>
+        grade.answeredAt === undefined ||
+        answers.some(
+          (a) =>
+            a.questionId === questionId && a.answeredAt === grade.answeredAt
+        )
+    )
+  );
+  return Object.keys(kept).length > 0 ? kept : undefined;
 }

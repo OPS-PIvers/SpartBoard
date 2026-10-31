@@ -13,6 +13,8 @@ interface MarkRowProps {
   response: VideoActivityResponse;
   question: VideoActivityQuestion;
   answer: string;
+  /** When the student gave this answer; the mark is tied to it. */
+  answeredAt: number;
   name: string;
   graderUid: string | undefined;
   disabled: boolean;
@@ -24,6 +26,7 @@ const MarkRow: React.FC<MarkRowProps> = ({
   response,
   question,
   answer,
+  answeredAt,
   name,
   graderUid,
   disabled,
@@ -50,6 +53,7 @@ const MarkRow: React.FC<MarkRowProps> = ({
       pointsAwarded: points,
       gradedBy: graderUid,
       gradedAt: Date.now(),
+      answeredAt,
     })
       .then(() => setDraft(null))
       .catch((err: unknown) => {
@@ -144,11 +148,15 @@ export const VaShortAnswerMarking: React.FC<VaShortAnswerMarkingProps> = ({
   onError,
 }) => {
   const rows = responses
-    .map((r) => ({
-      r,
-      answer: r.answers.find((a) => a.questionId === question.id)?.answer ?? '',
-      name: nameFor(r),
-    }))
+    .map((r) => {
+      const a = r.answers.find((x) => x.questionId === question.id);
+      return {
+        r,
+        answer: a?.answer ?? '',
+        answeredAt: a?.answeredAt ?? 0,
+        name: nameFor(r),
+      };
+    })
     .filter((x) => x.answer.trim().length > 0)
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -168,13 +176,14 @@ export const VaShortAnswerMarking: React.FC<VaShortAnswerMarkingProps> = ({
 
   return (
     <ul className="bg-slate-50/70 border-t border-slate-100">
-      {rows.map(({ r, answer, name }) => (
+      {rows.map(({ r, answer, answeredAt, name }) => (
         <MarkRow
           key={r._responseKey ?? r.studentUid}
           sessionId={sessionId}
           response={r}
           question={question}
           answer={answer}
+          answeredAt={answeredAt}
           name={name}
           graderUid={graderUid}
           disabled={disabled}

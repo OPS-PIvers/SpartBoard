@@ -7,6 +7,7 @@ import {
   dedupeQuestionsById,
   isVideoActivityResponseAwaitingGrade,
   countVideoActivityAnswersToMark,
+  currentShortAnswerGrading,
 } from '@/utils/videoActivityGrading';
 import type { VideoActivityQuestion, VideoActivityResponse } from '@/types';
 
@@ -611,5 +612,47 @@ describe('short answer (SA)', () => {
   it('does not change activities without short answers', () => {
     const mcOnly = [qs[0]];
     expect(isVideoActivityResponseAwaitingGrade(mcOnly, resp())).toBe(false);
+  });
+});
+
+describe('currentShortAnswerGrading', () => {
+  const grade = (answeredAt?: number) => ({
+    pointsAwarded: 1,
+    gradedBy: 't',
+    gradedAt: 1,
+    ...(answeredAt !== undefined ? { answeredAt } : {}),
+  });
+
+  it('keeps a mark for the current answer and drops one from an earlier attempt', () => {
+    expect(
+      currentShortAnswerGrading({
+        answers: [{ questionId: 'q1', answer: 'new', answeredAt: 200 }],
+        grading: { q1: grade(100), q2: grade() },
+      })
+    ).toEqual({ q2: grade() });
+    expect(
+      currentShortAnswerGrading({
+        answers: [{ questionId: 'q1', answer: 'same', answeredAt: 100 }],
+        grading: { q1: grade(100) },
+      })
+    ).toEqual({ q1: grade(100) });
+  });
+
+  it('leaves a retaken short answer awaiting a new mark', () => {
+    const q = {
+      id: 'q1',
+      type: 'SA' as const,
+      text: 'Why?',
+      timestamp: 5,
+      timeLimit: 30,
+      correctAnswer: '',
+      incorrectAnswers: [],
+    };
+    expect(
+      isVideoActivityResponseAwaitingGrade([q], {
+        answers: [{ questionId: 'q1', answer: 'retake', answeredAt: 200 }],
+        grading: { q1: grade(100) },
+      })
+    ).toBe(true);
   });
 });
