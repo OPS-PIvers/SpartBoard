@@ -39,7 +39,7 @@ export const SoundPicker: React.FC<
                 : 'border-slate-200 bg-white'
             }`}
           >
-            <button
+            <button // no-tour-anchor: covered by the settings.field row anchor
               type="button"
               role="radio"
               aria-checked={selected}
@@ -53,7 +53,7 @@ export const SoundPicker: React.FC<
               {label}
             </button>
             {field.preview && (
-              <button
+              <button // no-tour-anchor: covered by the settings.field row anchor
                 type="button"
                 aria-label={`${previewText} ${label}`}
                 disabled={disabled}

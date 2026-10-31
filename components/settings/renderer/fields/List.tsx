@@ -117,7 +117,7 @@ const ListImpl: React.FC<ListImplProps> = ({
           ? renderRow(rowValue, index, (next) => handleRowChange(index, next))
           : null}
       </div>
-      <button
+      <button // no-tour-anchor: list rows are generated per item; covered by the settings.field row anchor
         type="button"
         onClick={() => handleRemove(index)}
         disabled={disabled}
@@ -148,7 +148,7 @@ const ListImpl: React.FC<ListImplProps> = ({
         // eslint-disable-next-line react-hooks/refs -- row ids are minted and cached in a ref
         rows.map((r, index) => <div key={getRowId(r)}>{row(r, index)}</div>)
       )}
-      <button
+      <button // no-tour-anchor: covered by the settings.field row anchor
         type="button"
         onClick={handleAdd}
         disabled={addDisabled}

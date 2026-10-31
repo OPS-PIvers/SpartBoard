@@ -73,7 +73,7 @@ export const ImageUpload: React.FC<
       aria-describedby={describedBy}
       className="flex flex-col gap-1.5"
     >
-      <input
+      <input // no-tour-anchor: hidden file input; the Upload button is covered by the settings.field row anchor
         ref={fileInputRef}
         type="file"
         accept={field.accept ?? 'image/*'}
@@ -96,7 +96,7 @@ export const ImageUpload: React.FC<
           <span className="flex-1 min-w-0 truncate text-xxs text-slate-600">
             {url}
           </span>
-          <button
+          <button // no-tour-anchor: covered by the settings.field row anchor
             type="button"
             disabled={busy}
             onClick={() => replaceUrl('')}
@@ -108,7 +108,7 @@ export const ImageUpload: React.FC<
         </div>
       )}
       <div className="flex flex-wrap items-center gap-1.5">
-        <button
+        <button // no-tour-anchor: covered by the settings.field row anchor
           type="button"
           disabled={busy}
           onClick={() => fileInputRef.current?.click()}
