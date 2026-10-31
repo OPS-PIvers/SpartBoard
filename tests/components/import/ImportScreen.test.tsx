@@ -24,6 +24,7 @@ import {
 import { ImportWizard } from '@/components/common/library/importer';
 import type { ImportAdapter } from '@/components/common/library/types';
 import type { ImportInboxItem } from '@/utils/import/contract';
+import { parseImportInboxItem } from '@/utils/import/inbox';
 
 vi.mock('@/components/import/reference/ReferenceEmbedStep', () => ({
   ReferenceEmbedStep: ({
@@ -91,6 +92,36 @@ describe('targetChoices', () => {
     const c = targetChoices({ url: 'https://example.org/page' });
     expect(c.targets).toEqual(['embed', 'links']);
     expect(c.guess).toBe('embed');
+  });
+
+  it('offers a YouTube video as an Embed or a Video activity (D34)', () => {
+    const c = targetChoices({
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    });
+    expect(c.targets).toEqual(['embed', 'videoActivity']);
+    expect(c.guess).toBe('embed');
+  });
+
+  it('guesses a Video activity for a sent Edpuzzle lesson (D32)', () => {
+    // Read back the way the Import screen reads a stored Send.
+    const item = parseImportInboxItem('ep', {
+      url: 'https://edpuzzle.com/media/603babc9e9387642b1bc2659',
+      title: 'Climate',
+      platform: 'edpuzzle',
+      selectionOnly: false,
+      blocks: [{ type: 'paragraph', text: '1. Weather is...' }],
+      images: [],
+      receivedAt: 0,
+      video: { youtubeId: 'WjqqUjDkh1c', stops: [] },
+    });
+    if (!item) throw new Error('unparsed');
+    const c = targetChoices(sourceFromInboxItem(item));
+    expect(c.guess).toBe('videoActivity');
+  });
+
+  it('does not offer a Video activity for a YouTube page with no video', () => {
+    const c = targetChoices({ url: 'https://www.youtube.com/feed/library' });
+    expect(c.targets).not.toContain('videoActivity');
   });
 
   it('offers a Google Sheet link only as a page; the Picker grants sheet reads', () => {

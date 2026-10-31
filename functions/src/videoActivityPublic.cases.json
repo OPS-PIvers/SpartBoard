@@ -82,6 +82,68 @@
       "acceptableVariants": ["azure"],
       "points": 3
     },
-    "expected": { "id": "q", "type": "FIB", "text": "T", "timestamp": 9 }
+    "expected": {
+      "id": "q",
+      "type": "FIB",
+      "text": "T",
+      "timestamp": 9
+    }
+  },
+  {
+    "name": "SA has no options and no key",
+    "question": {
+      "id": "q",
+      "type": "SA",
+      "text": "Explain",
+      "timestamp": 20,
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "points": 4
+    },
+    "expected": {
+      "id": "q",
+      "type": "SA",
+      "text": "Explain",
+      "timestamp": 20
+    }
+  },
+  {
+    "name": "a Drive picture is shown",
+    "question": {
+      "id": "img",
+      "type": "SA",
+      "text": "Look",
+      "timestamp": 3,
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "timeLimit": 0,
+      "imageDriveFileId": "1AbC-dEf_ghIJ"
+    },
+    "expected": {
+      "id": "img",
+      "type": "SA",
+      "text": "Look",
+      "timestamp": 3,
+      "imageDriveFileId": "1AbC-dEf_ghIJ"
+    }
+  },
+  {
+    "name": "a picture that is not a Drive id is dropped",
+    "question": {
+      "id": "bad",
+      "type": "SA",
+      "text": "Look",
+      "timestamp": 3,
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "timeLimit": 0,
+      "imageDriveFileId": "https://evil.example/x.png"
+    },
+    "expected": {
+      "id": "bad",
+      "type": "SA",
+      "text": "Look",
+      "timestamp": 3
+    }
   }
 ]

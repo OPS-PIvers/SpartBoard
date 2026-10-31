@@ -90,7 +90,9 @@ export const SmartNotebookWidget: React.FC<{
   const { user, canAccessFeature } = useAuth();
   const { showConfirm, showPrompt } = useDialog();
   const { driveService } = useGoogleDrive();
-  const slidesImportOn = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
+  const slidesImportOn =
+    canAccessFeature(UNIVERSAL_IMPORT_FEATURE) &&
+    canAccessFeature('import-notebook');
   // A PDF or deck already read into pages, waiting in the import review.
   const [slidesReview, setSlidesReview] =
     useState<ImportParseResult<NotebookSlidesImport> | null>(null);

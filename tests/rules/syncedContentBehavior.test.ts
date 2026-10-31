@@ -16,7 +16,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, doc } from 'firebase/firestore';
+import { setDoc, updateDoc, doc, deleteField } from 'firebase/firestore';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -242,6 +242,62 @@ describe('synced_video_activities — behavior field on create', () => {
       setDoc(
         doc(asU1(), `synced_video_activities/${GROUP_ID}`),
         baseVADoc({ behavior: false })
+      )
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// synced_video_activities — clip and notes
+// ---------------------------------------------------------------------------
+
+const CLIP = { start: 10, end: 90 };
+const NOTES = [{ id: 'n1', timestamp: 20, text: 'Watch this' }];
+
+const vaUpdate = (overrides: Record<string, unknown>) =>
+  updateDoc(doc(asU1(), `synced_video_activities/${GROUP_ID}`), {
+    version: 2,
+    title: 'VA',
+    youtubeUrl: 'https://youtu.be/abc',
+    questions: [],
+    updatedAt: 2000,
+    updatedBy: U1,
+    ...overrides,
+  });
+
+describe('synced_video_activities — clip and notes', () => {
+  it('participant can publish a clip and notes', async () => {
+    await assertSucceeds(vaUpdate({ clip: CLIP, notes: NOTES }));
+  });
+
+  it('participant can clear the clip and empty the notes', async () => {
+    await assertSucceeds(vaUpdate({ clip: deleteField(), notes: [] }));
+  });
+
+  it('rejects a clip that is not a map', async () => {
+    await assertFails(vaUpdate({ clip: 10 }));
+  });
+
+  it('rejects notes that are not a list', async () => {
+    await assertFails(vaUpdate({ notes: { n1: 'x' } }));
+  });
+
+  it('creator can stand up a VA group with a clip and notes', async () => {
+    await testEnv.clearFirestore();
+    await assertSucceeds(
+      setDoc(
+        doc(asU1(), `synced_video_activities/${GROUP_ID}`),
+        baseVADoc({ clip: CLIP, notes: NOTES })
+      )
+    );
+  });
+
+  it('rejects notes that are not a list on create', async () => {
+    await testEnv.clearFirestore();
+    await assertFails(
+      setDoc(
+        doc(asU1(), `synced_video_activities/${GROUP_ID}`),
+        baseVADoc({ notes: 'x' })
       )
     );
   });

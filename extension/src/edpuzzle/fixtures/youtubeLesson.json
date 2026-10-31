@@ -1,0 +1,273 @@
+{
+  "_id": "603babc9e9387642b1bc2659",
+  "title": "YouTube video",
+  "source": "youtube",
+  "videoId": "WjqqUjDkh1c",
+  "originalVideoDuration": 179,
+  "videoDuration": 179,
+  "sections": [
+    {
+      "type": "section",
+      "time": 0,
+      "duration": 43.19,
+      "_id": "603babcbc0aa9d4265c6d3ff"
+    },
+    {
+      "type": "section",
+      "time": 43.19,
+      "duration": 5.49,
+      "_id": "603badbb5e263c424efd0466"
+    },
+    {
+      "type": "section",
+      "time": 48.68,
+      "duration": 24.78,
+      "_id": "603baeb22edd0d428e6bd460"
+    },
+    {
+      "type": "section",
+      "time": 73.46,
+      "duration": 30.58,
+      "_id": "603bb0946c18f24239a4956b"
+    },
+    {
+      "type": "section",
+      "time": 104.04,
+      "duration": 36.13,
+      "_id": "603bb161aec2bd426a547097"
+    },
+    {
+      "type": "section",
+      "time": 140.17,
+      "duration": 38.83,
+      "_id": "603bb2a7c0aa9d4265c6e58b"
+    }
+  ],
+  "notes": [],
+  "questions": [
+    {
+      "type": "multiple-choice",
+      "questionNumber": 0,
+      "time": 43.19,
+      "duration": 0,
+      "_id": "603bae86359dd142648cec64",
+      "body": [
+        {
+          "text": "",
+          "html": "<p>Cele patru operaţii se efectuează</p>",
+          "_id": "603bae86359dd142648cec59"
+        }
+      ],
+      "choices": [
+        {
+          "choiceNumber": 0,
+          "_id": "603bae86359dd142648cec5e",
+          "isCorrect": false,
+          "body": [
+            {
+              "text": "",
+              "html": "<p>&icirc;n acelaşi timp</p>",
+              "_id": "603bae86359dd142648cec5a"
+            }
+          ],
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "603bae86359dd142648cec5b",
+              "audio": {}
+            }
+          ]
+        },
+        {
+          "choiceNumber": 1,
+          "_id": "603bae86359dd142648cec61",
+          "isCorrect": false,
+          "body": [
+            {
+              "text": "",
+              "html": "<p>&icirc;n ordinea importanţei operaţiilor</p>",
+              "_id": "603bae86359dd142648cec5c"
+            }
+          ],
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "603bae86359dd142648cec5d",
+              "audio": {}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "multiple-choice",
+      "questionNumber": 0,
+      "time": 48.68,
+      "duration": 0,
+      "_id": "603bb0732edd0d428e6bd8ad",
+      "body": [
+        {
+          "text": "",
+          "html": "<p>Ordinea operaţiilor este:</p>",
+          "_id": "603bb0732edd0d428e6bd8a2"
+        }
+      ],
+      "choices": [
+        {
+          "choiceNumber": 0,
+          "_id": "603bb0732edd0d428e6bd8a7",
+          "isCorrect": false,
+          "body": [
+            {
+              "text": "",
+              "html": "<p>incepem cu adunarea şi scăderea şi continuăm cu &icirc;nmulţirea şi &icirc;mpărţirea&nbsp;</p>",
+              "_id": "603bb0732edd0d428e6bd8a3"
+            }
+          ],
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "603bb0732edd0d428e6bd8a4",
+              "audio": {}
+            }
+          ]
+        },
+        {
+          "choiceNumber": 1,
+          "_id": "603bb0732edd0d428e6bd8aa",
+          "isCorrect": false,
+          "body": [
+            {
+              "text": "",
+              "html": "<p>incepem cu &icirc;nmulţirea şi &icirc;mpărţirea şi continuăm&nbsp;cu adunarea&nbsp; şi scăderea</p>",
+              "_id": "603bb0732edd0d428e6bd8a5"
+            }
+          ],
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "603bb0732edd0d428e6bd8a6",
+              "audio": {}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "multiple-choice",
+      "questionNumber": 0,
+      "time": 73.46,
+      "duration": 0,
+      "_id": "603bb132b866474219b81f27",
+      "body": [
+        {
+          "text": "",
+          "html": "<p>Regula de la st&acirc;nga la dreapta se aplică dacă avem operaţii</p>",
+          "_id": "603bb132b866474219b81f1c"
+        }
+      ],
+      "choices": [
+        {
+          "choiceNumber": 0,
+          "_id": "603bb132b866474219b81f21",
+          "isCorrect": false,
+          "body": [
+            {
+              "text": "",
+              "html": "<p>de aceeaşi importanţă</p>",
+              "_id": "603bb132b866474219b81f1d"
+            }
+          ],
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "603bb132b866474219b81f1e",
+              "audio": {}
+            }
+          ]
+        },
+        {
+          "choiceNumber": 1,
+          "_id": "603bb132b866474219b81f24",
+          "isCorrect": false,
+          "body": [
+            {
+              "text": "",
+              "html": "<p>de importanţă diferită</p>",
+              "_id": "603bb132b866474219b81f1f"
+            }
+          ],
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "603bb132b866474219b81f20",
+              "audio": {}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "multiple-choice",
+      "questionNumber": 0,
+      "time": 104.04,
+      "duration": 0,
+      "_id": "603bb25c575bc6424f814755",
+      "body": [
+        {
+          "text": "",
+          "html": "<p>Dacă avem mai multe operaţii de importanţă diferită &icirc;ncepem cu &icirc;nmulţirile şi &icirc;mpărţirile&nbsp;şi continuăm cu adunările şi scăderile, de la st&acirc;nga la dreapta</p>",
+          "_id": "603bb25c575bc6424f81474a"
+        }
+      ],
+      "choices": [
+        {
+          "choiceNumber": 0,
+          "_id": "603bb25c575bc6424f81474f",
+          "isCorrect": false,
+          "body": [
+            {
+              "text": "",
+              "html": "<p>Fals</p>",
+              "_id": "603bb25c575bc6424f81474b"
+            }
+          ],
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "603bb25c575bc6424f81474c",
+              "audio": {}
+            }
+          ]
+        },
+        {
+          "choiceNumber": 1,
+          "_id": "603bb25c575bc6424f814752",
+          "isCorrect": false,
+          "body": [
+            {
+              "text": "",
+              "html": "<p>Adevarat</p>",
+              "_id": "603bb25c575bc6424f81474d"
+            }
+          ],
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "603bb25c575bc6424f81474e",
+              "audio": {}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

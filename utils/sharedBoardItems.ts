@@ -13,6 +13,7 @@ import type {
   SubShareVideoActivityView,
   VideoActivityData,
 } from '@/types';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 /** Kinds mirrored under a board share; firestore.rules `sbItemCollection` maps each to its library collection. */
 export type SharedBoardItemKind =
@@ -160,6 +161,7 @@ export function sharedBoardVideoActivityPayload(
       createdAt: data.createdAt ?? 0,
       updatedAt: data.updatedAt ?? 0,
       ...(data.videoDuration ? { videoDuration: data.videoDuration } : {}),
+      ...videoActivityPlayback(data),
     },
   };
 }

@@ -69,6 +69,23 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'focus-sessions',
   'staff-audience',
   'universal-import',
+  'import-extension-send',
+  'import-board-drop',
+  'import-quiz',
+  'import-flashcards',
+  'import-activity-wall',
+  'import-new-board',
+  'import-guided-learning',
+  'import-notebook',
+  'import-video-activity',
+  'import-mini-app',
+  'import-pdf',
+  'import-sticker',
+  'import-embed',
+  'import-link',
+  'import-schoology-course',
+  'video-activity-stops',
+  'video-import-ai',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

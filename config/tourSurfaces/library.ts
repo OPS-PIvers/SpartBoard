@@ -187,6 +187,8 @@ export const SURFACES: TourSurfaceMap = {
       'components/widgets/VideoActivityWidget/components/VideoActivityEditor.tsx',
       'components/widgets/VideoActivityWidget/components/Timeline.tsx',
       'components/widgets/VideoActivityWidget/components/VideoActivityQuizLayout.tsx',
+      'components/widgets/VideoActivityWidget/components/VideoActivityClipFields.tsx',
+      'components/widgets/VideoActivityWidget/components/VideoActivityNotesEditor.tsx',
       'components/common/library/VideoActivityBehaviorSettingsPanel.tsx',
     ],
     opensWith: 'library-shell.new:video-activity',
@@ -218,6 +220,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/widgets/VideoActivityWidget/components/Results.tsx',
       'components/widgets/VideoActivityWidget/components/results/VaResultsParity.tsx',
+      'components/widgets/VideoActivityWidget/components/results/VaShortAnswerMarking.tsx',
     ],
     opensWith: 'library-shell.archive-primary-action:video-activity#row-1',
     parent: 'library.video-activity',

@@ -6478,6 +6478,8 @@ export interface WrittenAnswerGrade {
   gradedBy: string;
   /** Client timestamp (ms) when the grade was saved. */
   gradedAt: number;
+  /** Video Activity short answer: the marked answer's `answeredAt`, so a retake's new answer starts unmarked. */
+  answeredAt?: number;
 }
 
 /**
@@ -7278,6 +7280,9 @@ export interface SyncedVideoActivityGroup {
   questions: VideoActivityQuestion[];
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: VideoActivityBehaviorSettings;
+  clip?: VideoActivityClip;
+  /** Always written by current clients (possibly empty); absent on docs that predate synced playback. */
+  notes?: VideoActivityNote[];
   /**
    * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
    * Modified only by the Cloud Function paths so the rules-side write check
@@ -7333,6 +7338,9 @@ export interface PlcVideoActivityVersionContent {
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
   behavior?: VideoActivityBehaviorSettings;
+  clip?: VideoActivityClip;
+  /** Absent on snapshots taken before synced playback; restore then keeps the canonical clip and notes. */
+  notes?: VideoActivityNote[];
 }
 
 /**
@@ -7375,6 +7383,8 @@ export interface SharedVideoActivityAssignment {
   /** Inlined activity data so the importer can copy it into their own library. */
   title: string;
   youtubeUrl: string;
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
   questions: VideoActivityQuestion[];
   createdAt: number;
   updatedAt: number;
@@ -7397,7 +7407,7 @@ export interface SharedVideoActivityAssignment {
  * that apply") and does not surface Matching or Ordering, which don't
  * map cleanly to a video-cue-point pause.
  */
-export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA';
+export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA' | 'SA';
 
 /**
  * A question tied to a specific timestamp in a YouTube video.
@@ -7412,6 +7422,7 @@ export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA';
  *            ("opt1|opt2|opt3"); `incorrectAnswers` are the distractor
  *            options shown alongside. Mirrors the Matching/Ordering
  *            convention so the wire format stays uniform.
+ *   - `SA`:  short answer; `correctAnswer` is `''` and the teacher marks it.
  *
  * Inherits `points?` and `allowPartialCredit?` from `QuizQuestion`. MA
  * uses `allowPartialCredit` to score (|correct ∩ given| − |given − correct|)
@@ -7439,6 +7450,8 @@ export type VideoActivityQuestion = Omit<
    * only accepted form.
    */
   acceptableVariants?: string[];
+  /** A picture with the prompt, stored in the teacher's Drive (IMPORT.md D32). */
+  imageDriveFileId?: string;
 };
 
 /** Student-safe VA question on the session doc; the key lives in `key/answers`. */
@@ -7449,6 +7462,7 @@ export interface VideoActivityPublicQuestion {
   type: VideoActivityQuestionType;
   /** MC/MA choices, correct and incorrect mixed in random order. */
   options?: string[];
+  imageDriveFileId?: string;
 }
 
 /** Server grading of one VA answer (`checkVideoActivityAnswerV1`). */
@@ -7459,11 +7473,30 @@ export interface VideoActivityCheckResult {
   correctAnswer: string;
 }
 
+/** Part of the video students watch, in seconds; a missing end plays to the end. */
+export interface VideoActivityClip {
+  start?: number;
+  end?: number;
+}
+
+/** A stop that pauses the video on text, with nothing to answer and no score. */
+export interface VideoActivityNote {
+  id: string;
+  /** Seconds into the video. */
+  timestamp: number;
+  text: string;
+  imageDriveFileId?: string;
+}
+
 /** Full video activity data stored in Google Drive as JSON. */
 export interface VideoActivityData {
   id: string;
   title: string;
   youtubeUrl: string;
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
+  /** Where Import got this activity (IMPORT.md D7); teacher only. */
+  importedFrom?: ImportAttribution;
   /** Total video duration in seconds, populated after the first player load. */
   videoDuration?: number;
   questions: VideoActivityQuestion[];
@@ -7661,6 +7694,8 @@ export interface VideoActivitySession
   assignmentName: string;
   teacherUid: string;
   youtubeUrl: string;
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
   /**
    * Keyed questions. Empty on stored docs that carry `publicQuestions`; teacher
    * code reads the key via `useVideoActivityKeyQuestions`.
@@ -7896,6 +7931,8 @@ export interface VideoActivityResponse extends StaffResponseFields {
   /** True once `resultsTabWarnings` reaches the protection threshold. */
   resultsLockedOut?: boolean;
   resultsLockedOutAt?: number;
+  /** Teacher marks for short-answer questions, keyed by question id. Teacher-written only. */
+  grading?: Record<string, WrittenAnswerGrade>;
 }
 
 /**
@@ -10749,7 +10786,27 @@ export type GlobalFeature =
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
-  | 'universal-import';
+  | 'universal-import'
+  /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
+  | 'import-extension-send'
+  | 'import-board-drop'
+  | 'import-quiz'
+  | 'import-flashcards'
+  | 'import-activity-wall'
+  | 'import-new-board'
+  | 'import-guided-learning'
+  | 'import-notebook'
+  | 'import-video-activity'
+  | 'import-mini-app'
+  | 'import-pdf'
+  | 'import-sticker'
+  | 'import-embed'
+  | 'import-link'
+  | 'import-schoology-course'
+  /** Video Activity short answer, note stops and clip range (docs/plans/IMPORT.md D32-D33). */
+  | 'video-activity-stops'
+  /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
+  | 'video-import-ai';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -12231,6 +12288,8 @@ export type SubShareVideoActivityView = Pick<
   | 'id'
   | 'title'
   | 'youtubeUrl'
+  | 'clip'
+  | 'notes'
   | 'videoDuration'
   | 'questions'
   | 'createdAt'

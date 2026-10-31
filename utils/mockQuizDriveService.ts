@@ -12,7 +12,12 @@
  *
  * Only activated when isAuthBypass is true.
  */
-import { QuizData, QuizQuestion, QuizTranslation } from '@/types';
+import {
+  QuizData,
+  QuizQuestion,
+  QuizTranslation,
+  VideoActivityData,
+} from '@/types';
 import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
 import { normalizeQuizTranslation } from '@/utils/quizTranslationNormalize';
 
@@ -20,7 +25,10 @@ const STORAGE_PREFIX = 'mock_quiz_drive';
 
 /** Structural surface of QuizDriveService consumed by useQuiz / useVideoActivity. */
 export interface QuizDriveLike {
-  saveQuiz(quiz: QuizData, existingFileId?: string): Promise<string>;
+  saveQuiz(
+    quiz: QuizData | VideoActivityData,
+    existingFileId?: string
+  ): Promise<string>;
   loadQuiz(fileId: string): Promise<QuizData>;
   deleteQuizFile(fileId: string): Promise<void>;
   importFromGoogleSheet(
@@ -47,7 +55,10 @@ export class MockQuizDriveService implements QuizDriveLike {
     return `${STORAGE_PREFIX}:${this.userId}:${fileId}`;
   }
 
-  saveQuiz(quiz: QuizData, existingFileId?: string): Promise<string> {
+  saveQuiz(
+    quiz: QuizData | VideoActivityData,
+    existingFileId?: string
+  ): Promise<string> {
     const fileId = existingFileId ?? `mock-${crypto.randomUUID()}`;
     localStorage.setItem(this.key(fileId), JSON.stringify(quiz));
     return Promise.resolve(fileId);

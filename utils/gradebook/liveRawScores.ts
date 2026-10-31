@@ -16,6 +16,7 @@ import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
 import {
   canScoreVideoActivityResponse,
   gradeVideoActivityAnswer,
+  isVideoActivityResponseAwaitingGrade,
 } from '@/utils/videoActivityGrading';
 import type { LiveRawScore } from '@/utils/gradebook/finalScoreOverlay';
 
@@ -67,9 +68,16 @@ export function videoActivityLiveRaw(
     seen.add(q.id);
     max += q.points ?? 1;
     const a = r.answers.find((x) => x.questionId === q.id);
-    if (a) points += gradeVideoActivityAnswer(q, a.answer).pointsEarned;
+    if (a)
+      points += gradeVideoActivityAnswer(
+        q,
+        a.answer,
+        r.grading?.[q.id]
+      ).pointsEarned;
   }
   if (max === 0) return { ...NOT_SCORED, submittedAt };
+  if (isVideoActivityResponseAwaitingGrade(questions, r))
+    return { points: null, max, state: 'awaiting-grade', submittedAt };
   return { points, max, state: 'scored', submittedAt };
 }
 

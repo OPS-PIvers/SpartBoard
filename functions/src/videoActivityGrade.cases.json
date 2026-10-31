@@ -34,7 +34,11 @@
   },
   {
     "name": "MC missing type defaults to MC",
-    "question": { "id": "q", "correctAnswer": "A", "incorrectAnswers": ["B"] },
+    "question": {
+      "id": "q",
+      "correctAnswer": "A",
+      "incorrectAnswers": ["B"]
+    },
     "answer": "a",
     "isCorrect": true
   },
@@ -161,5 +165,84 @@
     },
     "answer": "",
     "isCorrect": false
+  },
+  {
+    "name": "SA blank is not attempted",
+    "question": {
+      "id": "q",
+      "type": "SA",
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "points": 2
+    },
+    "answer": "",
+    "isCorrect": false,
+    "state": "not-attempted",
+    "pointsEarned": 0
+  },
+  {
+    "name": "SA answered and unmarked awaits a mark",
+    "question": {
+      "id": "q",
+      "type": "SA",
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "points": 2
+    },
+    "answer": "Plants make food from light",
+    "isCorrect": false,
+    "state": "awaiting-grade",
+    "pointsEarned": 0
+  },
+  {
+    "name": "SA marked partial",
+    "question": {
+      "id": "q",
+      "type": "SA",
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "points": 2
+    },
+    "answer": "Plants make food",
+    "grade": {
+      "pointsAwarded": 1
+    },
+    "isCorrect": false,
+    "state": "scored",
+    "pointsEarned": 1
+  },
+  {
+    "name": "SA marked full",
+    "question": {
+      "id": "q",
+      "type": "SA",
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "points": 2
+    },
+    "answer": "Plants make food from light",
+    "grade": {
+      "pointsAwarded": 2
+    },
+    "isCorrect": true,
+    "state": "scored",
+    "pointsEarned": 2
+  },
+  {
+    "name": "SA mark above max is clamped",
+    "question": {
+      "id": "q",
+      "type": "SA",
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "points": 2
+    },
+    "answer": "x",
+    "grade": {
+      "pointsAwarded": 9
+    },
+    "isCorrect": true,
+    "state": "scored",
+    "pointsEarned": 2
   }
 ]

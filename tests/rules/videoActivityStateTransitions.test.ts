@@ -249,6 +249,16 @@ describe('video_activity_sessions responses: lifecycle patches', () => {
     await assertSucceeds(updateDoc(doc(asTeacher(), RESPONSE_PATH), patch));
   });
 
+  it('only the teacher can mark a short answer', async () => {
+    await seedSession({ sessionMode: 'student' });
+    await seedResponse({ completedAt: 1500, completedAttempts: 1 });
+    const mark = {
+      'grading.sa': { pointsAwarded: 2, gradedBy: TEACHER_UID, gradedAt: 2000 },
+    };
+    await assertFails(updateDoc(doc(asSsoStudent(), RESPONSE_PATH), mark));
+    await assertSucceeds(updateDoc(doc(asTeacher(), RESPONSE_PATH), mark));
+  });
+
   it('students can read their own response and not another student’s', async () => {
     await seedSession({ sessionMode: 'student' });
     await seedResponse({});

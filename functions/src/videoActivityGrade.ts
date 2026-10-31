@@ -10,6 +10,7 @@ export interface VaKeyQuestion {
   acceptableVariants?: string[];
   allowPartialCredit?: boolean;
   points?: number;
+  imageDriveFileId?: string;
 }
 
 export interface VaPublicQuestion {
@@ -18,6 +19,7 @@ export interface VaPublicQuestion {
   text: string;
   type: string;
   options?: string[];
+  imageDriveFileId?: string;
 }
 
 const normalize = (s: string): string =>
@@ -35,9 +37,29 @@ const splitKey = (s: string): string[] =>
     .map(normalize)
     .filter((x) => x.length > 0);
 
-export function gradeVaAnswer(q: VaKeyQuestion, answer: string): boolean {
+export interface VaManualGrade {
+  pointsAwarded?: unknown;
+  excused?: unknown;
+}
+
+/** SA has no key: it counts as answered and is right only once the teacher marks full points. */
+export const isVaShortAnswer = (q: { type?: unknown }): boolean =>
+  q.type === 'SA';
+
+export function gradeVaAnswer(
+  q: VaKeyQuestion,
+  answer: string,
+  grade?: VaManualGrade
+): boolean {
   const type = q.type ?? 'MC';
   const correct = q.correctAnswer ?? '';
+  if (type === 'SA') {
+    if (!grade || grade.excused === true) return false;
+    const max = q.points ?? 1;
+    const raw = Number(grade.pointsAwarded);
+    const earned = Math.min(max, Math.max(0, Number.isFinite(raw) ? raw : 0));
+    return max > 0 && earned >= max;
+  }
   if (type === 'MC') {
     const key = normalize(correct);
     return key.length > 0 && key === normalize(answer);
@@ -69,6 +91,10 @@ function shuffled<T>(items: T[]): T[] {
   return out;
 }
 
+/** A Drive file id as Drive issues them; anything else is never shown to students. */
+export const isDriveFileId = (v: unknown): v is string =>
+  typeof v === 'string' && /^[\w-]{10,200}$/.test(v);
+
 // Mirror of utils/videoActivityPublicQuestions.ts toVideoActivityPublicQuestion.
 export function toVaPublicQuestion(q: VaKeyQuestion): VaPublicQuestion {
   const type = q.type ?? 'MC';
@@ -77,6 +103,9 @@ export function toVaPublicQuestion(q: VaKeyQuestion): VaPublicQuestion {
     timestamp: typeof q.timestamp === 'number' ? q.timestamp : 0,
     text: q.text ?? '',
     type,
+    ...(isDriveFileId(q.imageDriveFileId)
+      ? { imageDriveFileId: q.imageDriveFileId }
+      : {}),
   };
   const incorrect = (q.incorrectAnswers ?? []).filter(
     (s) => typeof s === 'string' && s.length > 0

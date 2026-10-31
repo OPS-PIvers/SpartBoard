@@ -139,7 +139,9 @@ export const VideoActivityPreview: React.FC<{
                         className="text-slate-300"
                         style={{ fontSize: 'min(13px, 5cqmin)' }}
                       >
-                        No answer saved
+                        {question.type === 'SA'
+                          ? 'Short answer, marked by the teacher'
+                          : 'No answer saved'}
                       </span>
                     ) : (
                       answers.map((answer) => (

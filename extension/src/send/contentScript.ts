@@ -1,6 +1,6 @@
 // The Send to SpartBoard edge tab on every page (IMPORT D14, D15): a Platform reader where one matches, the generic read elsewhere.
 
-import { readPage, readSelectionText } from './readPage';
+import { pageUrl, readPage, readSelectionText } from './readPage';
 import {
   parseSendTabMessage,
   SEND_HOST_ID,
@@ -13,6 +13,11 @@ import { sendNote, type SendNote } from './sendNote';
 import { singleItem } from '../schoology/singleItem';
 import { sendItem } from '../schoology/sendItem';
 import type { SchoologyMessage } from '../schoology/messages';
+import {
+  EDPUZZLE_PLATFORM,
+  edpuzzleLessonId,
+  readEdpuzzleLesson,
+} from '../edpuzzle/lesson';
 import type { ImportReaderFailure } from '@/utils/import/contract';
 
 const ask = <T>(message: SendPageMessage) =>
@@ -186,8 +191,37 @@ async function sendGeneric(
     kind: 'reply',
     reply,
     selectionOnly: request.selectionOnly,
-    fellBack: !!failure,
+    fellBack:
+      failure?.platform === EDPUZZLE_PLATFORM ? EDPUZZLE_PLATFORM : !!failure,
   });
+}
+
+/** An Edpuzzle lesson as a video lesson (D30-D33); an unreadable one falls back to the page text. */
+async function sendEdpuzzle(id: string): Promise<SendNote> {
+  progress('Reading…');
+  const read = await readEdpuzzleLesson(id);
+  if (!read.ok && read.why === 'not-youtube')
+    return sendNote({ kind: 'not-youtube' });
+  if (!read.ok) {
+    return sendGeneric({
+      platform: EDPUZZLE_PLATFORM,
+      reason: read.reason.slice(0, 500),
+    });
+  }
+  progress('Sending…');
+  const reply = await ask<SendReply>({
+    type: 'send/page',
+    request: {
+      url: pageUrl(location.href),
+      title: read.title,
+      platform: EDPUZZLE_PLATFORM,
+      selectionOnly: false,
+      blocks: read.blocks,
+      images: [],
+      video: read.video,
+    },
+  }).catch(() => undefined);
+  return sendNote({ kind: 'reply', reply, lesson: { skipped: read.skipped } });
 }
 
 async function send(blocked: boolean, frameText?: string) {
@@ -231,6 +265,11 @@ async function send(blocked: boolean, frameText?: string) {
         return;
       }
       showNote({ ...outcome, open: outcome.ok ? 'schoology' : undefined });
+      return;
+    }
+    const lessonId = selected ? null : edpuzzleLessonId(location.href);
+    if (lessonId) {
+      showNote(await sendEdpuzzle(lessonId));
       return;
     }
     showNote(await sendGeneric());

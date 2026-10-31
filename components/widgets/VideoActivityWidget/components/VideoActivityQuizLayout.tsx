@@ -26,9 +26,11 @@ import { extractYouTubeId } from '@/utils/youtube';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
 import {
   VA_EDITOR_TYPES,
+  VA_EDITOR_TYPES_WITH_SHORT_ANSWER,
   quizUpdatesToVa,
   vaToQuizQuestion,
 } from '@/utils/vaQuestionAdapter';
+import { useAuth } from '@/context/useAuth';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { useStandardsFromPrompt } from '@/components/quiz/targets/useStandardsFromPrompt';
@@ -41,6 +43,7 @@ import {
   QuestionTargetsField,
   QuestionTypeSelect,
 } from '@/components/widgets/QuizWidget/components/QuestionFields';
+import { VideoActivityPictureField } from './VideoActivityPictureField';
 import {
   QUESTION_TYPES,
   questionTypeChangeUpdates,
@@ -49,6 +52,8 @@ import {
   inputClass,
   labelClass,
 } from '@/components/widgets/QuizWidget/components/quizEditorFieldStyles';
+import { VideoActivityClipFields } from './VideoActivityClipFields';
+import { VideoActivityNotesEditor } from './VideoActivityNotesEditor';
 import { Timeline, type TimelineHandle } from './Timeline';
 import {
   mmSsToSeconds,
@@ -70,6 +75,11 @@ const TYPE_BADGE: Record<VideoActivityQuestion['type'], string> = {
   MC: 'bg-blue-100 text-blue-700',
   FIB: 'bg-amber-100 text-amber-800',
   MA: 'bg-emerald-100 text-emerald-700',
+  SA: 'bg-violet-100 text-violet-700',
+};
+
+const VA_TYPE_LABELS: Partial<Record<QuizQuestionType, string>> = {
+  'free-response': 'Short Answer',
 };
 
 // ─── Context pane ────────────────────────────────────────────────────────────
@@ -81,6 +91,8 @@ const contextPanePropsEqual = (
   prev.aiEnabled === next.aiEnabled &&
   prev.timelineRef === next.timelineRef &&
   prev.state.youtubeUrl === next.state.youtubeUrl &&
+  prev.state.clip === next.state.clip &&
+  prev.state.notes === next.state.notes &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedId === next.state.selectedId &&
   prev.state.checkedIds === next.state.checkedIds &&
@@ -96,6 +108,10 @@ export const VideoActivityQuizContextPane = React.memo(
     const {
       youtubeUrl,
       setYoutubeUrl,
+      clip,
+      setClip,
+      notes,
+      setNotes,
       questions,
       selectedId,
       setSelectedId,
@@ -154,6 +170,12 @@ export const VideoActivityQuizContextPane = React.memo(
               className={`${inputClass} pl-9`}
             />
           </div>
+          <VideoActivityClipFields clip={clip} onChange={setClip} />
+          <VideoActivityNotesEditor
+            notes={notes}
+            onChange={setNotes}
+            getCurrentTime={() => timelineRef.current?.getCurrentTime() ?? null}
+          />
           {error && (
             <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -446,6 +468,8 @@ export const VideoActivityQuizDetailPane = React.memo(
       timestampInputs,
       setTimestampInput,
     } = state;
+    const { canAccessFeature } = useAuth();
+    const shortAnswerEnabled = canAccessFeature('video-activity-stops');
     const [pickerOpen, setPickerOpen] = useState(false);
     const promptRef = useRef<HTMLTextAreaElement>(null);
     const readPrompt = useCallback(() => promptRef.current?.value, []);
@@ -497,6 +521,12 @@ export const VideoActivityQuizDetailPane = React.memo(
       updateQuestion(id, { timestamp: ts });
     };
     const typeMeta = QUESTION_TYPES.find((t) => t.value === q.type);
+    const isShortAnswer = selectedQuestion.type === 'SA';
+    // Short answer is offered behind its flag, but an existing one always shows.
+    const editorTypes =
+      shortAnswerEnabled || isShortAnswer
+        ? VA_EDITOR_TYPES_WITH_SHORT_ANSWER
+        : VA_EDITOR_TYPES;
     const timeValue =
       timestampInputs[id] ?? secondsToMmSs(selectedQuestion.timestamp);
 
@@ -506,7 +536,7 @@ export const VideoActivityQuizDetailPane = React.memo(
           <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
             Question {selectedIndex + 1} of {questions.length}
             <span className="mx-1.5">·</span>
-            {typeMeta?.label ?? q.type}
+            {VA_TYPE_LABELS[q.type] ?? typeMeta?.label ?? q.type}
           </div>
           <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
             {q.text.trim() || `Question ${selectedIndex + 1}`}
@@ -525,6 +555,11 @@ export const VideoActivityQuizDetailPane = React.memo(
             anchor={tourAttr('video-activity.editor-question-text')}
           />
 
+          <VideoActivityPictureField
+            fileId={selectedQuestion?.imageDriveFileId}
+            onRemove={() => updateQuestion(id, { imageDriveFileId: undefined })}
+          />
+
           <QuestionTargetsField
             question={q}
             onChange={(targets) => updateQuestion(id, { targets })}
@@ -539,7 +574,8 @@ export const VideoActivityQuizDetailPane = React.memo(
               <label className={labelClass}>Type</label>
               <QuestionTypeSelect
                 question={q}
-                types={VA_EDITOR_TYPES}
+                types={editorTypes}
+                labels={VA_TYPE_LABELS}
                 onSelect={(nextType: QuizQuestionType) => {
                   const updates = questionTypeChangeUpdates(q, nextType, {
                     mediaResponseAllowed: false,
@@ -598,7 +634,7 @@ export const VideoActivityQuizDetailPane = React.memo(
             </div>
           </div>
 
-          {q.type === 'MC' || q.type === 'MA' ? (
+          {isShortAnswer ? null : q.type === 'MC' || q.type === 'MA' ? (
             <div className="space-y-1">
               <ChoiceOptionsEditor key={id} question={q} onChange={apply} />
               <NeedsAnswerNotice

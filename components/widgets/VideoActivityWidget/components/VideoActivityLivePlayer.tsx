@@ -54,6 +54,7 @@ import {
 import { logError } from '@/utils/logError';
 import { VideoActivityLiveAggregate } from './VideoActivityLiveAggregate';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { StopPicture } from '@/components/videoActivity/StopPicture';
 
 interface VideoActivityLivePlayerProps {
   session: VideoActivitySession;
@@ -463,6 +464,7 @@ export const VideoActivityLivePlayer: React.FC<
       // eslint-disable-next-line react-hooks/refs -- initial playhead, never reassigned
       startSeconds={startSecondsRef.current}
       seekRequest={seekRequest}
+      clip={session.clip}
     />
   );
   const questionBody = openQuestion && (
@@ -552,7 +554,8 @@ export const VideoActivityLivePlayer: React.FC<
                         .catch(report('showResults'))
                     }
                   />
-                  {!revealed && (
+                  {/* A short answer has no answer to reveal. */}
+                  {!revealed && openQuestion?.type !== 'SA' && (
                     <ActionButton
                       variant="secondary"
                       label="Reveal answer"
@@ -781,6 +784,10 @@ const LiveQuestionBody: React.FC<{
       >
         {question.text}
       </p>
+      <StopPicture
+        fileId={question.imageDriveFileId}
+        className="max-h-[30cqh]"
+      />
       {resultsShown ? (
         <VideoActivityLiveAggregate
           question={question}

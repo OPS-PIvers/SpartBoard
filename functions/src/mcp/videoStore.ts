@@ -5,6 +5,8 @@ import {
   toStoredQuestion,
   type FriendlyQuestion,
   type StoredQuestion,
+  type StoredQuestionFields,
+  type StoredQuestionType,
 } from './quizStore';
 
 export const MAX_VIDEO_QUESTIONS = 100;
@@ -12,7 +14,7 @@ export const MAX_VIDEO_QUESTIONS = 100;
 const DEFAULT_TIME_LIMIT = 30;
 
 export type VideoFriendlyType =
-  'multiple_choice' | 'choose_all' | 'fill_in_blank';
+  'multiple_choice' | 'choose_all' | 'fill_in_blank' | 'short_answer';
 
 export interface VideoFriendlyQuestion {
   id?: string;
@@ -30,7 +32,9 @@ export interface VideoFriendlyQuestion {
   learning_targets?: string[];
 }
 
-export interface VideoQuestion extends StoredQuestion {
+/** 'SA' is the video short answer: no key, marked by the teacher. */
+export interface VideoQuestion extends StoredQuestionFields {
+  type: StoredQuestionType | 'SA';
   timestamp: number;
   acceptableVariants?: string[];
 }
@@ -64,6 +68,9 @@ export function assertYouTubeUrl(url: string): string {
   return trimmed;
 }
 
+const asQuizType = (t: VideoQuestion['type']): StoredQuestionType =>
+  t === 'SA' ? 'free-response' : t;
+
 /** Tool input → stored video question; FIB alternates live in acceptableVariants here, not alternateAnswers. */
 export function toStoredVideoQuestion(
   input: VideoFriendlyQuestion,
@@ -73,16 +80,18 @@ export function toStoredVideoQuestion(
 ): VideoQuestion {
   let prior: StoredQuestion | undefined;
   if (existing) {
-    prior = { ...existing };
+    prior = { ...existing, type: asQuizType(existing.type) };
     delete prior.acceptableVariants;
     delete prior.timestamp;
   }
+  const shortAnswer = input.type === 'short_answer';
   const stored = toStoredQuestion(
     {
-      ...(input as FriendlyQuestion),
+      ...(input as Omit<VideoFriendlyQuestion, 'type'>),
+      type: shortAnswer ? 'free_response' : input.type,
       time_limit_seconds:
         input.time_limit_seconds ?? (existing ? undefined : DEFAULT_TIME_LIMIT),
-    },
+    } as FriendlyQuestion,
     n,
     prior,
     newId
@@ -91,6 +100,12 @@ export function toStoredVideoQuestion(
     ...stored,
     timestamp: Math.max(0, Math.floor(input.timestamp_seconds)),
   };
+  if (shortAnswer) {
+    out.type = 'SA';
+    delete out.placeholder;
+    delete out.minWords;
+    delete out.maxWords;
+  }
   if (out.alternateAnswers) {
     out.acceptableVariants = out.alternateAnswers;
     delete out.alternateAnswers;
@@ -112,11 +127,14 @@ export function orderByTimestamp(questions: VideoQuestion[]): VideoQuestion[] {
 export function toFriendlyVideoQuestion(q: VideoQuestion) {
   const base = toFriendlyQuestion({
     ...q,
+    type: asQuizType(q.type),
     ...(q.acceptableVariants?.length
       ? { alternateAnswers: q.acceptableVariants }
       : {}),
   });
-  return { ...base, timestamp_seconds: q.timestamp };
+  return q.type === 'SA'
+    ? { ...base, type: 'short_answer' as const, timestamp_seconds: q.timestamp }
+    : { ...base, timestamp_seconds: q.timestamp };
 }
 
 /** Mirrors normalizeVideoActivity in utils/videoActivityNormalize.ts. */
@@ -185,4 +203,4 @@ export function buildVideoMetadata(
 
 /** Mirrors isVideoActivityComplete in utils/activityCompleteness.ts. */
 export const videoQuestionNeedsKey = (q: VideoQuestion): boolean =>
-  !q.correctAnswer?.trim();
+  q.type !== 'SA' && !q.correctAnswer?.trim();

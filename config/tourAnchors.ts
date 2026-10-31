@@ -10565,6 +10565,24 @@ export const TOUR_ANCHORS = {
     persists: true,
     sandboxed: true,
   },
+  'video-activity.editor-clip-start': {
+    label: 'Start at time in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-clip-end': {
+    label: 'End at time in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-notes-toggle': {
+    label: 'Notes list toggle in the video activity editor',
+  },
+  'video-activity.editor-add-note': {
+    label: 'Add note button in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
   'video-activity.editor-question-pill': {
     label: 'Question button in the editor question list',
     perField: true,
@@ -14927,6 +14945,23 @@ export const TOUR_ANCHORS = {
     label: 'Student row in the Video Activity results',
     perField: true,
     panel: true,
+  },
+  'video-activity.results-to-mark': {
+    label: 'Short answers to mark notice in the Video Activity results',
+    panel: true,
+  },
+  'video-activity.results-mark-toggle': {
+    label:
+      'Mark button on a short-answer question in the Video Activity results',
+    perField: true,
+    panel: true,
+  },
+  'video-activity.results-mark-points': {
+    label:
+      "Points box for a student's short answer in the Video Activity results",
+    perField: true,
+    panel: true,
+    persists: true,
   },
   'quiz-editor.folder': {
     label: 'Folder picker in the Quiz editor header',
