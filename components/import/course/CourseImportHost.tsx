@@ -327,6 +327,7 @@ export const CourseImportHost: React.FC<{
         },
         ai:
           canAccessFeature(UNIVERSAL_IMPORT_FEATURE) &&
+          canAccessFeature('gemini-functions') &&
           conversion.enabled &&
           !outward.locked,
         drive: !!driveService,

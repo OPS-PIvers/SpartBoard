@@ -121,7 +121,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   const [noEmbed, setNoEmbed] = useState<ReadonlySet<string>>(new Set());
   // Convert is offered only when the row has a target besides Embed and Link.
   const canConvert = (row: Row): boolean =>
-    targetChoices(row.source, allowed).targets.some(
+    targetChoices(row.source, allowed, aiOn).targets.some(
       (t) => t !== 'embed' && t !== 'links'
     );
   const rows: Row[] = [
