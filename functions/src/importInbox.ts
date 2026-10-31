@@ -421,9 +421,12 @@ export async function receiveSend(
   const images = send.images.filter((img) => !isUrlBlocked(img.url, patterns));
   const video = send.video && {
     ...send.video,
-    stops: send.video.stops.map(({ image, ...stop }) =>
-      image && !isUrlBlocked(image, patterns) ? { ...stop, image } : stop
-    ),
+    stops: send.video.stops.map((stop) => {
+      if (!stop.image || !isUrlBlocked(stop.image, patterns)) return stop;
+      const kept = { ...stop };
+      delete kept.image;
+      return kept;
+    }),
   };
   const id = sendId({ ...send, images, ...(video ? { video } : {}) });
   const { readerFailure, ...rest } = send;
