@@ -24,6 +24,7 @@ import {
 import { ImportWizard } from '@/components/common/library/importer';
 import type { ImportAdapter } from '@/components/common/library/types';
 import type { ImportInboxItem } from '@/utils/import/contract';
+import { parseImportInboxItem } from '@/utils/import/inbox';
 
 vi.mock('@/components/import/reference/ReferenceEmbedStep', () => ({
   ReferenceEmbedStep: ({
@@ -102,8 +103,8 @@ describe('targetChoices', () => {
   });
 
   it('guesses a Video activity for a sent Edpuzzle lesson (D32)', () => {
-    const item: ImportInboxItem = {
-      id: 'ep',
+    // Read back the way the Import screen reads a stored Send.
+    const item = parseImportInboxItem('ep', {
       url: 'https://edpuzzle.com/media/603babc9e9387642b1bc2659',
       title: 'Climate',
       platform: 'edpuzzle',
@@ -112,7 +113,8 @@ describe('targetChoices', () => {
       images: [],
       receivedAt: 0,
       video: { youtubeId: 'WjqqUjDkh1c', stops: [] },
-    };
+    });
+    if (!item) throw new Error('unparsed');
     const c = targetChoices(sourceFromInboxItem(item));
     expect(c.guess).toBe('videoActivity');
   });
