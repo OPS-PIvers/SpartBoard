@@ -469,10 +469,12 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       {...tourAttr('embed.zoom-level', widget.id, widget.type)}
                       onClick={handleZoomReset}
                       disabled={isDefaultZoom}
-                      className="px-1 font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
+                      className="font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
                       style={{
                         minWidth: '3em',
                         fontSize: 'min(12px, 1.5vmin)',
+                        paddingLeft: 'min(4px, 0.5vmin)',
+                        paddingRight: 'min(4px, 0.5vmin)',
                       }}
                       title={isDefaultZoom ? undefined : 'Reset to 100%'}
                     >

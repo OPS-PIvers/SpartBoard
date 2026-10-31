@@ -85,7 +85,7 @@ const DOCUMENT_EXTENSIONS = '.pdf,.docx,.odt,.tst,.rtf,.imscc';
 function inferKindFromFileName(
   fileName: string,
   supported: ImportSourceKind[]
-): Exclude<ImportSourceKind, 'sheet'> {
+): Exclude<ImportSourceKind, 'sheet' | 'cards'> {
   const lower = fileName.toLowerCase();
   if (
     matchesAccept(lower, DOCUMENT_EXTENSIONS) &&
@@ -419,8 +419,14 @@ export function ImportWizard<TData>({
   const readInitial = useEffectEvent((): void => {
     if (!initialSource) return;
     const { file, text, conversion } = initialSource;
+    const cardSet = initialSource.inboxItem?.cards;
     if (conversion) {
       void runParse({ kind: 'conversion', input: conversion }, true);
+    } else if (
+      cardSet?.cards.length &&
+      adapter.supportedSources.includes('cards')
+    ) {
+      void runParse({ kind: 'cards', set: cardSet }, true);
     } else if (file) {
       void importFile(file, true);
     } else if (text && supportsCsv) {

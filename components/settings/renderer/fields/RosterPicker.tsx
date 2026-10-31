@@ -45,7 +45,7 @@ export const RosterPicker: React.FC<
         {MODES.map((option) => {
           const selected = mode === option;
           return (
-            <button
+            <button // no-tour-anchor: covered by the settings.field row anchor
               key={option}
               type="button"
               role="radio"

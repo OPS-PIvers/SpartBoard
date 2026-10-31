@@ -165,7 +165,7 @@ export const FieldRenderer: React.FC<FieldRendererProps> = ({
         </label>
       )}
       {canReset && (
-        <button
+        <button // no-tour-anchor: reset link inside a settings row, covered by the settings.field row anchor
           type="button"
           onClick={() => onChange(defaultValue)}
           className="text-xxs text-slate-600 hover:text-slate-800 underline"

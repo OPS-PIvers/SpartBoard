@@ -81,7 +81,8 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     label: 'Flashcards',
     widgetType: 'flashcards',
     landing: 'review',
-    accepts: (s) => isCsv(s) || hasTabbedRows(s),
+    accepts: (s) =>
+      isCsv(s) || hasTabbedRows(s) || !!s.inboxItem?.cards?.cards.length,
     ai: hasConversionText,
   },
   activityWall: {
@@ -193,6 +194,9 @@ export function usesAi(
   const route = IMPORT_ROUTES[target];
   if (!aiOn || !route?.ai?.(source)) return false;
   if (!route.accepts(source)) return true;
+  // A card set a reader found is read exactly, whatever its size.
+  if (target === 'flashcards' && source.inboxItem?.cards?.cards.length)
+    return false;
   // Flashcards: a CSV or a page of term/definition rows still reads without AI.
   if (isCsv(source)) return false;
   // Comma rows count too, the way a .csv is read (two comma cells become a tab).

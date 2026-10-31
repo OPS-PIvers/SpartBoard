@@ -154,6 +154,15 @@ describe('guessTargets', () => {
     expect(g.targets[0]).toBe('videoActivity');
   });
 
+  it('puts a sent card set first as Flashcards, listed once', () => {
+    const g = guessTargets({
+      kind: 'send',
+      item: send({ cards: { cards: [{ term: 'a', definition: 'b' }] } }),
+    });
+    expect(g.guess).toBe('flashcards');
+    expect(g.targets.filter((t) => t === 'flashcards')).toEqual(['flashcards']);
+  });
+
   it("doesn't offer a selection as a whole-page embed", () => {
     const g = guessTargets({
       kind: 'send',

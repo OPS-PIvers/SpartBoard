@@ -1,0 +1,114 @@
+{
+  "responses": [
+    {
+      "models": {
+        "studiableItem": [
+          {
+            "id": 9002,
+            "studiableContainerId": 555123,
+            "rank": 1,
+            "cardSides": [
+              {
+                "sideId": 0,
+                "label": "word",
+                "media": [
+                  {
+                    "type": 1,
+                    "plainText": "el gato",
+                    "languageCode": "es",
+                    "ttsUrl": "/tts/es.mp3?v=1"
+                  }
+                ]
+              },
+              {
+                "sideId": 1,
+                "label": "definition",
+                "media": [
+                  {
+                    "type": 1,
+                    "plainText": "the cat",
+                    "languageCode": "en",
+                    "ttsUrl": "/tts/en.mp3?v=1"
+                  },
+                  {
+                    "type": 2,
+                    "url": "https://o.quizlet.com/abc_m.jpg",
+                    "width": 240,
+                    "height": 180
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 9001,
+            "studiableContainerId": 555123,
+            "rank": 0,
+            "cardSides": [
+              {
+                "sideId": 0,
+                "label": "word",
+                "media": [
+                  {
+                    "type": 1,
+                    "plainText": "el perro",
+                    "languageCode": "es",
+                    "ttsUrl": "/tts/es.mp3?v=2"
+                  },
+                  { "type": 4, "url": "https://o.quizlet.com/perro.mp3" }
+                ]
+              },
+              {
+                "sideId": 1,
+                "label": "definition",
+                "media": [
+                  {
+                    "type": 1,
+                    "plainText": "the dog",
+                    "languageCode": "en",
+                    "ttsUrl": "/tts/en.mp3?v=2"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 9003,
+            "studiableContainerId": 555123,
+            "rank": 2,
+            "cardSides": [
+              {
+                "sideId": 0,
+                "label": "word",
+                "media": [
+                  {
+                    "type": 1,
+                    "plainText": "la casa",
+                    "languageCode": "es"
+                  }
+                ]
+              },
+              {
+                "sideId": 1,
+                "label": "definition",
+                "media": [
+                  {
+                    "type": 1,
+                    "plainText": "the house\nthe home",
+                    "languageCode": "en"
+                  }
+                ]
+              },
+              {
+                "sideId": 2,
+                "label": "location",
+                "media": [{ "type": 5, "code": "1" }]
+              }
+            ]
+          }
+        ]
+      },
+      "paging": { "total": 3, "page": 1, "perPage": 500, "token": "tok-1" }
+    }
+  ]
+}

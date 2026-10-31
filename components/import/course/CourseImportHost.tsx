@@ -149,7 +149,7 @@ export const CourseImportHost: React.FC<{
       createFlashcardImportAdapter({
         loadSheet: () => Promise.resolve([]),
         pickSheet: () => Promise.resolve(null),
-        save: async (cards, title) => {
+        save: async ({ cards }, title) => {
           const folderId = await folderFor('flashcards', folderPath);
           const now = Date.now();
           await saveSet({
