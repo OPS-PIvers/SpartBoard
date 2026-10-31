@@ -56,12 +56,17 @@ export function videoItemRows(
   const done = responses.filter((r) => r.completedAt !== null);
   return questions.map((q, i) => {
     const max = q.points ?? 1;
-    const ratios = done.map((r) => {
+    const ratios: number[] = [];
+    for (const r of done) {
       const a = r.answers.find((x) => x.questionId === q.id);
-      return a && max > 0
-        ? gradeVideoActivityAnswer(q, a.answer).pointsEarned / max
-        : 0;
-    });
+      if (!a || max <= 0) {
+        ratios.push(0);
+        continue;
+      }
+      const g = gradeVideoActivityAnswer(q, a.answer, r.grading?.[q.id]);
+      // An unmarked short answer has no score yet, so it stays out of the average.
+      if (g.state !== 'awaiting-grade') ratios.push(g.pointsEarned / max);
+    }
     return {
       id: q.id,
       label: rowLabel(i + 1, q.targets),

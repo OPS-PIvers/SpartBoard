@@ -114,6 +114,25 @@ describe('videoActivityIncompleteReason', () => {
     expect(videoActivityIncompleteReason(base)).toBeNull();
   });
 
+  it('needs no answer key for a short answer, here or at assign', () => {
+    const sa = vaQuestion({ type: 'SA', correctAnswer: '' });
+    expect(
+      videoActivityIncompleteReason({ ...base, questions: [sa] })
+    ).toBeNull();
+    expect(
+      videoActivityAssignBlocker({
+        youtubeUrl: base.youtubeUrl,
+        questions: [sa],
+      })
+    ).toBeNull();
+    expect(
+      videoActivityIncompleteReason({
+        ...base,
+        questions: [vaQuestion({ type: 'SA', correctAnswer: '', text: '' })],
+      })
+    ).toBe('Question 1: text is required');
+  });
+
   it('wants a title, a video and a question', () => {
     expect(videoActivityIncompleteReason({ ...base, title: '' })).toBe(
       'Activity title is required'

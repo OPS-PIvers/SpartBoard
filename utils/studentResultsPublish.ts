@@ -64,10 +64,11 @@ export function formatCanonicalAnswer(step: GuidedLearningStep): string | null {
 export function gradeVideoActivityResponseForPublish(
   data: VideoActivityResponse,
   questionsById: ReadonlyMap<string, VideoActivityQuestion>
-): { score: number; answers: VideoActivityAnswer[] } {
+): { score: number | null; answers: VideoActivityAnswer[] } {
   const answers = Array.isArray(data.answers) ? data.answers : [];
   let pointsEarned = 0;
   let pointsMax = 0;
+  let awaiting = false;
   // One representative answer per question, so duplicates can't inflate the totals.
   const representativeAnswers = selectRepresentativeAnswers(answers);
   const gradedAnswers: VideoActivityAnswer[] = answers.map((a) => {
@@ -77,10 +78,21 @@ export function gradeVideoActivityResponseForPublish(
       void _stale;
       return rest;
     }
-    const result = gradeVideoActivityAnswer(q, a.answer);
+    const result = gradeVideoActivityAnswer(
+      q,
+      a.answer,
+      data.grading?.[a.questionId]
+    );
     if (representativeAnswers.get(a.questionId) === a) {
       pointsEarned += result.pointsEarned;
       pointsMax += result.pointsMax;
+      if (result.state === 'awaiting-grade') awaiting = true;
+    }
+    // An unmarked short answer is neither right nor wrong yet.
+    if (result.state === 'awaiting-grade') {
+      const { isCorrect: _stale, ...rest } = a;
+      void _stale;
+      return rest;
     }
     return { ...a, isCorrect: result.isCorrect };
   });
@@ -89,8 +101,12 @@ export function gradeVideoActivityResponseForPublish(
   for (const [qId, q] of questionsById) {
     if (!answered.has(qId)) pointsMax += q.points ?? 1;
   }
-  const score =
-    pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
+  // Like Quiz, a response still owed a mark publishes no score.
+  const score = awaiting
+    ? null
+    : pointsMax === 0
+      ? 0
+      : Math.round((pointsEarned / pointsMax) * 100);
   return { score, answers: gradedAnswers };
 }
 

@@ -11,6 +11,7 @@
 
 import {
   QuizData,
+  VideoActivityData,
   QuizQuestion,
   QuizQuestionType,
   QuizResponse,
@@ -247,7 +248,10 @@ export class QuizDriveService {
    * If quizData.id already has a driveFileId (passed separately), updates that file.
    * Returns the Drive file ID.
    */
-  async saveQuiz(quiz: QuizData, existingFileId?: string): Promise<string> {
+  async saveQuiz(
+    quiz: QuizData | VideoActivityData,
+    existingFileId?: string
+  ): Promise<string> {
     const folderId = await this.getQuizFolderId();
     // Embed a stable quiz ID prefix so two quizzes with the same title never
     // fall back to the same Drive file.

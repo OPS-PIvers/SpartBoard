@@ -41,7 +41,13 @@ describe('quizUpdatesToVa', () => {
 
   it('refuses a type VA cannot play', () => {
     expect(quizUpdatesToVa({ type: 'Matching' })).toBeNull();
-    expect(quizUpdatesToVa({ type: 'free-response' })).toBeNull();
+  });
+
+  it('maps the written type to and from short answer', () => {
+    expect(quizUpdatesToVa({ type: 'free-response' })).toEqual({ type: 'SA' });
+    expect(
+      vaToQuizQuestion({ ...fib, type: 'SA', correctAnswer: '' }).type
+    ).toBe('free-response');
   });
 
   it('drops fields VA never stores', () => {
