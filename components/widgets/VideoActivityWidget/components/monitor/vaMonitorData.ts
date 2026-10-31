@@ -61,9 +61,10 @@ export function buildVaStudent(
   const marks = questions.map<VaMark>((q) => {
     const a = first.get(q.id);
     if (a === undefined) return 'open';
-    return gradeVideoActivityAnswer(q, a.answer).isCorrect
-      ? 'correct'
-      : 'wrong';
+    const g = gradeVideoActivityAnswer(q, a.answer, r.grading?.[q.id]);
+    // An unmarked short answer is neither right nor wrong yet.
+    if (g.state === 'awaiting-grade') return 'open';
+    return g.isCorrect ? 'correct' : 'wrong';
   });
   const bucket = vaBucketOf(r);
   return {
@@ -74,7 +75,7 @@ export function buildVaStudent(
     marks,
     score:
       bucket === 'done' && canScoreVideoActivityResponse(questions, r.answers)
-        ? computeVideoActivityScorePct(questions, r.answers)
+        ? computeVideoActivityScorePct(questions, r.answers, r.grading)
         : null,
     tabWarnings: r.tabSwitchWarnings ?? 0,
   };

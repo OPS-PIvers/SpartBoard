@@ -1,5 +1,13 @@
 // Reads a stored Send (`users/{uid}/import_inbox/{id}`) defensively; the server already checked it on the way in.
-import type { ImportBlock, ImportImage, ImportInboxItem } from './contract';
+import {
+  IMPORT_VIDEO_LEFT_OUT,
+  YOUTUBE_VIDEO_ID,
+  type ImportBlock,
+  type ImportImage,
+  type ImportInboxItem,
+  type ImportVideoLesson,
+  type ImportVideoStop,
+} from './contract';
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj =>
@@ -32,11 +40,57 @@ function parseImage(v: unknown): ImportImage | null {
   return str(v.alt) ? { url: v.url, alt: v.alt } : { url: v.url };
 }
 
+const time = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
+
+const httpsImage = (v: unknown): { image?: string } =>
+  str(v) && v.startsWith('https://') ? { image: v } : {};
+
+function parseStop(v: unknown): ImportVideoStop | null {
+  if (!isObj(v) || !str(v.text)) return null;
+  const t = time(v.time);
+  if (t === null) return null;
+  if (v.kind === 'open' || v.kind === 'note')
+    return { kind: v.kind, time: t, text: v.text, ...httpsImage(v.image) };
+  if (v.kind !== 'choice' || !Array.isArray(v.choices)) return null;
+  const choices = v.choices
+    .filter(isObj)
+    .filter((c) => str(c.text))
+    .map((c) => ({ text: c.text as string, correct: c.correct === true }));
+  return choices.length
+    ? { kind: 'choice', time: t, text: v.text, choices, ...httpsImage(v.image) }
+    : null;
+}
+
+function parseVideo(v: unknown): ImportVideoLesson | null {
+  if (!isObj(v) || !str(v.youtubeId) || !YOUTUBE_VIDEO_ID.test(v.youtubeId))
+    return null;
+  const start = time(v.start);
+  const end = time(v.end);
+  const leftOut: NonNullable<ImportVideoLesson['leftOut']> = {};
+  if (isObj(v.leftOut))
+    for (const kind of IMPORT_VIDEO_LEFT_OUT) {
+      const n = v.leftOut[kind];
+      if (typeof n === 'number' && Number.isInteger(n) && n > 0)
+        leftOut[kind] = n;
+    }
+  return {
+    ...(Object.keys(leftOut).length ? { leftOut } : {}),
+    youtubeId: v.youtubeId,
+    ...(start !== null ? { start } : {}),
+    ...(end !== null ? { end } : {}),
+    stops: Array.isArray(v.stops)
+      ? v.stops.map(parseStop).filter((s): s is ImportVideoStop => s !== null)
+      : [],
+  };
+}
+
 export function parseImportInboxItem(
   id: string,
   data: unknown
 ): ImportInboxItem | null {
   if (!isObj(data) || !str(data.url) || !str(data.title)) return null;
+  const video = parseVideo(data.video);
   return {
     id,
     url: data.url,
@@ -50,5 +104,6 @@ export function parseImportInboxItem(
       ? data.images.map(parseImage).filter((i): i is ImportImage => i !== null)
       : [],
     receivedAt: typeof data.receivedAt === 'number' ? data.receivedAt : 0,
+    ...(video ? { video } : {}),
   };
 }

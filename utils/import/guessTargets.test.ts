@@ -145,6 +145,15 @@ describe('guessTargets', () => {
     expect(guessTargets({ kind: 'send', item: quiz }).guess).toBe('quiz');
   });
 
+  it('puts a sent video lesson first as a Video activity', () => {
+    const g = guessTargets({
+      kind: 'send',
+      item: send({ video: { youtubeId: 'WjqqUjDkh1c', stops: [] } }),
+    });
+    expect(g.guess).toBe('videoActivity');
+    expect(g.targets[0]).toBe('videoActivity');
+  });
+
   it("doesn't offer a selection as a whole-page embed", () => {
     const g = guessTargets({
       kind: 'send',

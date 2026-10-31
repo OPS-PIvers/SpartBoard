@@ -115,6 +115,8 @@ import {
   rejoinOutcome,
   unlockPatch,
 } from '@/utils/videoActivityState';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
+import { currentShortAnswerGrading } from '@/utils/videoActivityGrading';
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
 const RESPONSES_SUBCOLLECTION = 'responses';
@@ -315,6 +317,7 @@ export const useVideoActivitySessionTeacher =
               : `${activity.title} ${new Date().toLocaleString()}`,
           teacherUid,
           youtubeUrl: activity.youtubeUrl,
+          ...videoActivityPlayback(activity),
           ...split.sessionFields,
           ...(inContent
             ? {
@@ -496,10 +499,14 @@ export const useVideoActivitySessionTeacher =
           // live monitor can target the actual response doc when invoking
           // teacher actions (e.g. unlock) — for PIN joiners the key is
           // `pin-{period}-{pin}` and differs from `studentUid`.
-          const list = snap.docs.map((d) => ({
-            ...(d.data() as VideoActivityResponse),
-            _responseKey: d.id,
-          }));
+          const list = snap.docs.map((d) => {
+            const data = d.data() as VideoActivityResponse;
+            return {
+              ...data,
+              grading: currentShortAnswerGrading(data),
+              _responseKey: d.id,
+            };
+          });
           throttle.push(list);
           setLoading(false);
         },

@@ -440,6 +440,7 @@ const WATCHED: Record<GradeKind, string[]> = {
   ],
   'video-activity': [
     'score',
+    'grading',
     'completedAt',
     'completedAttempts',
     'resultsOverride',

@@ -23,6 +23,10 @@ function shuffled<T>(items: T[]): T[] {
   return out;
 }
 
+/** A Drive file id as Drive issues them; mirrors functions/src/videoActivityGrade.ts. */
+export const isDriveFileId = (v: unknown): v is string =>
+  typeof v === 'string' && /^[\w-]{10,200}$/.test(v);
+
 export function toVideoActivityPublicQuestion(
   q: VideoActivityQuestion
 ): VideoActivityPublicQuestion {
@@ -32,6 +36,9 @@ export function toVideoActivityPublicQuestion(
     timestamp: q.timestamp,
     text: q.text,
     type,
+    ...(isDriveFileId(q.imageDriveFileId)
+      ? { imageDriveFileId: q.imageDriveFileId }
+      : {}),
   };
   const incorrect = (q.incorrectAnswers ?? []).filter((s) => s.length > 0);
   if (type === 'MC') {

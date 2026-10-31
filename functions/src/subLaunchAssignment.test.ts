@@ -36,6 +36,8 @@ vi.mock('firebase-functions/v2/https', () => ({
 
 import {
   findAnswerField,
+  vaClipFrom,
+  vaNotesFrom,
   glSessionPresentation,
   handleLaunchSubAssignment,
   liveSubLaunchDeps,
@@ -1761,5 +1763,31 @@ describe('liveSubLaunchDeps.hostHasFeature', () => {
         'quiz-stimulus-quotes'
       )
     ).resolves.toBe(false);
+  });
+});
+
+describe('vaClipFrom', () => {
+  it('keeps only finite, ordered, non-negative seconds', () => {
+    expect(vaClipFrom(undefined)).toBeNull();
+    expect(vaClipFrom('10')).toBeNull();
+    expect(vaClipFrom({ start: 0 })).toBeNull();
+    expect(vaClipFrom({ start: 10, end: 90 })).toEqual({ start: 10, end: 90 });
+    expect(vaClipFrom({ start: 30, end: 20 })).toEqual({ start: 30 });
+    expect(vaClipFrom({ start: -5, end: Infinity })).toBeNull();
+  });
+});
+
+describe('vaNotesFrom', () => {
+  it('keeps well-formed notes and strips extra fields', () => {
+    expect(vaNotesFrom(undefined)).toEqual([]);
+    expect(
+      vaNotesFrom([
+        { id: 'n1', timestamp: 12, text: 'Watch this', extra: true },
+        { id: 'n2', timestamp: -1, text: 'bad' },
+        { id: 'n4', timestamp: 4, text: '  ' },
+        { id: 3, timestamp: 4, text: 'bad' },
+        null,
+      ])
+    ).toEqual([{ id: 'n1', timestamp: 12, text: 'Watch this' }]);
   });
 });

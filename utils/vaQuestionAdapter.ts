@@ -10,14 +10,25 @@ import { FIB_BLANK_SEP } from '@/utils/quizFibBlanks';
 /** Question types the Quiz editor offers for a Video Activity. */
 export const VA_EDITOR_TYPES: readonly QuizQuestionType[] = ['MC', 'FIB', 'MA'];
 
-const isVaType = (t: QuizQuestionType): t is VideoActivityQuestionType =>
-  t === 'MC' || t === 'FIB' || t === 'MA';
+/** With short answer on, the Quiz editor's written type stands in for VA 'SA'. */
+export const VA_EDITOR_TYPES_WITH_SHORT_ANSWER: readonly QuizQuestionType[] = [
+  ...VA_EDITOR_TYPES,
+  'free-response',
+];
+
+const toVaType = (t: QuizQuestionType): VideoActivityQuestionType | null =>
+  t === 'MC' || t === 'FIB' || t === 'MA'
+    ? t
+    : t === 'free-response'
+      ? 'SA'
+      : null;
 
 /** The Quiz editor's view of a VA question: accepted variants become alternate answers. */
 export function vaToQuizQuestion(q: VideoActivityQuestion): QuizQuestion {
-  const { acceptableVariants, timestamp: _timestamp, ...rest } = q;
+  const { acceptableVariants, timestamp: _timestamp, type, ...rest } = q;
   return {
     ...rest,
+    type: type === 'SA' ? 'free-response' : type,
     ...(acceptableVariants && acceptableVariants.length > 0
       ? { alternateAnswers: acceptableVariants }
       : {}),
@@ -28,9 +39,10 @@ export function vaToQuizQuestion(q: VideoActivityQuestion): QuizQuestion {
 export function quizUpdatesToVa(
   updates: Partial<QuizQuestion>
 ): Partial<VideoActivityQuestion> | null {
-  if (updates.type !== undefined && !isVaType(updates.type)) return null;
+  const type = updates.type === undefined ? undefined : toVaType(updates.type);
+  if (type === null) return null;
   const out: Partial<VideoActivityQuestion> = {};
-  if (updates.type !== undefined) out.type = updates.type;
+  if (type !== undefined) out.type = type;
   if ('text' in updates && updates.text !== undefined) out.text = updates.text;
   if ('correctAnswer' in updates && updates.correctAnswer !== undefined)
     // VA grades one typed FIB answer, so a multi-blank key starts empty.

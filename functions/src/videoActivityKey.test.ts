@@ -545,3 +545,82 @@ describe('scrubVideoActivitySessionKey', () => {
     expect(docs[CONTENT]).toBeUndefined();
   });
 });
+
+describe('handleCheckVideoActivityAnswer for a short answer', () => {
+  const RESPONSE = `${SESSION}/responses/pin-p1-01`;
+  const SA = [
+    ...KEYED,
+    {
+      id: 'sa',
+      type: 'SA',
+      text: 'Explain why.',
+      timestamp: 20,
+      correctAnswer: '',
+      incorrectAnswers: [],
+    },
+    {
+      id: 'q3',
+      type: 'FIB',
+      text: 'After?',
+      timestamp: 40,
+      correctAnswer: 'blue',
+      incorrectAnswers: [],
+    },
+  ];
+  const setup = (answers: Doc[] = []) => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: {
+        teacherUid: 't1',
+        questions: [],
+        settings: { requireCorrectAnswer: false },
+      },
+      [KEY]: { questions: SA },
+      [RESPONSE]: { studentUid: 'stu', answers, completedAt: null },
+    };
+    return { docs, db: makeDb(docs) };
+  };
+  const saInput = (answer: string) => ({
+    sessionId: 's1',
+    questionId: 'sa',
+    answer,
+  });
+
+  it('saves any text with no verdict and no key', async () => {
+    const { docs, db } = setup([{ questionId: 'q1', answer: 'Paris' }]);
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', saInput('Because'), 1000)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+    expect(docs[RESPONSE].answers).toEqual([
+      { questionId: 'q1', answer: 'Paris' },
+      { questionId: 'sa', answer: 'Because', answeredAt: 1000 },
+    ]);
+  });
+
+  it('refuses a blank short answer', async () => {
+    const { db } = setup([{ questionId: 'q1', answer: 'Paris' }]);
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', saInput('   '))
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+
+  it('counts an answered short answer for the questions after it', async () => {
+    const { db } = setup([
+      { questionId: 'q1', answer: 'Paris' },
+      { questionId: 'sa', answer: 'Because' },
+    ]);
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', {
+        sessionId: 's1',
+        questionId: 'q3',
+        answer: 'blue',
+      })
+    ).resolves.toMatchObject({ isCorrect: true });
+  });
+
+  it('shows the teacher no key for it either', async () => {
+    const { db } = setup();
+    await expect(
+      handleCheckVideoActivityAnswer(db, 't1', saInput('x'))
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+  });
+});

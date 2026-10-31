@@ -90,6 +90,7 @@ import {
   type VideoAssignRules,
 } from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import { tourAttr } from '@/config/tourAnchors';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 interface PlcNewVideoActivityAssignmentModalProps {
   plc: Plc;
@@ -286,6 +287,8 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
             questions: data.questions,
             plcId: plc.id,
             behavior: pickedActivity.behavior,
+            clip: data.clip,
+            notes: data.notes,
           });
           createdSyncGroupId = newSyncGroupId;
           try {
@@ -342,6 +345,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           id: pickedActivity.id,
           title: pickedActivity.title,
           youtubeUrl: data.youtubeUrl,
+          ...videoActivityPlayback(data),
           driveFileId: pickedActivity.driveFileId,
           questions: data.questions,
         },

@@ -167,6 +167,12 @@ export function guessTargets(source: ImportSource): TargetGuess {
     }
     case 'send': {
       const { item } = source;
+      // A reader that found a video lesson (D32) sends it as one, with its text for the rest.
+      if (item.video)
+        return {
+          targets: ['videoActivity', ...DOCUMENT],
+          guess: 'videoActivity',
+        };
       // A selection is the content the teacher wants, so it isn't offered as a whole-page embed.
       if (item.selectionOnly)
         return byContent(

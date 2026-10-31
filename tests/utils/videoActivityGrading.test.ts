@@ -5,6 +5,9 @@ import {
   canScoreVideoActivityResponse,
   buildVideoActivityGradeEntries,
   dedupeQuestionsById,
+  isVideoActivityResponseAwaitingGrade,
+  countVideoActivityAnswersToMark,
+  currentShortAnswerGrading,
 } from '@/utils/videoActivityGrading';
 import type { VideoActivityQuestion, VideoActivityResponse } from '@/types';
 
@@ -554,5 +557,102 @@ describe('buildVideoActivityGradeEntries', () => {
     );
     // Only the valid, scoreable, completed response survives.
     expect(entries).toEqual([{ pseudonymUid: 'p-D', pointsEarned: 20 }]);
+  });
+});
+
+describe('short answer (SA)', () => {
+  const qs = [
+    q({ id: 'q1', type: 'MC', correctAnswer: 'A', points: 1 }),
+    q({ id: 'sa', type: 'SA', correctAnswer: '', points: 3 }),
+  ];
+  const mark = (pointsAwarded: number) => ({
+    sa: { pointsAwarded, gradedBy: 't', gradedAt: 1 },
+  });
+  function resp(
+    overrides: Partial<VideoActivityResponse> = {}
+  ): VideoActivityResponse {
+    return {
+      studentUid: 'p-A',
+      completedAt: 123,
+      answers: [
+        { questionId: 'q1', answer: 'A', answeredAt: 0 },
+        { questionId: 'sa', answer: 'Because light', answeredAt: 0 },
+      ],
+      ...overrides,
+    } as unknown as VideoActivityResponse;
+  }
+
+  it('awaits a mark until the teacher grades it', () => {
+    expect(isVideoActivityResponseAwaitingGrade(qs, resp())).toBe(true);
+    expect(
+      isVideoActivityResponseAwaitingGrade(qs, resp({ grading: mark(2) }))
+    ).toBe(false);
+    expect(countVideoActivityAnswersToMark(qs, [resp(), resp()])).toBe(2);
+  });
+
+  it('a blank short answer needs no mark', () => {
+    const blank = resp({
+      answers: [{ questionId: 'q1', answer: 'A', answeredAt: 0 }],
+    });
+    expect(isVideoActivityResponseAwaitingGrade(qs, blank)).toBe(false);
+  });
+
+  it('leaves unmarked responses out of LMS pushes', () => {
+    expect(buildVideoActivityGradeEntries([resp()], qs, 4)).toEqual([]);
+    expect(
+      buildVideoActivityGradeEntries([resp({ grading: mark(3) })], qs, 4)
+    ).toEqual([{ pseudonymUid: 'p-A', pointsEarned: 4 }]);
+  });
+
+  it('scores marked points into the percentage', () => {
+    expect(computeVideoActivityScorePct(qs, resp().answers, mark(1))).toBe(50);
+    expect(computeVideoActivityScorePct(qs, resp().answers)).toBe(25);
+  });
+
+  it('does not change activities without short answers', () => {
+    const mcOnly = [qs[0]];
+    expect(isVideoActivityResponseAwaitingGrade(mcOnly, resp())).toBe(false);
+  });
+});
+
+describe('currentShortAnswerGrading', () => {
+  const grade = (answeredAt?: number) => ({
+    pointsAwarded: 1,
+    gradedBy: 't',
+    gradedAt: 1,
+    ...(answeredAt !== undefined ? { answeredAt } : {}),
+  });
+
+  it('keeps a mark for the current answer and drops one from an earlier attempt', () => {
+    expect(
+      currentShortAnswerGrading({
+        answers: [{ questionId: 'q1', answer: 'new', answeredAt: 200 }],
+        grading: { q1: grade(100), q2: grade() },
+      })
+    ).toEqual({ q2: grade() });
+    expect(
+      currentShortAnswerGrading({
+        answers: [{ questionId: 'q1', answer: 'same', answeredAt: 100 }],
+        grading: { q1: grade(100) },
+      })
+    ).toEqual({ q1: grade(100) });
+  });
+
+  it('leaves a retaken short answer awaiting a new mark', () => {
+    const q = {
+      id: 'q1',
+      type: 'SA' as const,
+      text: 'Why?',
+      timestamp: 5,
+      timeLimit: 30,
+      correctAnswer: '',
+      incorrectAnswers: [],
+    };
+    expect(
+      isVideoActivityResponseAwaitingGrade([q], {
+        answers: [{ questionId: 'q1', answer: 'retake', answeredAt: 200 }],
+        grading: { q1: grade(100) },
+      })
+    ).toBe(true);
   });
 });

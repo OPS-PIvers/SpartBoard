@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react';
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -35,8 +36,11 @@ import type {
   SyncedVideoActivityGroup,
   SyncedVideoActivityVersionSnapshot,
   VideoActivityBehaviorSettings,
+  VideoActivityClip,
+  VideoActivityNote,
   VideoActivityQuestion,
 } from '@/types';
+import { syncedPlaybackFields } from '@/utils/videoActivityClip';
 
 const SYNCED_COLLECTION = 'synced_video_activities';
 const VERSIONS_SUBCOLLECTION = 'versions';
@@ -51,6 +55,10 @@ export interface PublishSyncedVideoActivityInput {
   uid: string;
   /** Behavior settings to publish alongside content (optional). */
   behavior?: VideoActivityBehaviorSettings;
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
+  /** Leaves the canonical clip and notes untouched (restoring a snapshot that predates synced playback). */
+  keepPlayback?: boolean;
 }
 
 export interface PublishSyncedVideoActivityResult {
@@ -167,6 +175,9 @@ export async function pullSyncedVideoActivityContent(groupId: string): Promise<{
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
   behavior?: VideoActivityBehaviorSettings;
+  clip?: VideoActivityClip;
+  /** Undefined when the doc predates synced playback; callers then keep their own. */
+  notes?: VideoActivityNote[];
   version: number;
 }> {
   const snap = await getDoc(doc(db, SYNCED_COLLECTION, groupId));
@@ -175,13 +186,21 @@ export async function pullSyncedVideoActivityContent(groupId: string): Promise<{
   }
   const data = snap.data() as Pick<
     SyncedVideoActivityGroup,
-    'title' | 'youtubeUrl' | 'questions' | 'behavior' | 'version'
+    | 'title'
+    | 'youtubeUrl'
+    | 'questions'
+    | 'behavior'
+    | 'clip'
+    | 'notes'
+    | 'version'
   >;
   return {
     title: data.title,
     youtubeUrl: data.youtubeUrl ?? '',
     questions: data.questions ?? [],
     behavior: data.behavior,
+    ...(data.clip ? { clip: data.clip } : {}),
+    ...(Array.isArray(data.notes) ? { notes: data.notes } : {}),
     version: data.version ?? 1,
   };
 }
@@ -219,6 +238,8 @@ export async function createSyncedVideoActivityGroup(input: {
   questions: VideoActivityQuestion[];
   plcId?: string;
   behavior?: VideoActivityBehaviorSettings;
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
 }): Promise<void> {
   const now = Date.now();
   const payload: SyncedVideoActivityGroup = {
@@ -230,6 +251,7 @@ export async function createSyncedVideoActivityGroup(input: {
     participants: { [input.uid]: { joinedAt: now } },
     ...(input.plcId ? { plcId: input.plcId } : {}),
     ...(input.behavior ? { behavior: input.behavior } : {}),
+    ...syncedPlaybackFields(input),
     createdAt: now,
     updatedAt: now,
     updatedBy: input.uid,
@@ -269,6 +291,7 @@ export async function publishSyncedVideoActivity(
     }
     const nextVersion = current.version + 1;
     const now = Date.now();
+    const playback = syncedPlaybackFields(input);
     tx.update(ref, {
       version: nextVersion,
       title: input.title,
@@ -277,6 +300,9 @@ export async function publishSyncedVideoActivity(
       updatedAt: now,
       updatedBy: input.uid,
       ...(input.behavior ? { behavior: input.behavior } : {}),
+      ...(input.keepPlayback
+        ? {}
+        : { clip: playback.clip ?? deleteField(), notes: playback.notes }),
     });
     // Capture the PRE-edit content so the post-commit snapshot writer can
     // archive the version this publish is about to overwrite.
@@ -303,10 +329,10 @@ export async function publishSyncedVideoActivity(
  * Normalize a canonical VA doc into the snapshot `content` payload — drops the
  * `behavior` key when absent so we never persist `undefined`.
  */
-function buildVideoActivityVersionContent(
+export function buildVideoActivityVersionContent(
   source: Pick<
     SyncedVideoActivityGroup,
-    'title' | 'youtubeUrl' | 'questions' | 'behavior'
+    'title' | 'youtubeUrl' | 'questions' | 'behavior' | 'clip' | 'notes'
   >
 ): PlcVideoActivityVersionContent {
   return {
@@ -314,6 +340,13 @@ function buildVideoActivityVersionContent(
     youtubeUrl: source.youtubeUrl ?? '',
     questions: source.questions ?? [],
     ...(source.behavior ? { behavior: source.behavior } : {}),
+    // A canonical doc without `notes` predates synced playback, so its snapshot carries none either.
+    ...(Array.isArray(source.notes)
+      ? {
+          ...(source.clip ? { clip: source.clip } : {}),
+          notes: source.notes,
+        }
+      : {}),
   };
 }
 
@@ -408,6 +441,12 @@ export async function restoreSyncedVideoActivityVersion(
     expectedVersion: current.version,
     uid,
     ...(content.behavior ? { behavior: content.behavior } : {}),
+    ...(Array.isArray(content.notes)
+      ? {
+          ...(content.clip ? { clip: content.clip } : {}),
+          notes: content.notes,
+        }
+      : { keepPlayback: true }),
   });
 }
 

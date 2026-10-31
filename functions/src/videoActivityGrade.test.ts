@@ -13,6 +13,7 @@ interface GradeCase {
   name: string;
   question: VaKeyQuestion;
   answer: string;
+  grade?: { pointsAwarded: number };
   isCorrect: boolean;
 }
 
@@ -21,12 +22,23 @@ const cases = JSON.parse(
 ) as GradeCase[];
 
 describe('video activity grader (server mirror)', () => {
-  it.each(cases)('$name', ({ question, answer, isCorrect }) => {
-    expect(gradeVaAnswer(question, answer)).toBe(isCorrect);
+  it.each(cases)('$name', ({ question, answer, grade, isCorrect }) => {
+    expect(gradeVaAnswer(question, answer, grade)).toBe(isCorrect);
   });
 });
 
 describe('toVaPublicQuestion', () => {
+  it('shows a Drive picture and drops anything else in its place', () => {
+    const q = { id: 'q', type: 'SA', text: 't', timestamp: 1 };
+    expect(
+      toVaPublicQuestion({ ...q, imageDriveFileId: '1AbC-dEf_ghIJ' })
+        .imageDriveFileId
+    ).toBe('1AbC-dEf_ghIJ');
+    expect(
+      toVaPublicQuestion({ ...q, imageDriveFileId: 'javascript:x' })
+    ).not.toHaveProperty('imageDriveFileId');
+  });
+
   it('drops every key field and mixes MC options', () => {
     const pub = toVaPublicQuestion({
       id: 'q1',
@@ -68,6 +80,9 @@ describe('toVaPublicQuestion', () => {
 describe('hasEmbeddedKey', () => {
   it('detects legacy keyed questions only', () => {
     expect(hasEmbeddedKey([{ id: 'q', correctAnswer: '' }])).toBe(true);
+    expect(
+      hasEmbeddedKey([{ id: 'q', type: 'SA', text: 'Why?', correctAnswer: '' }])
+    ).toBe(true);
     expect(hasEmbeddedKey([{ id: 'q', options: ['a'] }])).toBe(false);
     expect(hasEmbeddedKey([])).toBe(false);
     expect(hasEmbeddedKey(undefined)).toBe(false);

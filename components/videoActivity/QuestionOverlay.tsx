@@ -5,6 +5,7 @@
  *   - MC  : single-select option list (default for legacy / pre-PR2a questions)
  *   - FIB : free-text input; accepts canonical answer + optional variants
  *   - MA  : multi-select checkbox list; submits `selected.sort().join('|')`
+ *   - SA  : open text the teacher marks later; never shown right or wrong
  *
  * The question carries no answer key: `checkAnswer` grades server-side with
  * the same rules as `gradeVideoActivityAnswer`, which the teacher Results
@@ -19,6 +20,7 @@ import type {
   VideoActivityPublicQuestion,
 } from '@/types';
 import { questionOptions } from '@/utils/videoActivityOptions';
+import { StopPicture } from './StopPicture';
 
 interface QuestionOverlayProps {
   question: VideoActivityPublicQuestion;
@@ -161,6 +163,36 @@ export const FibAnswerInput: React.FC<FibAnswerInputProps> = ({
   </div>
 );
 
+/** Server limit on one answer (checkVideoActivityAnswerV1). */
+export const SHORT_ANSWER_MAX_LENGTH = 2000;
+
+interface ShortAnswerInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  locked: boolean;
+}
+
+export const ShortAnswerInput: React.FC<ShortAnswerInputProps> = ({
+  value,
+  onChange,
+  locked,
+}) => (
+  <div className="px-5 pb-5">
+    {/* no-tour-anchor: student answer box; tours walk teachers, not students */}
+    <textarea
+      autoFocus
+      disabled={locked}
+      value={value}
+      maxLength={SHORT_ANSWER_MAX_LENGTH}
+      rows={4}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Type your answer…"
+      aria-label="Your answer"
+      className="w-full px-4 py-3 text-sm rounded-xl border-2 border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light focus:outline-hidden text-slate-900 placeholder-slate-400 resize-y disabled:bg-slate-50 disabled:text-slate-600"
+    />
+  </div>
+);
+
 interface MaOptionListProps {
   options: string[];
   selected: Set<string>;
@@ -257,6 +289,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   const [fibAnswer, setFibAnswer] = useState('');
   // ── MA state: set of selected options ──────────────────────────────────────
   const [maSelected, setMaSelected] = useState<Set<string>>(new Set());
+  // ── SA state: open text ────────────────────────────────────────────────────
+  const [saAnswer, setSaAnswer] = useState('');
 
   // Submission lifecycle is shared across types.
   const [checking, setChecking] = useState(false);
@@ -280,6 +314,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
     if (type === 'MC') return mcSelected !== null;
     if (type === 'FIB') return fibAnswer.trim().length > 0;
     if (type === 'MA') return maSelected.size > 0;
+    if (type === 'SA') return saAnswer.trim().length > 0;
     return false;
   })();
 
@@ -289,6 +324,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
     if (type === 'MC') answer = mcSelected ?? '';
     else if (type === 'FIB') answer = fibAnswer.trim();
     else if (type === 'MA') answer = Array.from(maSelected).sort().join('|');
+    else if (type === 'SA') answer = saAnswer.trim();
 
     setChecking(true);
     setSaveFailed(false);
@@ -309,7 +345,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
       )
       .then(({ isCorrect, key, graded }) => {
         setChecking(false);
-        setCorrectAnswer(key);
+        // An ungraded answer (a short answer the teacher marks) gets no right or wrong banner.
+        setCorrectAnswer(graded ? key : null);
         setSubmittedIsCorrect(isCorrect);
         setSubmitted(true);
         // The answer wasn't saved: unlock the question so the student can resend it.
@@ -367,6 +404,10 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
         <p className="text-base font-semibold text-slate-900 leading-snug">
           {question.text}
         </p>
+        <StopPicture
+          fileId={question.imageDriveFileId}
+          className="mt-3 max-h-56"
+        />
         {type === 'MA' && (
           <p className="text-xs text-slate-500 mt-1">Select all that apply.</p>
         )}
@@ -405,6 +446,14 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
           onToggle={toggleMaOption}
           locked={locked}
           correctAnswer={shownKey}
+        />
+      )}
+
+      {type === 'SA' && (
+        <ShortAnswerInput
+          value={saAnswer}
+          onChange={setSaAnswer}
+          locked={locked}
         />
       )}
 

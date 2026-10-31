@@ -10,6 +10,7 @@
  *   - MC  : correctAnswer = "the right option text"
  *   - FIB : correctAnswer = "canonical answer"; acceptableVariants?: string[]
  *   - MA  : correctAnswer = "opt1|opt2|opt3"  (correct selections, |-encoded)
+ *   - SA  : no key; the teacher marks it (`response.grading[questionId]`)
  *
  * For MA, the student client packages selections as `selected.sort().join('|')`
  * before submission so the grader's set-compare is deterministic against any
@@ -20,6 +21,7 @@ import type {
   GradeResult,
   VideoActivityQuestion,
   VideoActivityResponse,
+  WrittenAnswerGrade,
 } from '@/types';
 import { normalizeAnswer as quizNormalizeAnswer } from '@/hooks/useQuizSession';
 
@@ -54,15 +56,39 @@ const normalizeAnswer = normalizeVideoActivityAnswer;
  */
 export function gradeVideoActivityAnswer(
   question: VideoActivityQuestion,
-  studentAnswer: string
+  studentAnswer: string,
+  /** SA only: the teacher's mark from `response.grading[question.id]`. */
+  manualGrade?: WrittenAnswerGrade
 ): GradeResult {
   const max = question.points ?? 1;
   const type = question.type ?? 'MC';
   const correct = question.correctAnswer ?? '';
-  // VA has no teacher-graded question types, so nothing here is ever
-  // `awaiting-grade`; a blank submission is a genuine non-attempt.
-  const state: GradeResult['state'] =
-    (studentAnswer ?? '').trim().length > 0 ? 'scored' : 'not-attempted';
+  const attempted = (studentAnswer ?? '').trim().length > 0;
+  // Only SA is teacher-marked; for every other type a blank is a genuine non-attempt.
+  const state: GradeResult['state'] = attempted ? 'scored' : 'not-attempted';
+
+  if (type === 'SA') {
+    // Excused counts as awaiting, as in Quiz, so it never reaches a gradebook.
+    if (!manualGrade || manualGrade.excused) {
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: attempted || manualGrade ? 'awaiting-grade' : 'not-attempted',
+      };
+    }
+    const raw = Number(manualGrade.pointsAwarded);
+    const pointsEarned = Math.min(
+      max,
+      Math.max(0, Number.isFinite(raw) ? raw : 0)
+    );
+    return {
+      isCorrect: max > 0 && pointsEarned >= max,
+      pointsEarned,
+      pointsMax: max,
+      state: 'scored',
+    };
+  }
 
   if (type === 'MC') {
     // Misconfigured-question guard: an MC with no `correctAnswer` set is a
@@ -158,7 +184,8 @@ export function gradeVideoActivityAnswer(
  */
 export function computeVideoActivityScorePct(
   questions: VideoActivityQuestion[],
-  answers: { questionId: string; answer: string }[]
+  answers: { questionId: string; answer: string }[],
+  grading?: Record<string, WrittenAnswerGrade>
 ): number {
   if (questions.length === 0) return 0;
   const seen = new Set<string>();
@@ -170,10 +197,52 @@ export function computeVideoActivityScorePct(
     max += q.points ?? 1;
     const a = answers.find((x) => x.questionId === q.id);
     if (!a) continue;
-    earned += gradeVideoActivityAnswer(q, a.answer).pointsEarned;
+    earned += gradeVideoActivityAnswer(
+      q,
+      a.answer,
+      grading?.[q.id]
+    ).pointsEarned;
   }
   if (max === 0) return 0;
   return Math.round((earned / max) * 100);
+}
+
+/** True when any answered short-answer question still owes the teacher a mark. */
+export function isVideoActivityResponseAwaitingGrade(
+  questions: VideoActivityQuestion[],
+  response: Pick<VideoActivityResponse, 'answers' | 'grading'>
+): boolean {
+  return questions.some((q) => {
+    if (q.type !== 'SA') return false;
+    const a = (response.answers ?? []).find((x) => x.questionId === q.id);
+    return (
+      gradeVideoActivityAnswer(
+        q,
+        a?.answer ?? '',
+        currentShortAnswerGrading(response)?.[q.id]
+      ).state === 'awaiting-grade'
+    );
+  });
+}
+
+/** Number of answered short-answer slots still to mark across responses. */
+export function countVideoActivityAnswersToMark(
+  questions: VideoActivityQuestion[],
+  responses: Pick<VideoActivityResponse, 'answers' | 'grading'>[]
+): number {
+  let n = 0;
+  for (const r of responses) {
+    for (const q of questions) {
+      if (q.type !== 'SA') continue;
+      const a = (r.answers ?? []).find((x) => x.questionId === q.id);
+      if (
+        gradeVideoActivityAnswer(q, a?.answer ?? '', r.grading?.[q.id])
+          .state === 'awaiting-grade'
+      )
+        n++;
+    }
+  }
+  return n;
 }
 
 /**
@@ -286,7 +355,7 @@ export function canScoreVideoActivityResponse(
  * One entry per COMPLETED response with a resolvable pseudonym that
  * `canScoreVideoActivityResponse` accepts — unscoreable responses (key not
  * loaded / id drift) are EXCLUDED rather than seated at a phantom 0 in a real
- * gradebook. The displayed 0–100 percentage is scaled onto `maxPoints`, then
+ * gradebook, as are responses with an unmarked short answer. The displayed 0–100 percentage is scaled onto `maxPoints`, then
  * rounded and clamped to [0, maxPoints]; a non-finite percentage becomes 0.
  */
 export function buildVideoActivityGradeEntries(
@@ -299,10 +368,15 @@ export function buildVideoActivityGradeEntries(
       (r) =>
         r.completedAt !== null &&
         !!r.studentUid &&
-        canScoreVideoActivityResponse(questions, r.answers)
+        canScoreVideoActivityResponse(questions, r.answers) &&
+        !isVideoActivityResponseAwaitingGrade(questions, r)
     )
     .map((r) => {
-      const pct = computeVideoActivityScorePct(questions, r.answers);
+      const pct = computeVideoActivityScorePct(
+        questions,
+        r.answers,
+        currentShortAnswerGrading(r)
+      );
       const safePct = Number.isFinite(pct) ? pct : 0;
       const pointsEarned = Math.max(
         0,
@@ -310,4 +384,24 @@ export function buildVideoActivityGradeEntries(
       );
       return { pseudonymUid: r.studentUid, pointsEarned };
     });
+}
+
+/** The response's marks minus any left over from an earlier attempt's answer. */
+export function currentShortAnswerGrading(
+  response: Pick<VideoActivityResponse, 'answers' | 'grading'>
+): VideoActivityResponse['grading'] {
+  const grading = response.grading;
+  if (!grading) return grading;
+  const answers = Array.isArray(response.answers) ? response.answers : [];
+  const kept = Object.fromEntries(
+    Object.entries(grading).filter(
+      ([questionId, grade]) =>
+        grade.answeredAt === undefined ||
+        answers.some(
+          (a) =>
+            a.questionId === questionId && a.answeredAt === grade.answeredAt
+        )
+    )
+  );
+  return Object.keys(kept).length > 0 ? kept : undefined;
 }

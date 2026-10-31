@@ -46865,6 +46865,80 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.editor-clip-start",
+    "label": "Start at time in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-clip-end",
+    "label": "End at time in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-notes-toggle",
+    "label": "Notes list toggle in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-add-note",
+    "label": "Add note button in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "video-activity.editor-question-pill",
     "label": "Question button in the editor question list",
     "scope": "field",
@@ -66635,6 +66709,67 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student row in the Video Activity results",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#archive",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.results-to-mark",
+    "label": "Short answers to mark notice in the Video Activity results",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#archive",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.results-mark-toggle",
+    "label": "Mark button on a short-answer question in the Video Activity results",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#archive",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.results-mark-points",
+    "label": "Points box for a student's short answer in the Video Activity results",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "library.video-activity.results",

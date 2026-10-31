@@ -33,6 +33,8 @@ import {
 } from './VideoActivityQuizLayout';
 import type { TimelineHandle } from './Timeline';
 import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
+import { notesEqual } from '@/utils/videoActivityClip';
+import { ImportAttributionLine } from '@/components/import/ImportAttributionLine';
 
 interface VideoActivityEditorModalProps {
   isOpen: boolean;
@@ -57,6 +59,10 @@ interface VideoActivityEditorModalProps {
    * moves on to assignment config, and a PLC edit syncs to teammates.
    */
   autosave?: boolean;
+  /** A YouTube import for a teacher with `video-import-ai`: open the AI prompt straight away (D35). */
+  startWithAi?: boolean;
+  /** What an import couldn't bring over, said once under the attribution line. */
+  importLeftOut?: string | null;
 }
 
 const arrEq = (a?: string[], b?: string[]): boolean => {
@@ -84,6 +90,7 @@ const questionsEqual = (
       qa.timeLimit !== qb.timeLimit ||
       qa.timestamp !== qb.timestamp ||
       qa.type !== qb.type ||
+      qa.imageDriveFileId !== qb.imageDriveFileId ||
       (qa.points ?? 1) !== (qb.points ?? 1) ||
       (qa.allowPartialCredit ?? false) !== (qb.allowPartialCredit ?? false) ||
       !arrEq(qa.incorrectAnswers, qb.incorrectAnswers) ||
@@ -143,15 +150,21 @@ export const VideoActivityEditorModal: React.FC<
   folderId,
   onFolderChange,
   behavior: behaviorSeed,
+  startWithAi = false,
+  importLeftOut = null,
 }) => {
   const { canAccessFeature } = useAuth();
   const canUseAi =
     canAccessFeature('gemini-functions') &&
     canAccessFeature('video-activity-ai');
   const quizLayout = canAccessFeature('va-quiz-alignment');
+  const stopsEnabled = canAccessFeature('video-activity-stops');
   const timelineRef = useRef<TimelineHandle>(null);
 
-  const editorState = useVideoActivityEditorState({ activity });
+  const editorState = useVideoActivityEditorState({
+    activity,
+    startWithAi: startWithAi && canUseAi,
+  });
 
   const {
     title,
@@ -165,6 +178,10 @@ export const VideoActivityEditorModal: React.FC<
     originalTitle,
     originalYoutubeUrl,
     originalQuestions,
+    clip,
+    originalClip,
+    notes,
+    originalNotes,
   } = editorState;
 
   // ─── Behavior settings state ─────────────────────────────────────────────
@@ -200,6 +217,9 @@ export const VideoActivityEditorModal: React.FC<
     () =>
       title !== originalTitle ||
       youtubeUrl !== originalYoutubeUrl ||
+      clip?.start !== originalClip?.start ||
+      clip?.end !== originalClip?.end ||
+      !notesEqual(notes, originalNotes) ||
       !(
         questions === originalQuestions ||
         questionsEqual(questions, originalQuestions)
@@ -210,6 +230,10 @@ export const VideoActivityEditorModal: React.FC<
       originalTitle,
       youtubeUrl,
       originalYoutubeUrl,
+      clip,
+      originalClip,
+      notes,
+      originalNotes,
       questions,
       originalQuestions,
       behavior,
@@ -220,14 +244,20 @@ export const VideoActivityEditorModal: React.FC<
   // What still has to be filled in before the activity can be assigned. It no
   // longer gates the save: autosave persists whatever is on screen.
   const incompleteNotice = useMemo(
-    () => videoActivityIncompleteReason({ title, youtubeUrl, questions }),
-    [title, youtubeUrl, questions]
+    () =>
+      videoActivityIncompleteReason({
+        title,
+        youtubeUrl,
+        questions,
+        ...(stopsEnabled ? { clip, notes } : {}),
+      }),
+    [title, youtubeUrl, questions, clip, notes, stopsEnabled]
   );
 
   // New identity on every draft edit — the autosave quiet period restarts on it.
   const draftToken = useMemo(
-    () => [title, youtubeUrl, questions, behavior],
-    [title, youtubeUrl, questions, behavior]
+    () => [title, youtubeUrl, clip, notes, questions, behavior],
+    [title, youtubeUrl, clip, notes, questions, behavior]
   );
 
   // Persist only — the shell owns closing.
@@ -257,6 +287,8 @@ export const VideoActivityEditorModal: React.FC<
           ...activity,
           title: title.trim(),
           youtubeUrl: youtubeUrl.trim(),
+          clip,
+          notes: notes.length > 0 ? notes : undefined,
           questions: finalQuestions,
           updatedAt: Date.now(),
         },
@@ -274,6 +306,8 @@ export const VideoActivityEditorModal: React.FC<
     questions,
     title,
     youtubeUrl,
+    clip,
+    notes,
     behavior,
     onSave,
     setSaving,
@@ -282,14 +316,21 @@ export const VideoActivityEditorModal: React.FC<
 
   // Stable chrome elements so the shell's memoized header/footer don't
   // re-render on question-content keystrokes.
+  const importedFrom = activity?.importedFrom;
   const subtitle = useMemo(
     () => (
-      <span>
-        {questions.length} {questions.length === 1 ? 'question' : 'questions'} •{' '}
-        {totalPoints} {totalPoints === 1 ? 'point' : 'points'}
-      </span>
+      <>
+        <span>
+          {questions.length} {questions.length === 1 ? 'question' : 'questions'}{' '}
+          • {totalPoints} {totalPoints === 1 ? 'point' : 'points'}
+        </span>
+        {importedFrom && <ImportAttributionLine attribution={importedFrom} />}
+        {importLeftOut && (
+          <span className="text-amber-700">{importLeftOut}</span>
+        )}
+      </>
     ),
-    [questions.length, totalPoints]
+    [questions.length, totalPoints, importedFrom, importLeftOut]
   );
   const headerExtras = useMemo(
     () =>

@@ -120,7 +120,7 @@ export function validateVideoActivityData(
   let lastTs = -Infinity;
   questions.forEach((q, i) => {
     if (!q.text) errors.push(`Question ${i + 1}: missing question text.`);
-    if (!q.correctAnswer)
+    if (!q.correctAnswer && q.type !== 'SA')
       errors.push(`Question ${i + 1}: missing correct answer.`);
     if (q.timestamp <= lastTs) {
       errors.push(

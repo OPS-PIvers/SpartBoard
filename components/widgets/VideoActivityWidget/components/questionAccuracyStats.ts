@@ -17,7 +17,8 @@ import { VideoActivityQuestion, VideoActivityResponse } from '@/types';
 import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 
-type ResponseLike = Pick<VideoActivityResponse, 'answers'>;
+type ResponseLike = Pick<VideoActivityResponse, 'answers'> &
+  Partial<Pick<VideoActivityResponse, 'grading'>>;
 
 /** Percentage of respondents who got `question` right, deduped per response. */
 export function computeQuestionAccuracy(
@@ -29,8 +30,15 @@ export function computeQuestionAccuracy(
   for (const r of responses) {
     const answer = selectRepresentativeAnswers(r.answers).get(question.id);
     if (answer === undefined) continue;
+    const grade = gradeVideoActivityAnswer(
+      question,
+      answer.answer,
+      r.grading?.[question.id]
+    );
+    // An unmarked short answer is neither right nor wrong yet.
+    if (grade.state === 'awaiting-grade') continue;
     answeredCount++;
-    if (gradeVideoActivityAnswer(question, answer.answer).isCorrect) {
+    if (grade.isCorrect) {
       correctCount++;
     }
   }
@@ -49,7 +57,8 @@ export function countCorrectAnswers(
     const answer = representative.get(q.id);
     if (
       answer !== undefined &&
-      gradeVideoActivityAnswer(q, answer.answer).isCorrect
+      gradeVideoActivityAnswer(q, answer.answer, response.grading?.[q.id])
+        .isCorrect
     ) {
       correctCount++;
     }

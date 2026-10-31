@@ -1,4 +1,4 @@
-import type { WidgetType } from '@/types';
+import type { GlobalFeature, WidgetType } from '@/types';
 import type { ImportTarget } from '@/utils/import/contract';
 import {
   guessTargets,
@@ -10,6 +10,7 @@ import {
   type ConversionInput,
 } from '@/utils/import/aiConversion';
 import { pageSourceKind } from '@/utils/import/pageImages';
+import { extractYouTubeId } from '@/utils/youtube';
 import type { PendingSource } from './importHandoff';
 
 export interface ImportRoute {
@@ -34,6 +35,9 @@ const isWebUrl = (s: PendingSource): boolean =>
   !!s.url &&
   /^https?:\/\//i.test(s.url) &&
   !s.inboxItem?.selectionOnly;
+/** A YouTube video link (D34); a selection from the page isn't the video. */
+export const isYouTubeVideo = (s: PendingSource): boolean =>
+  isWebUrl(s) && !!extractYouTubeId(s.url ?? '');
 const isSlides = (s: PendingSource): boolean =>
   !!s.file && pageSourceKind(s.file) !== null;
 // Guided Learning's wizard picks slides by file name, so a nameless deck isn't offered there.
@@ -99,6 +103,12 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     landing: 'review',
     accepts: (s) => hasExt(s, /\.json$/i) || isNamedSlides(s),
   },
+  videoActivity: {
+    label: 'Video activity',
+    widgetType: 'video-activity',
+    landing: 'review',
+    accepts: (s) => isYouTubeVideo(s) || !!s.inboxItem?.video,
+  },
   miniApp: {
     label: 'Mini App',
     widgetType: 'miniApp',
@@ -135,6 +145,25 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     landing: 'place',
     accepts: (s) => isWebUrl(s),
   },
+};
+
+/** The admin flag that rolls out each Import type, on top of universal-import. */
+export const IMPORT_TARGET_FEATURES: Partial<
+  Record<ImportTarget, GlobalFeature>
+> = {
+  quiz: 'import-quiz',
+  questionBank: 'import-quiz',
+  flashcards: 'import-flashcards',
+  activityWall: 'import-activity-wall',
+  board: 'import-new-board',
+  guidedLearning: 'import-guided-learning',
+  videoActivity: 'import-video-activity',
+  miniApp: 'import-mini-app',
+  notebook: 'import-notebook',
+  pdf: 'import-pdf',
+  sticker: 'import-sticker',
+  embed: 'import-embed',
+  links: 'import-link',
 };
 
 export function importRoute(target: ImportTarget): ImportRoute | null {

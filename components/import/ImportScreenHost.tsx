@@ -11,6 +11,7 @@ import { BoardImportFlow } from './conversion/BoardImportFlow';
 import {
   IMPORT_INBOX_EVENT,
   IMPORT_INBOX_PARAM,
+  IMPORT_SEND_FEATURE,
   type ImportTarget,
 } from '@/utils/import/contract';
 import { ImportScreen } from './ImportScreen';
@@ -25,7 +26,12 @@ import {
   type ImportScreenRequest,
   type PendingSource,
 } from './importHandoff';
-import { conversionInputFor, importRoute, usesAi } from './importTargets';
+import {
+  conversionInputFor,
+  IMPORT_TARGET_FEATURES,
+  importRoute,
+  usesAi,
+} from './importTargets';
 import { readDroppedPage, type DroppedPage } from './fetchImportPage';
 import type { ReferenceWidget } from './reference/referenceLanding';
 import { usePhotoReference } from './reference/usePhotoReference';
@@ -64,27 +70,31 @@ interface BoardJob {
 /** Shows Import on the board and sends the teacher's pick to a review screen or onto the board (D3, D4). */
 export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
   const request = useImportScreenRequest();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const sendOn = canAccessFeature(IMPORT_SEND_FEATURE);
+  const courseOn = canAccessFeature('import-schoology-course');
   const [courseFile, setCourseFile] = useState<File | null>(null);
-  const inbox = useImportInbox(user?.uid, true);
+  const inbox = useImportInbox(user?.uid, sendOn);
   const [boardJob, setBoardJob] = useState<BoardJob | null>(null);
   // The extension's "Open in SpartBoard" lands on /?importInbox=1 after a Send.
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.searchParams.get(IMPORT_INBOX_PARAM) !== '1') return;
+    // Kept on the address until the flag has loaded, so a late isAdmin still opens it.
+    if (!sendOn || url.searchParams.get(IMPORT_INBOX_PARAM) !== '1') return;
     url.searchParams.delete(IMPORT_INBOX_PARAM);
     window.history.replaceState(window.history.state, '', url.toString());
     openImportScreen();
-  }, []);
+  }, [sendOn]);
   // In a tab that is already open the extension fires this instead; cancelling it tells the extension it was heard.
   useEffect(() => {
+    if (!sendOn) return;
     const onRequest = (event: Event) => {
       event.preventDefault();
       openImportScreen();
     };
     window.addEventListener(IMPORT_INBOX_EVENT, onRequest);
     return () => window.removeEventListener(IMPORT_INBOX_EVENT, onRequest);
-  }, []);
+  }, [sendOn]);
   // The notice stays mounted under the window, so a hidden notice stays hidden.
   return (
     <>
@@ -99,10 +109,14 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
           request={request}
           inbox={inbox}
           onStartBoard={setBoardJob}
-          onCourse={(file) => {
-            closeImportScreen();
-            setCourseFile(file);
-          }}
+          onCourse={
+            courseOn
+              ? (file) => {
+                  closeImportScreen();
+                  setCourseFile(file);
+                }
+              : undefined
+          }
           {...props}
         />
       )}
@@ -139,7 +153,7 @@ const OpenImportScreen: React.FC<
     request: ImportScreenRequest;
     inbox: ImportInbox;
     onStartBoard: (job: BoardJob) => void;
-    onCourse: (file: File) => void;
+    onCourse?: (file: File) => void;
   }
 > = ({
   request,
@@ -194,6 +208,8 @@ const OpenImportScreen: React.FC<
   const allowed = (target: ImportTarget, source: PendingSource): boolean => {
     const route = importRoute(target);
     if (!route) return false;
+    const typeFlag = IMPORT_TARGET_FEATURES[target];
+    if (!typeFlag || !canAccessFeature(typeFlag)) return false;
     if (route.widgetType && !canAccessWidget(route.widgetType)) return false;
     // A board from a page is Magic Layout's engine, so it follows that flag.
     if (target === 'board') return canAccessFeature('dashboard-layout');
@@ -383,7 +399,7 @@ const OpenImportScreen: React.FC<
       aiOn={aiOn}
       onContinue={route}
       onPlaceReference={placeReference}
-      canAddLink={canAccessWidget('url')}
+      canAddLink={canAccessWidget('url') && canAccessFeature('import-link')}
       onCourse={isActiveBoardReadOnly ? undefined : onCourse}
     />
   );

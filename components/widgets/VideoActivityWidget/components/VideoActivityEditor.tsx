@@ -1,6 +1,6 @@
 /**
  * VideoActivityEditor — context + detail pane components plus the type-
- * specific sub-forms (MC / FIB / MA). Mounted inside an `EditorWorkspace`
+ * specific sub-forms (MC / FIB / MA; SA has no key). Mounted inside an `EditorWorkspace`
  * by `VideoActivityEditorModal`.
  *
  * State is owned by `useVideoActivityEditorState`; both panes read and
@@ -8,6 +8,7 @@
  */
 
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { VideoActivityPictureField } from './VideoActivityPictureField';
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
@@ -22,7 +23,9 @@ import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
 import { extractYouTubeId } from '@/utils/youtube';
 import { useAuth } from '@/context/useAuth';
 import { TargetsField } from '@/components/quiz/targets/TargetsField';
-import { Timeline } from './Timeline';
+import { VideoActivityClipFields } from './VideoActivityClipFields';
+import { VideoActivityNotesEditor } from './VideoActivityNotesEditor';
+import { Timeline, type TimelineHandle } from './Timeline';
 import {
   mmSsToSeconds,
   secondsToMmSs,
@@ -35,7 +38,22 @@ const TYPE_BADGE: Record<QuestionType, { label: string; className: string }> = {
   MC: { label: 'MC', className: 'bg-blue-100 text-blue-700' },
   FIB: { label: 'FIB', className: 'bg-amber-100 text-amber-800' },
   MA: { label: 'MA', className: 'bg-emerald-100 text-emerald-700' },
+  SA: { label: 'SA', className: 'bg-violet-100 text-violet-700' },
 };
+
+const TYPE_LABEL: Record<QuestionType, string> = {
+  MC: 'Multiple choice',
+  FIB: 'Fill in the blank',
+  MA: 'Multi-answer',
+  SA: 'Short answer',
+};
+
+const TYPE_OPTIONS: ReadonlyArray<{ value: QuestionType; label: string }> = [
+  { value: 'MC', label: 'Multiple Choice' },
+  { value: 'FIB', label: 'Fill in the Blank' },
+  { value: 'MA', label: 'Multi-Answer' },
+  { value: 'SA', label: 'Short Answer' },
+];
 
 interface PaneProps {
   state: VideoActivityEditorController;
@@ -57,6 +75,8 @@ const getQuestionId = (q: VideoActivityQuestion) => q.id;
  */
 const vaContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.youtubeUrl === next.state.youtubeUrl &&
+  prev.state.clip === next.state.clip &&
+  prev.state.notes === next.state.notes &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedId === next.state.selectedId &&
   prev.state.error === next.state.error;
@@ -66,6 +86,10 @@ export const VideoActivityEditorContextPane = React.memo(
     const {
       youtubeUrl,
       setYoutubeUrl,
+      clip,
+      setClip,
+      notes,
+      setNotes,
       questions,
       selectedId,
       setSelectedId,
@@ -74,6 +98,8 @@ export const VideoActivityEditorContextPane = React.memo(
       setVideoDurationSeconds,
       error,
     } = state;
+
+    const timelineRef = useRef<TimelineHandle | null>(null);
 
     // Memo via inline parse — Timeline only rebuilds when the resolved id changes.
     const videoIdForTimeline = youtubeUrl.trim()
@@ -95,6 +121,12 @@ export const VideoActivityEditorContextPane = React.memo(
               className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary text-sm"
             />
           </div>
+          <VideoActivityClipFields clip={clip} onChange={setClip} />
+          <VideoActivityNotesEditor
+            notes={notes}
+            onChange={setNotes}
+            getCurrentTime={() => timelineRef.current?.getCurrentTime() ?? null}
+          />
           {error && (
             <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -116,6 +148,7 @@ export const VideoActivityEditorContextPane = React.memo(
               }
               activeQuestionId={selectedId ?? undefined}
               onDurationChange={setVideoDurationSeconds}
+              handleRef={timelineRef}
             />
           ) : (
             <div className="aspect-video w-full max-h-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">
@@ -359,6 +392,7 @@ export const VideoActivityEditorDetailPane = React.memo(
     } = state;
     const { canAccessFeature } = useAuth();
     const targetsEnabled = canAccessFeature('gradebook');
+    const shortAnswerEnabled = canAccessFeature('video-activity-stops');
 
     const navigator =
       questions.length > 0 ? (
@@ -402,11 +436,7 @@ export const VideoActivityEditorDetailPane = React.memo(
           <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
             Question {selectedIndex + 1} of {questions.length}
             <span className="mx-1.5">·</span>
-            {type === 'MC'
-              ? 'Multiple choice'
-              : type === 'FIB'
-                ? 'Fill in the blank'
-                : 'Multi-answer'}
+            {TYPE_LABEL[type]}
           </div>
           <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
             {q.text.trim() || `Question at ${secondsToMmSs(q.timestamp)}`}
@@ -425,6 +455,12 @@ export const VideoActivityEditorDetailPane = React.memo(
               placeholder="Enter your question…"
               className={`${inputClass} resize-none`}
             />
+            <VideoActivityPictureField
+              fileId={q.imageDriveFileId}
+              onRemove={() =>
+                updateQuestion(q.id, { imageDriveFileId: undefined })
+              }
+            />
           </div>
 
           {targetsEnabled && (
@@ -439,12 +475,10 @@ export const VideoActivityEditorDetailPane = React.memo(
           <div>
             <label className={labelClass}>Question Type</label>
             <div className="inline-flex rounded-xl border border-slate-300 bg-white overflow-hidden">
-              {(
-                [
-                  { value: 'MC', label: 'Multiple Choice' },
-                  { value: 'FIB', label: 'Fill in the Blank' },
-                  { value: 'MA', label: 'Multi-Answer' },
-                ] as const
+              {TYPE_OPTIONS.filter(
+                // Short answer is offered behind its flag, but an existing one always shows.
+                (opt) =>
+                  opt.value !== 'SA' || shortAnswerEnabled || type === 'SA'
               ).map((opt) => {
                 const active = type === opt.value;
                 return (
@@ -471,7 +505,7 @@ export const VideoActivityEditorDetailPane = React.memo(
                         type: opt.value,
                         correctAnswer: '',
                         incorrectAnswers:
-                          opt.value === 'FIB'
+                          opt.value === 'FIB' || opt.value === 'SA'
                             ? []
                             : padTo(preservedDistractors, 3),
                         acceptableVariants: undefined,
