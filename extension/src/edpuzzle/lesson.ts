@@ -242,8 +242,6 @@ export async function readEdpuzzleLesson(
     return read.why === 'not-youtube'
       ? { ok: false, why: 'not-youtube' }
       : { ok: false, why: 'unreadable', reason: 'unexpected lesson data' };
-  if (!read.video.stops.length)
-    return { ok: false, why: 'unreadable', reason: 'no questions or notes' };
   return {
     ok: true,
     title: read.title,

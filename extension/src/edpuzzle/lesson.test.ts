@@ -179,12 +179,13 @@ describe('readEdpuzzleLesson', () => {
     expect(
       await readEdpuzzleLesson(ID, () => Promise.reject(new Error('403')))
     ).toEqual({ ok: false, why: 'unreadable', reason: '403' });
-    expect(
-      await readEdpuzzleLesson(ID, () => Promise.resolve(lesson()))
-    ).toEqual({
-      ok: false,
-      why: 'unreadable',
-      reason: 'no questions or notes',
+  });
+
+  it('sends a video-only lesson as a watch-only activity', async () => {
+    const read = await readEdpuzzleLesson(ID, () => Promise.resolve(lesson()));
+    expect(read.ok && read.video).toEqual({
+      youtubeId: 'WjqqUjDkh1c',
+      stops: [],
     });
   });
 });

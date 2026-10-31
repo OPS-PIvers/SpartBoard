@@ -123,6 +123,7 @@ board. Schoology is one Source among many. This picks up the out-of-scope list o
   - **Video:** `source` is `youtube` with `videoId` the YouTube id, or `edpuzzle` for a video Edpuzzle hosts (refused, D26).
   - **Trim:** `sections[]` are back-to-back kept pieces; the first start and last end against `originalVideoDuration` give the clip, and a cut in the middle plays through.
   - **Content:** `questions[]` (`multiple-choice` with `choices[].isCorrect`, `open-ended`) and `notes[]` carry a `time` in seconds and HTML bodies, read as plain text. Images in prompts are not carried yet.
+  - **Video only:** a YouTube lesson with no questions or notes imports as a watch-only activity, where `video-import-ai` can add questions.
   - **Keys:** public data marks every choice `isCorrect: false`. A question with no marked choice imports with `needsKey`; it saves, and Assign stays blocked until the teacher marks it.
   - **Fixture:** `extension/src/edpuzzle/fixtures/youtubeLesson.json` is a public YouTube lesson with its owner removed. One Send of a lesson Paul owns on the dev extension confirms whether owner data includes the key, before the release that opens it.
 - **D37 Build order.** (1) Video Activity short answer, note stops, clip range; (2) YouTube Send route and `video-import-ai`; (3) Edpuzzle reader.
