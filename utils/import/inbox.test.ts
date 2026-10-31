@@ -74,4 +74,22 @@ describe('parseImportInboxItem', () => {
       )
     ).not.toHaveProperty('video');
   });
+
+  it('keeps a stored card set and drops broken cards', () => {
+    const cards = {
+      cards: [
+        { term: 'el perro', definition: 'the dog' },
+        { term: 'sin definición' },
+      ],
+      termLanguage: 'es',
+      definitionLanguage: 'not a tag!',
+      leftOut: { picture: 2, audio: 0 },
+    };
+    expect(parseImportInboxItem('a', stored({ cards }))?.cards).toEqual({
+      cards: [{ term: 'el perro', definition: 'the dog' }],
+      termLanguage: 'es',
+      leftOut: { picture: 2 },
+    });
+    expect(parseImportInboxItem('a', stored())).not.toHaveProperty('cards');
+  });
 });

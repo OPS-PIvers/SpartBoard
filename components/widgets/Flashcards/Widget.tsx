@@ -72,7 +72,10 @@ import {
   FlashcardPublishScoresModal,
   type PublishableFlashcardVisibility,
 } from './results/FlashcardPublishScoresModal';
-import { createFlashcardImportAdapter } from './adapters/flashcardImportAdapter';
+import {
+  createFlashcardImportAdapter,
+  type FlashcardImportData,
+} from './adapters/flashcardImportAdapter';
 import { flashcardAssignmentUrl } from '@/utils/staffAudience';
 import {
   FlashcardPlayer,
@@ -293,7 +296,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   );
   const saveImportedSet = useCallback(
     async (
-      cards: FlashcardCard[],
+      { cards, termLanguage, definitionLanguage }: FlashcardImportData,
       title: string,
       fromInitialSource: boolean
     ): Promise<void> => {
@@ -301,6 +304,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       const imported = {
         ...makeSet(cards),
         title: title.trim(),
+        ...(termLanguage ? { termLanguage } : {}),
+        ...(definitionLanguage ? { definitionLanguage } : {}),
         ...(importedFrom && fromInitialSource ? { importedFrom } : {}),
       };
       await flashcardSets.saveSet(imported);

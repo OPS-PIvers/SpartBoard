@@ -33,6 +33,7 @@ import {
   DEFAULT_SEND_BLOCK_PATTERNS,
   IMPORT_INBOX_TTL_MS,
   IMPORT_MAX_BLOCKS,
+  IMPORT_MAX_CARDS,
   IMPORT_MAX_INBOX_ITEMS,
   IMPORT_READER_FAILURE_TTL_MS,
 } from './import/shared.gen';
@@ -228,8 +229,41 @@ describe('parseSendRequest', () => {
         },
       },
     ],
+    ['cards that are not a list', { cards: { cards: 'x' } }],
+    ['a card without a definition', { cards: { cards: [{ term: 'a' }] } }],
+    [
+      'a bad card language',
+      { cards: { cards: [], termLanguage: 'en US<script>' } },
+    ],
+    [
+      'too many cards',
+      {
+        cards: {
+          cards: Array.from({ length: IMPORT_MAX_CARDS + 1 }, () => ({
+            term: 'a',
+            definition: 'b',
+          })),
+        },
+      },
+    ],
   ])('refuses %s', (_name, over) => {
     expect(() => parseSendRequest(body(over))).toThrow(ExtensionCallError);
+  });
+
+  it('keeps a card set and drops its unknown fields', () => {
+    const cards = {
+      cards: [{ term: 'el perro', definition: 'the dog', image: 'x' }],
+      termLanguage: 'es',
+      definitionLanguage: 'en',
+      leftOut: { picture: 1, audio: 0, other: 3 },
+      extra: true,
+    };
+    expect(parseSendRequest(body({ cards })).cards).toEqual({
+      cards: [{ term: 'el perro', definition: 'the dog' }],
+      termLanguage: 'es',
+      definitionLanguage: 'en',
+      leftOut: { picture: 1 },
+    });
   });
 
   it('keeps a video lesson and drops its unknown fields', () => {

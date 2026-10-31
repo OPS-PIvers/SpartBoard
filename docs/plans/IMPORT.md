@@ -129,6 +129,12 @@ board. Schoology is one Source among many. This picks up the out-of-scope list o
   - **Keys:** public data marks every choice `isCorrect: false`. A question with no marked choice imports with `needsKey`; it saves, and Assign stays blocked until the teacher marks it.
   - **Fixture:** `extension/src/edpuzzle/fixtures/youtubeLesson.json` is a public YouTube lesson with its owner removed. One Send of a lesson Paul owns on the dev extension confirms whether owner data includes the key, before the release that opens it.
 - **D37 Build order.** (1) Video Activity short answer, note stops, clip range; (2) YouTube Send route and `video-import-ai`; (3) Edpuzzle reader.
+- **D38 Quizlet reader (2026-10-31).** Any Quizlet set page the teacher can open (`quizlet.com/<id>/...`, with or without a country prefix) sends as a card set, with the D7 attribution line; a selection still sends as text.
+  - **Read:** Send fetches `quizlet.com/webapi/3.4/studiable-item-documents?filters[studiableContainerId]=<id>&filters[studiableContainerType]=1` from the set page with the teacher's own Quizlet session, following `paging.token` up to 2,000 cards. Each `studiableItem` has `cardSides[]` labelled `word` and `definition`, each with `media[]`: type 1 text (`plainText`, `languageCode`), 2 picture, 4 recorded audio, 5 diagram (on a `location` side). Cards keep set order by `rank`.
+  - **Becomes:** Flashcards, read exactly with no AI. Each side's language is the code most cards on it use, mapped to a Flashcards language (`es` to Spanish (US)); a non-language code such as `math` keeps English. Flashcards' own limits apply on review: 500 cards, terms 500 and definitions 1,000 characters, with the same warnings as a paste.
+  - **Left out:** pictures, recorded audio and diagram cards are counted and named once on the review screen. A card whose term or definition is only a picture is skipped as incomplete.
+  - **Fallback:** an unreadable set falls back to the page text with a `quizlet` reader failure (D18), and the Send note says so.
+  - **Fixture (D27 exception):** Quizlet answers this container with a captcha, so the test sample `extension/src/quizlet/fixtures/studiableItems.json` follows the reply shape public Quizlet-to-Anki importers read, not a probed set. One Send of a public set on the dev extension confirms the shape before the release that opens Import.
 
 ### Guards and release
 

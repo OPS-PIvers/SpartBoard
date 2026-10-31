@@ -124,7 +124,8 @@ function clipText(text: string, max: number): string {
 }
 
 export function flashcardsFromRows(
-  sourceRows: ReadonlyArray<ReadonlyArray<string>>
+  sourceRows: ReadonlyArray<ReadonlyArray<string>>,
+  { headerless = false }: { headerless?: boolean } = {}
 ): Omit<FlashcardImportResult, 'detectedSeparator'> {
   const warnings: string[] = [];
   const rows = sourceRows.map((row) => row.map((cell) => String(cell).trim()));
@@ -133,6 +134,7 @@ export function flashcardsFromRows(
   // lone card whose term/definition happen to read like "Question"/"Answer"
   // would be stripped down to zero cards with no warning shown.
   const hasHeader =
+    !headerless &&
     rows.length > 1 &&
     first != null &&
     TERM_HEADERS.has((first[0] ?? '').toLowerCase()) &&

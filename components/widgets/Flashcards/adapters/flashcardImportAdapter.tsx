@@ -5,6 +5,7 @@ import {
   parseFlashcardSheetRows,
   parseFlashcardText,
 } from '@/components/widgets/Flashcards/utils/flashcardImport';
+import { flashcardsFromCardSet } from '@/components/widgets/Flashcards/utils/flashcardCardSet';
 import {
   AI_CONVERSION_REVIEW_NOTE,
   AI_CONVERSION_TRUNCATED_NOTE,
@@ -17,6 +18,9 @@ export interface FlashcardImportData {
   cards: FlashcardCard[];
   /** The set name an AI Conversion suggested. */
   title?: string;
+  /** The side languages a Platform reader named (IMPORT.md D38). */
+  termLanguage?: string;
+  definitionLanguage?: string;
 }
 
 interface FlashcardImportAdapterDeps {
@@ -28,7 +32,7 @@ interface FlashcardImportAdapterDeps {
   ) => Promise<FlashcardsConversionResult>;
   pickSheet: () => Promise<{ url: string } | null>;
   save: (
-    cards: FlashcardCard[],
+    data: FlashcardImportData,
     title: string,
     fromInitialSource: boolean
   ) => Promise<void>;
@@ -39,7 +43,7 @@ export function createFlashcardImportAdapter(
 ): ImportAdapter<FlashcardImportData> {
   return {
     widgetLabel: 'Flashcards',
-    supportedSources: ['sheet', 'csv'],
+    supportedSources: ['sheet', 'csv', 'cards'],
     pickSheet: deps.pickSheet,
     parse: async (source) => {
       if (source.kind === 'conversion') {
@@ -58,6 +62,10 @@ export function createFlashcardImportAdapter(
           warnings: result.truncated ? [AI_CONVERSION_TRUNCATED_NOTE] : [],
           note: AI_CONVERSION_REVIEW_NOTE,
         };
+      }
+      if (source.kind === 'cards') {
+        const { warnings, note, ...data } = flashcardsFromCardSet(source.set);
+        return { data, warnings, note };
       }
       if (source.kind === 'csv') {
         const parsed = parseFlashcardText(source.text);
@@ -114,6 +122,6 @@ export function createFlashcardImportAdapter(
     ),
     suggestTitle: (data) => data.title,
     save: (data, title, context) =>
-      deps.save(data.cards, title, context?.fromInitialSource ?? false),
+      deps.save(data, title, context?.fromInitialSource ?? false),
   };
 }

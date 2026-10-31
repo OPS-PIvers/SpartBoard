@@ -18,6 +18,13 @@ import {
   edpuzzleLessonId,
   readEdpuzzleLesson,
 } from '../edpuzzle/lesson';
+import {
+  QUIZLET_PLATFORM,
+  cardSetBlocks,
+  quizletSetId,
+  quizletTitle,
+  readQuizletSet,
+} from '../quizlet/set';
 import type { ImportReaderFailure } from '@/utils/import/contract';
 
 const ask = <T>(message: SendPageMessage) =>
@@ -192,8 +199,37 @@ async function sendGeneric(
     reply,
     selectionOnly: request.selectionOnly,
     fellBack:
-      failure?.platform === EDPUZZLE_PLATFORM ? EDPUZZLE_PLATFORM : !!failure,
+      failure?.platform === EDPUZZLE_PLATFORM ||
+      failure?.platform === QUIZLET_PLATFORM
+        ? failure.platform
+        : !!failure,
   });
+}
+
+/** A Quizlet set as cards (D38); an unreadable one falls back to the page text. */
+async function sendQuizlet(id: string): Promise<SendNote> {
+  progress('Reading…');
+  const read = await readQuizletSet(id);
+  if (!read.ok)
+    return sendGeneric({
+      platform: QUIZLET_PLATFORM,
+      reason: read.reason.slice(0, 500),
+    });
+  const title = quizletTitle(document.title);
+  progress('Sending…');
+  const reply = await ask<SendReply>({
+    type: 'send/page',
+    request: {
+      url: pageUrl(location.href),
+      title,
+      platform: QUIZLET_PLATFORM,
+      selectionOnly: false,
+      blocks: cardSetBlocks(title, read.set),
+      images: [],
+      cards: read.set,
+    },
+  }).catch(() => undefined);
+  return sendNote({ kind: 'reply', reply, cards: read.set.cards.length });
 }
 
 /** An Edpuzzle lesson as a video lesson (D30-D33); an unreadable one falls back to the page text. */
@@ -270,6 +306,11 @@ async function send(blocked: boolean, frameText?: string) {
     const lessonId = selected ? null : edpuzzleLessonId(location.href);
     if (lessonId) {
       showNote(await sendEdpuzzle(lessonId));
+      return;
+    }
+    const setId = selected ? null : quizletSetId(location.href);
+    if (setId) {
+      showNote(await sendQuizlet(setId));
       return;
     }
     showNote(await sendGeneric());
