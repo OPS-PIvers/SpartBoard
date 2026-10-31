@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CARD_TABLE_MAX_BYTES,
   cardSetBlocks,
   cardSetFromItems,
   quizletSetId,
@@ -86,10 +87,30 @@ describe('cardSetFromItems', () => {
     expect(read.ok && read.set).not.toHaveProperty('termLanguage');
   });
 
-  it('reports a set with no cards', () => {
+  it('reports a set with no card text', () => {
     expect(cardSetFromItems([{ cardSides: [] }, 'x'])).toEqual({
       ok: false,
-      reason: 'no cards in the set data',
+      reason: 'no card text in the set data',
+    });
+    const pictures = {
+      label: 'word',
+      media: [{ type: 2, url: 'https://x/y.png' }],
+    };
+    expect(cardSetFromItems([{ cardSides: [pictures, pictures] }])).toEqual({
+      ok: false,
+      reason: 'no card text in the set data',
+    });
+  });
+
+  it('reports a set too big to send as cards', () => {
+    const side = (label: string) => ({
+      label,
+      media: [{ type: 1, plainText: 'x'.repeat(1000) }],
+    });
+    const item = { cardSides: [side('word'), side('definition')] };
+    expect(cardSetFromItems(Array.from({ length: 500 }, () => item))).toEqual({
+      ok: false,
+      reason: 'set too big to send as cards',
     });
   });
 });
@@ -106,6 +127,17 @@ describe('cardSetBlocks', () => {
     ).toEqual([
       { type: 'heading', level: 1, text: 'Animals' },
       { type: 'table', rows: [{ cells: ['el perro', 'the dog'] }] },
+    ]);
+  });
+
+  it('sends only the title for a set too big to repeat as a table', () => {
+    const definition = 'd'.repeat(CARD_TABLE_MAX_BYTES / 100);
+    const cards = Array.from({ length: 101 }, () => ({
+      term: 't',
+      definition,
+    }));
+    expect(cardSetBlocks('Big', { cards })).toEqual([
+      { type: 'heading', level: 1, text: 'Big' },
     ]);
   });
 });
