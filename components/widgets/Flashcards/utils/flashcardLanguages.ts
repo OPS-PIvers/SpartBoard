@@ -34,7 +34,10 @@ export function flashcardLanguageFor(code: string | undefined): string | null {
     (l) => l.tag.toLowerCase() === code.toLowerCase()
   );
   if (exact) return exact.tag;
-  const base = code.split('-')[0].toLowerCase();
+  const [base, ...rest] = code.toLowerCase().split('-');
+  if (base === 'und') return null;
+  // A region or script the presets lack (zh-TW, pt-PT) stays as given rather than becoming another variety.
+  if (rest.length && describeLanguageTag(code)) return code;
   const preset = FLASHCARD_LANGUAGES.find(
     (l) => l.tag.split('-')[0].toLowerCase() === base
   );

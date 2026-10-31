@@ -131,8 +131,8 @@ export function cardSetFromItems(items: unknown[]): QuizletRead {
   };
 }
 
-// Under half the server's 900 KB Send cap, since the table repeats the card set.
-export const CARD_TABLE_MAX_BYTES = 400_000;
+// Under the 400k page-text cap and half the 900 KB Send cap, since the table repeats the cards.
+export const CARD_TABLE_MAX_BYTES = 380_000;
 
 /** The set as page text too, as two-column tables, so the other Import targets can still read it. */
 export function cardSetBlocks(
