@@ -12,6 +12,13 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/import/conversion/'],
   },
+  // Whole-course import from a Schoology export; opened from the Add to board window.
+  'board.import-course': {
+    label: 'Schoology course import checklist',
+    kind: 'modal',
+    files: ['components/import/course/'],
+    opensWith: 'import-screen.course',
+  },
   // Import's Reference material step; the Import screen that opens it lands separately.
   'import.reference': {
     label: 'Import: page refused to show in an Embed',

@@ -19,26 +19,41 @@ vi.mock('@/context/useAuth', () => ({
     canAccessFeature: () => true,
   }),
 }));
+const dashboard = vi.hoisted(() => ({
+  widgets: [] as { id: string; type: string; config: object }[],
+  addWidget: vi.fn(),
+}));
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
-    activeDashboard: { widgets: [] },
-    addWidget: vi.fn(),
+    activeDashboard: { widgets: dashboard.widgets },
+    addWidget: dashboard.addWidget,
     updateWidget: vi.fn(),
     addToast: vi.fn(),
     isActiveBoardReadOnly: false,
   }),
 }));
 const inboxItems: ImportInboxItem[] = [];
+const inboxRemove = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 vi.mock('@/hooks/useImportInbox', () => ({
-  useImportInbox: () => ({ items: inboxItems, remove: vi.fn() }),
+  useImportInbox: () => ({ items: inboxItems, remove: inboxRemove }),
 }));
+const readDroppedPage = vi.hoisted(() => vi.fn());
+vi.mock('@/components/import/fetchImportPage', () => ({ readDroppedPage }));
 vi.mock('@/hooks/useQuizDocumentImportGate', () => ({
   useQuizDocumentImportGate: () => true,
+}));
+vi.mock('@/hooks/useImportConversionSettings', () => ({
+  useImportConversionSettings: () => ({ enabled: false }),
+}));
+vi.mock('@/hooks/useViewAsOutward', () => ({
+  useViewAsOutward: () => ({ active: false, locked: false }),
 }));
 
 describe('ImportScreenHost', () => {
   afterEach(() => {
     inboxItems.length = 0;
+    dashboard.widgets.length = 0;
+    dashboard.addWidget.mockClear();
     act(() => resetImportHandoffsForTest());
   });
 
@@ -94,5 +109,47 @@ describe('ImportScreenHost', () => {
     });
     expect(event.defaultPrevented).toBe(true);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('sends slides to a new Notebook when the one on the board has a notebook open', () => {
+    dashboard.widgets.push({
+      id: 'nb1',
+      type: 'smartNotebook',
+      config: { activeNotebookId: 'open-one' },
+    });
+    renderHost();
+    act(() =>
+      openImportScreen({
+        source: { file: new File(['x'], 'deck.pptx') },
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Notebook' }));
+    expect(dashboard.addWidget).toHaveBeenCalledWith(
+      'smartNotebook',
+      expect.objectContaining({ id: expect.any(String) as unknown })
+    );
+  });
+
+  it('reads a dropped link on the server and never removes a Send for it', async () => {
+    readDroppedPage.mockResolvedValue({
+      status: 'read',
+      item: {
+        id: 'page:https://example.org/v',
+        url: 'https://example.org/v',
+        title: 'Vocab',
+        platform: 'generic',
+        selectionOnly: false,
+        receivedAt: 1,
+        images: [],
+        blocks: [{ type: 'paragraph', text: 'cell, unit of life' }],
+      },
+    });
+    renderHost();
+    act(() => openImportScreen({ source: { url: 'https://example.org/v' } }));
+    expect(readDroppedPage).toHaveBeenCalledWith('https://example.org/v');
+    expect(await screen.findByText('Vocab')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Link' }));
+    expect(dashboard.addWidget).toHaveBeenCalledWith('url', expect.anything());
+    expect(inboxRemove).not.toHaveBeenCalled();
   });
 });

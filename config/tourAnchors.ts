@@ -15212,6 +15212,62 @@ export const TOUR_ANCHORS = {
       'A one-tap choice (Flashcards, Quiz, Embed…) in the Add to board window',
     panel: true,
   },
+  'import-screen.course': {
+    label:
+      'Whole course button for a Schoology course export in the Add to board window',
+    panel: true,
+  },
+  // Whole-course import from a Schoology export (IMPORT.md D23, D24).
+  'import-course.close': {
+    label: 'Close button in the Schoology course import',
+    panel: true,
+  },
+  'import-course.folder-name': {
+    label: 'Folder name field in the Schoology course import',
+    panel: true,
+  },
+  'import-course.row-target': {
+    label:
+      'What an item becomes (Quiz, PDF library, Skip…) in the Schoology course import',
+    panel: true,
+  },
+  'import-course.share-pictures': {
+    label: 'Copy pictures to Drive checkbox in the Schoology course import',
+    panel: true,
+  },
+  'import-course.cancel': {
+    label: 'Cancel or Done button in the Schoology course import',
+    panel: true,
+  },
+  'import-course.import': {
+    label: 'Import button in the Schoology course import',
+    panel: true,
+    persists: true,
+  },
+  'import-course.retry': {
+    label: 'Retry failed button in the Schoology course import',
+    panel: true,
+    persists: true,
+  },
+  'import-course.review': {
+    label: 'Review pages button for AI pages in the Schoology course import',
+    panel: true,
+  },
+  'import-course.review-skip': {
+    label: 'Skip button when AI could not read a page in the course import',
+    panel: true,
+  },
+  'import-course.review-retry': {
+    label:
+      'Try again button when AI could not read a page in the course import',
+    panel: true,
+  },
+  'import-course.links-board': {
+    label:
+      'Put these links on a new board button in the Schoology course import',
+    panel: true,
+    persists: true,
+  },
   // Library Import wizard (Quiz, Video Activity, Guided Learning, Mini App, Flashcards).
   'import-wizard.close': {
     label: 'Close button in the Import wizard',

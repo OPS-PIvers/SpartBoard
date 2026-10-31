@@ -80,6 +80,14 @@ import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
 import { tourAttr } from '@/config/tourAnchors';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
+import { ImportWizard } from '@/components/common/library/importer';
+import {
+  completeImportHandoff,
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
+import { createActivityWallImportAdapter } from './adapters/activityWallImportAdapter';
+import { resolveActivityWallBuildingDefaults } from './buildingDefaults';
 
 /** Name stamped on teacher posts; falls back to the email handle. */
 const EMPTY_POSTS: ActivityWallSubmission[] = [];
@@ -107,7 +115,8 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget, addWidget, addToast } = useDashboardActions();
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, featurePermissions, selectedBuildings } =
+    useAuth();
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('activity_wall_activities');
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
@@ -348,6 +357,23 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       });
     },
     [updateWidget, user?.uid, widget.id]
+  );
+
+  // Import's Activity Wall Conversion lands here: the wall is saved, then shown.
+  const importHandoff = useImportHandoff(widget.id);
+  const wallImportAdapter = useMemo(
+    () =>
+      createActivityWallImportAdapter({
+        defaults: resolveActivityWallBuildingDefaults(
+          featurePermissions,
+          selectedBuildings
+        ),
+        save: async (entry) => {
+          await saveActivity(entry);
+          setActiveEntry(entry.id);
+        },
+      }),
+    [featurePermissions, selectedBuildings, saveActivity, setActiveEntry]
   );
 
   const toggleOpenClosed = useCallback(() => {
@@ -981,6 +1007,20 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           </div>
         }
       />
+
+      {!inShare && importHandoff?.target === 'activityWall' && (
+        <ImportWizard
+          key={importHandoff.id}
+          isOpen
+          onClose={() => takeImportHandoff(widget.id)}
+          adapter={wallImportAdapter}
+          initialSource={importHandoff.source}
+          onSaved={(title) => {
+            addToast(`“${title}” imported.`, 'success');
+            completeImportHandoff(widget.id);
+          }}
+        />
+      )}
 
       {!inShare && editorEntry !== undefined && (
         <WallEditorModal

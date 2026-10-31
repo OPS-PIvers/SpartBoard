@@ -1,4 +1,4 @@
-// DEV-ONLY: Import's AI Conversion review steps (Flashcards, Activity Wall, Board) against fixtures; ?view=flashcards|wall|board.
+// DEV-ONLY: Import's AI Conversion steps (Import window, Flashcards, Activity Wall, Board) against fixtures; ?view=screen|flashcards|wall|board.
 
 import React, { useMemo, useState } from 'react';
 import { DashboardContext } from '@/context/DashboardContextValue';
@@ -11,12 +11,31 @@ import { createFlashcardImportAdapter } from '@/components/widgets/Flashcards/ad
 import { createActivityWallImportAdapter } from '@/components/widgets/ActivityWall/adapters/activityWallImportAdapter';
 import { BoardImportReview } from '@/components/import/conversion/BoardImportReview';
 import { placeTemplateLayout } from '@/utils/ai';
+import { ImportScreen } from '@/components/import/ImportScreen';
+import type { ImportInboxItem } from '@/utils/import/contract';
 import type { ConversionInput } from '@/utils/import/aiConversion';
 
 const INPUT: ConversionInput = {
   title: 'The Water Cycle',
   url: 'https://example.org/water-cycle',
   text: 'The water cycle…',
+};
+
+const SENT: ImportInboxItem = {
+  id: 'sent-1',
+  url: 'https://www.usgs.gov/water-cycle',
+  title: 'The Water Cycle',
+  platform: 'generic',
+  selectionOnly: false,
+  receivedAt: 1,
+  images: [],
+  blocks: [
+    { type: 'heading', level: 1, text: 'The Water Cycle' },
+    {
+      type: 'paragraph',
+      text: 'Water moves between the oceans, the air and the land through evaporation, condensation and precipitation.',
+    },
+  ],
 };
 
 const dashboard = {
@@ -122,7 +141,18 @@ export const ImportConversionDevHarness: React.FC = () => {
   return (
     <DashboardContext.Provider value={dashboard}>
       <div className="h-screen [height:100dvh] bg-slate-100">
-        {view === 'board' ? (
+        {view === 'screen' ? (
+          <ImportScreen
+            isOpen
+            onClose={() => undefined}
+            inboxItems={[SENT]}
+            onRemoveInboxItem={() => undefined}
+            allowed={() => true}
+            aiOn
+            onContinue={() => undefined}
+            onPlaceReference={() => undefined}
+          />
+        ) : view === 'board' ? (
           <BoardImportReview plan={plan} onClose={() => undefined} />
         ) : view === 'wall' ? (
           <ImportWizard

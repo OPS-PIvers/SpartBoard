@@ -126,7 +126,7 @@ export function ImportWizard<TData>({
   );
   // True when what is under review came from the Source Import handed over.
   const [parsedFromInitial, setParsedFromInitial] = useState(false);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(initialParse?.note ?? '');
   // The plain read that can be redone with AI from the preview step.
   const [aiRetrySource, setAiRetrySource] =
     useState<ImportSourcePayload | null>(null);
@@ -243,7 +243,11 @@ export function ImportWizard<TData>({
   ): Promise<void> => {
     const session = sessionRef.current;
     setLoadingLabel(
-      payload.kind === 'document' ? 'Importing…' : 'Importing your file…'
+      payload.kind === 'conversion'
+        ? 'Converting…'
+        : payload.kind === 'document'
+          ? 'Importing…'
+          : 'Importing your file…'
     );
     setLoading(true);
     setParseError(null);
@@ -352,7 +356,7 @@ export function ImportWizard<TData>({
       return;
     }
     if (extraUpload && matchesAccept(file.name, extraUpload.accept)) {
-      await runParse({ kind: 'file', file });
+      await runParse({ kind: 'file', file }, fromInitial);
       return;
     }
     const uploadAccept = acceptExtensionsForSources(adapter.supportedSources);
@@ -414,8 +418,10 @@ export function ImportWizard<TData>({
   // Read a Source handed over by Import once per open; the parse itself is async work.
   const readInitial = useEffectEvent((): void => {
     if (!initialSource) return;
-    const { file, text } = initialSource;
-    if (file) {
+    const { file, text, conversion } = initialSource;
+    if (conversion) {
+      void runParse({ kind: 'conversion', input: conversion }, true);
+    } else if (file) {
       void importFile(file, true);
     } else if (text && supportsCsv) {
       void runParse({ kind: 'csv', text }, true);

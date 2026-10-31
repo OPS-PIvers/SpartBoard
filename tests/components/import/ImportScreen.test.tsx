@@ -1,8 +1,18 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react';
 import { ImportScreen } from '@/components/import/ImportScreen';
-import { targetChoices } from '@/components/import/importTargets';
+import {
+  conversionInputFor,
+  targetChoices,
+  usesAi,
+} from '@/components/import/importTargets';
 import { attributionFor } from '@/components/import/attribution';
 import { sourceFromInboxItem } from '@/components/import/sourceFromInbox';
 import {
@@ -14,6 +24,20 @@ import {
 import { ImportWizard } from '@/components/common/library/importer';
 import type { ImportAdapter } from '@/components/common/library/types';
 import type { ImportInboxItem } from '@/utils/import/contract';
+
+vi.mock('@/components/import/reference/ReferenceEmbedStep', () => ({
+  ReferenceEmbedStep: ({
+    url,
+    onConvert,
+  }: {
+    url: string;
+    onConvert?: () => void;
+  }) => (
+    <button type="button" onClick={onConvert} data-convert={!!onConvert}>
+      Checking {url}
+    </button>
+  ),
+}));
 
 const file = (name: string, type = '') => new File(['x'], name, { type });
 
@@ -100,7 +124,7 @@ describe('targetChoices', () => {
   it('does not offer Quiz for a photo, which only the quiz picture picker reads', () => {
     expect(
       targetChoices({ file: file('worksheet.jpg', 'image/jpeg') }).targets
-    ).toEqual([]);
+    ).not.toContain('quiz');
   });
 
   it('asks the gate per Source, so a closed import is never offered', () => {
@@ -108,7 +132,68 @@ describe('targetChoices', () => {
       { file: file('notes.pdf', 'application/pdf') },
       (t, s) => !(t === 'quiz' && s.file?.name.endsWith('.pdf'))
     );
-    expect(c.targets).toEqual(['pdf']);
+    expect(c.targets).not.toContain('quiz');
+    expect(c.targets).toContain('pdf');
+  });
+
+  it('offers Notebook and Guided Learning for slides, and a Sticker for a photo', () => {
+    expect(targetChoices({ file: file('deck.pptx') }).targets).toEqual(
+      expect.arrayContaining(['notebook', 'guidedLearning'])
+    );
+    expect(
+      targetChoices({ file: file('board.jpg', 'image/jpeg') }).targets
+    ).toEqual(['sticker']);
+  });
+
+  it('keeps Guided Learning to named decks and Sticker to photos a board can show', () => {
+    expect(
+      targetChoices({ file: file('scan', 'application/pdf') }).targets
+    ).not.toContain('guidedLearning');
+    expect(
+      targetChoices({ file: file('scan.tiff', 'image/tiff') }).targets
+    ).toEqual([]);
+    expect(
+      targetChoices({ file: file('IMG_1.HEIC', 'image/heic') }).targets
+    ).toEqual(['sticker']);
+  });
+
+  it('adds the AI Conversions for page text only when AI is on', () => {
+    const prose = {
+      ...sent,
+      blocks: [
+        { type: 'paragraph' as const, text: 'Cells are the unit of life.' },
+      ],
+    };
+    const source = sourceFromInboxItem(prose);
+    expect(targetChoices(source).targets).not.toContain('board');
+    const on = targetChoices(source, () => true, true).targets;
+    expect(on).toEqual(
+      expect.arrayContaining(['flashcards', 'activityWall', 'board'])
+    );
+    expect(usesAi('flashcards', source, true)).toBe(true);
+    expect(usesAi('flashcards', source, false)).toBe(false);
+    expect(conversionInputFor(source)).toMatchObject({
+      title: 'Cell vocabulary',
+      text: 'Cells are the unit of life.',
+    });
+  });
+
+  it('reads a two-column page as rows, not with AI', () => {
+    expect(usesAi('flashcards', sourceFromInboxItem(sent), true)).toBe(false);
+    const pasted = 'cell, unit of life\natom, smallest unit\nion, charged atom';
+    expect(usesAi('flashcards', { text: pasted }, true)).toBe(false);
+  });
+
+  it('never offers AI for a bare link or an unread file', () => {
+    const c = targetChoices(
+      { url: 'https://example.org/page' },
+      () => true,
+      true
+    );
+    expect(c.targets).not.toContain('board');
+    expect(
+      targetChoices({ file: file('a.html') }, () => true, true).targets
+    ).toEqual(['miniApp']);
   });
 
   it('offers nothing for a file no route reads', () => {
@@ -152,6 +237,7 @@ describe('ImportScreen', () => {
         onRemoveInboxItem={onRemoveInboxItem}
         allowed={() => true}
         onContinue={onContinue}
+        onPlaceReference={vi.fn()}
         {...props}
       />
     );
@@ -163,6 +249,19 @@ describe('ImportScreen', () => {
     const { onContinue } = renderScreen({ initialSource: { file: pdf } });
     fireEvent.click(screen.getByRole('button', { name: 'PDF' }));
     expect(onContinue).toHaveBeenCalledWith({ file: pdf }, 'pdf');
+  });
+
+  it('offers Whole course for a Schoology export only when the host allows it', () => {
+    const cartridge = file('biology.imscc');
+    const onCourse = vi.fn();
+    renderScreen({ initialSource: { file: cartridge }, onCourse });
+    fireEvent.click(screen.getByRole('button', { name: 'Whole course' }));
+    expect(onCourse).toHaveBeenCalledWith(cartridge);
+  });
+
+  it('leaves Whole course out without the course handler or for other files', () => {
+    renderScreen({ initialSource: { file: file('biology.imscc') } });
+    expect(screen.queryByRole('button', { name: 'Whole course' })).toBeNull();
   });
 
   it('lists sent pages with their choices, and removes one', () => {
@@ -181,6 +280,75 @@ describe('ImportScreen', () => {
       screen.getByRole('button', { name: 'Remove Cell vocabulary' })
     );
     expect(onRemoveInboxItem).toHaveBeenCalledWith('send-1');
+  });
+
+  it('marks AI choices and says they count toward the AI limit', () => {
+    const { onContinue } = renderScreen({
+      aiOn: true,
+      initialSource: { text: 'Photosynthesis turns light into sugar.' },
+    });
+    expect(
+      screen.getByText('Converting with AI counts toward your daily AI limit.')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /New board/ }));
+    expect(onContinue.mock.calls[0][1]).toBe('board');
+  });
+
+  it('checks a page before embedding it, and drops Embed when it refuses', () => {
+    const { onContinue } = renderScreen({ inboxItems: [sent] });
+    fireEvent.click(screen.getByRole('button', { name: 'Embed' }));
+    expect(onContinue).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', { name: `Checking ${sent.url}` })
+    );
+    expect(screen.queryByRole('button', { name: 'Embed' })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Flashcards' })
+    ).toBeInTheDocument();
+  });
+
+  it('offers no Convert for a page that can only be embedded or linked', () => {
+    renderScreen({ inboxItems: [{ ...sent, blocks: [] }] });
+    fireEvent.click(screen.getByRole('button', { name: 'Embed' }));
+    expect(
+      screen.getByRole('button', { name: `Checking ${sent.url}` })
+    ).toHaveAttribute('data-convert', 'false');
+  });
+
+  it('reads a dropped link and offers what its page can become', () => {
+    const link = { url: sent.url, sourceUrl: sent.url };
+    const { onContinue } = renderScreen({
+      initialSource: link,
+      droppedPage: { status: 'reading' },
+    });
+    expect(screen.getByText('Reading this page…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Flashcards' })).toBeNull();
+    cleanup();
+    const read = renderScreen({
+      initialSource: link,
+      droppedPage: {
+        status: 'read',
+        item: { ...sent, url: 'https://example.org/after-redirect' },
+      },
+    });
+    expect(screen.getByText('Cell vocabulary')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Flashcards' }));
+    expect(read.onContinue).toHaveBeenCalledWith(
+      expect.objectContaining({ url: sent.url, readFromLink: true }),
+      'flashcards'
+    );
+    expect(onContinue).not.toHaveBeenCalled();
+  });
+
+  it('says why a dropped link could not be read', () => {
+    renderScreen({
+      initialSource: { url: sent.url },
+      droppedPage: { status: 'use-extension' },
+    });
+    expect(
+      screen.getByText(/send it with the SpartBoard extension/)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Link' })).toBeInTheDocument();
   });
 
   it('says so when nothing can read the Source', () => {
