@@ -125,6 +125,10 @@ import {
 } from '@/components/import/importHandoff';
 import { attributionFor } from '@/components/import/attribution';
 import { videoContentFromLesson } from '@/utils/videoActivityImport';
+import { copyLessonPictures } from '@/utils/videoActivityImportPictures';
+import { fetchImageThroughServer } from '@/utils/quizDocumentImport/remoteImageFetcher';
+import { driveStimulusUploader } from '@/utils/quizDocumentImport/driveStimulusUploader';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 
 /**
  * Shared clipboard helper — centralizes the feature-detection + toast flow
@@ -161,6 +165,7 @@ const TeacherVideoActivityWidget: React.FC<{
   local?: SharedBoardLocal;
 }> = ({ widget, local }) => {
   const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
+  const { driveService } = useGoogleDrive();
   const { showConfirm } = useDialog();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const {
@@ -296,14 +301,40 @@ const TeacherVideoActivityWidget: React.FC<{
   const importHandoff = useImportHandoff(widget.id);
   const vaHandoff =
     importHandoff?.target === 'videoActivity' ? importHandoff : null;
-  const openVaHandoff = useEffectEvent((handoff: ImportHandoff) => {
+  // Pictures copied into Drive for the activity in the editor; removed again if it's never saved.
+  const [importedPictureIds, setImportedPictureIds] = useState<string[]>([]);
+  const openingHandoffRef = useRef<ImportHandoff | null>(null);
+  const openVaHandoff = useEffectEvent(async (handoff: ImportHandoff) => {
+    if (openingHandoffRef.current === handoff) return;
+    openingHandoffRef.current = handoff;
     const now = Date.now();
     const importedFrom = attributionFor(handoff.source);
     const lesson = handoff.source.inboxItem?.video;
+    const stops = canAccessFeature('video-activity-stops');
+    let pictures = new Map<string, string>();
+    if (lesson) {
+      const kept = stops
+        ? lesson
+        : { ...lesson, stops: lesson.stops.filter((s) => s.kind === 'choice') };
+      if (kept.stops.some((s) => s.image)) {
+        const copied = driveService
+          ? await copyLessonPictures(kept, {
+              fetchImage: fetchImageThroughServer,
+              uploader: driveStimulusUploader(driveService),
+            })
+          : { byUrl: new Map<string, string>(), failed: -1 };
+        pictures = copied.byUrl;
+        if (copied.failed !== 0)
+          addToast(
+            copied.failed < 0
+              ? "Connect Google Drive to bring in the lesson's pictures."
+              : "Some pictures couldn't be copied, so those questions came in without one.",
+            'info'
+          );
+      }
+    }
     const content = lesson
-      ? videoContentFromLesson(lesson, {
-          stops: canAccessFeature('video-activity-stops'),
-        })
+      ? videoContentFromLesson(lesson, { stops, pictures })
       : null;
     const activity: VideoActivityData = {
       id: crypto.randomUUID(),
@@ -315,6 +346,7 @@ const TeacherVideoActivityWidget: React.FC<{
       createdAt: now,
       updatedAt: now,
     };
+    setImportedPictureIds([...pictures.values()]);
     setEditingActivity(activity);
     setEditingMeta(null);
     setImportedActivityId(activity.id);
@@ -322,6 +354,7 @@ const TeacherVideoActivityWidget: React.FC<{
   // The handoff store lives outside React; open the editor when a YouTube Source or video lesson arrives.
   useEffect(() => {
     if (vaHandoff) void Promise.resolve().then(() => openVaHandoff(vaHandoff));
+    else openingHandoffRef.current = null;
   }, [vaHandoff]);
 
   // Shared rapid-click guard. See `hooks/useBusyIdSet.ts`.
@@ -1570,8 +1603,14 @@ const TeacherVideoActivityWidget: React.FC<{
         onClose={() => {
           if (importedActivityId) {
             if (editingMeta) completeImportHandoff(widget.id);
-            else takeImportHandoff(widget.id);
+            else {
+              takeImportHandoff(widget.id);
+              // Never saved: the copied pictures would be stranded in Drive.
+              for (const id of importedPictureIds)
+                void driveService?.deleteFile(id).catch(() => undefined);
+            }
             setImportedActivityId(null);
+            setImportedPictureIds([]);
           }
           setEditingActivity(null);
           setEditingMeta(null);

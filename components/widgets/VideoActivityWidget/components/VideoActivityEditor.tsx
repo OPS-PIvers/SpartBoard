@@ -8,6 +8,7 @@
  */
 
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { VideoActivityPictureField } from './VideoActivityPictureField';
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
@@ -453,6 +454,12 @@ export const VideoActivityEditorDetailPane = React.memo(
               rows={3}
               placeholder="Enter your question…"
               className={`${inputClass} resize-none`}
+            />
+            <VideoActivityPictureField
+              fileId={q.imageDriveFileId}
+              onRemove={() =>
+                updateQuestion(q.id, { imageDriveFileId: undefined })
+              }
             />
           </div>
 

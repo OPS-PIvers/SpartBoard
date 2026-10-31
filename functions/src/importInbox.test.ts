@@ -207,6 +207,17 @@ describe('parseSendRequest', () => {
       },
     ],
     [
+      'a picture that is not https',
+      {
+        video: {
+          youtubeId: 'WjqqUjDkh1c',
+          stops: [
+            { kind: 'note', time: 1, text: 'x', image: 'http://a.b/c.png' },
+          ],
+        },
+      },
+    ],
+    [
       'a choice without a correct flag',
       {
         video: {
@@ -233,7 +244,12 @@ describe('parseSendRequest', () => {
           text: 'Weather is...',
           choices: [{ text: 'daily', correct: true, html: '<p>' }],
         },
-        { kind: 'open', time: 80, text: 'Why?' },
+        {
+          kind: 'open',
+          time: 80,
+          text: 'Why?',
+          image: 'https://img.example/a.png',
+        },
         { kind: 'note', time: 40, text: 'Look here', id: 'x' },
       ],
     };
@@ -248,7 +264,12 @@ describe('parseSendRequest', () => {
           text: 'Weather is...',
           choices: [{ text: 'daily', correct: true }],
         },
-        { kind: 'open', time: 80, text: 'Why?' },
+        {
+          kind: 'open',
+          time: 80,
+          text: 'Why?',
+          image: 'https://img.example/a.png',
+        },
         { kind: 'note', time: 40, text: 'Look here' },
       ],
     });

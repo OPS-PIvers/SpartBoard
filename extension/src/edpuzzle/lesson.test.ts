@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   edpuzzleLessonId,
+  firstImage,
   htmlText,
   lessonBlocks,
   lessonFromEdpuzzle,
   readEdpuzzleLesson,
 } from './lesson';
 import youtubeLesson from './fixtures/youtubeLesson.json';
+import trimmedLesson from './fixtures/trimmedLesson.json';
 
 const ID = '603babc9e9387642b1bc2659';
 
@@ -46,6 +48,25 @@ describe('htmlText', () => {
   });
 });
 
+describe('firstImage', () => {
+  it('takes the first https picture and decodes its address', () => {
+    expect(
+      firstImage(
+        html(
+          '<p>Look</p><img src="/rel.png"><img alt="x" src="https://img.example/a.png?w=1&amp;h=2"><img src="https://img.example/b.png">'
+        )
+      )
+    ).toBe('https://img.example/a.png?w=1&h=2');
+  });
+
+  it('leaves out pages with no https picture', () => {
+    expect(firstImage(html('<img src="http://img.example/a.png">'))).toBe(
+      undefined
+    );
+    expect(firstImage(html('<p>none</p>'))).toBe(undefined);
+  });
+});
+
 describe('lessonFromEdpuzzle', () => {
   it('reads the real YouTube lesson', () => {
     const read = lessonFromEdpuzzle(youtubeLesson);
@@ -68,6 +89,16 @@ describe('lessonFromEdpuzzle', () => {
       text: 'în acelaşi timp',
       correct: false,
     });
+  });
+
+  it('reads a real trimmed lesson with question times on the whole video', () => {
+    const read = lessonFromEdpuzzle(trimmedLesson);
+    expect(read.ok && read.video).toMatchObject({
+      start: 3.87,
+      end: 159.58,
+    });
+    // The last questions sit on the end of the kept piece, inside the clip.
+    expect(read.ok && read.video.stops.at(-1)?.time).toBe(159.58);
   });
 
   it('refuses a video Edpuzzle hosts itself', () => {
@@ -104,7 +135,11 @@ describe('lessonFromEdpuzzle', () => {
               { body: html('<p> </p>'), isCorrect: false },
             ],
           },
-          { type: 'open-ended', time: 90, body: html('<p>Why?</p>') },
+          {
+            type: 'open-ended',
+            time: 90,
+            body: html('<p>Why?</p><img src="https://img.example/q.png">'),
+          },
           { type: 'audio', time: 50, body: html('<p>Say it</p>') },
         ],
         notes: [{ time: 10, body: html('<p>Look here</p>') }],
@@ -127,7 +162,12 @@ describe('lessonFromEdpuzzle', () => {
               { text: 'yearly', correct: false },
             ],
           },
-          { kind: 'open', time: 90, text: 'Why?' },
+          {
+            kind: 'open',
+            time: 90,
+            text: 'Why?',
+            image: 'https://img.example/q.png',
+          },
         ],
       },
     });

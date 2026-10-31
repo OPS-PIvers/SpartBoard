@@ -231,8 +231,12 @@ function parseStop(v: unknown, i: number): ImportVideoStop {
   if (!isObj(v)) throw malformed(what);
   const time = seconds(v.time, what);
   const body = text(v.text, IMPORT_MAX_VIDEO_TEXT_CHARS, what);
+  const image = v.image === undefined ? undefined : httpUrl(v.image, what);
+  if (image !== undefined && !image.startsWith('https://'))
+    throw malformed(what);
+  const extra = image !== undefined ? { image } : {};
   if (v.kind === 'open' || v.kind === 'note')
-    return { kind: v.kind, time, text: body };
+    return { kind: v.kind, time, text: body, ...extra };
   if (
     v.kind !== 'choice' ||
     !Array.isArray(v.choices) ||
@@ -243,6 +247,7 @@ function parseStop(v: unknown, i: number): ImportVideoStop {
     kind: 'choice',
     time,
     text: body,
+    ...extra,
     choices: v.choices.map((c) => {
       if (!isObj(c) || typeof c.correct !== 'boolean') throw malformed(what);
       return {

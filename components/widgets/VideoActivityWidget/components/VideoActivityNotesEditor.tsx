@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { ChevronDown, Plus, StickyNote, Trash2 } from 'lucide-react';
 import type { VideoActivityNote } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
+import { VideoActivityPictureField } from './VideoActivityPictureField';
 import { useAuth } from '@/context/useAuth';
 import { mmSsToSeconds, secondsToMmSs } from './useVideoActivityEditorState';
 
@@ -105,15 +106,21 @@ export const VideoActivityNotesEditor: React.FC<
                 seconds={n.timestamp}
                 onCommit={(timestamp) => update(n.id, { timestamp })}
               />
-              {/* no-tour-anchor: per-note row field; tours stop at Add note */}
-              <textarea
-                value={n.text}
-                onChange={(e) => update(n.id, { text: e.target.value })}
-                rows={2}
-                placeholder="What students read here"
-                aria-label="Note text"
-                className="flex-1 min-w-0 px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 resize-y"
-              />
+              <div className="flex-1 min-w-0 flex flex-col gap-2">
+                {/* no-tour-anchor: per-note row field; tours stop at Add note */}
+                <textarea
+                  value={n.text}
+                  onChange={(e) => update(n.id, { text: e.target.value })}
+                  rows={2}
+                  placeholder="What students read here"
+                  aria-label="Note text"
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 resize-y"
+                />
+                <VideoActivityPictureField
+                  fileId={n.imageDriveFileId}
+                  onRemove={() => update(n.id, { imageDriveFileId: undefined })}
+                />
+              </div>
               {/* no-tour-anchor: per-note row control */}
               <button
                 type="button"

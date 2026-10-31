@@ -27,6 +27,7 @@ import {
 } from './QuestionOverlay';
 import { questionOptions } from '@/utils/videoActivityOptions';
 import { VideoActivityPeriodPausedOverlay } from './VideoActivityPeriodLockedScreen';
+import { StopPicture } from './StopPicture';
 
 interface VideoActivityLiveStudentProps {
   session: VideoActivitySession;
@@ -332,6 +333,10 @@ const QuestionShell: React.FC<{
       <p className="text-base font-semibold text-slate-900 leading-snug">
         {question.text}
       </p>
+      <StopPicture
+        fileId={question.imageDriveFileId}
+        className="mt-3 max-h-56"
+      />
       {question.type === 'MA' && (
         <p className="text-xs text-slate-500 mt-1">Select all that apply.</p>
       )}

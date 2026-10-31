@@ -10,6 +10,7 @@ export interface VaKeyQuestion {
   acceptableVariants?: string[];
   allowPartialCredit?: boolean;
   points?: number;
+  imageDriveFileId?: string;
 }
 
 export interface VaPublicQuestion {
@@ -18,6 +19,7 @@ export interface VaPublicQuestion {
   text: string;
   type: string;
   options?: string[];
+  imageDriveFileId?: string;
 }
 
 const normalize = (s: string): string =>
@@ -89,6 +91,10 @@ function shuffled<T>(items: T[]): T[] {
   return out;
 }
 
+/** A Drive file id as Drive issues them; anything else is never shown to students. */
+export const isDriveFileId = (v: unknown): v is string =>
+  typeof v === 'string' && /^[\w-]{10,200}$/.test(v);
+
 // Mirror of utils/videoActivityPublicQuestions.ts toVideoActivityPublicQuestion.
 export function toVaPublicQuestion(q: VaKeyQuestion): VaPublicQuestion {
   const type = q.type ?? 'MC';
@@ -97,6 +103,9 @@ export function toVaPublicQuestion(q: VaKeyQuestion): VaPublicQuestion {
     timestamp: typeof q.timestamp === 'number' ? q.timestamp : 0,
     text: q.text ?? '',
     type,
+    ...(isDriveFileId(q.imageDriveFileId)
+      ? { imageDriveFileId: q.imageDriveFileId }
+      : {}),
   };
   const incorrect = (q.incorrectAnswers ?? []).filter(
     (s) => typeof s === 'string' && s.length > 0
