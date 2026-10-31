@@ -29,15 +29,24 @@ const isReply = (v: unknown): v is SendReply =>
 export type SendNoteInput =
   | { kind: 'blocked' }
   | { kind: 'empty'; selectionOnly?: boolean }
+  | { kind: 'not-youtube' }
   | {
       kind: 'reply';
       reply: unknown;
       selectionOnly?: boolean;
-      fellBack?: boolean;
+      /** The Platform reader that couldn't read the page; true for Schoology's quiz reader. */
+      fellBack?: boolean | 'edpuzzle';
+      /** An Edpuzzle lesson went as a lesson; `skipped` questions had no SpartBoard kind. */
+      lesson?: { skipped: number };
     };
 
 export function sendNote(input: SendNoteInput): SendNote {
   if (input.kind === 'blocked') return { ok: false, text: WHY.blocked };
+  if (input.kind === 'not-youtube')
+    return {
+      ok: false,
+      text: "This lesson's video is stored on Edpuzzle, so it can't play in SpartBoard. Only lessons made from a YouTube video can be sent.",
+    };
   if (input.kind === 'empty' && input.selectionOnly)
     return {
       ok: false,
@@ -55,12 +64,28 @@ export function sendNote(input: SendNoteInput): SendNote {
       text: "Couldn't send this page. Try reloading it.",
     };
   if (!reply.ok) return { ok: false, text: reply.message ?? WHY[reply.why] };
+  if (input.lesson) {
+    const { skipped } = input.lesson;
+    const left =
+      skipped === 1
+        ? ' 1 question SpartBoard has no kind for was left out.'
+        : skipped > 1
+          ? ` ${skipped} questions SpartBoard has no kind for were left out.`
+          : '';
+    return {
+      ok: true,
+      open: 'import',
+      text: `Sent this lesson to SpartBoard.${left}`,
+    };
+  }
   const what = input.selectionOnly ? 'your selection' : 'this page';
+  const reader =
+    input.fellBack === 'edpuzzle' ? 'The Edpuzzle reader' : 'The quiz reader';
   return {
     ok: true,
     open: 'import',
     text: input.fellBack
-      ? `The quiz reader couldn't read this page, so SpartBoard got ${what} as text instead.`
+      ? `${reader} couldn't read this page, so SpartBoard got ${what} as text instead.`
       : `Sent ${what} to SpartBoard.`,
   };
 }

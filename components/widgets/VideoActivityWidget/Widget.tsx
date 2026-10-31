@@ -124,6 +124,7 @@ import {
   type ImportHandoff,
 } from '@/components/import/importHandoff';
 import { attributionFor } from '@/components/import/attribution';
+import { videoContentFromLesson } from '@/utils/videoActivityImport';
 
 /**
  * Shared clipboard helper — centralizes the feature-detection + toast flow
@@ -298,11 +299,18 @@ const TeacherVideoActivityWidget: React.FC<{
   const openVaHandoff = useEffectEvent((handoff: ImportHandoff) => {
     const now = Date.now();
     const importedFrom = attributionFor(handoff.source);
+    const lesson = handoff.source.inboxItem?.video;
+    const content = lesson
+      ? videoContentFromLesson(lesson, {
+          stops: canAccessFeature('video-activity-stops'),
+        })
+      : null;
     const activity: VideoActivityData = {
       id: crypto.randomUUID(),
       title: (handoff.source.title ?? '').slice(0, 200),
       youtubeUrl: handoff.source.url ?? '',
       questions: [],
+      ...(content ?? {}),
       ...(importedFrom ? { importedFrom } : {}),
       createdAt: now,
       updatedAt: now,
@@ -311,7 +319,7 @@ const TeacherVideoActivityWidget: React.FC<{
     setEditingMeta(null);
     setImportedActivityId(activity.id);
   });
-  // The handoff store lives outside React; open the editor when a YouTube Source arrives.
+  // The handoff store lives outside React; open the editor when a YouTube Source or video lesson arrives.
   useEffect(() => {
     if (vaHandoff) void Promise.resolve().then(() => openVaHandoff(vaHandoff));
   }, [vaHandoff]);
@@ -1556,6 +1564,7 @@ const TeacherVideoActivityWidget: React.FC<{
         startWithAi={
           !!importedActivityId &&
           editingActivity?.id === importedActivityId &&
+          editingActivity.questions.length === 0 &&
           canAccessFeature('video-import-ai')
         }
         onClose={() => {

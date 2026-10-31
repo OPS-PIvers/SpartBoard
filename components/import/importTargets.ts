@@ -107,7 +107,7 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     label: 'Video activity',
     widgetType: 'video-activity',
     landing: 'review',
-    accepts: isYouTubeVideo,
+    accepts: (s) => isYouTubeVideo(s) || !!s.inboxItem?.video,
   },
   miniApp: {
     label: 'Mini App',

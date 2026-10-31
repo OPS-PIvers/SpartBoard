@@ -192,8 +192,66 @@ describe('parseSendRequest', () => {
     ['an empty title', { title: '   ' }],
     ['a data: image', { images: [{ url: 'data:image/png;base64,AA==' }] }],
     ['a bad reader failure', { readerFailure: { platform: 'x', reason: 1 } }],
+    ['a bad video id', { video: { youtubeId: 'nope', stops: [] } }],
+    [
+      'a video end before its start',
+      { video: { youtubeId: 'WjqqUjDkh1c', start: 9, end: 3, stops: [] } },
+    ],
+    [
+      'a negative stop time',
+      {
+        video: {
+          youtubeId: 'WjqqUjDkh1c',
+          stops: [{ kind: 'note', time: -1, text: 'x' }],
+        },
+      },
+    ],
+    [
+      'a choice without a correct flag',
+      {
+        video: {
+          youtubeId: 'WjqqUjDkh1c',
+          stops: [
+            { kind: 'choice', time: 1, text: 'q', choices: [{ text: 'a' }] },
+          ],
+        },
+      },
+    ],
   ])('refuses %s', (_name, over) => {
     expect(() => parseSendRequest(body(over))).toThrow(ExtensionCallError);
+  });
+
+  it('keeps a video lesson and drops its unknown fields', () => {
+    const video = {
+      youtubeId: 'WjqqUjDkh1c',
+      start: 2,
+      end: 90,
+      stops: [
+        {
+          kind: 'choice',
+          time: 10,
+          text: 'Weather is...',
+          choices: [{ text: 'daily', correct: true, html: '<p>' }],
+        },
+        { kind: 'open', time: 80, text: 'Why?' },
+        { kind: 'note', time: 40, text: 'Look here', id: 'x' },
+      ],
+    };
+    expect(parseSendRequest(body({ video })).video).toEqual({
+      youtubeId: 'WjqqUjDkh1c',
+      start: 2,
+      end: 90,
+      stops: [
+        {
+          kind: 'choice',
+          time: 10,
+          text: 'Weather is...',
+          choices: [{ text: 'daily', correct: true }],
+        },
+        { kind: 'open', time: 80, text: 'Why?' },
+        { kind: 'note', time: 40, text: 'Look here' },
+      ],
+    });
   });
 
   it('refuses too many blocks with 413', async () => {
