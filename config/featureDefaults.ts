@@ -1403,6 +1403,29 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'video-activity-stops': {
+    label: 'Video Activity: short answer, notes and clips',
+    icon: Video,
+    description:
+      'Short-answer questions the teacher marks, note stops that pause the video on text, and a start and end time for the video.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'video-import-ai': {
+    label: 'Video import: AI questions',
+    icon: Sparkles,
+    description:
+      'Offers "Generate questions with AI" when a YouTube video is sent to SpartBoard.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'video-activity',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

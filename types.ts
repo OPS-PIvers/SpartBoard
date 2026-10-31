@@ -10749,7 +10749,11 @@ export type GlobalFeature =
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
-  | 'universal-import';
+  | 'universal-import'
+  /** Video Activity short answer, note stops and clip range (docs/plans/IMPORT.md D32-D33). */
+  | 'video-activity-stops'
+  /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
+  | 'video-import-ai';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
