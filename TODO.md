@@ -325,8 +325,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 ### Ready for an agent
 
-- [ ] **Video Activity clip and notes in PLC sync** (`docs/plans/IMPORT.md` D32-D33): carry `clip` and `notes` through `synced_video_activities` (create, publish, pull, version snapshots, `syncedVideoKeysOk`) before `video-activity-stops` opens to teachers. Today a peer's copy gets neither, and a pull keeps the teacher's own from Drive (`pullSyncedVideoActivity`). (S/LOW)
-
 #### `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`
 
 - [ ] Implement widget types/registration: types.ts WidgetType, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts, WidgetRegistry.ts for ai-responsible-use and ai-responsible-use-card. (L)

@@ -3,6 +3,8 @@ import type { VideoActivityQuestion } from '@/types';
 import {
   normalizeClip,
   notesEqual,
+  syncedPlayback,
+  syncedPlaybackFields,
   videoActivityPlayback,
 } from '@/utils/videoActivityClip';
 import {
@@ -113,5 +115,58 @@ describe('videoActivityPlayback', () => {
 
   it('leaves out absent fields', () => {
     expect(videoActivityPlayback({ questions: [q(10)] })).toEqual({});
+  });
+});
+
+describe('syncedPlaybackFields', () => {
+  it('always writes notes, empty when there are none', () => {
+    expect(syncedPlaybackFields({ questions: [q(10)] })).toEqual({ notes: [] });
+    expect(
+      syncedPlaybackFields({
+        clip: { start: 5, end: 60 },
+        notes: [
+          { id: 'n1', timestamp: 20, text: 'Look' },
+          { id: 'n2', timestamp: 30, text: '' },
+        ],
+        questions: [q(10)],
+      })
+    ).toEqual({
+      clip: { start: 5, end: 60 },
+      notes: [{ id: 'n1', timestamp: 20, text: 'Look' }],
+    });
+  });
+});
+
+describe('syncedPlayback', () => {
+  const local = {
+    clip: { start: 1, end: 200 },
+    notes: [{ id: 'local', timestamp: 50, text: 'Mine' }],
+  };
+
+  it('takes the canonical clip and notes when the doc carries notes', () => {
+    expect(
+      syncedPlayback(
+        {
+          clip: { start: 40, end: 80 },
+          notes: [{ id: 'peer', timestamp: 60, text: 'Peer' }],
+          questions: [q(30)],
+        },
+        local
+      )
+    ).toEqual({
+      clip: { start: 30, end: 80 },
+      notes: [{ id: 'peer', timestamp: 60, text: 'Peer' }],
+    });
+  });
+
+  it('clears the local clip and notes when the canonical doc has empty notes', () => {
+    expect(syncedPlayback({ notes: [], questions: [q(30)] }, local)).toEqual(
+      {}
+    );
+  });
+
+  it('keeps the fallback when the canonical doc predates synced playback', () => {
+    expect(syncedPlayback({ questions: [q(30)] }, local)).toEqual(local);
+    expect(syncedPlayback({ questions: [q(30)] })).toEqual({});
   });
 });

@@ -503,6 +503,8 @@ const TeacherVideoActivityWidget: React.FC<{
           questions: data.questions,
           plcId,
           behavior: activityMeta.behavior,
+          clip: data.clip,
+          notes: data.notes,
         });
         try {
           await attachSyncLinkage(activityMeta.id, {
