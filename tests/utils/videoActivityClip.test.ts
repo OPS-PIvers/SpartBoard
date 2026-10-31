@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { VideoActivityQuestion } from '@/types';
-import { normalizeClip } from '@/utils/videoActivityClip';
+import { normalizeClip, notesEqual } from '@/utils/videoActivityClip';
 import {
   videoActivityAssignBlocker,
   videoActivityIncompleteReason,
@@ -76,5 +76,15 @@ describe('note stops', () => {
         ],
       })
     ).toBe('Note 2: text is required');
+  });
+});
+
+describe('notesEqual', () => {
+  it('compares notes by content, not by array identity', () => {
+    const n = { id: 'n1', timestamp: 5, text: 'Read this' };
+    expect(notesEqual([], [])).toBe(true);
+    expect(notesEqual([n], [{ ...n }])).toBe(true);
+    expect(notesEqual([n], [{ ...n, text: 'Changed' }])).toBe(false);
+    expect(notesEqual([n], [])).toBe(false);
   });
 });

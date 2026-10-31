@@ -25,3 +25,17 @@ export const videoActivityPlayback = (src: {
   ...(src.clip ? { clip: src.clip } : {}),
   ...(src.notes && src.notes.length > 0 ? { notes: src.notes } : {}),
 });
+
+/** Whether two note lists hold the same notes in the same order. */
+export const notesEqual = (
+  a: VideoActivityNote[],
+  b: VideoActivityNote[]
+): boolean =>
+  a === b ||
+  (a.length === b.length &&
+    a.every(
+      (n, i) =>
+        n.id === b[i].id &&
+        n.timestamp === b[i].timestamp &&
+        n.text === b[i].text
+    ));

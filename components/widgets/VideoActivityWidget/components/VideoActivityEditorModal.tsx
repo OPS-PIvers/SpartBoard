@@ -33,6 +33,7 @@ import {
 } from './VideoActivityQuizLayout';
 import type { TimelineHandle } from './Timeline';
 import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
+import { notesEqual } from '@/utils/videoActivityClip';
 
 interface VideoActivityEditorModalProps {
   isOpen: boolean;
@@ -206,7 +207,7 @@ export const VideoActivityEditorModal: React.FC<
       youtubeUrl !== originalYoutubeUrl ||
       clip?.start !== originalClip?.start ||
       clip?.end !== originalClip?.end ||
-      notes !== originalNotes ||
+      !notesEqual(notes, originalNotes) ||
       !(
         questions === originalQuestions ||
         questionsEqual(questions, originalQuestions)
