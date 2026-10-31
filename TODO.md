@@ -325,6 +325,8 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 ### Ready for an agent
 
+- [ ] **Video Activity clip range in PLC sync** (`docs/plans/IMPORT.md` D33): carry `clip` through `synced_video_activities` (create, publish, pull, version snapshots, `syncedVideoKeysOk`) before `video-activity-stops` opens to teachers; today a synced copy plays the whole video. (S/LOW)
+
 #### `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`
 
 - [ ] Implement widget types/registration: types.ts WidgetType, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts, WidgetRegistry.ts for ai-responsible-use and ai-responsible-use-card. (L)

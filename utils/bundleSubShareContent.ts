@@ -491,6 +491,7 @@ async function bundleVideoActivity(
     createdAt: data.createdAt ?? meta.createdAt ?? 0,
     updatedAt: data.updatedAt ?? meta.updatedAt ?? 0,
     ...(data.videoDuration ? { videoDuration: data.videoDuration } : {}),
+    ...(data.clip ? { clip: data.clip } : {}),
   };
   return { activity };
 }

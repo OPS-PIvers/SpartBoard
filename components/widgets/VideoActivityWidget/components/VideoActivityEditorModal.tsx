@@ -165,6 +165,8 @@ export const VideoActivityEditorModal: React.FC<
     originalTitle,
     originalYoutubeUrl,
     originalQuestions,
+    clip,
+    originalClip,
   } = editorState;
 
   // ─── Behavior settings state ─────────────────────────────────────────────
@@ -200,6 +202,8 @@ export const VideoActivityEditorModal: React.FC<
     () =>
       title !== originalTitle ||
       youtubeUrl !== originalYoutubeUrl ||
+      clip?.start !== originalClip?.start ||
+      clip?.end !== originalClip?.end ||
       !(
         questions === originalQuestions ||
         questionsEqual(questions, originalQuestions)
@@ -210,6 +214,8 @@ export const VideoActivityEditorModal: React.FC<
       originalTitle,
       youtubeUrl,
       originalYoutubeUrl,
+      clip,
+      originalClip,
       questions,
       originalQuestions,
       behavior,
@@ -220,14 +226,14 @@ export const VideoActivityEditorModal: React.FC<
   // What still has to be filled in before the activity can be assigned. It no
   // longer gates the save: autosave persists whatever is on screen.
   const incompleteNotice = useMemo(
-    () => videoActivityIncompleteReason({ title, youtubeUrl, questions }),
-    [title, youtubeUrl, questions]
+    () => videoActivityIncompleteReason({ title, youtubeUrl, questions, clip }),
+    [title, youtubeUrl, questions, clip]
   );
 
   // New identity on every draft edit — the autosave quiet period restarts on it.
   const draftToken = useMemo(
-    () => [title, youtubeUrl, questions, behavior],
-    [title, youtubeUrl, questions, behavior]
+    () => [title, youtubeUrl, clip, questions, behavior],
+    [title, youtubeUrl, clip, questions, behavior]
   );
 
   // Persist only — the shell owns closing.
@@ -257,6 +263,7 @@ export const VideoActivityEditorModal: React.FC<
           ...activity,
           title: title.trim(),
           youtubeUrl: youtubeUrl.trim(),
+          clip,
           questions: finalQuestions,
           updatedAt: Date.now(),
         },
@@ -274,6 +281,7 @@ export const VideoActivityEditorModal: React.FC<
     questions,
     title,
     youtubeUrl,
+    clip,
     behavior,
     onSave,
     setSaving,

@@ -49,6 +49,7 @@ import {
   inputClass,
   labelClass,
 } from '@/components/widgets/QuizWidget/components/quizEditorFieldStyles';
+import { VideoActivityClipFields } from './VideoActivityClipFields';
 import { Timeline, type TimelineHandle } from './Timeline';
 import {
   mmSsToSeconds,
@@ -81,6 +82,7 @@ const contextPanePropsEqual = (
   prev.aiEnabled === next.aiEnabled &&
   prev.timelineRef === next.timelineRef &&
   prev.state.youtubeUrl === next.state.youtubeUrl &&
+  prev.state.clip === next.state.clip &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedId === next.state.selectedId &&
   prev.state.checkedIds === next.state.checkedIds &&
@@ -96,6 +98,8 @@ export const VideoActivityQuizContextPane = React.memo(
     const {
       youtubeUrl,
       setYoutubeUrl,
+      clip,
+      setClip,
       questions,
       selectedId,
       setSelectedId,
@@ -154,6 +158,7 @@ export const VideoActivityQuizContextPane = React.memo(
               className={`${inputClass} pl-9`}
             />
           </div>
+          <VideoActivityClipFields clip={clip} onChange={setClip} />
           {error && (
             <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
               <AlertCircle className="w-4 h-4 shrink-0" />

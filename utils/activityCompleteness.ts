@@ -2,6 +2,7 @@ import {
   isFreeResponseType,
   type QuizBankSlot,
   type QuizQuestion,
+  type VideoActivityClip,
   type VideoActivityQuestion,
 } from '@/types';
 import {
@@ -82,12 +83,27 @@ interface VideoActivityCompletenessInput {
   title: string;
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
+  clip?: VideoActivityClip;
 }
+
+/** Index of the first question students would never reach inside the clip. */
+const firstQuestionOutsideClip = (
+  questions: VideoActivityQuestion[],
+  clip: VideoActivityClip | undefined
+): number => {
+  if (!clip) return -1;
+  return questions.findIndex(
+    (q) =>
+      (clip.start !== undefined && q.timestamp < clip.start) ||
+      (clip.end !== undefined && q.timestamp > clip.end)
+  );
+};
 
 export const videoActivityIncompleteReason = ({
   title,
   youtubeUrl,
   questions,
+  clip,
 }: VideoActivityCompletenessInput): string | null => {
   if (!title.trim()) return 'Activity title is required';
   if (!youtubeUrl.trim()) return 'YouTube URL is required';
@@ -114,6 +130,9 @@ export const videoActivityIncompleteReason = ({
       return `Question ${i + 1}: correct answer is required`;
     }
   }
+  const outside = firstQuestionOutsideClip(questions, clip);
+  if (outside >= 0)
+    return `Question ${outside + 1} is outside the start and end times`;
   return null;
 };
 
@@ -134,7 +153,8 @@ export const quizAssignBlocker = ({
 export const videoActivityAssignBlocker = ({
   youtubeUrl,
   questions,
-}: Pick<VideoActivityCompletenessInput, 'youtubeUrl' | 'questions'>):
+  clip,
+}: Pick<VideoActivityCompletenessInput, 'youtubeUrl' | 'questions' | 'clip'>):
   string | null => {
   if (!youtubeUrl?.trim()) return 'it has no video';
   for (let i = 0; i < questions.length; i += 1) {
@@ -149,5 +169,8 @@ export const videoActivityAssignBlocker = ({
     if (type === 'MA' && maOptionHasPipe(q))
       return `question ${i + 1} has an option containing the | character`;
   }
+  const outside = firstQuestionOutsideClip(questions, clip);
+  if (outside >= 0)
+    return `question ${outside + 1} is outside the start and end times`;
   return null;
 };

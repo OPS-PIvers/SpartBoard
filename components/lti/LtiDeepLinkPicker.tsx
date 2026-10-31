@@ -884,6 +884,7 @@ const LtiDeepLinkFlow: React.FC = () => {
             title: selectedActivity.title,
             driveFileId: selectedActivity.driveFileId,
             youtubeUrl: activityData.youtubeUrl,
+            clip: activityData.clip,
             questions: activityData.questions,
           },
           {

@@ -36,6 +36,7 @@ vi.mock('firebase-functions/v2/https', () => ({
 
 import {
   findAnswerField,
+  vaClipFrom,
   glSessionPresentation,
   handleLaunchSubAssignment,
   liveSubLaunchDeps,
@@ -1761,5 +1762,16 @@ describe('liveSubLaunchDeps.hostHasFeature', () => {
         'quiz-stimulus-quotes'
       )
     ).resolves.toBe(false);
+  });
+});
+
+describe('vaClipFrom', () => {
+  it('keeps only finite, ordered, non-negative seconds', () => {
+    expect(vaClipFrom(undefined)).toBeNull();
+    expect(vaClipFrom('10')).toBeNull();
+    expect(vaClipFrom({ start: 0 })).toBeNull();
+    expect(vaClipFrom({ start: 10, end: 90 })).toEqual({ start: 10, end: 90 });
+    expect(vaClipFrom({ start: 30, end: 20 })).toEqual({ start: 30 });
+    expect(vaClipFrom({ start: -5, end: Infinity })).toBeNull();
   });
 });

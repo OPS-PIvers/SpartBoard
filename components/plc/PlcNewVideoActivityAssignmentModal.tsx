@@ -342,6 +342,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           id: pickedActivity.id,
           title: pickedActivity.title,
           youtubeUrl: data.youtubeUrl,
+          clip: data.clip,
           driveFileId: pickedActivity.driveFileId,
           questions: data.questions,
         },

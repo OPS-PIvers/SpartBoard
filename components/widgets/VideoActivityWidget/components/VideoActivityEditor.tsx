@@ -22,6 +22,7 @@ import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
 import { extractYouTubeId } from '@/utils/youtube';
 import { useAuth } from '@/context/useAuth';
 import { TargetsField } from '@/components/quiz/targets/TargetsField';
+import { VideoActivityClipFields } from './VideoActivityClipFields';
 import { Timeline } from './Timeline';
 import {
   mmSsToSeconds,
@@ -57,6 +58,7 @@ const getQuestionId = (q: VideoActivityQuestion) => q.id;
  */
 const vaContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.youtubeUrl === next.state.youtubeUrl &&
+  prev.state.clip === next.state.clip &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedId === next.state.selectedId &&
   prev.state.error === next.state.error;
@@ -66,6 +68,8 @@ export const VideoActivityEditorContextPane = React.memo(
     const {
       youtubeUrl,
       setYoutubeUrl,
+      clip,
+      setClip,
       questions,
       selectedId,
       setSelectedId,
@@ -95,6 +99,7 @@ export const VideoActivityEditorContextPane = React.memo(
               className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary text-sm"
             />
           </div>
+          <VideoActivityClipFields clip={clip} onChange={setClip} />
           {error && (
             <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
               <AlertCircle className="w-4 h-4 shrink-0" />

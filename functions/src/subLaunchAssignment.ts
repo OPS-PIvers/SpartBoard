@@ -128,6 +128,21 @@ const ALLOWED_VA_SESSION_FIELDS = new Set([
   'dueAt',
 ]);
 
+/** A teacher's clip range with only finite, non-negative seconds kept. */
+export const vaClipFrom = (
+  raw: unknown
+): { start?: number; end?: number } | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const { start, end } = raw as Record<string, unknown>;
+  const ok = (n: unknown): n is number =>
+    typeof n === 'number' && Number.isFinite(n) && n >= 0;
+  const clip = {
+    ...(ok(start) && start > 0 ? { start } : {}),
+    ...(ok(end) && (!ok(start) || end > start) ? { end } : {}),
+  };
+  return Object.keys(clip).length > 0 ? clip : null;
+};
+
 const ALLOWED_VA_ASSIGNMENT_FIELDS = new Set([
   'className',
   'status',
@@ -685,6 +700,7 @@ async function launchVideoActivity(
           id?: string;
           title?: string;
           youtubeUrl?: string;
+          clip?: unknown;
           questions?: unknown;
         };
       }
@@ -724,6 +740,7 @@ async function launchVideoActivity(
       ? activity.title
       : 'Video activity';
   const { key, publicQuestions } = vaQuestionsFromKey(activity.questions);
+  const clip = vaClipFrom(activity.clip);
 
   const batch = db.batch();
   batch.set(db.doc(`video_activity_sessions/${sessionId}`), {
@@ -735,6 +752,7 @@ async function launchVideoActivity(
     activityId: itemId,
     activityTitle,
     youtubeUrl,
+    ...(clip ? { clip } : {}),
     // The key never rides the session doc; it goes in `key/answers` below.
     questions: [],
     publicQuestions,

@@ -7375,6 +7375,7 @@ export interface SharedVideoActivityAssignment {
   /** Inlined activity data so the importer can copy it into their own library. */
   title: string;
   youtubeUrl: string;
+  clip?: VideoActivityClip;
   questions: VideoActivityQuestion[];
   createdAt: number;
   updatedAt: number;
@@ -7459,11 +7460,18 @@ export interface VideoActivityCheckResult {
   correctAnswer: string;
 }
 
+/** Part of the video students watch, in seconds; a missing end plays to the end. */
+export interface VideoActivityClip {
+  start?: number;
+  end?: number;
+}
+
 /** Full video activity data stored in Google Drive as JSON. */
 export interface VideoActivityData {
   id: string;
   title: string;
   youtubeUrl: string;
+  clip?: VideoActivityClip;
   /** Total video duration in seconds, populated after the first player load. */
   videoDuration?: number;
   questions: VideoActivityQuestion[];
@@ -7661,6 +7669,7 @@ export interface VideoActivitySession
   assignmentName: string;
   teacherUid: string;
   youtubeUrl: string;
+  clip?: VideoActivityClip;
   /**
    * Keyed questions. Empty on stored docs that carry `publicQuestions`; teacher
    * code reads the key via `useVideoActivityKeyQuestions`.
@@ -12235,6 +12244,7 @@ export type SubShareVideoActivityView = Pick<
   | 'id'
   | 'title'
   | 'youtubeUrl'
+  | 'clip'
   | 'videoDuration'
   | 'questions'
   | 'createdAt'

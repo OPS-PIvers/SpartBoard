@@ -315,6 +315,7 @@ export const useVideoActivitySessionTeacher =
               : `${activity.title} ${new Date().toLocaleString()}`,
           teacherUid,
           youtubeUrl: activity.youtubeUrl,
+          ...(activity.clip ? { clip: activity.clip } : {}),
           ...split.sessionFields,
           ...(inContent
             ? {

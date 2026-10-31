@@ -63,6 +63,7 @@ export const PlcAuthorVideoActivityModal: React.FC<
         title: metadata.title,
         driveFileId: metadata.driveFileId,
         youtubeUrl: metadata.youtubeUrl,
+        clip: activity.clip,
         questions: activity.questions,
       };
       setActivityRef(ref);

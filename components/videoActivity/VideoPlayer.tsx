@@ -48,6 +48,8 @@ interface VideoPlayerProps {
   onTick?: (seconds: number, durationSeconds: number, playing: boolean) => void;
   /** Where playback starts, in whole seconds. */
   startSeconds?: number;
+  /** The teacher's clip range in seconds: playback starts at `start` and ends at `end`. */
+  clip?: { start?: number; end?: number };
 }
 
 const SEEK_TOLERANCE_SECONDS = 0.75;
@@ -69,6 +71,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   teacherMode = false,
   onTick,
   startSeconds,
+  clip,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
@@ -114,7 +117,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const onVideoEndRef = useRef(onVideoEnd);
   const teacherModeRef = useRef(teacherMode);
   const onTickRef = useRef(onTick);
-  const startSecondsRef = useRef(startSeconds);
+  const startSecondsRef = useRef(
+    Math.max(startSeconds ?? 0, clip?.start ?? 0) || undefined
+  );
+  const clipRef = useRef(clip);
+  const clipEndedRef = useRef(false);
 
   useLayoutEffect(() => {
     unansweredRef.current = questions
@@ -138,7 +145,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onVideoEndRef.current = onVideoEnd;
     teacherModeRef.current = teacherMode;
     onTickRef.current = onTick;
-  }, [onQuestionTrigger, onVideoEnd, teacherMode, onTick]);
+    clipRef.current = clip;
+  }, [onQuestionTrigger, onVideoEnd, teacherMode, onTick, clip]);
 
   const startPolling = useCallback(() => {
     // Supersede any loop already running: if startPolling is called again
@@ -174,6 +182,32 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const state = player.getPlayerState();
       const isPlaying = state === YT_PLAYER_STATE.PLAYING;
       if (playheadRef) playheadRef.current = player.getCurrentTime();
+
+      // Clip range: keep the playhead inside it and end the video at its end.
+      const clipStart = clipRef.current?.start;
+      const clipEnd = clipRef.current?.end;
+      if (isPlaying && clipStart && player.getCurrentTime() < clipStart - 1) {
+        player.seekTo(clipStart, true);
+      }
+      if (clipEnd && player.getCurrentTime() < clipEnd - 1) {
+        clipEndedRef.current = false;
+      }
+      if (
+        isPlaying &&
+        clipEnd &&
+        !clipEndedRef.current &&
+        player.getCurrentTime() >= clipEnd &&
+        (teacherModeRef.current || unansweredRef.current.length === 0)
+      ) {
+        clipEndedRef.current = true;
+        player.pauseVideo();
+        onVideoEndRef.current();
+        if (!teacherModeRef.current) {
+          pollGenerationRef.current += 1;
+          rafRef.current = null;
+          return;
+        }
+      }
 
       if (teacherModeRef.current) {
         onTickRef.current?.(

@@ -46865,6 +46865,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.editor-clip-start",
+    "label": "Start at time in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true
+  },
+  {
+    "id": "video-activity.editor-clip-end",
+    "label": "End at time in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true
+  },
+  {
     "id": "video-activity.editor-question-pill",
     "label": "Question button in the editor question list",
     "scope": "field",

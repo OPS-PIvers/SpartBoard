@@ -131,6 +131,7 @@ export interface AssignmentActivityRef {
   title: string;
   driveFileId: string;
   youtubeUrl: string;
+  clip?: VideoActivityData['clip'];
   questions: VideoActivityData['questions'];
 }
 
@@ -410,6 +411,7 @@ export const useVideoActivityAssignments = (
         assignmentName: settings.className ?? activity.title,
         teacherUid: userId,
         youtubeUrl: activity.youtubeUrl,
+        ...(activity.clip ? { clip: activity.clip } : {}),
         ...split.sessionFields,
         settings: settings.sessionSettings,
         ...(settings.sessionOptions
@@ -852,6 +854,7 @@ export const useVideoActivityAssignments = (
       const payload: Omit<SharedVideoActivityAssignment, 'id'> = {
         title: activityData.title,
         youtubeUrl: activityData.youtubeUrl,
+        ...(activityData.clip ? { clip: activityData.clip } : {}),
         questions: activityData.questions,
         createdAt: activityData.createdAt,
         updatedAt: activityData.updatedAt,
@@ -1003,6 +1006,7 @@ export const useVideoActivityAssignments = (
         id: crypto.randomUUID(),
         title: canonicalContent?.title ?? sharedDoc.title,
         youtubeUrl: canonicalContent?.youtubeUrl ?? sharedDoc.youtubeUrl,
+        ...(sharedDoc.clip ? { clip: sharedDoc.clip } : {}),
         questions: canonicalContent?.questions ?? sharedDoc.questions,
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -1057,6 +1061,7 @@ export const useVideoActivityAssignments = (
             title: savedMeta.title,
             driveFileId: savedMeta.driveFileId,
             youtubeUrl: savedMeta.youtubeUrl,
+            clip: importedActivity.clip,
             questions: importedActivity.questions,
           },
           importedSettings,

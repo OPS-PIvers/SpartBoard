@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
+  type VideoActivityClip,
   QuestionTargetTag,
   VideoActivityData,
   VideoActivityQuestion,
@@ -56,6 +57,8 @@ export interface VideoActivityEditorController {
   setTitle: (next: string) => void;
   youtubeUrl: string;
   setYoutubeUrl: (next: string) => void;
+  clip: VideoActivityClip | undefined;
+  setClip: (next: VideoActivityClip | undefined) => void;
   // Questions
   questions: VideoActivityQuestion[];
   totalPoints: number;
@@ -108,6 +111,7 @@ export interface VideoActivityEditorController {
   // Snapshot for dirty check
   originalTitle: string;
   originalYoutubeUrl: string;
+  originalClip: VideoActivityClip | undefined;
   originalQuestions: VideoActivityQuestion[];
 }
 
@@ -151,9 +155,11 @@ export function useVideoActivityEditorState({
   );
   const originalTitle = activity?.title ?? '';
   const originalYoutubeUrl = activity?.youtubeUrl ?? '';
+  const originalClip = activity?.clip;
 
   const [title, setTitle] = useState<string>(originalTitle);
   const [youtubeUrl, setYoutubeUrl] = useState<string>(originalYoutubeUrl);
+  const [clip, setClip] = useState<VideoActivityClip | undefined>(originalClip);
   const [questions, setQuestions] =
     useState<VideoActivityQuestion[]>(originalQuestions);
   const [saving, setSaving] = useState(false);
@@ -194,6 +200,7 @@ export function useVideoActivityEditorState({
     setPrevActivityId(activity?.id ?? null);
     setTitle(originalTitle);
     setYoutubeUrl(originalYoutubeUrl);
+    setClip(originalClip);
     setQuestions(originalQuestions);
     setError(null);
     setSaving(false);
@@ -601,6 +608,8 @@ export function useVideoActivityEditorState({
     setTitle,
     youtubeUrl,
     setYoutubeUrl,
+    clip,
+    setClip,
     questions,
     totalPoints,
     selectedId,
@@ -638,6 +647,7 @@ export function useVideoActivityEditorState({
     setSaving,
     originalTitle,
     originalYoutubeUrl,
+    originalClip,
     originalQuestions,
   };
 }

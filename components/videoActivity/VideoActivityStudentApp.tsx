@@ -1309,6 +1309,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 seekRequest={seekRequest}
                 playheadRef={playheadRef}
                 paused={periodPaused}
+                clip={session?.clip}
               />
 
               {periodPaused && <VideoActivityPeriodPausedOverlay />}

@@ -10565,6 +10565,16 @@ export const TOUR_ANCHORS = {
     persists: true,
     sandboxed: true,
   },
+  'video-activity.editor-clip-start': {
+    label: 'Start at time in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-clip-end': {
+    label: 'End at time in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
   'video-activity.editor-question-pill': {
     label: 'Question button in the editor question list',
     perField: true,

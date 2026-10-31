@@ -187,6 +187,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/widgets/VideoActivityWidget/components/VideoActivityEditor.tsx',
       'components/widgets/VideoActivityWidget/components/Timeline.tsx',
       'components/widgets/VideoActivityWidget/components/VideoActivityQuizLayout.tsx',
+      'components/widgets/VideoActivityWidget/components/VideoActivityClipFields.tsx',
       'components/common/library/VideoActivityBehaviorSettingsPanel.tsx',
     ],
     opensWith: 'library-shell.new:video-activity',
