@@ -7280,6 +7280,9 @@ export interface SyncedVideoActivityGroup {
   questions: VideoActivityQuestion[];
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: VideoActivityBehaviorSettings;
+  clip?: VideoActivityClip;
+  /** Always written by current clients (possibly empty); absent on docs that predate synced playback. */
+  notes?: VideoActivityNote[];
   /**
    * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
    * Modified only by the Cloud Function paths so the rules-side write check
@@ -7335,6 +7338,9 @@ export interface PlcVideoActivityVersionContent {
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
   behavior?: VideoActivityBehaviorSettings;
+  clip?: VideoActivityClip;
+  /** Absent on snapshots taken before synced playback; restore then keeps the canonical clip and notes. */
+  notes?: VideoActivityNote[];
 }
 
 /**

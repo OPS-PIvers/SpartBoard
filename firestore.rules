@@ -2351,8 +2351,8 @@ service cloud.firestore {
     function syncedVideoKeysOk() {
       return incoming().keys().hasOnly([
         'id', 'version', 'title', 'youtubeUrl', 'questions', 'participants', 'plcId',
-        'createdAt', 'updatedAt', 'updatedBy', 'behavior'
-      ]);
+        'createdAt', 'updatedAt', 'updatedBy', 'behavior', 'clip', 'notes'
+      ]) && optMap(incoming(), 'clip') && optList(incoming(), 'notes');
     }
 
     match /synced_video_activities/{groupId} {

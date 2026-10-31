@@ -86,7 +86,10 @@ import {
   batchUpdateWithPaths,
   periodAccessWrites,
 } from '@/utils/periodAccessWrites';
-import { videoActivityPlayback } from '@/utils/videoActivityClip';
+import {
+  syncedPlayback,
+  videoActivityPlayback,
+} from '@/utils/videoActivityClip';
 
 /**
  * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`
@@ -845,6 +848,8 @@ export const useVideoActivityAssignments = (
           title: activityData.title,
           youtubeUrl: activityData.youtubeUrl,
           questions: activityData.questions,
+          clip: activityData.clip,
+          notes: activityData.notes,
           ...(assignment.plc?.id ? { plcId: assignment.plc.id } : {}),
         });
         await updateDoc(metaRef, {
@@ -965,6 +970,7 @@ export const useVideoActivityAssignments = (
         title: string;
         youtubeUrl: string;
         questions: typeof sharedDoc.questions;
+        playback: ReturnType<typeof syncedPlayback>;
       } | null = null;
       if (options.mode === 'sync' && sharedDoc.syncGroupId) {
         try {
@@ -976,6 +982,7 @@ export const useVideoActivityAssignments = (
             title: canonical.title,
             youtubeUrl: canonical.youtubeUrl,
             questions: canonical.questions,
+            playback: syncedPlayback(canonical, sharedDoc),
           };
           syncedFromLinkage = {
             groupId: joinResult.groupId,
@@ -1008,7 +1015,7 @@ export const useVideoActivityAssignments = (
         id: crypto.randomUUID(),
         title: canonicalContent?.title ?? sharedDoc.title,
         youtubeUrl: canonicalContent?.youtubeUrl ?? sharedDoc.youtubeUrl,
-        ...videoActivityPlayback(sharedDoc),
+        ...(canonicalContent?.playback ?? videoActivityPlayback(sharedDoc)),
         questions: canonicalContent?.questions ?? sharedDoc.questions,
         createdAt: Date.now(),
         updatedAt: Date.now(),

@@ -53,3 +53,30 @@ export const notesEqual = (
         n.timestamp === b[i].timestamp &&
         n.text === b[i].text
     ));
+
+/** The clip and notes a synced canonical doc or version stores; `notes` is always written so readers can tell it from a doc that predates synced playback. */
+export const syncedPlaybackFields = (src: {
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
+  questions?: { timestamp: number }[];
+}): { clip?: VideoActivityClip; notes: VideoActivityNote[] } => {
+  const playback = videoActivityPlayback(src);
+  return { ...playback, notes: playback.notes ?? [] };
+};
+
+/** A synced doc's clip and notes, or the fallback's when the doc has no `notes` key (written before synced playback). */
+export const syncedPlayback = (
+  canonical: {
+    clip?: VideoActivityClip;
+    notes?: VideoActivityNote[];
+    questions: { timestamp: number }[];
+  },
+  fallback?: { clip?: VideoActivityClip; notes?: VideoActivityNote[] } | null
+): { clip?: VideoActivityClip; notes?: VideoActivityNote[] } => {
+  const src = canonical.notes !== undefined ? canonical : (fallback ?? {});
+  return videoActivityPlayback({
+    clip: src.clip,
+    notes: src.notes,
+    questions: canonical.questions,
+  });
+};
