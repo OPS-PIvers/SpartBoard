@@ -42,7 +42,7 @@ const CardHeader: React.FC<{
       {title}
     </span>
     {onReset ? (
-      <button
+      <button // no-tour-anchor: section reset link, covered by the settings.group anchor
         type="button"
         onClick={onReset}
         className={resetClass}
@@ -187,7 +187,7 @@ export const WindowStyleTier: React.FC<WindowStyleTierProps> = ({
           }
         />
         <div className="flex items-center gap-3">
-          <input
+          <input // no-tour-anchor: transparency slider, covered by the settings.field row anchor
             type="range"
             min="0"
             max="1"

@@ -25,7 +25,7 @@ export const EmojiPicker: React.FC<
     const selected = emoji === current;
     const tabbable = selected || (selectedIndex < 0 && index === 0);
     return (
-      <button
+      <button // no-tour-anchor: covered by the settings.field row anchor
         key={emoji}
         type="button"
         role="radio"
@@ -74,7 +74,7 @@ export const EmojiPicker: React.FC<
           </div>
         ))}
       </div>
-      <input
+      <input // no-tour-anchor: covered by the settings.field row anchor
         type="text"
         value={current}
         disabled={disabled}

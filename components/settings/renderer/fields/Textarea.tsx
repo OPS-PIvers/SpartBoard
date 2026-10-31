@@ -43,7 +43,7 @@ export const TextareaField: React.FC<
   };
 
   return (
-    <textarea
+    <textarea // no-tour-anchor: covered by the settings.field row anchor
       id={id}
       value={typeof value === 'string' ? value : ''}
       onChange={(e) => onChange(e.target.value)}

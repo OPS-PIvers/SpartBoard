@@ -51,3 +51,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-10-28 | claude/tour-anchors-2026-10-28 | Widgets (math-tools, Random, StickerBook) | 14 | 3 | 0 | 35 in 8 files |
 | 2026-10-29 | claude/tour-anchors-2026-10-29 | Board chrome (layout, Profile & Settings sections) | 0 | 20 | 2 | 539 in 213 files |
 | 2026-10-30 | claude/tour-anchors-2026-10-30 | Board chrome (Backgrounds window) | 11 | 2 | 1 file | 525 in 207 files |
+| 2026-10-31 | claude/tour-anchors-2026-10-31 | Board chrome (settings field renderer and window style schema) | 0 | 21 | 0 | 504 in 193 files |

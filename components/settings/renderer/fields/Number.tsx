@@ -22,7 +22,7 @@ export const NumberField: React.FC<FieldProps<NumberFieldSchema<string>>> = ({
   }
 
   return (
-    <input
+    <input // no-tour-anchor: covered by the settings.field row anchor
       id={id}
       type="number"
       value={draft}
