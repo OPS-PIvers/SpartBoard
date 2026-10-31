@@ -19,7 +19,7 @@ import {
   extractYouTubeId,
 } from '@/utils/youtube';
 import type { YTPlayer } from '@/utils/youtube';
-import { VideoActivityPublicQuestion } from '@/types';
+import type { VideoActivityNote, VideoActivityPublicQuestion } from '@/types';
 
 interface VideoPlayerProps {
   youtubeUrl: string;
@@ -50,6 +50,10 @@ interface VideoPlayerProps {
   startSeconds?: number;
   /** The teacher's clip range in seconds: playback starts at `start` and ends at `end`. */
   clip?: { start?: number; end?: number };
+  /** Note stops: the video pauses on each one once per viewing. */
+  notes?: VideoActivityNote[];
+  /** Fired when the playhead first reaches a note; pass `questionVisible` while it shows. */
+  onNoteTrigger?: (note: VideoActivityNote) => void;
 }
 
 const SEEK_TOLERANCE_SECONDS = 0.75;
@@ -72,6 +76,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onTick,
   startSeconds,
   clip,
+  notes,
+  onNoteTrigger,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
@@ -121,6 +127,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     Math.max(startSeconds ?? 0, clip?.start ?? 0) || undefined
   );
   const clipRef = useRef(clip);
+  const notesRef = useRef(notes);
+  const onNoteTriggerRef = useRef(onNoteTrigger);
   const clipEndedRef = useRef(false);
 
   useLayoutEffect(() => {
@@ -146,7 +154,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     teacherModeRef.current = teacherMode;
     onTickRef.current = onTick;
     clipRef.current = clip;
-  }, [onQuestionTrigger, onVideoEnd, teacherMode, onTick, clip]);
+    notesRef.current = notes;
+    onNoteTriggerRef.current = onNoteTrigger;
+  }, [
+    onQuestionTrigger,
+    onVideoEnd,
+    teacherMode,
+    onTick,
+    clip,
+    notes,
+    onNoteTrigger,
+  ]);
 
   const startPolling = useCallback(() => {
     // Supersede any loop already running: if startPolling is called again
@@ -230,6 +248,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
 
         // Question trigger detection
+        let triggered = false;
         for (const q of unansweredRef.current) {
           if (
             currentTime >= q.timestamp - 0.5 &&
@@ -238,7 +257,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             triggeredRef.current.add(q.id);
             player.pauseVideo();
             onQuestionTriggerRef.current(q);
+            triggered = true;
             break;
+          }
+        }
+
+        // Note stops: only ones the playhead has just reached, so a resume skips earlier notes.
+        const noteHandler = onNoteTriggerRef.current;
+        if (!triggered && noteHandler) {
+          for (const n of notesRef.current ?? []) {
+            const key = `note:${n.id}`;
+            if (triggeredRef.current.has(key)) continue;
+            if (currentTime >= n.timestamp - 0.5) {
+              triggeredRef.current.add(key);
+              if (currentTime - n.timestamp > 2) continue;
+              player.pauseVideo();
+              noteHandler(n);
+              break;
+            }
           }
         }
       }

@@ -115,6 +115,7 @@ import {
   rejoinOutcome,
   unlockPatch,
 } from '@/utils/videoActivityState';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
 const RESPONSES_SUBCOLLECTION = 'responses';
@@ -315,7 +316,7 @@ export const useVideoActivitySessionTeacher =
               : `${activity.title} ${new Date().toLocaleString()}`,
           teacherUid,
           youtubeUrl: activity.youtubeUrl,
-          ...(activity.clip ? { clip: activity.clip } : {}),
+          ...videoActivityPlayback(activity),
           ...split.sessionFields,
           ...(inContent
             ? {

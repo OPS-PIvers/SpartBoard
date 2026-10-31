@@ -1,4 +1,4 @@
-import type { VideoActivityClip } from '@/types';
+import type { VideoActivityClip, VideoActivityNote } from '@/types';
 
 /** Drops empty or out-of-order bounds so a saved clip is always playable. */
 export const normalizeClip = (
@@ -16,3 +16,12 @@ export const normalizeClip = (
     ...(end !== undefined ? { end } : {}),
   };
 };
+
+/** The clip and notes to copy onto a session or share, with absent fields left out. */
+export const videoActivityPlayback = (src: {
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
+}): { clip?: VideoActivityClip; notes?: VideoActivityNote[] } => ({
+  ...(src.clip ? { clip: src.clip } : {}),
+  ...(src.notes && src.notes.length > 0 ? { notes: src.notes } : {}),
+});

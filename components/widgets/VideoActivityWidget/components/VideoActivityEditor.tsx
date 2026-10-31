@@ -23,7 +23,8 @@ import { extractYouTubeId } from '@/utils/youtube';
 import { useAuth } from '@/context/useAuth';
 import { TargetsField } from '@/components/quiz/targets/TargetsField';
 import { VideoActivityClipFields } from './VideoActivityClipFields';
-import { Timeline } from './Timeline';
+import { VideoActivityNotesEditor } from './VideoActivityNotesEditor';
+import { Timeline, type TimelineHandle } from './Timeline';
 import {
   mmSsToSeconds,
   secondsToMmSs,
@@ -59,6 +60,7 @@ const getQuestionId = (q: VideoActivityQuestion) => q.id;
 const vaContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.youtubeUrl === next.state.youtubeUrl &&
   prev.state.clip === next.state.clip &&
+  prev.state.notes === next.state.notes &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedId === next.state.selectedId &&
   prev.state.error === next.state.error;
@@ -70,6 +72,8 @@ export const VideoActivityEditorContextPane = React.memo(
       setYoutubeUrl,
       clip,
       setClip,
+      notes,
+      setNotes,
       questions,
       selectedId,
       setSelectedId,
@@ -78,6 +82,8 @@ export const VideoActivityEditorContextPane = React.memo(
       setVideoDurationSeconds,
       error,
     } = state;
+
+    const timelineRef = useRef<TimelineHandle | null>(null);
 
     // Memo via inline parse — Timeline only rebuilds when the resolved id changes.
     const videoIdForTimeline = youtubeUrl.trim()
@@ -100,6 +106,11 @@ export const VideoActivityEditorContextPane = React.memo(
             />
           </div>
           <VideoActivityClipFields clip={clip} onChange={setClip} />
+          <VideoActivityNotesEditor
+            notes={notes}
+            onChange={setNotes}
+            getCurrentTime={() => timelineRef.current?.getCurrentTime() ?? null}
+          />
           {error && (
             <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -121,6 +132,7 @@ export const VideoActivityEditorContextPane = React.memo(
               }
               activeQuestionId={selectedId ?? undefined}
               onDurationChange={setVideoDurationSeconds}
+              handleRef={timelineRef}
             />
           ) : (
             <div className="aspect-video w-full max-h-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">

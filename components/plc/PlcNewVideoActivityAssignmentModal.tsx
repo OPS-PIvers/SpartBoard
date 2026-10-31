@@ -90,6 +90,7 @@ import {
   type VideoAssignRules,
 } from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import { tourAttr } from '@/config/tourAnchors';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 interface PlcNewVideoActivityAssignmentModalProps {
   plc: Plc;
@@ -342,7 +343,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           id: pickedActivity.id,
           title: pickedActivity.title,
           youtubeUrl: data.youtubeUrl,
-          clip: data.clip,
+          ...videoActivityPlayback(data),
           driveFileId: pickedActivity.driveFileId,
           questions: data.questions,
         },

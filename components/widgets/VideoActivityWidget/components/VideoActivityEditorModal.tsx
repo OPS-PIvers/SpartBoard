@@ -167,6 +167,8 @@ export const VideoActivityEditorModal: React.FC<
     originalQuestions,
     clip,
     originalClip,
+    notes,
+    originalNotes,
   } = editorState;
 
   // ─── Behavior settings state ─────────────────────────────────────────────
@@ -204,6 +206,7 @@ export const VideoActivityEditorModal: React.FC<
       youtubeUrl !== originalYoutubeUrl ||
       clip?.start !== originalClip?.start ||
       clip?.end !== originalClip?.end ||
+      notes !== originalNotes ||
       !(
         questions === originalQuestions ||
         questionsEqual(questions, originalQuestions)
@@ -216,6 +219,8 @@ export const VideoActivityEditorModal: React.FC<
       originalYoutubeUrl,
       clip,
       originalClip,
+      notes,
+      originalNotes,
       questions,
       originalQuestions,
       behavior,
@@ -226,14 +231,21 @@ export const VideoActivityEditorModal: React.FC<
   // What still has to be filled in before the activity can be assigned. It no
   // longer gates the save: autosave persists whatever is on screen.
   const incompleteNotice = useMemo(
-    () => videoActivityIncompleteReason({ title, youtubeUrl, questions, clip }),
-    [title, youtubeUrl, questions, clip]
+    () =>
+      videoActivityIncompleteReason({
+        title,
+        youtubeUrl,
+        questions,
+        clip,
+        notes,
+      }),
+    [title, youtubeUrl, questions, clip, notes]
   );
 
   // New identity on every draft edit — the autosave quiet period restarts on it.
   const draftToken = useMemo(
-    () => [title, youtubeUrl, clip, questions, behavior],
-    [title, youtubeUrl, clip, questions, behavior]
+    () => [title, youtubeUrl, clip, notes, questions, behavior],
+    [title, youtubeUrl, clip, notes, questions, behavior]
   );
 
   // Persist only — the shell owns closing.
@@ -264,6 +276,7 @@ export const VideoActivityEditorModal: React.FC<
           title: title.trim(),
           youtubeUrl: youtubeUrl.trim(),
           clip,
+          notes: notes.length > 0 ? notes : undefined,
           questions: finalQuestions,
           updatedAt: Date.now(),
         },
@@ -282,6 +295,7 @@ export const VideoActivityEditorModal: React.FC<
     title,
     youtubeUrl,
     clip,
+    notes,
     behavior,
     onSave,
     setSaving,

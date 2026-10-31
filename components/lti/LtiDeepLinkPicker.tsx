@@ -116,6 +116,7 @@ import {
   AddonError,
   AddonSelect,
 } from '@/components/classroomAddon/AddonShell';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 /**
  * Raw LTI `deep_linking_settings` claim. Only the fields we consume are typed;
@@ -884,7 +885,7 @@ const LtiDeepLinkFlow: React.FC = () => {
             title: selectedActivity.title,
             driveFileId: selectedActivity.driveFileId,
             youtubeUrl: activityData.youtubeUrl,
-            clip: activityData.clip,
+            ...videoActivityPlayback(activityData),
             questions: activityData.questions,
           },
           {

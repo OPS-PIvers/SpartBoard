@@ -7376,6 +7376,7 @@ export interface SharedVideoActivityAssignment {
   title: string;
   youtubeUrl: string;
   clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
   questions: VideoActivityQuestion[];
   createdAt: number;
   updatedAt: number;
@@ -7466,12 +7467,21 @@ export interface VideoActivityClip {
   end?: number;
 }
 
+/** A stop that pauses the video on text, with nothing to answer and no score. */
+export interface VideoActivityNote {
+  id: string;
+  /** Seconds into the video. */
+  timestamp: number;
+  text: string;
+}
+
 /** Full video activity data stored in Google Drive as JSON. */
 export interface VideoActivityData {
   id: string;
   title: string;
   youtubeUrl: string;
   clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
   /** Total video duration in seconds, populated after the first player load. */
   videoDuration?: number;
   questions: VideoActivityQuestion[];
@@ -7670,6 +7680,7 @@ export interface VideoActivitySession
   teacherUid: string;
   youtubeUrl: string;
   clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
   /**
    * Keyed questions. Empty on stored docs that carry `publicQuestions`; teacher
    * code reads the key via `useVideoActivityKeyQuestions`.
@@ -12245,6 +12256,7 @@ export type SubShareVideoActivityView = Pick<
   | 'title'
   | 'youtubeUrl'
   | 'clip'
+  | 'notes'
   | 'videoDuration'
   | 'questions'
   | 'createdAt'

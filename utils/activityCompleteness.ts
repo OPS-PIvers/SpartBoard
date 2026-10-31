@@ -3,6 +3,7 @@ import {
   type QuizBankSlot,
   type QuizQuestion,
   type VideoActivityClip,
+  type VideoActivityNote,
   type VideoActivityQuestion,
 } from '@/types';
 import {
@@ -84,6 +85,7 @@ interface VideoActivityCompletenessInput {
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
   clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
 }
 
 /** Index of the first question students would never reach inside the clip. */
@@ -104,6 +106,7 @@ export const videoActivityIncompleteReason = ({
   youtubeUrl,
   questions,
   clip,
+  notes = [],
 }: VideoActivityCompletenessInput): string | null => {
   if (!title.trim()) return 'Activity title is required';
   if (!youtubeUrl.trim()) return 'YouTube URL is required';
@@ -133,6 +136,8 @@ export const videoActivityIncompleteReason = ({
   const outside = firstQuestionOutsideClip(questions, clip);
   if (outside >= 0)
     return `Question ${outside + 1} is outside the start and end times`;
+  const blankNote = notes.findIndex((n) => !n.text.trim());
+  if (blankNote >= 0) return `Note ${blankNote + 1}: text is required`;
   return null;
 };
 

@@ -62,3 +62,19 @@ describe('questions outside the clip', () => {
     ).toBeNull();
   });
 });
+
+describe('note stops', () => {
+  it('requires text on every note', () => {
+    expect(
+      videoActivityIncompleteReason({
+        title: 'T',
+        youtubeUrl: 'https://youtu.be/abc',
+        questions: [q(10)],
+        notes: [
+          { id: 'n1', timestamp: 5, text: 'Read this' },
+          { id: 'n2', timestamp: 8, text: '  ' },
+        ],
+      })
+    ).toBe('Note 2: text is required');
+  });
+});

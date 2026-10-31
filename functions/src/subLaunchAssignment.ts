@@ -143,6 +143,26 @@ export const vaClipFrom = (
   return Object.keys(clip).length > 0 ? clip : null;
 };
 
+/** A teacher's note stops, keeping only well-formed ones (at most 200). */
+export const vaNotesFrom = (
+  raw: unknown
+): { id: string; timestamp: number; text: string }[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (n): n is { id: string; timestamp: number; text: string } =>
+        !!n &&
+        typeof n === 'object' &&
+        typeof (n as Record<string, unknown>).id === 'string' &&
+        typeof (n as Record<string, unknown>).text === 'string' &&
+        typeof (n as Record<string, unknown>).timestamp === 'number' &&
+        Number.isFinite((n as Record<string, unknown>).timestamp) &&
+        ((n as Record<string, unknown>).timestamp as number) >= 0
+    )
+    .slice(0, 200)
+    .map(({ id, timestamp, text }) => ({ id, timestamp, text }));
+};
+
 const ALLOWED_VA_ASSIGNMENT_FIELDS = new Set([
   'className',
   'status',
@@ -701,6 +721,7 @@ async function launchVideoActivity(
           title?: string;
           youtubeUrl?: string;
           clip?: unknown;
+          notes?: unknown;
           questions?: unknown;
         };
       }
@@ -741,6 +762,7 @@ async function launchVideoActivity(
       : 'Video activity';
   const { key, publicQuestions } = vaQuestionsFromKey(activity.questions);
   const clip = vaClipFrom(activity.clip);
+  const notes = vaNotesFrom(activity.notes);
 
   const batch = db.batch();
   batch.set(db.doc(`video_activity_sessions/${sessionId}`), {
@@ -753,6 +775,7 @@ async function launchVideoActivity(
     activityTitle,
     youtubeUrl,
     ...(clip ? { clip } : {}),
+    ...(notes.length > 0 ? { notes } : {}),
     // The key never rides the session doc; it goes in `key/answers` below.
     questions: [],
     publicQuestions,

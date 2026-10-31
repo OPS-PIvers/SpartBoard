@@ -10575,6 +10575,14 @@ export const TOUR_ANCHORS = {
     persists: true,
     sandboxed: true,
   },
+  'video-activity.editor-notes-toggle': {
+    label: 'Notes list toggle in the video activity editor',
+  },
+  'video-activity.editor-add-note': {
+    label: 'Add note button in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
   'video-activity.editor-question-pill': {
     label: 'Question button in the editor question list',
     perField: true,

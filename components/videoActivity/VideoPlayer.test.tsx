@@ -260,6 +260,41 @@ describe('VideoPlayer', () => {
       expect(onVideoEnd).not.toHaveBeenCalled();
     });
 
+    it('pauses on a note it has just reached and shows it once', () => {
+      player.getPlayerState = vi.fn(() => 1); // PLAYING
+      player.getCurrentTime = vi.fn(() => 20.2);
+      const onNoteTrigger = vi.fn();
+      const note = { id: 'n1', timestamp: 20, text: 'Look here' };
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          notes={[note]}
+          onNoteTrigger={onNoteTrigger}
+        />
+      );
+      flushFrame(1000);
+      flushFrame(2000);
+      expect(player.pauseVideo).toHaveBeenCalledTimes(1);
+      expect(onNoteTrigger).toHaveBeenCalledTimes(1);
+      expect(onNoteTrigger).toHaveBeenCalledWith(note);
+    });
+
+    it('skips a note well behind a resumed playhead', () => {
+      player.getPlayerState = vi.fn(() => 1); // PLAYING
+      player.getCurrentTime = vi.fn(() => 90);
+      const onNoteTrigger = vi.fn();
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          allowSkipping
+          notes={[{ id: 'n1', timestamp: 20, text: 'Look here' }]}
+          onNoteTrigger={onNoteTrigger}
+        />
+      );
+      flushFrame(1000);
+      expect(onNoteTrigger).not.toHaveBeenCalled();
+    });
+
     it('moves a playhead before the clip start up to the start', () => {
       player.getPlayerState = vi.fn(() => 1); // PLAYING
       player.getCurrentTime = vi.fn(() => 2);

@@ -42,7 +42,11 @@ import {
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
-import { VideoActivityPublicQuestion, VideoActivitySession } from '@/types';
+import {
+  VideoActivityNote,
+  VideoActivityPublicQuestion,
+  VideoActivitySession,
+} from '@/types';
 import {
   deriveVaSessionState,
   initialSelfPacedPlayerState,
@@ -53,6 +57,7 @@ import {
 import { studentQuestionsFromSession } from '@/utils/videoActivityPublicQuestions';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
+import { NoteOverlay } from './NoteOverlay';
 import { videoActivityAnswerRules } from '@/utils/videoActivityAnswerRules';
 import { VideoActivityLiveStudent } from './VideoActivityLiveStudent';
 import {
@@ -552,6 +557,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     },
     []
   );
+  const [activeNote, setActiveNote] = useState<VideoActivityNote | null>(null);
 
   const sessionQuestions = session?.questions;
   const sessionPublicQuestions = session?.publicQuestions;
@@ -1303,13 +1309,15 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 answeredQuestionIds={answeredQuestionIds}
                 onQuestionTrigger={handleQuestionTrigger}
                 onVideoEnd={handleVideoEnd}
-                questionVisible={activeQuestion !== null}
+                questionVisible={activeQuestion !== null || activeNote !== null}
                 allowSkipping={session?.settings?.allowSkipping ?? false}
                 autoPlay={session?.settings?.autoPlay ?? false}
                 seekRequest={seekRequest}
                 playheadRef={playheadRef}
                 paused={periodPaused}
                 clip={session?.clip}
+                notes={session?.notes}
+                onNoteTrigger={setActiveNote}
               />
 
               {periodPaused && <VideoActivityPeriodPausedOverlay />}
@@ -1322,6 +1330,15 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                   >
                     Finish activity
                   </button>
+                </div>
+              )}
+
+              {activeNote && !activeQuestion && !periodPaused && (
+                <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-[1px] flex items-center justify-center overflow-y-auto p-2 sm:p-4">
+                  <NoteOverlay
+                    note={activeNote}
+                    onContinue={() => setActiveNote(null)}
+                  />
                 </div>
               )}
 
