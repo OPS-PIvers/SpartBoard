@@ -13,6 +13,7 @@ interface GradeCase {
   name: string;
   question: VaKeyQuestion;
   answer: string;
+  grade?: { pointsAwarded: number };
   isCorrect: boolean;
 }
 
@@ -21,8 +22,8 @@ const cases = JSON.parse(
 ) as GradeCase[];
 
 describe('video activity grader (server mirror)', () => {
-  it.each(cases)('$name', ({ question, answer, isCorrect }) => {
-    expect(gradeVaAnswer(question, answer)).toBe(isCorrect);
+  it.each(cases)('$name', ({ question, answer, grade, isCorrect }) => {
+    expect(gradeVaAnswer(question, answer, grade)).toBe(isCorrect);
   });
 });
 
@@ -68,6 +69,9 @@ describe('toVaPublicQuestion', () => {
 describe('hasEmbeddedKey', () => {
   it('detects legacy keyed questions only', () => {
     expect(hasEmbeddedKey([{ id: 'q', correctAnswer: '' }])).toBe(true);
+    expect(
+      hasEmbeddedKey([{ id: 'q', type: 'SA', text: 'Why?', correctAnswer: '' }])
+    ).toBe(true);
     expect(hasEmbeddedKey([{ id: 'q', options: ['a'] }])).toBe(false);
     expect(hasEmbeddedKey([])).toBe(false);
     expect(hasEmbeddedKey(undefined)).toBe(false);

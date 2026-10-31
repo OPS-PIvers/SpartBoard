@@ -7399,7 +7399,7 @@ export interface SharedVideoActivityAssignment {
  * that apply") and does not surface Matching or Ordering, which don't
  * map cleanly to a video-cue-point pause.
  */
-export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA';
+export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA' | 'SA';
 
 /**
  * A question tied to a specific timestamp in a YouTube video.
@@ -7414,6 +7414,7 @@ export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA';
  *            ("opt1|opt2|opt3"); `incorrectAnswers` are the distractor
  *            options shown alongside. Mirrors the Matching/Ordering
  *            convention so the wire format stays uniform.
+ *   - `SA`:  short answer; `correctAnswer` is `''` and the teacher marks it.
  *
  * Inherits `points?` and `allowPartialCredit?` from `QuizQuestion`. MA
  * uses `allowPartialCredit` to score (|correct ∩ given| − |given − correct|)
@@ -7916,6 +7917,8 @@ export interface VideoActivityResponse extends StaffResponseFields {
   /** True once `resultsTabWarnings` reaches the protection threshold. */
   resultsLockedOut?: boolean;
   resultsLockedOutAt?: number;
+  /** Teacher marks for short-answer questions, keyed by question id. Teacher-written only. */
+  grading?: Record<string, WrittenAnswerGrade>;
 }
 
 /**

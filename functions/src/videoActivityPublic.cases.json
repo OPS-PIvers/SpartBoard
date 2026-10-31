@@ -82,6 +82,29 @@
       "acceptableVariants": ["azure"],
       "points": 3
     },
-    "expected": { "id": "q", "type": "FIB", "text": "T", "timestamp": 9 }
+    "expected": {
+      "id": "q",
+      "type": "FIB",
+      "text": "T",
+      "timestamp": 9
+    }
+  },
+  {
+    "name": "SA has no options and no key",
+    "question": {
+      "id": "q",
+      "type": "SA",
+      "text": "Explain",
+      "timestamp": 20,
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "points": 4
+    },
+    "expected": {
+      "id": "q",
+      "type": "SA",
+      "text": "Explain",
+      "timestamp": 20
+    }
   }
 ]
