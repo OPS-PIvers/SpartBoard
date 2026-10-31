@@ -96,6 +96,32 @@ export interface ImportReaderFailure {
   reason: string;
 }
 
+// D32 video lesson caps, checked by the server.
+export const IMPORT_MAX_VIDEO_STOPS = 200;
+export const IMPORT_MAX_VIDEO_CHOICES = 12;
+export const IMPORT_MAX_VIDEO_TEXT_CHARS = 2000;
+export const IMPORT_MAX_VIDEO_SECONDS = 24 * 60 * 60;
+export const YOUTUBE_VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+
+/** `correct` is false on every choice when the source didn't share its key. */
+export interface ImportVideoChoice {
+  text: string;
+  correct: boolean;
+}
+
+/** One timed stop in a video lesson; plain text only, `time` in seconds of the whole video. */
+export type ImportVideoStop =
+  | { kind: 'choice'; time: number; text: string; choices: ImportVideoChoice[] }
+  | { kind: 'open' | 'note'; time: number; text: string };
+
+/** A YouTube video lesson a Platform reader found (D30-D33), trimmed to `start`/`end`. */
+export interface ImportVideoLesson {
+  youtubeId: string;
+  start?: number;
+  end?: number;
+  stops: ImportVideoStop[];
+}
+
 /** Body of `importInboxV1` (D14). */
 export interface ImportSendRequest {
   url: string;
@@ -106,6 +132,7 @@ export interface ImportSendRequest {
   blocks: ImportBlock[];
   images: ImportImage[];
   readerFailure?: ImportReaderFailure;
+  video?: ImportVideoLesson;
 }
 
 /** A stored Send, `users/{uid}/import_inbox/{id}`; `expireAt` (a Timestamp) drives the TTL. */

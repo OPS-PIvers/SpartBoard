@@ -125,11 +125,12 @@ export const videoActivityIncompleteReason = ({
       ).length;
       if (correctCount + incorrectCount === 0)
         return `Question ${i + 1}: add at least one option`;
-      if (correctCount === 0)
+      if (correctCount === 0 && !q.needsKey)
         return `Question ${i + 1}: select at least one correct option`;
       if (maOptionHasPipe(q))
         return `Question ${i + 1}: option text cannot contain the | character`;
-    } else if (type !== 'SA' && !q.correctAnswer.trim()) {
+    } else if (type !== 'SA' && !q.needsKey && !q.correctAnswer.trim()) {
+      // An imported question without its key saves; Assign stays shut (D32).
       return `Question ${i + 1}: correct answer is required`;
     }
   }

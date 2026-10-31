@@ -101,6 +101,22 @@ describe('targetChoices', () => {
     expect(c.guess).toBe('embed');
   });
 
+  it('guesses a Video activity for a sent Edpuzzle lesson (D32)', () => {
+    const item: ImportInboxItem = {
+      id: 'ep',
+      url: 'https://edpuzzle.com/media/603babc9e9387642b1bc2659',
+      title: 'Climate',
+      platform: 'edpuzzle',
+      selectionOnly: false,
+      blocks: [{ type: 'paragraph', text: '1. Weather is...' }],
+      images: [],
+      receivedAt: 0,
+      video: { youtubeId: 'WjqqUjDkh1c', stops: [] },
+    };
+    const c = targetChoices(sourceFromInboxItem(item));
+    expect(c.guess).toBe('videoActivity');
+  });
+
   it('does not offer a Video activity for a YouTube page with no video', () => {
     const c = targetChoices({ url: 'https://www.youtube.com/feed/library' });
     expect(c.targets).not.toContain('videoActivity');

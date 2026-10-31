@@ -119,7 +119,12 @@ board. Schoology is one Source among many. This picks up the out-of-scope list o
   - Edpuzzle and YouTube Send ride `universal-import` (D29).
   - A new preview flag `video-activity-stops` gates short answer, note stops and the clip range in the editor and player.
   - A new admin-only flag `video-import-ai` shows "Generate questions with AI" on a YouTube import, using the existing `generateVideoActivity` with its existing `video-activity-ai` permission and daily caps.
-- **D36 Edpuzzle fixture.** Edpuzzle has no public content API, so the reader is built from research against a fixture labelled synthetic, with the D18 fallback. Before the release that opens it, Paul does one Send from an Edpuzzle lesson on the dev extension and that captured payload, student data removed, replaces the synthetic fixture.
+- **D36 Edpuzzle fixture (revised 2026-10-31).** Two public lessons were probed read-only on 2026-10-31. Send fetches `edpuzzle.com/api/v3/media/<id>` from the lesson page with the teacher's own Edpuzzle sign-in.
+  - **Video:** `source` is `youtube` with `videoId` the YouTube id, or `edpuzzle` for a video Edpuzzle hosts (refused, D26).
+  - **Trim:** `sections[]` are back-to-back kept pieces; the first start and last end against `originalVideoDuration` give the clip, and a cut in the middle plays through.
+  - **Content:** `questions[]` (`multiple-choice` with `choices[].isCorrect`, `open-ended`) and `notes[]` carry a `time` in seconds and HTML bodies, read as plain text. Images in prompts are not carried yet.
+  - **Keys:** public data marks every choice `isCorrect: false`. A question with no marked choice imports with `needsKey`; it saves, and Assign stays blocked until the teacher marks it.
+  - **Fixture:** `extension/src/edpuzzle/fixtures/youtubeLesson.json` is a public YouTube lesson with its owner removed. One Send of a lesson Paul owns on the dev extension confirms whether owner data includes the key, before the release that opens it.
 - **D37 Build order.** (1) Video Activity short answer, note stops, clip range; (2) YouTube Send route and `video-import-ai`; (3) Edpuzzle reader.
 
 ### Guards and release
