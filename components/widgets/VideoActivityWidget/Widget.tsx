@@ -306,6 +306,8 @@ const TeacherVideoActivityWidget: React.FC<{
   // What a sent lesson couldn't bring over; shown in the editor until it closes.
   const [importLeftOut, setImportLeftOut] = useState<string | null>(null);
   const openingHandoffRef = useRef<ImportHandoff | null>(null);
+  // Set when the open editor has saved once; onClose can run before that save re-renders.
+  const editorSavedRef = useRef(false);
   const openVaHandoff = useEffectEvent(async (handoff: ImportHandoff) => {
     if (openingHandoffRef.current === handoff) return;
     openingHandoffRef.current = handoff;
@@ -1612,7 +1614,9 @@ const TeacherVideoActivityWidget: React.FC<{
         }
         onClose={() => {
           if (importedActivityId) {
-            if (editingMeta) completeImportHandoff(widget.id);
+            // The ref covers a save that finished just before close, before editingMeta re-rendered.
+            if (editingMeta || editorSavedRef.current)
+              completeImportHandoff(widget.id);
             else {
               takeImportHandoff(widget.id);
               // Never saved: the copied pictures would be stranded in Drive.
@@ -1623,6 +1627,7 @@ const TeacherVideoActivityWidget: React.FC<{
             setImportedPictureIds([]);
             setImportLeftOut(null);
           }
+          editorSavedRef.current = false;
           setEditingActivity(null);
           setEditingMeta(null);
         }}
@@ -1636,6 +1641,7 @@ const TeacherVideoActivityWidget: React.FC<{
           // Adopt what was written. Without this a new activity keeps saving
           // with no drive file id, so every retitled autosave orphans a file.
           setEditingMeta(saved);
+          editorSavedRef.current = true;
           // Autosaved writes are not news; a synced Save publishes, so it is.
           if (isNew) addToast('Activity created!', 'success');
           else if (editingMeta?.sync)

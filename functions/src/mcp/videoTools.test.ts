@@ -351,3 +351,39 @@ describe('restoreVideoRevision', () => {
     expect(res.previous_version_revision_id).toBeTruthy();
   });
 });
+
+describe('short answer through the connector', () => {
+  const sa = {
+    type: 'short_answer',
+    text: 'Why?',
+    timestamp_seconds: 40,
+  };
+
+  it('refuses a new short answer while video-activity-stops is off', async () => {
+    const { db } = fakeDb();
+    const call = await connect(db);
+    const res = await call('create_video_activity', {
+      title: 'Cells',
+      youtube_url: URL_OK,
+      questions: [mc(1, 30), sa],
+    });
+    expect(res.error).toMatch(/not turned on/);
+  });
+
+  it('adds a short answer when the flag is on for the teacher', async () => {
+    const { db } = fakeDb({
+      'global_permissions/video-activity-stops': {
+        enabled: true,
+        accessLevel: 'public',
+      },
+    });
+    const call = await connect(db);
+    const res = await call('create_video_activity', {
+      title: 'Cells',
+      youtube_url: URL_OK,
+      questions: [mc(1, 30), sa],
+    });
+    expect(res.error).toBeUndefined();
+    expect(res.question_count).toBe(2);
+  });
+});

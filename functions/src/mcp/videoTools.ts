@@ -123,6 +123,26 @@ async function buildQuestions(
   previous: VideoQuestion[]
 ): Promise<VideoQuestion[]> {
   const byId = new Map(previous.map((q) => [q.id, q]));
+  // A new short answer needs the editor's flag; one already in the activity can be kept.
+  const addsShortAnswer = inputs.some(
+    (input) =>
+      input.type === 'short_answer' &&
+      !(input.id && byId.get(input.id)?.type === 'SA')
+  );
+  if (addsShortAnswer) {
+    const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+    if (
+      !(await isGlobalFeatureGranted(
+        ctx.db,
+        'video-activity-stops',
+        ctx.email,
+        ctx.uid
+      ))
+    )
+      throw new ToolError(
+        'Short-answer video questions are not turned on for this account yet. Use another question type.'
+      );
+  }
   const used = new Set<string>();
   const applyTargets = await prepareTargets(
     ctx,

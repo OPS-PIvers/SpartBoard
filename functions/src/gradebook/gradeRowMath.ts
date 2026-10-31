@@ -11,9 +11,12 @@ import {
   type RawAnswer,
 } from '../plcAssessmentMath';
 import {
+  currentShortAnswerGrading,
   parseCompletedResponse,
   parseManualGrades,
 } from '../recomputePlcAssessments';
+
+export { currentShortAnswerGrading };
 import { notChosenIds, parseChooseSections } from '../quizSectionsChosen';
 import { isCompletionOnly, type TargetEvidence } from '../gradebookCore';
 import type {
@@ -729,30 +732,3 @@ export function scoreMiniAppBest(
 
 export const rowId = (sessionId: string, studentUid: string): string =>
   `${sessionId}__${studentUid}`;
-
-/** VA marks minus any whose `answeredAt` no longer matches an answer, so a retake starts unmarked. */
-export function currentShortAnswerGrading(
-  grading: unknown,
-  answers: unknown
-): unknown {
-  if (typeof grading !== 'object' || grading === null) return grading;
-  const list = Array.isArray(answers) ? answers : [];
-  return Object.fromEntries(
-    Object.entries(grading as Record<string, unknown>).filter(([qid, g]) => {
-      const at =
-        typeof g === 'object' && g !== null
-          ? (g as Record<string, unknown>).answeredAt
-          : undefined;
-      return (
-        at === undefined ||
-        list.some(
-          (a) =>
-            typeof a === 'object' &&
-            a !== null &&
-            (a as Record<string, unknown>).questionId === qid &&
-            (a as Record<string, unknown>).answeredAt === at
-        )
-      );
-    })
-  );
-}

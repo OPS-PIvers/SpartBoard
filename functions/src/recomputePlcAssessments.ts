@@ -61,8 +61,37 @@ export function parseCompletedResponse(
       : undefined,
     classPeriod: asString(raw.classPeriod) || undefined,
     classId: asString(raw.classId) || undefined,
-    manualGrades: parseManualGrades(raw.grading),
+    manualGrades: parseManualGrades(
+      currentShortAnswerGrading(raw.grading, raw.answers)
+    ),
   };
+}
+
+/** VA marks minus any whose `answeredAt` no longer matches an answer, so a retake starts unmarked. */
+export function currentShortAnswerGrading(
+  grading: unknown,
+  answers: unknown
+): unknown {
+  if (typeof grading !== 'object' || grading === null) return grading;
+  const list = Array.isArray(answers) ? answers : [];
+  return Object.fromEntries(
+    Object.entries(grading as Record<string, unknown>).filter(([qid, g]) => {
+      const at =
+        typeof g === 'object' && g !== null
+          ? (g as Record<string, unknown>).answeredAt
+          : undefined;
+      return (
+        at === undefined ||
+        list.some(
+          (a) =>
+            typeof a === 'object' &&
+            a !== null &&
+            (a as Record<string, unknown>).questionId === qid &&
+            (a as Record<string, unknown>).answeredAt === at
+        )
+      );
+    })
+  );
 }
 
 /** `grading[questionId]` for primary slots; media slot keys (`id::slot`) are skipped. */
@@ -254,7 +283,13 @@ export async function recomputeOnePlcAssessment(
     assessmentId,
     title: asString(assessment.title),
     kind,
-    groupQuestions,
+    // A video short answer is teacher-marked, graded like a Quiz written answer.
+    groupQuestions:
+      kind === 'video-activity'
+        ? groupQuestions.map((q) =>
+            q.type === 'SA' ? { ...q, type: 'free-response' } : q
+          )
+        : groupQuestions,
     sessions,
   });
 

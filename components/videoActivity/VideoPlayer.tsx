@@ -352,7 +352,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             if (event.data === YT_PLAYER_STATE.ENDED) {
               // The teacher can seek back after the end, so keep polling.
               if (!teacherModeRef.current) stopPolling();
-              onVideoEndRef.current();
+              // A clip end at the real end already reported it.
+              if (!clipEndedRef.current) onVideoEndRef.current();
             }
           },
         },

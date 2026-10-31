@@ -419,9 +419,15 @@ export async function receiveSend(
     throw fail(403, "Your district doesn't allow sending this page.");
   // A picture hosted on a blocked site (a student photo in the SIS) is dropped, not stored.
   const images = send.images.filter((img) => !isUrlBlocked(img.url, patterns));
-  const id = sendId({ ...send, images });
+  const video = send.video && {
+    ...send.video,
+    stops: send.video.stops.map(({ image, ...stop }) =>
+      image && !isUrlBlocked(image, patterns) ? { ...stop, image } : stop
+    ),
+  };
+  const id = sendId({ ...send, images, ...(video ? { video } : {}) });
   const { readerFailure, ...rest } = send;
-  const stored = { ...rest, images };
+  const stored = { ...rest, images, ...(video ? { video } : {}) };
   const doc = { ...stored, receivedAt: now };
   if (Buffer.byteLength(JSON.stringify(stored)) > MAX_DOC_BYTES)
     throw fail(413, 'This page is too long to send at once.');

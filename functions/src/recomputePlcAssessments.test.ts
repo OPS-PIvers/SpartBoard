@@ -229,6 +229,19 @@ describe('parseCompletedResponse manual grades', () => {
       parseCompletedResponse({ answers: [] }).manualGrades
     ).toBeUndefined();
   });
+  it('drops a video short-answer mark left from an earlier attempt', () => {
+    const parsed = parseCompletedResponse({
+      answers: [
+        { questionId: 'sa1', answer: 'new', answeredAt: 200 },
+        { questionId: 'sa2', answer: 'same', answeredAt: 300 },
+      ],
+      grading: {
+        sa1: { pointsAwarded: 1, answeredAt: 100 },
+        sa2: { pointsAwarded: 1, answeredAt: 300 },
+      },
+    });
+    expect(Object.keys(parsed.manualGrades ?? {})).toEqual(['sa2']);
+  });
 });
 
 describe('recomputeOnePlcAssessment', () => {
