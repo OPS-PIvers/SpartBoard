@@ -126,7 +126,7 @@ export function ImportWizard<TData>({
   );
   // True when what is under review came from the Source Import handed over.
   const [parsedFromInitial, setParsedFromInitial] = useState(false);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(initialParse?.note ?? '');
   // The plain read that can be redone with AI from the preview step.
   const [aiRetrySource, setAiRetrySource] =
     useState<ImportSourcePayload | null>(null);
