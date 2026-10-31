@@ -7485,6 +7485,8 @@ export interface VideoActivityData {
   youtubeUrl: string;
   clip?: VideoActivityClip;
   notes?: VideoActivityNote[];
+  /** Where Import got this activity (IMPORT.md D7); teacher only. */
+  importedFrom?: ImportAttribution;
   /** Total video duration in seconds, populated after the first player load. */
   videoDuration?: number;
   questions: VideoActivityQuestion[];

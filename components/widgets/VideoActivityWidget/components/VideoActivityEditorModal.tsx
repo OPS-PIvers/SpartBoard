@@ -34,6 +34,7 @@ import {
 import type { TimelineHandle } from './Timeline';
 import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
 import { notesEqual } from '@/utils/videoActivityClip';
+import { ImportAttributionLine } from '@/components/import/ImportAttributionLine';
 
 interface VideoActivityEditorModalProps {
   isOpen: boolean;
@@ -58,6 +59,8 @@ interface VideoActivityEditorModalProps {
    * moves on to assignment config, and a PLC edit syncs to teammates.
    */
   autosave?: boolean;
+  /** A YouTube import for a teacher with `video-import-ai`: open the AI prompt straight away (D35). */
+  startWithAi?: boolean;
 }
 
 const arrEq = (a?: string[], b?: string[]): boolean => {
@@ -144,6 +147,7 @@ export const VideoActivityEditorModal: React.FC<
   folderId,
   onFolderChange,
   behavior: behaviorSeed,
+  startWithAi = false,
 }) => {
   const { canAccessFeature } = useAuth();
   const canUseAi =
@@ -153,7 +157,10 @@ export const VideoActivityEditorModal: React.FC<
   const stopsEnabled = canAccessFeature('video-activity-stops');
   const timelineRef = useRef<TimelineHandle>(null);
 
-  const editorState = useVideoActivityEditorState({ activity });
+  const editorState = useVideoActivityEditorState({
+    activity,
+    startWithAi: startWithAi && canUseAi,
+  });
 
   const {
     title,
@@ -305,14 +312,18 @@ export const VideoActivityEditorModal: React.FC<
 
   // Stable chrome elements so the shell's memoized header/footer don't
   // re-render on question-content keystrokes.
+  const importedFrom = activity?.importedFrom;
   const subtitle = useMemo(
     () => (
-      <span>
-        {questions.length} {questions.length === 1 ? 'question' : 'questions'} •{' '}
-        {totalPoints} {totalPoints === 1 ? 'point' : 'points'}
-      </span>
+      <>
+        <span>
+          {questions.length} {questions.length === 1 ? 'question' : 'questions'}{' '}
+          • {totalPoints} {totalPoints === 1 ? 'point' : 'points'}
+        </span>
+        {importedFrom && <ImportAttributionLine attribution={importedFrom} />}
+      </>
     ),
-    [questions.length, totalPoints]
+    [questions.length, totalPoints, importedFrom]
   );
   const headerExtras = useMemo(
     () =>

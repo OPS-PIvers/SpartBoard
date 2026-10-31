@@ -93,6 +93,19 @@ describe('targetChoices', () => {
     expect(c.guess).toBe('embed');
   });
 
+  it('offers a YouTube video as an Embed or a Video activity (D34)', () => {
+    const c = targetChoices({
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    });
+    expect(c.targets).toEqual(['embed', 'videoActivity']);
+    expect(c.guess).toBe('embed');
+  });
+
+  it('does not offer a Video activity for a YouTube page with no video', () => {
+    const c = targetChoices({ url: 'https://www.youtube.com/feed/library' });
+    expect(c.targets).not.toContain('videoActivity');
+  });
+
   it('offers a Google Sheet link only as a page; the Picker grants sheet reads', () => {
     const c = targetChoices({
       url: 'https://docs.google.com/spreadsheets/d/abc/edit',

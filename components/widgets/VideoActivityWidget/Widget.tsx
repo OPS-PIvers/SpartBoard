@@ -5,7 +5,13 @@
  * as a sibling of the Manager library view.
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+} from 'react';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
@@ -111,6 +117,13 @@ import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTarget
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { isSandboxId, isSandboxed } from '@/utils/tourSandbox';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
+import {
+  completeImportHandoff,
+  takeImportHandoff,
+  useImportHandoff,
+  type ImportHandoff,
+} from '@/components/import/importHandoff';
+import { attributionFor } from '@/components/import/attribution';
 
 /**
  * Shared clipboard helper — centralizes the feature-detection + toast flow
@@ -275,6 +288,33 @@ const TeacherVideoActivityWidget: React.FC<{
   const [editingMeta, setEditingMeta] = useState<VideoActivityMetadata | null>(
     null
   );
+  // The activity in the editor came from Import (D34); its handoff completes on the first save.
+  const [importedActivityId, setImportedActivityId] = useState<string | null>(
+    null
+  );
+  const importHandoff = useImportHandoff(widget.id);
+  const vaHandoff =
+    importHandoff?.target === 'videoActivity' ? importHandoff : null;
+  const openVaHandoff = useEffectEvent((handoff: ImportHandoff) => {
+    const now = Date.now();
+    const importedFrom = attributionFor(handoff.source);
+    const activity: VideoActivityData = {
+      id: crypto.randomUUID(),
+      title: (handoff.source.title ?? '').slice(0, 200),
+      youtubeUrl: handoff.source.url ?? '',
+      questions: [],
+      ...(importedFrom ? { importedFrom } : {}),
+      createdAt: now,
+      updatedAt: now,
+    };
+    setEditingActivity(activity);
+    setEditingMeta(null);
+    setImportedActivityId(activity.id);
+  });
+  // The handoff store lives outside React; open the editor when a YouTube Source arrives.
+  useEffect(() => {
+    if (vaHandoff) void Promise.resolve().then(() => openVaHandoff(vaHandoff));
+  }, [vaHandoff]);
 
   // Shared rapid-click guard. See `hooks/useBusyIdSet.ts`.
   const duplicateBusy = useBusyIdSet();
@@ -1513,7 +1553,17 @@ const TeacherVideoActivityWidget: React.FC<{
               }
             : undefined
         }
+        startWithAi={
+          !!importedActivityId &&
+          editingActivity?.id === importedActivityId &&
+          canAccessFeature('video-import-ai')
+        }
         onClose={() => {
+          if (importedActivityId) {
+            if (editingMeta) completeImportHandoff(widget.id);
+            else takeImportHandoff(widget.id);
+            setImportedActivityId(null);
+          }
           setEditingActivity(null);
           setEditingMeta(null);
         }}
