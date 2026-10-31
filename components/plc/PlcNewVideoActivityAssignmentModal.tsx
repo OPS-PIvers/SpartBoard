@@ -287,6 +287,8 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
             questions: data.questions,
             plcId: plc.id,
             behavior: pickedActivity.behavior,
+            clip: data.clip,
+            notes: data.notes,
           });
           createdSyncGroupId = newSyncGroupId;
           try {

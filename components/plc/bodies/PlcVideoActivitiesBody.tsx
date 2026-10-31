@@ -73,6 +73,7 @@ import {
   pullSyncedVideoActivityContent,
   useSyncedVideoActivityGroupsByIds,
 } from '@/hooks/useSyncedVideoActivityGroups';
+import { syncedPlayback } from '@/utils/videoActivityClip';
 // Clean-detach shim (Decision 5.3) — kind-agnostic, lives alongside the quiz
 // sync callables but routes to the PLC's video_activities header server-side.
 import { callDetachPlcSyncLinkage } from '@/hooks/useSyncedQuizGroups';
@@ -328,6 +329,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           title: canonical.title,
           youtubeUrl: canonical.youtubeUrl,
           questions: canonical.questions,
+          ...syncedPlayback(canonical),
           createdAt: now,
           updatedAt: now,
         };
@@ -452,6 +454,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
             title: canonical.title,
             youtubeUrl: canonical.youtubeUrl,
             questions: canonical.questions,
+            ...syncedPlayback(canonical),
             createdAt: now,
             updatedAt: now,
           };
@@ -657,6 +660,8 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
             questions: data.questions,
             plcId: plc.id,
             behavior: meta.behavior,
+            clip: data.clip,
+            notes: data.notes,
           });
           try {
             await attachSyncLinkage(meta.id, {

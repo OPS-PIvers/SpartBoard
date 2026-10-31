@@ -192,8 +192,102 @@ describe('parseSendRequest', () => {
     ['an empty title', { title: '   ' }],
     ['a data: image', { images: [{ url: 'data:image/png;base64,AA==' }] }],
     ['a bad reader failure', { readerFailure: { platform: 'x', reason: 1 } }],
+    ['a bad video id', { video: { youtubeId: 'nope', stops: [] } }],
+    [
+      'a video end before its start',
+      { video: { youtubeId: 'WjqqUjDkh1c', start: 9, end: 3, stops: [] } },
+    ],
+    [
+      'a negative stop time',
+      {
+        video: {
+          youtubeId: 'WjqqUjDkh1c',
+          stops: [{ kind: 'note', time: -1, text: 'x' }],
+        },
+      },
+    ],
+    [
+      'a picture that is not https',
+      {
+        video: {
+          youtubeId: 'WjqqUjDkh1c',
+          stops: [
+            { kind: 'note', time: 1, text: 'x', image: 'http://a.b/c.png' },
+          ],
+        },
+      },
+    ],
+    [
+      'a choice without a correct flag',
+      {
+        video: {
+          youtubeId: 'WjqqUjDkh1c',
+          stops: [
+            { kind: 'choice', time: 1, text: 'q', choices: [{ text: 'a' }] },
+          ],
+        },
+      },
+    ],
   ])('refuses %s', (_name, over) => {
     expect(() => parseSendRequest(body(over))).toThrow(ExtensionCallError);
+  });
+
+  it('keeps a video lesson and drops its unknown fields', () => {
+    const video = {
+      youtubeId: 'WjqqUjDkh1c',
+      start: 2,
+      end: 90,
+      stops: [
+        {
+          kind: 'choice',
+          time: 10,
+          text: 'Weather is...',
+          choices: [{ text: 'daily', correct: true, html: '<p>' }],
+        },
+        {
+          kind: 'open',
+          time: 80,
+          text: 'Why?',
+          image: 'https://img.example/a.png',
+        },
+        { kind: 'note', time: 40, text: 'Look here', id: 'x' },
+      ],
+    };
+    expect(parseSendRequest(body({ video })).video).toEqual({
+      youtubeId: 'WjqqUjDkh1c',
+      start: 2,
+      end: 90,
+      stops: [
+        {
+          kind: 'choice',
+          time: 10,
+          text: 'Weather is...',
+          choices: [{ text: 'daily', correct: true }],
+        },
+        {
+          kind: 'open',
+          time: 80,
+          text: 'Why?',
+          image: 'https://img.example/a.png',
+        },
+        { kind: 'note', time: 40, text: 'Look here' },
+      ],
+    });
+  });
+
+  it('keeps the left-out counts above zero and drops unknown kinds', () => {
+    const video = {
+      youtubeId: 'WjqqUjDkh1c',
+      stops: [],
+      leftOut: { question: 2, voiceover: 0, cut: 1, other: 5 },
+    };
+    expect(parseSendRequest(body({ video })).video?.leftOut).toEqual({
+      question: 2,
+      cut: 1,
+    });
+    expect(() =>
+      parseSendRequest(body({ video: { ...video, leftOut: { question: -1 } } }))
+    ).toThrow(ExtensionCallError);
   });
 
   it('refuses too many blocks with 413', async () => {
@@ -332,6 +426,44 @@ describe('blocked pictures', () => {
     expect(writes[0].doc).toMatchObject({
       images: [{ url: 'https://www.example.org/a.png' }],
     });
+  });
+
+  it('drops a lesson stop picture from a blocked site and keeps the stop', async () => {
+    const { s, writes } = store();
+    await receiveSend(
+      body({
+        video: {
+          youtubeId: 'WjqqUjDkh1c',
+          stops: [
+            {
+              kind: 'note',
+              time: 3,
+              text: 'Look',
+              image: 'https://mn.infinitecampus.org/personPicture.jpg',
+            },
+            {
+              kind: 'note',
+              time: 5,
+              text: 'Here',
+              image: 'https://www.example.org/a.png',
+            },
+          ],
+        },
+      }),
+      ME,
+      s
+    );
+    expect(writes[0].doc).toMatchObject({
+      video: {
+        stops: [
+          { kind: 'note', time: 3, text: 'Look' },
+          { image: 'https://www.example.org/a.png' },
+        ],
+      },
+    });
+    const first = (writes[0].doc as { video: { stops: object[] } }).video
+      .stops[0];
+    expect(first).not.toHaveProperty('image');
   });
 
   it('counts empty table cells toward the text cap', () => {

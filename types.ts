@@ -7280,6 +7280,9 @@ export interface SyncedVideoActivityGroup {
   questions: VideoActivityQuestion[];
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: VideoActivityBehaviorSettings;
+  clip?: VideoActivityClip;
+  /** Always written by current clients (possibly empty); absent on docs that predate synced playback. */
+  notes?: VideoActivityNote[];
   /**
    * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
    * Modified only by the Cloud Function paths so the rules-side write check
@@ -7335,6 +7338,9 @@ export interface PlcVideoActivityVersionContent {
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
   behavior?: VideoActivityBehaviorSettings;
+  clip?: VideoActivityClip;
+  /** Absent on snapshots taken before synced playback; restore then keeps the canonical clip and notes. */
+  notes?: VideoActivityNote[];
 }
 
 /**
@@ -7444,6 +7450,8 @@ export type VideoActivityQuestion = Omit<
    * only accepted form.
    */
   acceptableVariants?: string[];
+  /** A picture with the prompt, stored in the teacher's Drive (IMPORT.md D32). */
+  imageDriveFileId?: string;
 };
 
 /** Student-safe VA question on the session doc; the key lives in `key/answers`. */
@@ -7454,6 +7462,7 @@ export interface VideoActivityPublicQuestion {
   type: VideoActivityQuestionType;
   /** MC/MA choices, correct and incorrect mixed in random order. */
   options?: string[];
+  imageDriveFileId?: string;
 }
 
 /** Server grading of one VA answer (`checkVideoActivityAnswerV1`). */
@@ -7476,6 +7485,7 @@ export interface VideoActivityNote {
   /** Seconds into the video. */
   timestamp: number;
   text: string;
+  imageDriveFileId?: string;
 }
 
 /** Full video activity data stored in Google Drive as JSON. */
@@ -10777,6 +10787,22 @@ export type GlobalFeature =
   | 'staff-audience'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
+  /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
+  | 'import-extension-send'
+  | 'import-board-drop'
+  | 'import-quiz'
+  | 'import-flashcards'
+  | 'import-activity-wall'
+  | 'import-new-board'
+  | 'import-guided-learning'
+  | 'import-notebook'
+  | 'import-video-activity'
+  | 'import-mini-app'
+  | 'import-pdf'
+  | 'import-sticker'
+  | 'import-embed'
+  | 'import-link'
+  | 'import-schoology-course'
   /** Video Activity short answer, note stops and clip range (docs/plans/IMPORT.md D32-D33). */
   | 'video-activity-stops'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */

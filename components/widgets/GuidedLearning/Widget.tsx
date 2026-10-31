@@ -247,7 +247,9 @@ const TeacherGuidedLearningWidget: React.FC<{
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
   const { driveService } = useGoogleDrive();
-  const slidesImportOn = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
+  const slidesImportOn =
+    canAccessFeature(UNIVERSAL_IMPORT_FEATURE) &&
+    canAccessFeature('import-guided-learning');
   const canEditToursOnBoard = isAdmin === true;
   const canUseAi =
     canAccessFeature('gemini-functions') &&

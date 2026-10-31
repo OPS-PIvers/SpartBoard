@@ -324,6 +324,8 @@ export const PlcAssignmentConfigModal: React.FC<
             questions: activityRef.questions,
             plcId: plc.id,
             behavior: vaBehavior,
+            clip: activityRef.clip,
+            notes: activityRef.notes,
           });
         } catch (err) {
           logError(

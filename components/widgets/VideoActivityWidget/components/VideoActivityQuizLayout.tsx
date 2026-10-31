@@ -43,6 +43,7 @@ import {
   QuestionTargetsField,
   QuestionTypeSelect,
 } from '@/components/widgets/QuizWidget/components/QuestionFields';
+import { VideoActivityPictureField } from './VideoActivityPictureField';
 import {
   QUESTION_TYPES,
   questionTypeChangeUpdates,
@@ -552,6 +553,11 @@ export const VideoActivityQuizDetailPane = React.memo(
             textareaRef={promptRef}
             allowBlanks={false}
             anchor={tourAttr('video-activity.editor-question-text')}
+          />
+
+          <VideoActivityPictureField
+            fileId={selectedQuestion?.imageDriveFileId}
+            onRemove={() => updateQuestion(id, { imageDriveFileId: undefined })}
           />
 
           <QuestionTargetsField

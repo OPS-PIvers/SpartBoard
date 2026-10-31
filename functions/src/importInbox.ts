@@ -26,11 +26,18 @@ import {
   IMPORT_MAX_TEXT_CHARS,
   IMPORT_MAX_TITLE_CHARS,
   IMPORT_MAX_URL_CHARS,
+  IMPORT_MAX_VIDEO_CHOICES,
+  IMPORT_MAX_VIDEO_SECONDS,
+  IMPORT_MAX_VIDEO_STOPS,
+  IMPORT_MAX_VIDEO_TEXT_CHARS,
   IMPORT_PLATFORM_ID,
+  IMPORT_VIDEO_LEFT_OUT,
   IMPORT_READER_FAILURES_COLLECTION,
   IMPORT_READER_FAILURE_TTL_MS,
   IMPORT_SEND_BLOCK_LIST_DOC,
   UNIVERSAL_IMPORT_FEATURE,
+  IMPORT_SEND_FEATURE,
+  YOUTUBE_VIDEO_ID,
   isUrlBlocked,
   resolveBlockPatterns,
   type ImportBlock,
@@ -39,6 +46,8 @@ import {
   type ImportSendReply,
   type ImportSendRequest,
   type ImportStatusReply,
+  type ImportVideoLesson,
+  type ImportVideoStop,
 } from './import/shared.gen';
 
 type Firestore = admin.firestore.Firestore;
@@ -208,6 +217,87 @@ function parseReaderFailure(v: unknown): ImportReaderFailure | undefined {
   };
 }
 
+function seconds(v: unknown, what: string): number {
+  if (
+    typeof v !== 'number' ||
+    !Number.isFinite(v) ||
+    v < 0 ||
+    v > IMPORT_MAX_VIDEO_SECONDS
+  )
+    throw malformed(what);
+  return v;
+}
+
+function parseStop(v: unknown, i: number): ImportVideoStop {
+  const what = `video stop ${i + 1}`;
+  if (!isObj(v)) throw malformed(what);
+  const time = seconds(v.time, what);
+  const body = text(v.text, IMPORT_MAX_VIDEO_TEXT_CHARS, what);
+  const image = v.image === undefined ? undefined : httpUrl(v.image, what);
+  if (image !== undefined && !image.startsWith('https://'))
+    throw malformed(what);
+  const extra = image !== undefined ? { image } : {};
+  if (v.kind === 'open' || v.kind === 'note')
+    return { kind: v.kind, time, text: body, ...extra };
+  if (
+    v.kind !== 'choice' ||
+    !Array.isArray(v.choices) ||
+    v.choices.length > IMPORT_MAX_VIDEO_CHOICES
+  )
+    throw malformed(what);
+  return {
+    kind: 'choice',
+    time,
+    text: body,
+    ...extra,
+    choices: v.choices.map((c) => {
+      if (!isObj(c) || typeof c.correct !== 'boolean') throw malformed(what);
+      return {
+        text: text(c.text, IMPORT_MAX_VIDEO_TEXT_CHARS, what),
+        correct: c.correct,
+      };
+    }),
+  };
+}
+
+function parseLeftOut(v: unknown): ImportVideoLesson['leftOut'] {
+  if (v === undefined) return undefined;
+  if (!isObj(v)) throw malformed('video');
+  const out: NonNullable<ImportVideoLesson['leftOut']> = {};
+  for (const kind of IMPORT_VIDEO_LEFT_OUT) {
+    const n = v[kind];
+    if (n === undefined) continue;
+    if (!Number.isInteger(n) || (n as number) < 0 || (n as number) > 10_000)
+      throw malformed('video');
+    if ((n as number) > 0) out[kind] = n as number;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function parseVideo(v: unknown): ImportVideoLesson | undefined {
+  if (v === undefined) return undefined;
+  if (
+    !isObj(v) ||
+    typeof v.youtubeId !== 'string' ||
+    !YOUTUBE_VIDEO_ID.test(v.youtubeId) ||
+    !Array.isArray(v.stops) ||
+    v.stops.length > IMPORT_MAX_VIDEO_STOPS
+  )
+    throw malformed('video');
+  const start = v.start === undefined ? undefined : seconds(v.start, 'video');
+  const end = v.end === undefined ? undefined : seconds(v.end, 'video');
+  if (start !== undefined && end !== undefined && end <= start)
+    throw malformed('video');
+  const leftOut = parseLeftOut(v.leftOut);
+  return {
+    youtubeId: v.youtubeId,
+    ...(start !== undefined ? { start } : {}),
+    ...(end !== undefined ? { end } : {}),
+    stops: v.stops.map(parseStop),
+    ...(leftOut ? { leftOut } : {}),
+  };
+}
+
 /** Checks everything the extension sends; unknown fields are dropped, never stored. */
 export function parseSendRequest(body: unknown): ImportSendRequest {
   if (!isObj(body)) throw malformed('body');
@@ -225,6 +315,7 @@ export function parseSendRequest(body: unknown): ImportSendRequest {
   const title = text(body.title, IMPORT_MAX_TITLE_CHARS, 'title').trim();
   if (!title) throw malformed('title');
   const readerFailure = parseReaderFailure(body.readerFailure);
+  const video = parseVideo(body.video);
   return {
     url: storedUrl(httpUrl(body.url, 'url')),
     title,
@@ -233,6 +324,7 @@ export function parseSendRequest(body: unknown): ImportSendRequest {
     blocks,
     images: images.map(parseImage),
     ...(readerFailure ? { readerFailure } : {}),
+    ...(video ? { video } : {}),
   };
 }
 
@@ -240,7 +332,13 @@ export function parseSendRequest(body: unknown): ImportSendRequest {
 export const sendId = (send: ImportSendRequest): string =>
   createHash('sha256')
     .update(
-      JSON.stringify([send.url, send.selectionOnly, send.blocks, send.images])
+      JSON.stringify([
+        send.url,
+        send.selectionOnly,
+        send.blocks,
+        send.images,
+        send.video ?? null,
+      ])
     )
     .digest('hex')
     .slice(0, 40);
@@ -322,9 +420,18 @@ export async function receiveSend(
     throw fail(403, "Your district doesn't allow sending this page.");
   // A picture hosted on a blocked site (a student photo in the SIS) is dropped, not stored.
   const images = send.images.filter((img) => !isUrlBlocked(img.url, patterns));
-  const id = sendId({ ...send, images });
+  const video = send.video && {
+    ...send.video,
+    stops: send.video.stops.map((stop) => {
+      if (!stop.image || !isUrlBlocked(stop.image, patterns)) return stop;
+      const kept = { ...stop };
+      delete kept.image;
+      return kept;
+    }),
+  };
+  const id = sendId({ ...send, images, ...(video ? { video } : {}) });
   const { readerFailure, ...rest } = send;
-  const stored = { ...rest, images };
+  const stored = { ...rest, images, ...(video ? { video } : {}) };
   const doc = { ...stored, receivedAt: now };
   if (Buffer.byteLength(JSON.stringify(stored)) > MAX_DOC_BYTES)
     throw fail(413, 'This page is too long to send at once.');
@@ -373,11 +480,11 @@ function defaultDeps(db: Firestore): ImporterDeps {
         (await db.collection('admins').doc(email).get()).exists;
       if (!staff) return false;
       const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
-      return isGlobalFeatureGranted(
-        db,
-        UNIVERSAL_IMPORT_FEATURE,
-        email,
-        uid ?? ''
+      const granted = (feature: string) =>
+        isGlobalFeatureGranted(db, feature, email, uid ?? '');
+      return (
+        (await granted(UNIVERSAL_IMPORT_FEATURE)) &&
+        (await granted(IMPORT_SEND_FEATURE))
       );
     },
   };
