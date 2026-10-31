@@ -283,13 +283,7 @@ export async function recomputeOnePlcAssessment(
     assessmentId,
     title: asString(assessment.title),
     kind,
-    // A video short answer is teacher-marked, graded like a Quiz written answer.
-    groupQuestions:
-      kind === 'video-activity'
-        ? groupQuestions.map((q) =>
-            q.type === 'SA' ? { ...q, type: 'free-response' } : q
-          )
-        : groupQuestions,
+    groupQuestions,
     sessions,
   });
 

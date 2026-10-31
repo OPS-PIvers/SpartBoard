@@ -353,7 +353,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               // The teacher can seek back after the end, so keep polling.
               if (!teacherModeRef.current) stopPolling();
               // A clip end at the real end already reported it.
-              if (!clipEndedRef.current) onVideoEndRef.current();
+              const clipEnd = clipRef.current?.end;
+              const duration = playerRef.current?.getDuration() ?? 0;
+              const reported =
+                clipEndedRef.current && !!clipEnd && clipEnd >= duration - 1;
+              if (!reported) onVideoEndRef.current();
             }
           },
         },

@@ -15,8 +15,6 @@ import {
   parseCompletedResponse,
   parseManualGrades,
 } from '../recomputePlcAssessments';
-
-export { currentShortAnswerGrading };
 import { notChosenIds, parseChooseSections } from '../quizSectionsChosen';
 import { isCompletionOnly, type TargetEvidence } from '../gradebookCore';
 import type {
@@ -27,6 +25,8 @@ import type {
   RowScore,
   SessionMeta,
 } from './types';
+
+export { currentShortAnswerGrading };
 
 export const GRADE_INDEX_SCHEMA_VERSION = 1;
 

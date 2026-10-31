@@ -387,3 +387,36 @@ describe('short answer through the connector', () => {
     expect(res.question_count).toBe(2);
   });
 });
+
+describe('keeping a short answer without the flag', () => {
+  it('keeps an existing short answer once but refuses copies of its id', async () => {
+    const fx = fakeDb({
+      'global_permissions/video-activity-stops': {
+        enabled: true,
+        accessLevel: 'public',
+      },
+    });
+    const call = await connect(fx.db);
+    const made = await call('create_video_activity', {
+      title: 'Cells',
+      youtube_url: URL_OK,
+      questions: [{ type: 'short_answer', text: 'Why?', timestamp_seconds: 9 }],
+    });
+    fx.docs.delete('global_permissions/video-activity-stops');
+    const got = await call('get_video_activity', {
+      activity_id: made.activity_id,
+    });
+    const id = (got.questions as { id: string }[])[0].id;
+    const sa = { id, type: 'short_answer', text: 'Why?', timestamp_seconds: 9 };
+    const kept = await call('update_video_activity', {
+      activity_id: made.activity_id,
+      questions: [sa],
+    });
+    expect(kept.error).toBeUndefined();
+    const copied = await call('update_video_activity', {
+      activity_id: made.activity_id,
+      questions: [sa, sa],
+    });
+    expect(copied.error).toMatch(/not turned on/);
+  });
+});

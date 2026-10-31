@@ -124,11 +124,15 @@ async function buildQuestions(
 ): Promise<VideoQuestion[]> {
   const byId = new Map(previous.map((q) => [q.id, q]));
   // A new short answer needs the editor's flag; one already in the activity can be kept.
-  const addsShortAnswer = inputs.some(
-    (input) =>
-      input.type === 'short_answer' &&
-      !(input.id && byId.get(input.id)?.type === 'SA')
-  );
+  const kept = new Set<string>();
+  // Same once-per-id rule as the build below: a repeated id becomes a new question.
+  const addsShortAnswer = inputs.some((input) => {
+    if (input.type !== 'short_answer') return false;
+    const keeps =
+      !!input.id && byId.get(input.id)?.type === 'SA' && !kept.has(input.id);
+    if (keeps && input.id) kept.add(input.id);
+    return !keeps;
+  });
   if (addsShortAnswer) {
     const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
     if (
