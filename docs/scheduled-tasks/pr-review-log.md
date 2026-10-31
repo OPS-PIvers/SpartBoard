@@ -4995,3 +4995,13 @@ rather than "no data") is also still open.
   - Ready with minor notes: #4878. The Import plan and the ADR edit need Paul's read.
   - Optional notes: #4881 has a theoretical case where its cleanup could null another row's drag. #4883 could add a `weakStepId`/`parseWeak` parity assertion. #4884 has a table row missing its closing pipe.
 - Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-10-31
+
+- PRs reviewed: #4953 css-scaling: scale EmbedWidget zoom-reset button padding with vmin; #4950 Unifier run 132: aligned, log update
+- Comments processed: 0 total. 0 fixed, 0 needing a reply. Neither PR had review threads, reviews or issue comments.
+- Fixes pushed: none
+- Reviews posted: 2
+  - Ready: #4950.
+  - Ready with minor notes: #4953. Its css-scaling journal entry still needs to be applied on `scheduled-tasks`.
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
