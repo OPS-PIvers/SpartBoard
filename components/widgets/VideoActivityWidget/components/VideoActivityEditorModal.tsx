@@ -88,6 +88,7 @@ const questionsEqual = (
       qa.timeLimit !== qb.timeLimit ||
       qa.timestamp !== qb.timestamp ||
       qa.type !== qb.type ||
+      qa.imageDriveFileId !== qb.imageDriveFileId ||
       (qa.points ?? 1) !== (qb.points ?? 1) ||
       (qa.allowPartialCredit ?? false) !== (qb.allowPartialCredit ?? false) ||
       !arrEq(qa.incorrectAnswers, qb.incorrectAnswers) ||

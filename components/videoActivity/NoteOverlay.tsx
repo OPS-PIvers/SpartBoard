@@ -2,6 +2,7 @@
 import React from 'react';
 import { StickyNote } from 'lucide-react';
 import type { VideoActivityNote } from '@/types';
+import { StopPicture } from './StopPicture';
 
 export const NoteOverlay: React.FC<{
   note: VideoActivityNote;
@@ -19,6 +20,7 @@ export const NoteOverlay: React.FC<{
     <p className="text-base sm:text-lg text-slate-800 whitespace-pre-wrap wrap-break-word">
       {note.text}
     </p>
+    <StopPicture fileId={note.imageDriveFileId} className="max-h-72" />
     {/* no-tour-anchor: student-facing note stop, not a teacher control */}
     <button
       type="button"
