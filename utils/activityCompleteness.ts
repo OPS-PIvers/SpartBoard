@@ -88,9 +88,9 @@ interface VideoActivityCompletenessInput {
   notes?: VideoActivityNote[];
 }
 
-/** Index of the first question students would never reach inside the clip. */
+/** Index of the first stop students would never reach inside the clip. */
 const firstQuestionOutsideClip = (
-  questions: VideoActivityQuestion[],
+  questions: { timestamp: number }[],
   clip: VideoActivityClip | undefined
 ): number => {
   if (!clip) return -1;
@@ -138,6 +138,9 @@ export const videoActivityIncompleteReason = ({
     return `Question ${outside + 1} is outside the start and end times`;
   const blankNote = notes.findIndex((n) => !n.text.trim());
   if (blankNote >= 0) return `Note ${blankNote + 1}: text is required`;
+  const noteOutside = firstQuestionOutsideClip(notes, clip);
+  if (noteOutside >= 0)
+    return `Note ${noteOutside + 1} is outside the start and end times`;
   return null;
 };
 
@@ -158,8 +161,7 @@ export const quizAssignBlocker = ({
 export const videoActivityAssignBlocker = ({
   youtubeUrl,
   questions,
-  clip,
-}: Pick<VideoActivityCompletenessInput, 'youtubeUrl' | 'questions' | 'clip'>):
+}: Pick<VideoActivityCompletenessInput, 'youtubeUrl' | 'questions'>):
   string | null => {
   if (!youtubeUrl?.trim()) return 'it has no video';
   for (let i = 0; i < questions.length; i += 1) {
@@ -174,8 +176,5 @@ export const videoActivityAssignBlocker = ({
     if (type === 'MA' && maOptionHasPipe(q))
       return `question ${i + 1} has an option containing the | character`;
   }
-  const outside = firstQuestionOutsideClip(questions, clip);
-  if (outside >= 0)
-    return `question ${outside + 1} is outside the start and end times`;
   return null;
 };

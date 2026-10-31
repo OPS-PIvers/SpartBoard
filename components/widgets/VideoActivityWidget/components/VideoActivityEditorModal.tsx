@@ -150,6 +150,7 @@ export const VideoActivityEditorModal: React.FC<
     canAccessFeature('gemini-functions') &&
     canAccessFeature('video-activity-ai');
   const quizLayout = canAccessFeature('va-quiz-alignment');
+  const stopsEnabled = canAccessFeature('video-activity-stops');
   const timelineRef = useRef<TimelineHandle>(null);
 
   const editorState = useVideoActivityEditorState({ activity });
@@ -237,10 +238,9 @@ export const VideoActivityEditorModal: React.FC<
         title,
         youtubeUrl,
         questions,
-        clip,
-        notes,
+        ...(stopsEnabled ? { clip, notes } : {}),
       }),
-    [title, youtubeUrl, questions, clip, notes]
+    [title, youtubeUrl, questions, clip, notes, stopsEnabled]
   );
 
   // New identity on every draft edit — the autosave quiet period restarts on it.

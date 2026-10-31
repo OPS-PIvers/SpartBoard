@@ -17,14 +17,28 @@ export const normalizeClip = (
   };
 };
 
-/** The clip and notes to copy onto a session or share, with absent fields left out. */
+/** The clip and notes to copy onto a session or share; blank notes are dropped and the clip widens so no stop is cut off. */
 export const videoActivityPlayback = (src: {
   clip?: VideoActivityClip;
   notes?: VideoActivityNote[];
-}): { clip?: VideoActivityClip; notes?: VideoActivityNote[] } => ({
-  ...(src.clip ? { clip: src.clip } : {}),
-  ...(src.notes && src.notes.length > 0 ? { notes: src.notes } : {}),
-});
+  questions?: { timestamp: number }[];
+}): { clip?: VideoActivityClip; notes?: VideoActivityNote[] } => {
+  const notes = (src.notes ?? []).filter((n) => n.text.trim().length > 0);
+  const stops = [...(src.questions ?? []), ...notes].map((s) => s.timestamp);
+  let clip = src.clip;
+  if (clip && stops.length > 0) {
+    const first = Math.min(...stops);
+    const last = Math.max(...stops);
+    clip = normalizeClip({
+      start: clip.start !== undefined ? Math.min(clip.start, first) : undefined,
+      end: clip.end !== undefined ? Math.max(clip.end, last) : undefined,
+    });
+  }
+  return {
+    ...(clip ? { clip } : {}),
+    ...(notes.length > 0 ? { notes } : {}),
+  };
+};
 
 /** Whether two note lists hold the same notes in the same order. */
 export const notesEqual = (

@@ -1784,6 +1784,7 @@ describe('vaNotesFrom', () => {
       vaNotesFrom([
         { id: 'n1', timestamp: 12, text: 'Watch this', extra: true },
         { id: 'n2', timestamp: -1, text: 'bad' },
+        { id: 'n4', timestamp: 4, text: '  ' },
         { id: 3, timestamp: 4, text: 'bad' },
         null,
       ])

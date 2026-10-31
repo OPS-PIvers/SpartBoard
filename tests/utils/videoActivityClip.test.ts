@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { VideoActivityQuestion } from '@/types';
-import { normalizeClip, notesEqual } from '@/utils/videoActivityClip';
+import {
+  normalizeClip,
+  notesEqual,
+  videoActivityPlayback,
+} from '@/utils/videoActivityClip';
 import {
   videoActivityAssignBlocker,
   videoActivityIncompleteReason,
@@ -41,12 +45,13 @@ describe('questions outside the clip', () => {
       })
     ).toBe('Question 2 is outside the start and end times');
     expect(
-      videoActivityAssignBlocker({
+      videoActivityIncompleteReason({
         ...base,
-        questions: [q(20), q(95)],
+        questions: [q(20)],
         clip: { end: 90 },
+        notes: [{ id: 'n1', timestamp: 95, text: 'Late' }],
       })
-    ).toBe('question 2 is outside the start and end times');
+    ).toBe('Note 1 is outside the start and end times');
   });
 
   it('passes questions inside the clip, and any question with no clip', () => {
@@ -86,5 +91,27 @@ describe('notesEqual', () => {
     expect(notesEqual([n], [{ ...n }])).toBe(true);
     expect(notesEqual([n], [{ ...n, text: 'Changed' }])).toBe(false);
     expect(notesEqual([n], [])).toBe(false);
+  });
+});
+
+describe('videoActivityPlayback', () => {
+  it('drops blank notes and widens the clip to cover every stop', () => {
+    expect(
+      videoActivityPlayback({
+        clip: { start: 60, end: 120 },
+        questions: [q(30), q(90)],
+        notes: [
+          { id: 'n1', timestamp: 150, text: 'After' },
+          { id: 'n2', timestamp: 70, text: ' ' },
+        ],
+      })
+    ).toEqual({
+      clip: { start: 30, end: 150 },
+      notes: [{ id: 'n1', timestamp: 150, text: 'After' }],
+    });
+  });
+
+  it('leaves out absent fields', () => {
+    expect(videoActivityPlayback({ questions: [q(10)] })).toEqual({});
   });
 });

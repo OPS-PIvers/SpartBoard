@@ -32,6 +32,8 @@ const TimeField: React.FC<{
     const parsed = mmSsToSeconds(text);
     if (isNaN(parsed)) return;
     onCommit(parsed);
+    // A value the clip rejects (an end before the start) shows as blank again.
+    setDraft(shown);
   };
   return (
     <label className="flex items-center gap-2 text-xs font-bold text-slate-600">

@@ -143,7 +143,7 @@ export const vaClipFrom = (
   return Object.keys(clip).length > 0 ? clip : null;
 };
 
-/** A teacher's note stops, keeping only well-formed ones (at most 200). */
+/** A teacher's note stops, keeping only well-formed ones with text (at most 200). */
 export const vaNotesFrom = (
   raw: unknown
 ): { id: string; timestamp: number; text: string }[] => {
@@ -155,6 +155,7 @@ export const vaNotesFrom = (
         typeof n === 'object' &&
         typeof (n as Record<string, unknown>).id === 'string' &&
         typeof (n as Record<string, unknown>).text === 'string' &&
+        ((n as Record<string, unknown>).text as string).trim().length > 0 &&
         typeof (n as Record<string, unknown>).timestamp === 'number' &&
         Number.isFinite((n as Record<string, unknown>).timestamp) &&
         ((n as Record<string, unknown>).timestamp as number) >= 0
