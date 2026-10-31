@@ -1,8 +1,11 @@
 // Reads a stored Send (`users/{uid}/import_inbox/{id}`) defensively; the server already checked it on the way in.
 import {
+  IMPORT_CARDS_LEFT_OUT,
+  IMPORT_CARD_LANGUAGE,
   IMPORT_VIDEO_LEFT_OUT,
   YOUTUBE_VIDEO_ID,
   type ImportBlock,
+  type ImportCardSet,
   type ImportImage,
   type ImportInboxItem,
   type ImportVideoLesson,
@@ -85,12 +88,41 @@ function parseVideo(v: unknown): ImportVideoLesson | null {
   };
 }
 
+const language = (v: unknown): string | null =>
+  str(v) && IMPORT_CARD_LANGUAGE.test(v) ? v : null;
+
+function parseCards(v: unknown): ImportCardSet | null {
+  if (!isObj(v) || !Array.isArray(v.cards)) return null;
+  const leftOut: NonNullable<ImportCardSet['leftOut']> = {};
+  if (isObj(v.leftOut))
+    for (const kind of IMPORT_CARDS_LEFT_OUT) {
+      const n = v.leftOut[kind];
+      if (typeof n === 'number' && Number.isInteger(n) && n > 0)
+        leftOut[kind] = n;
+    }
+  const termLanguage = language(v.termLanguage);
+  const definitionLanguage = language(v.definitionLanguage);
+  return {
+    cards: v.cards
+      .filter(isObj)
+      .filter((c) => str(c.term) && str(c.definition))
+      .map((c) => ({
+        term: c.term as string,
+        definition: c.definition as string,
+      })),
+    ...(termLanguage ? { termLanguage } : {}),
+    ...(definitionLanguage ? { definitionLanguage } : {}),
+    ...(Object.keys(leftOut).length ? { leftOut } : {}),
+  };
+}
+
 export function parseImportInboxItem(
   id: string,
   data: unknown
 ): ImportInboxItem | null {
   if (!isObj(data) || !str(data.url) || !str(data.title)) return null;
   const video = parseVideo(data.video);
+  const cards = parseCards(data.cards);
   return {
     id,
     url: data.url,
@@ -105,5 +137,6 @@ export function parseImportInboxItem(
       : [],
     receivedAt: typeof data.receivedAt === 'number' ? data.receivedAt : 0,
     ...(video ? { video } : {}),
+    ...(cards ? { cards } : {}),
   };
 }

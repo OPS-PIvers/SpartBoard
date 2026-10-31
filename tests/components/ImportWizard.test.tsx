@@ -888,4 +888,41 @@ describe('ImportWizard', () => {
     expect(onFile).toHaveBeenCalledWith(file);
     expect(parseSpy).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [['csv', 'cards'] as const, 'cards'],
+    [['csv'] as const, 'csv'],
+  ])(
+    'reads a handed-over card set when the adapter takes %j',
+    async (sources, kind) => {
+      const { adapter, parseSpy } = makeAdapter({
+        supportedSources: [...sources],
+      });
+      const set = { cards: [{ term: 'el perro', definition: 'the dog' }] };
+      render(
+        <ImportWizard<FakeData>
+          isOpen={true}
+          onClose={vi.fn()}
+          adapter={adapter}
+          onSaved={vi.fn()}
+          initialSource={{
+            text: 'el perro\tthe dog',
+            inboxItem: {
+              id: 'a',
+              url: 'https://quizlet.com/1/x/',
+              title: 'Spanish',
+              platform: 'quizlet',
+              selectionOnly: false,
+              blocks: [],
+              images: [],
+              receivedAt: 0,
+              cards: set,
+            },
+          }}
+        />
+      );
+      await waitFor(() => expect(parseSpy).toHaveBeenCalled());
+      expect(parseSpy.mock.calls[0][0]).toMatchObject({ kind });
+    }
+  );
 });

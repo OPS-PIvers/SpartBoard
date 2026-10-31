@@ -16,7 +16,11 @@ import {
 import {
   IMPORT_INBOX_COLLECTION,
   IMPORT_INBOX_TTL_MS,
+  IMPORT_CARD_LANGUAGE,
+  IMPORT_CARDS_LEFT_OUT,
   IMPORT_MAX_BLOCKS,
+  IMPORT_MAX_CARDS,
+  IMPORT_MAX_CARD_TEXT_CHARS,
   IMPORT_MAX_BLOCK_CHARS,
   IMPORT_MAX_IMAGES,
   IMPORT_MAX_INBOX_ITEMS,
@@ -41,6 +45,7 @@ import {
   isUrlBlocked,
   resolveBlockPatterns,
   type ImportBlock,
+  type ImportCardSet,
   type ImportImage,
   type ImportReaderFailure,
   type ImportSendReply,
@@ -260,15 +265,19 @@ function parseStop(v: unknown, i: number): ImportVideoStop {
   };
 }
 
-function parseLeftOut(v: unknown): ImportVideoLesson['leftOut'] {
+function counts<K extends string>(
+  v: unknown,
+  kinds: readonly K[],
+  what: string
+): Partial<Record<K, number>> | undefined {
   if (v === undefined) return undefined;
-  if (!isObj(v)) throw malformed('video');
-  const out: NonNullable<ImportVideoLesson['leftOut']> = {};
-  for (const kind of IMPORT_VIDEO_LEFT_OUT) {
+  if (!isObj(v)) throw malformed(what);
+  const out: Partial<Record<K, number>> = {};
+  for (const kind of kinds) {
     const n = v[kind];
     if (n === undefined) continue;
     if (!Number.isInteger(n) || (n as number) < 0 || (n as number) > 10_000)
-      throw malformed('video');
+      throw malformed(what);
     if ((n as number) > 0) out[kind] = n as number;
   }
   return Object.keys(out).length ? out : undefined;
@@ -288,12 +297,44 @@ function parseVideo(v: unknown): ImportVideoLesson | undefined {
   const end = v.end === undefined ? undefined : seconds(v.end, 'video');
   if (start !== undefined && end !== undefined && end <= start)
     throw malformed('video');
-  const leftOut = parseLeftOut(v.leftOut);
+  const leftOut = counts(v.leftOut, IMPORT_VIDEO_LEFT_OUT, 'video');
   return {
     youtubeId: v.youtubeId,
     ...(start !== undefined ? { start } : {}),
     ...(end !== undefined ? { end } : {}),
     stops: v.stops.map(parseStop),
+    ...(leftOut ? { leftOut } : {}),
+  };
+}
+
+function cardLanguage(v: unknown): string | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v !== 'string' || !IMPORT_CARD_LANGUAGE.test(v))
+    throw malformed('cards');
+  return v;
+}
+
+function parseCards(v: unknown): ImportCardSet | undefined {
+  if (v === undefined) return undefined;
+  if (!isObj(v) || !Array.isArray(v.cards) || v.cards.length > IMPORT_MAX_CARDS)
+    throw malformed('cards');
+  const termLanguage = cardLanguage(v.termLanguage);
+  const definitionLanguage = cardLanguage(v.definitionLanguage);
+  const leftOut = counts(v.leftOut, IMPORT_CARDS_LEFT_OUT, 'cards');
+  return {
+    cards: v.cards.map((c, i) => {
+      if (!isObj(c)) throw malformed(`card ${i + 1}`);
+      return {
+        term: text(c.term, IMPORT_MAX_CARD_TEXT_CHARS, `card ${i + 1}`),
+        definition: text(
+          c.definition,
+          IMPORT_MAX_CARD_TEXT_CHARS,
+          `card ${i + 1}`
+        ),
+      };
+    }),
+    ...(termLanguage ? { termLanguage } : {}),
+    ...(definitionLanguage ? { definitionLanguage } : {}),
     ...(leftOut ? { leftOut } : {}),
   };
 }
@@ -316,6 +357,7 @@ export function parseSendRequest(body: unknown): ImportSendRequest {
   if (!title) throw malformed('title');
   const readerFailure = parseReaderFailure(body.readerFailure);
   const video = parseVideo(body.video);
+  const cards = parseCards(body.cards);
   return {
     url: storedUrl(httpUrl(body.url, 'url')),
     title,
@@ -325,6 +367,7 @@ export function parseSendRequest(body: unknown): ImportSendRequest {
     images: images.map(parseImage),
     ...(readerFailure ? { readerFailure } : {}),
     ...(video ? { video } : {}),
+    ...(cards ? { cards } : {}),
   };
 }
 
@@ -338,6 +381,7 @@ export const sendId = (send: ImportSendRequest): string =>
         send.blocks,
         send.images,
         send.video ?? null,
+        send.cards ?? null,
       ])
     )
     .digest('hex')

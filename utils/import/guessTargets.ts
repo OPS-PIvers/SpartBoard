@@ -173,6 +173,15 @@ export function guessTargets(source: ImportSource): TargetGuess {
           targets: ['videoActivity', ...DOCUMENT],
           guess: 'videoActivity',
         };
+      // A reader that found a card set (D38) sends it as one.
+      if (item.cards?.cards.length)
+        return {
+          targets: [
+            'flashcards',
+            ...DOCUMENT.filter((t) => t !== 'flashcards'),
+          ],
+          guess: 'flashcards',
+        };
       // A selection is the content the teacher wants, so it isn't offered as a whole-page embed.
       if (item.selectionOnly)
         return byContent(

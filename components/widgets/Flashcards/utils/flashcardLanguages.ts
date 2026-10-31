@@ -26,3 +26,18 @@ export const describeLanguageTag = (tag: string): string | null => {
     return null;
   }
 };
+
+/** A source's language code (`es`, `zh-CN`) as a Flashcards language; null for a non-language like Quizlet's `math`. */
+export function flashcardLanguageFor(code: string | undefined): string | null {
+  if (!code) return null;
+  const exact = FLASHCARD_LANGUAGES.find(
+    (l) => l.tag.toLowerCase() === code.toLowerCase()
+  );
+  if (exact) return exact.tag;
+  const base = code.split('-')[0].toLowerCase();
+  const preset = FLASHCARD_LANGUAGES.find(
+    (l) => l.tag.split('-')[0].toLowerCase() === base
+  );
+  if (preset) return preset.tag;
+  return describeLanguageTag(code) ? code : null;
+}

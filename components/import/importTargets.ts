@@ -81,7 +81,8 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     label: 'Flashcards',
     widgetType: 'flashcards',
     landing: 'review',
-    accepts: (s) => isCsv(s) || hasTabbedRows(s),
+    accepts: (s) =>
+      isCsv(s) || hasTabbedRows(s) || !!s.inboxItem?.cards?.cards.length,
     ai: hasConversionText,
   },
   activityWall: {

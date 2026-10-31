@@ -35,6 +35,25 @@ describe('sendNote', () => {
     expect(refused.text).toMatch(/stored on Edpuzzle/);
   });
 
+  it('says how many cards a Quizlet set sent, or that its reader fell back', () => {
+    const reply = { ok: true, blocks: 2, images: 0 };
+    expect(sendNote({ kind: 'reply', reply, cards: 24 })).toEqual({
+      ok: true,
+      open: 'import',
+      text: 'Sent this set to SpartBoard (24 cards).',
+    });
+    expect(
+      sendNote({ kind: 'reply', reply, fellBack: 'quizlet' }).text
+    ).toMatch(/^The Quizlet reader couldn't read this page/);
+    expect(
+      sendNote({
+        kind: 'reply',
+        reply: { ok: false, why: 'offline' },
+        cards: 3,
+      }).ok
+    ).toBe(false);
+  });
+
   it('says when a reader fell back to the page text', () => {
     expect(
       sendNote({

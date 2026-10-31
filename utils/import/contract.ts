@@ -140,6 +140,25 @@ export interface ImportVideoLesson {
   leftOut?: Partial<Record<ImportVideoLeftOut, number>>;
 }
 
+// D38 card set caps, checked by the server; Flashcards clips further on review.
+export const IMPORT_MAX_CARDS = 2000;
+export const IMPORT_MAX_CARD_TEXT_CHARS = 2000;
+/** A side's language as the source named it (`en`, `zh-CN`); the app maps it to a Flashcards language. */
+export const IMPORT_CARD_LANGUAGE = /^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8}){0,3}$/;
+
+/** What a card reader couldn't bring over, counted so the review can say so (D38). */
+export const IMPORT_CARDS_LEFT_OUT = ['picture', 'audio', 'diagram'] as const;
+export type ImportCardsLeftOut = (typeof IMPORT_CARDS_LEFT_OUT)[number];
+
+/** A term and definition set a Platform reader found (D38); plain text only. */
+export interface ImportCardSet {
+  cards: { term: string; definition: string }[];
+  termLanguage?: string;
+  definitionLanguage?: string;
+  /** Counts above zero only; absent when everything came over. */
+  leftOut?: Partial<Record<ImportCardsLeftOut, number>>;
+}
+
 /** Body of `importInboxV1` (D14). */
 export interface ImportSendRequest {
   url: string;
@@ -151,6 +170,7 @@ export interface ImportSendRequest {
   images: ImportImage[];
   readerFailure?: ImportReaderFailure;
   video?: ImportVideoLesson;
+  cards?: ImportCardSet;
 }
 
 /** A stored Send, `users/{uid}/import_inbox/{id}`; `expireAt` (a Timestamp) drives the TTL. */
