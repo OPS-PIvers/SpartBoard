@@ -117,12 +117,24 @@ export type ImportVideoStop = (
   image?: string;
 };
 
+/** What a reader couldn't bring over, counted so the editor can say so (D32, D33). */
+export const IMPORT_VIDEO_LEFT_OUT = [
+  'question',
+  'voiceover',
+  'feedback',
+  'choicePicture',
+  'cut',
+] as const;
+export type ImportVideoLeftOut = (typeof IMPORT_VIDEO_LEFT_OUT)[number];
+
 /** A YouTube video lesson a Platform reader found (D30-D33), trimmed to `start`/`end`. */
 export interface ImportVideoLesson {
   youtubeId: string;
   start?: number;
   end?: number;
   stops: ImportVideoStop[];
+  /** Counts above zero only; absent when everything came over. */
+  leftOut?: Partial<Record<ImportVideoLeftOut, number>>;
 }
 
 /** Body of `importInboxV1` (D14). */

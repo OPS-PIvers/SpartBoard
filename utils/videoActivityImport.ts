@@ -5,6 +5,7 @@ import type {
   VideoActivityQuestion,
 } from '@/types';
 import type {
+  ImportVideoLeftOut,
   ImportVideoLesson,
   ImportVideoStop,
 } from '@/utils/import/contract';
@@ -21,6 +22,46 @@ export interface ImportedVideoContent {
   questions: VideoActivityQuestion[];
   notes: VideoActivityNote[];
   clip?: VideoActivityClip;
+  /** What didn't come over, for the editor to say once; null when everything did. */
+  leftOut: string | null;
+}
+
+type LeftOutCounts = Partial<
+  Record<ImportVideoLeftOut | 'shortAnswer' | 'note' | 'clip', number>
+>;
+
+const plural = (n: number, one: string, many: string) =>
+  n === 1 ? `1 ${one}` : `${n} ${many}`;
+
+const PHRASES: Record<keyof LeftOutCounts, (n: number) => string> = {
+  question: (n) =>
+    plural(
+      n,
+      'question SpartBoard has no kind for',
+      'questions SpartBoard has no kind for'
+    ),
+  shortAnswer: (n) =>
+    plural(n, 'short-answer question', 'short-answer questions'),
+  note: (n) => plural(n, 'note', 'notes'),
+  clip: () => 'the start and end times',
+  voiceover: () => 'voiceover narration',
+  feedback: () => 'answer feedback',
+  choicePicture: (n) => plural(n, 'picture in a choice', 'pictures in choices'),
+  cut: (n) =>
+    `${plural(n, 'cut', 'cuts')} in the middle of the video (students see that part)`,
+};
+
+/** "Left out: a, b and c." in a fixed order; null when nothing was. */
+export function leftOutSummary(counts: LeftOutCounts): string | null {
+  const parts = (Object.keys(PHRASES) as (keyof LeftOutCounts)[])
+    .filter((k) => (counts[k] ?? 0) > 0)
+    .map((k) => PHRASES[k](counts[k] ?? 0));
+  if (!parts.length) return null;
+  const list =
+    parts.length === 1
+      ? parts[0]
+      : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+  return `Left out: ${list}.`;
 }
 
 type PictureFor = (stop: ImportVideoStop) => { imageDriveFileId?: string };
@@ -104,10 +145,20 @@ export function videoContentFromLesson(
   const clip = stops
     ? normalizeClip({ start: video.start, end: video.end })
     : undefined;
+  const count = (kind: ImportVideoStop['kind']) =>
+    video.stops.filter((s) => s.kind === kind).length;
+  const hidden = stops
+    ? {}
+    : {
+        shortAnswer: count('open'),
+        note: count('note'),
+        clip: normalizeClip({ start: video.start, end: video.end }) ? 1 : 0,
+      };
   return {
     youtubeUrl: `https://www.youtube.com/watch?v=${video.youtubeId}`,
     questions,
     notes,
     ...(clip ? { clip } : {}),
+    leftOut: leftOutSummary({ ...video.leftOut, ...hidden }),
   };
 }

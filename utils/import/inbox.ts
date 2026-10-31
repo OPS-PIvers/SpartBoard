@@ -1,5 +1,6 @@
 // Reads a stored Send (`users/{uid}/import_inbox/{id}`) defensively; the server already checked it on the way in.
 import {
+  IMPORT_VIDEO_LEFT_OUT,
   YOUTUBE_VIDEO_ID,
   type ImportBlock,
   type ImportImage,
@@ -66,7 +67,15 @@ function parseVideo(v: unknown): ImportVideoLesson | null {
     return null;
   const start = time(v.start);
   const end = time(v.end);
+  const leftOut: NonNullable<ImportVideoLesson['leftOut']> = {};
+  if (isObj(v.leftOut))
+    for (const kind of IMPORT_VIDEO_LEFT_OUT) {
+      const n = v.leftOut[kind];
+      if (typeof n === 'number' && Number.isInteger(n) && n > 0)
+        leftOut[kind] = n;
+    }
   return {
+    ...(Object.keys(leftOut).length ? { leftOut } : {}),
     youtubeId: v.youtubeId,
     ...(start !== null ? { start } : {}),
     ...(end !== null ? { end } : {}),

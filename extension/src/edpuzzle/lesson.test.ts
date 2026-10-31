@@ -101,6 +101,42 @@ describe('lessonFromEdpuzzle', () => {
     expect(read.ok && read.video.stops.at(-1)?.time).toBe(159.58);
   });
 
+  it('counts what it leaves out', () => {
+    const read = lessonFromEdpuzzle(
+      lesson({
+        sections: [
+          { time: 0, duration: 40 },
+          { time: 60, duration: 40 },
+          { time: 100, duration: 100 },
+        ],
+        voiceovers: [{ time: 3 }],
+        questions: [
+          {
+            type: 'multiple-choice',
+            time: 30,
+            body: html('<p>Q</p>'),
+            feedback: [{ html: '', audio: {} }],
+            choices: [
+              {
+                body: html('<p>a</p><img src="https://img.example/c.png">'),
+                isCorrect: true,
+                feedback: [{ html: '<p>Nice</p>' }],
+              },
+            ],
+          },
+          { type: 'audio', time: 50, body: html('<p>Say it</p>') },
+        ],
+      })
+    );
+    expect(read.ok && read.video.leftOut).toEqual({
+      question: 1,
+      voiceover: 1,
+      feedback: 1,
+      choicePicture: 1,
+      cut: 1,
+    });
+  });
+
   it('refuses a video Edpuzzle hosts itself', () => {
     expect(
       lessonFromEdpuzzle(
@@ -151,6 +187,7 @@ describe('lessonFromEdpuzzle', () => {
       skipped: 1,
       video: {
         youtubeId: 'WjqqUjDkh1c',
+        leftOut: { question: 1 },
         stops: [
           { kind: 'note', time: 10, text: 'Look here' },
           {

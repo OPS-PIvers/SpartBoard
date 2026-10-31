@@ -303,6 +303,8 @@ const TeacherVideoActivityWidget: React.FC<{
     importHandoff?.target === 'videoActivity' ? importHandoff : null;
   // Pictures copied into Drive for the activity in the editor; removed again if it's never saved.
   const [importedPictureIds, setImportedPictureIds] = useState<string[]>([]);
+  // What a sent lesson couldn't bring over; shown in the editor until it closes.
+  const [importLeftOut, setImportLeftOut] = useState<string | null>(null);
   const openingHandoffRef = useRef<ImportHandoff | null>(null);
   const openVaHandoff = useEffectEvent(async (handoff: ImportHandoff) => {
     if (openingHandoffRef.current === handoff) return;
@@ -333,20 +335,21 @@ const TeacherVideoActivityWidget: React.FC<{
           );
       }
     }
-    const content = lesson
+    const { leftOut = null, ...content } = lesson
       ? videoContentFromLesson(lesson, { stops, pictures })
-      : null;
+      : {};
     const activity: VideoActivityData = {
       id: crypto.randomUUID(),
       title: (handoff.source.title ?? '').slice(0, 200),
       youtubeUrl: handoff.source.url ?? '',
       questions: [],
-      ...(content ?? {}),
+      ...content,
       ...(importedFrom ? { importedFrom } : {}),
       createdAt: now,
       updatedAt: now,
     };
     setImportedPictureIds([...pictures.values()]);
+    setImportLeftOut(leftOut);
     setEditingActivity(activity);
     setEditingMeta(null);
     setImportedActivityId(activity.id);
@@ -1596,6 +1599,11 @@ const TeacherVideoActivityWidget: React.FC<{
               }
             : undefined
         }
+        importLeftOut={
+          importedActivityId && editingActivity?.id === importedActivityId
+            ? importLeftOut
+            : null
+        }
         startWithAi={
           !!importedActivityId &&
           editingActivity?.id === importedActivityId &&
@@ -1613,6 +1621,7 @@ const TeacherVideoActivityWidget: React.FC<{
             }
             setImportedActivityId(null);
             setImportedPictureIds([]);
+            setImportLeftOut(null);
           }
           setEditingActivity(null);
           setEditingMeta(null);

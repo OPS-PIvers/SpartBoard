@@ -31,6 +31,7 @@ import {
   IMPORT_MAX_VIDEO_STOPS,
   IMPORT_MAX_VIDEO_TEXT_CHARS,
   IMPORT_PLATFORM_ID,
+  IMPORT_VIDEO_LEFT_OUT,
   IMPORT_READER_FAILURES_COLLECTION,
   IMPORT_READER_FAILURE_TTL_MS,
   IMPORT_SEND_BLOCK_LIST_DOC,
@@ -258,6 +259,20 @@ function parseStop(v: unknown, i: number): ImportVideoStop {
   };
 }
 
+function parseLeftOut(v: unknown): ImportVideoLesson['leftOut'] {
+  if (v === undefined) return undefined;
+  if (!isObj(v)) throw malformed('video');
+  const out: NonNullable<ImportVideoLesson['leftOut']> = {};
+  for (const kind of IMPORT_VIDEO_LEFT_OUT) {
+    const n = v[kind];
+    if (n === undefined) continue;
+    if (!Number.isInteger(n) || (n as number) < 0 || (n as number) > 10_000)
+      throw malformed('video');
+    if ((n as number) > 0) out[kind] = n as number;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 function parseVideo(v: unknown): ImportVideoLesson | undefined {
   if (v === undefined) return undefined;
   if (
@@ -272,11 +287,13 @@ function parseVideo(v: unknown): ImportVideoLesson | undefined {
   const end = v.end === undefined ? undefined : seconds(v.end, 'video');
   if (start !== undefined && end !== undefined && end <= start)
     throw malformed('video');
+  const leftOut = parseLeftOut(v.leftOut);
   return {
     youtubeId: v.youtubeId,
     ...(start !== undefined ? { start } : {}),
     ...(end !== undefined ? { end } : {}),
     stops: v.stops.map(parseStop),
+    ...(leftOut ? { leftOut } : {}),
   };
 }
 

@@ -61,6 +61,8 @@ interface VideoActivityEditorModalProps {
   autosave?: boolean;
   /** A YouTube import for a teacher with `video-import-ai`: open the AI prompt straight away (D35). */
   startWithAi?: boolean;
+  /** What an import couldn't bring over, said once under the attribution line. */
+  importLeftOut?: string | null;
 }
 
 const arrEq = (a?: string[], b?: string[]): boolean => {
@@ -149,6 +151,7 @@ export const VideoActivityEditorModal: React.FC<
   onFolderChange,
   behavior: behaviorSeed,
   startWithAi = false,
+  importLeftOut = null,
 }) => {
   const { canAccessFeature } = useAuth();
   const canUseAi =
@@ -322,9 +325,12 @@ export const VideoActivityEditorModal: React.FC<
           • {totalPoints} {totalPoints === 1 ? 'point' : 'points'}
         </span>
         {importedFrom && <ImportAttributionLine attribution={importedFrom} />}
+        {importLeftOut && (
+          <span className="text-amber-700">{importLeftOut}</span>
+        )}
       </>
     ),
-    [questions.length, totalPoints, importedFrom]
+    [questions.length, totalPoints, importedFrom, importLeftOut]
   );
   const headerExtras = useMemo(
     () =>
