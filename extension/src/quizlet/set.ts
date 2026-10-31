@@ -24,6 +24,13 @@ const PICTURE = 2;
 const AUDIO = 4;
 const DIAGRAM = 5;
 
+// Under the 400k page-text cap and half the 900 KB Send cap, since the table repeats the cards.
+export const CARD_TABLE_MAX_BYTES = 380_000;
+// Room under the 900 KB Send cap for the title and the rest of the Send.
+export const CARD_SET_MAX_BYTES = 850_000;
+const byteSize = (v: unknown) =>
+  new TextEncoder().encode(JSON.stringify(v)).length;
+
 /** The set id on a Quizlet set page (`/123/name-flash-cards/`, `/gb/123/...`, `/123/learn`); null elsewhere. */
 export function quizletSetId(href: string): string | null {
   try {
@@ -117,7 +124,10 @@ export function cardSetFromItems(items: unknown[]): QuizletRead {
     cards.push({ term: sideText(word), definition: sideText(definition) });
     if (cards.length >= IMPORT_MAX_CARDS) break;
   }
-  if (!cards.length) return { ok: false, reason: 'no cards in the set data' };
+  if (!cards.some((c) => c.term || c.definition))
+    return { ok: false, reason: 'no card text in the set data' };
+  if (byteSize(cards) > CARD_SET_MAX_BYTES)
+    return { ok: false, reason: 'set too big to send as cards' };
   const termLanguage = mostUsed(termLangs);
   const definitionLanguage = mostUsed(definitionLangs);
   return {
@@ -131,17 +141,13 @@ export function cardSetFromItems(items: unknown[]): QuizletRead {
   };
 }
 
-// Under the 400k page-text cap and half the 900 KB Send cap, since the table repeats the cards.
-export const CARD_TABLE_MAX_BYTES = 380_000;
-
 /** The set as page text too, as two-column tables, so the other Import targets can still read it. */
 export function cardSetBlocks(
   title: string,
   set: ImportCardSet
 ): ImportBlock[] {
   const blocks: ImportBlock[] = [{ type: 'heading', level: 1, text: title }];
-  const bytes = new TextEncoder().encode(JSON.stringify(set.cards)).length;
-  if (bytes > CARD_TABLE_MAX_BYTES) return blocks;
+  if (byteSize(set.cards) > CARD_TABLE_MAX_BYTES) return blocks;
   const rows = set.cards
     .filter((c) => c.term || c.definition)
     .map((c) => ({ cells: [c.term, c.definition] }));

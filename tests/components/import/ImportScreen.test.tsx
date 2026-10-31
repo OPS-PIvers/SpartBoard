@@ -209,6 +209,15 @@ describe('targetChoices', () => {
     });
   });
 
+  it('reads a sent card set exactly, not with AI, even with one card', () => {
+    const item = {
+      ...sent,
+      blocks: [{ type: 'heading' as const, level: 1 as const, text: 'Cells' }],
+      cards: { cards: [{ term: 'cell', definition: 'unit of life' }] },
+    };
+    expect(usesAi('flashcards', sourceFromInboxItem(item), true)).toBe(false);
+  });
+
   it('reads a two-column page as rows, not with AI', () => {
     expect(usesAi('flashcards', sourceFromInboxItem(sent), true)).toBe(false);
     const pasted = 'cell, unit of life\natom, smallest unit\nion, charged atom';
