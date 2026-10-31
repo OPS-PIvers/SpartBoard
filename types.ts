@@ -7450,6 +7450,8 @@ export type VideoActivityQuestion = Omit<
    * only accepted form.
    */
   acceptableVariants?: string[];
+  /** A picture with the prompt, stored in the teacher's Drive (IMPORT.md D32). */
+  imageDriveFileId?: string;
 };
 
 /** Student-safe VA question on the session doc; the key lives in `key/answers`. */
@@ -7460,6 +7462,7 @@ export interface VideoActivityPublicQuestion {
   type: VideoActivityQuestionType;
   /** MC/MA choices, correct and incorrect mixed in random order. */
   options?: string[];
+  imageDriveFileId?: string;
 }
 
 /** Server grading of one VA answer (`checkVideoActivityAnswerV1`). */
@@ -7482,6 +7485,7 @@ export interface VideoActivityNote {
   /** Seconds into the video. */
   timestamp: number;
   text: string;
+  imageDriveFileId?: string;
 }
 
 /** Full video activity data stored in Google Drive as JSON. */

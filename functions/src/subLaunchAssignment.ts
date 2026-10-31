@@ -13,6 +13,7 @@ import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   dedupeById,
+  isDriveFileId,
   toVaPublicQuestion,
   type VaKeyQuestion,
 } from './videoActivityGrade';
@@ -146,7 +147,12 @@ export const vaClipFrom = (
 /** A teacher's note stops, keeping only well-formed ones with text (at most 200). */
 export const vaNotesFrom = (
   raw: unknown
-): { id: string; timestamp: number; text: string }[] => {
+): {
+  id: string;
+  timestamp: number;
+  text: string;
+  imageDriveFileId?: string;
+}[] => {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter(
@@ -161,7 +167,17 @@ export const vaNotesFrom = (
         ((n as Record<string, unknown>).timestamp as number) >= 0
     )
     .slice(0, 200)
-    .map(({ id, timestamp, text }) => ({ id, timestamp, text }));
+    .map((n) => ({
+      id: n.id,
+      timestamp: n.timestamp,
+      text: n.text,
+      ...(isDriveFileId((n as Record<string, unknown>).imageDriveFileId)
+        ? {
+            imageDriveFileId: (n as Record<string, unknown>)
+              .imageDriveFileId as string,
+          }
+        : {}),
+    }));
 };
 
 const ALLOWED_VA_ASSIGNMENT_FIELDS = new Set([

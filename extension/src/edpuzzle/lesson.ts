@@ -2,6 +2,7 @@
 
 import {
   IMPORT_MAX_BLOCK_CHARS,
+  IMPORT_MAX_URL_CHARS,
   IMPORT_MAX_TITLE_CHARS,
   IMPORT_MAX_VIDEO_CHOICES,
   IMPORT_MAX_VIDEO_SECONDS,
@@ -97,19 +98,51 @@ const seconds = (v: unknown): number | null =>
     ? Math.round(v * 100) / 100
     : null;
 
+const IMG_SRC = /<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/gi;
+
+const httpsUrl = (src: string): boolean => {
+  try {
+    return (
+      src.length <= IMPORT_MAX_URL_CHARS && new URL(src).protocol === 'https:'
+    );
+  } catch {
+    return false;
+  }
+};
+
+/** The first https picture in a rich text field, if any (D32). */
+export function firstImage(v: unknown): string | undefined {
+  for (const part of list(v)) {
+    if (!isObj(part) || typeof part.html !== 'string') continue;
+    for (const m of part.html.matchAll(IMG_SRC)) {
+      const src = m[1].replace(/&amp;/g, '&');
+      if (httpsUrl(src)) return src;
+    }
+  }
+  return undefined;
+}
+
+const withImage = <T extends ImportVideoStop>(stop: T, body: unknown): T => {
+  const image = firstImage(body);
+  return image ? { ...stop, image } : stop;
+};
+
 function stopFrom(q: unknown): ImportVideoStop | null {
   if (!isObj(q)) return null;
   const time = seconds(q.time);
   const text = bodyText(q.body);
   if (time === null || !text) return null;
-  if (q.type === 'open-ended') return { kind: 'open', time, text };
+  if (q.type === 'open-ended')
+    return withImage({ kind: 'open', time, text }, q.body);
   if (q.type !== 'multiple-choice') return null;
   const choices = list(q.choices)
     .filter(isObj)
     .map((c) => ({ text: bodyText(c.body), correct: c.isCorrect === true }))
     .filter((c) => c.text)
     .slice(0, IMPORT_MAX_VIDEO_CHOICES);
-  return choices.length ? { kind: 'choice', time, text, choices } : null;
+  return choices.length
+    ? withImage({ kind: 'choice', time, text, choices }, q.body)
+    : null;
 }
 
 export type EdpuzzleRead =
@@ -150,7 +183,9 @@ export function lessonFromEdpuzzle(raw: unknown): EdpuzzleRead {
     .map((n): ImportVideoStop | null => {
       const time = seconds(n.time);
       const text = bodyText(n.body);
-      return time === null || !text ? null : { kind: 'note', time, text };
+      return time === null || !text
+        ? null
+        : withImage({ kind: 'note', time, text }, n.body);
     })
     .filter((s) => s !== null);
   const stops = [...kept, ...notes]

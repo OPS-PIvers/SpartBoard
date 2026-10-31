@@ -91,3 +91,40 @@ describe('videoContentFromLesson', () => {
     expect(out.questions[0].incorrectAnswers).toEqual(['w0', 'w1', 'w2', 'w3']);
   });
 });
+
+describe('videoContentFromLesson pictures', () => {
+  it('points a stop at its copied picture and drops one that was not copied', () => {
+    const out = videoContentFromLesson(
+      {
+        youtubeId: 'WjqqUjDkh1c',
+        stops: [
+          {
+            kind: 'open',
+            time: 1,
+            text: 'A',
+            image: 'https://a.example/1.png',
+          },
+          {
+            kind: 'note',
+            time: 2,
+            text: 'B',
+            image: 'https://a.example/1.png',
+          },
+          {
+            kind: 'open',
+            time: 3,
+            text: 'C',
+            image: 'https://a.example/x.png',
+          },
+        ],
+      },
+      {
+        stops: true,
+        pictures: new Map([['https://a.example/1.png', 'drive-file-1']]),
+      }
+    );
+    expect(out.questions[0].imageDriveFileId).toBe('drive-file-1');
+    expect(out.notes[0].imageDriveFileId).toBe('drive-file-1');
+    expect(out.questions[1]).not.toHaveProperty('imageDriveFileId');
+  });
+});

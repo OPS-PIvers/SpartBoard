@@ -42,19 +42,22 @@ function parseImage(v: unknown): ImportImage | null {
 const time = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
 
+const httpsImage = (v: unknown): { image?: string } =>
+  str(v) && v.startsWith('https://') ? { image: v } : {};
+
 function parseStop(v: unknown): ImportVideoStop | null {
   if (!isObj(v) || !str(v.text)) return null;
   const t = time(v.time);
   if (t === null) return null;
   if (v.kind === 'open' || v.kind === 'note')
-    return { kind: v.kind, time: t, text: v.text };
+    return { kind: v.kind, time: t, text: v.text, ...httpsImage(v.image) };
   if (v.kind !== 'choice' || !Array.isArray(v.choices)) return null;
   const choices = v.choices
     .filter(isObj)
     .filter((c) => str(c.text))
     .map((c) => ({ text: c.text as string, correct: c.correct === true }));
   return choices.length
-    ? { kind: 'choice', time: t, text: v.text, choices }
+    ? { kind: 'choice', time: t, text: v.text, choices, ...httpsImage(v.image) }
     : null;
 }
 

@@ -23,6 +23,8 @@ export interface ImportedVideoContent {
   clip?: VideoActivityClip;
 }
 
+type PictureFor = (stop: ImportVideoStop) => { imageDriveFileId?: string };
+
 const base = (stop: ImportVideoStop) => ({
   id: crypto.randomUUID(),
   timeLimit: 0,
@@ -39,10 +41,20 @@ function fitRows(rows: ChoiceRow[], multi: boolean): ChoiceRow[] {
   return rows.filter((r) => r.correct || ++wrong <= wrongCap);
 }
 
-function questionFrom(stop: ImportVideoStop): VideoActivityQuestion | null {
+function questionFrom(
+  stop: ImportVideoStop,
+  picture: PictureFor
+): VideoActivityQuestion | null {
+  const image = picture(stop);
   if (stop.kind !== 'choice')
     return stop.kind === 'open'
-      ? { ...base(stop), type: 'SA', correctAnswer: '', incorrectAnswers: [] }
+      ? {
+          ...base(stop),
+          type: 'SA',
+          correctAnswer: '',
+          incorrectAnswers: [],
+          ...image,
+        }
       : null;
   const marked = stop.choices.filter((c) => c.correct).length;
   const multi = marked > 1;
@@ -56,6 +68,7 @@ function questionFrom(stop: ImportVideoStop): VideoActivityQuestion | null {
     correctAnswer,
     incorrectAnswers,
     ...(optionOrder ? { optionOrder } : {}),
+    ...image,
     // No key came with it: the teacher marks the answer before assigning.
     ...(marked === 0 ? { needsKey: true } : {}),
   };
@@ -64,12 +77,19 @@ function questionFrom(stop: ImportVideoStop): VideoActivityQuestion | null {
 /** Questions, notes and clip for a new activity; with `stops` off only the choice questions come over. */
 export function videoContentFromLesson(
   video: ImportVideoLesson,
-  { stops }: { stops: boolean }
+  {
+    stops,
+    pictures = new Map(),
+  }: { stops: boolean; pictures?: ReadonlyMap<string, string> }
 ): ImportedVideoContent {
+  const picture: PictureFor = (stop) => {
+    const id = stop.image ? pictures.get(stop.image) : undefined;
+    return id ? { imageDriveFileId: id } : {};
+  };
   // Short answer, note stops and clips share one preview flag (D35).
   const questions = video.stops
     .filter((s) => stops || s.kind !== 'open')
-    .map(questionFrom)
+    .map((s) => questionFrom(s, picture))
     .filter((q): q is VideoActivityQuestion => q !== null);
   const notes: VideoActivityNote[] = stops
     ? video.stops
@@ -78,6 +98,7 @@ export function videoContentFromLesson(
           id: crypto.randomUUID(),
           timestamp: s.time,
           text: s.text,
+          ...picture(s),
         }))
     : [];
   const clip = stops

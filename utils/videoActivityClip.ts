@@ -51,7 +51,8 @@ export const notesEqual = (
       (n, i) =>
         n.id === b[i].id &&
         n.timestamp === b[i].timestamp &&
-        n.text === b[i].text
+        n.text === b[i].text &&
+        n.imageDriveFileId === b[i].imageDriveFileId
     ));
 
 /** The clip and notes a synced canonical doc or version stores; `notes` is always written so readers can tell it from a doc that predates synced playback. */

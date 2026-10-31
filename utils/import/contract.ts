@@ -109,9 +109,13 @@ export interface ImportVideoChoice {
 }
 
 /** One timed stop in a video lesson; plain text only, `time` in seconds of the whole video. */
-export type ImportVideoStop =
+export type ImportVideoStop = (
   | { kind: 'choice'; time: number; text: string; choices: ImportVideoChoice[] }
-  | { kind: 'open' | 'note'; time: number; text: string };
+  | { kind: 'open' | 'note'; time: number; text: string }
+) & {
+  /** Untrusted https picture from the prompt; copied through `fetchImportImage`, never shown as is. */
+  image?: string;
+};
 
 /** A YouTube video lesson a Platform reader found (D30-D33), trimmed to `start`/`end`. */
 export interface ImportVideoLesson {

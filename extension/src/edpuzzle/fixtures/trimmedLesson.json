@@ -1,0 +1,262 @@
+{
+  "_id": "57a14764113aca7c3962d443",
+  "title": "Plant and Animal Cells - Organelles (Middle School Level)",
+  "source": "youtube",
+  "videoId": "USGw7G1V-no",
+  "originalVideoDuration": 576,
+  "videoDuration": 155.712,
+  "sections": [
+    {
+      "_id": "57a14764113aca7c3962d420",
+      "duration": 155.712,
+      "time": 3.872,
+      "type": "section"
+    }
+  ],
+  "notes": [],
+  "questions": [
+    {
+      "time": 40.914,
+      "questionNumber": 0,
+      "type": "open-ended",
+      "_id": "57a14764113aca7c3962d437",
+      "feedback": [
+        {
+          "text": "",
+          "html": "",
+          "_id": "57a14764113aca7c3962d422",
+          "audio": {}
+        }
+      ],
+      "body": [
+        {
+          "html": "<p>What is the job of a chloroplast?&nbsp;</p>",
+          "text": "What is the job of a chloroplast? ",
+          "_id": "57a14764113aca7c3962d421"
+        }
+      ],
+      "duration": 0,
+      "absoluteTime": 40.914
+    },
+    {
+      "body": [
+        {
+          "_id": "57a14764113aca7c3962d423",
+          "html": "<p>What is the function of the cell wall?&nbsp;</p>",
+          "text": "What is the function of the cell wall? "
+        }
+      ],
+      "duration": 0,
+      "time": 85.542,
+      "questionNumber": 0,
+      "type": "multiple-choice",
+      "_id": "57a14764113aca7c3962d441",
+      "choices": [
+        {
+          "_id": "57a14764113aca7c3962d43a",
+          "isCorrect": false,
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "57a14764113aca7c3962d42a",
+              "audio": {}
+            }
+          ],
+          "body": [
+            {
+              "text": "",
+              "_id": "57a14764113aca7c3962d429",
+              "html": "<p>protect the entire cell</p>"
+            }
+          ],
+          "choiceNumber": 0
+        },
+        {
+          "choiceNumber": 1,
+          "_id": "57a14764113aca7c3962d43b",
+          "isCorrect": false,
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "57a14764113aca7c3962d42c",
+              "audio": {}
+            }
+          ],
+          "body": [
+            {
+              "_id": "57a14764113aca7c3962d42b",
+              "html": "<p>make sure water can get to the inside of the cell</p>",
+              "text": ""
+            }
+          ]
+        },
+        {
+          "body": [
+            {
+              "_id": "57a14764113aca7c3962d42d",
+              "html": "<p>protect the nucleus</p>",
+              "text": ""
+            }
+          ],
+          "choiceNumber": 2,
+          "_id": "57a14764113aca7c3962d43c",
+          "isCorrect": false,
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "57a14764113aca7c3962d42e",
+              "audio": {}
+            }
+          ]
+        }
+      ],
+      "absoluteTime": 85.542
+    },
+    {
+      "type": "multiple-choice",
+      "_id": "57a14764113aca7c3962d442",
+      "choices": [
+        {
+          "choiceNumber": 2,
+          "_id": "57a14764113aca7c3962d43d",
+          "isCorrect": false,
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "57a14764113aca7c3962d430",
+              "audio": {}
+            }
+          ],
+          "body": [
+            {
+              "_id": "57a14764113aca7c3962d42f",
+              "html": "<p>nucleus</p>",
+              "text": ""
+            }
+          ]
+        },
+        {
+          "_id": "57a14764113aca7c3962d43e",
+          "isCorrect": false,
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "57a14764113aca7c3962d432",
+              "audio": {}
+            }
+          ],
+          "body": [
+            {
+              "_id": "57a14764113aca7c3962d431",
+              "html": "<p>cell wall</p>",
+              "text": ""
+            }
+          ],
+          "choiceNumber": 3
+        },
+        {
+          "_id": "57a14764113aca7c3962d43f",
+          "isCorrect": false,
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "57a14764113aca7c3962d434",
+              "audio": {}
+            }
+          ],
+          "body": [
+            {
+              "_id": "57a14764113aca7c3962d433",
+              "html": "<p>lysosome</p>",
+              "text": ""
+            }
+          ],
+          "choiceNumber": 0
+        },
+        {
+          "_id": "57a14764113aca7c3962d440",
+          "isCorrect": false,
+          "feedback": [
+            {
+              "text": "",
+              "html": "",
+              "_id": "57a14764113aca7c3962d436",
+              "audio": {}
+            }
+          ],
+          "body": [
+            {
+              "_id": "57a14764113aca7c3962d435",
+              "html": "<p>ribosome</p>",
+              "text": ""
+            }
+          ],
+          "choiceNumber": 1
+        }
+      ],
+      "body": [
+        {
+          "_id": "57a14764113aca7c3962d424",
+          "html": "<p>What is the opposite of a chloroplast in an animal cell?</p>",
+          "text": "What is the opposite of a chloroplast in an animal cell?"
+        }
+      ],
+      "duration": 0,
+      "time": 119.525,
+      "questionNumber": 0,
+      "absoluteTime": 119.525
+    },
+    {
+      "feedback": [
+        {
+          "text": "",
+          "html": "",
+          "_id": "57a14764113aca7c3962d426",
+          "audio": {}
+        }
+      ],
+      "body": [
+        {
+          "text": "List the unique structures to plant cells. ",
+          "_id": "57a14764113aca7c3962d425",
+          "html": "<p>List the unique structures to plant cells.&nbsp;</p>"
+        }
+      ],
+      "duration": 0,
+      "time": 159.584,
+      "questionNumber": 0,
+      "type": "open-ended",
+      "_id": "57a14764113aca7c3962d438",
+      "absoluteTime": 159.584
+    },
+    {
+      "duration": 0,
+      "time": 159.584,
+      "questionNumber": 1,
+      "type": "open-ended",
+      "_id": "57a14764113aca7c3962d439",
+      "feedback": [
+        {
+          "text": "",
+          "html": "",
+          "_id": "57a14764113aca7c3962d428",
+          "audio": {}
+        }
+      ],
+      "body": [
+        {
+          "_id": "57a14764113aca7c3962d427",
+          "html": "<p>List the unique structure to animal cells.&nbsp;</p>",
+          "text": "List the unique structure to animal cells. "
+        }
+      ],
+      "absoluteTime": 159.584
+    }
+  ]
+}
