@@ -177,6 +177,7 @@ export const ShortAnswerInput: React.FC<ShortAnswerInputProps> = ({
   locked,
 }) => (
   <div className="px-5 pb-5">
+    {/* no-tour-anchor: student answer box; tours walk teachers, not students */}
     <textarea
       autoFocus
       disabled={locked}
