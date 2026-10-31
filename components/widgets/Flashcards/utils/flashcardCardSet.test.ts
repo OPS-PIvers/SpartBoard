@@ -11,6 +11,7 @@ describe('flashcardLanguageFor', () => {
     ['zh-TW', 'zh-TW'],
     ['pt-PT', 'pt-PT'],
     ['und', null],
+    ['zh-PY', 'zh-CN'],
     ['nl', 'nl'],
     ['math', null],
     ['photo', null],

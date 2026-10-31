@@ -36,6 +36,8 @@ export function flashcardLanguageFor(code: string | undefined): string | null {
   if (exact) return exact.tag;
   const [base, ...rest] = code.toLowerCase().split('-');
   if (base === 'und') return null;
+  // Quizlet's Pinyin code looks like a region (Paraguay) but means Chinese.
+  if (code.toLowerCase() === 'zh-py') return 'zh-CN';
   // A region or script the presets lack (zh-TW, pt-PT) stays as given rather than becoming another variety.
   if (rest.length && describeLanguageTag(code)) return code;
   const preset = FLASHCARD_LANGUAGES.find(

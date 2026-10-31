@@ -38,6 +38,25 @@ describe('blocksToText', () => {
 });
 
 describe('conversionInputFromSource', () => {
+  it('reads a card set sent without its table as the page text', () => {
+    expect(
+      conversionInputFromSource({
+        kind: 'send',
+        item: {
+          id: 'x',
+          receivedAt: 1,
+          url: 'https://quizlet.com/1/',
+          title: 'Cells',
+          platform: 'quizlet',
+          selectionOnly: false,
+          blocks: [{ type: 'heading', level: 1, text: 'Cells' }],
+          images: [],
+          cards: { cards: [{ term: 'cell', definition: 'unit of life' }] },
+        },
+      })?.text
+    ).toBe('# Cells\n\ncell\tunit of life');
+  });
+
   it('reads Sends, pasted text and read files, and not bare URLs', () => {
     expect(
       conversionInputFromSource({

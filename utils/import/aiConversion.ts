@@ -90,7 +90,20 @@ export function conversionInputFromSource(
 ): ConversionInput | null {
   switch (source.kind) {
     case 'send': {
-      const text = blocksToText(source.item.blocks);
+      const { blocks, cards } = source.item;
+      // A big card set arrives without its table, so the cards are the page text.
+      const cardRows: ImportBlock[] =
+        cards?.cards.length && !blocks.some((b) => b.type === 'table')
+          ? [
+              {
+                type: 'table',
+                rows: cards.cards.map((c) => ({
+                  cells: [c.term, c.definition],
+                })),
+              },
+            ]
+          : [];
+      const text = blocksToText([...blocks, ...cardRows]);
       return text
         ? { title: source.item.title, url: source.item.url, text }
         : null;
