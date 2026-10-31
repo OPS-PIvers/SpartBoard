@@ -351,3 +351,72 @@ describe('restoreVideoRevision', () => {
     expect(res.previous_version_revision_id).toBeTruthy();
   });
 });
+
+describe('short answer through the connector', () => {
+  const sa = {
+    type: 'short_answer',
+    text: 'Why?',
+    timestamp_seconds: 40,
+  };
+
+  it('refuses a new short answer while video-activity-stops is off', async () => {
+    const { db } = fakeDb();
+    const call = await connect(db);
+    const res = await call('create_video_activity', {
+      title: 'Cells',
+      youtube_url: URL_OK,
+      questions: [mc(1, 30), sa],
+    });
+    expect(res.error).toMatch(/not turned on/);
+  });
+
+  it('adds a short answer when the flag is on for the teacher', async () => {
+    const { db } = fakeDb({
+      'global_permissions/video-activity-stops': {
+        enabled: true,
+        accessLevel: 'public',
+      },
+    });
+    const call = await connect(db);
+    const res = await call('create_video_activity', {
+      title: 'Cells',
+      youtube_url: URL_OK,
+      questions: [mc(1, 30), sa],
+    });
+    expect(res.error).toBeUndefined();
+    expect(res.question_count).toBe(2);
+  });
+});
+
+describe('keeping a short answer without the flag', () => {
+  it('keeps an existing short answer once but refuses copies of its id', async () => {
+    const fx = fakeDb({
+      'global_permissions/video-activity-stops': {
+        enabled: true,
+        accessLevel: 'public',
+      },
+    });
+    const call = await connect(fx.db);
+    const made = await call('create_video_activity', {
+      title: 'Cells',
+      youtube_url: URL_OK,
+      questions: [{ type: 'short_answer', text: 'Why?', timestamp_seconds: 9 }],
+    });
+    fx.docs.delete('global_permissions/video-activity-stops');
+    const got = await call('get_video_activity', {
+      activity_id: made.activity_id,
+    });
+    const id = (got.questions as { id: string }[])[0].id;
+    const sa = { id, type: 'short_answer', text: 'Why?', timestamp_seconds: 9 };
+    const kept = await call('update_video_activity', {
+      activity_id: made.activity_id,
+      questions: [sa],
+    });
+    expect(kept.error).toBeUndefined();
+    const copied = await call('update_video_activity', {
+      activity_id: made.activity_id,
+      questions: [sa, sa],
+    });
+    expect(copied.error).toMatch(/not turned on/);
+  });
+});

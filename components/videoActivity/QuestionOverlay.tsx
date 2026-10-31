@@ -20,6 +20,7 @@ import type {
   VideoActivityPublicQuestion,
 } from '@/types';
 import { questionOptions } from '@/utils/videoActivityOptions';
+import { StopPicture } from './StopPicture';
 
 interface QuestionOverlayProps {
   question: VideoActivityPublicQuestion;
@@ -344,7 +345,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
       )
       .then(({ isCorrect, key, graded }) => {
         setChecking(false);
-        setCorrectAnswer(key);
+        // An ungraded answer (a short answer the teacher marks) gets no right or wrong banner.
+        setCorrectAnswer(graded ? key : null);
         setSubmittedIsCorrect(isCorrect);
         setSubmitted(true);
         // The answer wasn't saved: unlock the question so the student can resend it.
@@ -402,6 +404,10 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
         <p className="text-base font-semibold text-slate-900 leading-snug">
           {question.text}
         </p>
+        <StopPicture
+          fileId={question.imageDriveFileId}
+          className="mt-3 max-h-56"
+        />
         {type === 'MA' && (
           <p className="text-xs text-slate-500 mt-1">Select all that apply.</p>
         )}

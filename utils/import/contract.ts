@@ -2,6 +2,9 @@
 
 /** D29 preview flag gating Import, drop-to-import and the any-page Send. */
 export const UNIVERSAL_IMPORT_FEATURE = 'universal-import';
+/** Per-entry rollout flags, each ANDed with UNIVERSAL_IMPORT_FEATURE: the extension Send and a drop onto a board. */
+export const IMPORT_SEND_FEATURE = 'import-extension-send';
+export const IMPORT_DROP_FEATURE = 'import-board-drop';
 
 /** The URL parameter a new SpartBoard tab opens with after a Send. */
 export const IMPORT_INBOX_PARAM = 'importInbox';
@@ -95,6 +98,48 @@ export interface ImportReaderFailure {
   reason: string;
 }
 
+// D32 video lesson caps, checked by the server.
+export const IMPORT_MAX_VIDEO_STOPS = 200;
+export const IMPORT_MAX_VIDEO_CHOICES = 12;
+export const IMPORT_MAX_VIDEO_TEXT_CHARS = 2000;
+export const IMPORT_MAX_VIDEO_SECONDS = 24 * 60 * 60;
+export const YOUTUBE_VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+
+/** `correct` is false on every choice when the source didn't share its key. */
+export interface ImportVideoChoice {
+  text: string;
+  correct: boolean;
+}
+
+/** One timed stop in a video lesson; plain text only, `time` in seconds of the whole video. */
+export type ImportVideoStop = (
+  | { kind: 'choice'; time: number; text: string; choices: ImportVideoChoice[] }
+  | { kind: 'open' | 'note'; time: number; text: string }
+) & {
+  /** Untrusted https picture from the prompt; copied through `fetchImportImage`, never shown as is. */
+  image?: string;
+};
+
+/** What a reader couldn't bring over, counted so the editor can say so (D32, D33). */
+export const IMPORT_VIDEO_LEFT_OUT = [
+  'question',
+  'voiceover',
+  'feedback',
+  'choicePicture',
+  'cut',
+] as const;
+export type ImportVideoLeftOut = (typeof IMPORT_VIDEO_LEFT_OUT)[number];
+
+/** A YouTube video lesson a Platform reader found (D30-D33), trimmed to `start`/`end`. */
+export interface ImportVideoLesson {
+  youtubeId: string;
+  start?: number;
+  end?: number;
+  stops: ImportVideoStop[];
+  /** Counts above zero only; absent when everything came over. */
+  leftOut?: Partial<Record<ImportVideoLeftOut, number>>;
+}
+
 /** Body of `importInboxV1` (D14). */
 export interface ImportSendRequest {
   url: string;
@@ -105,6 +150,7 @@ export interface ImportSendRequest {
   blocks: ImportBlock[];
   images: ImportImage[];
   readerFailure?: ImportReaderFailure;
+  video?: ImportVideoLesson;
 }
 
 /** A stored Send, `users/{uid}/import_inbox/{id}`; `expireAt` (a Timestamp) drives the TTL. */

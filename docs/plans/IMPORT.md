@@ -119,7 +119,15 @@ board. Schoology is one Source among many. This picks up the out-of-scope list o
   - Edpuzzle and YouTube Send ride `universal-import` (D29).
   - A new preview flag `video-activity-stops` gates short answer, note stops and the clip range in the editor and player.
   - A new admin-only flag `video-import-ai` shows "Generate questions with AI" on a YouTube import, using the existing `generateVideoActivity` with its existing `video-activity-ai` permission and daily caps.
-- **D36 Edpuzzle fixture.** Edpuzzle has no public content API, so the reader is built from research against a fixture labelled synthetic, with the D18 fallback. Before the release that opens it, Paul does one Send from an Edpuzzle lesson on the dev extension and that captured payload, student data removed, replaces the synthetic fixture.
+- **D36 Edpuzzle fixture (revised 2026-10-31).** Two public lessons were probed read-only on 2026-10-31. Send fetches `edpuzzle.com/api/v3/media/<id>` from the lesson page with the teacher's own Edpuzzle sign-in.
+  - **Video:** `source` is `youtube` with `videoId` the YouTube id, or `edpuzzle` for a video Edpuzzle hosts (refused, D26).
+  - **Trim:** `sections[]` are back-to-back kept pieces; the first start and last end against `originalVideoDuration` give the clip, and a cut in the middle plays through.
+  - **Content:** `questions[]` (`multiple-choice` with `choices[].isCorrect`, `open-ended`) and `notes[]` carry a `time` in seconds and HTML bodies, read as plain text. The first https `<img>` in a question or note prompt is copied through `fetchImportImage` into the teacher's Drive (`Assets/QuizStimuli`, shared by link like quiz stimuli) and shown with the stop; pictures in choices are left out. No real lesson with a picture has been probed yet, so the `<img>` source shape is unconfirmed.
+  - **Left out:** the reader counts questions of other kinds (audio and the rest), voiceovers, answer feedback, pictures in choices and cuts in the middle of the video, and the editor says once, under the attribution line, what didn't come over, including what the `video-activity-stops` flag held back. A middle cut plays through, so the line says students see that part.
+  - **Polls:** a multiple-choice question with no correct choice imports as "Needs answer" (no ungraded multiple-choice type yet); the teacher marks one or changes it to short answer.
+  - **Video only:** a YouTube lesson with no questions or notes imports as a watch-only activity, where `video-import-ai` can add questions.
+  - **Keys:** public data marks every choice `isCorrect: false`. A question with no marked choice imports with `needsKey`; it saves, and Assign stays blocked until the teacher marks it.
+  - **Fixture:** `extension/src/edpuzzle/fixtures/youtubeLesson.json` is a public YouTube lesson with its owner removed. One Send of a lesson Paul owns on the dev extension confirms whether owner data includes the key, before the release that opens it.
 - **D37 Build order.** (1) Video Activity short answer, note stops, clip range; (2) YouTube Send route and `video-import-ai`; (3) Edpuzzle reader.
 
 ### Guards and release
@@ -128,8 +136,12 @@ board. Schoology is one Source among many. This picks up the out-of-scope list o
   - Each import queues at most 25 AI Conversions at once; the rest wait for the teacher to continue.
   - An `admin_settings` kill switch for AI Conversion has its own toggle in the admin panel and ships off on dev until it is tested.
   - Parser routes are never limited.
-- **D29 One preview flag**, `universal-import` (admin, `stage: 'preview'`, `afterLaunch: 'retire'`). It gates Import, drop-to-import and the any-page Send. Existing per-widget imports are untouched.
-  - To open it: Admin Settings > Access > Previews > set to Public.
+- **D29 Master flag**, `universal-import` (admin, `stage: 'preview'`, `afterLaunch: 'retire'`). Every Import entry point and type needs it on. Existing per-widget imports are untouched.
+- **D38 One flag per way in and per type (Paul, 2026-10-31).** Each is ANDed with `universal-import`, ships at access level admin, and opens one at a time to admins, Beta users or everyone. Admin Settings > Access > Previews, each row "Import: ...".
+  - Ways in: `import-extension-send` (the extension's Send, the corner notice and `?importInbox=1`; `importStatusV1` and `importInboxV1` check it too) and `import-board-drop` (drop onto a board; `fetchImportPageV1` checks it too).
+  - Types, one per button in Add to board (`IMPORT_TARGET_FEATURES` in `components/import/importTargets.ts`): `import-quiz` (Quiz and Question bank), `import-flashcards`, `import-activity-wall`, `import-new-board`, `import-guided-learning` and `import-notebook` (also the slides import inside those widgets), `import-video-activity` (YouTube and Edpuzzle), `import-mini-app`, `import-pdf`, `import-sticker`, `import-embed`, `import-link`, and `import-schoology-course` (Whole course).
+  - A type still needs its own widget and its existing gates (quiz document import, `.imscc` flags, Magic Layout for New board, AI switches).
+  - Fully open means `universal-import`, the way in and the type are all Public.
 
 ## Feasibility map
 

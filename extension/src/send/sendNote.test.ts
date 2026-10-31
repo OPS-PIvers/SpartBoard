@@ -19,6 +19,22 @@ describe('sendNote', () => {
     ).toBe('Sent your selection to SpartBoard.');
   });
 
+  it('says when a lesson went, and refuses a video stored on Edpuzzle', () => {
+    const reply = { ok: true, blocks: 3, images: 0 };
+    expect(
+      sendNote({ kind: 'reply', reply, lesson: { skipped: 0 } }).text
+    ).toBe('Sent this lesson to SpartBoard.');
+    expect(
+      sendNote({ kind: 'reply', reply, lesson: { skipped: 2 } }).text
+    ).toMatch(/2 questions SpartBoard has no kind for were left out/);
+    expect(
+      sendNote({ kind: 'reply', reply, fellBack: 'edpuzzle' }).text
+    ).toMatch(/^The Edpuzzle reader couldn't read this page/);
+    const refused = sendNote({ kind: 'not-youtube' });
+    expect(refused.ok).toBe(false);
+    expect(refused.text).toMatch(/stored on Edpuzzle/);
+  });
+
   it('says when a reader fell back to the page text', () => {
     expect(
       sendNote({

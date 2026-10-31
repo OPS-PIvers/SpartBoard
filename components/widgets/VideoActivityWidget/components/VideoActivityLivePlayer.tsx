@@ -54,6 +54,7 @@ import {
 import { logError } from '@/utils/logError';
 import { VideoActivityLiveAggregate } from './VideoActivityLiveAggregate';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { StopPicture } from '@/components/videoActivity/StopPicture';
 
 interface VideoActivityLivePlayerProps {
   session: VideoActivitySession;
@@ -783,6 +784,10 @@ const LiveQuestionBody: React.FC<{
       >
         {question.text}
       </p>
+      <StopPicture
+        fileId={question.imageDriveFileId}
+        className="max-h-[30cqh]"
+      />
       {resultsShown ? (
         <VideoActivityLiveAggregate
           question={question}

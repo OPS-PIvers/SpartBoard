@@ -31,6 +31,7 @@ import { UNIVERSAL_IMPORT_FEATURE } from '@/utils/import/contract';
 import { isDuplicate, type CourseRow } from '@/utils/import/coursePlan';
 import type { CourseImportApi } from './courseImportApi';
 import { CourseImportScreen } from './CourseImportScreen';
+import { IMPORT_TARGET_FEATURES } from '../importTargets';
 
 const BOARD_WAIT_MS = 2000;
 
@@ -312,6 +313,9 @@ export const CourseImportHost: React.FC<{
       canUploadPictures: !!driveService,
       access: {
         target: (target) => {
+          // Each type in a course follows its own Import flag too.
+          const flag = IMPORT_TARGET_FEATURES[target];
+          if (!flag || !canAccessFeature(flag)) return false;
           switch (target) {
             case 'quiz':
               return (
