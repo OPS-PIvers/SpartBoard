@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-30_
+_Last audited: 2026-10-31_
 _Last action: never_
 
 _2026-10-30: Daily audit (Friday). After merging `origin/dev-paul`: `pnpm type-check` exit 0; `pnpm lint` (root, functions, extension) exit 0 with `--max-warnings 0`. 0 new issues._
