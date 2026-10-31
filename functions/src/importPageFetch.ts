@@ -15,6 +15,7 @@ import { isGlobalFeatureGranted } from './quizMediaArchive';
 import {
   IMPORT_SEND_BLOCK_LIST_DOC,
   UNIVERSAL_IMPORT_FEATURE,
+  IMPORT_DROP_FEATURE,
   isUrlBlocked,
   resolveBlockPatterns,
 } from './import/shared.gen';
@@ -652,14 +653,17 @@ export const fetchImportPageV1 = onCall(
       (token.email_verified === true &&
         !!token.email &&
         (await db.collection('admins').doc(token.email).get()).exists);
+    const grants = (feature: string) =>
+      isGlobalFeatureGranted(
+        db,
+        feature,
+        token.email ?? null,
+        request.auth?.uid ?? ''
+      );
     const granted =
       staff &&
-      (await isGlobalFeatureGranted(
-        db,
-        UNIVERSAL_IMPORT_FEATURE,
-        token.email ?? null,
-        request.auth.uid
-      ));
+      (await grants(UNIVERSAL_IMPORT_FEATURE)) &&
+      (await grants(IMPORT_DROP_FEATURE));
     if (!granted)
       throw new HttpsError('permission-denied', 'Import is not turned on.');
     const url = (request.data as { url?: unknown } | null)?.url;

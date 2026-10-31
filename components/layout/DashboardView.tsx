@@ -82,7 +82,10 @@ import {
 import type { LiveSession, WidgetType } from '@/types';
 import { extractYouTubeId } from '@/utils/youtube';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
-import { UNIVERSAL_IMPORT_FEATURE } from '@/utils/import/contract';
+import {
+  IMPORT_DROP_FEATURE,
+  UNIVERSAL_IMPORT_FEATURE,
+} from '@/utils/import/contract';
 import { ImportScreenHost } from '@/components/import/ImportScreenHost';
 import { targetChoices } from '@/components/import/importTargets';
 import {
@@ -517,6 +520,7 @@ export const DashboardView: React.FC = () => {
 
   const { canAccessFeature, isAdmin } = useAuth();
   const universalImport = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
+  const importOnDrop = universalImport && canAccessFeature(IMPORT_DROP_FEATURE);
   // Latched: the host takes the parameter off the address once it opens the editor.
   const [webTourLink] = React.useState(opensWebTour);
   useWallBoardAccessCleanup(user?.uid ?? null);
@@ -1386,7 +1390,7 @@ export const DashboardView: React.FC = () => {
     }
     const types = Array.from(e.dataTransfer.types ?? []);
     if (
-      universalImport &&
+      importOnDrop &&
       isBoardDropTarget(e) &&
       (types.includes('Files') ||
         types.includes('text/uri-list') ||
@@ -1426,7 +1430,7 @@ export const DashboardView: React.FC = () => {
     const dropPoint = (clientX: number, clientY: number) =>
       viewportToWrapper({ x: clientX, y: clientY }, zoom, panOffset, vw, vh);
 
-    if (universalImport && openImportFromDrop(e, dropPoint)) return;
+    if (importOnDrop && openImportFromDrop(e, dropPoint)) return;
 
     // Handle PDF files dragged from the filesystem
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {

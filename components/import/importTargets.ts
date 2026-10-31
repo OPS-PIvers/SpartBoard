@@ -1,4 +1,4 @@
-import type { WidgetType } from '@/types';
+import type { GlobalFeature, WidgetType } from '@/types';
 import type { ImportTarget } from '@/utils/import/contract';
 import {
   guessTargets,
@@ -145,6 +145,25 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     landing: 'place',
     accepts: (s) => isWebUrl(s),
   },
+};
+
+/** The admin flag that rolls out each Import type, on top of universal-import. */
+export const IMPORT_TARGET_FEATURES: Partial<
+  Record<ImportTarget, GlobalFeature>
+> = {
+  quiz: 'import-quiz',
+  questionBank: 'import-quiz',
+  flashcards: 'import-flashcards',
+  activityWall: 'import-activity-wall',
+  board: 'import-new-board',
+  guidedLearning: 'import-guided-learning',
+  videoActivity: 'import-video-activity',
+  miniApp: 'import-mini-app',
+  notebook: 'import-notebook',
+  pdf: 'import-pdf',
+  sticker: 'import-sticker',
+  embed: 'import-embed',
+  links: 'import-link',
 };
 
 export function importRoute(target: ImportTarget): ImportRoute | null {

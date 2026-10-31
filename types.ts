@@ -10787,6 +10787,22 @@ export type GlobalFeature =
   | 'staff-audience'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
+  /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
+  | 'import-extension-send'
+  | 'import-board-drop'
+  | 'import-quiz'
+  | 'import-flashcards'
+  | 'import-activity-wall'
+  | 'import-new-board'
+  | 'import-guided-learning'
+  | 'import-notebook'
+  | 'import-video-activity'
+  | 'import-mini-app'
+  | 'import-pdf'
+  | 'import-sticker'
+  | 'import-embed'
+  | 'import-link'
+  | 'import-schoology-course'
   /** Video Activity short answer, note stops and clip range (docs/plans/IMPORT.md D32-D33). */
   | 'video-activity-stops'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
