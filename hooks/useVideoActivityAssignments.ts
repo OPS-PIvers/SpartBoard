@@ -82,6 +82,7 @@ import { useSandboxedVideoActivityAssignments } from './useTourSandboxed';
 import { useSetAssignmentTargets } from './useSetAssignmentTargets';
 import { hasStudentPointers } from '@/utils/studentTargetRef';
 import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
+import { videoActivityAssignBlocker } from '@/utils/activityCompleteness';
 import {
   batchUpdateWithPaths,
   periodAccessWrites,
@@ -365,6 +366,12 @@ export const useVideoActivityAssignments = (
       mode = 'submissions'
     ) => {
       if (!userId) throw new Error('Not authenticated');
+      // An imported question still waiting for its key fails every assign path, not just the widget's.
+      if (activity.questions.some((q) => q.needsKey)) {
+        const blocker = videoActivityAssignBlocker(activity);
+        if (blocker)
+          throw new Error(`This activity can't be assigned yet: ${blocker}.`);
+      }
       const targetClassIds = classIds ?? [];
       const targetPeriodNames = periodNames ?? [];
       const targetRosterIds = rosterIds ?? [];

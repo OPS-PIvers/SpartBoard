@@ -158,4 +158,26 @@ describe('leftOutSummary', () => {
     );
     expect(videoContentFromLesson(LESSON, { stops: true }).leftOut).toBe(null);
   });
+  it('counts answer choices past what a keyless question can hold', () => {
+    const out = videoContentFromLesson(
+      {
+        youtubeId: 'WjqqUjDkh1c',
+        stops: [
+          {
+            kind: 'choice',
+            time: 10,
+            text: 'Pick',
+            choices: Array.from({ length: 7 }, (_, i) => ({
+              text: `c${i}`,
+              correct: false,
+            })),
+          },
+        ],
+      },
+      { stops: true }
+    );
+    expect(out.leftOut).toBe(
+      'Left out: 2 answer choices past the most a question can hold.'
+    );
+  });
 });

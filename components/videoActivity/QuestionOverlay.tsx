@@ -345,7 +345,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
       )
       .then(({ isCorrect, key, graded }) => {
         setChecking(false);
-        setCorrectAnswer(key);
+        // An ungraded answer (a short answer the teacher marks) gets no right or wrong banner.
+        setCorrectAnswer(graded ? key : null);
         setSubmittedIsCorrect(isCorrect);
         setSubmitted(true);
         // The answer wasn't saved: unlock the question so the student can resend it.
