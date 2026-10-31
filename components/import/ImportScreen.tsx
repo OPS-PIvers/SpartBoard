@@ -190,7 +190,8 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
           title={embedding.source.title}
           onPlace={(widget) => onPlaceReference(widget, embedding.source)}
           onConvert={
-            canConvert(embedding)
+            // The live row, so a dropped page read after Embed was picked still counts.
+            canConvert(rows.find((r) => r.key === embedding.key) ?? embedding)
               ? () => {
                   setNoEmbed((prev) => new Set(prev).add(embedding.key));
                   setEmbedding(null);
