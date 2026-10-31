@@ -19,7 +19,12 @@ import type {
   VideoActivityPublicQuestion,
   VideoActivitySession,
 } from '@/types';
-import { FibAnswerInput, MaOptionList, McOptionList } from './QuestionOverlay';
+import {
+  FibAnswerInput,
+  MaOptionList,
+  McOptionList,
+  ShortAnswerInput,
+} from './QuestionOverlay';
 import { questionOptions } from '@/utils/videoActivityOptions';
 import { VideoActivityPeriodPausedOverlay } from './VideoActivityPeriodLockedScreen';
 
@@ -207,7 +212,11 @@ export const VideoActivityLiveStudent: React.FC<
         break;
       }
       const local = results[question.id];
-      const verdict = local?.isCorrect ?? answer.isCorrect;
+      // A short answer is marked later by the teacher, never right or wrong here.
+      const verdict =
+        question.type === 'SA'
+          ? undefined
+          : (local?.isCorrect ?? answer.isCorrect);
       body = (
         <LockedAnswerCard
           question={question}
@@ -346,6 +355,7 @@ const LiveQuestionCard: React.FC<{
   const [mcSelected, setMcSelected] = useState<string | null>(null);
   const [fibAnswer, setFibAnswer] = useState('');
   const [maSelected, setMaSelected] = useState<Set<string>>(new Set());
+  const [saAnswer, setSaAnswer] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -354,7 +364,9 @@ const LiveQuestionCard: React.FC<{
       ? (mcSelected ?? '')
       : type === 'FIB'
         ? fibAnswer.trim()
-        : Array.from(maSelected).sort().join('|');
+        : type === 'SA'
+          ? saAnswer.trim()
+          : Array.from(maSelected).sort().join('|');
   const canSubmit = !sending && answer.length > 0;
 
   const handleSubmit = () => {
@@ -403,6 +415,13 @@ const LiveQuestionCard: React.FC<{
           }
           locked={sending}
           correctAnswer={null}
+        />
+      )}
+      {type === 'SA' && (
+        <ShortAnswerInput
+          value={saAnswer}
+          onChange={setSaAnswer}
+          locked={sending}
         />
       )}
       {error && (
@@ -482,6 +501,9 @@ const LockedAnswerCard: React.FC<{
           locked
           correctAnswer={key}
         />
+      )}
+      {answer !== null && type === 'SA' && (
+        <ShortAnswerInput value={answer} onChange={noop} locked />
       )}
       {banner}
     </QuestionShell>

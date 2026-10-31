@@ -49,7 +49,12 @@ const questionSchema = z.object({
     .string()
     .optional()
     .describe('Keep from get_video_activity; omit if new.'),
-  type: z.enum(['multiple_choice', 'choose_all', 'fill_in_blank']),
+  type: z.enum([
+    'multiple_choice',
+    'choose_all',
+    'fill_in_blank',
+    'short_answer',
+  ]),
   text: z.string().min(1).max(4000),
   timestamp_seconds: z
     .number()
@@ -90,7 +95,7 @@ const questionSchema = z.object({
 });
 
 const QUESTION_HELP =
-  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates). Only use timestamps you know are inside the video. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field.";
+  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates), short_answer (open text the teacher marks; no key). Only use timestamps you know are inside the video. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field.";
 
 function summarize(id: string, data: Record<string, unknown>) {
   return {

@@ -1,6 +1,6 @@
 /**
  * VideoActivityEditor — context + detail pane components plus the type-
- * specific sub-forms (MC / FIB / MA). Mounted inside an `EditorWorkspace`
+ * specific sub-forms (MC / FIB / MA; SA has no key). Mounted inside an `EditorWorkspace`
  * by `VideoActivityEditorModal`.
  *
  * State is owned by `useVideoActivityEditorState`; both panes read and
@@ -37,7 +37,22 @@ const TYPE_BADGE: Record<QuestionType, { label: string; className: string }> = {
   MC: { label: 'MC', className: 'bg-blue-100 text-blue-700' },
   FIB: { label: 'FIB', className: 'bg-amber-100 text-amber-800' },
   MA: { label: 'MA', className: 'bg-emerald-100 text-emerald-700' },
+  SA: { label: 'SA', className: 'bg-violet-100 text-violet-700' },
 };
+
+const TYPE_LABEL: Record<QuestionType, string> = {
+  MC: 'Multiple choice',
+  FIB: 'Fill in the blank',
+  MA: 'Multi-answer',
+  SA: 'Short answer',
+};
+
+const TYPE_OPTIONS: ReadonlyArray<{ value: QuestionType; label: string }> = [
+  { value: 'MC', label: 'Multiple Choice' },
+  { value: 'FIB', label: 'Fill in the Blank' },
+  { value: 'MA', label: 'Multi-Answer' },
+  { value: 'SA', label: 'Short Answer' },
+];
 
 interface PaneProps {
   state: VideoActivityEditorController;
@@ -376,6 +391,7 @@ export const VideoActivityEditorDetailPane = React.memo(
     } = state;
     const { canAccessFeature } = useAuth();
     const targetsEnabled = canAccessFeature('gradebook');
+    const shortAnswerEnabled = canAccessFeature('video-activity-stops');
 
     const navigator =
       questions.length > 0 ? (
@@ -419,11 +435,7 @@ export const VideoActivityEditorDetailPane = React.memo(
           <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
             Question {selectedIndex + 1} of {questions.length}
             <span className="mx-1.5">·</span>
-            {type === 'MC'
-              ? 'Multiple choice'
-              : type === 'FIB'
-                ? 'Fill in the blank'
-                : 'Multi-answer'}
+            {TYPE_LABEL[type]}
           </div>
           <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
             {q.text.trim() || `Question at ${secondsToMmSs(q.timestamp)}`}
@@ -456,12 +468,10 @@ export const VideoActivityEditorDetailPane = React.memo(
           <div>
             <label className={labelClass}>Question Type</label>
             <div className="inline-flex rounded-xl border border-slate-300 bg-white overflow-hidden">
-              {(
-                [
-                  { value: 'MC', label: 'Multiple Choice' },
-                  { value: 'FIB', label: 'Fill in the Blank' },
-                  { value: 'MA', label: 'Multi-Answer' },
-                ] as const
+              {TYPE_OPTIONS.filter(
+                // Short answer is offered behind its flag, but an existing one always shows.
+                (opt) =>
+                  opt.value !== 'SA' || shortAnswerEnabled || type === 'SA'
               ).map((opt) => {
                 const active = type === opt.value;
                 return (
@@ -488,7 +498,7 @@ export const VideoActivityEditorDetailPane = React.memo(
                         type: opt.value,
                         correctAnswer: '',
                         incorrectAnswers:
-                          opt.value === 'FIB'
+                          opt.value === 'FIB' || opt.value === 'SA'
                             ? []
                             : padTo(preservedDistractors, 3),
                         acceptableVariants: undefined,

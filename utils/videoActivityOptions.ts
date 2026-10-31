@@ -21,7 +21,8 @@ export const questionOptions = (
   question: VideoActivityPublicQuestion,
   studentSeed?: string | null
 ): string[] => {
-  if ((question.type ?? 'MC') === 'FIB') return [];
+  const type = question.type ?? 'MC';
+  if (type === 'FIB' || type === 'SA') return [];
   const options = question.options ?? [];
   return studentSeed
     ? seededShuffle(options, `${studentSeed}:${question.id}`)

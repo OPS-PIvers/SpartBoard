@@ -66725,6 +66725,67 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.results-to-mark",
+    "label": "Short answers to mark notice in the Video Activity results",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#archive",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.results-mark-toggle",
+    "label": "Mark button on a short-answer question in the Video Activity results",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#archive",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.results-mark-points",
+    "label": "Points box for a student's short answer in the Video Activity results",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#archive",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.folder",
     "label": "Folder picker in the Quiz editor header",
     "scope": "widget type",

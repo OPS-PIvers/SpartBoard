@@ -215,13 +215,14 @@ async function quizKey(
   return questions;
 }
 
-/** Video keys store FIB alternates as acceptableVariants; the shared grader reads alternateAnswers. */
+/** Video keys store FIB alternates as acceptableVariants and teacher-marked SA; the shared grader reads alternateAnswers and free-response. */
 export function videoKeyForGrader(questions: unknown[]): unknown[] {
   return questions.map((q) => {
     const r = (q ?? {}) as Data;
+    const typed = r.type === 'SA' ? { ...r, type: 'free-response' } : r;
     return Array.isArray(r.acceptableVariants)
-      ? { ...r, alternateAnswers: r.acceptableVariants }
-      : r;
+      ? { ...typed, alternateAnswers: r.acceptableVariants }
+      : typed;
   });
 }
 
@@ -282,7 +283,9 @@ async function videoSessionSummary(
       : asArray(s.questions)
   );
   const keyQuestions = scope.keep(allKeyQuestions);
-  const publicQuestions = scope.keep(asArray(s.publicQuestions));
+  const publicQuestions = scope.keep(
+    videoKeyForGrader(asArray(s.publicQuestions))
+  );
   const notAsked = allKeyQuestions.length - keyQuestions.length;
   return {
     ...header,

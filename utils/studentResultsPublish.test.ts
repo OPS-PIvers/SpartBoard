@@ -90,6 +90,36 @@ describe('gradeVideoActivityResponseForPublish', () => {
   });
 });
 
+describe('gradeVideoActivityResponseForPublish short answer', () => {
+  const sa = { ...vaQ('sa', '', 2), type: 'SA' } as VideoActivityQuestion;
+  const byId = new Map([vaQ('q1', 'a'), sa].map((q) => [q.id, q]));
+  const answers = [
+    { questionId: 'q1', answer: 'a', answeredAt: 1 },
+    { questionId: 'sa', answer: 'Because', answeredAt: 2 },
+  ];
+
+  it('publishes no score while a short answer is unmarked', () => {
+    const graded = gradeVideoActivityResponseForPublish(
+      { answers } as unknown as VideoActivityResponse,
+      byId
+    );
+    expect(graded.score).toBeNull();
+    expect(graded.answers[1]).not.toHaveProperty('isCorrect');
+  });
+
+  it('scores the teacher mark once given', () => {
+    const graded = gradeVideoActivityResponseForPublish(
+      {
+        answers,
+        grading: { sa: { pointsAwarded: 1, gradedBy: 't', gradedAt: 1 } },
+      } as unknown as VideoActivityResponse,
+      byId
+    );
+    expect(graded.score).toBe(67);
+    expect(graded.answers[1].isCorrect).toBe(false);
+  });
+});
+
 describe('publishVideoActivityResultsForStudents', () => {
   it('grades and shows finished responses and skips the rest', async () => {
     docs.set('video_activity_sessions/s1', {});

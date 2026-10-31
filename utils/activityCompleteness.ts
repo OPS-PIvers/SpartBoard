@@ -129,7 +129,7 @@ export const videoActivityIncompleteReason = ({
         return `Question ${i + 1}: select at least one correct option`;
       if (maOptionHasPipe(q))
         return `Question ${i + 1}: option text cannot contain the | character`;
-    } else if (!q.correctAnswer.trim()) {
+    } else if (type !== 'SA' && !q.correctAnswer.trim()) {
       return `Question ${i + 1}: correct answer is required`;
     }
   }
@@ -168,6 +168,8 @@ export const videoActivityAssignBlocker = ({
     const q = questions[i];
     if (!q.text.trim()) return `question ${i + 1} has no text`;
     const type = q.type ?? 'MC';
+    // A short answer has no key: the teacher marks it.
+    if (type === 'SA') continue;
     const answered =
       type === 'MA'
         ? q.correctAnswer.split('|').some((s) => s.trim().length > 0)

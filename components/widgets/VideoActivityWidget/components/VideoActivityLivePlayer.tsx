@@ -553,7 +553,8 @@ export const VideoActivityLivePlayer: React.FC<
                         .catch(report('showResults'))
                     }
                   />
-                  {!revealed && (
+                  {/* A short answer has no answer to reveal. */}
+                  {!revealed && openQuestion?.type !== 'SA' && (
                     <ActionButton
                       variant="secondary"
                       label="Reveal answer"

@@ -66,7 +66,7 @@ export function parseCompletedResponse(
 }
 
 /** `grading[questionId]` for primary slots; media slot keys (`id::slot`) are skipped. */
-function parseManualGrades(
+export function parseManualGrades(
   raw: unknown
 ): Record<string, ManualGrade> | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;

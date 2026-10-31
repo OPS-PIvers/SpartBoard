@@ -5,6 +5,7 @@ import {
   orderByTimestamp,
   toFriendlyVideoQuestion,
   toStoredVideoQuestion,
+  videoQuestionNeedsKey,
   type VideoQuestion,
 } from './videoStore';
 import { buildCriteria, rubricDoc, rubricMaxPoints } from './rubricTools';
@@ -57,6 +58,41 @@ describe('video activity mirror', () => {
       timestamp_seconds: 42,
       accepted_alternates: ['paris, france'],
     });
+  });
+
+  it('round-trips a short answer with no key', () => {
+    const q = toStoredVideoQuestion(
+      {
+        type: 'short_answer',
+        text: 'Why does the ice melt?',
+        timestamp_seconds: 30,
+        points: 3,
+      },
+      1,
+      undefined,
+      newId
+    );
+    expect(q).toMatchObject({
+      type: 'SA',
+      timestamp: 30,
+      correctAnswer: '',
+      points: 3,
+    });
+    expect(videoQuestionNeedsKey(q)).toBe(false);
+    const friendly = toFriendlyVideoQuestion(q);
+    expect(friendly).toMatchObject({
+      type: 'short_answer',
+      text: 'Why does the ice melt?',
+      timestamp_seconds: 30,
+    });
+    expect(friendly).not.toHaveProperty('needs_answer_key');
+    const again = toStoredVideoQuestion(
+      { ...friendly, type: 'short_answer' },
+      1,
+      q,
+      newId
+    );
+    expect(again).toMatchObject({ id: q.id, type: 'SA' });
   });
 
   it('keeps an edited question id and time limit but replaces old variants', () => {
@@ -386,6 +422,9 @@ describe('results summaries', () => {
     expect(videoKeyForGrader([{ id: 'q', acceptableVariants: ['x'] }])).toEqual(
       [{ id: 'q', acceptableVariants: ['x'], alternateAnswers: ['x'] }]
     );
+    expect(videoKeyForGrader([{ id: 's', type: 'SA' }])).toEqual([
+      { id: 's', type: 'free-response' },
+    ]);
   });
 
   it('scopes live video sessions to the asked questions', () => {

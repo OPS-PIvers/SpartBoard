@@ -1172,7 +1172,7 @@ export const useVideoActivityAssignments = (
 
       interface ResponseUpdate {
         ref: ReturnType<typeof doc>;
-        patch: { score: number; answers: VideoActivityAnswer[] };
+        patch: { score: number | null; answers: VideoActivityAnswer[] };
       }
       const updates: ResponseUpdate[] = [];
       for (const d of responseDocs) {
