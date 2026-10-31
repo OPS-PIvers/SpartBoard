@@ -21,9 +21,11 @@ import {
   CircleDashed,
   MinusCircle,
   UserPlus,
+  PenLine,
 } from 'lucide-react';
 import {
   PlcLinkage,
+  QuizQuestion,
   StudentTargetRef,
   VideoActivityQuestion,
   VideoActivityResponse,
@@ -41,7 +43,10 @@ import {
   canScoreVideoActivityResponse,
   videoActivityMaxPoints,
   buildVideoActivityGradeEntries,
+  countVideoActivityAnswersToMark,
+  isVideoActivityResponseAwaitingGrade,
 } from '@/utils/videoActivityGrading';
+import { VaShortAnswerMarking } from './results/VaShortAnswerMarking';
 import {
   computeQuestionAccuracy,
   countCorrectAnswers,
@@ -207,6 +212,8 @@ export const Results: React.FC<ResultsProps> = ({
   >('overview');
   // Per-instance prefix for the ARIA tab↔panel linkage.
   const tabPanelId = useId();
+  // The short-answer question whose marking list is open.
+  const [markingId, setMarkingId] = useState<string | null>(null);
 
   const {
     questions,
@@ -296,13 +303,37 @@ export const Results: React.FC<ResultsProps> = ({
    * variants / partial-credit semantics stay aligned with the student
    * client and the post-completion summary.
    */
-  const isAnswerCorrect = (questionId: string, answer: string): boolean => {
+  const answerMark = (
+    r: VideoActivityResponse,
+    questionId: string,
+    answer: string
+  ): 'correct' | 'incorrect' | 'to-mark' => {
     const q = questions.find((q) => q.id === questionId);
-    return q ? gradeVideoActivityAnswer(q, answer).isCorrect : false;
+    if (!q) return 'incorrect';
+    const g = gradeVideoActivityAnswer(q, answer, r.grading?.[q.id]);
+    if (g.state === 'awaiting-grade') return 'to-mark';
+    return g.isCorrect ? 'correct' : 'incorrect';
   };
 
   const getStudentScore = (r: VideoActivityResponse): number =>
-    computeVideoActivityScorePct(scoredQuestions, r.answers);
+    computeVideoActivityScorePct(scoredQuestions, r.answers, r.grading);
+
+  // Answered short answers still to mark, across completed responses.
+  const toMarkCount = useMemo(
+    () =>
+      countVideoActivityAnswersToMark(
+        scoredQuestions,
+        responses.filter((r) => isVaResponseCompleted(r))
+      ),
+    [scoredQuestions, responses]
+  );
+  const responseName = (r: VideoActivityResponse): string =>
+    [
+      staffResultsLabel(r),
+      formatStudentName(byStudentUid.get(r.studentUid)),
+      r.name,
+      r.pin,
+    ].find((s) => typeof s === 'string' && s.length > 0) ?? 'Student';
 
   // ⚡ Bolt: Consolidate multiple O(N) array passes inside render
   // Calculate completed count and average score in a single loop
@@ -329,8 +360,16 @@ export const Results: React.FC<ResultsProps> = ({
     for (const r of responses) {
       if (isVaResponseCompleted(r)) {
         completedCount++;
-        if (canScoreVideoActivityResponse(scoredQuestions, r.answers)) {
-          const pct = computeVideoActivityScorePct(scoredQuestions, r.answers);
+        // An unmarked short answer keeps the response out of the average, as in pushes.
+        if (
+          canScoreVideoActivityResponse(scoredQuestions, r.answers) &&
+          !isVideoActivityResponseAwaitingGrade(scoredQuestions, r)
+        ) {
+          const pct = computeVideoActivityScorePct(
+            scoredQuestions,
+            r.answers,
+            r.grading
+          );
           scoreSum += pct;
           scorePcts.push(pct);
           scoredCount++;
@@ -397,6 +436,7 @@ export const Results: React.FC<ResultsProps> = ({
           isCorrect: a.isCorrect,
         })),
         score: r.score,
+        grading: r.grading,
         submittedAt: r.completedAt,
         tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
         tabExits: r.tabExits,
@@ -424,11 +464,21 @@ export const Results: React.FC<ResultsProps> = ({
       const url = await drive.exportResultsToSheet(
         session.assignmentName,
         quizResponses,
-        questions,
+        // Short answer is VA-only; the VA grader below handles it.
+        questions as unknown as QuizQuestion[],
         {
           byStudentUid,
-          gradeFn:
-            gradeVideoActivityAnswer as unknown as NonNullable<ExporterOptions>['gradeFn'],
+          // The third argument is the response; its `grading` holds short-answer marks.
+          gradeFn: ((
+            q: VideoActivityQuestion,
+            answer: string,
+            response?: { grading?: VideoActivityResponse['grading'] }
+          ) =>
+            gradeVideoActivityAnswer(
+              q,
+              answer,
+              response?.grading?.[q.id]
+            )) as unknown as NonNullable<ExporterOptions>['gradeFn'],
           timeAway: canAccessFeature('tab-away-timer'),
           ...(isLive ? { notAskedQuestionIds: notAskedIds } : {}),
         }
@@ -837,6 +887,28 @@ export const Results: React.FC<ResultsProps> = ({
           padding: parity ? 'min(12px, 3cqmin)' : 'min(14px, 3.5cqmin)',
         }}
       >
+        {activeTab === 'overview' && toMarkCount > 0 && (
+          <button
+            {...tourAttr('video-activity.results-to-mark')}
+            type="button"
+            onClick={() => setActiveTab('questions')}
+            className="w-full flex items-center rounded-xl border border-amber-200 bg-amber-50 text-amber-800 font-bold hover:bg-amber-100 transition-colors"
+            style={{
+              gap: 'min(8px, 2cqmin)',
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              marginBottom: 'min(10px, 2.5cqmin)',
+              fontSize: 'min(12px, 3.8cqmin)',
+            }}
+          >
+            <PenLine aria-hidden="true" style={MARK_ICON_STYLE} />
+            {toMarkCount === 1
+              ? '1 short answer to mark'
+              : `${toMarkCount} short answers to mark`}
+            <span className="ml-auto font-medium text-amber-700">
+              Scores are provisional
+            </span>
+          </button>
+        )}
         {parity && activeTab === 'overview' && (
           <ParityOverview
             avgScore={avgScore}
@@ -933,72 +1005,125 @@ export const Results: React.FC<ResultsProps> = ({
             <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-xs shadow-xs overflow-hidden">
               {questions.map((q, idx) => {
                 const skipped = notAsked.has(q.id);
+                const shortAnswer = q.type === 'SA';
                 const accuracy = skipped ? 0 : getQuestionAccuracy(q);
                 const colors = scoreColorClasses(accuracy);
+                const toMark = shortAnswer
+                  ? countVideoActivityAnswersToMark(
+                      [q],
+                      responses.filter((r) => isVaResponseCompleted(r))
+                    )
+                  : 0;
+                const marking = markingId === q.id;
                 return (
-                  <SessionRow
-                    key={q.id}
-                    anchor={tourFieldAttr(
-                      'video-activity.results-question-row',
-                      'video-activity',
-                      q.id
-                    )}
-                    trailing={
-                      skipped ? (
-                        <SessionBadge tone="neutral" label="Not asked" />
-                      ) : (
-                        <div className="shrink-0 text-right">
-                          <p
-                            className={`font-black tabular-nums ${colors.text}`}
-                            style={{ fontSize: 'min(16px, 5cqmin)' }}
+                  <React.Fragment key={q.id}>
+                    <SessionRow
+                      anchor={tourFieldAttr(
+                        'video-activity.results-question-row',
+                        'video-activity',
+                        q.id
+                      )}
+                      trailing={
+                        skipped ? (
+                          <SessionBadge tone="neutral" label="Not asked" />
+                        ) : shortAnswer ? (
+                          <button
+                            {...tourFieldAttr(
+                              'video-activity.results-mark-toggle',
+                              'video-activity',
+                              q.id
+                            )}
+                            type="button"
+                            aria-expanded={marking}
+                            onClick={() => setMarkingId(marking ? null : q.id)}
+                            className={`inline-flex items-center shrink-0 rounded-lg border font-bold transition-colors ${
+                              toMark > 0
+                                ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
+                            style={{
+                              gap: 'min(4px, 1cqmin)',
+                              padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                              fontSize: 'min(11px, 3.5cqmin)',
+                            }}
                           >
-                            {accuracy}%
-                          </p>
-                          <p
-                            className="text-slate-400"
-                            style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-                          >
-                            accuracy
-                          </p>
-                        </div>
-                      )
-                    }
-                  >
-                    <div
-                      className="flex items-center"
-                      style={{
-                        gap: 'min(6px, 1.5cqmin)',
-                        marginBottom: 'min(4px, 1cqmin)',
-                      }}
+                            <PenLine
+                              aria-hidden="true"
+                              style={MARK_ICON_STYLE}
+                            />
+                            {marking
+                              ? 'Done'
+                              : toMark > 0
+                                ? `Mark (${toMark})`
+                                : 'Marks'}
+                          </button>
+                        ) : (
+                          <div className="shrink-0 text-right">
+                            <p
+                              className={`font-black tabular-nums ${colors.text}`}
+                              style={{ fontSize: 'min(16px, 5cqmin)' }}
+                            >
+                              {accuracy}%
+                            </p>
+                            <p
+                              className="text-slate-400"
+                              style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                            >
+                              accuracy
+                            </p>
+                          </div>
+                        )
+                      }
                     >
-                      <SessionBadge
-                        tone="info"
-                        label={formatTimestamp(q.timestamp)}
-                      />
-                      <p
-                        className="text-slate-700 font-medium truncate"
-                        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-                      >
-                        {idx + 1}. {q.text}
-                      </p>
-                    </div>
-
-                    {/* Accuracy bar */}
-                    {!skipped && (
                       <div
-                        className="bg-slate-100 rounded-full overflow-hidden"
+                        className="flex items-center"
                         style={{
-                          height: 'min(6px, 1.5cqmin)',
-                          marginTop: 'min(6px, 1.5cqmin)',
+                          gap: 'min(6px, 1.5cqmin)',
+                          marginBottom: 'min(4px, 1cqmin)',
                         }}
                       >
-                        <div
-                          className={`h-full rounded-full transition-all ${colors.bar}`}
-                          style={{ width: `${accuracy}%` }}
+                        <SessionBadge
+                          tone="info"
+                          label={formatTimestamp(q.timestamp)}
                         />
+                        <p
+                          className="text-slate-700 font-medium truncate"
+                          style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                        >
+                          {idx + 1}. {q.text}
+                        </p>
                       </div>
+
+                      {/* Accuracy bar */}
+                      {!skipped && !shortAnswer && (
+                        <div
+                          className="bg-slate-100 rounded-full overflow-hidden"
+                          style={{
+                            height: 'min(6px, 1.5cqmin)',
+                            marginTop: 'min(6px, 1.5cqmin)',
+                          }}
+                        >
+                          <div
+                            className={`h-full rounded-full transition-all ${colors.bar}`}
+                            style={{ width: `${accuracy}%` }}
+                          />
+                        </div>
+                      )}
+                    </SessionRow>
+                    {shortAnswer && marking && (
+                      <VaShortAnswerMarking
+                        sessionId={session.id}
+                        question={q}
+                        responses={responses.filter((r) =>
+                          isVaResponseCompleted(r)
+                        )}
+                        nameFor={responseName}
+                        graderUid={user?.uid}
+                        disabled={outward.locked}
+                        onError={(message) => addToast(message, 'error')}
+                      />
                     )}
-                  </SessionRow>
+                  </React.Fragment>
                 );
               })}
             </div>
@@ -1040,6 +1165,9 @@ export const Results: React.FC<ResultsProps> = ({
                     r.answers
                   );
                   const correct = countCorrectAnswers(r, scoredQuestions);
+                  const awaitingMark =
+                    isVaResponseCompleted(r) &&
+                    isVideoActivityResponseAwaitingGrade(scoredQuestions, r);
                   const final =
                     finalOverlay && r.studentUid
                       ? finalScoreFor(
@@ -1105,7 +1233,20 @@ export const Results: React.FC<ResultsProps> = ({
                                         <title>Missed</title>
                                       </MinusCircle>
                                     );
-                                  return isAnswerCorrect(q.id, a.answer) ? (
+                                  const mark = answerMark(r, q.id, a.answer);
+                                  if (mark === 'to-mark')
+                                    return (
+                                      <PenLine
+                                        key={q.id}
+                                        role="img"
+                                        aria-label="Needs marking"
+                                        className="text-amber-500"
+                                        style={MARK_ICON_STYLE}
+                                      >
+                                        <title>Needs marking</title>
+                                      </PenLine>
+                                    );
+                                  return mark === 'correct' ? (
                                     <CheckCircle2
                                       key={q.id}
                                       role="img"
@@ -1132,7 +1273,22 @@ export const Results: React.FC<ResultsProps> = ({
                                       a !== undefined
                                   )
                                   .map((a) =>
-                                    isAnswerCorrect(a.questionId, a.answer) ? (
+                                    answerMark(r, a.questionId, a.answer) ===
+                                    'to-mark' ? (
+                                      <PenLine
+                                        key={a.questionId}
+                                        role="img"
+                                        aria-label="Needs marking"
+                                        className="text-amber-500"
+                                        style={MARK_ICON_STYLE}
+                                      >
+                                        <title>Needs marking</title>
+                                      </PenLine>
+                                    ) : answerMark(
+                                        r,
+                                        a.questionId,
+                                        a.answer
+                                      ) === 'correct' ? (
                                       <CheckCircle2
                                         key={a.questionId}
                                         className="text-emerald-500"
@@ -1226,6 +1382,9 @@ export const Results: React.FC<ResultsProps> = ({
                         )}
                         {resultsActions && r.resultsLockedOut && (
                           <SessionBadge tone="warn" label="Locked" />
+                        )}
+                        {awaitingMark && (
+                          <SessionBadge tone="warn" label="Needs marking" />
                         )}
                         <span
                           className="text-slate-400"

@@ -220,6 +220,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/widgets/VideoActivityWidget/components/Results.tsx',
       'components/widgets/VideoActivityWidget/components/results/VaResultsParity.tsx',
+      'components/widgets/VideoActivityWidget/components/results/VaShortAnswerMarking.tsx',
     ],
     opensWith: 'library-shell.archive-primary-action:video-activity#row-1',
     parent: 'library.video-activity',

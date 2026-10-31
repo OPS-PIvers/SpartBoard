@@ -14946,6 +14946,23 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'video-activity.results-to-mark': {
+    label: 'Short answers to mark notice in the Video Activity results',
+    panel: true,
+  },
+  'video-activity.results-mark-toggle': {
+    label:
+      'Mark button on a short-answer question in the Video Activity results',
+    perField: true,
+    panel: true,
+  },
+  'video-activity.results-mark-points': {
+    label:
+      "Points box for a student's short answer in the Video Activity results",
+    perField: true,
+    panel: true,
+    persists: true,
+  },
   'quiz-editor.folder': {
     label: 'Folder picker in the Quiz editor header',
     perWidgetType: true,
