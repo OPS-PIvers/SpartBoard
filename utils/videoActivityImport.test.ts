@@ -64,11 +64,11 @@ describe('videoContentFromLesson', () => {
     expect(sa).toMatchObject({ type: 'SA', correctAnswer: '', timestamp: 60 });
   });
 
-  it('brings only the questions when note stops and clips are off', () => {
+  it('brings only the choice questions when short answer, notes and clips are off', () => {
     const out = videoContentFromLesson(LESSON, { stops: false });
     expect(out.notes).toEqual([]);
     expect(out).not.toHaveProperty('clip');
-    expect(out.questions).toHaveLength(4);
+    expect(out.questions.map((q) => q.type)).toEqual(['MC', 'MA', 'MC']);
   });
 
   it('drops wrong options past the editor cap but never a right one', () => {

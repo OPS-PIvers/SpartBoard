@@ -61,12 +61,14 @@ function questionFrom(stop: ImportVideoStop): VideoActivityQuestion | null {
   };
 }
 
-/** Questions, notes and clip for a new activity; with `stops` off only the questions come over. */
+/** Questions, notes and clip for a new activity; with `stops` off only the choice questions come over. */
 export function videoContentFromLesson(
   video: ImportVideoLesson,
   { stops }: { stops: boolean }
 ): ImportedVideoContent {
+  // Short answer, note stops and clips share one preview flag (D35).
   const questions = video.stops
+    .filter((s) => stops || s.kind !== 'open')
     .map(questionFrom)
     .filter((q): q is VideoActivityQuestion => q !== null);
   const notes: VideoActivityNote[] = stops
