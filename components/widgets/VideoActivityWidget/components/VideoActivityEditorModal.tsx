@@ -33,6 +33,7 @@ import {
 } from './VideoActivityQuizLayout';
 import type { TimelineHandle } from './Timeline';
 import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
+import { notesEqual } from '@/utils/videoActivityClip';
 
 interface VideoActivityEditorModalProps {
   isOpen: boolean;
@@ -149,6 +150,7 @@ export const VideoActivityEditorModal: React.FC<
     canAccessFeature('gemini-functions') &&
     canAccessFeature('video-activity-ai');
   const quizLayout = canAccessFeature('va-quiz-alignment');
+  const stopsEnabled = canAccessFeature('video-activity-stops');
   const timelineRef = useRef<TimelineHandle>(null);
 
   const editorState = useVideoActivityEditorState({ activity });
@@ -165,6 +167,10 @@ export const VideoActivityEditorModal: React.FC<
     originalTitle,
     originalYoutubeUrl,
     originalQuestions,
+    clip,
+    originalClip,
+    notes,
+    originalNotes,
   } = editorState;
 
   // ─── Behavior settings state ─────────────────────────────────────────────
@@ -200,6 +206,9 @@ export const VideoActivityEditorModal: React.FC<
     () =>
       title !== originalTitle ||
       youtubeUrl !== originalYoutubeUrl ||
+      clip?.start !== originalClip?.start ||
+      clip?.end !== originalClip?.end ||
+      !notesEqual(notes, originalNotes) ||
       !(
         questions === originalQuestions ||
         questionsEqual(questions, originalQuestions)
@@ -210,6 +219,10 @@ export const VideoActivityEditorModal: React.FC<
       originalTitle,
       youtubeUrl,
       originalYoutubeUrl,
+      clip,
+      originalClip,
+      notes,
+      originalNotes,
       questions,
       originalQuestions,
       behavior,
@@ -220,14 +233,20 @@ export const VideoActivityEditorModal: React.FC<
   // What still has to be filled in before the activity can be assigned. It no
   // longer gates the save: autosave persists whatever is on screen.
   const incompleteNotice = useMemo(
-    () => videoActivityIncompleteReason({ title, youtubeUrl, questions }),
-    [title, youtubeUrl, questions]
+    () =>
+      videoActivityIncompleteReason({
+        title,
+        youtubeUrl,
+        questions,
+        ...(stopsEnabled ? { clip, notes } : {}),
+      }),
+    [title, youtubeUrl, questions, clip, notes, stopsEnabled]
   );
 
   // New identity on every draft edit — the autosave quiet period restarts on it.
   const draftToken = useMemo(
-    () => [title, youtubeUrl, questions, behavior],
-    [title, youtubeUrl, questions, behavior]
+    () => [title, youtubeUrl, clip, notes, questions, behavior],
+    [title, youtubeUrl, clip, notes, questions, behavior]
   );
 
   // Persist only — the shell owns closing.
@@ -257,6 +276,8 @@ export const VideoActivityEditorModal: React.FC<
           ...activity,
           title: title.trim(),
           youtubeUrl: youtubeUrl.trim(),
+          clip,
+          notes: notes.length > 0 ? notes : undefined,
           questions: finalQuestions,
           updatedAt: Date.now(),
         },
@@ -274,6 +295,8 @@ export const VideoActivityEditorModal: React.FC<
     questions,
     title,
     youtubeUrl,
+    clip,
+    notes,
     behavior,
     onSave,
     setSaving,

@@ -128,6 +128,42 @@ const ALLOWED_VA_SESSION_FIELDS = new Set([
   'dueAt',
 ]);
 
+/** A teacher's clip range with only finite, non-negative seconds kept. */
+export const vaClipFrom = (
+  raw: unknown
+): { start?: number; end?: number } | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const { start, end } = raw as Record<string, unknown>;
+  const ok = (n: unknown): n is number =>
+    typeof n === 'number' && Number.isFinite(n) && n >= 0;
+  const clip = {
+    ...(ok(start) && start > 0 ? { start } : {}),
+    ...(ok(end) && (!ok(start) || end > start) ? { end } : {}),
+  };
+  return Object.keys(clip).length > 0 ? clip : null;
+};
+
+/** A teacher's note stops, keeping only well-formed ones with text (at most 200). */
+export const vaNotesFrom = (
+  raw: unknown
+): { id: string; timestamp: number; text: string }[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (n): n is { id: string; timestamp: number; text: string } =>
+        !!n &&
+        typeof n === 'object' &&
+        typeof (n as Record<string, unknown>).id === 'string' &&
+        typeof (n as Record<string, unknown>).text === 'string' &&
+        ((n as Record<string, unknown>).text as string).trim().length > 0 &&
+        typeof (n as Record<string, unknown>).timestamp === 'number' &&
+        Number.isFinite((n as Record<string, unknown>).timestamp) &&
+        ((n as Record<string, unknown>).timestamp as number) >= 0
+    )
+    .slice(0, 200)
+    .map(({ id, timestamp, text }) => ({ id, timestamp, text }));
+};
+
 const ALLOWED_VA_ASSIGNMENT_FIELDS = new Set([
   'className',
   'status',
@@ -685,6 +721,8 @@ async function launchVideoActivity(
           id?: string;
           title?: string;
           youtubeUrl?: string;
+          clip?: unknown;
+          notes?: unknown;
           questions?: unknown;
         };
       }
@@ -724,6 +762,8 @@ async function launchVideoActivity(
       ? activity.title
       : 'Video activity';
   const { key, publicQuestions } = vaQuestionsFromKey(activity.questions);
+  const clip = vaClipFrom(activity.clip);
+  const notes = vaNotesFrom(activity.notes);
 
   const batch = db.batch();
   batch.set(db.doc(`video_activity_sessions/${sessionId}`), {
@@ -735,6 +775,8 @@ async function launchVideoActivity(
     activityId: itemId,
     activityTitle,
     youtubeUrl,
+    ...(clip ? { clip } : {}),
+    ...(notes.length > 0 ? { notes } : {}),
     // The key never rides the session doc; it goes in `key/answers` below.
     questions: [],
     publicQuestions,

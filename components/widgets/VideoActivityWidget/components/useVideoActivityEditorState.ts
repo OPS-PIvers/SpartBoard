@@ -1,5 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
+  type VideoActivityClip,
+  type VideoActivityNote,
   QuestionTargetTag,
   VideoActivityData,
   VideoActivityQuestion,
@@ -56,6 +58,10 @@ export interface VideoActivityEditorController {
   setTitle: (next: string) => void;
   youtubeUrl: string;
   setYoutubeUrl: (next: string) => void;
+  clip: VideoActivityClip | undefined;
+  setClip: (next: VideoActivityClip | undefined) => void;
+  notes: VideoActivityNote[];
+  setNotes: (next: VideoActivityNote[]) => void;
   // Questions
   questions: VideoActivityQuestion[];
   totalPoints: number;
@@ -108,6 +114,8 @@ export interface VideoActivityEditorController {
   // Snapshot for dirty check
   originalTitle: string;
   originalYoutubeUrl: string;
+  originalClip: VideoActivityClip | undefined;
+  originalNotes: VideoActivityNote[];
   originalQuestions: VideoActivityQuestion[];
 }
 
@@ -151,9 +159,13 @@ export function useVideoActivityEditorState({
   );
   const originalTitle = activity?.title ?? '';
   const originalYoutubeUrl = activity?.youtubeUrl ?? '';
+  const originalClip = activity?.clip;
+  const originalNotes = useMemo(() => activity?.notes ?? [], [activity]);
 
   const [title, setTitle] = useState<string>(originalTitle);
   const [youtubeUrl, setYoutubeUrl] = useState<string>(originalYoutubeUrl);
+  const [clip, setClip] = useState<VideoActivityClip | undefined>(originalClip);
+  const [notes, setNotes] = useState<VideoActivityNote[]>(originalNotes);
   const [questions, setQuestions] =
     useState<VideoActivityQuestion[]>(originalQuestions);
   const [saving, setSaving] = useState(false);
@@ -194,6 +206,8 @@ export function useVideoActivityEditorState({
     setPrevActivityId(activity?.id ?? null);
     setTitle(originalTitle);
     setYoutubeUrl(originalYoutubeUrl);
+    setClip(originalClip);
+    setNotes(originalNotes);
     setQuestions(originalQuestions);
     setError(null);
     setSaving(false);
@@ -601,6 +615,10 @@ export function useVideoActivityEditorState({
     setTitle,
     youtubeUrl,
     setYoutubeUrl,
+    clip,
+    setClip,
+    notes,
+    setNotes,
     questions,
     totalPoints,
     selectedId,
@@ -638,6 +656,8 @@ export function useVideoActivityEditorState({
     setSaving,
     originalTitle,
     originalYoutubeUrl,
+    originalClip,
+    originalNotes,
     originalQuestions,
   };
 }

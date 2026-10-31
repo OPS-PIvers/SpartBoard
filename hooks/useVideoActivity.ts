@@ -43,6 +43,7 @@ import { logError } from '@/utils/logError';
 import { noDriveMessage } from '@/utils/viewAsDrive';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import { useSandboxedVideoActivity } from './useTourSandboxed';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 // Re-export so consumers can catch the version-conflict error without
 // importing from the synced-groups module directly. Mirrors the
@@ -283,11 +284,16 @@ export const useVideoActivity = (
       // entry's identity and history don't churn — only the editable
       // surface (title + youtubeUrl + questions) is replaced.
       const now = Date.now();
+      // Sync doesn't carry the clip or notes yet, so keep the local ones.
+      const local = (await drive
+        .loadQuiz(activityMeta.driveFileId)
+        .catch(() => null)) as unknown as VideoActivityData | null;
       const refreshed: VideoActivityData = {
         id: activityMeta.id,
         title: canonical.title,
         youtubeUrl: canonical.youtubeUrl,
         questions: canonical.questions,
+        ...(local ? videoActivityPlayback(local) : {}),
         createdAt: activityMeta.createdAt,
         updatedAt: now,
       };

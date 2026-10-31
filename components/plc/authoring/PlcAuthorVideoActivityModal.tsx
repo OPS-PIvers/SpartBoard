@@ -21,6 +21,7 @@ import type {
 } from '@/types';
 import type { AssignmentActivityRef } from '@/hooks/useVideoActivityAssignments';
 import { PlcAssignmentConfigModal } from '@/components/plc/assignments/PlcAssignmentConfigModal';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 interface PlcAuthorVideoActivityModalProps {
   plc: Plc;
@@ -63,6 +64,7 @@ export const PlcAuthorVideoActivityModal: React.FC<
         title: metadata.title,
         driveFileId: metadata.driveFileId,
         youtubeUrl: metadata.youtubeUrl,
+        ...videoActivityPlayback(activity),
         questions: activity.questions,
       };
       setActivityRef(ref);

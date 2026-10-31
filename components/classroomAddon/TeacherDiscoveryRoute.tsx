@@ -109,6 +109,7 @@ import {
   AddonError,
   AddonSelect,
 } from './AddonShell';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 // The teacher/discovery iframe creates attachments → needs the teacher scope.
 // (The SpartBoard sign-in above grants Drive separately, via AuthContext.)
@@ -884,6 +885,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         title: selectedActivity.title,
         driveFileId: selectedActivity.driveFileId,
         youtubeUrl: activityData.youtubeUrl,
+        ...videoActivityPlayback(activityData),
         questions: activityData.questions,
       },
       {

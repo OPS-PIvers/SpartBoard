@@ -86,6 +86,7 @@ import {
   batchUpdateWithPaths,
   periodAccessWrites,
 } from '@/utils/periodAccessWrites';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 /**
  * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`
@@ -131,6 +132,8 @@ export interface AssignmentActivityRef {
   title: string;
   driveFileId: string;
   youtubeUrl: string;
+  clip?: VideoActivityData['clip'];
+  notes?: VideoActivityData['notes'];
   questions: VideoActivityData['questions'];
 }
 
@@ -410,6 +413,7 @@ export const useVideoActivityAssignments = (
         assignmentName: settings.className ?? activity.title,
         teacherUid: userId,
         youtubeUrl: activity.youtubeUrl,
+        ...videoActivityPlayback(activity),
         ...split.sessionFields,
         settings: settings.sessionSettings,
         ...(settings.sessionOptions
@@ -852,6 +856,7 @@ export const useVideoActivityAssignments = (
       const payload: Omit<SharedVideoActivityAssignment, 'id'> = {
         title: activityData.title,
         youtubeUrl: activityData.youtubeUrl,
+        ...videoActivityPlayback(activityData),
         questions: activityData.questions,
         createdAt: activityData.createdAt,
         updatedAt: activityData.updatedAt,
@@ -1003,6 +1008,7 @@ export const useVideoActivityAssignments = (
         id: crypto.randomUUID(),
         title: canonicalContent?.title ?? sharedDoc.title,
         youtubeUrl: canonicalContent?.youtubeUrl ?? sharedDoc.youtubeUrl,
+        ...videoActivityPlayback(sharedDoc),
         questions: canonicalContent?.questions ?? sharedDoc.questions,
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -1057,6 +1063,7 @@ export const useVideoActivityAssignments = (
             title: savedMeta.title,
             driveFileId: savedMeta.driveFileId,
             youtubeUrl: savedMeta.youtubeUrl,
+            ...videoActivityPlayback(importedActivity),
             questions: importedActivity.questions,
           },
           importedSettings,

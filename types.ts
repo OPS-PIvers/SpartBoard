@@ -7375,6 +7375,8 @@ export interface SharedVideoActivityAssignment {
   /** Inlined activity data so the importer can copy it into their own library. */
   title: string;
   youtubeUrl: string;
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
   questions: VideoActivityQuestion[];
   createdAt: number;
   updatedAt: number;
@@ -7459,11 +7461,27 @@ export interface VideoActivityCheckResult {
   correctAnswer: string;
 }
 
+/** Part of the video students watch, in seconds; a missing end plays to the end. */
+export interface VideoActivityClip {
+  start?: number;
+  end?: number;
+}
+
+/** A stop that pauses the video on text, with nothing to answer and no score. */
+export interface VideoActivityNote {
+  id: string;
+  /** Seconds into the video. */
+  timestamp: number;
+  text: string;
+}
+
 /** Full video activity data stored in Google Drive as JSON. */
 export interface VideoActivityData {
   id: string;
   title: string;
   youtubeUrl: string;
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
   /** Total video duration in seconds, populated after the first player load. */
   videoDuration?: number;
   questions: VideoActivityQuestion[];
@@ -7661,6 +7679,8 @@ export interface VideoActivitySession
   assignmentName: string;
   teacherUid: string;
   youtubeUrl: string;
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
   /**
    * Keyed questions. Empty on stored docs that carry `publicQuestions`; teacher
    * code reads the key via `useVideoActivityKeyQuestions`.
@@ -10749,7 +10769,11 @@ export type GlobalFeature =
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
-  | 'universal-import';
+  | 'universal-import'
+  /** Video Activity short answer, note stops and clip range (docs/plans/IMPORT.md D32-D33). */
+  | 'video-activity-stops'
+  /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
+  | 'video-import-ai';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -12231,6 +12255,8 @@ export type SubShareVideoActivityView = Pick<
   | 'id'
   | 'title'
   | 'youtubeUrl'
+  | 'clip'
+  | 'notes'
   | 'videoDuration'
   | 'questions'
   | 'createdAt'

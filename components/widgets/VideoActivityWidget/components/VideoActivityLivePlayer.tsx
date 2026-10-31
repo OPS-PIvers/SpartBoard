@@ -463,6 +463,7 @@ export const VideoActivityLivePlayer: React.FC<
       // eslint-disable-next-line react-hooks/refs -- initial playhead, never reassigned
       startSeconds={startSecondsRef.current}
       seekRequest={seekRequest}
+      clip={session.clip}
     />
   );
   const questionBody = openQuestion && (

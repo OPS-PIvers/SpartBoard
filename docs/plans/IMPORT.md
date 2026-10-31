@@ -101,8 +101,26 @@ board. Schoology is one Source among many. This picks up the out-of-scope list o
 | Mentimeter, Slido                                                      | Poll widget                                                         |
 | Google Classroom                                                       | Quiz and links                                                      |
 
-- **D26 Non-YouTube video.** For an Edpuzzle or other video that isn't on YouTube, the questions import and the teacher is asked for the matching YouTube link. The activity stays a draft until one is set.
-- **D27 Fixtures.** Before each reader PR, Paul sends one sample link to an item he owns or can view. The agent probes it read-only in Chrome and saves a fixture with student data removed, and the reader is tested against it.
+- **D26 Non-YouTube video (revised 2026-10-31 by D31).** An Edpuzzle whose video Edpuzzle hosts itself (a teacher upload or a partner clip) is refused with a plain message; nothing imports.
+- **D27 Fixtures.** Before each reader PR, Paul sends one sample link to an item he owns or can view. The agent probes it read-only in Chrome and saves a fixture with student data removed, and the reader is tested against it. Edpuzzle exception: D36.
+
+### Video imports (grill with Paul, 2026-10-31)
+
+- **D30 Edpuzzle Sources.** Any Edpuzzle lesson the teacher can open (their own, a colleague's, Edpuzzle's library) imports, with the D7 attribution line.
+- **D31 YouTube only.** The reader takes the YouTube id from the lesson's own data. Edpuzzle-hosted videos are refused (D26).
+- **D32 Question mapping, exact and at the same timestamps.**
+  - Multiple choice stays MC; multiple choice with more than one correct answer becomes MA.
+  - Open-ended becomes a new **short-answer** Video Activity type: counted as answered, marked by the teacher in results, and left out of the auto score until marked (as Quiz does).
+  - Notes become a new **note stop**: the video pauses on text (and images) with no response.
+  - Images in prompts carry over. Audio or video in notes and voiceovers come in as text only, with a warning in review.
+- **D33 Clip range.** Edpuzzle start/end trims become a new optional start/end on the activity, honoured by the student player and editable in the editor. Timestamps stay absolute.
+- **D34 YouTube entry.** The Send button on YouTube watch pages and youtu.be links offers Video activity or Embed. Video activity opens the Video Activity editor prefilled with title, link and length; nothing saves until the teacher saves (D3). Shorts and the right-click menu are out of scope. The block list (D16) applies.
+- **D35 Flags.**
+  - Edpuzzle and YouTube Send ride `universal-import` (D29).
+  - A new preview flag `video-activity-stops` gates short answer, note stops and the clip range in the editor and player.
+  - A new admin-only flag `video-import-ai` shows "Generate questions with AI" on a YouTube import, using the existing `generateVideoActivity` with its existing `video-activity-ai` permission and daily caps.
+- **D36 Edpuzzle fixture.** Edpuzzle has no public content API, so the reader is built from research against a fixture labelled synthetic, with the D18 fallback. Before the release that opens it, Paul does one Send from an Edpuzzle lesson on the dev extension and that captured payload, student data removed, replaces the synthetic fixture.
+- **D37 Build order.** (1) Video Activity short answer, note stops, clip range; (2) YouTube Send route and `video-import-ai`; (3) Edpuzzle reader.
 
 ### Guards and release
 
@@ -131,7 +149,7 @@ Not feasible or out of scope:
 
 - Managed Assessments (AMP) and media albums.
 - Student data or responses from any site.
-- Video files that aren't on YouTube (questions only, D26).
+- Videos that aren't on YouTube (refused, D26).
 - Sites with no readable content: Desmos, Khan Academy, IXL, DRM ebooks.
 
 ## Build order
