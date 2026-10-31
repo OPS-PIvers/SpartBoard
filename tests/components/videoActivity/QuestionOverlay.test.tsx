@@ -56,6 +56,27 @@ describe('QuestionOverlay server grading', () => {
     vi.useRealTimers();
   });
 
+  it('says only that a short answer was saved, never right or wrong', async () => {
+    const checkAnswer = vi
+      .fn()
+      .mockResolvedValue({ isCorrect: null, correctAnswer: '' });
+    renderOverlay(checkAnswer, {
+      id: 'sa1',
+      timestamp: 5,
+      text: 'Why?',
+      type: 'SA',
+    });
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'Because' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('Submit Answer'));
+      await Promise.resolve();
+    });
+    expect(screen.getByText(/Answer saved/)).toBeTruthy();
+    expect(screen.queryByText(/Correct!/)).toBeNull();
+  });
+
   it('shows the returned FIB key after a wrong answer', async () => {
     const checkAnswer = vi
       .fn()

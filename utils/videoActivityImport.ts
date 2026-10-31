@@ -27,7 +27,10 @@ export interface ImportedVideoContent {
 }
 
 type LeftOutCounts = Partial<
-  Record<ImportVideoLeftOut | 'shortAnswer' | 'note' | 'clip', number>
+  Record<
+    ImportVideoLeftOut | 'shortAnswer' | 'note' | 'clip' | 'extraChoice',
+    number
+  >
 >;
 
 const plural = (n: number, one: string, many: string) =>
@@ -47,6 +50,8 @@ const PHRASES: Record<keyof LeftOutCounts, (n: number) => string> = {
   voiceover: () => 'voiceover narration',
   feedback: () => 'answer feedback',
   choicePicture: (n) => plural(n, 'picture in a choice', 'pictures in choices'),
+  extraChoice: (n) =>
+    `${plural(n, 'answer choice', 'answer choices')} past the most a question can hold`,
   cut: (n) =>
     `${plural(n, 'cut', 'cuts')} in the middle of the video (students see that part)`,
 };
@@ -128,8 +133,18 @@ export function videoContentFromLesson(
     return id ? { imageDriveFileId: id } : {};
   };
   // Short answer, note stops and clips share one preview flag (D35).
-  const questions = video.stops
-    .filter((s) => stops || s.kind !== 'open')
+  const kept = video.stops.filter((s) => stops || s.kind !== 'open');
+  const extraChoice = kept.reduce(
+    (n, s) =>
+      s.kind === 'choice'
+        ? n +
+          s.choices.length -
+          fitRows(s.choices, s.choices.filter((c) => c.correct).length > 1)
+            .length
+        : n,
+    0
+  );
+  const questions = kept
     .map((s) => questionFrom(s, picture))
     .filter((q): q is VideoActivityQuestion => q !== null);
   const notes: VideoActivityNote[] = stops
@@ -159,6 +174,6 @@ export function videoContentFromLesson(
     questions,
     notes,
     ...(clip ? { clip } : {}),
-    leftOut: leftOutSummary({ ...video.leftOut, ...hidden }),
+    leftOut: leftOutSummary({ ...video.leftOut, ...hidden, extraChoice }),
   };
 }

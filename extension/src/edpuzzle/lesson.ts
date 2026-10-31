@@ -45,10 +45,15 @@ const ENTITIES: Record<string, string> = {
 
 /** Tags dropped and entities decoded without the page's parser, for pages that enforce Trusted Types. */
 function stripHtml(html: string): string {
-  return html
+  let text = html
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n');
+  // Repeat until stable, so a nested "<<b>b>" can't leave a tag behind.
+  for (let prev = ''; prev !== text;) {
+    prev = text;
+    text = text.replace(/<[^>]*>/g, '');
+  }
+  return text
     .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(+n))
     .replace(/&#x([0-9a-f]+);/gi, (_, n: string) =>
       String.fromCodePoint(parseInt(n, 16))

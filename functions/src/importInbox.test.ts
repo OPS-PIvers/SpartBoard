@@ -428,6 +428,44 @@ describe('blocked pictures', () => {
     });
   });
 
+  it('drops a lesson stop picture from a blocked site and keeps the stop', async () => {
+    const { s, writes } = store();
+    await receiveSend(
+      body({
+        video: {
+          youtubeId: 'WjqqUjDkh1c',
+          stops: [
+            {
+              kind: 'note',
+              time: 3,
+              text: 'Look',
+              image: 'https://mn.infinitecampus.org/personPicture.jpg',
+            },
+            {
+              kind: 'note',
+              time: 5,
+              text: 'Here',
+              image: 'https://www.example.org/a.png',
+            },
+          ],
+        },
+      }),
+      ME,
+      s
+    );
+    expect(writes[0].doc).toMatchObject({
+      video: {
+        stops: [
+          { kind: 'note', time: 3, text: 'Look' },
+          { image: 'https://www.example.org/a.png' },
+        ],
+      },
+    });
+    const first = (writes[0].doc as { video: { stops: object[] } }).video
+      .stops[0];
+    expect(first).not.toHaveProperty('image');
+  });
+
   it('counts empty table cells toward the text cap', () => {
     const rows = Array.from({ length: 500 }, () => ({
       cells: Array(20).fill(''),
