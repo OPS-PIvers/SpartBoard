@@ -275,6 +275,21 @@ describe('parseSendRequest', () => {
     });
   });
 
+  it('keeps the left-out counts above zero and drops unknown kinds', () => {
+    const video = {
+      youtubeId: 'WjqqUjDkh1c',
+      stops: [],
+      leftOut: { question: 2, voiceover: 0, cut: 1, other: 5 },
+    };
+    expect(parseSendRequest(body({ video })).video?.leftOut).toEqual({
+      question: 2,
+      cut: 1,
+    });
+    expect(() =>
+      parseSendRequest(body({ video: { ...video, leftOut: { question: -1 } } }))
+    ).toThrow(ExtensionCallError);
+  });
+
   it('refuses too many blocks with 413', async () => {
     const blocks = Array.from({ length: IMPORT_MAX_BLOCKS + 1 }, () => ({
       type: 'paragraph',

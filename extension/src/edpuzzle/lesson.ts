@@ -10,6 +10,7 @@ import {
   IMPORT_MAX_VIDEO_TEXT_CHARS,
   YOUTUBE_VIDEO_ID,
   type ImportBlock,
+  type ImportVideoLeftOut,
   type ImportVideoLesson,
   type ImportVideoStop,
 } from '@/utils/import/contract';
@@ -145,6 +146,23 @@ function stopFrom(q: unknown): ImportVideoStop | null {
     : null;
 }
 
+/** Any written or recorded feedback on the question or one of its choices. */
+function hasFeedback(q: unknown): boolean {
+  if (!isObj(q)) return false;
+  const filled = (v: unknown) =>
+    list(v).some(
+      (f) =>
+        isObj(f) &&
+        ((typeof f.html === 'string' && htmlText(f.html) !== '') ||
+          (typeof f.text === 'string' && f.text.trim() !== '') ||
+          (isObj(f.audio) && Object.keys(f.audio).length > 0))
+    );
+  return (
+    filled(q.feedback) ||
+    list(q.choices).some((c) => isObj(c) && filled(c.feedback))
+  );
+}
+
 export type EdpuzzleRead =
   | { ok: true; title: string; video: ImportVideoLesson; skipped: number }
   | { ok: false; why: 'not-youtube' | 'malformed' };
@@ -192,6 +210,22 @@ export function lessonFromEdpuzzle(raw: unknown): EdpuzzleRead {
     .sort((a, b) => a.time - b.time)
     .slice(0, IMPORT_MAX_VIDEO_STOPS);
 
+  const sorted = [...sections].sort((a, b) => a.start - b.start);
+  const counts: Record<ImportVideoLeftOut, number> = {
+    question: questions.length - kept.length,
+    voiceover: list(raw.voiceovers).length,
+    feedback: questions.filter(hasFeedback).length,
+    choicePicture: questions
+      .filter(isObj)
+      .flatMap((q) => list(q.choices))
+      .filter((c) => isObj(c) && firstImage(c.body) !== undefined).length,
+    cut: sorted.filter((s, i) => i > 0 && s.start - sorted[i - 1].end > 0.5)
+      .length,
+  };
+  const leftOut = Object.fromEntries(
+    Object.entries(counts).filter(([, n]) => n > 0)
+  );
+
   const title =
     (typeof raw.title === 'string' ? raw.title.trim() : '').slice(
       0,
@@ -205,8 +239,9 @@ export function lessonFromEdpuzzle(raw: unknown): EdpuzzleRead {
       ...(start !== undefined ? { start } : {}),
       ...(end !== undefined ? { end } : {}),
       stops,
+      ...(Object.keys(leftOut).length ? { leftOut } : {}),
     },
-    skipped: questions.length - kept.length,
+    skipped: counts.question,
   };
 }
 

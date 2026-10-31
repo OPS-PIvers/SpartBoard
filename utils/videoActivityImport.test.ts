@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { videoContentFromLesson } from './videoActivityImport';
+import { leftOutSummary, videoContentFromLesson } from './videoActivityImport';
 import type { ImportVideoLesson } from '@/utils/import/contract';
 
 const choice = (text: string, correct = false) => ({ text, correct });
@@ -126,5 +126,36 @@ describe('videoContentFromLesson pictures', () => {
     expect(out.questions[0].imageDriveFileId).toBe('drive-file-1');
     expect(out.notes[0].imageDriveFileId).toBe('drive-file-1');
     expect(out.questions[1]).not.toHaveProperty('imageDriveFileId');
+  });
+});
+
+describe('leftOutSummary', () => {
+  it('lists what was left out in one sentence', () => {
+    expect(leftOutSummary({})).toBe(null);
+    expect(leftOutSummary({ voiceover: 1 })).toBe(
+      'Left out: voiceover narration.'
+    );
+    expect(leftOutSummary({ cut: 1, question: 2, feedback: 3 })).toBe(
+      'Left out: 2 questions SpartBoard has no kind for, answer feedback and 1 cut in the middle of the video (students see that part).'
+    );
+  });
+
+  it('names what the preview flag held back', () => {
+    const out = videoContentFromLesson(
+      {
+        youtubeId: 'WjqqUjDkh1c',
+        start: 5,
+        stops: [
+          { kind: 'open', time: 10, text: 'Why?' },
+          { kind: 'note', time: 20, text: 'Look' },
+        ],
+        leftOut: { voiceover: 1 },
+      },
+      { stops: false }
+    );
+    expect(out.leftOut).toBe(
+      'Left out: 1 short-answer question, 1 note, the start and end times and voiceover narration.'
+    );
+    expect(videoContentFromLesson(LESSON, { stops: true }).leftOut).toBe(null);
   });
 });

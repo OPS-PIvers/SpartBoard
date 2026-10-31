@@ -51,6 +51,20 @@ describe('parseImportInboxItem', () => {
     });
   });
 
+  it('keeps positive left-out counts', () => {
+    const item = parseImportInboxItem(
+      'a',
+      stored({
+        video: {
+          youtubeId: 'WjqqUjDkh1c',
+          stops: [],
+          leftOut: { cut: 1, question: 0, other: 3, voiceover: 'x' },
+        },
+      })
+    );
+    expect(item?.video?.leftOut).toEqual({ cut: 1 });
+  });
+
   it('leaves out a missing or malformed video', () => {
     expect(parseImportInboxItem('a', stored())).not.toHaveProperty('video');
     expect(
