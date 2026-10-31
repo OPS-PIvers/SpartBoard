@@ -1045,6 +1045,13 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         ).length
       : (myResponse?.answers.length ?? 0);
     const totalQuestions = scoredQuestions.length;
+    // An answered short answer the teacher hasn't marked is neither right nor wrong yet.
+    const correctnessQuestions = scoredQuestions.filter((q) => {
+      if (q.type !== 'SA') return true;
+      const a = myResponse?.answers.find((x) => x.questionId === q.id);
+      return !a || a.isCorrect !== undefined;
+    });
+    const correctTotal = correctnessQuestions.length;
     // Score visibility gates whether the student sees their percentage. The
     // teacher's Publish Scores flow flips `session.scoreVisibility` from
     // `'none'` (or absent) to one of the reveal modes. Until then, the
@@ -1055,7 +1062,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     const showScore = published.visibility !== 'none';
     // `isCorrect` comes from the server check at submit time, and Publish re-grades it.
     const correct = showScore
-      ? scoredQuestions.filter(
+      ? correctnessQuestions.filter(
           (q) =>
             myResponse?.answers.find((x) => x.questionId === q.id)
               ?.isCorrect === true
@@ -1090,14 +1097,23 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 <div className="p-6 flex flex-col gap-4">
                   <p className="text-slate-700 font-medium">Great work!</p>
 
-                  {showScore && totalQuestions > 0 && (
+                  {showScore && correctTotal > 0 && (
                     <div className="bg-brand-blue-lighter border border-brand-blue-primary/15 rounded-2xl p-5">
                       <p className="text-5xl font-black text-brand-blue-primary">
-                        {Math.round((correct / totalQuestions) * 100)}%
+                        {Math.round((correct / correctTotal) * 100)}%
                       </p>
                       <p className="text-slate-500 text-sm font-medium mt-1">
-                        {correct} of {totalQuestions} correct
+                        {correct} of {correctTotal} correct
                       </p>
+                      {correctTotal < totalQuestions && (
+                        <p className="text-slate-500 text-xs mt-1">
+                          Your teacher is still marking{' '}
+                          {totalQuestions - correctTotal === 1
+                            ? '1 answer'
+                            : `${totalQuestions - correctTotal} answers`}
+                          .
+                        </p>
+                      )}
                     </div>
                   )}
 

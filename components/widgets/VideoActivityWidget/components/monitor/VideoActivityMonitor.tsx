@@ -628,11 +628,20 @@ const QuestionDetail: React.FC<{
   index: number;
   responses: VideoActivityResponse[];
 }> = ({ question, index, responses }) => {
-  const { totalAnswered, rows } = buildDistribution(
-    question,
-    responses,
-    gradeVideoActivityAnswer
-  );
+  const { type } = question;
+  const { totalAnswered, rows } =
+    type === 'SA'
+      ? {
+          totalAnswered: responses.filter((r) =>
+            r.answers.some((a) => a.questionId === question.id)
+          ).length,
+          rows: [],
+        }
+      : buildDistribution(
+          { ...question, type },
+          responses,
+          gradeVideoActivityAnswer
+        );
   return (
     <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
       <div>
@@ -650,7 +659,17 @@ const QuestionDetail: React.FC<{
           {question.text}
         </p>
       </div>
-      {rows.length > 0 ? (
+      {question.type === 'SA' ? (
+        // Short answers are marked in Results, not charted here.
+        <p
+          className="text-brand-gray-primary"
+          style={{ fontSize: 'min(12px, 4cqmin)' }}
+        >
+          {totalAnswered === 0
+            ? 'No answers yet.'
+            : 'Mark these answers in Results.'}
+        </p>
+      ) : rows.length > 0 ? (
         <AnswerDistributionBars
           rows={rows}
           total={totalAnswered}
