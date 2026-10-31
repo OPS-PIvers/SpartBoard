@@ -50,6 +50,8 @@ const blankQuestion = (): VideoActivityQuestion => ({
 
 interface UseVideoActivityEditorStateProps {
   activity: VideoActivityData | null;
+  /** Opens the AI prompt as soon as this activity loads (a YouTube import, D35). */
+  startWithAi?: boolean;
 }
 
 export interface VideoActivityEditorController {
@@ -148,6 +150,7 @@ function sortByTimestamp(
  */
 export function useVideoActivityEditorState({
   activity,
+  startWithAi = false,
 }: UseVideoActivityEditorStateProps): VideoActivityEditorController {
   // Dedupe by id: a Drive-sync/arrayUnion race can write a question twice (same guard as grading/session-creation).
   const originalQuestions = useMemo(
@@ -188,7 +191,7 @@ export function useVideoActivityEditorState({
   );
 
   // AI generation state
-  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [showAiPrompt, setShowAiPrompt] = useState(startWithAi);
   const [aiTypeCounts, setAiTypeCounts] = useState<
     Record<VideoQuestionGenType, number>
   >(DEFAULT_AI_TYPE_COUNTS);
@@ -219,7 +222,7 @@ export function useVideoActivityEditorState({
     setTimestampInputs(init);
     setReorderHintFor(null);
     setCheckedIds(new Set());
-    setShowAiPrompt(false);
+    setShowAiPrompt(startWithAi);
     setAiTypeCounts(DEFAULT_AI_TYPE_COUNTS);
     setVideoDurationSeconds(0);
     setAiGenerating(false);
