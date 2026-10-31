@@ -131,12 +131,17 @@ export function cardSetFromItems(items: unknown[]): QuizletRead {
   };
 }
 
+// Under half the server's 900 KB Send cap, since the table repeats the card set.
+export const CARD_TABLE_MAX_BYTES = 400_000;
+
 /** The set as page text too, as two-column tables, so the other Import targets can still read it. */
 export function cardSetBlocks(
   title: string,
   set: ImportCardSet
 ): ImportBlock[] {
   const blocks: ImportBlock[] = [{ type: 'heading', level: 1, text: title }];
+  const bytes = new TextEncoder().encode(JSON.stringify(set.cards)).length;
+  if (bytes > CARD_TABLE_MAX_BYTES) return blocks;
   const rows = set.cards
     .filter((c) => c.term || c.definition)
     .map((c) => ({ cells: [c.term, c.definition] }));

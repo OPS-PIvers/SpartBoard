@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CARD_TABLE_MAX_BYTES,
   cardSetBlocks,
   cardSetFromItems,
   quizletSetId,
@@ -106,6 +107,17 @@ describe('cardSetBlocks', () => {
     ).toEqual([
       { type: 'heading', level: 1, text: 'Animals' },
       { type: 'table', rows: [{ cells: ['el perro', 'the dog'] }] },
+    ]);
+  });
+
+  it('sends only the title for a set too big to repeat as a table', () => {
+    const definition = 'd'.repeat(CARD_TABLE_MAX_BYTES / 100);
+    const cards = Array.from({ length: 101 }, () => ({
+      term: 't',
+      definition,
+    }));
+    expect(cardSetBlocks('Big', { cards })).toEqual([
+      { type: 'heading', level: 1, text: 'Big' },
     ]);
   });
 });
