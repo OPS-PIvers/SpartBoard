@@ -85,9 +85,13 @@ import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
   IMPORT_DROP_FEATURE,
   UNIVERSAL_IMPORT_FEATURE,
+  type ImportTarget,
 } from '@/utils/import/contract';
 import { ImportScreenHost } from '@/components/import/ImportScreenHost';
-import { targetChoices } from '@/components/import/importTargets';
+import {
+  IMPORT_TARGET_FEATURES,
+  targetChoices,
+} from '@/components/import/importTargets';
 import {
   openImportScreen,
   type ImportDropPoint,
@@ -521,6 +525,10 @@ export const DashboardView: React.FC = () => {
   const { canAccessFeature, isAdmin } = useAuth();
   const universalImport = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
   const importOnDrop = universalImport && canAccessFeature(IMPORT_DROP_FEATURE);
+  const importTypeOn = (target: ImportTarget): boolean => {
+    const flag = IMPORT_TARGET_FEATURES[target];
+    return !!flag && canAccessFeature(flag);
+  };
   // Latched: the host takes the parameter off the address once it opens the editor.
   const [webTourLink] = React.useState(opensWebTour);
   useWallBoardAccessCleanup(user?.uid ?? null);
@@ -1355,9 +1363,16 @@ export const DashboardView: React.FC = () => {
       return false;
     // Prefer a file Import can read, so a PDF dropped with other files still lands.
     const files = Array.from(dt.files ?? []);
-    const file =
-      files.find((f) => targetChoices({ file: f }).targets.length > 0) ??
-      files[0];
+    const offered = (f: File) =>
+      targetChoices({ file: f }, importTypeOn).targets.length > 0 ||
+      (/\.imscc$/i.test(f.name) && canAccessFeature('import-schoology-course'));
+    // A file no Import type is open for keeps the old drop (a PDF or notebook lands as before).
+    if (
+      !files.some(offered) &&
+      files.some((f) => targetChoices({ file: f }).targets.length > 0)
+    )
+      return false;
+    const file = files.find(offered) ?? files[0];
     const uri = dt
       .getData('text/uri-list')
       .split(/\r?\n/)

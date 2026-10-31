@@ -79,10 +79,11 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
   // The extension's "Open in SpartBoard" lands on /?importInbox=1 after a Send.
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.searchParams.get(IMPORT_INBOX_PARAM) !== '1') return;
+    // Kept on the address until the flag has loaded, so a late isAdmin still opens it.
+    if (!sendOn || url.searchParams.get(IMPORT_INBOX_PARAM) !== '1') return;
     url.searchParams.delete(IMPORT_INBOX_PARAM);
     window.history.replaceState(window.history.state, '', url.toString());
-    if (sendOn) openImportScreen();
+    openImportScreen();
   }, [sendOn]);
   // In a tab that is already open the extension fires this instead; cancelling it tells the extension it was heard.
   useEffect(() => {
