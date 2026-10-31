@@ -10,6 +10,7 @@ import {
   dedupeById,
   gradeVaAnswer,
   hasEmbeddedKey,
+  isVaShortAnswer,
   toVaPublicQuestion,
   vaAnswerRules,
   type VaKeyQuestion,
@@ -164,9 +165,15 @@ export async function handleCheckVideoActivityAnswer(
     (isLive && isStudent) || (!isTeacher && !rules.revealAnswer);
   // Hidden right and wrong never leaves the server either, so the key can't be probed one answer at a time.
   const withholdResult = !isTeacher && !isLive && !rules.showResult;
+  const shortAnswer = isVaShortAnswer(question);
+  if (shortAnswer && input.answer.trim().length === 0)
+    throw new HttpsError('invalid-argument', 'Type an answer first.');
+  // A short answer has no key: it is saved for the teacher to mark, never right or wrong here.
   const result = (answer: string): CheckVideoActivityAnswerResult => ({
-    isCorrect: withholdResult ? null : gradeVaAnswer(question, answer),
-    correctAnswer: withholdKey ? '' : (question.correctAnswer ?? ''),
+    isCorrect:
+      withholdResult || shortAnswer ? null : gradeVaAnswer(question, answer),
+    correctAnswer:
+      withholdKey || shortAnswer ? '' : (question.correctAnswer ?? ''),
   });
   if (!isStudent) return result(input.answer);
   if (isPeriodFrozen(session, responseDoc.data(), nowMs))
@@ -213,7 +220,7 @@ export async function handleCheckVideoActivityAnswer(
             answer: input.answer,
             answeredAt: nowMs,
             // The student can read their own response, so a hidden verdict stays off it until Publish re-grades.
-            ...(withholdResult
+            ...(withholdResult || shortAnswer
               ? {}
               : { isCorrect: gradeVaAnswer(question, input.answer) }),
           },

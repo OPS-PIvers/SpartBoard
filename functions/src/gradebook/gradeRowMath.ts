@@ -10,7 +10,10 @@ import {
   type QuestionTargetSnapshot,
   type RawAnswer,
 } from '../plcAssessmentMath';
-import { parseCompletedResponse } from '../recomputePlcAssessments';
+import {
+  parseCompletedResponse,
+  parseManualGrades,
+} from '../recomputePlcAssessments';
 import { notChosenIds, parseChooseSections } from '../quizSectionsChosen';
 import { isCompletionOnly, type TargetEvidence } from '../gradebookCore';
 import type {
@@ -283,7 +286,11 @@ export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
     const answer = representative.get(q.id);
     let pointsEarned: number;
     let state: string;
-    if (input.useStoredCorrectness && q.correctAnswer === null) {
+    if (
+      input.useStoredCorrectness &&
+      q.correctAnswer === null &&
+      q.type !== 'free-response'
+    ) {
       pointsEarned = answer?.isCorrect === true ? q.points : 0;
       state = answer ? 'scored' : 'not-attempted';
     } else {
@@ -475,14 +482,18 @@ export function scoreVideoResponse(
         : 0;
   // A teacher-paced live session only scores the questions it asked.
   const live = asRecord(session.live);
+  // A short answer is teacher-marked, like a Quiz written answer.
   const q = scoreQuestions({
-    questions,
+    questions: questions.map((x) =>
+      x.type === 'SA' ? { ...x, type: 'free-response' } : x
+    ),
     answers,
     servedQuestionIds:
       Object.keys(live).length > 0
         ? asStrings(live.askedQuestionIds)
         : undefined,
     useStoredCorrectness: true,
+    manualGrades: parseManualGrades(response.grading),
   });
   const stored =
     typeof response.score === 'number' && Number.isFinite(response.score)
@@ -505,7 +516,7 @@ export function scoreVideoResponse(
     };
   }
   const max = q.max > 0 ? q.max : null;
-  const rawPct = stored ?? pctOf(q.earned, q.max);
+  const rawPct = stored ?? (q.awaiting ? null : pctOf(q.earned, q.max));
   return {
     classId,
     published,

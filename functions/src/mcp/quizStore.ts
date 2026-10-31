@@ -10,12 +10,11 @@ type Firestore = admin.firestore.Firestore;
 export type StoredQuestionType =
   'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA' | 'free-response';
 
-/** Mirrors QuizQuestion in types.ts; unknown fields ride along untouched. */
-export interface StoredQuestion {
+/** StoredQuestion without its type, so the video store can widen it. */
+export interface StoredQuestionFields {
   id: string;
   timeLimit: number;
   text: string;
-  type: StoredQuestionType;
   correctAnswer: string;
   incorrectAnswers: string[];
   alternateAnswers?: string[];
@@ -30,6 +29,11 @@ export interface StoredQuestion {
   maxWords?: number;
   targets?: TargetTag[];
   [extra: string]: unknown;
+}
+
+/** Mirrors QuizQuestion in types.ts; unknown fields ride along untouched. */
+export interface StoredQuestion extends StoredQuestionFields {
+  type: StoredQuestionType;
 }
 
 /** QuizData / QuestionBankData share this shape on Drive. */

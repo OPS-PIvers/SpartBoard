@@ -277,6 +277,35 @@ describe('scoreVideoResponse', () => {
   });
 });
 
+describe('scoreVideoResponse short answer', () => {
+  const questions = keyQuestions([
+    { id: 'v1', type: 'MC', text: 'x', correctAnswer: 'A', points: 1 },
+    { id: 'sa', type: 'SA', text: 'Why?', correctAnswer: '', points: 3 },
+  ]);
+  const answers = [
+    { questionId: 'v1', answer: 'A' },
+    { questionId: 'sa', answer: 'Because light' },
+  ];
+
+  it('awaits a mark until the teacher grades it', () => {
+    const r = scoreVideoResponse({}, { completedAt: 9, answers }, questions);
+    expect(r).toMatchObject({ state: 'awaiting-grade', rawPct: null });
+  });
+
+  it('scores a marked short answer from the response grading', () => {
+    const r = scoreVideoResponse(
+      {},
+      {
+        completedAt: 9,
+        answers,
+        grading: { sa: { pointsAwarded: 2, gradedBy: 't', gradedAt: 1 } },
+      },
+      questions
+    );
+    expect(r).toMatchObject({ state: 'scored', rawPct: 75, points: 3, max: 4 });
+  });
+});
+
 describe('video publish state', () => {
   it('stays unpublished after Unpublish leaves the score behind', () => {
     const r = scoreVideoResponse(
