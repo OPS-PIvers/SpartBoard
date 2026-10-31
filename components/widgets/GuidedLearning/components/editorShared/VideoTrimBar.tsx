@@ -174,7 +174,7 @@ export const VideoTrimBar: React.FC<{
   const endPct = (end / duration) * 100;
 
   const handleClasses =
-    'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-7 rounded-md bg-white border-2 border-brand-blue-primary shadow-sm cursor-ew-resize touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50';
+    'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-7 rounded-md bg-white border-2 border-brand-blue-primary shadow-xs cursor-ew-resize touch-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50';
 
   return (
     <div

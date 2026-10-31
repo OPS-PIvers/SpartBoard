@@ -278,7 +278,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = (props) => {
                       c.id
                     )}
                     onClick={() => onOpenCheckIn?.(c.id)}
-                    className="flex w-full items-center gap-3 rounded py-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+                    className="flex w-full items-center gap-3 rounded-sm py-2.5 text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
                   >
                     <FileText
                       className="h-4 w-4 shrink-0 text-slate-400"
@@ -326,7 +326,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = (props) => {
                       a.id
                     )}
                     onClick={() => onToggleActionItem?.(a.id)}
-                    className={`shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
+                    className={`shrink-0 rounded-full transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
                       a.done
                         ? 'text-emerald-500'
                         : 'text-slate-300 enabled:hover:text-emerald-500'
@@ -377,7 +377,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = (props) => {
                         d.id
                       )}
                       onClick={() => onOpenDoc?.(d.id)}
-                      className="flex w-full items-center gap-3 rounded py-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+                      className="flex w-full items-center gap-3 rounded-sm py-2.5 text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
                     >
                       <FileText
                         className="h-4 w-4 shrink-0 text-slate-400"

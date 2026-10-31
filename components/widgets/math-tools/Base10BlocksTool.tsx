@@ -145,7 +145,7 @@ export const Base10BlocksTool: React.FC = () => {
               `base-10.${type}`
             )}
             onClick={() => addBlock(type)}
-            className={`${color} text-white font-black rounded-lg shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap`}
+            className={`${color} text-white font-black rounded-lg shadow-xs hover:opacity-90 transition-opacity whitespace-nowrap`}
             style={{
               fontSize: 'min(10px, 3.5cqmin)',
               padding: 'min(4px, 1cqmin) min(8px, 1.8cqmin)',

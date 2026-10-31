@@ -97,14 +97,14 @@ export const SpotifyTransportControls: React.FC<
   // Shared classes for the small toggle (shuffle/repeat) buttons — colored by
   // active state.
   const toggleClass = (active: boolean) =>
-    `rounded-full flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 ${
+    `rounded-full flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-green-400/70 ${
       active
         ? 'text-green-400 hover:text-green-300'
         : 'text-slate-400 hover:text-white'
     }`;
 
   const skipClass =
-    'rounded-full text-white/90 hover:text-white flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70';
+    'rounded-full text-white/90 hover:text-white flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-green-400/70';
 
   return (
     <div
@@ -157,7 +157,7 @@ export const SpotifyTransportControls: React.FC<
         disabled={!isReady}
         {...tourTypeAttr('music.spotify-play-pause', 'music')}
         aria-label={isPlaying ? 'Pause' : 'Play'}
-        className="rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+        className="rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-green-400/70"
         style={{ width: s.play, height: s.play }}
       >
         {isPlaying ? (

@@ -407,13 +407,13 @@ const StudentLoginPage: React.FC = () => {
   return (
     <div className="relative min-h-screen w-screen flex items-center justify-center bg-slate-50 overflow-hidden font-sans px-4 py-8">
       {/* Subtle radial dotted background, matching the teacher login tone. */}
-      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-50" />
+      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[16px_16px] opacity-50" />
       <div className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] rounded-full blur-[100px] bg-brand-blue-primary/20 animate-pulse" />
       <div className="absolute -bottom-1/4 -right-1/4 w-[500px] h-[500px] bg-brand-red-primary/10 rounded-full blur-[100px] animate-pulse delay-1000" />
 
       <div className="relative z-10 bg-white/80 backdrop-blur-xl p-10 sm:p-12 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/60 ring-1 ring-slate-900/5 max-w-md w-full text-center">
         {/* Brand mark */}
-        <div className="mx-auto w-16 h-16 bg-gradient-to-br from-brand-blue-primary to-brand-blue-dark rounded-2xl flex items-center justify-center shadow-lg shadow-brand-blue-primary/20 mb-8 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
+        <div className="mx-auto w-16 h-16 bg-linear-to-br from-brand-blue-primary to-brand-blue-dark rounded-2xl flex items-center justify-center shadow-lg shadow-brand-blue-primary/20 mb-8 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
           <GraduationCap className="w-8 h-8 text-white" strokeWidth={2.5} />
         </div>
 

@@ -816,7 +816,7 @@ export const OrganizationPanel: React.FC = () => {
                         {s.label}
                       </div>
                       {isSuper && (
-                        <span className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-rose-100 text-rose-700">
+                        <span className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-sm bg-rose-100 text-rose-700">
                           Super
                         </span>
                       )}
@@ -1206,7 +1206,7 @@ const ManualResetLinkModal: React.FC<{
             onFocus={(e) => e.currentTarget.select()}
             {...tourAttr('admin.org.reset-link-url')}
             aria-label="Password reset URL"
-            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
+            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-800 focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
           />
           <Btn
             variant="primary"

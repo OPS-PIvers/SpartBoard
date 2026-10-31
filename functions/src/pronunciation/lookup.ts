@@ -1,7 +1,7 @@
 // Flashcards Speak reference lookup (docs/multilingual-pronunciation-engine.md §5, S3): term → per-dialect reference tokens, stress and letter spans.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import '../functionsInit';
 import { ALLOWED_ORIGINS } from '../classlinkShared';
 import { assertViewAsAllowed } from '../viewAsGuard';

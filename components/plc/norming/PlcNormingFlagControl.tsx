@@ -101,7 +101,7 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
         aria-expanded={open}
         aria-label={flagLabel}
         title={flagLabel}
-        className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
+        className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400 ${
           shown
             ? 'text-slate-700 hover:bg-slate-100'
             : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
@@ -114,7 +114,7 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
         {shown && <NormingLevelSymbol level={shown} className="w-3 h-3" />}
       </button>
       {open && (
-        <div className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-sm max-w-xs">
+        <div className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-xs max-w-xs">
           <div
             role="radiogroup"
             aria-label={t('plcNorming.flag.pickLevel', {
@@ -140,7 +140,7 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
                   tabIndex={tabbable ? 0 : -1}
                   aria-label={labelFor(l)}
                   title={labelFor(l)}
-                  className={`inline-flex h-7 min-w-[2rem] items-center justify-center rounded-md border px-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-50 ${
+                  className={`inline-flex h-7 min-w-8 items-center justify-center rounded-md border px-1.5 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-50 ${
                     active
                       ? 'border-slate-500 bg-slate-100 text-slate-800'
                       : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700'

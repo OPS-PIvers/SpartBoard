@@ -94,6 +94,23 @@ export const VideoActivityLiveAggregate: React.FC<LiveAggregateProps> = ({
   answers,
   answerRevealed,
 }) => {
+  // Short answers stay off the board: just how many came in.
+  if (question.type === 'SA') {
+    const count = answers.filter((a) => a.trim().length > 0).length;
+    return (
+      <p
+        className="font-bold text-slate-600"
+        style={{ fontSize: 'min(18px, 5cqmin)' }}
+        data-testid="va-live-aggregate"
+      >
+        {count === 0
+          ? 'No answers yet'
+          : count === 1
+            ? '1 answer'
+            : `${count} answers`}
+      </p>
+    );
+  }
   const { totalAnswered, rows } = buildLiveAggregate({
     question,
     keyQuestion,

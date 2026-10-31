@@ -6,6 +6,25 @@ const BOARDS_MENU = 'board-nav.select-board';
 const GROUP_WIZARD = 'roster-groups.new';
 
 export const SURFACES: TourSurfaceMap = {
+  // Import's review step for an AI-made board; opened from Import once a target is picked.
+  'board.import-board-review': {
+    label: 'Import review for an AI-made board',
+    kind: 'shared',
+    files: ['components/import/conversion/'],
+  },
+  // Whole-course import from a Schoology export; opened from the Add to board window.
+  'board.import-course': {
+    label: 'Schoology course import checklist',
+    kind: 'modal',
+    files: ['components/import/course/'],
+    opensWith: 'import-screen.course',
+  },
+  // Import's Reference material step; the Import screen that opens it lands separately.
+  'import.reference': {
+    label: 'Import: page refused to show in an Embed',
+    kind: 'shared',
+    files: ['components/import/reference/'],
+  },
   board: {
     label: 'Board',
     kind: 'board',
@@ -18,6 +37,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/layout/sidebar/Sidebar.tsx',
       'components/share/ShareStatusBanner.tsx',
       'components/layout/useClaudeBoardActivity.ts',
+      'components/layout/ImportInboxNotice.tsx',
     ],
     inner: {
       'dashboard.group-cancel': 'widget.group-with',
@@ -51,6 +71,26 @@ export const SURFACES: TourSurfaceMap = {
       'sidebar.sign-out': MENU,
       'share-status.close': 'share-status.chip',
       'share-status.stop': 'share-status.chip',
+    },
+  },
+  'board.backgrounds': {
+    label: 'Backgrounds window',
+    kind: 'modal',
+    files: ['components/backgroundsModal/'],
+    opensWith: 'sidebar.backgrounds',
+    inner: {
+      'backgrounds.custom-color': 'backgrounds.rail-section:backgrounds#colors',
+      'backgrounds.custom-color-apply':
+        'backgrounds.rail-section:backgrounds#colors',
+      'backgrounds.gradient-start':
+        'backgrounds.rail-section:backgrounds#gradients',
+      'backgrounds.gradient-end':
+        'backgrounds.rail-section:backgrounds#gradients',
+      'backgrounds.gradient-direction':
+        'backgrounds.rail-section:backgrounds#gradients',
+      'backgrounds.gradient-apply':
+        'backgrounds.rail-section:backgrounds#gradients',
+      'backgrounds.upload': 'backgrounds.rail-section:backgrounds#uploads',
     },
   },
   'board.widget': {
@@ -100,6 +140,12 @@ export const SURFACES: TourSurfaceMap = {
       'components/common/EditorModalShell.tsx',
       'components/common/PenColorSwatches.tsx',
     ],
+  },
+  'board.import': {
+    label: 'Add to board window (a page sent from the browser or a board drop)',
+    kind: 'modal',
+    files: ['components/import/'],
+    opensWith: 'import-notice.open',
   },
   'board.assignments-hub': {
     label: 'Assignments hub',

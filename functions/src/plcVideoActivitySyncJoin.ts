@@ -15,7 +15,7 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import type { SyncedVideoActivityParticipant } from './syncedVideoActivityGroups';
 import { assertViewAsAllowed } from './viewAsGuard';
 import {

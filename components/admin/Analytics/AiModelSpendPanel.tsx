@@ -58,7 +58,7 @@ const Kpi: React.FC<{ title: string; value: string; subtitle?: string }> = ({
   value,
   subtitle,
 }) => (
-  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
       {title}
     </p>
@@ -151,7 +151,7 @@ export const AiModelSpendPanel: React.FC = () => {
       </div>
 
       {failed ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
           <p className="text-sm text-slate-500">Couldn&apos;t load AI usage.</p>
         </div>
       ) : (
@@ -172,7 +172,7 @@ export const AiModelSpendPanel: React.FC = () => {
             />
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm min-w-0">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs min-w-0">
             <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">
               Daily estimated spend
             </h3>
@@ -206,7 +206,7 @@ export const AiModelSpendPanel: React.FC = () => {
             )}
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm min-w-0">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs min-w-0">
             <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">
               By model
             </h3>

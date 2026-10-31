@@ -11,7 +11,7 @@
 // as a written response with a note, which the teacher fixes in the review
 // table — an invented answer key would be marked wrong on a student's paper.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import type { Firestore } from 'firebase-admin/firestore';
 import { Type, type Schema } from '@google/genai';
 import { ALLOWED_ORIGINS } from './classlinkShared';

@@ -115,7 +115,7 @@ export const SpotifyPremiumDialog: React.FC<Props> = ({
           type="checkbox"
           checked={dontShow}
           onChange={(e) => setDontShow(e.target.checked)}
-          className="w-4 h-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
+          className="w-4 h-4 rounded-sm border-slate-300 text-green-600 focus:ring-green-500"
         />
         <span className="text-sm text-slate-700">
           Don&apos;t show this again

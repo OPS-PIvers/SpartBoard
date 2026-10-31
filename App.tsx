@@ -417,6 +417,13 @@ const StudentLandingDevHarness =
         }))
       )
     : null;
+const ImportConversionDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/ImportConversionDevHarness').then((module) => ({
+        default: module.ImportConversionDevHarness,
+      }))
+    )
+  : null;
 const SharedBoardItemDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SharedBoardItemDevHarness').then((module) => ({
@@ -1323,6 +1330,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SessionViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: Import's AI Conversion review steps against fixtures.
+  if (
+    import.meta.env.DEV &&
+    ImportConversionDevHarness &&
+    pathname === '/import-conversion-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ImportConversionDevHarness />
       </Suspense>
     );
   }

@@ -42,7 +42,11 @@ import {
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
-import { VideoActivityPublicQuestion, VideoActivitySession } from '@/types';
+import {
+  VideoActivityNote,
+  VideoActivityPublicQuestion,
+  VideoActivitySession,
+} from '@/types';
 import {
   deriveVaSessionState,
   initialSelfPacedPlayerState,
@@ -53,6 +57,7 @@ import {
 import { studentQuestionsFromSession } from '@/utils/videoActivityPublicQuestions';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
+import { NoteOverlay } from './NoteOverlay';
 import { videoActivityAnswerRules } from '@/utils/videoActivityAnswerRules';
 import { VideoActivityLiveStudent } from './VideoActivityLiveStudent';
 import {
@@ -227,7 +232,7 @@ export const VideoActivityStudentApp: React.FC = () => {
  * Firestore — pasting the `?preview=1` URL into a tab is safe regardless of
  * what auth state that browser profile already carries. */
 const VideoActivityPreviewLobby: React.FC = () => (
-  <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100 flex flex-col">
+  <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100 flex flex-col">
     <TeacherPreviewBanner />
     <div className="flex-1 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
@@ -249,7 +254,7 @@ const VideoActivityPreviewLobby: React.FC = () => (
             readOnly
             tabIndex={-1}
             placeholder="Your PIN"
-            className="w-full px-4 py-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-xl font-black font-mono tracking-widest text-center placeholder-slate-400 focus:outline-none cursor-default"
+            className="w-full px-4 py-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-xl font-black font-mono tracking-widest text-center placeholder-slate-400 focus:outline-hidden cursor-default"
           />
           <button
             type="button"
@@ -552,6 +557,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     },
     []
   );
+  const [activeNote, setActiveNote] = useState<VideoActivityNote | null>(null);
 
   const sessionQuestions = session?.questions;
   const sessionPublicQuestions = session?.publicQuestions;
@@ -833,7 +839,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   if (periodStep && joinStatus !== 'joined') {
     return (
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100">
+      <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100">
         <div className="min-h-full flex flex-col items-center justify-center p-6">
           <div className="w-full max-w-sm">
             <div className="flex items-center justify-center mb-8">
@@ -876,7 +882,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
             <button
               onClick={() => void handlePeriodConfirm()}
               disabled={joinStatus === 'loading' || !selectedPeriod}
-              className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-brand-blue-primary/20"
+              className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors shadow-xs shadow-brand-blue-primary/20"
             >
               {joinStatus === 'loading' ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -929,7 +935,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
 
     return (
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100">
+      <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100">
         <div className="min-h-full flex flex-col items-center justify-center p-4">
           <div className="w-full max-w-sm">
             {/* Brand header */}
@@ -947,7 +953,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm shadow-slate-900/5 border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-xs shadow-slate-900/5 border border-slate-200 overflow-hidden">
               <div className="bg-brand-blue-primary px-5 py-4">
                 <h1 className="text-white font-black text-base uppercase tracking-wide">
                   Join Activity
@@ -966,7 +972,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                     placeholder="Ask your teacher"
                     inputMode="numeric"
                     autoFocus
-                    className="w-full bg-white border border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-colors"
+                    className="w-full bg-white border border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400 rounded-xl px-3 py-2.5 text-sm font-medium outline-hidden transition-colors"
                     required
                   />
                 </div>
@@ -983,7 +989,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                   disabled={
                     joinStatus === 'loading' || lookingUp || !pin.trim()
                   }
-                  className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm shadow-brand-blue-primary/20"
+                  className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xs shadow-brand-blue-primary/20"
                 >
                   {joinStatus === 'loading' || lookingUp ? (
                     <>
@@ -1039,6 +1045,13 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         ).length
       : (myResponse?.answers.length ?? 0);
     const totalQuestions = scoredQuestions.length;
+    // An answered short answer the teacher hasn't marked is neither right nor wrong yet.
+    const correctnessQuestions = scoredQuestions.filter((q) => {
+      if (q.type !== 'SA') return true;
+      const a = myResponse?.answers.find((x) => x.questionId === q.id);
+      return !a || a.isCorrect !== undefined;
+    });
+    const correctTotal = correctnessQuestions.length;
     // Score visibility gates whether the student sees their percentage. The
     // teacher's Publish Scores flow flips `session.scoreVisibility` from
     // `'none'` (or absent) to one of the reveal modes. Until then, the
@@ -1049,7 +1062,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     const showScore = published.visibility !== 'none';
     // `isCorrect` comes from the server check at submit time, and Publish re-grades it.
     const correct = showScore
-      ? scoredQuestions.filter(
+      ? correctnessQuestions.filter(
           (q) =>
             myResponse?.answers.find((x) => x.questionId === q.id)
               ?.isCorrect === true
@@ -1070,10 +1083,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         pin={myResponse?.pin}
         light
       >
-        <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100">
+        <div className="h-screen h-dvh overflow-y-auto bg-linear-to-b from-white to-slate-100">
           <div className="min-h-full flex flex-col items-center justify-center p-4">
             <div className="w-full max-w-sm">
-              <div className="bg-white rounded-2xl shadow-sm shadow-slate-900/5 border border-slate-200 overflow-hidden text-center">
+              <div className="bg-white rounded-2xl shadow-xs shadow-slate-900/5 border border-slate-200 overflow-hidden text-center">
                 <div className="bg-emerald-50 border-b border-emerald-200 px-5 py-6">
                   <Trophy className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
                   <h2 className="text-emerald-700 font-black text-xl">
@@ -1084,14 +1097,23 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 <div className="p-6 flex flex-col gap-4">
                   <p className="text-slate-700 font-medium">Great work!</p>
 
-                  {showScore && totalQuestions > 0 && (
+                  {showScore && correctTotal > 0 && (
                     <div className="bg-brand-blue-lighter border border-brand-blue-primary/15 rounded-2xl p-5">
                       <p className="text-5xl font-black text-brand-blue-primary">
-                        {Math.round((correct / totalQuestions) * 100)}%
+                        {Math.round((correct / correctTotal) * 100)}%
                       </p>
                       <p className="text-slate-500 text-sm font-medium mt-1">
-                        {correct} of {totalQuestions} correct
+                        {correct} of {correctTotal} correct
                       </p>
+                      {correctTotal < totalQuestions && (
+                        <p className="text-slate-500 text-xs mt-1">
+                          Your teacher is still marking{' '}
+                          {totalQuestions - correctTotal === 1
+                            ? '1 answer'
+                            : `${totalQuestions - correctTotal} answers`}
+                          .
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -1172,7 +1194,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           unlock so the student knows what happened before they touch
           anything. */}
       {showResumeModal && (
-        <div className="absolute inset-0 z-overlay bg-emerald-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+        <div className="absolute inset-0 z-overlay bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
           <h2 className="text-4xl font-black text-white mb-4">
             Attempt Unlocked
@@ -1197,7 +1219,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           Quiz cheat warning. Hidden for teacher-unlocked attempts, which
           finalize on the next strike instead. */}
       {showCheatWarning && (
-        <div className="absolute inset-0 z-overlay bg-red-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+        <div className="absolute inset-0 z-overlay bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED
@@ -1273,7 +1295,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   }
 
   return (
-    <div className="h-screen [height:100dvh] overflow-hidden bg-gradient-to-b from-white to-slate-100 flex flex-col relative">
+    <div className="h-screen h-dvh overflow-hidden bg-linear-to-b from-white to-slate-100 flex flex-col relative">
       {shellOverlays}
 
       {/* Top bar */}
@@ -1303,12 +1325,15 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 answeredQuestionIds={answeredQuestionIds}
                 onQuestionTrigger={handleQuestionTrigger}
                 onVideoEnd={handleVideoEnd}
-                questionVisible={activeQuestion !== null}
+                questionVisible={activeQuestion !== null || activeNote !== null}
                 allowSkipping={session?.settings?.allowSkipping ?? false}
                 autoPlay={session?.settings?.autoPlay ?? false}
                 seekRequest={seekRequest}
                 playheadRef={playheadRef}
                 paused={periodPaused}
+                clip={session?.clip}
+                notes={session?.notes}
+                onNoteTrigger={setActiveNote}
               />
 
               {periodPaused && <VideoActivityPeriodPausedOverlay />}
@@ -1321,6 +1346,15 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                   >
                     Finish activity
                   </button>
+                </div>
+              )}
+
+              {activeNote && !activeQuestion && !periodPaused && (
+                <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-[1px] flex items-center justify-center overflow-y-auto p-2 sm:p-4">
+                  <NoteOverlay
+                    note={activeNote}
+                    onContinue={() => setActiveNote(null)}
+                  />
                 </div>
               )}
 
@@ -1367,14 +1401,14 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
 const FullPageLoader: React.FC<{ message: string }> = ({ message }) => (
-  <div className="min-h-screen bg-gradient-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-3">
+  <div className="min-h-screen bg-linear-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-3">
     <Loader2 className="w-8 h-8 text-brand-blue-primary animate-spin" />
     <p className="text-slate-500 text-sm font-medium">{message}</p>
   </div>
 );
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
-  <div className="min-h-screen bg-gradient-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-3 p-6">
+  <div className="min-h-screen bg-linear-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-3 p-6">
     <AlertCircle className="w-8 h-8 text-red-500" />
     <p className="text-slate-700 text-sm text-center">{message}</p>
   </div>

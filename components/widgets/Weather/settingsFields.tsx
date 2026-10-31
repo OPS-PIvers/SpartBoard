@@ -220,7 +220,7 @@ export const WeatherAutoSyncField: React.FC<{
                 data-tour-widget={ctx.widget.id}
                 className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold ${
                   source === option
-                    ? 'bg-white text-indigo-700 shadow-sm'
+                    ? 'bg-white text-indigo-700 shadow-xs'
                     : 'text-slate-600'
                 }`}
               >

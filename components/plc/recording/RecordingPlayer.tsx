@@ -189,7 +189,7 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
       <span className="shrink-0 text-xxs tabular-nums text-slate-500">
         {formatRecordingClock(totalMs)}
       </span>
-      <span className="shrink-0 max-w-[12rem] truncate text-xxs text-slate-500">
+      <span className="shrink-0 max-w-48 truncate text-xxs text-slate-500">
         {status === 'error'
           ? t('plcDashboard.notes.recording.loadError', {
               defaultValue: "Couldn't load audio",
@@ -206,7 +206,7 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
         title={t('plcDashboard.notes.recording.download', {
           defaultValue: 'Download',
         })}
-        className="shrink-0 p-1 text-slate-400 hover:text-brand-blue-primary rounded transition-colors"
+        className="shrink-0 p-1 text-slate-400 hover:text-brand-blue-primary rounded-sm transition-colors"
       >
         <Download className="w-3.5 h-3.5" />
       </button>
@@ -221,7 +221,7 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
           title={t('plcDashboard.notes.recording.delete', {
             defaultValue: 'Delete recording',
           })}
-          className="shrink-0 p-1 text-slate-300 hover:text-red-500 rounded transition-colors"
+          className="shrink-0 p-1 text-slate-300 hover:text-red-500 rounded-sm transition-colors"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>

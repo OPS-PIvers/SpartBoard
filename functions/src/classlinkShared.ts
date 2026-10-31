@@ -14,7 +14,7 @@
  * `admin.initializeApp()`); `resolveOrgIdForDomain` receives the Firestore handle
  * from its caller so this stays a pure, import-anywhere helper module.
  */
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import * as CryptoJS from 'crypto-js';
 import OAuth from 'oauth-1.0a';
 
@@ -122,11 +122,6 @@ export function normalizeEmailDomain(email: string): string | null {
   const at = email.lastIndexOf('@');
   if (at < 0 || at === email.length - 1) return null;
   return '@' + email.slice(at + 1).toLowerCase();
-}
-
-/** True for a student Workspace address (e.g. `@students.orono.k12.mn.us`), which never holds a teacher session. */
-export function isStudentDomainEmail(email: string): boolean {
-  return normalizeEmailDomain(email)?.startsWith('@students.') === true;
 }
 
 /**

@@ -34,7 +34,7 @@ export const FocusButton: React.FC<ButtonProps> = ({
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center rounded-lg font-semibold transition-colors disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${VARIANTS[variant]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-lg font-semibold transition-colors disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${VARIANTS[variant]} ${className}`}
       style={{
         fontSize: s.font,
         padding: s.pad,

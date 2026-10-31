@@ -133,7 +133,7 @@ export const PerformanceCard: React.FC<StudentCardProps> = ({
             max={whatIfMax}
             value={score}
             onChange={(e) => setScore(Number(e.target.value) || 0)}
-            className="h-9 w-[70px] rounded-lg border border-slate-300 bg-white px-2.5 text-sm focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
+            className="h-9 w-[70px] rounded-lg border border-slate-300 bg-white px-2.5 text-sm focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
           />
           <span>
             / {whatIfMax} on the next

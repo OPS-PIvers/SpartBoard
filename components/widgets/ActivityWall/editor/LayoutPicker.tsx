@@ -32,9 +32,9 @@ export const LayoutPicker: React.FC<LayoutPickerProps> = ({
           type="button"
           aria-pressed={selected}
           onClick={() => onSelect(option.layout)}
-          className={`flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+          className={`flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
             selected
-              ? 'border-brand-blue-primary bg-brand-blue-primary/5 shadow-sm'
+              ? 'border-brand-blue-primary bg-brand-blue-primary/5 shadow-xs'
               : 'border-slate-200 bg-white hover:bg-slate-50'
           }`}
         >

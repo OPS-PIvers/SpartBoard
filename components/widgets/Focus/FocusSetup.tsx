@@ -80,7 +80,7 @@ export const FocusSetup: React.FC<{
   return (
     <div className="flex h-full w-full flex-col">
       <div
-        className="relative z-[1] min-h-[0] flex-1 overflow-y-auto"
+        className="relative z-1 min-h-0 flex-1 overflow-y-auto"
         style={{
           padding: `min(15px, 3cqmin) min(15px, 3.6cqmin)`,
           paddingBottom: 'max(16px, 3cqmin)',
@@ -107,7 +107,7 @@ export const FocusSetup: React.FC<{
                     }
               );
             }}
-            className="w-full rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            className="w-full rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
             style={{
               fontSize: 'min(15px, 4.8cqmin)',
               padding: `0 min(8px, 2.2cqmin)`,
@@ -148,14 +148,12 @@ export const FocusSetup: React.FC<{
                     gap: 'min(8px, 2cqmin)',
                   }}
                 >
-                  <span className="min-w-[0] break-all">
-                    {focusSiteLabel(s)}
-                  </span>
+                  <span className="min-w-0 break-all">{focusSiteLabel(s)}</span>
                   <button
                     type="button"
                     onClick={() => setSites(sites.filter((x) => x !== s))}
                     aria-label={`Remove ${focusSiteLabel(s)}`}
-                    className="inline-flex shrink-0 items-center justify-center rounded text-slate-600 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                    className="inline-flex shrink-0 items-center justify-center rounded-sm text-slate-600 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                     style={{
                       minWidth: 'min(32px, 7cqmin)',
                       minHeight: 'min(32px, 7cqmin)',
@@ -226,7 +224,7 @@ export const FocusSetup: React.FC<{
                 aria-checked={level === l}
                 tabIndex={level === l ? 0 : -1}
                 onClick={() => onChange({ level: l })}
-                className={`font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${
+                className={`font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${
                   i > 0 ? 'border-l border-slate-300' : ''
                 } ${
                   level === l
@@ -259,7 +257,7 @@ export const FocusSetup: React.FC<{
             id={lengthId}
             value={minutes}
             onChange={(e) => onChange({ minutes: Number(e.target.value) })}
-            className="rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            className="rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
             style={{
               fontSize: 'min(15px, 4.8cqmin)',
               padding: `0 min(8px, 2.2cqmin)`,
@@ -396,7 +394,7 @@ const SavedLists: React.FC<{
                   }}
                 >
                   <span
-                    className="min-w-[0] truncate text-slate-800"
+                    className="min-w-0 truncate text-slate-800"
                     style={{ fontSize: 'min(15px, 4.6cqmin)' }}
                     title={l.sites.map(focusSiteLabel).join(', ')}
                   >

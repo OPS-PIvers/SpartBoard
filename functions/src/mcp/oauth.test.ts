@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createHash, randomBytes } from 'node:crypto';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { makeStubFirestore } from '../testing/stubFirestore';
 import { isAllowedRedirectUri } from './config';
 import {

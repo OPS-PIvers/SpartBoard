@@ -40,7 +40,7 @@ export const StudentApp = () => {
  * a disabled button so a curious user can't enter a code/PIN that silently
  * goes nowhere. */
 const StudentPreviewLobby: React.FC = () => (
-  <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900 flex flex-col">
+  <div className="h-screen h-dvh overflow-y-auto bg-slate-900 flex flex-col">
     <TeacherPreviewBanner />
     <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-200">
       <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 shadow-xl ring-1 ring-slate-700">
@@ -58,14 +58,14 @@ const StudentPreviewLobby: React.FC = () => (
           readOnly
           tabIndex={-1}
           placeholder="Teacher ID / Room Code"
-          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none font-mono text-center tracking-widest uppercase cursor-default"
+          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-hidden font-mono text-center tracking-widest uppercase cursor-default"
         />
         <input
           type="text"
           readOnly
           tabIndex={-1}
           placeholder="Your PIN"
-          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none text-center font-mono tracking-widest cursor-default"
+          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-hidden text-center font-mono tracking-widest cursor-default"
         />
         <button
           type="button"
@@ -233,7 +233,7 @@ const StudentAppInner: React.FC = () => {
         className={`h-screen w-screen overflow-hidden relative transition-all duration-1000 ${backgroundClasses}`}
         style={backgroundStyles}
       >
-        <div className="h-full w-full flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-black/20 backdrop-blur-sm animate-in fade-in">
+        <div className="h-full w-full flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-black/20 backdrop-blur-xs animate-in fade-in">
           <Radio className="w-12 h-12 mb-4 animate-pulse text-white" />
           <h2 className="text-xl font-bold text-white">Connected</h2>
           <p className="text-white/70 font-medium mb-6">

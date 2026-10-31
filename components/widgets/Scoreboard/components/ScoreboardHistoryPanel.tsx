@@ -51,7 +51,7 @@ export const ScoreboardHistoryPanel: React.FC<{
                   fontSize: 'max(11px, min(14px, 3.5cqmin))',
                 }}
               >
-                <span className="flex items-center font-bold shrink-0 max-w-[45%] break-words">
+                <span className="flex items-center font-bold shrink-0 max-w-[45%] wrap-break-word">
                   <span
                     aria-hidden="true"
                     className={`inline-block rounded-full shrink-0 ${normalizeScoreboardColor(team.color)}`}

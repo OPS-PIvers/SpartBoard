@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import { OAuth2Client } from 'google-auth-library';
 import './functionsInit';
@@ -24,15 +24,16 @@ import {
   isBridgeablePin,
 } from './classlinkShared';
 import { normalizeQuizCode } from './quizCode';
+import { quizJoinCodeOwner } from './quizJoinCodeOwner';
 import {
   STUDENT_LOGIN_CLASS_IDS_MAX,
   StudentLookupError,
+  isOneRosterStaff,
   resolveStudentByEmail,
   type OneRosterUserWithRole,
 } from './studentEmailIdentity';
 import {
   MAX_TARGET_REFS,
-  isOnlyOneRosterStudent,
   loadTargetDirectory,
   resolveTargets,
   targetRefsFromAssignment,
@@ -905,7 +906,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
         teacherUrl,
         { params: teacherParams, headers: { ...teacherHeaders } }
       );
-      const teacherUser = (teacherResp.data.users ?? [])[0];
+      const teacherUser = (teacherResp.data.users ?? []).find(isOneRosterStaff);
       if (!teacherUser) {
         throw new HttpsError(
           'not-found',
@@ -1099,8 +1100,8 @@ export async function loadTaughtClassEnrollment(
         timeout: CLASSLINK_TIMEOUT_MS,
       }
     );
-    const teacher = (userResp.data.users ?? [])[0];
-    if (!teacher?.sourcedId || isOnlyOneRosterStudent(teacher)) return null;
+    const teacher = (userResp.data.users ?? []).find(isOneRosterStaff);
+    if (!teacher?.sourcedId) return null;
 
     // Unpaged, like getClassLinkRosterV1, so any class the import dialog listed is found here.
     const classesUrl = `${base}/users/${encodeURIComponent(teacher.sourcedId)}/classes`;
@@ -1747,14 +1748,17 @@ export const pinLoginV1 = onCall(
         });
         return { matched: false, reason: 'no-joinable-session' };
       }
+      // Only the code's owner's sessions count, so a colliding session can't take the bridge.
+      const owner = await quizJoinCodeOwner(db, code);
+      const owned = owner
+        ? codeMatch.docs.filter((d) => d.data().teacherUid === owner)
+        : codeMatch.docs;
       // The token is scoped to one session, so bridge only the one the client resolved from this code.
       const wanted =
         typeof data.sessionId === 'string' && data.sessionId
           ? data.sessionId
           : null;
-      const picked = wanted
-        ? codeMatch.docs.find((d) => d.id === wanted)
-        : codeMatch.docs[0];
+      const picked = wanted ? owned.find((d) => d.id === wanted) : owned[0];
       if (!picked) {
         console.warn('[pinLoginV1] fallback', {
           kind,

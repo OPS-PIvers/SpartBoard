@@ -496,7 +496,7 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
 
 const FIELD_LABEL = 'text-xs font-bold text-slate-600';
 const SELECT =
-  'px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none';
+  'px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden';
 
 const SymbolStep: React.FC<{
   symbol: RosterGroupSymbol;
@@ -524,7 +524,7 @@ const SymbolStep: React.FC<{
           {...tourAttr('group-wizard.name')}
           value={name}
           onChange={(e) => onName(e.target.value)}
-          className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+          className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
         />
       </div>
       <div className="flex flex-col gap-2">
@@ -541,7 +541,7 @@ const SymbolStep: React.FC<{
             placeholder={searchLabel}
             aria-label={searchLabel}
             {...tourAttr('group-wizard.icon-search')}
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
           />
         </div>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-1.5 max-h-60 overflow-y-auto custom-scrollbar p-1 -mx-1">
@@ -759,7 +759,7 @@ const AlertsStep: React.FC<{
                 placeholder={t('groupReminders.defaultMessage', {
                   defaultValue: 'Time to go',
                 })}
-                className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+                className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
               />
             )}
           </div>
@@ -784,7 +784,7 @@ const AlertsStep: React.FC<{
               maxLength={EMAIL_MESSAGE_MAX}
               rows={3}
               onChange={(e) => onChange({ emailMessage: e.target.value })}
-              className="px-3 py-2 text-sm rounded-lg border border-slate-200 resize-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+              className="px-3 py-2 text-sm rounded-lg border border-slate-200 resize-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
             />
           )}
         </div>
@@ -843,7 +843,7 @@ const StudentsStep: React.FC<{
             defaultValue: 'Search students',
           })}
           {...tourAttr('group-wizard.student-search')}
-          className="flex-1 px-3 py-1.5 text-sm rounded-md border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+          className="flex-1 px-3 py-1.5 text-sm rounded-md border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
         />
         <span className="text-xs font-semibold text-slate-600 shrink-0">
           {t('groupReminders.selectedCount', {
@@ -867,7 +867,7 @@ const StudentsStep: React.FC<{
                 'group-wizard',
                 `student-${students.indexOf(s) + 1}`
               )}
-              className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+              className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
             />
             <span className="truncate">{studentName(s)}</span>
           </label>
@@ -958,7 +958,7 @@ const ScheduleStep: React.FC<{
               onChange={(e) =>
                 e.target.value && setAlert(i, { time: e.target.value })
               }
-              className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+              className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
             />
             <select
               aria-label={leadLabel}
@@ -1049,7 +1049,7 @@ const ScheduleStep: React.FC<{
                 repeat: e.target.value === 'biweekly' ? 'biweekly' : 'weekly',
               })
             }
-            className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white w-48 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+            className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white w-48 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
           >
             <option value="weekly">
               {t('groupReminders.everyWeek', { defaultValue: 'Every week' })}
@@ -1077,7 +1077,7 @@ const ScheduleStep: React.FC<{
               onChange={(e) =>
                 e.target.value && onChange({ startDate: e.target.value })
               }
-              className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+              className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
             />
           </div>
         )}

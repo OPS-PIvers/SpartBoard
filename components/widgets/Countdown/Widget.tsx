@@ -164,7 +164,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
       padding="p-0"
       content={
         <div
-          className={`flex flex-col items-center justify-center w-full h-full overflow-hidden rounded-[var(--window-radius,0px)] ${fontClass}`}
+          className={`flex flex-col items-center justify-center w-full h-full overflow-hidden rounded-(--window-radius,0px) ${fontClass}`}
           style={{
             containerType: 'size',
             padding: 'min(16px, 4cqmin)',
@@ -202,7 +202,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
                   day{calculatedDays !== 1 ? 's' : ''} until
                 </div>
                 <div
-                  className="font-bold [overflow-wrap:anywhere] [font-size:var(--title-std)] [@container(max-width:200px)]:[font-size:var(--title-small)] [@container(min-aspect-ratio:2)]:[font-size:var(--title-wide)]"
+                  className="font-bold wrap-anywhere [font-size:var(--title-std)] [@container(max-width:200px)]:[font-size:var(--title-small)] [@container(min-aspect-ratio:2)]:[font-size:var(--title-wide)]"
                   style={
                     {
                       '--title-small': `min(20cqh, 30cqw, ${(TEXT_CQW / titleWordEm).toFixed(2)}cqw)`,
@@ -222,7 +222,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
           ) : (
             <div className="flex flex-col items-center justify-start w-full h-full">
               <div
-                className="font-bold flex-shrink-0 text-center w-full truncate"
+                className="font-bold shrink-0 text-center w-full truncate"
                 style={{
                   fontSize: 'min(24px, 8cqmin)',
                   marginBottom: 'min(8px, 2cqmin)',

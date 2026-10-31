@@ -55,7 +55,7 @@ export interface RubricBuilderPanelProps {
 const labelClass =
   'block text-slate-600 font-bold uppercase tracking-wider mb-1 text-xs';
 const inputClass =
-  'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
+  'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
 
 const MIN_LEVELS = 2;
 const MAX_LEVELS = 6;
@@ -226,7 +226,7 @@ const GuideRowFields: React.FC<{
                   'quiz',
                   `${part}-${ei + 1}`
                 )}
-                className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -621,7 +621,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
             nudgePanelWidth(-32);
           }
         }}
-        className="absolute inset-y-0 left-0 w-1.5 cursor-col-resize hover:bg-brand-blue-primary/30 focus:outline-none focus:bg-brand-blue-primary/40 z-30 touch-none"
+        className="absolute inset-y-0 left-0 w-1.5 cursor-col-resize hover:bg-brand-blue-primary/30 focus:outline-hidden focus:bg-brand-blue-primary/40 z-30 touch-none"
       />
       <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 text-sm">Rubric</h3>
@@ -630,7 +630,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           onClick={onClose}
           aria-label="Close rubric builder"
           {...tourTypeAttr('quiz-rubric.builder-close', 'quiz')}
-          className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+          className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-sm transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
         >
           <X className="w-4 h-4" />
         </button>
@@ -814,7 +814,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                   'quiz',
                   String(ci + 1)
                 )}
-                className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="p-1 rounded-sm text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-30 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <ArrowUp className="w-4 h-4" />
               </button>
@@ -832,7 +832,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                   'quiz',
                   String(ci + 1)
                 )}
-                className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="p-1 rounded-sm text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-30 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <ArrowDown className="w-4 h-4" />
               </button>
@@ -850,7 +850,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                   'quiz',
                   String(ci + 1)
                 )}
-                className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -932,7 +932,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                         'quiz',
                         `${ci + 1}-${li + 1}`
                       )}
-                      className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                      className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -1052,14 +1052,14 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               value={shareUrl}
               aria-label="Rubric share link"
               {...tourTypeAttr('quiz-rubric.share-link', 'quiz')}
-              className="flex-1 bg-transparent text-xs text-slate-700 focus:outline-none"
+              className="flex-1 bg-transparent text-xs text-slate-700 focus:outline-hidden"
               onFocus={(e) => e.target.select()}
             />
             <button
               onClick={() => void handleCopyShareUrl()}
               aria-label="Copy rubric share link"
               {...tourTypeAttr('quiz-rubric.share-copy', 'quiz')}
-              className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-sm transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
             >
               {copied ? (
                 <Check className="w-4 h-4 text-emerald-600" />
@@ -1164,7 +1164,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 onClick={() => setShowCsvHelp(false)}
                 aria-label="Close CSV import help"
                 {...tourTypeAttr('quiz-rubric.csv-help-close', 'quiz')}
-                className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-sm transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <X className="w-4 h-4" />
               </button>

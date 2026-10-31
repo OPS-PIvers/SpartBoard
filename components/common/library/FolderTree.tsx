@@ -163,7 +163,7 @@ const RenameInput: React.FC<{
       }}
       onClick={(e) => e.stopPropagation()}
       {...tourAttr('library-shell.folder-rename-input')}
-      className="flex-1 min-w-0 bg-white border border-brand-blue-primary/40 rounded px-1.5 py-0.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+      className="flex-1 min-w-0 bg-white border border-brand-blue-primary/40 rounded-sm px-1.5 py-0.5 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
     />
   );
 };
@@ -272,6 +272,17 @@ const FolderRow: React.FC<FolderRowProps> = ({
     draggingSibling && drag?.hint?.folderId === folder.id
       ? drag.hint.place
       : null;
+  // dragend never reaches a row that unmounts or loses draggable mid-drag, so clear on that.
+  const setDraggingId = drag?.setDraggingId;
+  const setDragHint = drag?.setHint;
+  const dragActive = draggable && drag?.draggingId === folder.id;
+  useEffect(() => {
+    if (!dragActive) return undefined;
+    return () => {
+      setDraggingId?.(null);
+      setDragHint?.(null);
+    };
+  }, [dragActive, setDraggingId, setDragHint]);
   const dragHandlers: React.HTMLAttributes<HTMLDivElement> = draggable
     ? {
         draggable: true,
@@ -461,7 +472,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
               <Folder size={14} />
             )}
           </span>
-          <span className="flex-1 min-w-0 break-words">{folder.name}</span>
+          <span className="flex-1 min-w-0 wrap-break-word">{folder.name}</span>
         </button>
       )}
 

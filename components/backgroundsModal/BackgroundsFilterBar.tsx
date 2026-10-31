@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { BackgroundType } from './backgroundsHelpers';
 
 interface BackgroundsFilterBarProps {
@@ -53,13 +54,14 @@ export const BackgroundsFilterBar: React.FC<BackgroundsFilterBarProps> = ({
           className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
         />
         <input
+          {...tourAttr('backgrounds.search')}
           type="search"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={t('backgrounds.searchPlaceholder', {
             defaultValue: 'Search backgrounds…',
           })}
-          className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20"
+          className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-hidden focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20"
         />
       </div>
 
@@ -68,6 +70,7 @@ export const BackgroundsFilterBar: React.FC<BackgroundsFilterBarProps> = ({
           {availableTypes.map((tt) => (
             <button
               key={tt}
+              {...tourFieldAttr('backgrounds.type-filter', 'backgrounds', tt)}
               type="button"
               onClick={() => onTypeChange(tt)}
               className={`px-2.5 py-1 text-xxs font-bold uppercase tracking-wider rounded-full transition-colors ${
@@ -87,6 +90,7 @@ export const BackgroundsFilterBar: React.FC<BackgroundsFilterBarProps> = ({
           {tags.map((tag) => {
             const active = selectedTags.includes(tag);
             return (
+              // no-tour-anchor: tag names are generated from the catalog
               <button
                 key={tag}
                 type="button"

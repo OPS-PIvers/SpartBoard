@@ -30,7 +30,7 @@ const adminMock = vi.hoisted(() => ({
   mailSetFailure: null as Error | null,
 }));
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const firestoreFn = vi.fn(() => ({
     collection: vi.fn((name: string) => {
       if (name === 'global_permissions') {

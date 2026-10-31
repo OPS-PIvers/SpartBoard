@@ -31,7 +31,7 @@ vi.mock('./secrets', () => ({
   ANTHROPIC_API_KEY: { value: () => secretValue.current },
 }));
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   firestore: Object.assign(vi.fn(), {
     FieldValue: { increment: (n: number) => ({ inc: n }) },
   }),

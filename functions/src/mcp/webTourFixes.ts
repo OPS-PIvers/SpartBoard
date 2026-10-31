@@ -79,12 +79,20 @@ interface FixGroup {
   at: number;
 }
 
+// Mirrors parseWeak in components/tours/web/webTourHealth.ts.
+const weakStepId = (entry: string): string | null => {
+  const at = entry.lastIndexOf(':');
+  if (at <= 0) return null;
+  const clue = entry.slice(at + 1);
+  return clue === 'text' || clue === 'css' || clue === 'score'
+    ? entry.slice(0, at)
+    : null;
+};
+
 const struggled = (run: FixRun, stepId: string): boolean =>
   (Array.isArray(run.misses) && run.misses.includes(stepId)) ||
   (Array.isArray(run.weak) &&
-    run.weak.some(
-      (w) => typeof w === 'string' && w.slice(0, w.lastIndexOf(':')) === stepId
-    ));
+    run.weak.some((w) => typeof w === 'string' && weakStepId(w) === stepId));
 
 interface DraftStep {
   id: string;

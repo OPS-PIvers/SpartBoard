@@ -109,7 +109,7 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
                       definition.key
                     )}
                     data-tour-widget={ctx.widget.id}
-                    className="rounded-lg border-2 border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-brand-blue-primary"
+                    className="rounded-lg border-2 border-slate-200 px-3 py-2 text-sm text-slate-800 outline-hidden focus:border-brand-blue-primary"
                   />
                 ) : definition.type === 'select' ? (
                   <select
@@ -128,7 +128,7 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
                       definition.key
                     )}
                     data-tour-widget={ctx.widget.id}
-                    className="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-brand-blue-primary"
+                    className="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-hidden focus:border-brand-blue-primary"
                   >
                     {(definition.options ?? []).map((option) => (
                       <option key={option} value={option}>
@@ -150,7 +150,7 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
                       definition.key
                     )}
                     data-tour-widget={ctx.widget.id}
-                    className="rounded-lg border-2 border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-brand-blue-primary"
+                    className="rounded-lg border-2 border-slate-200 px-3 py-2 text-sm text-slate-800 outline-hidden focus:border-brand-blue-primary"
                   />
                 )}
               </div>

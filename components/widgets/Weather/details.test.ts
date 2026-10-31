@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { WeatherDetailField } from '@/types';
 import {
   buildDetailRows,
   compassPoint,
@@ -29,6 +30,24 @@ describe('weather details', () => {
     expect(
       Math.abs(minutesCentral(times.sunset) - (18 * 60 + 11))
     ).toBeLessThanOrEqual(3);
+  });
+
+  it("keeps today's sun times just after midnight", () => {
+    // Tests run in UTC, where 00:30 is past midnight but before Orono's solar midnight.
+    const early = sunTimes(
+      new Date('2026-10-27T00:30:00Z'),
+      ORONO.lat,
+      ORONO.lon
+    );
+    const midday = sunTimes(
+      new Date('2026-10-27T17:00:00Z'),
+      ORONO.lat,
+      ORONO.lon
+    );
+    expect(early).toEqual(midday);
+    expect(new Date(early?.sunrise ?? 0).toISOString().slice(0, 10)).toBe(
+      '2026-10-27'
+    );
   });
 
   it('names moon phases by Central calendar day', () => {
@@ -68,7 +87,7 @@ describe('weather details', () => {
         'dewPoint',
         'humidity',
         'pressure',
-        'rainDaily',
+        'rainDaily' as WeatherDetailField,
         'windAvg',
         'windGust',
         'highLow',
@@ -86,7 +105,6 @@ describe('weather details', () => {
       ['dewPoint', '41°', undefined],
       ['humidity', '100', '%'],
       ['pressure', '30.25', '"'],
-      ['rainDaily', '--', undefined],
       ['windAvg', 'NE 4', 'mph'],
       ['windGust', '11', 'mph'],
       ['highLow', '46° / 39°', undefined],

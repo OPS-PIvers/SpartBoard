@@ -16,7 +16,7 @@ export const ChartTooltip: React.FC<{ tip: TipState | null }> = ({ tip }) => {
         <div key={row.label + row.value} className="flex items-center gap-1.5">
           {row.swatch && (
             <span
-              className={`h-2 w-2 shrink-0 rounded-sm ${row.swatch}`}
+              className={`h-2 w-2 shrink-0 rounded-xs ${row.swatch}`}
               aria-hidden="true"
             />
           )}
@@ -36,7 +36,7 @@ export const ChartLegend: React.FC<{
     {items.map((item) => (
       <span key={item.label} className="inline-flex items-center gap-1.5">
         <span
-          className={`h-2.5 w-2.5 rounded-sm ${item.swatch}`}
+          className={`h-2.5 w-2.5 rounded-xs ${item.swatch}`}
           aria-hidden="true"
         />
         {item.label}

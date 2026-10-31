@@ -6,7 +6,7 @@ import { tourAttr } from '@/config/tourAnchors';
 
 // Tints passage quotes in the response when the teacher turns Show quotes on.
 const QUOTES_VISIBLE_CLASS =
-  '[&_[data-quote-state=exact]]:rounded-sm [&_[data-quote-state=exact]]:bg-sky-100 [&_[data-quote-state=edited]]:rounded-sm [&_[data-quote-state=edited]]:bg-amber-100 [&_[data-quote-state=edited]]:underline [&_[data-quote-state=edited]]:decoration-dotted';
+  '**:data-[quote-state=exact]:rounded-xs **:data-[quote-state=exact]:bg-sky-100 **:data-[quote-state=edited]:rounded-xs **:data-[quote-state=edited]:bg-amber-100 **:data-[quote-state=edited]:underline **:data-[quote-state=edited]:decoration-dotted';
 
 /** Wraps a graded written response; adds a Show quotes switch when it contains passage quotes. */
 export const ResponseQuotesFrame: React.FC<{

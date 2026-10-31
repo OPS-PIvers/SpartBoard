@@ -48,7 +48,7 @@ const ColorPicker: React.FC<{
           String(index)
         )}
         onClick={() => setOpen((o) => !o)}
-        className={`h-[22px] w-[22px] shrink-0 rounded focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 disabled:cursor-default ${SCALE_COLOR_STYLES[level.color].bar}`}
+        className={`h-[22px] w-[22px] shrink-0 rounded-sm focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 disabled:cursor-default ${SCALE_COLOR_STYLES[level.color].bar}`}
       />
       {open && (
         <span
@@ -72,7 +72,7 @@ const ColorPicker: React.FC<{
                 setOpen(false);
                 if (c !== level.color) onPick(c);
               }}
-              className={`h-6 w-6 rounded focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 ${SCALE_COLOR_STYLES[c].bar} ${c === level.color ? 'ring-2 ring-slate-800 ring-offset-1' : ''}`}
+              className={`h-6 w-6 rounded focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 ${SCALE_COLOR_STYLES[c].bar} ${c === level.color ? 'ring-2 ring-slate-800 ring-offset-1' : ''}`}
             />
           ))}
         </span>

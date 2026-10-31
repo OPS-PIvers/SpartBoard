@@ -21,7 +21,7 @@ export const LinkShapePicker: React.FC<LinkShapePickerProps> = ({
       aria-pressed={shape === 'rectangle'}
       className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
         shape === 'rectangle'
-          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+          ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
           : 'bg-white border-slate-200 text-slate-600'
       }`}
     >
@@ -35,7 +35,7 @@ export const LinkShapePicker: React.FC<LinkShapePickerProps> = ({
       aria-pressed={shape === 'circle'}
       className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
         shape === 'circle'
-          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+          ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
           : 'bg-white border-slate-200 text-slate-600'
       }`}
     >

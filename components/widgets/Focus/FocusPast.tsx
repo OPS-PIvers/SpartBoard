@@ -46,7 +46,7 @@ const Header: React.FC<{
       Back
     </FocusButton>
     <span
-      className="min-w-[0] truncate font-bold text-slate-800"
+      className="min-w-0 truncate font-bold text-slate-800"
       style={{ fontSize: 'min(15px, 5cqmin)' }}
     >
       {title}
@@ -63,7 +63,7 @@ export const FocusPastList: React.FC<{
   <div className="flex h-full w-full flex-col">
     <Header widgetId={widgetId} title="Past sessions" onBack={onBack} />
     <div
-      className="relative z-[1] min-h-[0] flex-1 overflow-y-auto"
+      className="relative z-1 min-h-0 flex-1 overflow-y-auto"
       style={{ paddingBottom: 'max(16px, 3cqmin)' }}
     >
       <ul className="divide-y divide-slate-200">
@@ -72,14 +72,14 @@ export const FocusPastList: React.FC<{
             <button
               type="button"
               onClick={() => onOpen(s.id)}
-              className="flex w-full items-center text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary"
+              className="flex w-full items-center text-left hover:bg-slate-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary"
               style={{
                 padding: `min(8px, 2cqmin) min(15px, 3.6cqmin)`,
                 gap: 'min(8px, 2cqmin)',
               }}
               {...tourAttr('focus.past-session', widgetId)}
             >
-              <span className="min-w-[0] flex-1">
+              <span className="min-w-0 flex-1">
                 <span
                   className="block text-slate-800"
                   style={{ fontSize: 'min(15px, 4.8cqmin)' }}
@@ -151,7 +151,7 @@ export const FocusPastDetail: React.FC<{
         onBack={onBack}
       />
       <div
-        className="relative z-[1] min-h-[0] flex-1 overflow-y-auto"
+        className="relative z-1 min-h-0 flex-1 overflow-y-auto"
         style={{ paddingBottom: 'max(16px, 3cqmin)' }}
       >
         <p
@@ -195,7 +195,7 @@ export const FocusPastDetail: React.FC<{
                 }}
               >
                 <span
-                  className="min-w-[0] truncate text-slate-800"
+                  className="min-w-0 truncate text-slate-800"
                   style={{ fontSize: 'min(15px, 4.8cqmin)' }}
                 >
                   {r.name}

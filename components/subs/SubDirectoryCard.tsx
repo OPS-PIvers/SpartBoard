@@ -16,7 +16,7 @@ interface SubDirectoryCardProps {
 }
 
 const CARD_CLASS =
-  'text-left rounded-2xl bg-white border border-slate-200 shadow-sm p-5 flex flex-col';
+  'text-left rounded-2xl bg-white border border-slate-200 shadow-xs p-5 flex flex-col';
 
 export const SubDirectoryCard: FC<SubDirectoryCardProps> = ({
   entry,
@@ -78,7 +78,7 @@ export const SubDirectoryCard: FC<SubDirectoryCardProps> = ({
               title={t('subCollections.openBoard', {
                 defaultValue: 'Open this board',
               })}
-              className="group flex items-center gap-2 rounded-md bg-white hover:bg-brand-blue-primary/5 border border-slate-200 hover:border-brand-blue-primary/40 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              className="group flex items-center gap-2 rounded-md bg-white hover:bg-brand-blue-primary/5 border border-slate-200 hover:border-brand-blue-primary/40 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
             >
               <span className="flex-1 truncate">
                 {board.name ??
@@ -115,7 +115,7 @@ export const SubDirectoryCard: FC<SubDirectoryCardProps> = ({
     <button
       type="button"
       onClick={open}
-      className={`group ${CARD_CLASS} hover:border-brand-blue-primary/40 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer`}
+      className={`group ${CARD_CLASS} hover:border-brand-blue-primary/40 hover:shadow-md transition-all focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer`}
     >
       {header}
       <div className="mt-4 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">

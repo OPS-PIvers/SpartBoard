@@ -6,7 +6,7 @@ const state = vi.hoisted((): { db: unknown; bucket: unknown } => ({
   bucket: null,
 }));
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(() => state.db),

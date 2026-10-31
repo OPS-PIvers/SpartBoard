@@ -43,7 +43,7 @@ describe('captureTarget', () => {
   });
 
   it('scrubs emails and student numbers out of captured text', () => {
-    html('<button>Message abell27@students.orono.k12.mn.us 2045831</button>');
+    html('<button>Message abell27@orono.k12.mn.us 2045831</button>');
     const got = captureTarget(document.querySelector('button')!);
     expect(got.locator.name).toBe('Message ••• •••');
   });

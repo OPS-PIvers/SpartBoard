@@ -593,7 +593,7 @@ const GameShell: React.FC<{
   <div
     {...guards}
     data-testid="quiz-game"
-    className="h-screen [height:100dvh] overflow-y-auto overflow-x-hidden bg-slate-50"
+    className="h-screen h-dvh overflow-y-auto overflow-x-hidden bg-slate-50"
   >
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col pb-8">
       {children}
@@ -622,7 +622,7 @@ const GameHeader: React.FC<{
 }> = ({ clockLabel, urgent, points, streak, handRaise }) => {
   const { t } = useTranslation();
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+    <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm">
       <span
         data-testid="game-clock"
         aria-label={t('quizGame.timeLeft', 'Time left')}
@@ -738,7 +738,7 @@ const GameQuestion: React.FC<{
               type="button"
               disabled={submitting}
               onClick={() => onSubmit(choice)}
-              className="min-h-[3.5rem] rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-left font-bold text-slate-800 transition-colors hover:border-brand-blue-primary hover:bg-brand-blue-lighter disabled:opacity-60"
+              className="min-h-14 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-left font-bold text-slate-800 transition-colors hover:border-brand-blue-primary hover:bg-brand-blue-lighter disabled:opacity-60"
             >
               {choice}
             </button>
@@ -763,7 +763,7 @@ const GameQuestion: React.FC<{
                   else next.add(choice);
                   onDraft(encodeMultiAnswer(next, choices));
                 }}
-                className={`flex min-h-[3.5rem] items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left font-bold transition-colors disabled:opacity-60 ${
+                className={`flex min-h-14 items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left font-bold transition-colors disabled:opacity-60 ${
                   on
                     ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-dark'
                     : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300'
@@ -808,7 +808,7 @@ const GameQuestion: React.FC<{
             }}
             disabled={submitting}
             placeholder={t('quizGame.typeAnswer', 'Type your answer')}
-            className="w-full rounded-2xl border-2 border-slate-300 bg-white px-5 py-4 text-lg text-slate-900 placeholder-slate-400 focus:border-brand-blue-light focus:outline-none"
+            className="w-full rounded-2xl border-2 border-slate-300 bg-white px-5 py-4 text-lg text-slate-900 placeholder-slate-400 focus:border-brand-blue-light focus:outline-hidden"
           />
         ))}
 

@@ -54,7 +54,7 @@ const STATUS_ICON: Record<
 
 const sectionTitle = 'text-xs font-semibold text-slate-700';
 const checkbox =
-  'mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-brand-blue-primary [color-scheme:light]';
+  'mt-0.5 h-4 w-4 shrink-0 rounded-sm border-slate-300 accent-brand-blue-primary scheme-light';
 
 /** The editor's Settings tab: publishing, Help visibility and how the tour starts. */
 export const TourEditorSettings: React.FC<{ session: TourEditorSession }> = ({

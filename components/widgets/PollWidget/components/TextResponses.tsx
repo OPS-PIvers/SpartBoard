@@ -146,7 +146,7 @@ export const TextResponses: React.FC<TextResponsesProps> = ({
           {visible.map((r) => (
             <li
               key={r.id}
-              className="flex items-start justify-between text-slate-700 font-semibold [overflow-wrap:anywhere]"
+              className="flex items-start justify-between text-slate-700 font-semibold wrap-anywhere"
               style={{
                 gap: 'min(8px, 2cqmin)',
                 padding: 'min(8px, 2cqmin) 0',

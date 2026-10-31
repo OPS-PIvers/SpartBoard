@@ -241,7 +241,7 @@ export const AdminTeamDefaultsMock: React.FC = () => {
                         title={label}
                         className={`flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors lg:justify-start ${
                           active
-                            ? 'bg-white font-semibold text-brand-blue-dark shadow-sm'
+                            ? 'bg-white font-semibold text-brand-blue-dark shadow-xs'
                             : 'text-white/70 hover:bg-white/10 hover:text-white'
                         }`}
                       >

@@ -11,7 +11,7 @@ import { normalizeCalendarEmbedInput } from '@/utils/teamUpdates';
 import { tourAttr } from '@/config/tourAnchors';
 
 const inputClass =
-  'mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30';
+  'mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30';
 
 const CalendarForm: React.FC<{ plc: Plc }> = ({ plc }) => {
   const { addToast } = useDashboard();
@@ -64,7 +64,7 @@ const CalendarForm: React.FC<{ plc: Plc }> = ({ plc }) => {
           type="submit"
           {...tourAttr('teams.calendar-settings.save')}
           disabled={busy || !normalized || normalized === plc.calendarEmbedUrl}
-          className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
+          className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark disabled:opacity-60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
         >
           Save
         </button>
@@ -74,7 +74,7 @@ const CalendarForm: React.FC<{ plc: Plc }> = ({ plc }) => {
             disabled={busy}
             {...tourAttr('teams.calendar-settings.remove')}
             onClick={() => void save(null)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
           >
             Remove
           </button>

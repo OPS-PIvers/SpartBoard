@@ -8,9 +8,9 @@
 // `doc().get()` and `batch().set()/commit()` surface the handler uses.
 
 import { describe, it, expect, vi } from 'vitest';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(),
@@ -36,6 +36,8 @@ vi.mock('firebase-functions/v2/https', () => ({
 
 import {
   findAnswerField,
+  vaClipFrom,
+  vaNotesFrom,
   glSessionPresentation,
   handleLaunchSubAssignment,
   liveSubLaunchDeps,
@@ -345,6 +347,7 @@ function stubDb(state: StubState = {}) {
     }),
     collection: () => ({
       doc: () => ({
+        get: () => Promise.resolve({ exists: false, data: () => undefined }),
         collection: () => ({
           limit: () => ({
             get: () => Promise.resolve({ empty: true, docs: [] }),
@@ -354,6 +357,9 @@ function stubDb(state: StubState = {}) {
     }),
     batch: () => ({
       set: (ref: { path: string }, data: Record<string, unknown>) => {
+        written.push({ path: ref.path, data });
+      },
+      create: (ref: { path: string }, data: Record<string, unknown>) => {
         written.push({ path: ref.path, data });
       },
       commit: () => Promise.resolve(),
@@ -392,8 +398,11 @@ describe('handleLaunchSubAssignment', () => {
     expect(written.map((w) => w.path)).toEqual([
       'quiz_sessions/new-session-id',
       `users/${HOST}/quiz_assignments/new-session-id`,
+      'quiz_join_codes/AB12CD',
       'quiz_join_codes/AB12CD/sessions/new-session-id',
     ]);
+    // The code's owner record names the host, so no other account can reuse it.
+    expect(written[2].data).toEqual({ teacherUid: HOST, createdAt: NOW });
     // The run belongs to the teacher, or their Results would never show it.
     for (const w of written.slice(0, 2)) {
       expect(w.data.teacherUid).toBe(HOST);
@@ -1218,11 +1227,17 @@ describe('resolveTargeting', () => {
 describe('allocateJoinCode', () => {
   const stub = (
     pointersByCode: Record<string, string[]>,
-    statusById: Record<string, string>
+    statusById: Record<string, string>,
+    ownerByCode: Record<string, string> = {}
   ) =>
     ({
       collection: () => ({
         doc: (code: string) => ({
+          get: () =>
+            Promise.resolve({
+              exists: code in ownerByCode,
+              data: () => ({ teacherUid: ownerByCode[code] }),
+            }),
           collection: () => ({
             limit: () => ({
               get: () => {
@@ -1274,6 +1289,19 @@ describe('allocateJoinCode', () => {
     );
 
     expect(out).toBe('SPARE1');
+  });
+
+  // A code has one owner for good, so even an ended one stays theirs.
+  it('skips a code another account has claimed', async () => {
+    const codes = ['OWNED1', 'SPARE2'];
+    let i = 0;
+
+    const out = await allocateJoinCode(
+      stub({}, {}, { OWNED1: 'someone-else' }),
+      () => codes[i++]
+    );
+
+    expect(out).toBe('SPARE2');
   });
 
   // Never block a substitute from starting a lesson over a code clash; the
@@ -1735,5 +1763,31 @@ describe('liveSubLaunchDeps.hostHasFeature', () => {
         'quiz-stimulus-quotes'
       )
     ).resolves.toBe(false);
+  });
+});
+
+describe('vaClipFrom', () => {
+  it('keeps only finite, ordered, non-negative seconds', () => {
+    expect(vaClipFrom(undefined)).toBeNull();
+    expect(vaClipFrom('10')).toBeNull();
+    expect(vaClipFrom({ start: 0 })).toBeNull();
+    expect(vaClipFrom({ start: 10, end: 90 })).toEqual({ start: 10, end: 90 });
+    expect(vaClipFrom({ start: 30, end: 20 })).toEqual({ start: 30 });
+    expect(vaClipFrom({ start: -5, end: Infinity })).toBeNull();
+  });
+});
+
+describe('vaNotesFrom', () => {
+  it('keeps well-formed notes and strips extra fields', () => {
+    expect(vaNotesFrom(undefined)).toEqual([]);
+    expect(
+      vaNotesFrom([
+        { id: 'n1', timestamp: 12, text: 'Watch this', extra: true },
+        { id: 'n2', timestamp: -1, text: 'bad' },
+        { id: 'n4', timestamp: 4, text: '  ' },
+        { id: 3, timestamp: 4, text: 'bad' },
+        null,
+      ])
+    ).toEqual([{ id: 'n1', timestamp: 12, text: 'Watch this' }]);
   });
 });

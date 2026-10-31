@@ -12,9 +12,12 @@ import {
   isSafeEmailForOneRosterFilter,
   type ClassLinkClass,
   type ClassLinkStudent,
-  type ClassLinkUser,
 } from './classlinkShared';
 import { chunk } from './shared';
+import {
+  isOneRosterStaff,
+  type OneRosterUserWithRole,
+} from './studentEmailIdentity';
 import {
   CLASSLINK_CLIENT_ID,
   CLASSLINK_CLIENT_SECRET,
@@ -86,7 +89,7 @@ export const getClassLinkRosterV1 = onCall(
         clientSecret
       );
 
-      const userResponse = await axios.get<{ users: ClassLinkUser[] }>(
+      const userResponse = await axios.get<{ users: OneRosterUserWithRole[] }>(
         usersBaseUrl,
         {
           params: userParams,
@@ -94,13 +97,13 @@ export const getClassLinkRosterV1 = onCall(
         }
       );
 
-      const users = userResponse.data.users;
-
-      if (!users || users.length === 0) {
+      // Students share the staff email domain; only a ClassLink staff record lists its classes.
+      const teacher = (userResponse.data.users ?? []).find(isOneRosterStaff);
+      if (!teacher) {
         return { classes: [], studentsByClass: {} };
       }
 
-      const teacherSourcedId = users[0].sourcedId;
+      const teacherSourcedId = teacher.sourcedId;
 
       const classesUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacherSourcedId}/classes`;
       const classesHeaders = getOAuthHeaders(

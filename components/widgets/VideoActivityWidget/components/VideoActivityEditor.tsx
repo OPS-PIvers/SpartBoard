@@ -1,6 +1,6 @@
 /**
  * VideoActivityEditor — context + detail pane components plus the type-
- * specific sub-forms (MC / FIB / MA). Mounted inside an `EditorWorkspace`
+ * specific sub-forms (MC / FIB / MA; SA has no key). Mounted inside an `EditorWorkspace`
  * by `VideoActivityEditorModal`.
  *
  * State is owned by `useVideoActivityEditorState`; both panes read and
@@ -22,7 +22,9 @@ import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
 import { extractYouTubeId } from '@/utils/youtube';
 import { useAuth } from '@/context/useAuth';
 import { TargetsField } from '@/components/quiz/targets/TargetsField';
-import { Timeline } from './Timeline';
+import { VideoActivityClipFields } from './VideoActivityClipFields';
+import { VideoActivityNotesEditor } from './VideoActivityNotesEditor';
+import { Timeline, type TimelineHandle } from './Timeline';
 import {
   mmSsToSeconds,
   secondsToMmSs,
@@ -35,7 +37,22 @@ const TYPE_BADGE: Record<QuestionType, { label: string; className: string }> = {
   MC: { label: 'MC', className: 'bg-blue-100 text-blue-700' },
   FIB: { label: 'FIB', className: 'bg-amber-100 text-amber-800' },
   MA: { label: 'MA', className: 'bg-emerald-100 text-emerald-700' },
+  SA: { label: 'SA', className: 'bg-violet-100 text-violet-700' },
 };
+
+const TYPE_LABEL: Record<QuestionType, string> = {
+  MC: 'Multiple choice',
+  FIB: 'Fill in the blank',
+  MA: 'Multi-answer',
+  SA: 'Short answer',
+};
+
+const TYPE_OPTIONS: ReadonlyArray<{ value: QuestionType; label: string }> = [
+  { value: 'MC', label: 'Multiple Choice' },
+  { value: 'FIB', label: 'Fill in the Blank' },
+  { value: 'MA', label: 'Multi-Answer' },
+  { value: 'SA', label: 'Short Answer' },
+];
 
 interface PaneProps {
   state: VideoActivityEditorController;
@@ -57,6 +74,8 @@ const getQuestionId = (q: VideoActivityQuestion) => q.id;
  */
 const vaContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.youtubeUrl === next.state.youtubeUrl &&
+  prev.state.clip === next.state.clip &&
+  prev.state.notes === next.state.notes &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedId === next.state.selectedId &&
   prev.state.error === next.state.error;
@@ -66,6 +85,10 @@ export const VideoActivityEditorContextPane = React.memo(
     const {
       youtubeUrl,
       setYoutubeUrl,
+      clip,
+      setClip,
+      notes,
+      setNotes,
       questions,
       selectedId,
       setSelectedId,
@@ -74,6 +97,8 @@ export const VideoActivityEditorContextPane = React.memo(
       setVideoDurationSeconds,
       error,
     } = state;
+
+    const timelineRef = useRef<TimelineHandle | null>(null);
 
     // Memo via inline parse — Timeline only rebuilds when the resolved id changes.
     const videoIdForTimeline = youtubeUrl.trim()
@@ -92,9 +117,15 @@ export const VideoActivityEditorContextPane = React.memo(
               value={youtubeUrl}
               onChange={(e) => setYoutubeUrl(e.target.value)}
               placeholder="https://www.youtube.com/watch?v=..."
-              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary text-sm"
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary text-sm"
             />
           </div>
+          <VideoActivityClipFields clip={clip} onChange={setClip} />
+          <VideoActivityNotesEditor
+            notes={notes}
+            onChange={setNotes}
+            getCurrentTime={() => timelineRef.current?.getCurrentTime() ?? null}
+          />
           {error && (
             <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -116,6 +147,7 @@ export const VideoActivityEditorContextPane = React.memo(
               }
               activeQuestionId={selectedId ?? undefined}
               onDurationChange={setVideoDurationSeconds}
+              handleRef={timelineRef}
             />
           ) : (
             <div className="aspect-video w-full max-h-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">
@@ -212,7 +244,7 @@ const QuestionPill = React.memo(function QuestionPill({
         aria-current={isSelected ? 'true' : undefined}
         aria-label={`Question ${idx + 1} at ${secondsToMmSs(q.timestamp)}${q.text ? `: ${q.text}` : ''}`}
         title={q.text?.trim() ? q.text : `Question ${idx + 1}`}
-        className={`cursor-grab active:cursor-grabbing touch-none flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-l-md text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-blue-primary ${
+        className={`cursor-grab active:cursor-grabbing touch-none flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-l-md text-xs font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-blue-primary ${
           isSelected ? 'text-white' : 'text-slate-700'
         }`}
       >
@@ -255,7 +287,7 @@ const QuestionPill = React.memo(function QuestionPill({
         type="button"
         onClick={() => onDelete(q.id)}
         aria-label={`Delete question ${idx + 1}`}
-        className={`flex items-center rounded-r-md pl-1 pr-1.5 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-red-primary ${
+        className={`flex items-center rounded-r-md pl-1 pr-1.5 transition-opacity focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-red-primary ${
           isSelected
             ? 'text-white/70 hover:text-white hover:bg-white/15'
             : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100'
@@ -295,7 +327,7 @@ const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
           Drag to reorder · click to edit
         </span>
       </div>
-      <div className="max-h-[7.5rem] overflow-y-auto custom-scrollbar -mx-1 px-1 py-1">
+      <div className="max-h-30 overflow-y-auto custom-scrollbar -mx-1 px-1 py-1">
         <SortableList
           items={questions}
           getId={getQuestionId}
@@ -325,7 +357,7 @@ const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
 const labelClass =
   'block text-slate-600 font-bold uppercase tracking-wider mb-1 text-xs';
 const inputClass =
-  'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
+  'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
 
 /**
  * Slice comparator for the detail pane — same contract as
@@ -359,6 +391,7 @@ export const VideoActivityEditorDetailPane = React.memo(
     } = state;
     const { canAccessFeature } = useAuth();
     const targetsEnabled = canAccessFeature('gradebook');
+    const shortAnswerEnabled = canAccessFeature('video-activity-stops');
 
     const navigator =
       questions.length > 0 ? (
@@ -402,11 +435,7 @@ export const VideoActivityEditorDetailPane = React.memo(
           <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
             Question {selectedIndex + 1} of {questions.length}
             <span className="mx-1.5">·</span>
-            {type === 'MC'
-              ? 'Multiple choice'
-              : type === 'FIB'
-                ? 'Fill in the blank'
-                : 'Multi-answer'}
+            {TYPE_LABEL[type]}
           </div>
           <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
             {q.text.trim() || `Question at ${secondsToMmSs(q.timestamp)}`}
@@ -439,12 +468,10 @@ export const VideoActivityEditorDetailPane = React.memo(
           <div>
             <label className={labelClass}>Question Type</label>
             <div className="inline-flex rounded-xl border border-slate-300 bg-white overflow-hidden">
-              {(
-                [
-                  { value: 'MC', label: 'Multiple Choice' },
-                  { value: 'FIB', label: 'Fill in the Blank' },
-                  { value: 'MA', label: 'Multi-Answer' },
-                ] as const
+              {TYPE_OPTIONS.filter(
+                // Short answer is offered behind its flag, but an existing one always shows.
+                (opt) =>
+                  opt.value !== 'SA' || shortAnswerEnabled || type === 'SA'
               ).map((opt) => {
                 const active = type === opt.value;
                 return (
@@ -471,7 +498,7 @@ export const VideoActivityEditorDetailPane = React.memo(
                         type: opt.value,
                         correctAnswer: '',
                         incorrectAnswers:
-                          opt.value === 'FIB'
+                          opt.value === 'FIB' || opt.value === 'SA'
                             ? []
                             : padTo(preservedDistractors, 3),
                         acceptableVariants: undefined,
@@ -723,7 +750,7 @@ const McSubForm: React.FC<McSubFormProps> = ({
         type="text"
         value={question.correctAnswer}
         onChange={(e) => onChangeCorrect(e.target.value)}
-        className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-sm"
+        className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 text-sm"
         placeholder="Enter the correct answer"
       />
     </div>
@@ -778,7 +805,7 @@ const FibSubForm: React.FC<FibSubFormProps> = ({
           type="text"
           value={question.correctAnswer}
           onChange={(e) => onChangeCorrect(e.target.value)}
-          className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-sm"
+          className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 text-sm"
           placeholder="The expected answer"
         />
       </div>
@@ -925,7 +952,7 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
                   value={row.text}
                   onChange={(e) => setOptionAt(idx, e.target.value)}
                   placeholder={`Option ${idx + 1}`}
-                  className={`flex-1 px-3 py-1.5 bg-white border rounded-lg text-sm focus:outline-none ${
+                  className={`flex-1 px-3 py-1.5 bg-white border rounded-lg text-sm focus:outline-hidden ${
                     checked
                       ? 'border-emerald-500/40 text-emerald-800 focus:border-emerald-500'
                       : 'border-slate-300 text-slate-700 focus:border-brand-blue-primary'
@@ -948,7 +975,7 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
           type="checkbox"
           checked={question.allowPartialCredit ?? false}
           onChange={(e) => onUpdate({ allowPartialCredit: e.target.checked })}
-          className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary w-4 h-4"
+          className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary w-4 h-4"
         />
         <span className="text-sm font-bold text-slate-700">
           Allow partial credit

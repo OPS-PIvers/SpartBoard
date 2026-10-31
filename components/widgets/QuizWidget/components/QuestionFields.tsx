@@ -158,6 +158,8 @@ interface QuestionTypeSelectProps {
   types?: readonly QuizQuestionType[];
   onSelect: (nextType: QuizQuestionType) => void;
   anchor?: TourAnchorAttrs;
+  /** Per-type label overrides, e.g. Video Activity's "Short Answer". */
+  labels?: Partial<Record<QuizQuestionType, string>>;
 }
 
 export const QuestionTypeSelect: React.FC<QuestionTypeSelectProps> = ({
@@ -165,6 +167,7 @@ export const QuestionTypeSelect: React.FC<QuestionTypeSelectProps> = ({
   types,
   onSelect,
   anchor = tourTypeAttr('quiz-editor.type', 'quiz'),
+  labels,
 }) => (
   <select
     value={q.type === 'MA' ? 'MC' : q.type}
@@ -177,7 +180,7 @@ export const QuestionTypeSelect: React.FC<QuestionTypeSelectProps> = ({
       (t) => t.value !== 'MA' && (!types || types.includes(t.value))
     ).map((t) => (
       <option key={t.value} value={t.value}>
-        {t.label}
+        {labels?.[t.value] ?? t.label}
       </option>
     ))}
   </select>
@@ -214,7 +217,7 @@ export const FibAnswerField: React.FC<FibAnswerFieldProps> = ({
       type="text"
       value={q.correctAnswer}
       onChange={(e) => onChange({ correctAnswer: e.target.value })}
-      className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-sm"
+      className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 text-sm"
       placeholder="Enter the definitive answer"
       {...answerAnchor}
     />

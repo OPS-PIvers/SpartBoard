@@ -24,7 +24,7 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 
 import { getLtiPlatformConfig, NRPS_SCOPE } from './config';
 import { ALLOWED_ORIGINS } from '../classlinkShared';
@@ -44,7 +44,7 @@ import {
 // re-implementing the signed fetch. fetchClassStudents takes the creds as args.
 import { classroomAddonNet } from '../classroomAddonAuth';
 import { assertViewAsAllowed } from '../viewAsGuard';
-import { isVerifiedDistrictTeacher } from './teacherAuth';
+import { isDistrictTeacher } from './teacherAuth';
 
 /** Firestore collection holding the Schoology section↔class link docs. */
 export const LTI_COURSE_LINKS_COLLECTION = 'lti_course_links';
@@ -170,16 +170,16 @@ async function rejectStaleSeenSection(
 }
 
 /** Require an authed, verified district teacher; return their uid. */
-function requireTeacher(request: {
+async function requireTeacher(request: {
   auth?: {
     uid: string;
     token: { email?: string; email_verified?: boolean; studentRole?: unknown };
   };
-}): string {
+}): Promise<string> {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Sign in required.');
   }
-  if (!isVerifiedDistrictTeacher(request.auth.token)) {
+  if (!(await isDistrictTeacher(request.auth.token))) {
     throw new HttpsError('permission-denied', 'Teacher account required.');
   }
   return request.auth.uid;
@@ -246,7 +246,7 @@ export const linkLtiCourseV1 = onCall(
   { region: 'us-central1', invoker: 'public', cors: ALLOWED_ORIGINS },
   async (request) => {
     assertViewAsAllowed(request);
-    const callerUid = requireTeacher(request);
+    const callerUid = await requireTeacher(request);
     const data = (request.data ?? {}) as {
       contextId?: unknown;
       sessionId?: unknown;
@@ -417,7 +417,7 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
   },
   async (request) => {
     assertViewAsAllowed(request, { read: true });
-    const callerUid = requireTeacher(request);
+    const callerUid = await requireTeacher(request);
     const data = (request.data ?? {}) as {
       contextId?: unknown;
       sessionId?: unknown;

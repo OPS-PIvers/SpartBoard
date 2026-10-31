@@ -87,7 +87,7 @@ export const WheelPicker: React.FC<WheelPickerProps> = ({
         aria-valuetext={value}
         onScroll={handleScroll}
         onKeyDown={handleKeyDown}
-        className="relative h-full overflow-y-auto no-scrollbar snap-y snap-mandatory overscroll-contain touch-pan-y outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 rounded-xl"
+        className="relative h-full overflow-y-auto no-scrollbar snap-y snap-mandatory overscroll-contain touch-pan-y outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 rounded-xl"
         style={{
           paddingBlock: ITEM_HEIGHT * 2,
           maskImage:

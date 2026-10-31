@@ -16,7 +16,7 @@ export const TextConfigEditor: React.FC<{
         {...tourAttr('admin.announcements.text-content')}
         value={config.content ?? ''}
         onChange={(e) => onChange({ ...config, content: e.target.value })}
-        className="w-full h-28 px-3 py-2 text-sm border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+        className="w-full h-28 px-3 py-2 text-sm border border-slate-300 rounded-lg resize-none focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
         placeholder="Enter announcement message…"
       />
     </div>
@@ -31,7 +31,7 @@ export const TextConfigEditor: React.FC<{
             type="color"
             value={config.bgColor ?? '#ffeb3b'}
             onChange={(e) => onChange({ ...config, bgColor: e.target.value })}
-            className="w-10 h-8 border border-slate-300 rounded cursor-pointer"
+            className="w-10 h-8 border border-slate-300 rounded-sm cursor-pointer"
           />
           <span className="text-xs text-slate-500">
             {config.bgColor ?? '#ffeb3b'}
@@ -56,7 +56,7 @@ export const TextConfigEditor: React.FC<{
               fontSize: Math.min(72, Math.max(10, parsed)),
             });
           }}
-          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
         />
       </div>
     </div>

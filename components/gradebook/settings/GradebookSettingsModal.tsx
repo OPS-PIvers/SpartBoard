@@ -71,9 +71,9 @@ interface ToastState {
 }
 
 const ICON_BTN =
-  'h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30';
+  'h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30';
 const FIELD =
-  'h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
+  'h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
 const ROW_LABEL = 'min-w-[130px] text-[13px] font-medium text-slate-600';
 
 /** Presentational settings modal (D16); `GradebookSettingsModal` wires it to Firestore. */
@@ -256,7 +256,7 @@ export const GradebookSettingsModalView: React.FC<
           <Btn
             variant="primary"
             size="sm"
-            className="!h-[34px] !px-3.5 !text-[13px]"
+            className="h-[34px]! px-3.5! text-[13px]!"
             {...tourAttr('gradebook.settings.done')}
             onClick={onClose}
           >
@@ -501,7 +501,7 @@ export const GradebookSettingsModalView: React.FC<
                   c.id
                 )}
                 onClick={() => onApply(c)}
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] leading-5 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
+                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] leading-5 hover:bg-slate-50 focus:bg-slate-50 focus:outline-hidden ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
               >
                 <span className="w-4 shrink-0 text-brand-blue-primary">
                   {on && <Check size={16} aria-hidden />}

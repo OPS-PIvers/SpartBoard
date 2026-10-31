@@ -1231,3 +1231,68 @@ describe('RandomWidget double pick while audio is suspended', () => {
     expect(picks).toHaveLength(1);
   });
 });
+
+describe('RandomWidget unmount mid-spin', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // An earlier test leaves a suspended AudioContext whose resume never settles.
+    vi.mocked(audioUtils.getAudioCtx).mockReturnValue(null);
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockDashboardContext
+    );
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each(['flash', 'slots', 'wheel'])(
+    '%s: saves the pick once on unmount, then stops ticking and writing',
+    (visualStyle) => {
+      vi.useFakeTimers();
+      const widget: WidgetData = {
+        id: 'test-id',
+        type: 'random',
+        config: {
+          firstNames: 'Alice\nBob\nCharlie',
+          lastNames: '',
+          rosterMode: 'custom',
+          mode: 'single',
+          visualStyle,
+          soundEnabled: true,
+          remainingStudents: [],
+        },
+        x: 0,
+        y: 0,
+        w: 300,
+        h: 200,
+        z: 1,
+        flipped: false,
+      };
+      const { unmount } = render(<RandomWidget widget={widget} />);
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+        );
+      });
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      mockUpdateWidget.mockClear();
+      unmount();
+      expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+      expect(mockUpdateWidget).toHaveBeenCalledWith('test-id', {
+        config: expect.objectContaining({
+          lastResult: expect.any(String) as unknown,
+        }) as unknown,
+      });
+      vi.mocked(audioUtils.playTick).mockClear();
+      mockUpdateWidget.mockClear();
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(audioUtils.playTick).not.toHaveBeenCalled();
+      expect(audioUtils.playWinner).not.toHaveBeenCalled();
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    }
+  );
+});

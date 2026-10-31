@@ -39,6 +39,14 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/common/library/importer/'],
   },
+  // Import's review step for an AI-made Activity Wall; opened from Import once a target is picked.
+  'library.import-wall-review': {
+    label: 'Import review for an AI-made Activity Wall',
+    kind: 'shared',
+    files: [
+      'components/widgets/ActivityWall/adapters/ActivityWallImportReview.tsx',
+    ],
+  },
   'library.assign-modal': {
     label: 'Assign dialog (classes, targeting, availability)',
     kind: 'shared',
@@ -179,6 +187,8 @@ export const SURFACES: TourSurfaceMap = {
       'components/widgets/VideoActivityWidget/components/VideoActivityEditor.tsx',
       'components/widgets/VideoActivityWidget/components/Timeline.tsx',
       'components/widgets/VideoActivityWidget/components/VideoActivityQuizLayout.tsx',
+      'components/widgets/VideoActivityWidget/components/VideoActivityClipFields.tsx',
+      'components/widgets/VideoActivityWidget/components/VideoActivityNotesEditor.tsx',
       'components/common/library/VideoActivityBehaviorSettingsPanel.tsx',
     ],
     opensWith: 'library-shell.new:video-activity',
@@ -210,6 +220,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/widgets/VideoActivityWidget/components/Results.tsx',
       'components/widgets/VideoActivityWidget/components/results/VaResultsParity.tsx',
+      'components/widgets/VideoActivityWidget/components/results/VaShortAnswerMarking.tsx',
     ],
     opensWith: 'library-shell.archive-primary-action:video-activity#row-1',
     parent: 'library.video-activity',

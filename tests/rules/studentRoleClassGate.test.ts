@@ -36,7 +36,9 @@ import {
   doc,
   query,
   where,
+  writeBatch,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -103,6 +105,7 @@ const asTeacher = () =>
   testEnv
     .authenticatedContext(TEACHER_UID, {
       email: 'teacher@school.edu',
+      email_verified: true,
       studentRole: false,
       classIds: [],
       firebase: { sign_in_provider: 'google.com' },
@@ -1387,24 +1390,27 @@ describe('quiz_sessions — end-to-end lifecycle', () => {
     await testEnv.clearFirestore();
   });
 
-  it('teacher create → query by code → get → resume → advance — no permission-denied', async () => {
-    // 1. createAssignment: teacher writes a paused session doc.
+  it('teacher claim → create → get → resume → advance — no permission-denied', async () => {
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      seedDistrictStaff(ctx.firestore(), ['teacher@school.edu'])
+    );
+    // 1. allocateJoinCode: the teacher reads the code's owner record (unclaimed).
     await assertSucceeds(
-      setDoc(doc(asTeacher(), `quiz_sessions/${SESSION_ID}`), {
-        ...baseSessionShape,
-        status: 'paused',
-      })
+      getDoc(doc(asTeacher(), `quiz_join_codes/${JOIN_CODE}`))
     );
 
-    // 2. allocateJoinCode: teacher LIST query by code (was broken pre-#1390).
-    await assertSucceeds(
-      getDocs(
-        query(
-          collection(asTeacher(), 'quiz_sessions'),
-          where('code', '==', JOIN_CODE)
-        )
-      )
-    );
+    // 2. createAssignment: claim the code and write a paused session in one batch.
+    const db = asTeacher();
+    const batch = writeBatch(db);
+    batch.set(doc(db, `quiz_join_codes/${JOIN_CODE}`), {
+      teacherUid: TEACHER_UID,
+      createdAt: 1000,
+    });
+    batch.set(doc(db, `quiz_sessions/${SESSION_ID}`), {
+      ...baseSessionShape,
+      status: 'paused',
+    });
+    await assertSucceeds(batch.commit());
 
     // 3. useQuizSessionTeacher: single-doc GET (was broken pre-#1391 — the
     //    Start bug this PR fixes).
@@ -1572,11 +1578,13 @@ describe('PR #1391 regression — teacher create + single-doc read on all sessio
   });
 
   it('quiz_sessions: teacher create → single-doc get succeeds', async () => {
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      seedDistrictStaff(ctx.firestore(), ['teacher@school.edu'])
+    );
     await assertSucceeds(
       setDoc(doc(asTeacher(), `quiz_sessions/${SESSION_ID}`), {
         teacherUid: TEACHER_UID,
         classId: CLASS_A,
-        code: 'CODE01',
         status: 'paused',
       })
     );

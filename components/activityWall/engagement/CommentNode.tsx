@@ -52,7 +52,7 @@ export const CommentNode: React.FC<CommentNodeProps> = ({
         <button
           type="button"
           onClick={() => setReplyOpen((p) => !p)}
-          className="mt-1 inline-flex items-center gap-1 rounded text-[11px] font-semibold text-white/90 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          className="mt-1 inline-flex items-center gap-1 rounded-sm text-[11px] font-semibold text-white/90 hover:text-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
         >
           <CornerDownRight aria-hidden="true" className="h-3 w-3" />
           {replyOpen ? 'Cancel' : 'Reply'}

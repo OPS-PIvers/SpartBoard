@@ -41,7 +41,10 @@ export { formatExportPoints };
  *
  * Pure function; safe to call inside .map().
  */
-function toExportable(r: VideoActivityResponse): ExportableResponse {
+/** An exportable VA response, carrying its short-answer marks. */
+type VaExportable = ExportableResponse & Pick<VideoActivityResponse, 'grading'>;
+
+function toExportable(r: VideoActivityResponse): VaExportable {
   const completed = r.completedAt !== null;
   return {
     pin: r.pin,
@@ -54,6 +57,7 @@ function toExportable(r: VideoActivityResponse): ExportableResponse {
     status: completed ? 'completed' : 'in-progress',
     submittedAt: completed ? r.completedAt : null,
     tabSwitchWarnings: r.tabSwitchWarnings,
+    grading: r.grading,
   };
 }
 
@@ -68,10 +72,10 @@ export function buildVideoActivityResultsSheetData(
   questions: VideoActivityQuestion[],
   options?: BuildResultsSheetDataOptions
 ): { headers: string[]; dataRows: string[][] } {
-  return buildResultsSheetData<VideoActivityQuestion, ExportableResponse>(
+  return buildResultsSheetData<VideoActivityQuestion, VaExportable>(
     responses.map(toExportable),
     questions,
-    gradeVideoActivityAnswer,
+    (q, answer, r) => gradeVideoActivityAnswer(q, answer, r?.grading?.[q.id]),
     options
   );
 }

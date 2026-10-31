@@ -192,7 +192,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
   const row = (tag: QuestionTargetTag) => (
     <label
       key={tag.id}
-      className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-slate-100 cursor-pointer"
+      className="flex items-start gap-2 px-2 py-1.5 rounded-sm hover:bg-slate-100 cursor-pointer"
     >
       <input
         type="checkbox"
@@ -216,7 +216,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
   );
 
   const SELECT_CLASS =
-    'text-sm rounded-lg border border-slate-300 px-2 py-1.5 bg-white text-slate-700 focus:border-brand-blue-primary focus:outline-none';
+    'text-sm rounded-lg border border-slate-300 px-2 py-1.5 bg-white text-slate-700 focus:border-brand-blue-primary focus:outline-hidden';
 
   const targetRows = (source: LearningTargetSource) => {
     const rows = (source.list?.targets ?? [])
@@ -244,7 +244,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="p-1 rounded text-slate-500 hover:bg-slate-100"
+            className="p-1 rounded-sm text-slate-500 hover:bg-slate-100"
           >
             <X className="w-4 h-4" />
           </button>
@@ -252,7 +252,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
 
         <div className="px-4 py-3 border-b border-slate-200 space-y-2">
           <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-[10rem]">
+            <div className="relative flex-1 min-w-40">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 autoFocus
@@ -260,7 +260,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search by code or text"
-                className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:outline-none"
+                className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:outline-hidden"
               />
             </div>
             {targetSources.length > 0 && (
@@ -271,7 +271,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
                   writeLastSource(e.target.value);
                 }}
                 aria-label="Source"
-                className={`${SELECT_CLASS} max-w-[10rem]`}
+                className={`${SELECT_CLASS} max-w-40`}
               >
                 <option value={STANDARDS_SOURCE}>Standards</option>
                 {targetSources.map((s) => (

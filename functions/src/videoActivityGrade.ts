@@ -35,9 +35,29 @@ const splitKey = (s: string): string[] =>
     .map(normalize)
     .filter((x) => x.length > 0);
 
-export function gradeVaAnswer(q: VaKeyQuestion, answer: string): boolean {
+export interface VaManualGrade {
+  pointsAwarded?: unknown;
+  excused?: unknown;
+}
+
+/** SA has no key: it counts as answered and is right only once the teacher marks full points. */
+export const isVaShortAnswer = (q: { type?: unknown }): boolean =>
+  q.type === 'SA';
+
+export function gradeVaAnswer(
+  q: VaKeyQuestion,
+  answer: string,
+  grade?: VaManualGrade
+): boolean {
   const type = q.type ?? 'MC';
   const correct = q.correctAnswer ?? '';
+  if (type === 'SA') {
+    if (!grade || grade.excused === true) return false;
+    const max = q.points ?? 1;
+    const raw = Number(grade.pointsAwarded);
+    const earned = Math.min(max, Math.max(0, Number.isFinite(raw) ? raw : 0));
+    return max > 0 && earned >= max;
+  }
   if (type === 'MC') {
     const key = normalize(correct);
     return key.length > 0 && key === normalize(answer);

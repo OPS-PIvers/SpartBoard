@@ -122,7 +122,7 @@ export const DrawingConfigurationPanel: React.FC<
             {activePalette.map((c, i) => (
               <div
                 key={i}
-                className="w-10 h-10 rounded-lg border-2 border-white shadow-sm ring-1 ring-slate-200 relative overflow-hidden transition-transform hover:scale-110"
+                className="w-10 h-10 rounded-lg border-2 border-white shadow-xs ring-1 ring-slate-200 relative overflow-hidden transition-transform hover:scale-110"
                 style={{ backgroundColor: c }}
               >
                 <input

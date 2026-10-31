@@ -1263,7 +1263,7 @@ const NotesBodyInner: React.FC<
               placeholder={t('plcDashboard.notes.titlePlaceholder', {
                 defaultValue: 'Note title',
               })}
-              className="min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-base font-bold text-slate-900 placeholder:text-slate-300 p-0 max-w-full [field-sizing:content]"
+              className="min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-hidden text-base font-bold text-slate-900 placeholder:text-slate-300 p-0 max-w-full field-sizing-content"
             />
             {noteOpenInDocs}
             <span className="flex-1" />

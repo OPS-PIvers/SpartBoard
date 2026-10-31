@@ -32,7 +32,7 @@ export const RecessWeatherSourceField: React.FC<{
             linkedWeatherWidgetId: event.target.value || null,
           })
         }
-        className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
+        className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-hidden focus:ring-2 focus:ring-emerald-500"
         {...tourAttr(
           'widget-settings.recess-gear.linked-weather',
           ctx.widget.id,

@@ -455,7 +455,7 @@ export const NextUpThemeField: React.FC<{ ctx: CustomRenderCtx }> = ({
           }
           className={`h-8 rounded-lg border-2 transition-transform ${
             selected === color.value
-              ? 'scale-110 border-slate-900 shadow-sm'
+              ? 'scale-110 border-slate-900 shadow-xs'
               : 'border-transparent'
           }`}
           style={{ backgroundColor: color.value }}

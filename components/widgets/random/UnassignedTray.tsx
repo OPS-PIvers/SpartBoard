@@ -29,7 +29,7 @@ export const UnassignedTray: React.FC<UnassignedTrayProps> = ({
   return (
     <div
       ref={setNodeRef}
-      className={`w-full flex-shrink-0 rounded-xl border border-dashed transition-colors ${
+      className={`w-full shrink-0 rounded-xl border border-dashed transition-colors ${
         isOver
           ? 'bg-brand-blue-light/10 border-brand-blue-primary/60'
           : 'bg-slate-50/60 border-slate-300/70'

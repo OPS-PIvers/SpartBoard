@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   auth: vi.fn(() => ({ getUser: vi.fn() })),
@@ -54,7 +54,7 @@ vi.mock('./secrets', () => ({
   GOOGLE_OAUTH_CLIENT_ID: { value: () => 'secret:gid' },
 }));
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   archiveActivityWallMediaCore,
   buildArchiveFileName,

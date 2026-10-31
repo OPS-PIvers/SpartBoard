@@ -22,7 +22,9 @@ import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { LucideIcon } from 'lucide-react';
 import type { ClassRoster, WidgetType } from '@/types';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
+import type { ConversionInput } from '@/utils/import/aiConversion';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
+import type { PendingSource } from '@/components/import/importHandoff';
 
 /* ─── Shared enums / tokens ───────────────────────────────────────────────── */
 
@@ -586,7 +588,9 @@ export type ImportSourcePayload =
       keyFile?: UploadedDocument;
       /** False when the teacher switched the AI reader off for this read. */
       useAi?: boolean;
-    };
+    }
+  /** Import's AI Conversion of already-read text (docs/plans/IMPORT.md D8, D10). */
+  | { kind: 'conversion'; input: ConversionInput };
 
 /** Parser result — `warnings` surface non-fatal issues in the preview. */
 export interface ImportParseResult<TData> {
@@ -640,6 +644,12 @@ export interface ImportAdapter<TData> {
    * then offers a slot for one beside the test document.
    */
   supportsKeyFile?: boolean;
+  /**
+   * Extra upload extensions (e.g. `.pdf,.pptx`) the "Choose file" button and
+   * drop zone take, handed to `parse` as `{ kind: 'file' }`, with the label
+   * the drop hint shows for them.
+   */
+  extraUpload?: { accept: string; hint: string };
   /** True when this adapter can read a document with AI; the wizard offers a switch. */
   supportsAiReader?: boolean;
   /** A one-file import that saves many items; the wizard hands the file off and closes. */
@@ -679,7 +689,11 @@ export interface ImportAdapter<TData> {
    */
   suggestTitle?: (data: TData) => string | undefined;
   /** Persist to the widget's library. Consumer owns Firestore/Drive writes. */
-  save: (data: TData, title: string) => Promise<void>;
+  save: (
+    data: TData,
+    title: string,
+    context?: { fromInitialSource: boolean }
+  ) => Promise<void>;
   /** Optional AI-assist path (e.g. Quiz's Gemini generator). */
   aiAssist?: {
     promptPlaceholder: string;
@@ -695,6 +709,10 @@ export interface ImportWizardProps<TData> {
   defaultTitle?: string;
   /** Called after a successful save closes the wizard. */
   onSaved?: (title: string) => void;
+  /** A file the caller already read; the wizard opens on its preview. */
+  initialParse?: ImportParseResult<TData>;
+  /** A Source handed over by Import; the wizard reads it on open and skips to review. */
+  initialSource?: PendingSource;
 }
 
 /* ─── Re-exports ──────────────────────────────────────────────────────────── */

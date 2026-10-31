@@ -14,7 +14,7 @@ interface SeatingRulesModalProps {
 }
 
 const selectClass =
-  'flex-1 min-w-0 p-1.5 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700';
+  'flex-1 min-w-0 p-1.5 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 outline-hidden text-slate-700';
 
 export const SeatingRulesModal: React.FC<SeatingRulesModalProps> = ({
   widgetId,

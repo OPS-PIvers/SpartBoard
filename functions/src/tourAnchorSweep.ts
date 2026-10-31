@@ -1,7 +1,7 @@
 // Monthly prune of rebound queue items and old batch docs (LIVE_TOURS_V2.md D23).
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   DAY_MS,
   TOUR_ANCHOR_BATCHES,

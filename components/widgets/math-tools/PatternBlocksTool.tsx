@@ -103,7 +103,7 @@ export const PatternBlocksTool: React.FC = () => {
             )}
             onClick={() => addBlock(shape)}
             title={PALETTE_LABELS[shape]}
-            className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-200"
+            className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-white hover:shadow-xs transition-all border border-transparent hover:border-slate-200"
           >
             <svg width={36} height={36} viewBox="-20 -20 40 40">
               <polygon

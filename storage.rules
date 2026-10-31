@@ -46,11 +46,18 @@ service firebase.storage {
               request.time.toMillis() < request.auth.token.get('auth_time', 0) * 1000 + 43200000);
     }
 
-    // A verified district staff address (firestore.rules isVerifiedDistrictEmail()); @students addresses never match.
-    function isVerifiedDistrictEmail() {
+    // District staff, as firestore.rules isDistrictStaff(): students share the domain, so staff needs an active, non-student Orono member doc.
+    function isDistrictStaff() {
       return request.auth != null &&
              request.auth.token.get('email_verified', false) == true &&
-             request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$');
+             request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$') &&
+             request.auth.token.get('studentRole', false) != true &&
+             districtStaffMember(firestore.get(/databases/(default)/documents/organizations/orono/members/$(request.auth.token.email.lower())));
+    }
+    function districtStaffMember(member) {
+      return member != null &&
+             member.data.get('status', 'active') != 'inactive' &&
+             member.data.get('roleId', '') != 'student';
     }
 
     // Helper function to check if a user can read a specific admin background
@@ -472,7 +479,7 @@ service firebase.storage {
 
     // Web tour step pictures (CHROME_EXTENSION.md T6): district staff and admins get through the SDK, admins list and write.
     match /web_tour_pictures/{setId}/{fileName} {
-      allow get: if (isVerifiedDistrictEmail() && viewAsReadOk()) || isAdmin();
+      allow get: if (isDistrictStaff() && viewAsReadOk()) || isAdmin();
       allow list, delete: if isAdmin();
       // Create only: a live tour's picture is never replaced in place, so changes go through publish.
       allow create: if isAdmin() &&

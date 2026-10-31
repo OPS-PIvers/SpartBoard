@@ -819,7 +819,7 @@ export const PollSettings: React.FC<{
                 value={localQuestion}
                 onChange={(e) => setLocalQuestion(e.target.value)}
                 onBlur={saveQuestion}
-                className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-hidden focus:ring-2 focus:ring-indigo-500"
                 placeholder={t('widgetSettings.poll.questionPlaceholder')}
                 {...tourAttr(
                   'widget-settings.poll.question-text',
@@ -841,7 +841,7 @@ export const PollSettings: React.FC<{
                     onChange={(e) =>
                       setQuestionKind(e.target.value as PollQuestionKind)
                     }
-                    className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-hidden focus:ring-2 focus:ring-indigo-500"
                     {...tourAttr(
                       'widget-settings.poll.question-type',
                       widget.id,
@@ -875,7 +875,7 @@ export const PollSettings: React.FC<{
                           options: makeScaleOptions(Number(e.target.value)),
                         })
                       }
-                      className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-hidden focus:ring-2 focus:ring-indigo-500"
                       {...tourAttr(
                         'widget-settings.poll.scale-size',
                         widget.id,
@@ -911,7 +911,7 @@ export const PollSettings: React.FC<{
                             saveEditing({ [field]: e.target.value });
                           }
                         }}
-                        className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-hidden focus:ring-2 focus:ring-indigo-500"
                         {...tourFieldAttr(
                           'widget-settings.poll.scale-label',
                           widget.type,

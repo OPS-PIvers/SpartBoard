@@ -12,7 +12,7 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
 import './functionsInit';
@@ -26,6 +26,7 @@ import {
 } from './getTeammatePrintContext';
 import {
   analyzePaperQuiz,
+  isPaperBoxSize,
   planPaperBatch,
   planPaperPages,
   type PaperBatchDoc,
@@ -295,10 +296,7 @@ function toPaperQuestion(raw: unknown): PaperQuestion | null {
       : [],
     ...(raw.recording ? { recording: true } : {}),
     ...(typeof raw.maxWords === 'number' ? { maxWords: raw.maxWords } : {}),
-    ...(raw.paperBoxSize === 'S' ||
-    raw.paperBoxSize === 'M' ||
-    raw.paperBoxSize === 'L' ||
-    raw.paperBoxSize === 'full'
+    ...(isPaperBoxSize(raw.paperBoxSize)
       ? { paperBoxSize: raw.paperBoxSize }
       : {}),
   };

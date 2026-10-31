@@ -12,7 +12,7 @@
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { Type, Schema, ThinkingLevel } from '@google/genai';
 import {
   ALLOWED_ORIGINS,

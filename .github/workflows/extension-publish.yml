@@ -1,6 +1,6 @@
 name: Publish Chrome Extension
 
-# A version bump in extension/manifest.json on main publishes the prod listing; Paul's OK on the release is the approval.
+# Publishes the prod listing whenever manifest.json on main is newer than what the Web Store has; Paul's OK on the release is the approval.
 # The dev build is only ever loaded unpacked, so nothing publishes it (extension/README.md, "Publishing").
 on:
   push:
@@ -12,64 +12,71 @@ permissions:
   contents: read
   actions: read
 
-jobs:
-  plan:
-    runs-on: ubuntu-24.04
-    outputs:
-      publish: ${{ steps.plan.outputs.publish }}
-      version: ${{ steps.plan.outputs.version }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-      - id: plan
-        env:
-          BEFORE: ${{ github.event.before }}
-          EVENT: ${{ github.event_name }}
-        run: |
-          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
-            echo "::error::Publishing runs only from main (prod listing)."; exit 1
-          fi
-          version_of() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).version??"")}catch{console.log("")}})'; }
-          version=$(version_of < extension/manifest.json)
-          publish=true
-          if [[ "$EVENT" == push ]]; then
-            previous=""
-            if [[ -n "$BEFORE" && ! "$BEFORE" =~ ^0+$ ]] && git fetch -q --depth=1 origin "$BEFORE"; then
-              previous=$(git show "$BEFORE:extension/manifest.json" 2>/dev/null | version_of)
-            fi
-            if [[ -z "$previous" ]]; then
-              publish=false
-              echo "::notice::Couldn't read the previous version, so nothing was published. If $version is new, run this workflow by hand."
-            elif ! node -e 'const p=v=>v.split(".").map(Number),[a,b]=[p(process.argv[1]),p(process.argv[2])];for(let i=0;i<4;i++){const d=(a[i]??0)-(b[i]??0);if(d)process.exit(d>0?0:1)}process.exit(1)' "$version" "$previous"; then
-              publish=false
-              echo "The extension version is $version (was $previous); nothing to publish."
-            fi
-          fi
-          echo "publish=$publish" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+env:
+  ISSUE_TITLE: Chrome Web Store publish failed
 
+jobs:
   publish:
-    needs: plan
-    if: needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-24.04
-    name: Publish prod listing ${{ needs.plan.outputs.version }}
+    name: Publish prod listing
     environment: chrome-web-store-dev  # Reuses the environment that already holds the Web Store secrets.
-    # Only real bumps queue here, so a newer one replacing a waiting one is still the later version.
+    permissions:
+      contents: read
+      issues: write
     concurrency:
       group: ${{ github.workflow }}-prod
       cancel-in-progress: false
-    timeout-minutes: 20
+    timeout-minutes: 30
+    # Only the steps that call the Web Store get the secrets (step env below), not the install or build.
     steps:
-      - uses: actions/checkout@v6
+      - name: Refuse any ref but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Publishing runs only from main (prod listing)."
+          exit 1
 
-      - name: Setup Node.js and pnpm
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      # Comparing with the store, not the previous commit, means a failed publish is retried by the next main push.
+      - name: Compare with the Web Store
+        id: check
+        working-directory: extension
+        env:
+          BEFORE: ${{ github.event.before }}
+          CWS_ENVIRONMENT: chrome-web-store-dev
+          SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == push && -n "$BEFORE" && ! "$BEFORE" =~ ^0+$ ]] && git fetch -q --depth=1 origin "$BEFORE"; then
+            export PREVIOUS_VERSION=$(git show "$BEFORE:extension/manifest.json" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).version??"")}catch{console.log("")}})')
+          fi
+          node scripts/publish.ts prod --check
+
+      # No Actions cache: the shipped zip and the CWS_* secrets must not depend on a restored pnpm store.
+      - name: Setup pnpm and dependencies
+        if: steps.check.outputs.publish == 'true'
         uses: ./.github/actions/setup
+        with:
+          cache: ''
 
       - name: Build and zip the extension
+        if: steps.check.outputs.publish == 'true'
         run: pnpm run build:extension
 
       - name: Upload to the Web Store and submit for review
+        id: upload
+        if: steps.check.outputs.publish == 'true'
+        continue-on-error: true
         working-directory: extension
         env:
           CWS_ENVIRONMENT: chrome-web-store-dev
@@ -80,10 +87,94 @@ jobs:
           CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
         run: node scripts/publish.ts prod
 
+      - name: Try once more after two minutes
+        if: steps.upload.outcome == 'failure'
+        working-directory: extension
+        env:
+          CWS_ENVIRONMENT: chrome-web-store-dev
+          SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+        run: |
+          sleep 120
+          node scripts/publish.ts prod --check
+          if grep -q '^publish=true$' "$GITHUB_OUTPUT"; then node scripts/publish.ts prod; fi
+
       - name: Keep the published zip
+        if: steps.check.outputs.publish == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: chrome-extension-prod-${{ needs.plan.outputs.version }}
+          name: chrome-extension-prod-${{ github.sha }}
           path: extension/dist/spartboard-extension-prod-*.zip
           if-no-files-found: error
           retention-days: 90
+
+      - name: Close the failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for n in $(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$ISSUE_TITLE\"" --json number,title --jq ".[] | select(.title == env.ISSUE_TITLE) | .number"); do
+            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --comment "The store is up to date as of ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+          done
+
+  # Files or reuses one issue, then Claude reads the failed log and comments with the cause and the fix.
+  report-failure:
+    needs: publish
+    if: failure()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      # The run is still in progress, so the failed job's log is read by job id and saved for Claude.
+      - name: File or reuse the issue
+        id: issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          job=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" --jq '.jobs[] | select(.name == "Publish prod listing") | .id')
+          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > publish-failure.log 2>/dev/null || echo "The log could not be read." > publish-failure.log
+          errors=$(grep -o '##\[error\].*' publish-failure.log | sed 's/^##\[error\]//' | head -5 || true)
+          n=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$ISSUE_TITLE\"" --json number,title --jq "[.[] | select(.title == env.ISSUE_TITLE)][0].number // empty")
+          if [[ -n "$n" ]]; then
+            gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body "Failed again: $run_url"$'\n\n```\n'"$errors"$'\n```'
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            url=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" \
+              --body "Publishing the Chrome extension to the Web Store failed: $run_url. The next release to main tries again by itself, or run Actions > Publish Chrome Extension > Run workflow from main once the cause is fixed. This issue closes when a run finds the store up to date.")
+            n=${url##*/}
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "number=$n" >> "$GITHUB_OUTPUT"
+
+      # Only a new issue gets a diagnosis, so a lasting failure doesn't start a Claude run on every release.
+      - name: Claude diagnoses the failure
+        if: steps.issue.outputs.new == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            FAILED RUN: ${{ github.run_id }}
+            ISSUE: ${{ steps.issue.outputs.number }}
+
+            The Chrome extension publish workflow (.github/workflows/extension-publish.yml,
+            extension/scripts/publish.ts, extension/scripts/webStore.ts) failed in run
+            ${{ github.run_id }}. Its log is saved as `publish-failure.log` in the working directory;
+            read it and the scripts with the Read and Grep tools, then post one comment on issue #${{ steps.issue.outputs.number }} with
+            `gh issue comment`. Say in plain words what failed, whether it looks temporary (the next
+            release retries it) or needs Paul, and if it needs Paul the exact fix: which secret or
+            variable of the chrome-web-store-dev environment, what to do in the Web Store Developer
+            Dashboard, or which code change. Keep it under 120 words. Do not change any files.
+          claude_args: |
+            --model claude-sonnet-5-5
+            --allowedTools "Read,Grep,Glob,Bash(gh issue view:*),Bash(gh issue comment:*),Bash(git log:*),Bash(git show:*)"

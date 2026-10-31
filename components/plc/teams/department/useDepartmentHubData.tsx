@@ -474,7 +474,7 @@ export function useDepartmentHubData(
       pinned: !!pinnedNote,
       onOpenNote: () => openTeamNote(plc.id, note.id),
       body: (
-        <div className="max-h-[28rem] overflow-y-auto px-6 pb-6 pt-4">
+        <div className="max-h-112 overflow-y-auto px-6 pb-6 pt-4">
           <NotesMarkdown body={note.body} />
         </div>
       ),

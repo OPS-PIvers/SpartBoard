@@ -69,7 +69,7 @@ const hostOf = (urlPattern: string) => {
   }
 };
 
-const card = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
+const card = 'rounded-2xl border border-slate-200 bg-white shadow-xs';
 const samePick = (a?: RecorderPick | null, b?: RecorderPick | null) =>
   !!a && !!b && a.setId === b.setId && a.stepId === b.stepId;
 
@@ -174,7 +174,7 @@ const StepCard: React.FC<{
         <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
           Tip
           <textarea
-            className={`min-h-[3.5rem] rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
+            className={`min-h-14 rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
             value={step.tip}
             maxLength={MAX_TIP_CHARS}
             disabled={locked}
@@ -186,7 +186,7 @@ const StepCard: React.FC<{
         <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
           Note for Claude
           <textarea
-            className={`min-h-[2.5rem] rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
+            className={`min-h-10 rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
             value={step.note}
             maxLength={MAX_NOTE_CHARS}
             disabled={locked}
@@ -230,7 +230,7 @@ const BlurCard: React.FC<{ recording: boolean; picking: boolean }> = ({
             <label className="flex items-center gap-2 text-slate-700">
               <input
                 type="checkbox"
-                className={`h-4 w-4 rounded accent-brand-blue-primary ${focusRing}`}
+                className={`h-4 w-4 rounded-sm accent-brand-blue-primary ${focusRing}`}
                 checked={settings[key]}
                 onChange={(e) => toggle(key, e.target.checked)}
               />
@@ -299,7 +299,7 @@ const IntakeNotice: React.FC<{
   if (!intake.saved) return null;
   return (
     <div className={`flex flex-col items-start gap-2 p-3 ${card}`}>
-      <p role="status" className="min-w-0 max-w-full break-words">
+      <p role="status" className="min-w-0 max-w-full wrap-break-word">
         Saved to{' '}
         <span className="font-semibold">
           {intake.saved.title || 'Untitled tour'}
@@ -771,7 +771,7 @@ export const SidePanel: React.FC = () => {
                         <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
                           What does your tour explain?
                           <textarea
-                            className={`min-h-[2.5rem] rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
+                            className={`min-h-10 rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
                             value={sending.goal}
                             maxLength={MAX_GOAL_CHARS}
                             disabled={busy}

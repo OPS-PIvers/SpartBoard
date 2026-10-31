@@ -196,6 +196,62 @@ export const TOUR_ANCHORS = {
   'sidebar.boards': { label: 'Boards item in the menu', panel: true },
   'sidebar.backgrounds': { label: 'Backgrounds item in the menu', panel: true },
   'sidebar.assignments': { label: 'Assignments item in the menu', panel: true },
+  'backgrounds.close': {
+    label: 'Close button in the Backgrounds window',
+    panel: true,
+    closes: 'own',
+  },
+  'backgrounds.rail-section': {
+    label: 'Section in the Backgrounds window sidebar',
+    perField: true,
+    keyPattern:
+      'backgrounds#(favorites|recent|colors|patterns|gradients|uploads|row-[1-9]\\d*)',
+    keyHint:
+      'backgrounds#colors; media categories are backgrounds#row-1, row-2',
+    panel: true,
+  },
+  'backgrounds.search': {
+    label: 'Search field in the Backgrounds window',
+    panel: true,
+  },
+  'backgrounds.type-filter': {
+    label: 'Type filter button in the Backgrounds window',
+    perField: true,
+    keyPattern: 'backgrounds#(all|still|video|color|pattern|gradient|upload)',
+    keyHint: 'backgrounds#still for the Stills filter',
+    panel: true,
+  },
+  'backgrounds.custom-color': {
+    label: 'Custom color picker in the Backgrounds window',
+    panel: true,
+  },
+  'backgrounds.custom-color-apply': {
+    label: 'Apply button for the custom color in the Backgrounds window',
+    panel: true,
+  },
+  'backgrounds.gradient-start': {
+    label: 'Start color picker for the custom gradient',
+    panel: true,
+  },
+  'backgrounds.gradient-end': {
+    label: 'End color picker for the custom gradient',
+    panel: true,
+  },
+  'backgrounds.gradient-direction': {
+    label: 'Direction button for the custom gradient',
+    perField: true,
+    keyPattern: 'backgrounds#row-[1-4]',
+    keyHint: 'backgrounds#row-1 for the first direction',
+    panel: true,
+  },
+  'backgrounds.gradient-apply': {
+    label: 'Apply button for the custom gradient',
+    panel: true,
+  },
+  'backgrounds.upload': {
+    label: 'Upload an image button in the Backgrounds window',
+    panel: true,
+  },
   'sidebar.classes': { label: 'My Classes item in the menu', panel: true },
   'sidebar.profile-settings': {
     label: 'Profile & Settings item in the menu',
@@ -2059,6 +2115,19 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'import.reference.convert': {
+    label: 'Convert instead button when a page refuses to show in an Embed',
+    panel: true,
+  },
+  'import.reference.add-link': {
+    label: 'Add as a link button when a page refuses to show in an Embed',
+    panel: true,
+  },
+  'import.reference.cancel': {
+    label: 'Cancel button when a page refuses to show in an Embed',
+    panel: true,
+    closes: 'own',
+  },
   'quiz-import.cartridge-close': {
     label: 'Close in Quiz import',
     perWidgetType: true,
@@ -2239,6 +2308,11 @@ export const TOUR_ANCHORS = {
   'quiz-import.paper-answer-blank': {
     label: 'Blank answer in Quiz import, by item',
     perField: true,
+    panel: true,
+  },
+  'quiz-import.paper-skip-page': {
+    label: 'Pages to import select (all or skip one page) in Quiz import',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-import.paper-retry-upload': {
@@ -2828,6 +2902,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-print.written-box-size': {
     label: 'Written box size select in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.written-box-lines': {
+    label: 'Written box custom line count in the Quiz widget',
     perField: true,
     panel: true,
   },
@@ -8679,6 +8758,32 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.import-block-list.add': {
+    label: 'Add button in Import block list',
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.new-pattern': {
+    label: 'New blocked address field in Import block list',
+    panel: true,
+  },
+  'admin.import-block-list.remove': {
+    label: 'Remove button in an Import block list row',
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.restore-defaults': {
+    label: 'Restore defaults button in Import block list',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.import-block-list.test-url': {
+    label: 'Test an address field in Import block list',
+    panel: true,
+  },
   'admin.subjects.add': {
     label: 'Add content area button in Subjects',
     persists: true,
@@ -10457,6 +10562,24 @@ export const TOUR_ANCHORS = {
   },
   'video-activity.editor-youtube-url': {
     label: 'YouTube URL box in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-clip-start': {
+    label: 'Start at time in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-clip-end': {
+    label: 'End at time in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-notes-toggle': {
+    label: 'Notes list toggle in the video activity editor',
+  },
+  'video-activity.editor-add-note': {
+    label: 'Add note button in the video activity editor',
     persists: true,
     sandboxed: true,
   },
@@ -14823,6 +14946,23 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'video-activity.results-to-mark': {
+    label: 'Short answers to mark notice in the Video Activity results',
+    panel: true,
+  },
+  'video-activity.results-mark-toggle': {
+    label:
+      'Mark button on a short-answer question in the Video Activity results',
+    perField: true,
+    panel: true,
+  },
+  'video-activity.results-mark-points': {
+    label:
+      "Points box for a student's short answer in the Video Activity results",
+    perField: true,
+    panel: true,
+    persists: true,
+  },
   'quiz-editor.folder': {
     label: 'Folder picker in the Quiz editor header',
     perWidgetType: true,
@@ -15087,6 +15227,82 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'import-notice.open': {
+    label: 'Add to board button on the sent-pages notice on the board',
+    panel: true,
+  },
+  // Add to board window: a sent page or a board drop into SpartBoard (IMPORT.md D1).
+  'import-screen.close': {
+    label: 'Close button in the Add to board window',
+    panel: true,
+  },
+  'import-screen.sent-remove': {
+    label:
+      'Remove button on a page sent from the browser, in the Add to board window',
+    panel: true,
+    destructive: true,
+  },
+  'import-screen.target': {
+    label:
+      'A one-tap choice (Flashcards, Quiz, Embed…) in the Add to board window',
+    panel: true,
+  },
+  'import-screen.course': {
+    label:
+      'Whole course button for a Schoology course export in the Add to board window',
+    panel: true,
+  },
+  // Whole-course import from a Schoology export (IMPORT.md D23, D24).
+  'import-course.close': {
+    label: 'Close button in the Schoology course import',
+    panel: true,
+  },
+  'import-course.folder-name': {
+    label: 'Folder name field in the Schoology course import',
+    panel: true,
+  },
+  'import-course.row-target': {
+    label:
+      'What an item becomes (Quiz, PDF library, Skip…) in the Schoology course import',
+    panel: true,
+  },
+  'import-course.share-pictures': {
+    label: 'Copy pictures to Drive checkbox in the Schoology course import',
+    panel: true,
+  },
+  'import-course.cancel': {
+    label: 'Cancel or Done button in the Schoology course import',
+    panel: true,
+  },
+  'import-course.import': {
+    label: 'Import button in the Schoology course import',
+    panel: true,
+    persists: true,
+  },
+  'import-course.retry': {
+    label: 'Retry failed button in the Schoology course import',
+    panel: true,
+    persists: true,
+  },
+  'import-course.review': {
+    label: 'Review pages button for AI pages in the Schoology course import',
+    panel: true,
+  },
+  'import-course.review-skip': {
+    label: 'Skip button when AI could not read a page in the course import',
+    panel: true,
+  },
+  'import-course.review-retry': {
+    label:
+      'Try again button when AI could not read a page in the course import',
+    panel: true,
+  },
+  'import-course.links-board': {
+    label:
+      'Put these links on a new board button in the Schoology course import',
+    panel: true,
+    persists: true,
+  },
   // Library Import wizard (Quiz, Video Activity, Guided Learning, Mini App, Flashcards).
   'import-wizard.close': {
     label: 'Close button in the Import wizard',
@@ -15161,6 +15377,26 @@ export const TOUR_ANCHORS = {
   },
   'import-wizard.title': {
     label: 'Title box on the Import wizard confirm step',
+    panel: true,
+  },
+  'import-review.wall-prompt': {
+    label: 'Prompt box when reviewing an imported Activity Wall',
+    panel: true,
+  },
+  'import-review.wall-layout': {
+    label: 'Layout menu when reviewing an imported Activity Wall',
+    panel: true,
+  },
+  'import-review.board-name': {
+    label: 'Board name box when reviewing an imported board',
+    panel: true,
+  },
+  'import-review.board-cancel': {
+    label: 'Cancel button when reviewing an imported board',
+    panel: true,
+  },
+  'import-review.board-create': {
+    label: 'Create board button when reviewing an imported board',
     panel: true,
   },
   'import-wizard.cancel': {

@@ -131,14 +131,14 @@ export const WhiteboardInsertImageModal: React.FC<
                 <img
                   src={startingImageSrc(image)}
                   alt=""
-                  className="h-12 w-16 rounded border border-slate-200 bg-white object-contain"
+                  className="h-12 w-16 rounded-sm border border-slate-200 bg-white object-contain"
                 />
                 <button
                   type="button"
                   onClick={() => onChange(images.filter((_, j) => j !== i))}
                   aria-label={tk('removeImageNumber', { n: i + 1 })}
                   title={tk('removeImageNumber', { n: i + 1 })}
-                  className="touch-target-expand absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 shadow-sm hover:text-slate-900"
+                  className="touch-target-expand absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 shadow-xs hover:text-slate-900"
                   {...tourTypeAttr(
                     'quiz-editor.whiteboard-image-remove',
                     'quiz'

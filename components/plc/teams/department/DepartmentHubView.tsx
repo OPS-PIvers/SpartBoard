@@ -104,7 +104,7 @@ const LinkRow: React.FC<{
         <Icon className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
       )}
       <span className="min-w-0 flex-1">
-        <span className="block break-words text-sm text-slate-800">
+        <span className="block wrap-break-word text-sm text-slate-800">
           {title}
         </span>
         {meta && (
@@ -120,7 +120,7 @@ const LinkRow: React.FC<{
           type="button"
           onClick={onOpen}
           {...tourProps}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded text-left hover:text-brand-blue-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-sm text-left hover:text-brand-blue-primary focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
         >
           {body}
         </button>
@@ -146,7 +146,7 @@ const HubActionItem: React.FC<{ item: HubActionItemModel }> = ({ item }) => (
         item.key
       )}
       onClick={item.onToggle}
-      className={`shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-default ${
+      className={`shrink-0 rounded-full transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-default ${
         item.done
           ? 'text-emerald-500'
           : 'text-slate-300 enabled:hover:text-emerald-500'
@@ -167,10 +167,10 @@ const HubActionItem: React.FC<{ item: HubActionItemModel }> = ({ item }) => (
         'teams-department',
         item.key
       )}
-      className="min-w-0 flex-1 rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 enabled:hover:text-brand-blue-primary"
+      className="min-w-0 flex-1 rounded-sm text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 enabled:hover:text-brand-blue-primary"
     >
       <span
-        className={`block break-words text-sm ${item.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}
+        className={`block wrap-break-word text-sm ${item.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}
       >
         {item.title}
       </span>

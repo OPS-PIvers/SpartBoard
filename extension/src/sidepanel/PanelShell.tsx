@@ -6,6 +6,7 @@ import { isDefiniteNonAdmin } from './recordTab';
 import { isRecorderInternal, type RecorderStatus } from '../recorder/messages';
 import { SidePanel } from './SidePanel';
 import { ToursTab } from './ToursTab';
+import { SendSection } from './SendSection';
 import { FocusTab, sendFocus } from './FocusTab';
 import {
   parseFocusPanelList,
@@ -104,7 +105,7 @@ export const PanelShell: React.FC = () => {
       aria-selected={current === id}
       className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold ${focusRing} ${
         current === id
-          ? 'bg-white text-slate-900 shadow-sm'
+          ? 'bg-white text-slate-900 shadow-xs'
           : 'text-slate-600 hover:text-slate-900'
       }`}
       onClick={() => setTab(id)}
@@ -126,6 +127,7 @@ export const PanelShell: React.FC = () => {
           {showRecord && tabButton('record', 'Record')}
         </div>
       )}
+      {current === 'tours' && <SendSection />}
       {current === 'tours' && (
         <div className="flex flex-1 flex-col gap-3 p-4">
           <h1 className="text-base font-semibold">Tours</h1>

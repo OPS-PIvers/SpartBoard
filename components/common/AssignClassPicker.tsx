@@ -231,7 +231,7 @@ const RosterCheckItem: React.FC<{
       )}
       {isClassLink && (
         <span
-          className="shrink-0 inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-brand-blue-lighter text-brand-blue-dark border border-brand-blue-light"
+          className="shrink-0 inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-brand-blue-lighter text-brand-blue-dark border border-brand-blue-light"
           title={badgeTitle}
         >
           <Link2 aria-hidden="true" focusable="false" className="w-2.5 h-2.5" />

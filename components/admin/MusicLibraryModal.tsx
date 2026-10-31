@@ -59,7 +59,7 @@ export const MusicLibraryModal: React.FC<MusicLibraryModalProps> = ({
       zIndex="z-modal-nested"
       customHeader={header}
       footer={footer}
-      className="!p-0"
+      className="p-0!"
       contentClassName=""
       footerClassName="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end w-full shrink-0"
     >

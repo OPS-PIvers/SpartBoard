@@ -29,8 +29,8 @@ describe('findStudentData', () => {
     expect(kinds('Open Alice Nguyen')).toEqual([
       ['roster-name', 'Alice Nguyen'],
     ]);
-    expect(kinds('Email abell27@students.orono.k12.mn.us')).toEqual([
-      ['email', 'abell27@students.orono.k12.mn.us'],
+    expect(kinds('Email abell27@orono.k12.mn.us')).toEqual([
+      ['email', 'abell27@orono.k12.mn.us'],
     ]);
     expect(kinds('Student #2045831')).toEqual([['id-number', '2045831']]);
     expect(kinds('Call 952 449 8300')).toEqual([['id-number', '952 449 8300']]);

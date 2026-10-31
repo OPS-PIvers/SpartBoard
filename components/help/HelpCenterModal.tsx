@@ -105,7 +105,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t('helpCenter.search')}
           aria-label={t('helpCenter.search')}
-          className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-light/40"
+          className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-light/40"
           {...tourAttr('help-center.search')}
         />
       </div>

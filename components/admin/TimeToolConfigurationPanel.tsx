@@ -78,7 +78,7 @@ const CLOCK_STYLES = TIME_TOOL_CLOCK_STYLES.map((value) => ({
 const pillClasses = (active: boolean) =>
   `flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
     active
-      ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+      ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
       : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
   }`;
 
@@ -175,7 +175,7 @@ export const TimeToolConfigurationPanel: React.FC<
                 onCommit={(n) =>
                   handleDurationChange(Math.trunc(n), durationRemainingSeconds)
                 }
-                className="w-16 px-2 py-1.5 text-xs text-center border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
+                className="w-16 px-2 py-1.5 text-xs text-center border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden"
               />
               <span className="text-xxs text-slate-500 font-bold">min</span>
             </div>
@@ -196,7 +196,7 @@ export const TimeToolConfigurationPanel: React.FC<
                     Math.min(59, Math.trunc(n))
                   )
                 }
-                className="w-16 px-2 py-1.5 text-xs text-center border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
+                className="w-16 px-2 py-1.5 text-xs text-center border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden"
               />
               <span className="text-xxs text-slate-500 font-bold">sec</span>
             </div>
@@ -469,7 +469,7 @@ export const TimeToolConfigurationPanel: React.FC<
                   e.target.value === 'global' ? undefined : e.target.value,
               })
             }
-            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
           >
             {FONTS.map((f) => (
               <option key={f.id} value={f.id}>

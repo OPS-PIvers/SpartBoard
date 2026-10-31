@@ -1,5 +1,5 @@
 // Transcribes one scanned page of handwritten paper answers with Gemini (plan D24).
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { Type, type Schema } from '@google/genai';
 import type { AiPart } from './aiRouter';
 import { parseGeminiJson } from './parseGeminiJson';

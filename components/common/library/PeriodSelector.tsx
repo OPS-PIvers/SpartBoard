@@ -113,7 +113,7 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
                   'assign',
                   r.id
                 )}
-                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                className="rounded-sm border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
               />
               <span className="text-sm text-slate-800 flex-1">{r.name}</span>
               {locked && (
@@ -142,7 +142,7 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
           <button
             onClick={onClose}
             {...tourAttr('assign-periods.selector-cancel')}
-            className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2 py-1 rounded transition-colors"
+            className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2 py-1 rounded-sm transition-colors"
           >
             Cancel
           </button>

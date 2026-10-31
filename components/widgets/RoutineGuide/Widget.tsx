@@ -165,7 +165,7 @@ const RoutineLibrary: React.FC<{
             placeholder="Search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 min-w-0 bg-transparent outline-none text-slate-800"
+            className="flex-1 min-w-0 bg-transparent outline-hidden text-slate-800"
             style={{ fontSize: 'min(14px, 4.25cqmin)' }}
           />
         </label>

@@ -299,7 +299,7 @@ export const PlcRecoveryPanel: React.FC = () => {
             return (
               <li
                 key={plc.id}
-                className="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm"
+                className="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-xs"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -430,7 +430,7 @@ export const PlcRecoveryPanel: React.FC = () => {
                           value={selectedLead}
                           onChange={(e) => setSelectedLead(e.target.value)}
                           disabled={isBusy}
-                          className="bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                          className="bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                         >
                           {eligible.map((m) => (
                             <option key={m.uid} value={m.uid}>

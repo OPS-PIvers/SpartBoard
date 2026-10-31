@@ -41,7 +41,7 @@ export const AssignStepperDevHarness: React.FC = () => {
   return (
     <AuthProvider>
       <DialogProvider>
-        <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100 font-sans">
+        <div className="h-screen h-dvh overflow-y-auto bg-slate-100 font-sans">
           <nav className="sticky top-0 z-10 flex flex-wrap gap-x-4 gap-y-1 border-b border-slate-200 bg-white px-4 py-2 text-sm">
             {PREVIEWS.map((p) => (
               <button

@@ -138,7 +138,7 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                     <button
                       onClick={handleRefreshDrive}
                       {...tourAttr('sidebar.drive-refresh')}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-emerald-200 text-xxs font-bold text-emerald-700 uppercase tracking-wider hover:bg-emerald-50 transition-all shadow-sm"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-emerald-200 text-xxs font-bold text-emerald-700 uppercase tracking-wider hover:bg-emerald-50 transition-all shadow-xs"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       {t('sidebar.settings.refresh', {
@@ -148,7 +148,7 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                     <button
                       onClick={handleDisconnectDrive}
                       {...tourAttr('sidebar.drive-disconnect')}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xxs font-bold text-slate-500 uppercase tracking-wider hover:text-brand-red-primary hover:border-brand-red-lighter hover:bg-red-50 transition-all shadow-sm"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xxs font-bold text-slate-500 uppercase tracking-wider hover:text-brand-red-primary hover:border-brand-red-lighter hover:bg-red-50 transition-all shadow-xs"
                     >
                       <Unlink className="w-3.5 h-3.5" />
                       {t('sidebar.settings.disconnect', {

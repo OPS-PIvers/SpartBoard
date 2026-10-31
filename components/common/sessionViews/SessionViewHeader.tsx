@@ -58,7 +58,7 @@ export const SessionViewHeader: React.FC<SessionViewHeaderProps> = ({
   return (
     <div
       {...anchor}
-      className="flex items-center justify-between bg-white/60 backdrop-blur-sm border-b border-slate-200/70 shrink-0"
+      className="flex items-center justify-between bg-white/60 backdrop-blur-xs border-b border-slate-200/70 shrink-0"
       style={{
         gap: 'min(12px, 2.5cqmin)',
         paddingInline: 'min(16px, 3.5cqmin)',

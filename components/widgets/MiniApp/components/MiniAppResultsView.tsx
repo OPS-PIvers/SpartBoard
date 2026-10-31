@@ -582,7 +582,7 @@ export const MiniAppResultsView: React.FC<{
                     )}
                   </span>
                   <span
-                    className="block font-sans text-brand-gray-dark break-words"
+                    className="block font-sans text-brand-gray-dark wrap-break-word"
                     style={{ fontSize: 'min(13px, 4.5cqmin)' }}
                   >
                     {q.prompt}
@@ -708,7 +708,7 @@ export const MiniAppResultsView: React.FC<{
                             toggle(row.id);
                           }}
                           aria-expanded={open}
-                          className="flex items-center min-w-0 text-left rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                          className="flex items-center min-w-0 text-left rounded-sm focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
                           style={{ gap: 'min(4px, 1cqmin)' }}
                         >
                           <ChevronRight

@@ -23,7 +23,7 @@ export const NoteItemAnalysisChart: React.FC<{
           <span className="w-7 shrink-0 font-bold tabular-nums text-slate-800">
             Q{q.number}
           </span>
-          <span className="min-w-0 break-words leading-snug">{q.text}</span>
+          <span className="min-w-0 wrap-break-word leading-snug">{q.text}</span>
         </span>
       ),
       value: (
@@ -32,7 +32,7 @@ export const NoteItemAnalysisChart: React.FC<{
             {correct}%
           </span>
           {q.dominantWrong && (
-            <span className="min-w-0 break-words leading-snug">
+            <span className="min-w-0 wrap-break-word leading-snug">
               {t('teams.notes.data.mostChose', {
                 defaultValue: 'Most chose {{answer}}, {{pct}}%',
                 answer: q.dominantWrong.label,

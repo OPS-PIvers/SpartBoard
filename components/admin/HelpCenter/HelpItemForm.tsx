@@ -314,7 +314,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
                 selected={draft.widgetTypes}
                 onToggle={(id) => toggleWidgetType(id as WidgetType)}
                 emptyText="None"
-                className="w-full !h-10"
+                className="w-full h-10!"
               />
             </Field>
           </div>

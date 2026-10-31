@@ -185,7 +185,7 @@ const Entry: React.FC<{
           <button // no-tour-anchor: tour launcher inside the release notes, which a tour does not walk
             type="button"
             onClick={() => entry.tourSetId && onShowTour(entry.tourSetId)}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light"
           >
             <Footprints className="w-3.5 h-3.5" aria-hidden="true" />
             {t('tours.showMe')}
@@ -344,7 +344,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
       <div
         ref={contentRef}
         tabIndex={-1}
-        className="pb-2 outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light/40 rounded-md"
+        className="pb-2 outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light/40 rounded-md"
       >
         {loading && (
           <p className="text-sm text-slate-500 py-6 text-center">

@@ -225,5 +225,82 @@ describe('VideoPlayer', () => {
       expect(player.seekTo).not.toHaveBeenCalled();
       expect(onQuestionTrigger).not.toHaveBeenCalled();
     });
+
+    it('ends the video once at the clip end and stops polling', () => {
+      player.getPlayerState = vi.fn(() => 1); // PLAYING
+      player.getCurrentTime = vi.fn(() => 60);
+      const onVideoEnd = vi.fn();
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          onVideoEnd={onVideoEnd}
+          clip={{ start: 10, end: 60 }}
+        />
+      );
+      flushFrame(1000);
+      expect(player.pauseVideo).toHaveBeenCalled();
+      expect(onVideoEnd).toHaveBeenCalledTimes(1);
+      expect(rafQueue).toHaveLength(0);
+    });
+
+    it('does not end at the clip end while a question is still unanswered', () => {
+      player.getPlayerState = vi.fn(() => 1); // PLAYING
+      player.getCurrentTime = vi.fn(() => 61);
+      const onVideoEnd = vi.fn();
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          allowSkipping
+          questions={[{ id: 'q1', timestamp: 61, text: 'Q', type: 'MC' }]}
+          onVideoEnd={onVideoEnd}
+          clip={{ end: 60 }}
+        />
+      );
+      flushFrame(1000);
+      expect(onVideoEnd).not.toHaveBeenCalled();
+    });
+
+    it('pauses on a note it has just reached and shows it once', () => {
+      player.getPlayerState = vi.fn(() => 1); // PLAYING
+      player.getCurrentTime = vi.fn(() => 20.2);
+      const onNoteTrigger = vi.fn();
+      const note = { id: 'n1', timestamp: 20, text: 'Look here' };
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          notes={[note]}
+          onNoteTrigger={onNoteTrigger}
+        />
+      );
+      flushFrame(1000);
+      flushFrame(2000);
+      expect(player.pauseVideo).toHaveBeenCalledTimes(1);
+      expect(onNoteTrigger).toHaveBeenCalledTimes(1);
+      expect(onNoteTrigger).toHaveBeenCalledWith(note);
+    });
+
+    it('skips a note well behind a resumed playhead', () => {
+      player.getPlayerState = vi.fn(() => 1); // PLAYING
+      player.getCurrentTime = vi.fn(() => 90);
+      const onNoteTrigger = vi.fn();
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          allowSkipping
+          notes={[{ id: 'n1', timestamp: 20, text: 'Look here' }]}
+          onNoteTrigger={onNoteTrigger}
+        />
+      );
+      flushFrame(1000);
+      expect(onNoteTrigger).not.toHaveBeenCalled();
+    });
+
+    it('moves a playhead before the clip start up to the start', () => {
+      player.getPlayerState = vi.fn(() => 1); // PLAYING
+      player.getCurrentTime = vi.fn(() => 2);
+      render(<VideoPlayer {...defaultProps} clip={{ start: 30 }} />);
+      flushFrame(1000);
+      expect(player.seekTo).toHaveBeenCalledWith(30, true);
+    });
   });
 });

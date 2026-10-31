@@ -109,7 +109,7 @@ export const FlashcardsSpeakWordFix: React.FC<{
             onKeyDown={(e) => {
               if (e.key === 'Enter') void add();
             }}
-            className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-40"
+            className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-40"
             {...tourFieldAttr(
               'admin.widget-config.field',
               'flashcards',

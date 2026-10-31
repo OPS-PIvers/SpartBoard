@@ -1,10 +1,9 @@
 // Teacher focus-session actions (docs/plans/CHROME_EXTENSION.md F1, F6, F7, F8, F11); onCall wrappers are in sessionCallables.ts.
 import { HttpsError } from 'firebase-functions/v2/https';
 import { Timestamp } from 'firebase-admin/firestore';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import {
   computeStudentUid,
-  isStudentDomainEmail,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
 } from '../classlinkShared';
@@ -120,12 +119,7 @@ export function verifyTeacher(caller: FocusCaller | null): {
 } {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in first.');
   const email = (caller.email ?? '').toLowerCase();
-  if (
-    caller.anonymous ||
-    caller.studentRole ||
-    !email ||
-    isStudentDomainEmail(email)
-  ) {
+  if (caller.anonymous || caller.studentRole || !email) {
     denied('Focus sessions are for teacher accounts.');
   }
   if (!caller.emailVerified) denied('A verified account is required.');

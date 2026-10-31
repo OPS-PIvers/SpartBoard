@@ -36,13 +36,13 @@ const AUTH_LABEL: Record<AuthMethod, string> = {
 const AUTH_ICON: Record<AuthMethod, React.ReactNode> = {
   google: (
     <span
-      className="h-4 w-4 rounded bg-gradient-to-br from-red-400 via-yellow-400 to-green-500"
+      className="h-4 w-4 rounded-sm bg-linear-to-br from-red-400 via-yellow-400 to-green-500"
       aria-hidden
     />
   ),
   microsoft: (
     <span
-      className="h-4 w-4 rounded bg-gradient-to-br from-sky-500 to-amber-500"
+      className="h-4 w-4 rounded-sm bg-linear-to-br from-sky-500 to-amber-500"
       aria-hidden
     />
   ),
@@ -323,7 +323,7 @@ const AddDomainModal: React.FC<{
               id="add-domain-input"
               value={domain.replace(/^@/, '')}
               onChange={(e) => setDomain(e.target.value)}
-              className="flex-1 h-10 px-2 bg-transparent outline-none font-mono text-sm text-slate-800"
+              className="flex-1 h-10 px-2 bg-transparent outline-hidden font-mono text-sm text-slate-800"
               placeholder="orono.k12.mn.us"
               autoFocus
             />

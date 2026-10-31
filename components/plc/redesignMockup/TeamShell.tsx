@@ -23,9 +23,9 @@ export interface ShellPage {
 export type ShellOverlay = 'gear' | 'whatsnew' | 'myitems' | 'members' | null;
 
 const HEADER_BTN =
-  'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
+  'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70';
 const HEADER_ICON =
-  'rounded-lg p-1.5 transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
+  'rounded-lg p-1.5 transition-colors hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70';
 
 export const TeamShell: React.FC<{
   team: MockTeam;
@@ -63,7 +63,7 @@ export const TeamShell: React.FC<{
   const shown = team.members.slice(0, 5);
   return (
     <div className="flex h-full flex-col bg-white">
-      <div className="relative flex h-14 shrink-0 items-center gap-2 bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark px-4 text-white shadow-sm md:h-16">
+      <div className="relative flex h-14 shrink-0 items-center gap-2 bg-linear-to-r from-brand-blue-primary to-brand-blue-dark px-4 text-white shadow-xs md:h-16">
         <Users2
           className="hidden h-4 w-4 shrink-0 text-white/70 md:block"
           aria-hidden="true"

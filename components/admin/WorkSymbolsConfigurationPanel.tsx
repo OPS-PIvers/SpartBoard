@@ -114,7 +114,7 @@ export const WorkSymbolsConfigurationPanel: React.FC<
                 fontFamily: selected === 'global' ? undefined : selected,
               });
             }}
-            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
           >
             {FONTS.map((f) => (
               <option key={f.id} value={f.id}>
@@ -147,7 +147,7 @@ export const WorkSymbolsConfigurationPanel: React.FC<
                 textSizePreset: e.target.value as TextSizePreset,
               })
             }
-            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
           >
             {TEXT_SIZE_PRESET_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -204,7 +204,7 @@ export const WorkSymbolsConfigurationPanel: React.FC<
                   .value as BuildingWorkSymbolsDefaults['titlePosition'],
               })
             }
-            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden bg-white"
           >
             {TITLE_POSITION_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>

@@ -1,5 +1,5 @@
 // Guided Learning tools: read, view and edit the teacher's sets, and building and Help Center sets for admins.
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';

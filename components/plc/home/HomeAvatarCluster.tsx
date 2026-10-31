@@ -101,7 +101,7 @@ export const HomeAvatarStack: React.FC<{
     onClick={onClick}
     aria-label={ariaLabel}
     aria-expanded={expanded}
-    className="flex items-center -space-x-2 rounded-full p-1 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+    className="flex items-center -space-x-2 rounded-full p-1 transition-colors hover:bg-slate-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
   >
     {people.map((p) => (
       <span

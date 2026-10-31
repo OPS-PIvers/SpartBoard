@@ -1,5 +1,5 @@
 import { HttpsError } from 'firebase-functions/v2/https';
-import type * as admin from 'firebase-admin';
+import type * as admin from './firebaseAdmin';
 import type { GoogleGenAIOptions } from '@google/genai';
 import { normalizeModelName } from './shared';
 import { normalizeAiModelId } from './aiModels';

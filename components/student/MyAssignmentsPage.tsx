@@ -241,7 +241,7 @@ const PartialFailureBanner: React.FC<{
 }> = ({ onRetry, className }) => (
   <div
     role="alert"
-    className={`flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm shadow-sm ${className ?? ''}`}
+    className={`flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm shadow-xs ${className ?? ''}`}
   >
     <AlertTriangle
       className="mt-0.5 h-5 w-5 shrink-0 text-amber-600"
@@ -259,7 +259,7 @@ const PartialFailureBanner: React.FC<{
     <button
       type="button"
       onClick={onRetry}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2 focus-visible:ring-offset-amber-50"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-amber-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2 focus-visible:ring-offset-amber-50"
     >
       <RefreshCw className="h-3.5 w-3.5" strokeWidth={2.5} />
       Try again
@@ -307,7 +307,7 @@ const FullEmpty: React.FC<FullEmptyProps> = ({
         <button
           type="button"
           onClick={action.onClick}
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-brand-blue-primary/20 transition hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+          className="inline-flex items-center gap-2 rounded-xl bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white shadow-xs shadow-brand-blue-primary/20 transition hover:bg-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
         >
           <RefreshCw className="h-4 w-4" strokeWidth={2.25} />
           {action.label}

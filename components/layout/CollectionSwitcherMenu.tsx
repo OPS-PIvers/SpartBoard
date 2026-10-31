@@ -180,7 +180,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
   };
 
   const itemClass = (isActive: boolean) =>
-    `w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
+    `w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
       isActive
         ? 'bg-brand-blue-primary text-white'
         : 'text-white/80 hover:bg-white/10'
@@ -245,12 +245,12 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
             onClose();
           }}
           style={{ paddingLeft: `${0.75 + depth * 1}rem` }}
-          className={`min-w-0 flex-1 flex items-center gap-2 pr-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
+          className={`min-w-0 flex-1 flex items-center gap-2 pr-3 py-2 text-left text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
             isActive ? 'bg-brand-blue-primary text-white' : 'text-white/80'
           }`}
         >
           <Folder
-            className="w-3.5 h-3.5 flex-shrink-0"
+            className="w-3.5 h-3.5 shrink-0"
             style={c.color ? { color: c.color } : undefined}
           />
           <span className="truncate">{c.name}</span>
@@ -336,7 +336,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
         }}
         className={itemClass(activeCollectionId === null)}
       >
-        <Home className="w-3.5 h-3.5 flex-shrink-0" />
+        <Home className="w-3.5 h-3.5 shrink-0" />
         {t('collectionSwitcher.root', { defaultValue: 'No Collection' })}
       </button>
       {renderGroup(null, 0)}
@@ -373,7 +373,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
               onClick={() => setIsCreating(true)}
               className={itemClass(false)}
             >
-              <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+              <Plus className="w-3.5 h-3.5 shrink-0" />
               {t('boardsModal.newCollection', {
                 defaultValue: 'New Collection',
               })}

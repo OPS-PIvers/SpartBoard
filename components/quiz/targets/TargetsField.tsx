@@ -37,7 +37,7 @@ export const TargetsField: React.FC<TargetsFieldProps> = ({
         aria-expanded={pickerOpen}
         onClick={() => setPickerOpen(true)}
         title={tags.map((t) => t.label).join('\n') || undefined}
-        className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-left text-sm text-slate-800 hover:border-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+        className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-left text-sm text-slate-800 hover:border-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
       >
         <span
           className={`min-w-0 flex-1 truncate ${tags.length ? '' : 'text-slate-400'}`}

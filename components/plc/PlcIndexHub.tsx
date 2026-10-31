@@ -64,7 +64,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
           {...tourAttr('plc-index.close')}
           type="button"
           onClick={onClose}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-brand-blue-primary transition-colors mb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary rounded"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-brand-blue-primary transition-colors mb-6 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary rounded-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           {t('plcRoute.backToBoard', { defaultValue: 'Back to my board' })}
@@ -112,7 +112,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
                     {...tourFieldAttr('plc-index.open-plc', 'plc', plc.id)}
                     type="button"
                     onClick={() => spaNavigate(buildPlcPath(plc.id))}
-                    className="group w-full flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/20 transition-all text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                    className="group w-full flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/20 transition-all text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                   >
                     <div className="shrink-0 w-10 h-10 rounded-xl bg-brand-blue-lighter flex items-center justify-center">
                       <Users2 className="w-5 h-5 text-brand-blue-primary" />
@@ -123,7 +123,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
                           {plc.name}
                         </span>
                         {isLead && (
-                          <span className="text-xxs font-bold text-brand-blue-primary bg-brand-blue-lighter px-1.5 py-0.5 rounded uppercase tracking-wider">
+                          <span className="text-xxs font-bold text-brand-blue-primary bg-brand-blue-lighter px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
                             {t('plcRoute.leadBadge', { defaultValue: 'Lead' })}
                           </span>
                         )}

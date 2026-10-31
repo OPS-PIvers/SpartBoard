@@ -227,7 +227,7 @@ export const EmbedConfigEditor: React.FC<{
             onClick={() => setTab(tab.id)}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === tab.id
-                ? 'bg-white shadow-sm text-brand-blue-primary'
+                ? 'bg-white shadow-xs text-brand-blue-primary'
                 : 'text-slate-500 hover:bg-slate-200/50'
             }`}
           >
@@ -250,7 +250,7 @@ export const EmbedConfigEditor: React.FC<{
               value={rawUrl}
               onChange={(e) => setRawUrl(e.target.value)}
               onBlur={applyUrl}
-              className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+              className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
               placeholder="YouTube, Google Drive, Docs, Slides, Forms…"
             />
             <ShortenUrlButton
@@ -278,7 +278,7 @@ export const EmbedConfigEditor: React.FC<{
               <button
                 {...tourAttr('admin.announcements.embed-copy-url')}
                 onClick={() => copyToClipboard(embedUrl)}
-                className="shrink-0 p-1 text-emerald-600 hover:bg-emerald-100 rounded"
+                className="shrink-0 p-1 text-emerald-600 hover:bg-emerald-100 rounded-sm"
                 title="Copy embed URL"
               >
                 {copied ? (
@@ -312,7 +312,7 @@ export const EmbedConfigEditor: React.FC<{
                   onChange={(e) => handleStartAtMinutesChange(e.target.value)}
                   placeholder="0"
                   aria-label="Start at minutes"
-                  className="w-16 px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                  className="w-16 px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                 />
                 <span className="text-xs text-slate-500">min</span>
                 <input
@@ -324,7 +324,7 @@ export const EmbedConfigEditor: React.FC<{
                   onChange={(e) => handleStartAtSecondsChange(e.target.value)}
                   placeholder="0"
                   aria-label="Start at seconds"
-                  className="w-16 px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                  className="w-16 px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                 />
                 <span className="text-xs text-slate-500">sec</span>
               </div>
@@ -344,7 +344,7 @@ export const EmbedConfigEditor: React.FC<{
               value={config.html ?? ''}
               {...tourAttr('admin.announcements.embed-html')}
               onChange={(e) => onChange({ ...config, html: e.target.value })}
-              className="w-full h-32 px-3 py-2 text-xs font-mono bg-slate-900 text-emerald-400 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+              className="w-full h-32 px-3 py-2 text-xs font-mono bg-slate-900 text-emerald-400 border border-slate-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
               placeholder={
                 '<iframe src="..."></iframe>\nor\n<video src="..."></video>'
               }
@@ -500,7 +500,7 @@ export const EmbedConfigEditor: React.FC<{
               onChange={(e) => setRawUrl(e.target.value)}
               onBlur={applyUrl}
               placeholder="https://www.youtube.com/live/…"
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
             />
           </div>
 

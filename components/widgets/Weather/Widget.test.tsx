@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { WeatherWidget } from './Widget';
 import { WidgetData, WeatherGlobalConfig } from '@/types';
@@ -69,6 +70,23 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('@/config/firebase', () => ({
   db: {},
+}));
+
+vi.mock('./WeatherDetailsPanel', () => ({
+  WeatherDetailsLayout: ({
+    rows,
+    children,
+  }: {
+    rows: { field: string; value: string }[];
+    children: ReactNode;
+  }) => (
+    <div data-testid="weather-details">
+      {rows.map((r) => (
+        <span key={r.field}>{`${r.field}:${r.value}`}</span>
+      ))}
+      {children}
+    </div>
+  ),
 }));
 
 describe('WeatherWidget', () => {
@@ -166,8 +184,7 @@ describe('WeatherWidget', () => {
     render(<WeatherWidget widget={widget} />);
 
     // Expected sunny gradient
-    const expectedBg =
-      'bg-gradient-to-br from-blue-400 via-sky-300 to-blue-200';
+    const expectedBg = 'bg-linear-to-br from-blue-400 via-sky-300 to-blue-200';
     await waitFor(() => {
       expect(mockSetBackground).toHaveBeenCalledWith(expectedBg);
     });
@@ -217,6 +234,35 @@ describe('WeatherWidget', () => {
       mockAuth.detailsFlag = true;
       render(<WeatherWidget widget={detailWidget} />);
       expect(screen.getByTestId('weather-details')).toBeInTheDocument();
+    });
+
+    it('hides saved station readings in manual mode', () => {
+      mockAuth.detailsFlag = true;
+      render(
+        <WeatherWidget
+          widget={{
+            ...detailWidget,
+            config: { ...detailWidget.config, feelsLike: 31 },
+          }}
+        />
+      );
+      expect(screen.queryByText(/31°/)).not.toBeInTheDocument();
+      expect(screen.getByText('dewPoint:--')).toBeInTheDocument();
+      expect(screen.getByText('humidity:--')).toBeInTheDocument();
+    });
+
+    it('shows station readings in automatic mode', () => {
+      mockAuth.detailsFlag = true;
+      render(
+        <WeatherWidget
+          widget={{
+            ...detailWidget,
+            config: { ...detailWidget.config, isAuto: true },
+          }}
+        />
+      );
+      expect(screen.getByText('dewPoint:40°')).toBeInTheDocument();
+      expect(screen.getByText('humidity:92')).toBeInTheDocument();
     });
   });
 });

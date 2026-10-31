@@ -1082,7 +1082,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                     title={t('plcDashboard.versions.open', {
                       defaultValue: 'Version history',
                     })}
-                    className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                    className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                   >
                     <History className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>

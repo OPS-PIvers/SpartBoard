@@ -48,7 +48,7 @@ const ModeOption: React.FC<ModeOptionProps> = ({
       onClick={() => !disabled && onPick(mode)}
       disabled={disabled}
       {...(tourId ? tourAttr(tourId) : {})}
-      className={`w-full text-left rounded-xl border bg-white px-4 py-4 transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 ${
+      className={`w-full text-left rounded-xl border bg-white px-4 py-4 transition-all focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 ${
         disabled
           ? 'border-slate-200 opacity-50 cursor-not-allowed'
           : 'border-slate-200 hover:border-brand-blue-primary hover:shadow-md cursor-pointer'

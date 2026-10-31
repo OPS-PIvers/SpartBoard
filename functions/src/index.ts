@@ -42,6 +42,7 @@ export { getAiProviderStatusV1 } from './aiProviderStatus';
 // ── External-content proxy + iframe embeddability check ────────────────────
 export { fetchExternalProxy, checkUrlCompatibility } from './embedProxy';
 export { fetchLinkPreview } from './linkPreview';
+export { fetchImportPageV1 } from './importPageFetch';
 export { fetchImportImage } from './fetchImportImage';
 
 // ── Activity Wall photo → Google Drive archive (legacy client callable) ────
@@ -303,6 +304,7 @@ export {
 
 // PLC goal coach: checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22).
 export { plcGoalCoachV1 } from './plcGoalCoach';
+export { importConvertV1 } from './importConversion';
 
 // Web tours: Claude writes step titles and tips (docs/plans/shipped/WEB_TOURS_CLAUDE.md C9).
 export { writeWebTourTextV1 } from './webTourWriting';
@@ -320,6 +322,9 @@ export {
   schoologyImportInboxV1,
   schoologyImportInboxCleanup,
 } from './schoologyQuizImport';
+
+// Import: the extension's Send to SpartBoard posts a read page to the teacher's inbox (docs/plans/IMPORT.md D14).
+export { importStatusV1, importInboxV1 } from './importInbox';
 
 // Focus sessions: the student's extension checks its session and reports status (docs/plans/CHROME_EXTENSION.md F3).
 export { focusStatusV1, focusReportV1 } from './focus/studentEndpoints';

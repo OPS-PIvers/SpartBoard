@@ -121,7 +121,7 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
           <label className="text-xxs font-bold text-slate-500 uppercase block mb-1">
             Default Question
           </label>
-          <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 flex items-center gap-2 shadow-sm focus-within:ring-2 focus-within:ring-brand-blue-primary focus-within:border-brand-blue-primary transition-all">
+          <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 flex items-center gap-2 shadow-xs focus-within:ring-2 focus-within:ring-brand-blue-primary focus-within:border-brand-blue-primary transition-all">
             <Type className="w-4 h-4 text-slate-400 shrink-0" />
             <input
               {...tourFieldAttr(
@@ -132,7 +132,7 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
               type="text"
               value={question}
               onChange={(e) => handleUpdateQuestion(e.target.value)}
-              className="flex-1 text-sm border-none outline-none bg-transparent font-medium text-slate-700"
+              className="flex-1 text-sm border-none outline-hidden bg-transparent font-medium text-slate-700"
               placeholder="Enter default question..."
             />
           </div>
@@ -157,7 +157,7 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
             {options.map((option, index) => (
               <div
                 key={option.id}
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-sm"
+                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-xs"
               >
                 <GripVertical className="w-3.5 h-3.5 text-slate-300 shrink-0" />
 
@@ -172,7 +172,7 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
                   onChange={(e) =>
                     handleUpdateOption(index, { label: e.target.value })
                   }
-                  className="flex-1 text-xs border-none outline-none bg-transparent font-medium"
+                  className="flex-1 text-xs border-none outline-hidden bg-transparent font-medium"
                   placeholder="Option text..."
                 />
 
@@ -201,7 +201,7 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
           <button
             {...tourTypeAttr('admin.widget-config.add', 'poll')}
             onClick={handleAddOption}
-            className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark transition-colors w-full justify-center"
+            className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded-sm hover:bg-brand-blue-dark transition-colors w-full justify-center"
           >
             <Plus className="w-3 h-3" /> Add Option
           </button>

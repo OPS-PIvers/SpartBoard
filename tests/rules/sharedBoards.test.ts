@@ -32,6 +32,10 @@ import {
   orderBy,
   getDocs,
 } from 'firebase/firestore';
+import {
+  NOT_STAFF_DISTRICT_EMAILS,
+  seedDistrictStaff,
+} from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-shared-boards';
 const SHARE_ID = 'share-rules-test';
@@ -165,6 +169,7 @@ beforeEach(async () => {
     await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
       email: ADMIN_EMAIL,
     });
+    await seedDistrictStaff(ctx.firestore(), [ORONO_EMAIL]);
   });
 });
 
@@ -196,6 +201,19 @@ describe('shared_boards — read, substitute share', () => {
     await assertSucceeds(
       getDoc(doc(asOronoTeacher(), `shared_boards/${SHARE_ID}`))
     );
+  });
+
+  it('a student or non-staff district account is denied on substitute share', async () => {
+    for (const email of NOT_STAFF_DISTRICT_EMAILS) {
+      const db = testEnv
+        .authenticatedContext(`not-staff-${email}`, {
+          email,
+          email_verified: true,
+          firebase: { sign_in_provider: 'google.com' },
+        })
+        .firestore();
+      await assertFails(getDoc(doc(db, `shared_boards/${SHARE_ID}`)));
+    }
   });
 
   it('a spoofed email with an embedded @ before the orono domain is denied', async () => {
@@ -521,6 +539,7 @@ describe('shared_boards — intendedMode immutability', () => {
       await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
         email: ADMIN_EMAIL,
       });
+      await seedDistrictStaff(ctx.firestore(), [ORONO_EMAIL]);
     });
   });
 

@@ -9,7 +9,7 @@ import React from 'react';
  * widget's render path.
  */
 export const studentChipClass =
-  'bg-white border-b-2 border-slate-200 rounded-xl font-black text-slate-700 shadow-sm hover:border-brand-blue-primary hover:-translate-y-0.5 transition-all active:scale-90';
+  'bg-white border-b-2 border-slate-200 rounded-xl font-black text-slate-700 shadow-xs hover:border-brand-blue-primary hover:-translate-y-0.5 transition-all active:scale-90';
 
 export const studentChipStyle: React.CSSProperties = {
   fontSize: 'min(13px, 3.8cqmin)',

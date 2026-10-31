@@ -1,7 +1,12 @@
 /**
  * Backfill `quiz_join_codes/{code}/sessions/{sessionId}` pointers for quiz
  * sessions created before the lookup collection shipped
- * (docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md).
+ * (docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md), and the `quiz_join_codes/{code}`
+ * owner record for every code that has none. A code's owner is the teacher whose
+ * joinable session under it was created first (server create time), else the
+ * teacher of its newest session; codes joinable for two teachers are listed in
+ * `ownerConflicts`. Run with --all before the release that ships owner records
+ * and again right after it, to claim codes an old tab created in between.
  *
  * Without a pointer a session is reachable only through the legacy
  * `where('code','==',code)` query, which is the query that keeps `quiz_sessions`
@@ -37,6 +42,8 @@ const includeEnded = args.includes('--all');
 const JOINABLE = new Set(['waiting', 'active', 'paused']);
 const PAGE_SIZE = 500;
 const BATCH_LIMIT = 400;
+// gRPC status a create() gets when the doc already exists.
+const ALREADY_EXISTS = 6;
 
 function loadCredentials() {
   const fromEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -87,8 +94,14 @@ const report = {
   skippedNoCode: 0,
   skippedNoTeacher: 0,
   skippedBadCode: 0,
+  ownersWritten: 0,
+  ownersPresent: 0,
+  ownerConflicts: [],
   pending: [],
 };
+
+/** code -> { joinable: Map<teacherUid, earliest createMs>, newest: { teacherUid, createMs } } */
+const codes = new Map();
 
 let batch = db.batch();
 let batched = 0;
@@ -126,6 +139,19 @@ for await (const sessionDoc of pagedSessions()) {
     continue;
   }
 
+  const seen = codes.get(code) ?? { joinable: new Map(), newest: null };
+  const createMs = sessionDoc.createTime?.toMillis() ?? 0;
+  if (JOINABLE.has(status)) {
+    const prev = seen.joinable.get(data.teacherUid);
+    if (prev === undefined || createMs < prev) {
+      seen.joinable.set(data.teacherUid, createMs);
+    }
+  }
+  if (!seen.newest || createMs > seen.newest.createMs) {
+    seen.newest = { teacherUid: data.teacherUid, createMs };
+  }
+  codes.set(code, seen);
+
   const ref = db
     .collection('quiz_join_codes')
     .doc(code)
@@ -159,6 +185,38 @@ for await (const sessionDoc of pagedSessions()) {
 }
 await flush();
 
+for (const [code, seen] of codes) {
+  const ownerRef = db.collection('quiz_join_codes').doc(code);
+  if ((await ownerRef.get()).exists) {
+    report.ownersPresent += 1;
+    continue;
+  }
+  // A hijack session comes after the real one, so the first-created joinable session wins.
+  const firstJoinable = [...seen.joinable].sort((a, b) => a[1] - b[1])[0];
+  if (seen.joinable.size > 1) {
+    report.ownerConflicts.push({
+      code,
+      teachers: [...seen.joinable.keys()],
+      owner: firstJoinable[0],
+    });
+  }
+  const teacherUid = firstJoinable
+    ? firstJoinable[0]
+    : seen.newest.teacherUid;
+  if (!apply) {
+    report.ownersWritten += 1;
+    continue;
+  }
+  // Per-code create: a code a live tab claims meanwhile skips only itself.
+  try {
+    await ownerRef.create({ teacherUid, createdAt: Date.now() });
+    report.ownersWritten += 1;
+  } catch (err) {
+    if (err?.code !== ALREADY_EXISTS) throw err;
+    report.ownersPresent += 1;
+  }
+}
+
 report.finishedAt = new Date().toISOString();
 const outDir = join(__dirname, 'output');
 if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
@@ -178,6 +236,9 @@ console.log(
     `  skipped no code:      ${report.skippedNoCode}`,
     `  skipped no teacherUid:${report.skippedNoTeacher}`,
     `  skipped bad code:     ${report.skippedBadCode}`,
+    `  owners ${apply ? 'written' : 'to write'}:   ${report.ownersWritten}`,
+    `  owners present:       ${report.ownersPresent}`,
+    `  owner conflicts:      ${report.ownerConflicts.length} (see report)`,
     `  report: ${outPath}`,
   ].join('\n')
 );

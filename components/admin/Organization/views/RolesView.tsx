@@ -337,7 +337,7 @@ const Legend: React.FC<{ color: string; label: string }> = ({
   label,
 }) => (
   <span className="inline-flex items-center gap-2">
-    <span className={`h-3 w-3 rounded-sm ${color}`} aria-hidden />
+    <span className={`h-3 w-3 rounded-xs ${color}`} aria-hidden />
     {label}
   </span>
 );
@@ -416,7 +416,7 @@ const MatrixCell: React.FC<{
       aria-label={`Access: ${ACCESS_META[value].label}. Click to set ${ACCESS_META[next].label}.`}
       title={`${ACCESS_META[value].label} — click to set ${ACCESS_META[next].label}`}
       onClick={() => onChange(next)}
-      className="p-1 rounded-md hover:bg-slate-100 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
+      className="p-1 rounded-md hover:bg-slate-100 focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
     >
       {content}
     </button>

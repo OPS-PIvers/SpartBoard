@@ -52,7 +52,7 @@ export const PartnerCardFrame: React.FC<PartnerCardFrameProps> = ({
               type="button"
               onClick={onAdd}
               {...tourFieldAttr('settings.partner-add', partner, 'add')}
-              className="self-start inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-light focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="self-start inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-light focus:outline-hidden focus:ring-2 focus:ring-offset-1 focus:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-3.5 h-3.5" aria-hidden="true" />
               {addLabel}

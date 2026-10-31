@@ -139,13 +139,15 @@ export const VideoActivityPreview: React.FC<{
                         className="text-slate-300"
                         style={{ fontSize: 'min(13px, 5cqmin)' }}
                       >
-                        No answer saved
+                        {question.type === 'SA'
+                          ? 'Short answer, marked by the teacher'
+                          : 'No answer saved'}
                       </span>
                     ) : (
                       answers.map((answer) => (
                         <span
                           key={answer}
-                          className="rounded bg-emerald-500/15 text-emerald-200"
+                          className="rounded-sm bg-emerald-500/15 text-emerald-200"
                           style={{
                             fontSize: 'min(13px, 5cqmin)',
                             padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',

@@ -155,7 +155,7 @@ const FibAnswer: React.FC<FibAnswerProps> = ({
         spellCheck={false}
         placeholder={t('flashcards.write.placeholder')}
         className={cx(
-          'w-full rounded-xl border-2 font-bold outline-none transition placeholder:opacity-100 focus:ring-4 disabled:opacity-70',
+          'w-full rounded-xl border-2 font-bold outline-hidden transition placeholder:opacity-100 focus:ring-4 disabled:opacity-70',
           dark
             ? 'border-white/15 bg-slate-950/60 text-white placeholder:text-white/60 focus:border-cyan-300 focus:ring-cyan-300/20'
             : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-600 focus:border-rose-400 focus:ring-rose-200'
@@ -424,7 +424,7 @@ export const TestMode: React.FC<TestModeProps> = ({
               <button
                 type="button"
                 onClick={() => startTest(true)}
-                className="inline-flex items-center rounded-full bg-rose-600 font-black text-white transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
+                className="inline-flex items-center rounded-full bg-rose-600 font-black text-white transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300"
                 style={{
                   gap: 'min(7px, 1.5cqmin)',
                   padding: 'min(11px, 2.6cqmin) min(18px, 4cqmin)',
@@ -445,7 +445,7 @@ export const TestMode: React.FC<TestModeProps> = ({
               type="button"
               onClick={() => startTest(false)}
               className={cx(
-                'inline-flex items-center rounded-full font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300',
+                'inline-flex items-center rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300',
                 dark
                   ? 'bg-white/10 text-white hover:bg-white/20'
                   : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
@@ -514,7 +514,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                     ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 }
                 className={cx(
-                  'rounded-full font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+                  'rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
                   answered
                     ? 'bg-rose-600 text-white'
                     : dark
@@ -544,7 +544,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                 id={`flashcard-test-${question.id}`}
                 key={question.id}
                 className={cx(
-                  'rounded-[min(22px,5cqmin)] border shadow-sm',
+                  'rounded-[min(22px,5cqmin)] border shadow-xs',
                   dark
                     ? 'border-white/15 bg-slate-950/55 text-white'
                     : 'border-slate-200 bg-white text-slate-900'
@@ -568,7 +568,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                   })}
                 </p>
                 <h2
-                  className="font-black leading-tight [text-wrap:balance]"
+                  className="font-black leading-tight text-balance"
                   style={{
                     marginTop: 'min(7px, 1.5cqmin)',
                     marginBottom: 'min(14px, 3cqmin)',
@@ -588,7 +588,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                           onClick={() => answer(question, option)}
                           aria-pressed={selected}
                           className={cx(
-                            'rounded-xl border-2 text-left font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-200',
+                            'rounded-xl border-2 text-left font-bold transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-200',
                             selected
                               ? 'border-rose-500 bg-rose-600 text-white'
                               : dark
@@ -639,7 +639,7 @@ export const TestMode: React.FC<TestModeProps> = ({
           type="button"
           onClick={submit}
           disabled={!allAnswered || check?.submitting}
-          className="mx-auto flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/20 transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
+          className="mx-auto flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/20 transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
           style={{
             gap: 'min(7px, 1.5cqmin)',
             marginTop: 'min(16px, 3.5cqmin)',

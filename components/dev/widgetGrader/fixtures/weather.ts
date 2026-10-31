@@ -22,8 +22,6 @@ const stationDetails = {
   dewPoint: 40,
   humidity: 92,
   pressure: 30.44,
-  rainDaily: 0.34,
-  rainMonthly: 0.91,
   windSpeedAvg: 10,
   windDirectionAvg: 67,
   windGust: 16,
@@ -38,7 +36,7 @@ export const weatherFixtures = defineFixtures<'weather'>({
   typical: {
     auth: detailsAuth,
     config: {
-      isAuto: false,
+      isAuto: true,
       temp: 54,
       feelsLike: 49,
       showFeelsLike: true,
@@ -59,7 +57,7 @@ export const weatherFixtures = defineFixtures<'weather'>({
     customTitle: STRESS.title,
     auth: detailsAuth,
     config: {
-      isAuto: false,
+      isAuto: true,
       temp: -23,
       feelsLike: -41,
       showFeelsLike: true,

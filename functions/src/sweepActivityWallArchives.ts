@@ -9,7 +9,7 @@
  * more. Modeled on `sweepStuckQuizArchives.ts`.
  */
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   ACTIVITY_WALL_ARCHIVE_SECRETS,
   ACTIVITY_WALL_MEDIA_ROOT,
@@ -147,8 +147,7 @@ async function retryStragglers(
       summary.scanned++;
       const data = (docSnap.data() ?? {}) as Record<string, unknown>;
       if (typeof data.storagePath !== 'string' || !data.storagePath) continue;
-      // New-client submissions only; the legacy callable owns the rest (see
-      // shouldArchiveSubmission in activityWallArchive.ts).
+      // New-client submissions only (see shouldArchiveSubmission in activityWallArchive.ts).
       if (!data.storagePath.startsWith(`${ACTIVITY_WALL_MEDIA_ROOT}/`)) {
         continue;
       }

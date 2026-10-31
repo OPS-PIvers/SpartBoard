@@ -126,7 +126,7 @@ export const TalkingToolConfigurationPanel: React.FC<
         <button
           onClick={addCategory}
           {...tourTypeAttr('admin.widget-config.add', 'talking-tool')}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary text-white rounded-lg text-xxs font-black uppercase tracking-wider hover:bg-brand-blue-dark transition-all shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary text-white rounded-lg text-xxs font-black uppercase tracking-wider hover:bg-brand-blue-dark transition-all shadow-xs"
         >
           <Plus className="w-3.5 h-3.5" /> Add Category
         </button>
@@ -136,7 +136,7 @@ export const TalkingToolConfigurationPanel: React.FC<
         {categories.map((cat) => (
           <div
             key={cat.id}
-            className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm"
+            className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-xs"
           >
             {/* Category Header */}
             <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
@@ -170,7 +170,7 @@ export const TalkingToolConfigurationPanel: React.FC<
                 onChange={(e) =>
                   updateCategory(cat.id, { color: e.target.value })
                 }
-                className="w-6 h-6 rounded cursor-pointer border-none bg-transparent"
+                className="w-6 h-6 rounded-sm cursor-pointer border-none bg-transparent"
               />
               <button
                 onClick={() => removeCategory(cat.id)}
@@ -212,7 +212,7 @@ export const TalkingToolConfigurationPanel: React.FC<
                     onChange={(e) =>
                       updateStem(cat.id, stem.id, e.target.value)
                     }
-                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:border-brand-blue-primary focus:bg-white outline-none transition-all"
+                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:border-brand-blue-primary focus:bg-white outline-hidden transition-all"
                     placeholder="Enter sentence stem..."
                   />
                   <button

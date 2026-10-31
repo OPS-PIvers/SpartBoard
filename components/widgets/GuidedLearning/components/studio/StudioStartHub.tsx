@@ -60,12 +60,12 @@ const Target: React.FC<TargetProps> = ({
       onClick={onClick}
       disabled={disabled}
       aria-describedby={descId}
-      className={`flex min-h-[112px] items-start gap-3 rounded-xl border bg-white p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed ${
+      className={`flex min-h-[112px] items-start gap-3 rounded-xl border bg-white p-4 text-left transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed ${
         dashed ? 'border-2 border-dashed' : ''
       } ${
         disabled
           ? 'border-slate-200 bg-slate-50'
-          : 'border-slate-300 hover:border-slate-400 hover:shadow-sm'
+          : 'border-slate-300 hover:border-slate-400 hover:shadow-xs'
       }`}
     >
       <span

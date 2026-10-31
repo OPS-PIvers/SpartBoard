@@ -163,7 +163,7 @@ export const FlashcardShareModal: React.FC<FlashcardShareModalProps> = ({
                   readOnly
                   value={shareUrl}
                   onFocus={(event) => event.currentTarget.select()}
-                  className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
+                  className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
                 />
                 <Button
                   variant="secondary"
@@ -188,7 +188,7 @@ export const FlashcardShareModal: React.FC<FlashcardShareModalProps> = ({
                 rows={3}
                 value={embedCode}
                 onFocus={(event) => event.currentTarget.select()}
-                className="mt-2 w-full resize-none rounded-xl border border-slate-300 bg-slate-950 px-3 py-2 font-mono text-xs text-white outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
+                className="mt-2 w-full resize-none rounded-xl border border-slate-300 bg-slate-950 px-3 py-2 font-mono text-xs text-white outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
               />
               <Button
                 variant="secondary"

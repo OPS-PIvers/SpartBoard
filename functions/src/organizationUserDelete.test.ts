@@ -9,7 +9,7 @@ const recursiveDeleteMock = vi.fn();
 const deleteFilesMock = vi.fn();
 const getFilesMock = vi.fn();
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   const FieldValue = { serverTimestamp: () => 'ts' };
   return {
     apps: [{ name: '[DEFAULT]' }],

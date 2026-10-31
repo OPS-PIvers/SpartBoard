@@ -80,7 +80,7 @@ export const RevealGridConfigurationPanel: React.FC<
                 onClick={() => updateBuildingDefaults({ columns: n })}
                 className={`flex-1 py-1.5 text-xs font-black rounded-lg transition-all ${
                   (currentDefaults.columns ?? DEFAULT_COLUMNS) === n
-                    ? 'bg-brand-blue-primary shadow-sm text-white'
+                    ? 'bg-brand-blue-primary shadow-xs text-white'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -108,7 +108,7 @@ export const RevealGridConfigurationPanel: React.FC<
                 onClick={() => updateBuildingDefaults({ revealMode: mode })}
                 className={`flex-1 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
                   (currentDefaults.revealMode ?? DEFAULT_REVEAL_MODE) === mode
-                    ? 'bg-brand-blue-primary shadow-sm text-white'
+                    ? 'bg-brand-blue-primary shadow-xs text-white'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -141,7 +141,7 @@ export const RevealGridConfigurationPanel: React.FC<
                 onClick={() => updateBuildingDefaults({ isMemoryMode: value })}
                 className={`flex-1 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
                   (currentDefaults.isMemoryMode ?? false) === value
-                    ? 'bg-brand-blue-primary shadow-sm text-white'
+                    ? 'bg-brand-blue-primary shadow-xs text-white'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -171,7 +171,7 @@ export const RevealGridConfigurationPanel: React.FC<
                     : (e.target.value as GlobalFontFamily),
               })
             }
-            className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none font-bold"
+            className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-hidden font-bold"
           >
             <option value="global">Use Dashboard Default</option>
             <option value="sans">Sans Serif</option>
@@ -212,7 +212,7 @@ export const RevealGridConfigurationPanel: React.FC<
               onChange={(e) =>
                 updateBuildingDefaults({ defaultCardColor: e.target.value })
               }
-              className="w-full h-8 rounded cursor-pointer border border-slate-200"
+              className="w-full h-8 rounded-sm cursor-pointer border border-slate-200"
             />
           </div>
         </div>
@@ -245,7 +245,7 @@ export const RevealGridConfigurationPanel: React.FC<
               onChange={(e) =>
                 updateBuildingDefaults({ defaultCardBackColor: e.target.value })
               }
-              className="w-full h-8 rounded cursor-pointer border border-slate-200"
+              className="w-full h-8 rounded-sm cursor-pointer border border-slate-200"
             />
           </div>
         </div>

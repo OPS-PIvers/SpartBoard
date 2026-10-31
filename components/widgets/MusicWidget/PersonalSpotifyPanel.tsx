@@ -104,7 +104,7 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget, t }) => {
             widget.id,
             widget.type
           )}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition shadow-sm"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition shadow-xs"
         >
           <Music2 className="w-4 h-4" />
           {label('spotifyConnect')}
@@ -207,7 +207,7 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget, t }) => {
                 widget.id,
                 widget.type
               )}
-              className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition"
+              className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-sm transition"
               title={label('spotifyDisconnect')}
               aria-label={label('spotifyDisconnect')}
             >

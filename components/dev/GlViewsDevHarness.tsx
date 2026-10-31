@@ -248,7 +248,7 @@ const useRecording = (): TourRecording | null => {
 const noop = () => undefined;
 const resolved = () => Promise.resolve();
 
-const fill = 'absolute inset-0 [container-type:size]';
+const fill = 'absolute inset-0 @container-size';
 
 // Drops the saved place first so no Resume prompt covers the step.
 const FreshPlayer: React.FC<{ start: string }> = ({ start }) => {
@@ -298,7 +298,7 @@ const QuestionView: React.FC = () => {
 
 const ResultsView: React.FC = () => (
   <div className="absolute inset-0 grid grid-cols-1 lg:grid-cols-2">
-    <div className="relative [container-type:size] border-r border-slate-200">
+    <div className="relative @container-size border-r border-slate-200">
       <GuidedLearningResults
         set={PLAYER_SET}
         sessionId="gl-dev-session"
@@ -306,7 +306,7 @@ const ResultsView: React.FC = () => (
       />
     </div>
     <div
-      className="relative [container-type:size] overflow-y-auto bg-slate-50 text-slate-900"
+      className="relative @container-size overflow-y-auto bg-slate-50 text-slate-900"
       style={{ padding: 'min(12px, 2.5cqmin)' }}
     >
       <EngagementView set={PLAYER_SET} summary={ENGAGEMENT} failed={false} />
@@ -363,7 +363,7 @@ export const GlViewsDevHarness: React.FC = () => {
   };
 
   const btn = (active: boolean) =>
-    `rounded px-2 py-0.5 ${active ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`;
+    `rounded-sm px-2 py-0.5 ${active ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`;
 
   return (
     <DialogProvider>
@@ -379,7 +379,7 @@ export const GlViewsDevHarness: React.FC = () => {
                 {view === 'studio' && <StudioView step={studioStep} />}
               </div>
               <div
-                className={`fixed right-0 top-1/2 z-[2147483000] flex -translate-y-1/2 flex-col items-stretch gap-0.5 rounded-l-lg bg-white/95 p-1 text-xs text-slate-700 shadow ${hidden ? 'opacity-0 hover:opacity-100' : ''}`}
+                className={`fixed right-0 top-1/2 z-2147483000 flex -translate-y-1/2 flex-col items-stretch gap-0.5 rounded-l-lg bg-white/95 p-1 text-xs text-slate-700 shadow-sm ${hidden ? 'opacity-0 hover:opacity-100' : ''}`}
               >
                 <button
                   type="button"

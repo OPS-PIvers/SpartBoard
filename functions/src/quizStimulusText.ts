@@ -1,7 +1,7 @@
 // Authoring-time text extraction for image/pdf quiz stimuli
 // (docs/plans/shipped/QUIZ_READ_ALOUD.md §4.2): PDF text layer first, Gemini OCR fallback.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import type { Firestore } from 'firebase-admin/firestore';
 import { ALLOWED_ORIGINS } from './classlinkShared';

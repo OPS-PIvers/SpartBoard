@@ -4,7 +4,7 @@
 // drifts between starting a run and controlling one is a hole.
 
 import { HttpsError } from 'firebase-functions/v2/https';
-import type * as admin from 'firebase-admin';
+import type * as admin from './firebaseAdmin';
 
 export const MAX_ID_LENGTH = 128;
 

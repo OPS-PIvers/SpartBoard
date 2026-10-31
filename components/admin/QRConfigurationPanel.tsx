@@ -77,7 +77,7 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
               })
             }
             placeholder="e.g. https://google.com"
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-none transition-all"
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-hidden transition-all"
           />
         </div>
 
@@ -111,7 +111,7 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
                   onChange={(e) =>
                     handleUpdateBuilding({ qrColor: e.target.value })
                   }
-                  className="w-8 h-8 rounded border border-slate-200 cursor-pointer p-0.5 bg-white"
+                  className="w-8 h-8 rounded-sm border border-slate-200 cursor-pointer p-0.5 bg-white"
                   title="Pick color"
                 />
                 <input
@@ -128,7 +128,7 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
                     })
                   }
                   placeholder="#000000"
-                  className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
+                  className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden"
                 />
                 {currentBuildingConfig.qrColor && (
                   <button
@@ -163,7 +163,7 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
                   onChange={(e) =>
                     handleUpdateBuilding({ qrBgColor: e.target.value })
                   }
-                  className="w-8 h-8 rounded border border-slate-200 cursor-pointer p-0.5 bg-white"
+                  className="w-8 h-8 rounded-sm border border-slate-200 cursor-pointer p-0.5 bg-white"
                   title="Pick background color"
                 />
                 <input
@@ -180,7 +180,7 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
                     })
                   }
                   placeholder="#ffffff"
-                  className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
+                  className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden"
                 />
                 {currentBuildingConfig.qrBgColor && (
                   <button
@@ -203,7 +203,7 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
 
           <div className="mt-4 p-3 bg-slate-50 border border-slate-100 rounded-lg flex gap-4 items-center justify-center">
             <div
-              className="w-20 h-20 rounded shadow-sm border border-slate-200 flex items-center justify-center"
+              className="w-20 h-20 rounded-sm shadow-xs border border-slate-200 flex items-center justify-center"
               style={{
                 backgroundColor: currentBuildingConfig.qrBgColor ?? '#ffffff',
               }}

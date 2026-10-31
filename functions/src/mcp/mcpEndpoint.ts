@@ -1,6 +1,6 @@
 // The Claude connector's MCP endpoint: stateless Streamable HTTP with JSON responses (plan: "Architecture").
 import { onRequest } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import '../functionsInit';
 import {
   DAILY_CALL_LIMIT_PER_INSTANCE,

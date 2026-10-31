@@ -53,7 +53,7 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
           <p className="text-xs text-slate-500 font-black uppercase tracking-widest mb-1.5">
             Pasted text
           </p>
-          <p className="text-sm text-slate-700 font-bold leading-relaxed whitespace-pre-wrap break-words">
+          <p className="text-sm text-slate-700 font-bold leading-relaxed whitespace-pre-wrap wrap-break-word">
             {preview}
           </p>
         </div>

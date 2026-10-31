@@ -51,7 +51,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-overlay bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+    <div className="absolute inset-0 z-overlay bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
       <div
         className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
         onKeyDown={(e) => {
@@ -80,7 +80,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
           {/* Live preview chip */}
           <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
             <div
-              className={`w-12 h-12 rounded-2xl ${color} flex items-center justify-center text-white shadow-sm shrink-0`}
+              className={`w-12 h-12 rounded-2xl ${color} flex items-center justify-center text-white shadow-xs shrink-0`}
             >
               {React.createElement(getCustomWidgetIcon(icon) ?? Bookmark, {
                 size: 22,
@@ -110,7 +110,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="My Mini App"
               autoFocus
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-hidden focus:border-brand-blue-primary"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && canSave) handleSubmit();
               }}
@@ -173,7 +173,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
                     title={preset.label}
                     aria-label={preset.label}
                     aria-pressed={active}
-                    className={`w-8 h-8 rounded-full ${preset.value} flex items-center justify-center text-white transition-all shadow-sm ${
+                    className={`w-8 h-8 rounded-full ${preset.value} flex items-center justify-center text-white transition-all shadow-xs ${
                       active
                         ? 'ring-2 ring-offset-2 ring-brand-blue-primary scale-110'
                         : 'hover:scale-105'
@@ -202,7 +202,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
             onClick={handleSubmit}
             disabled={!canSave}
             {...tourTypeAttr('mini-app.save-as-widget-save', 'miniApp')}
-            className="px-4 py-2 rounded-xl text-sm font-black uppercase tracking-widest bg-brand-blue-primary hover:bg-brand-blue-dark text-white transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+            className="px-4 py-2 rounded-xl text-sm font-black uppercase tracking-widest bg-brand-blue-primary hover:bg-brand-blue-dark text-white transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-xs"
           >
             {isSaving ? (
               <Loader2 className="w-4 h-4 animate-spin" />

@@ -156,14 +156,14 @@ type BtnVariant =
 
 const BTN_VARIANT: Record<BtnVariant, string> = {
   primary:
-    'bg-brand-blue-primary hover:bg-brand-blue-dark active:translate-y-px text-white shadow-sm',
+    'bg-brand-blue-primary hover:bg-brand-blue-dark active:translate-y-px text-white shadow-xs',
   secondary:
-    'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 active:translate-y-px shadow-sm',
+    'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 active:translate-y-px shadow-xs',
   tertiary:
     'bg-brand-blue-lighter text-brand-blue-dark hover:bg-indigo-100 active:translate-y-px',
   ghost: 'bg-transparent text-slate-600 hover:bg-slate-100',
   danger:
-    'bg-brand-red hover:bg-brand-red-dark text-white shadow-sm active:translate-y-px',
+    'bg-brand-red hover:bg-brand-red-dark text-white shadow-xs active:translate-y-px',
   dangerGhost:
     'bg-transparent text-brand-red hover:bg-rose-50 active:translate-y-px',
 };
@@ -191,7 +191,7 @@ export const Btn: React.FC<
 }) => (
   <button
     type={type}
-    className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 disabled:opacity-50 disabled:pointer-events-none ${BTN_VARIANT[variant]} ${BTN_SIZE[size]} ${className}`}
+    className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 disabled:opacity-50 disabled:pointer-events-none ${BTN_VARIANT[variant]} ${BTN_SIZE[size]} ${className}`}
     {...rest}
   >
     {icon}
@@ -274,7 +274,7 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({
   ...rest
 }) => (
   <input
-    className={`w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 disabled:bg-slate-50 disabled:text-slate-500 ${className}`}
+    className={`w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 disabled:bg-slate-50 disabled:text-slate-500 ${className}`}
     {...rest}
   />
 );
@@ -283,7 +283,7 @@ export const Textarea: React.FC<
   React.TextareaHTMLAttributes<HTMLTextAreaElement>
 > = ({ className = '', ...rest }) => (
   <textarea
-    className={`w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 ${className}`}
+    className={`w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 ${className}`}
     {...rest}
   />
 );
@@ -292,7 +292,7 @@ export const Select: React.FC<
   React.SelectHTMLAttributes<HTMLSelectElement>
 > = ({ className = '', children, ...rest }) => (
   <select
-    className={`w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 ${className}`}
+    className={`w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 ${className}`}
     {...rest}
   >
     {children}
@@ -312,7 +312,7 @@ export const Checkbox: React.FC<
   <input
     {...rest}
     type="checkbox"
-    className={`h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40 ${className}`}
+    className={`h-4 w-4 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40 ${className}`}
   />
 );
 
@@ -458,7 +458,7 @@ export const RowMenu: React.FC<{ items: MenuItem[]; label?: string }> = ({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="h-8 w-8 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
+        className="h-8 w-8 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
       >
         <svg
           width="16"
@@ -549,7 +549,7 @@ export const OrgLogoTile: React.FC<{
         : 'h-10 w-10 text-xs rounded-lg';
   return (
     <div
-      className={`${cls} ${seedColor} text-white flex items-center justify-center font-bold shrink-0 shadow-sm`}
+      className={`${cls} ${seedColor} text-white flex items-center justify-center font-bold shrink-0 shadow-xs`}
       aria-hidden
     >
       {shortCode}
@@ -660,7 +660,7 @@ export const PopoverOption: React.FC<{
     onClick={onClick}
     aria-pressed={ariaPressed}
     {...anchor}
-    className="w-full text-left px-3 py-2 flex items-start gap-2.5 rounded-lg hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+    className="w-full text-left px-3 py-2 flex items-start gap-2.5 rounded-lg hover:bg-slate-50 focus:bg-slate-50 focus:outline-hidden"
   >
     {icon && <span className="mt-0.5">{icon}</span>}
     <span className="flex-1 min-w-0">

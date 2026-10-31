@@ -41,6 +41,10 @@ import {
   where,
   getDocs,
 } from 'firebase/firestore';
+import {
+  NOT_STAFF_DISTRICT_EMAILS,
+  seedDistrictStaff,
+} from './districtStaffSeed';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -227,6 +231,12 @@ beforeEach(async () => {
     await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
       email: ADMIN_EMAIL,
     });
+    await seedDistrictStaff(ctx.firestore(), [
+      ORONO_EMAIL,
+      UNNAMED_SUB_EMAIL,
+      'sub@orono.k12.mn.us',
+      'ohssub@orono.k12.mn.us',
+    ]);
   });
 });
 
@@ -277,6 +287,19 @@ describe('shared_collections — read, substitute share', () => {
 
   it('Orono email is allowed on substitute share', async () => {
     await assertSucceeds(getDoc(doc(asOronoTeacher(), sharePath)));
+  });
+
+  it('a student or non-staff district account is denied on substitute share', async () => {
+    for (const email of NOT_STAFF_DISTRICT_EMAILS) {
+      const db = testEnv
+        .authenticatedContext(`not-staff-${email}`, {
+          email,
+          email_verified: true,
+          firebase: { sign_in_provider: 'google.com' },
+        })
+        .firestore();
+      await assertFails(getDoc(doc(db, sharePath)));
+    }
   });
 
   it('a spoofed email with an embedded @ before the orono domain is denied', async () => {

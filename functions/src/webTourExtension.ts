@@ -1,7 +1,8 @@
 // The extension's own tour calls (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H7): a Google access token, never Firebase auth.
 import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
+import { isDistrictStaffEmail } from './districtStaff';
 import { GL_TOURS_COLLECTION } from './glTours';
 import { WEB_TOURS_FEATURE_ID, isWebTourPicturePath } from './mcp/webTourTools';
 import { isWebTourSnapshot } from './mcp/webTours';
@@ -344,6 +345,11 @@ function defaultDeps(db: Firestore): ExtensionDeps {
       }
     },
     allowed: async (email, uid) => {
+      // Students share the district domain, so the flag alone can't admit an address.
+      const staff =
+        (await isDistrictStaffEmail(db, email)) ||
+        (await db.collection('admins').doc(email).get()).exists;
+      if (!staff) return false;
       const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
       return isGlobalFeatureGranted(db, WEB_TOURS_FEATURE_ID, email, uid ?? '');
     },

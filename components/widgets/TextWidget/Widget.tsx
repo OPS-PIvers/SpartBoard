@@ -376,7 +376,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             )}
 
           <div
-            className={`h-full w-full ${fontClass} outline-none transition-colors overflow-y-auto custom-scrollbar bg-transparent relative flex flex-col`}
+            className={`h-full w-full ${fontClass} outline-hidden transition-colors overflow-y-auto custom-scrollbar bg-transparent relative flex flex-col`}
           >
             {/* Background color overlay */}
             <div
@@ -397,7 +397,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               >
                 <div
                   ref={editorRef}
-                  className="rich-text-content w-full outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400/60 empty:before:pointer-events-none"
+                  className="rich-text-content w-full outline-hidden empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400/60 empty:before:pointer-events-none"
                   style={{
                     padding: 'min(16px, 3.5cqmin)',
                     color: fontColor,

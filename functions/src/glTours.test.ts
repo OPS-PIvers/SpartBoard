@@ -88,7 +88,7 @@ const h = vi.hoisted(() => {
   return { store, failCreate, db };
 });
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(
@@ -111,7 +111,7 @@ vi.mock('firebase-functions/logger', () => ({
   debug: vi.fn(),
 }));
 
-import type * as adminNs from 'firebase-admin';
+import type * as adminNs from './firebaseAdmin';
 import {
   buildGlTourContent,
   claimGlToursSeed,

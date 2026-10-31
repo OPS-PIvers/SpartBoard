@@ -5,15 +5,33 @@ import {
   parseFlashcardSheetRows,
   parseFlashcardText,
 } from '@/components/widgets/Flashcards/utils/flashcardImport';
+import {
+  AI_CONVERSION_REVIEW_NOTE,
+  AI_CONVERSION_TRUNCATED_NOTE,
+  convertWithAi,
+  type ConversionInput,
+  type FlashcardsConversionResult,
+} from '@/utils/import/aiConversion';
 
 export interface FlashcardImportData {
   cards: FlashcardCard[];
+  /** The set name an AI Conversion suggested. */
+  title?: string;
 }
 
 interface FlashcardImportAdapterDeps {
   loadSheet: (url: string) => Promise<string[][]>;
+  /** Defaults to the importConvertV1 callable. */
+  convert?: (
+    target: 'flashcards',
+    input: ConversionInput
+  ) => Promise<FlashcardsConversionResult>;
   pickSheet: () => Promise<{ url: string } | null>;
-  save: (cards: FlashcardCard[], title: string) => Promise<void>;
+  save: (
+    cards: FlashcardCard[],
+    title: string,
+    fromInitialSource: boolean
+  ) => Promise<void>;
 }
 
 export function createFlashcardImportAdapter(
@@ -24,6 +42,23 @@ export function createFlashcardImportAdapter(
     supportedSources: ['sheet', 'csv'],
     pickSheet: deps.pickSheet,
     parse: async (source) => {
+      if (source.kind === 'conversion') {
+        const result = deps.convert
+          ? await deps.convert('flashcards', source.input)
+          : await convertWithAi('flashcards', source.input);
+        return {
+          data: {
+            title: result.title,
+            cards: result.cards.map((card) => ({
+              id: crypto.randomUUID(),
+              term: card.term,
+              definition: card.definition,
+            })),
+          },
+          warnings: result.truncated ? [AI_CONVERSION_TRUNCATED_NOTE] : [],
+          note: AI_CONVERSION_REVIEW_NOTE,
+        };
+      }
       if (source.kind === 'csv') {
         const parsed = parseFlashcardText(source.text);
         return {
@@ -77,6 +112,8 @@ export function createFlashcardImportAdapter(
         </div>
       </div>
     ),
-    save: (data, title) => deps.save(data.cards, title),
+    suggestTitle: (data) => data.title,
+    save: (data, title, context) =>
+      deps.save(data.cards, title, context?.fromInitialSource ?? false),
   };
 }

@@ -302,7 +302,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
               // can rename the item without a duplicate title field in the
               // editor body. `aria-labelledby` on the modal still resolves
               // here because the id is preserved.
-              className="font-black text-lg text-slate-800 truncate bg-transparent border-0 focus:outline-none focus:ring-0 placeholder:text-slate-400 placeholder:font-bold w-full p-0"
+              className="font-black text-lg text-slate-800 truncate bg-transparent border-0 focus:outline-hidden focus:ring-0 placeholder:text-slate-400 placeholder:font-bold w-full p-0"
               aria-label="Title"
               {...(tourScope ? tourTypeAttr('editor.title', tourScope) : {})}
             />
@@ -392,7 +392,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
               {...saveAnchor}
               onClick={() => void handleSave()}
               disabled={saveDisabled || isSaving}
-              className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
               {saveLabel}

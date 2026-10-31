@@ -185,7 +185,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
   return (
     <div
       className={`
-        flex animate-in slide-in-from-right duration-300 group bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all
+        flex animate-in slide-in-from-right duration-300 group bg-white border border-slate-100 rounded-2xl shadow-xs hover:shadow-md transition-all
         ${
           isHero
             ? 'flex-col items-center justify-center text-center'
@@ -210,7 +210,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
           !isHero &&
           !isGrid && (
             <span
-              className={`text-white font-black flex items-center justify-center shrink-0 shadow-sm ${structure === 'cycle' ? 'rounded-full' : 'rounded-xl'}`}
+              className={`text-white font-black flex items-center justify-center shrink-0 shadow-xs ${structure === 'cycle' ? 'rounded-full' : 'rounded-xl'}`}
               style={{
                 width: '2.5em',
                 height: '2.5em',
@@ -225,7 +225,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
         {(structure === 'linear' || structure === 'cycle') &&
           (isGrid || isHero) && (
             <span
-              className={`text-brand-blue-primary font-black flex items-center justify-center bg-brand-blue-lighter/50 shrink-0 shadow-sm ${structure === 'cycle' ? 'rounded-full' : 'rounded-xl'}`}
+              className={`text-brand-blue-primary font-black flex items-center justify-center bg-brand-blue-lighter/50 shrink-0 shadow-xs ${structure === 'cycle' ? 'rounded-full' : 'rounded-xl'}`}
               style={{
                 width: isHero ? '3em' : '2em',
                 height: isHero ? '3em' : '2em',
@@ -247,7 +247,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
             <img
               src={step.imageUrl}
               alt="Step Illustration"
-              className="w-full h-full object-cover rounded-xl border border-slate-100 shadow-sm"
+              className="w-full h-full object-cover rounded-xl border border-slate-100 shadow-xs"
             />
           </div>
         )}
@@ -291,7 +291,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
                 ),
               })
             }
-            className={`bg-brand-blue-lighter text-brand-blue-primary hover:bg-brand-blue-light/20 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center shadow-sm ${isGrid ? 'w-full py-2' : ''}`}
+            className={`bg-brand-blue-lighter text-brand-blue-primary hover:bg-brand-blue-light/20 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center shadow-xs ${isGrid ? 'w-full py-2' : ''}`}
             style={{
               padding: isGrid ? '0.5em' : '0.6em 1em',
               gap: '0.5em',
@@ -316,7 +316,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
                 step.stickerUrl
               )
             }
-            className={`bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center shadow-sm ${isGrid ? 'w-full py-2' : ''}`}
+            className={`bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center shadow-xs ${isGrid ? 'w-full py-2' : ''}`}
             style={{
               padding: isGrid ? '0.5em' : '0.6em 1em',
               gap: '0.5em',
@@ -499,7 +499,7 @@ export const InstructionalRoutinesWidget: React.FC<{ widget: WidgetData }> = ({
               return (
                 <div
                   key={r.id}
-                  className={`group/card relative bg-white rounded-2xl shadow-sm border transition-all hover:shadow-md flex items-center shrink-0 ${colors.border} ${colors.hoverBorder}`}
+                  className={`group/card relative bg-white rounded-2xl shadow-xs border transition-all hover:shadow-md flex items-center shrink-0 ${colors.border} ${colors.hoverBorder}`}
                   style={{
                     height: '18.8cqh', // (100 - (4 * 1gap) - (2 * 1pad)) / 5 = 18.8
                     padding: '0 1.2em',
@@ -681,7 +681,7 @@ export const InstructionalRoutinesWidget: React.FC<{ widget: WidgetData }> = ({
                   widget.id,
                   widget.type
                 )}
-                className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all font-black uppercase tracking-widest text-slate-700"
+                className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-xs hover:shadow-md transition-all font-black uppercase tracking-widest text-slate-700"
                 style={{
                   padding: '0.8em',
                   fontSize: '0.75em',
@@ -696,7 +696,7 @@ export const InstructionalRoutinesWidget: React.FC<{ widget: WidgetData }> = ({
                   widget.id,
                   widget.type
                 )}
-                className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all font-black uppercase tracking-widest text-slate-700"
+                className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-xs hover:shadow-md transition-all font-black uppercase tracking-widest text-slate-700"
                 style={{
                   padding: '0.8em',
                   fontSize: '0.75em',

@@ -109,7 +109,10 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
     () => [...new Set(session.periodNames ?? [])],
     [session.periodNames]
   );
-  const [selected, setSelected] = useState<string>(periodNames[0] ?? '');
+  // Shared-Pause sessions open on All classes ('') with Pause in reach; per-period ones on the first class's Start.
+  const openOn = (s: typeof session) =>
+    hasPeriodAccess(s) && s.status !== 'ended' ? (periodNames[0] ?? '') : '';
+  const [selected, setSelected] = useState<string>(() => openOn(session));
 
   // Reset local navigation when the monitored session changes.
   const [prevSessionId, setPrevSessionId] = useState(session.id);
@@ -117,7 +120,7 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
     setPrevSessionId(session.id);
     setScreen({ name: 'home' });
     setOpenBucket(null);
-    setSelected(periodNames[0] ?? '');
+    setSelected(openOn(session));
   } else if (selected && !periodNames.includes(selected)) setSelected('');
 
   // Per-period sessions get each class's own Start and Pause.
@@ -183,7 +186,11 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
     return merged;
   }, [classLinkNames, ltiNames]);
 
-  const { questions } = useVideoActivityKeyQuestions(session);
+  const {
+    questions,
+    loading: keyLoading,
+    failed: keyFailed,
+  } = useVideoActivityKeyQuestions(session);
 
   const filteredResponses = useMemo(() => {
     // Filter only while a class control shows, so no class can be stuck hidden.
@@ -293,7 +300,9 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
       : 'Question results';
   const statusPill = isLive
     ? { label: 'Live', cls: 'bg-white text-brand-blue-primary' }
-    : { label: 'Paused', cls: 'bg-white/20 text-white' };
+    : run?.phase === 'waiting'
+      ? { label: 'Not started', cls: 'bg-white/20 text-white' }
+      : { label: 'Paused', cls: 'bg-white/20 text-white' };
 
   const periodControls = periodBar ? (
     <PeriodBar
@@ -460,7 +469,30 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
           </div>
         )}
 
-        {screen.name === 'questions' && (
+        {screen.name === 'questions' && questions.length === 0 && (
+          <div className="flex flex-col" style={{ gap: 'min(4px, 1cqmin)' }}>
+            <p
+              className="font-semibold text-brand-gray-dark"
+              style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+            >
+              {keyLoading
+                ? 'Loading questions…'
+                : keyFailed
+                  ? "Couldn't load the answer key"
+                  : 'No questions'}
+            </p>
+            {keyFailed && !keyLoading && (
+              <p
+                className="text-brand-gray-primary"
+                style={{ fontSize: 'min(12px, 4cqmin)' }}
+              >
+                Reload to try again. Scores stay hidden until it loads.
+              </p>
+            )}
+          </div>
+        )}
+
+        {screen.name === 'questions' && questions.length > 0 && (
           <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
             {questions.map((q, i) => {
               const answered = filteredResponses.filter((r) =>
@@ -596,11 +628,20 @@ const QuestionDetail: React.FC<{
   index: number;
   responses: VideoActivityResponse[];
 }> = ({ question, index, responses }) => {
-  const { totalAnswered, rows } = buildDistribution(
-    question,
-    responses,
-    gradeVideoActivityAnswer
-  );
+  const { type } = question;
+  const { totalAnswered, rows } =
+    type === 'SA'
+      ? {
+          totalAnswered: responses.filter((r) =>
+            r.answers.some((a) => a.questionId === question.id)
+          ).length,
+          rows: [],
+        }
+      : buildDistribution(
+          { ...question, type },
+          responses,
+          gradeVideoActivityAnswer
+        );
   return (
     <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
       <div>
@@ -618,7 +659,17 @@ const QuestionDetail: React.FC<{
           {question.text}
         </p>
       </div>
-      {rows.length > 0 ? (
+      {question.type === 'SA' ? (
+        // Short answers are marked in Results, not charted here.
+        <p
+          className="text-brand-gray-primary"
+          style={{ fontSize: 'min(12px, 4cqmin)' }}
+        >
+          {totalAnswered === 0
+            ? 'No answers yet.'
+            : 'Mark these answers in Results.'}
+        </p>
+      ) : rows.length > 0 ? (
         <AnswerDistributionBars
           rows={rows}
           total={totalAnswered}

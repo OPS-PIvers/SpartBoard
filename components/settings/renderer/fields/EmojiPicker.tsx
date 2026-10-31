@@ -33,7 +33,7 @@ export const EmojiPicker: React.FC<
         tabIndex={tabbable ? 0 : -1}
         disabled={disabled}
         onClick={() => onChange(emoji)}
-        className={`flex items-center justify-center text-lg leading-none p-1 rounded-md transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed ${
+        className={`flex items-center justify-center text-lg leading-none p-1 rounded-md transition-colors cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed ${
           selected
             ? 'bg-brand-blue-primary/15 ring-1 ring-brand-blue-primary'
             : 'hover:bg-slate-100'
@@ -81,7 +81,7 @@ export const EmojiPicker: React.FC<
         onChange={(e) => onChange(firstGrapheme(e.target.value))}
         aria-label={t('emojiCustom')}
         placeholder={t('emojiCustom')}
-        className="w-16 text-center text-base bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 placeholder:text-xxs placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50"
+        className="w-16 text-center text-base bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 placeholder:text-xxs placeholder:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50"
       />
     </div>
   );

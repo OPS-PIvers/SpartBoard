@@ -13,7 +13,7 @@
  * red banners, not toasts.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { AiRetryLink } from './AiRetryLink';
 import {
   TestAndKeyUploader,
@@ -112,17 +112,31 @@ export function ImportWizard<TData>({
   adapter,
   defaultTitle,
   onSaved,
+  initialParse,
+  initialSource,
 }: ImportWizardProps<TData>): React.ReactElement | null {
-  const [step, setStep] = useState<Step>('source');
+  const [step, setStep] = useState<Step>(initialParse ? 'preview' : 'source');
   const [sheetUrl, setSheetUrl] = useState('');
   const [pasteText, setPasteText] = useState('');
-  const [parsed, setParsed] = useState<TData | null>(null);
-  const [warnings, setWarnings] = useState<string[]>([]);
-  const [note, setNote] = useState('');
+  const [parsed, setParsed] = useState<TData | null>(
+    initialParse?.data ?? null
+  );
+  const [warnings, setWarnings] = useState<string[]>(
+    initialParse?.warnings ?? []
+  );
+  // True when what is under review came from the Source Import handed over.
+  const [parsedFromInitial, setParsedFromInitial] = useState(false);
+  const [note, setNote] = useState(initialParse?.note ?? '');
   // The plain read that can be redone with AI from the preview step.
   const [aiRetrySource, setAiRetrySource] =
     useState<ImportSourcePayload | null>(null);
-  const [title, setTitle] = useState(defaultTitle ?? '');
+  const [title, setTitle] = useState(
+    () =>
+      defaultTitle ??
+      (initialParse && adapter.suggestTitle?.(initialParse.data)?.trim()) ??
+      initialSource?.title ??
+      ''
+  );
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -159,14 +173,20 @@ export function ImportWizard<TData>({
     // eslint-disable-next-line react-hooks/refs -- session counter bumped with the open/close reset
     sessionRef.current += 1;
     if (isOpen) {
-      setStep('source');
+      setStep(initialParse ? 'preview' : 'source');
       setSheetUrl('');
       setPasteText('');
-      setParsed(null);
-      setWarnings([]);
-      setNote('');
+      setParsed(initialParse?.data ?? null);
+      setParsedFromInitial(false);
+      setWarnings(initialParse?.warnings ?? []);
+      setNote(initialParse?.note ?? '');
       setAiRetrySource(null);
-      setTitle(defaultTitle ?? '');
+      setTitle(
+        defaultTitle ??
+          (initialParse && adapter.suggestTitle?.(initialParse.data)?.trim()) ??
+          initialSource?.title ??
+          ''
+      );
       setParseError(null);
       setValidationErrors([]);
       setSaveError(null);
@@ -192,11 +212,16 @@ export function ImportWizard<TData>({
   const supportsKeyFile = supportsDocument && adapter.supportsKeyFile === true;
   const supportsAiReader =
     supportsDocument && adapter.supportsAiReader === true;
+  const extraUpload = adapter.extraUpload;
   const supportsAnyUpload =
-    supportsCsv || supportsJson || supportsHtml || supportsFile;
+    supportsCsv ||
+    supportsJson ||
+    supportsHtml ||
+    supportsFile ||
+    !!extraUpload;
   const supportsJsonPaste = supportsJson && adapter.supportsJsonPaste === true;
   const canPickSheet = supportsSheet && !!adapter.pickSheet;
-  const uploadHint =
+  const baseUploadHint =
     supportsHtml && !supportsCsv && !supportsJson && !supportsFile
       ? '.html or .htm'
       : supportsCsv && supportsJson
@@ -206,11 +231,23 @@ export function ImportWizard<TData>({
           : supportsJson
             ? 'JSON'
             : 'File';
+  const uploadHint = extraUpload
+    ? supportsCsv || supportsJson || supportsHtml || supportsFile
+      ? `${baseUploadHint}, ${extraUpload.hint}`
+      : extraUpload.hint
+    : baseUploadHint;
 
-  const runParse = async (payload: ImportSourcePayload): Promise<void> => {
+  const runParse = async (
+    payload: ImportSourcePayload,
+    fromInitial = false
+  ): Promise<void> => {
     const session = sessionRef.current;
     setLoadingLabel(
-      payload.kind === 'document' ? 'Importing…' : 'Importing your file…'
+      payload.kind === 'conversion'
+        ? 'Converting…'
+        : payload.kind === 'document'
+          ? 'Importing…'
+          : 'Importing your file…'
     );
     setLoading(true);
     setParseError(null);
@@ -219,6 +256,7 @@ export function ImportWizard<TData>({
       // Stale session — wizard closed/reopened while this parse was in flight.
       if (session !== sessionRef.current) return;
       setParsed(result.data);
+      setParsedFromInitial(fromInitial);
       setWarnings(result.warnings);
       setNote(result.note ?? '');
       setAiRetrySource(result.aiRetry ? payload : null);
@@ -310,11 +348,15 @@ export function ImportWizard<TData>({
     bulkSource.onFile(file);
   };
 
-  const importFile = async (file: File): Promise<void> => {
+  const importFile = async (file: File, fromInitial = false): Promise<void> => {
     const session = sessionRef.current;
     // A collection export picked or dropped on the main zone goes to the bulk import.
     if (bulkSource && matchesAccept(file.name, bulkSource.accept)) {
       bulkSource.onFile(file);
+      return;
+    }
+    if (extraUpload && matchesAccept(file.name, extraUpload.accept)) {
+      await runParse({ kind: 'file', file }, fromInitial);
       return;
     }
     const uploadAccept = acceptExtensionsForSources(adapter.supportedSources);
@@ -333,23 +375,26 @@ export function ImportWizard<TData>({
     }
     const kind = inferKindFromFileName(file.name, adapter.supportedSources);
     if (kind === 'file') {
-      await runParse({ kind: 'file', file });
+      await runParse({ kind: 'file', file }, fromInitial);
       return;
     }
     if (kind === 'document') {
       // A test document is bytes, never text — the reader opens it itself.
-      await runParse({
-        kind: 'document',
-        file,
-        fileName: file.name,
-        ...(supportsAiReader ? { useAi: false } : {}),
-      });
+      await runParse(
+        {
+          kind: 'document',
+          file,
+          fileName: file.name,
+          ...(supportsAiReader ? { useAi: false } : {}),
+        },
+        fromInitial
+      );
       return;
     }
     try {
       const text = await file.text();
       if (session !== sessionRef.current) return;
-      await runParse({ kind, text, fileName: file.name });
+      await runParse({ kind, text, fileName: file.name }, fromInitial);
     } catch (err) {
       if (session !== sessionRef.current) return;
       setParseError(
@@ -369,6 +414,27 @@ export function ImportWizard<TData>({
   const uploadDrop = useFileDrop((file) => void importFile(file), loading);
 
   const bulkDrop = useFileDrop(handBulkFile, loading || !bulkSource);
+
+  // Read a Source handed over by Import once per open; the parse itself is async work.
+  const readInitial = useEffectEvent((): void => {
+    if (!initialSource) return;
+    const { file, text, conversion } = initialSource;
+    if (conversion) {
+      void runParse({ kind: 'conversion', input: conversion }, true);
+    } else if (file) {
+      void importFile(file, true);
+    } else if (text && supportsCsv) {
+      void runParse({ kind: 'csv', text }, true);
+    }
+  });
+  // The session the initial Source was read in; guards StrictMode's second effect run.
+  const initialReadSession = useRef(-1);
+  useEffect(() => {
+    if (!isOpen || initialReadSession.current === sessionRef.current) return;
+    initialReadSession.current = sessionRef.current;
+    // Starts the async read after this commit, like a picked file would.
+    void Promise.resolve().then(readInitial);
+  }, [isOpen]);
 
   const handleCreateTemplate = async (): Promise<void> => {
     if (!adapter.templateHelper) return;
@@ -429,6 +495,7 @@ export function ImportWizard<TData>({
       const data = await adapter.aiAssist.generate({ prompt: aiPrompt.trim() });
       if (session !== sessionRef.current) return;
       setParsed(data);
+      setParsedFromInitial(false);
       setWarnings([]);
       setAiOpen(false);
       setAiPrompt('');
@@ -462,7 +529,9 @@ export function ImportWizard<TData>({
     setSaveError(null);
     setSaving(true);
     try {
-      await adapter.save(parsed, trimmed);
+      await adapter.save(parsed, trimmed, {
+        fromInitialSource: parsedFromInitial,
+      });
       // Stale session — don't close or report "saved" against a freshly-reopened wizard.
       if (session !== sessionRef.current) return;
       onSaved?.(trimmed);
@@ -677,6 +746,7 @@ export function ImportWizard<TData>({
                   ref={fileInputRef}
                   accept={[
                     acceptExtensionsForSources(adapter.supportedSources),
+                    extraUpload?.accept,
                     adapter.bulkSource?.accept,
                   ]
                     .filter(Boolean)
@@ -715,7 +785,7 @@ export function ImportWizard<TData>({
               onClick={() => void handleCreateTemplate()}
               {...tourAttr('import-wizard.create-template')}
               disabled={creatingTemplate}
-              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
+              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-xs active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
             >
               {creatingTemplate ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -730,7 +800,7 @@ export function ImportWizard<TData>({
               onClick={() => void handleCopyTemplateUrl()}
               {...tourAttr('import-wizard.copy-template-url')}
               disabled={copyState === 'copying'}
-              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
+              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-xs active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
             >
               {copyState === 'copying' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -760,14 +830,14 @@ export function ImportWizard<TData>({
               value={sheetUrl}
               onChange={(e) => setSheetUrl(e.target.value)}
               placeholder="https://docs.google.com/spreadsheets/…"
-              className="flex-1 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors"
+              className="flex-1 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium placeholder-slate-400 focus:outline-hidden focus:border-brand-blue-primary transition-colors"
             />
             <button
               type="button"
               onClick={handleSheetSubmit}
               {...tourAttr('import-wizard.sheet-url-submit')}
               disabled={loading || !sheetUrl.trim()}
-              className="px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white font-bold rounded-xl transition-colors shadow-sm active:scale-95 flex items-center justify-center"
+              className="px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white font-bold rounded-xl transition-colors shadow-xs active:scale-95 flex items-center justify-center"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -799,14 +869,14 @@ export function ImportWizard<TData>({
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
             placeholder='{ "title": "…", "imageUrls": […], "steps": […] }'
-            className="w-full h-24 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-mono text-xs placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors resize-none"
+            className="w-full h-24 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-mono text-xs placeholder-slate-400 focus:outline-hidden focus:border-brand-blue-primary transition-colors resize-none"
           />
           <button
             type="button"
             onClick={() => void runParse({ kind: 'json', text: pasteText })}
             {...tourAttr('import-wizard.paste-json-submit')}
             disabled={loading || !pasteText.trim()}
-            className="w-full py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white text-sm font-bold rounded-xl transition-colors shadow-sm active:scale-95"
+            className="w-full py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white text-sm font-bold rounded-xl transition-colors shadow-xs active:scale-95"
           >
             Import pasted JSON
           </button>
@@ -842,7 +912,7 @@ export function ImportWizard<TData>({
 
   const previewStep = (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
         {parsed != null ? (
           // An adapter with a review step owns this pane and hands back the
           // teacher's corrections; everything else keeps the read-only preview.
@@ -894,7 +964,7 @@ export function ImportWizard<TData>({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={`Untitled ${adapter.widgetLabel}`}
-          className="w-full px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors"
+          className="w-full px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium placeholder-slate-400 focus:outline-hidden focus:border-brand-blue-primary transition-colors"
         />
       </div>
       {validationErrors.length > 0 && (
@@ -980,7 +1050,7 @@ export function ImportWizard<TData>({
             onClick={() => setStep('confirm')}
             {...tourAttr('import-wizard.continue')}
             disabled={parsed == null}
-            className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Continue
           </button>
@@ -991,7 +1061,7 @@ export function ImportWizard<TData>({
             onClick={() => void handleConfirmSave()}
             {...tourAttr('import-wizard.save')}
             disabled={saving || parsed == null}
-            className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -1038,7 +1108,7 @@ export function ImportWizard<TData>({
           <div
             role="status"
             aria-live="polite"
-            className="absolute inset-0 z-20 rounded-2xl bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 animate-in fade-in duration-150"
+            className="absolute inset-0 z-20 rounded-2xl bg-white/80 backdrop-blur-xs flex flex-col items-center justify-center gap-3 animate-in fade-in duration-150"
           >
             <Loader2 className="w-8 h-8 text-brand-blue-primary animate-spin" />
             <p className="font-bold text-slate-700 text-sm">{loadingLabel}</p>
@@ -1113,7 +1183,7 @@ const AiAssistOverlay: React.FC<AiAssistOverlayProps> = ({
     <div
       role="dialog"
       aria-label={`AI-assist for ${widgetLabel}`}
-      className="absolute inset-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 -mx-6 -my-5"
+      className="absolute inset-0 z-10 bg-white/95 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 -mx-6 -my-5"
     >
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-start justify-between gap-3">
@@ -1147,7 +1217,7 @@ const AiAssistOverlay: React.FC<AiAssistOverlayProps> = ({
             onClick={onGenerate}
             {...tourAttr('import-wizard.ai-generate')}
             disabled={isGenerating || !prompt.trim()}
-            className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
               <>

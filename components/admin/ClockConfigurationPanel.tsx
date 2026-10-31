@@ -137,7 +137,7 @@ export const ClockConfigurationPanel: React.FC<
                   }
                   className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                     checked
-                      ? 'bg-brand-blue-primary text-white shadow-sm'
+                      ? 'bg-brand-blue-primary text-white shadow-xs'
                       : 'text-slate-500 hover:bg-slate-50'
                   }`}
                 >
@@ -169,7 +169,7 @@ export const ClockConfigurationPanel: React.FC<
               onChange={(e) =>
                 handleUpdateBuilding({ themeColor: e.target.value })
               }
-              className="w-10 h-8 rounded border border-slate-200 cursor-pointer p-0.5 bg-white"
+              className="w-10 h-8 rounded-sm border border-slate-200 cursor-pointer p-0.5 bg-white"
               title="Pick theme color"
             />
             <input
@@ -186,7 +186,7 @@ export const ClockConfigurationPanel: React.FC<
                 })
               }
               placeholder="#ffffff"
-              className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
+              className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-200 rounded-sm focus:ring-1 focus:ring-brand-blue-primary outline-hidden"
             />
             {currentBuildingConfig.themeColor && (
               <button
@@ -234,7 +234,7 @@ export const ClockConfigurationPanel: React.FC<
                   }
                   className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                     checked
-                      ? 'bg-brand-blue-primary text-white shadow-sm'
+                      ? 'bg-brand-blue-primary text-white shadow-xs'
                       : 'text-slate-500 hover:bg-slate-50'
                   }`}
                 >

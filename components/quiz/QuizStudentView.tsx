@@ -109,7 +109,7 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
         onExit={onExit}
       />
       {/* translateZ keeps the player's fixed overlays under the toolbar; the arbitrary variants fit its full-screen root to this box. */}
-      <div className="relative flex-1 min-h-0 overflow-y-auto [transform:translateZ(0)] [&>.h-screen]:h-full [&>.min-h-screen]:min-h-full">
+      <div className="relative flex-1 min-h-0 overflow-y-auto transform-[translateZ(0)] [&>.h-screen]:h-full [&>.min-h-screen]:min-h-full">
         <StudentViewAttempt key={run} session={session} />
       </div>
     </div>,
@@ -382,7 +382,7 @@ const StudentViewToolbar: React.FC<{
             >
               <Minus className="h-3 w-3" />
             </button>
-            <span className="min-w-[1.5rem] text-center font-bold text-white">
+            <span className="min-w-6 text-center font-bold text-white">
               {threshold === 'off' ? 'Off' : threshold}
             </span>
             <button

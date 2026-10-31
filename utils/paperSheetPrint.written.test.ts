@@ -184,6 +184,54 @@ describe('buildPaperSheetsHtml with page maps', () => {
     expect(printed[2]).toContain('blob:map');
   });
 
+  it('prints a long prompt and its figure above its lines on one page', () => {
+    const text = 'Read the passage and explain your answer. '.repeat(8);
+    const plan = planPaperPages({
+      entries: [mc(1), wr(2, 'full')],
+      grid: 2,
+      stems: true,
+      promptRows: { q2: 9 },
+    });
+    if (!plan.ok) throw new Error('plan refused');
+    const html = buildPaperSheetsHtml(
+      job(plan.pageMaps, {
+        writtenTexts: {},
+        prompts: {
+          q2: {
+            text,
+            stimuli: [
+              { id: 's1', label: 'Map', source: 'image', driveFileId: 'f' },
+            ],
+          },
+        },
+        stimulusImageSrc: { s1: 'blob:map' },
+      })
+    );
+    const printed = pages(html);
+    expect(printed).toHaveLength(2);
+    expect(printed[1]).toContain('class="pr-text"');
+    expect(printed[1]).toContain('Read the passage');
+    expect(printed[1]).toContain('blob:map');
+    expect(printed[1].match(/class="wr-rule"/g)).toHaveLength(26 - 9);
+  });
+
+  it('reprints a prompt-above-box stem in full when no prompt is passed', () => {
+    const text = 'Read the passage and explain your answer. '.repeat(8);
+    const plan = planPaperPages({
+      entries: [wr(1, 'full')],
+      grid: 2,
+      stems: true,
+      promptRows: { q1: 9 },
+    });
+    if (!plan.ok) throw new Error('plan refused');
+    const html = buildPaperSheetsHtml(
+      job(plan.pageMaps, { writtenTexts: { q1: text } })
+    );
+    expect(html).toMatch(/-webkit-line-clamp:(\d+)/);
+    const clamp = Number(/-webkit-line-clamp:(\d+)/.exec(html)?.[1]);
+    expect(clamp).toBeGreaterThan(3);
+  });
+
   it('draws a sheet with no written boxes exactly where the arithmetic layout does', () => {
     const entries = Array.from({ length: 60 }, (_, i) => mc(i + 1));
     for (const grid of [1, 2] as const) {

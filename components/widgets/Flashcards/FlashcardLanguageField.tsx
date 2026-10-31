@@ -14,7 +14,7 @@ const FIELD_STYLE = {
 } as const;
 
 const FIELD_CLASS =
-  'mt-1 w-full rounded-xl border border-slate-200 bg-white text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20';
+  'mt-1 w-full rounded-xl border border-slate-200 bg-white text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20';
 
 interface FlashcardLanguageFieldProps {
   label: string;

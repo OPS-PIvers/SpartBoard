@@ -39,10 +39,10 @@ const rowClass =
   'flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2';
 
 const iconButtonClass =
-  'shrink-0 rounded-lg p-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+  'shrink-0 rounded-lg p-1.5 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 
 const inputClass =
-  'w-full rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+  'w-full rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 
 const chipClass =
   'inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600';
@@ -138,7 +138,9 @@ const SubmissionPreview: React.FC<{ submission: ActivityWallSubmission }> = ({
   }
 
   return (
-    <p className="break-words text-sm text-slate-800">{submission.content}</p>
+    <p className="wrap-break-word text-sm text-slate-800">
+      {submission.content}
+    </p>
   );
 };
 
@@ -212,7 +214,7 @@ const SubmissionRow: React.FC<RowProps> = ({
             )}
             <button
               type="button"
-              className="rounded-lg bg-brand-blue-primary px-2 py-1 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+              className="rounded-lg bg-brand-blue-primary px-2 py-1 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
               onClick={save}
               {...tourTypeAttr(
                 'activity-wall-moderation.edit-save',
@@ -230,7 +232,7 @@ const SubmissionRow: React.FC<RowProps> = ({
               'activity-wall-moderation.edit-start',
               'activity-wall'
             )}
-            className="block w-full rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="block w-full rounded-lg text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
             aria-label={`Edit ${who}'s post: ${label}`}
           >
             {submission.title && (

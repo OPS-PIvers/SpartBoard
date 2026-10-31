@@ -290,7 +290,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
     <div
       ref={portalRootRef}
       data-widget-portal=""
-      className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4"
       style={{ zIndex: Z_INDEX.modalNested }}
       role="dialog"
       aria-modal="true"

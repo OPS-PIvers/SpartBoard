@@ -447,7 +447,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   gap: 'min(4px, 0.5vmin)',
                 }}
               >
-                <div className="flex items-center bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/50 rounded-lg overflow-hidden">
+                <div className="flex items-center bg-white/80 backdrop-blur-xs shadow-xs border border-slate-200/50 rounded-lg overflow-hidden">
                   <button
                     {...tourAttr('embed.zoom-out', widget.id, widget.type)}
                     onClick={handleZoomOut}
@@ -522,7 +522,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     )}
                     onClick={handleGenerateMiniApp}
                     disabled={isGeneratingApp}
-                    className="bg-white/80 backdrop-blur-sm hover:bg-slate-50 text-slate-600 shadow-sm border border-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="bg-white/80 backdrop-blur-xs hover:bg-slate-50 text-slate-600 shadow-xs border border-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     style={{ padding: 'min(8px, 1vmin)' }}
                     title="Generate Interactive Mini App"
                     aria-label="Generate Interactive Mini App"
@@ -552,7 +552,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       e.stopPropagation();
                       setRefreshKey((prev) => prev + 1);
                     }}
-                    className="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg transition-colors flex items-center justify-center"
+                    className="bg-white/80 backdrop-blur-xs hover:bg-white text-slate-500 hover:text-blue-500 shadow-xs border border-slate-200/50 rounded-lg transition-colors flex items-center justify-center"
                     style={{ padding: 'min(8px, 1vmin)' }}
                     title="Reload to get the latest content"
                     aria-label="Reload embedded content"
@@ -571,7 +571,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     href={sanitizedUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg transition-colors flex items-center justify-center"
+                    className="bg-white/80 backdrop-blur-xs hover:bg-white text-slate-500 hover:text-blue-500 shadow-xs border border-slate-200/50 rounded-lg transition-colors flex items-center justify-center"
                     style={{ padding: 'min(8px, 1vmin)' }}
                     title="Open in new tab"
                     aria-label="Open in new tab"
@@ -630,7 +630,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 href={sanitizedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center bg-blue-600 text-white rounded-[2cqmin] font-bold hover:bg-blue-700 transition-all shadow-sm active:scale-95"
+                className="flex items-center bg-blue-600 text-white rounded-[2cqmin] font-bold hover:bg-blue-700 transition-all shadow-xs active:scale-95"
                 style={{
                   gap: 'min(8px, 2cqmin)',
                   padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',

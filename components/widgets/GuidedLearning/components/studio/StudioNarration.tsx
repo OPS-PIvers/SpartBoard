@@ -26,7 +26,7 @@ const RECORDING_CONFIG = {
 } as const;
 
 const btn =
-  'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-50';
 const secondaryBtn = `${btn} border-slate-300 bg-white text-slate-700 hover:bg-slate-50`;
 const primaryBtn = `${btn} border-brand-blue-primary bg-brand-blue-primary text-white hover:bg-brand-blue-dark`;
 

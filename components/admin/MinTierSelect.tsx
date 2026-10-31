@@ -42,7 +42,7 @@ export const MinTierSelect: React.FC<MinTierSelectProps> = ({
           e.target.value === '' ? undefined : (e.target.value as UserTier)
         )
       }
-      className="w-full max-w-xs px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+      className="w-full max-w-xs px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
     >
       {TIER_OPTIONS.map((opt) => (
         <option key={opt.value} value={opt.value}>

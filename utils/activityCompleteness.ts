@@ -2,6 +2,8 @@ import {
   isFreeResponseType,
   type QuizBankSlot,
   type QuizQuestion,
+  type VideoActivityClip,
+  type VideoActivityNote,
   type VideoActivityQuestion,
 } from '@/types';
 import {
@@ -82,12 +84,29 @@ interface VideoActivityCompletenessInput {
   title: string;
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
+  clip?: VideoActivityClip;
+  notes?: VideoActivityNote[];
 }
+
+/** Index of the first stop students would never reach inside the clip. */
+const firstQuestionOutsideClip = (
+  questions: { timestamp: number }[],
+  clip: VideoActivityClip | undefined
+): number => {
+  if (!clip) return -1;
+  return questions.findIndex(
+    (q) =>
+      (clip.start !== undefined && q.timestamp < clip.start) ||
+      (clip.end !== undefined && q.timestamp > clip.end)
+  );
+};
 
 export const videoActivityIncompleteReason = ({
   title,
   youtubeUrl,
   questions,
+  clip,
+  notes = [],
 }: VideoActivityCompletenessInput): string | null => {
   if (!title.trim()) return 'Activity title is required';
   if (!youtubeUrl.trim()) return 'YouTube URL is required';
@@ -110,10 +129,18 @@ export const videoActivityIncompleteReason = ({
         return `Question ${i + 1}: select at least one correct option`;
       if (maOptionHasPipe(q))
         return `Question ${i + 1}: option text cannot contain the | character`;
-    } else if (!q.correctAnswer.trim()) {
+    } else if (type !== 'SA' && !q.correctAnswer.trim()) {
       return `Question ${i + 1}: correct answer is required`;
     }
   }
+  const outside = firstQuestionOutsideClip(questions, clip);
+  if (outside >= 0)
+    return `Question ${outside + 1} is outside the start and end times`;
+  const blankNote = notes.findIndex((n) => !n.text.trim());
+  if (blankNote >= 0) return `Note ${blankNote + 1}: text is required`;
+  const noteOutside = firstQuestionOutsideClip(notes, clip);
+  if (noteOutside >= 0)
+    return `Note ${noteOutside + 1} is outside the start and end times`;
   return null;
 };
 
@@ -141,6 +168,8 @@ export const videoActivityAssignBlocker = ({
     const q = questions[i];
     if (!q.text.trim()) return `question ${i + 1} has no text`;
     const type = q.type ?? 'MC';
+    // A short answer has no key: the teacher marks it.
+    if (type === 'SA') continue;
     const answered =
       type === 'MA'
         ? q.correctAnswer.split('|').some((s) => s.trim().length > 0)

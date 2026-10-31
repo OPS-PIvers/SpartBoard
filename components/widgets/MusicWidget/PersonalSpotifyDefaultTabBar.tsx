@@ -52,7 +52,7 @@ const NAV_PILLS: {
 const LABEL_COLLAPSE_WIDTH = 340;
 
 const PILL_BASE =
-  'rounded-full transition-colors whitespace-nowrap flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70';
+  'rounded-full transition-colors whitespace-nowrap flex items-center justify-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-green-400/70';
 
 export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
   activeView,
@@ -202,7 +202,7 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
               {...tourTypeAttr('music.spotify-search', 'music')}
               placeholder="Search Spotify…"
               aria-label="Search Spotify"
-              className="w-full bg-slate-800 border border-slate-700 rounded-full text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+              className="w-full bg-slate-800 border border-slate-700 rounded-full text-white placeholder:text-slate-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-green-400/70"
               style={{
                 paddingLeft: 'min(38px, 9.5cqmin)',
                 paddingRight: 'min(38px, 9.5cqmin)',
@@ -216,7 +216,7 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
               onClick={() => onToggleSearch(false)}
               {...tourTypeAttr('music.spotify-search-close', 'music')}
               aria-label="Close search"
-              className="absolute text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 rounded-full flex items-center justify-center"
+              className="absolute text-slate-400 hover:text-white transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-green-400/70 rounded-full flex items-center justify-center"
               style={{
                 right: 'min(6px, 1.5cqmin)',
                 top: '50%',

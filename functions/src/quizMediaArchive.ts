@@ -18,7 +18,7 @@
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';

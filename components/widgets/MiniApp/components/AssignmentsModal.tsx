@@ -88,7 +88,7 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="bg-indigo-600 p-4 flex items-center justify-between">
@@ -154,7 +154,7 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                                 'miniApp',
                                 `row-${sessionIndex + 1}`
                               )}
-                              className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
+                              className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 outline-hidden focus:border-brand-blue-primary"
                             />
                             <button
                               onClick={() => void handleSaveRename(session.id)}

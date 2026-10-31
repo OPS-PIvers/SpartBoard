@@ -5,7 +5,7 @@
  * and runs nightly from the scheduled job in `adminAnalyticsSnapshot.ts`.
  */
 import { onRequest } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { randomUUID } from 'node:crypto';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { readAnalyticsSnapshot } from './adminAnalyticsSnapshot';

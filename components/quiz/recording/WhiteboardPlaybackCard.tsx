@@ -198,7 +198,7 @@ export const WhiteboardPlaybackCard: React.FC<WhiteboardPlaybackCardProps> = ({
                         nonce: prev.nonce + 1,
                       }))
                     }
-                    className={`flex w-full items-start gap-2 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${noticeCls} ${commentHoverCls}`}
+                    className={`flex w-full items-start gap-2 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${noticeCls} ${commentHoverCls}`}
                   >
                     <span
                       className={`shrink-0 font-mono text-xs tabular-nums ${labelCls}`}
@@ -240,7 +240,7 @@ export const WhiteboardPlaybackCard: React.FC<WhiteboardPlaybackCardProps> = ({
             type="button"
             // no-tour-anchor: student results page; tours walk teachers
             onClick={load}
-            className={`mt-2 inline-flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-xs font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${retryCls}`}
+            className={`mt-2 inline-flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${retryCls}`}
           >
             {t('quizMediaResponse.playback.retry')}
           </button>
@@ -254,7 +254,7 @@ export const WhiteboardPlaybackCard: React.FC<WhiteboardPlaybackCardProps> = ({
         // no-tour-anchor: student results page; tours walk teachers
         onClick={load}
         disabled={state.phase === 'loading'}
-        className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-60"
       >
         {state.phase === 'loading' ? (
           <Loader2 aria-hidden className="h-4 w-4 motion-safe:animate-spin" />

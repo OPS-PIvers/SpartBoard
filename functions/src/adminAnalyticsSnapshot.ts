@@ -25,7 +25,7 @@
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import {
   computeAnalyticsForOrg,
   type AdminAnalyticsPayload,

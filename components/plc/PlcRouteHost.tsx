@@ -107,7 +107,7 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
             {...tourAttr('plc-dashboard.home')}
             type="button"
             onClick={goHome}
-            className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             <ArrowLeft className="w-4 h-4" />
             {t('plcRoute.backToBoard', {

@@ -57,9 +57,7 @@ export const BankTargetFilter: React.FC<BankTargetFilterProps> = ({
                 : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
             }`}
           >
-            <span className="max-w-[10rem] truncate">
-              {tag.code ?? tag.label}
-            </span>
+            <span className="max-w-40 truncate">{tag.code ?? tag.label}</span>
             <span className="font-mono text-xxs text-slate-500">{count}</span>
           </button>
         );

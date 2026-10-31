@@ -1,6 +1,6 @@
 // Handwritten paper answers: crop reads, transcript edits, "Use new scan" and "Not blank? Transcribe" (plan D35, D36, D38).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import type {
   DocumentReference,
   Firestore,

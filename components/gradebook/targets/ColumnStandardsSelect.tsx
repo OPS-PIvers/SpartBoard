@@ -187,7 +187,7 @@ const StandardsMenu: React.FC<{
           placeholder={`Search ${entries.length} standards`}
           aria-label="Search standards"
           {...tourAttr('gradebook.column.standards-search')}
-          className="h-[34px] w-full rounded-lg border border-slate-300 pl-8 pr-2 text-[13px] focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-lighter"
+          className="h-[34px] w-full rounded-lg border border-slate-300 pl-8 pr-2 text-[13px] focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-lighter"
         />
       </div>
       <div className="px-1 text-xs text-slate-500">
@@ -216,7 +216,7 @@ const StandardsMenu: React.FC<{
                 )}
                 onClick={() => toggle(tag)}
                 title={tag.label}
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] leading-4 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none ${
+                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] leading-4 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-hidden ${
                   on ? 'font-semibold text-slate-900' : 'text-slate-700'
                 }`}
               >

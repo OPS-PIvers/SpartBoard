@@ -242,9 +242,9 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
       // editor doesn't spawn a second TextObject under it when the text tool
       // is active).
       onPointerDown={(e) => e.stopPropagation()}
-      className={`fixed outline-none ring-2 ring-indigo-500 rounded-sm ${
+      className={`fixed outline-hidden ring-2 ring-indigo-500 rounded-xs ${
         sticky ? 'overflow-auto' : 'bg-white/95 px-1 py-0 overflow-hidden'
-      } ${object.wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}`}
+      } ${object.wrap ? 'whitespace-pre-wrap wrap-break-word' : 'whitespace-pre'}`}
       style={{
         ...(sticky
           ? {

@@ -164,7 +164,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
             // the implicit range.
             aria-valuetext={`${percentage}%`}
             {...tourAttr('board-actions.zoom-slider')}
-            className="w-full accent-brand-blue-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary rounded"
+            className="w-full accent-brand-blue-primary cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary rounded-sm"
           />
 
           <div className="grid grid-cols-4 gap-1 mt-2">
@@ -176,7 +176,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
                   type="button"
                   onClick={() => handlePresetClick(value)}
                   {...tourAttr('board-actions.zoom-preset')}
-                  className={`text-xxs font-bold py-1 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
+                  className={`text-xxs font-bold py-1 rounded-md transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
                     active
                       ? 'bg-brand-blue-primary text-white'
                       : 'bg-white/10 text-white/70 hover:bg-white/20'
@@ -195,7 +195,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
                 type="button"
                 onClick={handleReset}
                 {...tourAttr('board-actions.zoom-panel-reset')}
-                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-white/60 hover:text-white/90 py-1 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-white/60 hover:text-white/90 py-1 rounded-md transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 {t('boardZoom.reset', { defaultValue: 'Reset to 100%' })}

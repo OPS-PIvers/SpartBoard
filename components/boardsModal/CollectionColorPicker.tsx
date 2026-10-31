@@ -110,7 +110,7 @@ export const CollectionColorPicker: React.FC<CollectionColorPickerProps> = ({
             onClick={onClose}
             aria-label={t('common.close', { defaultValue: 'Close' })}
             {...tourAttr('boards-modal.color-close')}
-            className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="p-1 rounded-sm text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -140,7 +140,7 @@ export const CollectionColorPicker: React.FC<CollectionColorPickerProps> = ({
                     ref={idx === 0 ? firstSwatchRef : undefined}
                     type="button"
                     onClick={() => onSelect(swatch.hex)}
-                    className={`h-9 w-9 rounded-lg border-2 transition flex items-center justify-center hover:scale-110 motion-reduce:hover:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+                    className={`h-9 w-9 rounded-lg border-2 transition flex items-center justify-center hover:scale-110 motion-reduce:hover:scale-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                       isActive
                         ? 'border-brand-blue-primary ring-2 ring-brand-blue-lighter'
                         : 'border-slate-200'

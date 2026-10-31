@@ -438,7 +438,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
                 onChange={(e) =>
                   setApply((prev) => ({ ...prev, [row]: e.target.checked }))
                 }
-                className="mt-1.5 h-4 w-4 rounded border-slate-300"
+                className="mt-1.5 h-4 w-4 rounded-sm border-slate-300"
               />
               <span className="mt-1 w-6 shrink-0 text-right text-sm font-semibold text-slate-700">
                 {row}.

@@ -1,7 +1,7 @@
 // Schoology LTI 1.3 — keep a student who launched before their section was linked on the response they already started.
 // Both candidate uids derive from this student's own signed launch; any failure keeps the bridged uid.
 
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 
 import {
   resolveLtiTargetSession,

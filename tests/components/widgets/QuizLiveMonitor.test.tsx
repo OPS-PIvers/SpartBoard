@@ -550,6 +550,35 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     ).toBeInTheDocument();
   });
 
+  it('opens a shared-Pause multi-class session on All classes', () => {
+    render(
+      <AuthContext.Provider
+        value={
+          {
+            canAccessFeature: () => true,
+            globalPermissions: [],
+            selectedBuildings: [],
+          } as unknown as AuthContextType
+        }
+      >
+        <QuizLiveMonitor
+          session={makeSession({ periodNames: ['P1', 'P2'] })}
+          responses={[
+            makeResponse({ pin: '1111', classPeriod: 'P1' }),
+            makeResponse({ pin: '2222', classPeriod: 'P2' }),
+          ]}
+          quizData={makeQuizData()}
+          onAdvance={noopAsync}
+          onEnd={noopAsync}
+          config={makeConfig({ periodNames: ['P1', 'P2'] })}
+          rosters={['P1', 'P2'].map(makeRoster)}
+          onUpdateConfig={vi.fn()}
+        />
+      </AuthContext.Provider>
+    );
+    expect(screen.getByRole('combobox', { name: 'Class' })).toHaveValue('');
+  });
+
   it('drops Join code when join codes are off for the teacher building', () => {
     const auth = (buildings: string[]) =>
       ({

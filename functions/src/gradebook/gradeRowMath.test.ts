@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
@@ -19,11 +19,12 @@ vi.mock('firebase-functions/logger', () => ({
 
 import {
   assembleRow,
+  currentShortAnswerGrading,
   effectiveDueAt,
   keyQuestions,
-  parseStepTargets,
   mergeAttempts,
   parseSessionMeta,
+  parseStepTargets,
   scoreFlashcardProgress,
   scoreGuidedLearningResponse,
   scoreProjectMember,
@@ -274,6 +275,35 @@ describe('scoreVideoResponse', () => {
         possible: 1,
       },
     ]);
+  });
+});
+
+describe('scoreVideoResponse short answer', () => {
+  const questions = keyQuestions([
+    { id: 'v1', type: 'MC', text: 'x', correctAnswer: 'A', points: 1 },
+    { id: 'sa', type: 'SA', text: 'Why?', correctAnswer: '', points: 3 },
+  ]);
+  const answers = [
+    { questionId: 'v1', answer: 'A' },
+    { questionId: 'sa', answer: 'Because light' },
+  ];
+
+  it('awaits a mark until the teacher grades it', () => {
+    const r = scoreVideoResponse({}, { completedAt: 9, answers }, questions);
+    expect(r).toMatchObject({ state: 'awaiting-grade', rawPct: null });
+  });
+
+  it('scores a marked short answer from the response grading', () => {
+    const r = scoreVideoResponse(
+      {},
+      {
+        completedAt: 9,
+        answers,
+        grading: { sa: { pointsAwarded: 2, gradedBy: 't', gradedAt: 1 } },
+      },
+      questions
+    );
+    expect(r).toMatchObject({ state: 'scored', rawPct: 75, points: 3, max: 4 });
   });
 });
 
@@ -542,5 +572,19 @@ describe('toMillis', () => {
     expect(toMillis({ seconds: 2 })).toBe(2000);
     expect(toMillis('1970-01-01T00:00:01.000Z')).toBe(1000);
     expect(toMillis(null)).toBeNull();
+  });
+});
+
+describe('currentShortAnswerGrading', () => {
+  it('drops a VA mark whose answeredAt no longer matches an answer', () => {
+    expect(
+      currentShortAnswerGrading(
+        {
+          q1: { pointsAwarded: 1, answeredAt: 100 },
+          q2: { pointsAwarded: 2 },
+        },
+        [{ questionId: 'q1', answer: 'retake', answeredAt: 200 }]
+      )
+    ).toEqual({ q2: { pointsAwarded: 2 } });
   });
 });

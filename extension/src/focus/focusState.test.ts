@@ -3,7 +3,7 @@ import type { FocusActiveSession } from '@/utils/focus/contract';
 import {
   badgeText,
   isEnforcing,
-  isStudentEmail,
+  isDistrictEmail,
   liveHostFor,
   minutesLeft,
   parseStatusReply,
@@ -73,15 +73,13 @@ describe('parseStatusReply', () => {
   });
 });
 
-describe('isStudentEmail', () => {
-  it('matches only the student domain', () => {
-    expect(isStudentEmail('Kid@Students.Orono.k12.mn.us')).toBe(true);
-    expect(isStudentEmail('teacher@orono.k12.mn.us')).toBe(false);
-    expect(isStudentEmail('kid@students.orono.k12.mn.us.evil.example')).toBe(
-      false
-    );
-    expect(isStudentEmail('@students.orono.k12.mn.us')).toBe(false);
-    expect(isStudentEmail(undefined)).toBe(false);
+describe('isDistrictEmail', () => {
+  it('matches the district domain only', () => {
+    expect(isDistrictEmail('Kid@Orono.k12.mn.us')).toBe(true);
+    expect(isDistrictEmail('kid@orono.k12.mn.us.evil.example')).toBe(false);
+    expect(isDistrictEmail('@orono.k12.mn.us')).toBe(false);
+    expect(isDistrictEmail('kid@gmail.com')).toBe(false);
+    expect(isDistrictEmail(undefined)).toBe(false);
   });
 });
 

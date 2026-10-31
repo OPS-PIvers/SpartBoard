@@ -74,7 +74,7 @@ export const BreathingWidget: React.FC<{ widget: WidgetData }> = ({
 
           {/* Controls */}
           <div
-            className="shrink-0 w-full flex justify-center backdrop-blur-sm z-20"
+            className="shrink-0 w-full flex justify-center backdrop-blur-xs z-20"
             style={{
               padding: 'min(16px, 3.5cqmin)',
               gap: 'min(16px, 3.5cqmin)',

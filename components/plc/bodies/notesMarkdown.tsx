@@ -50,7 +50,7 @@ function renderTokens(
         return (
           <code
             key={key}
-            className="px-1 py-0.5 rounded bg-slate-100 text-[0.85em] font-mono text-slate-700"
+            className="px-1 py-0.5 rounded-sm bg-slate-100 text-[0.85em] font-mono text-slate-700"
           >
             {tok.value}
           </code>

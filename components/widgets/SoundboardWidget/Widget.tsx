@@ -366,7 +366,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                     <button // no-tour-anchor: one tile per teacher-picked sound, no fixed target
                       key={sound.id}
                       onClick={() => playSound(sound)}
-                      className="relative overflow-hidden rounded-[min(16px,3cqmin)] flex flex-col items-center justify-center transition-all active:scale-95 group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110"
+                      className="relative overflow-hidden rounded-[min(16px,3cqmin)] flex flex-col items-center justify-center transition-all active:scale-95 group shadow-xs hover:shadow-md border border-white/20 hover:brightness-110"
                       style={{
                         backgroundColor: sound.color ?? '#6366f1',
                         containerType: 'size',
@@ -374,7 +374,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                     >
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 group-active:bg-black/10 transition-colors" />
                       <Volume2
-                        className="text-white drop-shadow-sm shrink-0"
+                        className="text-white drop-shadow-xs shrink-0"
                         style={{
                           width: iconSize,
                           height: iconSize,
@@ -382,7 +382,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                         }}
                       />
                       <span
-                        className="font-black text-white text-center drop-shadow-md [overflow-wrap:anywhere] max-w-full"
+                        className="font-black text-white text-center drop-shadow-md wrap-anywhere max-w-full"
                         style={{
                           fontSize: labelSize,
                           lineHeight: 1.25,
@@ -404,7 +404,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
           {/* Selection bar — only when focused */}
           {isFocused && visibleSounds.length > 0 && (
             <div
-              className="flex-shrink-0 bg-slate-100/80 rounded-[min(16px,3cqmin)] flex overflow-x-auto no-scrollbar"
+              className="shrink-0 bg-slate-100/80 rounded-[min(16px,3cqmin)] flex overflow-x-auto no-scrollbar"
               style={{
                 marginTop: 'min(8px, 1.5cqmin)',
                 padding: 'min(6px, 1.5cqmin)',
@@ -419,9 +419,9 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                   <button
                     key={sound.id}
                     onClick={() => toggleActive(sound.id)}
-                    className={`flex-shrink-0 flex flex-col items-center justify-center rounded-xl border-2 transition-all relative ${
+                    className={`shrink-0 flex flex-col items-center justify-center rounded-xl border-2 transition-all relative ${
                       isActive
-                        ? 'bg-white border-blue-500 shadow-sm'
+                        ? 'bg-white border-blue-500 shadow-xs'
                         : 'bg-white/40 border-transparent text-slate-400'
                     }`}
                     style={{
@@ -431,7 +431,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                     }}
                   >
                     <div
-                      className="rounded-lg flex-shrink-0"
+                      className="rounded-lg shrink-0"
                       style={{
                         width: 'max(20px, min(26px, 7cqmin))',
                         height: 'max(20px, min(26px, 7cqmin))',
@@ -447,7 +447,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                     </span>
                     {isActive && (
                       <div
-                        className="absolute top-0.5 right-0.5 bg-blue-500 rounded-full border border-white shadow-sm"
+                        className="absolute top-0.5 right-0.5 bg-blue-500 rounded-full border border-white shadow-xs"
                         style={{
                           width: 'max(4px, min(8px, 2.5cqmin))',
                           height: 'max(4px, min(8px, 2.5cqmin))',

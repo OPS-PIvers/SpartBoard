@@ -1,7 +1,7 @@
 // Handwritten paper answers: the per-page transcription worker and the retry callable (plan D23-D31, §4).
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import type {
   DocumentReference,
   DocumentSnapshot,

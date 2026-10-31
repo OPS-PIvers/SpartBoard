@@ -410,7 +410,7 @@ export const VideoActivityLivePlayer: React.FC<
             {...tourAttr('video-activity.live-start')}
             type="button"
             onClick={handleStart}
-            className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2"
+            className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-xs transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2"
             style={{
               gap: 'min(8px, 2cqmin)',
               fontSize: 'min(18px, 5.5cqmin)',
@@ -463,6 +463,7 @@ export const VideoActivityLivePlayer: React.FC<
       // eslint-disable-next-line react-hooks/refs -- initial playhead, never reassigned
       startSeconds={startSecondsRef.current}
       seekRequest={seekRequest}
+      clip={session.clip}
     />
   );
   const questionBody = openQuestion && (
@@ -552,7 +553,8 @@ export const VideoActivityLivePlayer: React.FC<
                         .catch(report('showResults'))
                     }
                   />
-                  {!revealed && (
+                  {/* A short answer has no answer to reveal. */}
+                  {!revealed && openQuestion?.type !== 'SA' && (
                     <ActionButton
                       variant="secondary"
                       label="Reveal answer"

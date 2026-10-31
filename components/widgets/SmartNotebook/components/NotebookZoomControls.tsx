@@ -16,7 +16,7 @@ export const NotebookZoomControls: React.FC<NotebookZoomControlsProps> = ({
   zoom,
 }) => {
   const btnClass =
-    'bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl disabled:opacity-30 transition-all shadow-sm active:scale-90';
+    'bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl disabled:opacity-30 transition-all shadow-xs active:scale-90';
   const btnStyle = { padding: 'min(8px, 2cqmin)' };
   const iconStyle = {
     width: 'min(16px, 4cqmin)',

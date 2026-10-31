@@ -76,7 +76,7 @@ export const SubSharesPanel: React.FC<SubSharesPanelProps> = ({
                   aria-hidden
                 />
               )}
-              <span className="text-sm font-bold text-slate-800 truncate max-w-[14rem]">
+              <span className="text-sm font-bold text-slate-800 truncate max-w-56">
                 {share.collection.name}
               </span>
               <span className="text-xs text-slate-500">

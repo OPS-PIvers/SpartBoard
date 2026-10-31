@@ -508,7 +508,7 @@ export const useStorage = () => {
     const pdfId = crypto.randomUUID() as string;
     const pdfData: PdfItem = {
       id: pdfId,
-      name: file.name.replace(/\.pdf$/i, ''),
+      name: file.name.replace(/\.(pdf|docx?|pptx?|xlsx?)$/i, ''),
       storageUrl: url,
       storagePath,
       size: file.size,

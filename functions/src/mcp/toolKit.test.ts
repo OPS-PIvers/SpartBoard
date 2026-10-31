@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import {
   FOLDER_COLLECTIONS,
   FOLDER_PAGE_SIZE,

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('firebase-admin', () => ({
+vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(),
@@ -24,7 +24,7 @@ vi.mock('../secrets', () => ({
   STUDENT_PSEUDONYM_HMAC_SECRET: { value: () => 'unit-test-hmac-secret' },
 }));
 
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { computeStudentUid } from '../classlinkShared';
 import {
   getGradebookRosterV1,

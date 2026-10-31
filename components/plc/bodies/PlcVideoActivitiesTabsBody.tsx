@@ -154,7 +154,7 @@ export const PlcVideoActivitiesTabsBody: React.FC<
                 onClick={() => setActiveSubTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors ${
                   isActive
-                    ? 'bg-white text-brand-blue-dark shadow-sm'
+                    ? 'bg-white text-brand-blue-dark shadow-xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >

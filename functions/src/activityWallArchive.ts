@@ -4,9 +4,7 @@
  * (and the hourly sweep) run this with no teacher present, minting the access
  * token from the stored refresh token like `quizMediaArchive.ts` does.
  *
- * The old `archiveActivityWallPhoto` callable in `driveArchive.ts` stays for
- * the deployed client; both paths claim through `claimSubmissionForArchive`
- * so they can never upload the same object twice.
+ * The old `archiveActivityWallPhoto` callable in `driveArchive.ts` is now a no-op.
  */
 import { HttpsError } from 'firebase-functions/v2/https';
 import * as fs from 'fs/promises';
@@ -19,7 +17,7 @@ import {
   onDocumentUpdated,
 } from 'firebase-functions/v2/firestore';
 import { defineSecret } from 'firebase-functions/params';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import { GOOGLE_OAUTH_CLIENT_ID } from './secrets';
 import './functionsInit';
@@ -928,8 +926,8 @@ export async function finalizeResumedSubmission(
  * client still writes `activity_wall_photos/` submissions, and these triggers
  * write fields the current `firestore.rules` submissions update whitelist
  * does not allow, which would break the legacy client's own updates until the
- * separate rules PR (P1-4) lands. Legacy submissions stay on the existing
- * `archiveActivityWallPhoto` callable.
+ * separate rules PR (P1-4) lands. Legacy submissions were left to the
+ * `archiveActivityWallPhoto` callable, which is now retired.
  */
 export function shouldArchiveSubmission(
   data: Record<string, unknown> | undefined

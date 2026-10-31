@@ -188,26 +188,26 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       switch (cond.toLowerCase()) {
         case 'sunny':
         case 'clear':
-          return 'bg-gradient-to-br from-blue-400 via-sky-300 to-blue-200';
+          return 'bg-linear-to-br from-blue-400 via-sky-300 to-blue-200';
         case 'cloudy':
         case 'clouds':
-          return 'bg-gradient-to-br from-slate-500 via-slate-400 to-slate-300';
+          return 'bg-linear-to-br from-slate-500 via-slate-400 to-slate-300';
         case 'rainy':
         case 'rain':
         case 'drizzle':
-          return 'bg-gradient-to-br from-slate-800 via-blue-900 to-slate-900';
+          return 'bg-linear-to-br from-slate-800 via-blue-900 to-slate-900';
         case 'snowy':
         case 'snow':
-          return 'bg-gradient-to-br from-blue-100 via-white to-blue-50';
+          return 'bg-linear-to-br from-blue-100 via-white to-blue-50';
         case 'windy':
         case 'squall':
         case 'tornado':
-          return 'bg-gradient-to-br from-teal-600 via-emerald-500 to-teal-400';
+          return 'bg-linear-to-br from-teal-600 via-emerald-500 to-teal-400';
         default:
           console.warn(
             `[WeatherWidget] Unhandled condition for background sync: ${cond}`
           );
-          return 'bg-gradient-to-br from-slate-300 via-slate-200 to-slate-100';
+          return 'bg-linear-to-br from-slate-300 via-slate-200 to-slate-100';
       }
     };
 
@@ -299,8 +299,11 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   }
 
+  // With details on, Manual mode shows no feels-like left over from an earlier sync.
+  const staleFeelsLike = detailsOn && !isAuto;
+  const shownFeelsLike = staleFeelsLike ? undefined : feelsLike;
   const tempText = `${Math.round(
-    showFeelsLike && feelsLike !== undefined ? feelsLike : temp
+    showFeelsLike && shownFeelsLike !== undefined ? shownFeelsLike : temp
   )}°`;
   // Approximate width in em; the 34cqmin below covers the 22cqmin icon, its gap and padding.
   const tempWidthEm = [...tempText]
@@ -310,8 +313,9 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const detailRows =
     detailsOn && detailFields
       ? buildDetailRows(detailFields, {
-          details,
-          feelsLike,
+          // Manual mode shows no station readings, even ones saved by an earlier sync.
+          details: isAuto ? details : undefined,
+          feelsLike: shownFeelsLike,
           now: new Date(now),
           lat: STATION_CONFIG.lat,
           lon: STATION_CONFIG.lon,
@@ -347,7 +351,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               fontSize: noGear
                 ? 'min(65cqh, 30cqw)'
                 : hasDetails
-                  ? 'min(30cqw, 45cqh)'
+                  ? '34cqmin'
                   : '22cqmin',
             }}
           >
@@ -359,7 +363,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               fontSize: noGear
                 ? `min(75cqh, 40cqw, calc(68cqw / ${tempWidthEm}))`
                 : hasDetails
-                  ? `min(48cqw, 72cqh, calc((100cqw - min(44cqw, 66cqh)) / ${tempWidthEm}))`
+                  ? `min(60cqmin, calc((100cqw - 44cqmin) / ${tempWidthEm}))`
                   : `min(35cqmin, calc((100cqw - 34cqmin) / ${tempWidthEm}))`,
               color: fontColor,
             }}
@@ -368,14 +372,15 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </div>
         </div>
 
-        {(showFeelsLike || feelsLike !== undefined) && (
+        {((showFeelsLike && !staleFeelsLike) ||
+          shownFeelsLike !== undefined) && (
           <div
             className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
             style={{
               fontSize: noGear
                 ? 'min(12cqh, 10cqw)'
                 : hasDetails
-                  ? 'min(7cqw, 10cqh)'
+                  ? '8cqmin'
                   : '5cqmin',
               marginTop: noGear ? '1cqh' : 'min(2px, 0.5cqmin)',
               color: secondaryColor ?? fontColor,
@@ -384,7 +389,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           >
             {showFeelsLike
               ? `${t('widgets.weather.actual')} ${Math.round(temp)}°`
-              : `${t('widgets.weather.feelsLike')} ${Math.round(feelsLike ?? temp)}°`}
+              : `${t('widgets.weather.feelsLike')} ${Math.round(shownFeelsLike ?? temp)}°`}
           </div>
         )}
       </div>
@@ -392,7 +397,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       {!noGear && !hasDetails && (
         <div
           data-testid="weather-clothing-card"
-          className="w-full border border-slate-200/60 rounded-2xl flex items-center shadow-sm"
+          className="w-full border border-slate-200/60 rounded-2xl flex items-center shadow-xs"
           style={{
             backgroundColor: hexToRgba(cardColor, cardOpacity),
             gap: 'min(16px, 4cqmin)',

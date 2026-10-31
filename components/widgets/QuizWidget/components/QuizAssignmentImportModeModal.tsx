@@ -53,7 +53,7 @@ const ModeOption: React.FC<ModeOptionProps> = ({
     <button
       type="button"
       onClick={() => onPick(mode)}
-      className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-4 transition-all hover:border-brand-blue-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+      className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-4 transition-all hover:border-brand-blue-primary hover:shadow-md focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
     >
       <div className="flex items-start gap-3">
         <div className="shrink-0 w-10 h-10 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">

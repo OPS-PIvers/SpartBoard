@@ -81,7 +81,7 @@ export const FinalScoreNote: React.FC<FinalScoreNoteProps> = ({
       {flags.map(({ auto, def }) => (
         <span key={def.id} className="inline-flex items-center gap-1">
           <i
-            className={`not-italic grid h-4 min-w-4 place-items-center rounded px-[3px] text-[9.5px] font-bold leading-none ${chipClasses(def.color, auto)}`}
+            className={`not-italic grid h-4 min-w-4 place-items-center rounded-sm px-[3px] text-[9.5px] font-bold leading-none ${chipClasses(def.color, auto)}`}
             aria-hidden
           >
             {def.key}

@@ -110,9 +110,9 @@ export const LandingGradebook: React.FC<LandingGradebookProps> = ({
               role="tab"
               aria-selected={view === v.id}
               onClick={() => setView(v.id)}
-              className={`rounded-md px-2.5 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+              className={`rounded-md px-2.5 py-1 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                 view === v.id
-                  ? 'bg-white text-slate-800 shadow-sm'
+                  ? 'bg-white text-slate-800 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >

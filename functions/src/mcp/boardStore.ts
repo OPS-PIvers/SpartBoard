@@ -1,5 +1,5 @@
 // Reads boards for the connector's board tools and describes them for Claude (AI_BOARDS D6, D8, D11).
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { ToolError, type ToolContext } from './activity';
 import {
   SNAP_ZONE_LAYOUTS,

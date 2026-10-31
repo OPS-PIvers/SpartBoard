@@ -1156,7 +1156,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
           {/* Rubber-band selection rectangle */}
           {rbStyle && (
             <div
-              className="absolute pointer-events-none z-20 border-2 border-indigo-500 bg-indigo-500/10 rounded"
+              className="absolute pointer-events-none z-20 border-2 border-indigo-500 bg-indigo-500/10 rounded-sm"
               style={rbStyle}
             />
           )}

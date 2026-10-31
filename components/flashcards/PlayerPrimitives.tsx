@@ -116,7 +116,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
           <button
             type="button"
             onClick={onNextRound}
-            className="inline-flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
+            className="inline-flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300"
             style={{
               gap: 'min(8px, 2cqmin)',
               padding: 'min(12px, 3cqmin) min(20px, 5cqmin)',
@@ -137,7 +137,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
               type="button"
               onClick={onRestart}
               className={cx(
-                'inline-flex items-center rounded-full font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300',
+                'inline-flex items-center rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300',
                 dark
                   ? 'bg-white/10 text-white hover:bg-white/20'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -250,7 +250,7 @@ export const CheckSubmitPanel: React.FC<CheckSubmitPanelProps> = ({
           type="button"
           onClick={onSubmit}
           disabled={submitting}
-          className="mx-auto inline-flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mx-auto inline-flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
           style={{
             gap: 'min(8px, 2cqmin)',
             marginTop: 'min(22px, 5cqmin)',
@@ -370,7 +370,7 @@ export const CharacterBar: React.FC<CharacterBarProps> = ({
           onMouseDown={(event) => event.preventDefault()}
           onClick={(event) => insertCharacter(character, event.shiftKey)}
           className={cx(
-            'rounded-lg border font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400',
+            'rounded-lg border font-black transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-400',
             dark
               ? 'border-white/15 bg-white/10 text-white hover:bg-white/20'
               : 'border-slate-200 bg-white text-rose-950 hover:border-rose-300 hover:bg-rose-50'

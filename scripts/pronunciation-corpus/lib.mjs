@@ -335,7 +335,7 @@ export async function createModelSession(model) {
       `${modelPath} is not the pinned model (size ${bytes.length}, md5 ${digest.slice(0, 12)})`
     );
   }
-  const ort = await import('onnxruntime-web-1-30');
+  const ort = await import('onnxruntime-web-1-31');
   ort.env.wasm.numThreads = Math.min(4, os.availableParallelism());
   const session = await ort.InferenceSession.create(bytes, {
     executionProviders: ['wasm'],

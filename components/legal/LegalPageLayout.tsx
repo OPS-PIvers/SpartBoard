@@ -33,7 +33,7 @@ export const LegalPageLayout: React.FC<LegalPageLayoutProps> = ({
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
         <a href="/" className="flex items-center gap-2">
-          <img src="/favicon.png" alt="" className="h-8 w-8 rounded" />
+          <img src="/favicon.png" alt="" className="h-8 w-8 rounded-sm" />
           <span className="text-lg font-semibold text-slate-900">
             SpartBoard
           </span>

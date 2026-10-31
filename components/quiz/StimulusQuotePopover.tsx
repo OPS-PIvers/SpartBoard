@@ -85,7 +85,7 @@ export const StimulusQuotePopover: React.FC<{
       type="button"
       data-testid="stimulus-quote-button"
       style={{ top, left }}
-      className="fixed z-[1000] -translate-x-1/2 inline-flex items-center gap-1.5 h-11 px-4 rounded-full bg-brand-blue-primary text-white text-sm font-bold shadow-lg ring-1 ring-black/10 hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white [-webkit-tap-highlight-color:transparent]"
+      className="fixed z-1000 -translate-x-1/2 inline-flex items-center gap-1.5 h-11 px-4 rounded-full bg-brand-blue-primary text-white text-sm font-bold shadow-lg ring-1 ring-black/10 hover:bg-brand-blue-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white [-webkit-tap-highlight-color:transparent]"
       // Keep the passage selection alive through the press.
       onPointerDown={(e) => {
         e.preventDefault();

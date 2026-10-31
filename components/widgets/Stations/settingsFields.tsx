@@ -266,7 +266,7 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
           <button
             type="button"
             onClick={handleAddStation}
-            className="flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xxs font-black uppercase tracking-widest text-white shadow-sm hover:bg-brand-blue-dark"
+            className="flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xxs font-black uppercase tracking-widest text-white shadow-xs hover:bg-brand-blue-dark"
             {...tourAttr(
               'widget-settings.stations.add-station',
               ctx.widget.id,
@@ -330,7 +330,7 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                         type="checkbox"
                         checked={lockedGroupIds.includes(group.id)}
                         onChange={() => toggleLockedGroup(group.id)}
-                        className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                        className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
                         {...tourFieldAttr(
                           'widget-settings.stations.toggle-lock-group',
                           ctx.widget.type,
@@ -355,7 +355,7 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                     onChange={(event) =>
                       setUseGroupNamesAsTitles(event.target.checked)
                     }
-                    className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                    className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
                     {...tourAttr(
                       'widget-settings.stations.use-group-names',
                       ctx.widget.id,

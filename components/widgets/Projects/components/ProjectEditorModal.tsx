@@ -48,7 +48,7 @@ const localInputValueToMs = (value: string): number | undefined => {
 const labelClass =
   'block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1';
 const inputClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 
 const stepsEqual = (a: ProjectStep[], b: ProjectStep[]): boolean =>
   a.length === b.length &&

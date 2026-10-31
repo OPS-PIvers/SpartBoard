@@ -1,6 +1,7 @@
 // A Synced collaborator edits an Activity Wall another member of the shared board owns.
+import { isDistrictStaffEmail } from './districtStaff';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
@@ -58,6 +59,8 @@ export interface SharedWallEditInput {
 export interface SharedWallEditDeps {
   db: admin.firestore.Firestore;
   now?: () => number;
+  /** Staff member doc check; students share the district domain. */
+  isStaff: (email: string) => Promise<boolean>;
 }
 
 function invalid(message: string): never {
@@ -260,7 +263,11 @@ export async function handleSaveSharedActivityWall(
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
   if (caller.anonymous || caller.studentRole)
     throw new HttpsError('permission-denied', 'Teacher sign-in required.');
-  if (!caller.emailVerified || !DISTRICT_EMAIL.test(caller.email ?? ''))
+  if (
+    !caller.emailVerified ||
+    !DISTRICT_EMAIL.test(caller.email ?? '') ||
+    !(await deps.isStaff(caller.email ?? ''))
+  )
     throw new HttpsError('permission-denied', 'District account required.');
   const input = parseSharedWallEditInput(rawInput);
   if (input.ownerUid === caller.uid)
@@ -351,9 +358,11 @@ export const saveSharedActivityWallV1 = onCall(
   (request) => {
     assertViewAsAllowed(request);
     const token = request.auth?.token;
+    const db = admin.firestore();
     return handleSaveSharedActivityWall(
       {
-        db: admin.firestore(),
+        db,
+        isStaff: (email) => isDistrictStaffEmail(db, email),
       },
       request.auth && token
         ? {

@@ -124,7 +124,7 @@ export const SyntaxFramerConfigurationPanel: React.FC<
               type="button"
               className={`flex-1 flex items-center justify-center py-2 px-3 rounded-lg border transition-colors ${
                 (currentBuildingConfig.alignment ?? defaultAlignment) === 'left'
-                  ? 'bg-slate-100 border-slate-300 text-slate-900 shadow-sm'
+                  ? 'bg-slate-100 border-slate-300 text-slate-900 shadow-xs'
                   : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
               }`}
               onClick={() => handleUpdate({ alignment: 'left' })}
@@ -146,7 +146,7 @@ export const SyntaxFramerConfigurationPanel: React.FC<
               className={`flex-1 flex items-center justify-center py-2 px-3 rounded-lg border transition-colors ${
                 (currentBuildingConfig.alignment ?? defaultAlignment) ===
                 'center'
-                  ? 'bg-slate-100 border-slate-300 text-slate-900 shadow-sm'
+                  ? 'bg-slate-100 border-slate-300 text-slate-900 shadow-xs'
                   : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
               }`}
               onClick={() => handleUpdate({ alignment: 'center' })}

@@ -19,7 +19,12 @@ import type {
   VideoActivityPublicQuestion,
   VideoActivitySession,
 } from '@/types';
-import { FibAnswerInput, MaOptionList, McOptionList } from './QuestionOverlay';
+import {
+  FibAnswerInput,
+  MaOptionList,
+  McOptionList,
+  ShortAnswerInput,
+} from './QuestionOverlay';
 import { questionOptions } from '@/utils/videoActivityOptions';
 import { VideoActivityPeriodPausedOverlay } from './VideoActivityPeriodLockedScreen';
 
@@ -207,7 +212,11 @@ export const VideoActivityLiveStudent: React.FC<
         break;
       }
       const local = results[question.id];
-      const verdict = local?.isCorrect ?? answer.isCorrect;
+      // A short answer is marked later by the teacher, never right or wrong here.
+      const verdict =
+        question.type === 'SA'
+          ? undefined
+          : (local?.isCorrect ?? answer.isCorrect);
       body = (
         <LockedAnswerCard
           question={question}
@@ -279,7 +288,7 @@ const StatusCard: React.FC<{
   title: string;
   subtitle?: string;
 }> = ({ icon, title, subtitle }) => (
-  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-10 flex flex-col items-center text-center gap-3">
+  <div className="bg-white rounded-2xl border border-slate-200 shadow-xs px-6 py-10 flex flex-col items-center text-center gap-3">
     <span aria-hidden>{icon}</span>
     <h1 className="text-2xl font-black text-slate-900">{title}</h1>
     {subtitle && <p className="text-slate-600 text-base">{subtitle}</p>}
@@ -313,7 +322,7 @@ const QuestionShell: React.FC<{
   number: number;
   children: React.ReactNode;
 }> = ({ question, number, children }) => (
-  <div className="w-full rounded-2xl border border-slate-200 shadow-sm overflow-hidden bg-white">
+  <div className="w-full rounded-2xl border border-slate-200 shadow-xs overflow-hidden bg-white">
     <div className="bg-brand-blue-primary px-5 py-3">
       <span className="text-white text-xs font-bold uppercase tracking-wider">
         Question {number}
@@ -346,6 +355,7 @@ const LiveQuestionCard: React.FC<{
   const [mcSelected, setMcSelected] = useState<string | null>(null);
   const [fibAnswer, setFibAnswer] = useState('');
   const [maSelected, setMaSelected] = useState<Set<string>>(new Set());
+  const [saAnswer, setSaAnswer] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -354,7 +364,9 @@ const LiveQuestionCard: React.FC<{
       ? (mcSelected ?? '')
       : type === 'FIB'
         ? fibAnswer.trim()
-        : Array.from(maSelected).sort().join('|');
+        : type === 'SA'
+          ? saAnswer.trim()
+          : Array.from(maSelected).sort().join('|');
   const canSubmit = !sending && answer.length > 0;
 
   const handleSubmit = () => {
@@ -405,6 +417,13 @@ const LiveQuestionCard: React.FC<{
           correctAnswer={null}
         />
       )}
+      {type === 'SA' && (
+        <ShortAnswerInput
+          value={saAnswer}
+          onChange={setSaAnswer}
+          locked={sending}
+        />
+      )}
       {error && (
         <p role="alert" className="px-5 pb-3 text-sm text-red-700">
           {error}
@@ -416,7 +435,7 @@ const LiveQuestionCard: React.FC<{
           onClick={handleSubmit}
           disabled={!canSubmit}
           aria-busy={sending}
-          className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-base transition-colors shadow-sm"
+          className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-base transition-colors shadow-xs"
         >
           {sending ? 'Sending…' : 'Submit'}
         </button>
@@ -482,6 +501,9 @@ const LockedAnswerCard: React.FC<{
           locked
           correctAnswer={key}
         />
+      )}
+      {answer !== null && type === 'SA' && (
+        <ShortAnswerInput value={answer} onChange={noop} locked />
       )}
       {banner}
     </QuestionShell>

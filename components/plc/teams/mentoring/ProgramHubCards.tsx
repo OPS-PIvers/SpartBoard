@@ -135,7 +135,7 @@ export const ResourcesListView: React.FC<{
               'teams-mentoring',
               r.id
             )}
-            className="rounded text-xs font-semibold text-brand-blue-primary transition-colors hover:text-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+            className="rounded-sm text-xs font-semibold text-brand-blue-primary transition-colors hover:text-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
           >
             {r.title}
           </a>

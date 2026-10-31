@@ -135,7 +135,7 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
                       setMenuOpen(false);
                       if (!current) onPickBoard(board.id);
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
                       current
                         ? 'font-bold text-white bg-white/10'
                         : 'text-slate-200 hover:bg-white/10'
@@ -156,7 +156,7 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
       )}
 
       {!menuOpen && (
-        <div className="absolute bottom-full left-0 mb-1.5 flex max-w-[16rem] items-center gap-1.5 rounded-full bg-white/90 backdrop-blur-sm border border-slate-200 shadow-sm px-2.5 py-1 text-xs text-slate-700">
+        <div className="absolute bottom-full left-0 mb-1.5 flex max-w-[16rem] items-center gap-1.5 rounded-full bg-white/90 backdrop-blur-xs border border-slate-200 shadow-xs px-2.5 py-1 text-xs text-slate-700">
           {currentName && <span className="truncate">{currentName}</span>}
           <span className="shrink-0 text-slate-500">{position}</span>
         </div>

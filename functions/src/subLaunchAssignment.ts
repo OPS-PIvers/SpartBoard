@@ -7,7 +7,7 @@
 // allowlist. Rationale for not re-deriving the whole session: see the PR.
 
 import { onCall } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { randomUUID } from 'crypto';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
@@ -31,6 +31,7 @@ import {
   type GlKeyStep,
 } from './guidedLearningPublicStep';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { quizJoinCodeOwner } from './quizJoinCodeOwner';
 
 /** Only the kinds D8 puts in v1; Poll and Activity Wall stay unlaunchable. */
 const LAUNCHABLE_KINDS = [
@@ -126,6 +127,42 @@ const ALLOWED_VA_SESSION_FIELDS = new Set([
   'closeAt',
   'dueAt',
 ]);
+
+/** A teacher's clip range with only finite, non-negative seconds kept. */
+export const vaClipFrom = (
+  raw: unknown
+): { start?: number; end?: number } | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const { start, end } = raw as Record<string, unknown>;
+  const ok = (n: unknown): n is number =>
+    typeof n === 'number' && Number.isFinite(n) && n >= 0;
+  const clip = {
+    ...(ok(start) && start > 0 ? { start } : {}),
+    ...(ok(end) && (!ok(start) || end > start) ? { end } : {}),
+  };
+  return Object.keys(clip).length > 0 ? clip : null;
+};
+
+/** A teacher's note stops, keeping only well-formed ones with text (at most 200). */
+export const vaNotesFrom = (
+  raw: unknown
+): { id: string; timestamp: number; text: string }[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (n): n is { id: string; timestamp: number; text: string } =>
+        !!n &&
+        typeof n === 'object' &&
+        typeof (n as Record<string, unknown>).id === 'string' &&
+        typeof (n as Record<string, unknown>).text === 'string' &&
+        ((n as Record<string, unknown>).text as string).trim().length > 0 &&
+        typeof (n as Record<string, unknown>).timestamp === 'number' &&
+        Number.isFinite((n as Record<string, unknown>).timestamp) &&
+        ((n as Record<string, unknown>).timestamp as number) >= 0
+    )
+    .slice(0, 200)
+    .map(({ id, timestamp, text }) => ({ id, timestamp, text }));
+};
 
 const ALLOWED_VA_ASSIGNMENT_FIELDS = new Set([
   'className',
@@ -575,9 +612,9 @@ export async function resolveTargeting(
 
 /**
  * Server mirror of `allocateJoinCode` (`hooks/useQuizAssignments.ts`): a code
- * is global across every teacher, so a candidate is rejected while any session
- * still carrying it is joinable. Falls back to an unchecked code rather than
- * refusing the launch, as the teacher's own path does.
+ * has one owner for good, so a candidate someone has claimed is rejected, as is
+ * an unclaimed legacy code with a joinable session. Falls back to an unchecked
+ * code; the batch's owner `create` then fails rather than sharing a code.
  */
 export async function allocateJoinCode(
   db: admin.firestore.Firestore,
@@ -585,6 +622,7 @@ export async function allocateJoinCode(
 ): Promise<string> {
   for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt += 1) {
     const candidate = newCode();
+    if ((await quizJoinCodeOwner(db, candidate)) !== null) continue;
     const pointers = await db
       .collection('quiz_join_codes')
       .doc(candidate)
@@ -683,6 +721,8 @@ async function launchVideoActivity(
           id?: string;
           title?: string;
           youtubeUrl?: string;
+          clip?: unknown;
+          notes?: unknown;
           questions?: unknown;
         };
       }
@@ -722,6 +762,8 @@ async function launchVideoActivity(
       ? activity.title
       : 'Video activity';
   const { key, publicQuestions } = vaQuestionsFromKey(activity.questions);
+  const clip = vaClipFrom(activity.clip);
+  const notes = vaNotesFrom(activity.notes);
 
   const batch = db.batch();
   batch.set(db.doc(`video_activity_sessions/${sessionId}`), {
@@ -733,6 +775,8 @@ async function launchVideoActivity(
     activityId: itemId,
     activityTitle,
     youtubeUrl,
+    ...(clip ? { clip } : {}),
+    ...(notes.length > 0 ? { notes } : {}),
     // The key never rides the session doc; it goes in `key/answers` below.
     questions: [],
     publicQuestions,
@@ -1217,6 +1261,11 @@ export async function handleLaunchSubAssignment(
     mediaResponseEnabled: false,
     createdAt: now,
     updatedAt: now,
+  });
+  // create, not set: it fails if another account claimed the code meanwhile.
+  batch.create(db.doc(`quiz_join_codes/${code}`), {
+    teacherUid: hostUid,
+    createdAt: now,
   });
   batch.set(db.doc(`quiz_join_codes/${code}/sessions/${sessionId}`), {
     sessionId,

@@ -23,7 +23,7 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
   }, [adminBuildings]);
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50 text-slate-900 flex flex-col">
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-50 text-slate-900 flex flex-col">
       <header className="flex items-center justify-between px-8 py-5">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-brand-blue-primary flex items-center justify-center">
@@ -66,7 +66,7 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
                 key={b.id}
                 type="button"
                 onClick={() => onPick(b.id)}
-                className="group relative text-left rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-brand-blue-primary/40 shadow-sm hover:shadow-md transition-all p-5 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer"
+                className="group relative text-left rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-brand-blue-primary/40 shadow-xs hover:shadow-md transition-all p-5 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-xl bg-brand-blue-primary flex items-center justify-center">
                   <School className="w-6 h-6 text-white" />

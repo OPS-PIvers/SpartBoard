@@ -78,12 +78,12 @@ export const AboutPage: React.FC = () => {
     // LegalPageLayout).
     <div className="relative flex h-screen flex-col overflow-y-auto bg-slate-50 font-sans text-slate-800">
       {/* Subtle radial dotted background, matching the login screen */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-50" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[16px_16px] opacity-50" />
 
-      <header className="relative z-10 border-b border-slate-200/70 bg-white/70 backdrop-blur">
+      <header className="relative z-10 border-b border-slate-200/70 bg-white/70 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <img src="/favicon.png" alt="" className="h-8 w-8 rounded" />
+            <img src="/favicon.png" alt="" className="h-8 w-8 rounded-sm" />
             <span className="text-lg font-bold text-slate-900">{APP_NAME}</span>
           </div>
           <a
@@ -129,9 +129,9 @@ export const AboutPage: React.FC = () => {
             {FEATURES.map((feature) => (
               <div
                 key={feature.title}
-                className="rounded-3xl border border-slate-100/60 bg-white/80 p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur"
+                className="rounded-3xl border border-slate-100/60 bg-white/80 p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-sm"
               >
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-blue-primary to-brand-blue-dark shadow-lg shadow-brand-blue-primary/20">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-linear-to-br from-brand-blue-primary to-brand-blue-dark shadow-lg shadow-brand-blue-primary/20">
                   <feature.icon className="h-5 w-5 text-white" />
                 </div>
                 <h2 className="mb-2 text-lg font-bold text-slate-900">
@@ -144,7 +144,7 @@ export const AboutPage: React.FC = () => {
         </section>
 
         {/* Paths in */}
-        <section className="border-t border-slate-200/70 bg-white/60 backdrop-blur">
+        <section className="border-t border-slate-200/70 bg-white/60 backdrop-blur-sm">
           <div className="mx-auto max-w-5xl px-6 py-16">
             <h2 className="text-center text-2xl font-black tracking-tight text-slate-900">
               Three ways to get started

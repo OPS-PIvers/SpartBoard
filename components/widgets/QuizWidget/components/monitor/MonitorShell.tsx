@@ -203,7 +203,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     quizData,
     config,
     rosters,
-    fibGrading
+    fibGrading,
+    // Shared-Pause sessions open on All classes so Pause is in reach; per-period ones on the first class.
+    authContext?.canAccessFeature?.('monitor-parity') === true &&
+      !hasPeriodAccess(session) &&
+      session.sessionMode !== 'game'
   );
 
   const [screen, setScreen] = useState<Screen>({ name: 'home' });

@@ -54,7 +54,7 @@ const SwitchRow: React.FC<{
             {name}
           </span>
           {editor.unsavedChanges.has(featureId) && (
-            <span className="shrink-0 px-1.5 py-0.5 rounded text-xxs font-bold border bg-amber-50 border-amber-200 text-amber-800">
+            <span className="shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold border bg-amber-50 border-amber-200 text-amber-800">
               Unsaved
             </span>
           )}

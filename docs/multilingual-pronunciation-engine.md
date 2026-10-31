@@ -543,7 +543,7 @@ S7 adds `recordSpeak(cardId, passed, accuracy, tries, tally)` to the adapter int
 
 **Hosting:** `firebase.json:101-109` sets COOP `same-origin-allow-popups` and no COEP, so the site is not cross-origin isolated and WASM runs single-threaded. There is no cache rule for `.onnx`/`.wasm`; the model goes to Storage (F27), the wasm stays a Vite asset.
 
-**Runtime:** `onnxruntime-web-1-30` (`package.json:97`) is the alias the harness uses; reuse it. `1.21.0` stays for imgly. `pitchy` is **not** installed; `stress.ts` measures pitch in-house.
+**Runtime:** `onnxruntime-web-1-31` (`package.json`) is the alias the harness uses; reuse it. `1.21.0` stays for imgly. `pitchy` is **not** installed; `stress.ts` measures pitch in-house.
 
 **Tests to model on:**
 
@@ -597,7 +597,7 @@ S7 adds `recordSpeak(cardId, passed, accuracy, tries, tally)` to the adapter int
 **The gate** (`scripts/pronunciation-corpus/gate.mjs`, workflow `.github/workflows/pronunciation-gate.yml`):
 
 - It runs on PRs touching `utils/pronunciation/**`, `config/pronunciation*.ts` or the corpus.
-- It runs the real model in Node through `onnxruntime-web-1-30`, with the model cached in Actions cache, keyed by md5.
+- It runs the real model in Node through `onnxruntime-web-1-31`, with the model cached in Actions cache, keyed by md5.
 - It writes `docs/pronunciation-gate-results.md` (per-language tables) on every run.
 - It decodes each clip once and caches the token output, then judges every preset and mutated reference from that cache; the job's budget is 30 minutes.
 

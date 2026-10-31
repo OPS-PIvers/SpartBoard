@@ -45,7 +45,7 @@ export const LanguageSection: React.FC = () => {
               className={`relative flex flex-col items-center justify-center p-3.5 rounded-xl border-2 transition-all ${
                 isActive
                   ? 'bg-brand-blue-primary border-brand-blue-primary text-white shadow-lg shadow-brand-blue-primary/20'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-brand-blue-light hover:shadow-sm'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-brand-blue-light hover:shadow-xs'
               }`}
             >
               <span className="text-xs font-bold tracking-wide">

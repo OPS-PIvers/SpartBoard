@@ -90,7 +90,7 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
             {...tourTypeAttr('quiz-banks.save-close', 'quiz')}
             onClick={onClose}
             aria-label="Close"
-            className="p-1 rounded text-slate-500 hover:bg-slate-100"
+            className="p-1 rounded-sm text-slate-500 hover:bg-slate-100"
           >
             <X className="w-4 h-4" />
           </button>

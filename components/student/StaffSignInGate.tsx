@@ -5,7 +5,7 @@ import { auth } from '@/config/firebase';
 import { signInAsStaff, STAFF_EMAIL_DOMAIN } from '@/utils/staffAudience';
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50 text-slate-900 flex items-center justify-center px-6 pb-16 pt-10">
+  <div className="h-screen h-dvh overflow-y-auto bg-slate-50 text-slate-900 flex items-center justify-center px-6 pb-16 pt-10">
     <div className="max-w-md w-full text-center">{children}</div>
   </div>
 );
@@ -66,7 +66,7 @@ export const StaffSignInScreen: React.FC = () => {
         type="button"
         onClick={() => void signIn()}
         disabled={busy}
-        className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 px-5 py-2.5 text-sm font-bold transition-colors shadow-sm disabled:opacity-60"
+        className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 px-5 py-2.5 text-sm font-bold transition-colors shadow-xs disabled:opacity-60"
       >
         {busy && (
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

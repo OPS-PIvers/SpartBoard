@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   AlertTriangle,
+  Contrast,
   FileScan,
   HardDrive,
   Loader2,
@@ -28,7 +29,10 @@ import {
   type PaperWrittenActions,
 } from '@/utils/paperCropFetch';
 
-const ZOOM_STEPS = [1, 1.5, 2, 3] as const;
+// Widths relative to the panel; 1 is fit to width.
+const ZOOM_STEPS = [0.5, 0.75, 1, 1.5, 2, 3] as const;
+const FIT_IDX = ZOOM_STEPS.indexOf(1);
+const DEFAULT_ZOOM_IDX = ZOOM_STEPS.indexOf(0.75);
 
 export interface PaperCropPanelProps {
   /** Printed question number, for the image's alt text. */
@@ -81,7 +85,9 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   const artifact = handwritingArtifact(answer);
   const [crop, setCrop] = useState<CropState>({ kind: 'loading' });
   const [reloadNonce, setReloadNonce] = useState(0);
-  const [zoomIdx, setZoomIdx] = useState(0);
+  const [zoomIdx, setZoomIdx] = useState<number>(DEFAULT_ZOOM_IDX);
+  const [darken, setDarken] = useState(true);
+  const darkenFilterId = `paper-darken-${useId().replace(/:/g, '')}`;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState<Busy>(null);
@@ -213,7 +219,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   };
 
   const chip =
-    'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider';
+    'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider';
   const button =
     'inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50';
   const zoom = ZOOM_STEPS[zoomIdx];
@@ -265,23 +271,37 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           </span>
         )}
         <span className="ml-auto inline-flex items-center gap-0.5">
+          {/* no-tour-anchor: per-answer viewer control in Results, like the zoom buttons */}
+          <button
+            type="button"
+            onClick={() => setDarken((d) => !d)}
+            disabled={crop.kind !== 'ready'}
+            aria-pressed={darken}
+            aria-label={tp('darken')}
+            title={tp('darken')}
+            className={`touch-target-expand relative rounded-sm p-1 hover:bg-slate-100 disabled:opacity-30 ${
+              darken ? 'bg-slate-100 text-slate-800' : 'text-slate-500'
+            }`}
+          >
+            <Contrast aria-hidden className="h-4 w-4" />
+          </button>
           <button
             type="button"
             onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
             disabled={zoomIdx === 0 || crop.kind !== 'ready'}
             aria-label={tp('zoomOut')}
             title={tp('zoomOut')}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            className="touch-target-expand relative rounded-sm p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
           >
             <ZoomOut aria-hidden className="h-4 w-4" />
           </button>
           <button
             type="button"
-            onClick={() => setZoomIdx(0)}
-            disabled={zoomIdx === 0 || crop.kind !== 'ready'}
+            onClick={() => setZoomIdx(FIT_IDX)}
+            disabled={zoomIdx === FIT_IDX || crop.kind !== 'ready'}
             aria-label={tp('zoomFit')}
             title={tp('zoomFit')}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            className="touch-target-expand relative rounded-sm p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
           >
             <Maximize2 aria-hidden className="h-4 w-4" />
           </button>
@@ -295,14 +315,30 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             }
             aria-label={tp('zoomIn')}
             title={tp('zoomIn')}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+            className="touch-target-expand relative rounded-sm p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
           >
             <ZoomIn aria-hidden className="h-4 w-4" />
           </button>
         </span>
       </div>
 
-      <div className="max-h-[50vh] overflow-auto rounded border border-slate-200 bg-slate-50 pb-2">
+      {/* Faint pencil scans: thicken strokes, whiten the paper, then darken mid-tones. */}
+      <svg aria-hidden className="absolute h-0 w-0">
+        <filter id={darkenFilterId} colorInterpolationFilters="sRGB">
+          <feMorphology operator="erode" radius="0.6" />
+          <feComponentTransfer>
+            <feFuncR type="linear" slope="1.15" intercept="-0.07" />
+            <feFuncG type="linear" slope="1.15" intercept="-0.07" />
+            <feFuncB type="linear" slope="1.15" intercept="-0.07" />
+          </feComponentTransfer>
+          <feComponentTransfer>
+            <feFuncR type="gamma" exponent="2.2" />
+            <feFuncG type="gamma" exponent="2.2" />
+            <feFuncB type="gamma" exponent="2.2" />
+          </feComponentTransfer>
+        </filter>
+      </svg>
+      <div className="max-h-[50vh] overflow-auto rounded-sm border border-slate-200 bg-slate-100 p-3">
         {crop.kind === 'loading' && (
           <div
             role="status"
@@ -334,8 +370,12 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           <img
             src={crop.url}
             alt={tp('cropAlt', { number: questionNumber })}
-            style={{ width: `${zoom * 100}%`, maxWidth: 'none' }}
-            className="block h-auto"
+            style={{
+              width: `${zoom * 100}%`,
+              maxWidth: 'none',
+              ...(darken ? { filter: `url(#${darkenFilterId})` } : {}),
+            }}
+            className="mx-auto block h-auto bg-white shadow-xs"
           />
         )}
       </div>
@@ -355,7 +395,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           {snippets.map((s, i) => (
             <li key={i} className="text-xs text-slate-600">
               {s.before}
-              <mark className="rounded bg-amber-200 px-0.5 text-amber-950">
+              <mark className="rounded-sm bg-amber-200 px-0.5 text-amber-950">
                 {s.flagged}
               </mark>
               {s.after}
@@ -431,7 +471,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={6}
-              className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm font-normal normal-case tracking-normal text-slate-900 focus:border-brand-blue-primary focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm font-normal normal-case tracking-normal text-slate-900 focus:border-brand-blue-primary focus:outline-hidden"
             />
           </label>
           <div className="flex items-center gap-2">

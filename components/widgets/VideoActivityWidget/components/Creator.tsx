@@ -297,7 +297,7 @@ export const Creator: React.FC<CreatorProps> = ({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Introduction to Photosynthesis"
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary transition-all shadow-sm"
+                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 font-medium focus:outline-hidden focus:border-brand-blue-primary transition-all shadow-xs"
                     style={{ fontSize: 'min(14px, 4cqmin)' }}
                   />
                 </div>
@@ -386,7 +386,7 @@ export const Creator: React.FC<CreatorProps> = ({
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                         placeholder="https://www.youtube.com/watch?v=..."
-                        className="w-full pl-12 pr-4 py-3 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary transition-all shadow-sm"
+                        className="w-full pl-12 pr-4 py-3 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 font-medium focus:outline-hidden focus:border-brand-blue-primary transition-all shadow-xs"
                         style={{ fontSize: 'min(13px, 3.5cqmin)' }}
                       />
                     </div>
@@ -603,7 +603,7 @@ export const Creator: React.FC<CreatorProps> = ({
                 {...tourAttr('video-activity.creator-ai-generate')}
                 onClick={handleAIGenerate}
                 disabled={isGenerating}
-                className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2"
                 style={{ fontSize: 'min(14px, 4cqmin)' }}
               >
                 {isGenerating ? (
@@ -670,7 +670,7 @@ const SearchTab: React.FC<SearchTabProps> = ({
             if (e.key === 'Enter') onSubmit();
           }}
           placeholder="e.g. photosynthesis crash course"
-          className="w-full pl-9 pr-3 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary shadow-sm"
+          className="w-full pl-9 pr-3 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-hidden focus:border-brand-blue-primary shadow-xs"
           style={{ fontSize: 'min(13px, 3.5cqmin)' }}
         />
       </div>
@@ -679,7 +679,7 @@ const SearchTab: React.FC<SearchTabProps> = ({
         type="button"
         onClick={onSubmit}
         disabled={query.trim().length === 0 || searching}
-        className="px-4 py-2.5 bg-brand-blue-primary text-white rounded-xl font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-brand-blue-dark transition-colors shadow-sm"
+        className="px-4 py-2.5 bg-brand-blue-primary text-white rounded-xl font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-brand-blue-dark transition-colors shadow-xs"
         style={{ fontSize: 'min(12px, 3.5cqmin)' }}
       >
         {searching ? (
@@ -813,7 +813,7 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
         onChange={(e) => onTopicChange(e.target.value)}
         rows={3}
         placeholder="e.g. 6th grade lesson on photosynthesis — focus on chloroplasts and the role of sunlight"
-        className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary shadow-sm resize-none"
+        className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-hidden focus:border-brand-blue-primary shadow-xs resize-none"
         style={{ fontSize: 'min(13px, 3.5cqmin)' }}
       />
       <button
@@ -821,7 +821,7 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
         type="button"
         onClick={onSubmit}
         disabled={topic.trim().length === 0 || recommending}
-        className="w-full py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white rounded-xl font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-sm"
+        className="w-full py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white rounded-xl font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-xs"
         style={{ fontSize: 'min(12px, 3.5cqmin)' }}
       >
         {recommending ? (

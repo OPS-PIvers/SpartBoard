@@ -142,7 +142,7 @@ export const WidgetDefaultsSection: React.FC = () => {
                       defaultValue: 'Clear {{name}} default',
                       name,
                     })}
-                    className="ml-auto text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark px-2 py-1 rounded-lg hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                    className="ml-auto text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark px-2 py-1 rounded-lg hover:bg-slate-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                   >
                     {t('settings.widgetDefaults.clearAll', {
                       defaultValue: 'Clear',
@@ -185,7 +185,7 @@ export const WidgetDefaultsSection: React.FC = () => {
                               setting: keyLabel,
                               name,
                             })}
-                            className="p-0.5 rounded-full text-slate-500 hover:text-slate-800 hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                            className="p-0.5 rounded-full text-slate-500 hover:text-slate-800 hover:bg-slate-200 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                           >
                             <X className="w-3 h-3" aria-hidden="true" />
                           </button>

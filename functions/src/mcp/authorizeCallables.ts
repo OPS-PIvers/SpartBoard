@@ -1,6 +1,6 @@
 // Callables behind the /connect consent page and the Connected apps Disconnect button (CC-D1, CC-D10).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import '../functionsInit';
 import { resourceUrl, publicOrigin } from './config';
 import { verifyClientId } from './tokens';

@@ -38,7 +38,7 @@ interface MonthlyUsage {
 }
 
 const selectClass =
-  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40';
 
 const settingsEqual = (
   a: QuizReadAloudAdminSettings,

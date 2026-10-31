@@ -25,7 +25,7 @@ export const ProjectsLibraryField: React.FC<{ ctx: CustomRenderCtx }> = ({
       onClick={() =>
         ctx.updateConfig({ view: 'manager', managerTab: 'library' })
       }
-      className="w-full rounded-lg bg-brand-blue-primary px-3 py-2 text-sm text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:ring-offset-2"
+      className="w-full rounded-lg bg-brand-blue-primary px-3 py-2 text-sm text-white transition-colors hover:bg-brand-blue-dark focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary focus:ring-offset-2"
       {...tourAttr(
         'widget-settings.projects.library',
         ctx.widget.id,

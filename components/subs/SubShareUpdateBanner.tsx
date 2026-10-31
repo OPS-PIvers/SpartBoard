@@ -33,7 +33,7 @@ export const SubShareUpdateBanner: React.FC<SubShareUpdateBannerProps> = ({
       <button
         type="button"
         onClick={onReload}
-        className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark px-3 py-1 text-xs font-bold text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+        className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark px-3 py-1 text-xs font-bold text-white transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
       >
         <RefreshCw className="w-3.5 h-3.5" aria-hidden />
         {t('subShare.update.reload', { defaultValue: 'Reload' })}

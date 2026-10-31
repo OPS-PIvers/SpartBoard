@@ -196,7 +196,7 @@ export const DailyLimitEditor: React.FC<{
           });
         }}
         onBlur={() => setDraft(null)}
-        className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50"
+        className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50"
       />
       <span className="text-xs text-slate-500">
         per day. Admins are unlimited.
@@ -233,7 +233,7 @@ export const ModelTierEditor: React.FC<{
             },
           })
         }
-        className="px-2 py-1 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+        className="px-2 py-1 border border-slate-200 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
       >
         <option value="standard">Standard</option>
         <option value="advanced">Advanced</option>

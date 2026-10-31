@@ -60,16 +60,26 @@ export function isSchoologyServiceUrl(url: string): boolean {
   );
 }
 
-/** Schoology's REST id for a line item: the last path segment of its URL. */
+/** Schoology's REST id for a line item: the segment after `lineitems/` (a linked section's URL adds `/csm/<section>`). */
 export function lineItemColumnId(lineitemUrl: string): string | null {
   try {
-    const last = new URL(lineitemUrl).pathname
-      .replace(/\/+$/, '')
-      .split('/')
-      .pop();
-    return last && /^\d{1,20}$/.test(last) ? last : null;
+    const m = /\/lineitems\/(\d{1,20})(?:\/|$)/.exec(
+      new URL(lineitemUrl).pathname
+    );
+    return m ? m[1] : null;
   } catch {
     return null;
+  }
+}
+
+/** True for a line item a linked section shares with its parent (`/csm/<section>` URL). */
+export function isLinkedSectionLineItem(lineitemUrl: string): boolean {
+  try {
+    return /\/lineitems\/\d{1,20}\/csm\/\d{1,20}\/?$/.test(
+      new URL(lineitemUrl).pathname
+    );
+  } catch {
+    return false;
   }
 }
 

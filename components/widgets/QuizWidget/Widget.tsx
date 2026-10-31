@@ -81,6 +81,11 @@ import { CartridgeBankImportModal } from './components/CartridgeBankImportModal'
 import { SchoologyInboxModal } from './components/SchoologyInboxModal';
 import { useSchoologyInbox } from '@/hooks/useSchoologyInbox';
 import {
+  completeImportHandoff,
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
+import {
   claimSchoologyReview,
   subscribeSchoologyReview,
 } from '@/utils/schoologyInbox';
@@ -522,6 +527,7 @@ const TeacherQuizWidget: React.FC<{
   // Bank editor state — ephemeral, mirrors the quiz editor pair below.
   const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
+  const pendingHandoff = useImportHandoff(widget.id);
   const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
   // The .imscc flags fold into schoology-quiz-import and retire once it opens.
   const canImportBankCartridge =
@@ -1766,6 +1772,15 @@ const TeacherQuizWidget: React.FC<{
   // ─── Views ─────────────────────────────────────────────────────────────────
 
   const view = config.view ?? 'manager';
+  // A handed-over Source waits until no editor, import or live view is open.
+  const importHandoff =
+    pendingHandoff &&
+    view === 'manager' &&
+    !editingQuiz &&
+    !editingBank &&
+    !bankImportOpen
+      ? pendingHandoff
+      : null;
 
   // Sheets-API ops here (Picker-selected sheet read + template create) need
   // only the non-sensitive `drive.file` login scope — silent for every
@@ -1919,7 +1934,11 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
-  if (bankImportOpen) {
+  if (bankImportOpen || importHandoff?.target === 'questionBank') {
+    const closeBankImport = () => {
+      if (importHandoff) takeImportHandoff(widget.id);
+      setBankImportOpen(false);
+    };
     const baseAdapter = createQuizImportAdapter({
       ...sharedImportDeps,
       widgetLabel: 'Question bank',
@@ -1951,7 +1970,7 @@ const TeacherQuizWidget: React.FC<{
               />
             ),
             onFile: (file: File) => {
-              setBankImportOpen(false);
+              closeBankImport();
               setBankCartridge(file);
             },
           },
@@ -1959,18 +1978,25 @@ const TeacherQuizWidget: React.FC<{
       : baseAdapter;
     return (
       <ImportWizard
+        key={importHandoff?.id ?? 'bank-import'}
         isOpen
-        onClose={() => setBankImportOpen(false)}
+        onClose={closeBankImport}
         adapter={adapter}
+        initialSource={importHandoff?.source}
         onSaved={() => {
           addToast('Question bank saved to Drive!', 'success');
+          if (importHandoff) completeImportHandoff(widget.id);
           setBankImportOpen(false);
         }}
       />
     );
   }
 
-  if (view === 'import') {
+  if (view === 'import' || importHandoff?.target === 'quiz') {
+    const closeQuizImport = () => {
+      if (importHandoff) takeImportHandoff(widget.id);
+      else setView('manager');
+    };
     const adapter = createQuizImportAdapter({
       ...sharedImportDeps,
       // A question bank has no review table of its own, so the test-document
@@ -2015,18 +2041,24 @@ const TeacherQuizWidget: React.FC<{
                 canSend={canImportFromSchoology}
               />
             ),
-            onFile: (file: File) => setQuizCartridge(file),
+            onFile: (file: File) => {
+              if (importHandoff) takeImportHandoff(widget.id);
+              setQuizCartridge(file);
+            },
           },
         }
       : adapter;
     return (
       <ImportWizard
+        key={importHandoff?.id ?? 'quiz-import'}
         isOpen
-        onClose={() => setView('manager')}
+        onClose={closeQuizImport}
         adapter={quizAdapter}
+        initialSource={importHandoff?.source}
         onSaved={() => {
           addToast('Quiz saved to Drive!', 'success');
-          setView('manager');
+          if (importHandoff) completeImportHandoff(widget.id);
+          else setView('manager');
         }}
       />
     );
@@ -2187,7 +2219,7 @@ const TeacherQuizWidget: React.FC<{
                 },
               })
             }
-            className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
+            className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-xs transition-colors"
             style={{
               marginTop: 'min(8px, 2cqmin)',
               gap: 'min(6px, 1.5cqmin)',

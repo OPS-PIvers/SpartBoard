@@ -1,5 +1,5 @@
 // Every place a Guided Learning Storage file can be referenced (GUIDED_LEARNING_STUDIO.md P5-3).
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 
 type Firestore = admin.firestore.Firestore;

@@ -37,7 +37,7 @@ export const OptionInput: React.FC<OptionInputProps> = ({
         }
         onSave(index, val);
       }}
-      className="flex-1 p-2 text-xs font-medium bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
+      className="flex-1 p-2 text-xs font-medium bg-white border border-slate-200 rounded-lg outline-hidden focus:border-indigo-500"
       placeholder={`Option ${index + 1}`}
     />
   );

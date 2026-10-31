@@ -16,7 +16,7 @@ const Demo: React.FC<{ initial: FlashcardsCheckValue; cardCount: number }> = ({
 }) => {
   const [value, setValue] = useState(initial);
   return (
-    <div className="w-[36rem] space-y-3 rounded-xl border border-brand-blue-primary/40 bg-white p-4">
+    <div className="w-xl space-y-3 rounded-xl border border-brand-blue-primary/40 bg-white p-4">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-bold text-slate-800">
           How students are checked

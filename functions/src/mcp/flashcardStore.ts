@@ -1,5 +1,5 @@
 // Server mirror of hooks/useFlashcardSets.ts saveSet: normalise, write, refresh share, rewrite open Study sessions.
-import type * as admin from 'firebase-admin';
+import type * as admin from '../firebaseAdmin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomUUID } from 'node:crypto';
 

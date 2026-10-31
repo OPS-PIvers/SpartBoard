@@ -93,7 +93,7 @@ export const MoveToCollectionMenu: React.FC<MoveToCollectionMenuProps> = ({
             onClick={onClose}
             aria-label="Close"
             {...tourAttr('boards-modal.move-close')}
-            className="p-1 hover:bg-slate-100 rounded"
+            className="p-1 hover:bg-slate-100 rounded-sm"
           >
             <X className="w-4 h-4 text-slate-500" />
           </button>

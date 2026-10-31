@@ -108,7 +108,7 @@ const TagInput: React.FC<TagInputProps> = ({
           }}
           onBlur={() => addTag(draft)}
           placeholder="Add tag…"
-          className="flex-1 min-w-[80px] text-xs bg-transparent outline-none"
+          className="flex-1 min-w-[80px] text-xs bg-transparent outline-hidden"
         />
       </div>
       {suggestions.length > 0 && (
@@ -173,7 +173,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
             className="w-full h-full object-cover"
           />
           {isVideo && (
-            <div className="absolute top-0.5 left-0.5 flex items-center gap-0.5 bg-red-600 text-white rounded px-1 py-0.5">
+            <div className="absolute top-0.5 left-0.5 flex items-center gap-0.5 bg-red-600 text-white rounded-sm px-1 py-0.5">
               <Video className="w-2.5 h-2.5" />
             </div>
           )}
@@ -192,7 +192,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                   preset.id
                 )}
                 onChange={(e) => setEditName(e.target.value)}
-                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
+                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded-sm focus:outline-hidden focus:ring-1 focus:ring-brand-blue-primary"
                 autoFocus
               />
               <button
@@ -207,7 +207,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                   }
                   setEditingId(null);
                 }}
-                className="p-1 text-green-600 hover:bg-green-50 rounded"
+                className="p-1 text-green-600 hover:bg-green-50 rounded-sm"
               >
                 <Check className="w-3.5 h-3.5" />
               </button>
@@ -218,7 +218,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                   preset.id
                 )}
                 onClick={() => setEditingId(null)}
-                className="p-1 text-red-500 hover:bg-red-50 rounded"
+                className="p-1 text-red-500 hover:bg-red-50 rounded-sm"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -241,7 +241,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                   setEditingId(preset.id);
                   setEditName(preset.label);
                 }}
-                className="p-1 text-slate-400 hover:text-brand-blue-primary rounded shrink-0"
+                className="p-1 text-slate-400 hover:text-brand-blue-primary rounded-sm shrink-0"
               >
                 <Pencil className="w-3 h-3" />
               </button>
@@ -318,7 +318,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                 onChange={(e) => setEditingCategoryValue(e.target.value)}
                 list={`cats-${preset.id}`}
                 placeholder="Category..."
-                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-1 focus:ring-brand-blue-primary min-w-0"
+                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded-sm focus:outline-hidden focus:ring-1 focus:ring-brand-blue-primary min-w-0"
                 autoFocus
               />
               <datalist id={`cats-${preset.id}`}>
@@ -342,7 +342,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                   setEditingCategoryPresetId(null);
                   setEditingCategoryValue('');
                 }}
-                className="p-1 text-green-600 hover:bg-green-50 rounded shrink-0"
+                className="p-1 text-green-600 hover:bg-green-50 rounded-sm shrink-0"
               >
                 <Check className="w-3.5 h-3.5" />
               </button>
@@ -356,7 +356,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                   setEditingCategoryPresetId(null);
                   setEditingCategoryValue('');
                 }}
-                className="p-1 text-red-500 hover:bg-red-50 rounded shrink-0"
+                className="p-1 text-red-500 hover:bg-red-50 rounded-sm shrink-0"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -509,7 +509,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
               name="betaEmail"
               type="email"
               placeholder="Add email..."
-              className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
+              className="flex-1 px-2 py-1 border border-slate-200 rounded-sm text-xs focus:outline-hidden focus:ring-1 focus:ring-brand-blue-primary"
             />
             <button
               {...tourFieldAttr(
@@ -518,7 +518,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                 preset.id
               )}
               type="submit"
-              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+              className="px-3 py-1 bg-blue-600 text-white rounded-sm hover:bg-blue-700 transition-colors text-xs"
             >
               <Plus className="w-3 h-3" />
             </button>

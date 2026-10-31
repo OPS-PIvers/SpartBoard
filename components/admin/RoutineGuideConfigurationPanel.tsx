@@ -55,7 +55,7 @@ const newStep = (): RoutineGuideStep => ({
 });
 
 const inputClass =
-  'w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500';
+  'w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500';
 const fieldLabel = 'block text-xs font-bold text-slate-600 mb-1';
 
 const ColorSelect: React.FC<{
@@ -339,7 +339,7 @@ const RoutineEditor: React.FC<{
                   onChange={(e) =>
                     setStep(i, { label: e.target.value || undefined })
                   }
-                  className={`${inputClass} max-w-[9rem]`}
+                  className={`${inputClass} max-w-36`}
                 />
                 <select
                   {...tourFieldAttr(

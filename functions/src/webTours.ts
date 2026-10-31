@@ -1,7 +1,7 @@
 // Web tour drafts (docs/plans/CHROME_EXTENSION.md T6): a deleted draft takes its snapshot and pictures with it.
 import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { GL_TOURS_COLLECTION } from './glTours';
 import './functionsInit';
 

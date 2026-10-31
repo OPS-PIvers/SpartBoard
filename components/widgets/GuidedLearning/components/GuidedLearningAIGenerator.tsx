@@ -130,7 +130,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
             className="w-full h-full object-cover"
           />
           <span
-            className="absolute top-1 left-1 font-bold bg-black/60 text-white rounded"
+            className="absolute top-1 left-1 font-bold bg-black/60 text-white rounded-sm"
             style={{
               fontSize: 'min(10px, 3.5cqmin)',
               padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
@@ -175,7 +175,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
           placeholder="Optional notes for this image…"
           rows={2}
           disabled={disabled}
-          className="w-full bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none resize-none disabled:opacity-50"
+          className="w-full bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden resize-none disabled:opacity-50"
           style={{
             padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
             // Editable text a teacher types into, not display text — floor
@@ -407,7 +407,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Draft with AI"
-      className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-sm flex flex-col"
+      className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-xs flex flex-col"
       style={{ padding: 'min(24px, 5cqmin)' }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
@@ -572,7 +572,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             rows={3}
             {...tourAttr('gl-ai.prompt')}
             placeholder="e.g. Focus on vocabulary, include 3 questions, make it for 5th grade…"
-            className="w-full bg-white border border-slate-200 rounded-lg text-slate-800 resize-none focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/20 placeholder:text-slate-400"
+            className="w-full bg-white border border-slate-200 rounded-lg text-slate-800 resize-none focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20 placeholder:text-slate-400"
             style={{
               padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
               fontSize: 'min(14px, 5.5cqmin)',
@@ -611,7 +611,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
           onClick={handleGenerate}
           disabled={images.length === 0 || busy || outward.locked}
           title={outward.lockedTitle}
-          className="bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-sm transition-colors flex items-center justify-center"
+          className="bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-xs transition-colors flex items-center justify-center"
           style={{
             padding: 'min(8px, 2cqmin) min(20px, 5cqmin)',
             fontSize: 'min(14px, 5cqmin)',

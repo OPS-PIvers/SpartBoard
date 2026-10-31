@@ -456,7 +456,7 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
                 `row-${groupIndex + 1}`
               )}
               data-tour-widget={ctx.widget.id}
-              className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+              className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
             />
             <Lock size={14} className="text-slate-400 shrink-0" />
             <span className="truncate">{g.name}</span>

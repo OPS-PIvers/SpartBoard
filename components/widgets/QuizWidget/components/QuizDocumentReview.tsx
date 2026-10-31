@@ -299,7 +299,7 @@ const ReviewTable: React.FC<
       {targetSlots?.header(allQuestions, applyTargets)}
       {standardSlots?.header(allQuestions, applyTargets)}
 
-      <ul className="max-h-[22rem] space-y-2 overflow-y-auto pb-1">
+      <ul className="max-h-88 space-y-2 overflow-y-auto pb-1">
         {allQuestions.map((q, index) => {
           if (showOnlyFlagged && !isFlagged(q)) return null;
           const included = !excluded.has(q.id);
@@ -355,16 +355,16 @@ const ReviewTable: React.FC<
                           printed {q.sourceLabel}
                         </span>
                       )}
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-600">
+                      <span className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-600">
                         {TYPE_LABEL[q.type]}
                       </span>
                       {questionNeedsKey(q) && (
-                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
+                        <span className="rounded-sm bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
                           Needs answer
                         </span>
                       )}
                       {rowSpills.length > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
+                        <span className="inline-flex items-center gap-1 rounded-sm bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
                           <AlertCircle className="h-3 w-3" aria-hidden />
                           Check text
                         </span>
@@ -406,7 +406,7 @@ const ReviewTable: React.FC<
                       }
                       rows={2}
                       aria-label={`Question ${index + 1} text`}
-                      className="w-full resize-y rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none"
+                      className="w-full resize-y rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden"
                     />
                     {stemSpill && <SpillNote warning={stemSpill} />}
 
@@ -466,7 +466,7 @@ const ReviewTable: React.FC<
                                 aria-label={`Question ${index + 1}, correct answer: ${choice}`}
                               />
                               <span
-                                className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'break-words' : 'truncate'}`}
+                                className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'wrap-break-word' : 'truncate'}`}
                               >
                                 {choice}
                               </span>
@@ -518,7 +518,7 @@ const ReviewTable: React.FC<
                               aria-label={`Question ${index + 1}, answer: ${choice}`}
                             />
                             <span
-                              className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'break-words' : 'truncate'}`}
+                              className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'wrap-break-word' : 'truncate'}`}
                             >
                               {choice}
                             </span>
@@ -585,7 +585,7 @@ const ReviewTable: React.FC<
                                   if (e.target.value)
                                     linkPicture(q.id, e.target.value);
                                 }}
-                                className="h-16 rounded-lg border border-slate-200 px-2 text-xs text-slate-600 focus:border-brand-blue-primary focus:outline-none"
+                                className="h-16 rounded-lg border border-slate-200 px-2 text-xs text-slate-600 focus:border-brand-blue-primary focus:outline-hidden"
                               >
                                 <option value="">Add a picture…</option>
                                 {unlinked.map((imageId) => (

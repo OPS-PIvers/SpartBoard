@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const generatePasswordResetLinkMock = vi.fn();
 const firestoreMock = vi.fn();
 
-vi.mock('firebase-admin', () => {
+vi.mock('./firebaseAdmin', () => {
   return {
     apps: [{ name: '[DEFAULT]' }],
     initializeApp: vi.fn(),

@@ -375,7 +375,7 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
       aria-labelledby="assignments-hub-title"
     >
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-xs"
         onClick={onClose}
       />
 
@@ -434,7 +434,7 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                   placeholder={t('assignmentsHub.searchPlaceholder', {
                     defaultValue: 'Search assignments…',
                   })}
-                  className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2.5 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:border-brand-blue-primary/40 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/20"
+                  className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2.5 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:border-brand-blue-primary/40 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">

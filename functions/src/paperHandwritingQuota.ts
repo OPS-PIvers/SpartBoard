@@ -1,5 +1,5 @@
 // Page quota for handwritten paper answers (plan D25): read-only checks and a charge-once write.
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import type {
   DocumentReference,
   Firestore,

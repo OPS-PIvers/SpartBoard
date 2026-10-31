@@ -90,6 +90,7 @@ import {
   type VideoAssignRules,
 } from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import { tourAttr } from '@/config/tourAnchors';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 interface PlcNewVideoActivityAssignmentModalProps {
   plc: Plc;
@@ -342,6 +343,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           id: pickedActivity.id,
           title: pickedActivity.title,
           youtubeUrl: data.youtubeUrl,
+          ...videoActivityPlayback(data),
           driveFileId: pickedActivity.driveFileId,
           questions: data.questions,
         },
@@ -581,7 +583,7 @@ const PlcSharingStepBody: React.FC<{
   const nameId = useId();
   const urlId = useId();
   const inputClass =
-    'h-8 w-full px-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary';
+    'h-8 w-full px-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary';
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">

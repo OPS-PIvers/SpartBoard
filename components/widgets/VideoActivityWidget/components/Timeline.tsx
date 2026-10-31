@@ -385,7 +385,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             else if (e.key === 'Home') seek(0);
             else if (e.key === 'End') seek(duration);
           }}
-          className="relative h-8 rounded-lg bg-slate-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:ring-offset-2"
+          className="relative h-8 rounded-lg bg-slate-200 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary focus:ring-offset-2"
         >
           {/* Played-progress fill */}
           <div
@@ -533,7 +533,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             type="button"
             disabled={!playerReady}
             onClick={() => onAddAtTime(Math.floor(playhead))}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary text-white font-bold px-3 py-1.5 text-xs hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95 shadow-sm"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary text-white font-bold px-3 py-1.5 text-xs hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95 shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             Add at {formatHms(playhead)}

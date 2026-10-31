@@ -417,7 +417,7 @@ export const TourAnchorList: React.FC<Props> = ({ value, onPick, slots }) => {
                       className="h-4 w-4 shrink-0 text-slate-400"
                       aria-hidden="true"
                     />
-                    <span className="min-w-0 flex-1 break-words">
+                    <span className="min-w-0 flex-1 wrap-break-word">
                       {row.text}
                     </span>
                     <span className="text-xs font-normal tabular-nums text-slate-500">
@@ -459,12 +459,12 @@ export const TourAnchorList: React.FC<Props> = ({ value, onPick, slots }) => {
               >
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span
-                    className={`break-words text-sm ${row.selected ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
+                    className={`wrap-break-word text-sm ${row.selected ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
                   >
                     {row.name}
                   </span>
                   {row.detail && (
-                    <span className="break-words text-xs text-slate-500">
+                    <span className="wrap-break-word text-xs text-slate-500">
                       {row.detail}
                     </span>
                   )}

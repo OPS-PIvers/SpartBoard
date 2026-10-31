@@ -223,7 +223,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-3xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
@@ -237,7 +237,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
               disabled={isSaving || !hasUnsavedChanges}
               className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 hasUnsavedChanges
-                  ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
+                  ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-xs'
                   : 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
               }`}
             >
@@ -379,7 +379,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                             onClick={() => toggleGradeLevel(sticker.url, level)}
                             className={`px-2 py-1.5 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                               isSelected
-                                ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-xs'
                                 : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-500'
                             }`}
                           >

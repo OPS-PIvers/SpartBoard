@@ -31,7 +31,7 @@ export const StudioWelcomeCard: React.FC<StudioWelcomeCardProps> = ({
           enabled ? t('glStudio.welcomeCard') : t('glStudio.welcomeOff')
         }
         title={t('glStudio.welcomePinned')}
-        className={`relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border-2 bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+        className={`relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border-2 bg-slate-800 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
           selected
             ? 'border-brand-blue-primary'
             : 'border-transparent hover:border-slate-300'
@@ -62,7 +62,7 @@ export const StudioWelcomeCard: React.FC<StudioWelcomeCardProps> = ({
           aria-hidden="true"
         />
         {!enabled && (
-          <span className="absolute bottom-1 left-1 rounded bg-white/90 px-1.5 text-xxs font-bold text-slate-700">
+          <span className="absolute bottom-1 left-1 rounded-sm bg-white/90 px-1.5 text-xxs font-bold text-slate-700">
             {t('glStudio.welcomeOff')}
           </span>
         )}
@@ -76,7 +76,7 @@ export const StudioWelcomeCard: React.FC<StudioWelcomeCardProps> = ({
         {...tourAttr('studio.welcome-toggle')}
         data-testid="gl-studio-welcome-toggle"
         onClick={() => onEnabledChange(!enabled)}
-        className={`touch-target-expand absolute bottom-1.5 right-1.5 flex h-4 w-7 items-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
+        className={`touch-target-expand absolute bottom-1.5 right-1.5 flex h-4 w-7 items-center rounded-full p-0.5 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white ${
           enabled ? 'bg-emerald-500' : 'bg-slate-500'
         }`}
       >

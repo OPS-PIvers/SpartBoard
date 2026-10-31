@@ -25,7 +25,8 @@
 //     (feature_permissions, global_permissions, instructional_routines,
 //     dashboard_templates, global_video_activities, global_pdfs,
 //     global_mini_apps, a public custom_widget, and getById on
-//     shared_quizzes / shared_assignments / synced_quizzes).
+//     shared_quizzes / shared_assignments; not synced_quizzes, which only its
+//     participants, verified staff and admins read).
 //   - CANNOT read another org's /organizations/** subtree (members, buildings,
 //     domains, invitations) — EXCEPT the own-absent-member self-probe, which
 //     mirrors the existing organizations suite (useAuth bootstraps with it).
@@ -275,11 +276,14 @@ describe('external (no-org) user — reads global/shared catalogs', () => {
     await assertSucceeds(getDoc(doc(asExternal(), 'custom_widgets/widget-1')));
   });
 
-  it('can get-by-id shared_quizzes, shared_assignments, and synced_quizzes', async () => {
+  it('can get-by-id shared_quizzes and shared_assignments', async () => {
     const db = asExternal();
     await assertSucceeds(getDoc(doc(db, 'shared_quizzes/share-1')));
     await assertSucceeds(getDoc(doc(db, 'shared_assignments/share-2')));
-    await assertSucceeds(getDoc(doc(db, 'synced_quizzes/group-1')));
+  });
+
+  it('cannot get a synced_quizzes group they are not in (it holds the answer key)', async () => {
+    await assertFails(getDoc(doc(asExternal(), 'synced_quizzes/group-1')));
   });
 
   it('cannot WRITE to any admin-owned global catalog', async () => {

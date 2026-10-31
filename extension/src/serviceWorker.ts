@@ -62,6 +62,13 @@ import { createTourListWorker } from './tourListWorker';
 import { createSchoologyWorker, STATUS_KEY } from './schoology/worker';
 import { SCHOOLOGY_CONTENT_FILE } from './schoology/messages';
 import { SCHOOLOGY_REVIEW_EVENT } from '@/utils/schoologyReviewProtocol';
+import {
+  createSendWorker,
+  SEND_STATUS_KEY,
+  type SendStatusCache,
+} from './send/worker';
+import { IMPORT_INBOX_EVENT, SEND_CONTENT_FILE } from './send/messages';
+import { parseSendSettings, SEND_SETTINGS_KEY } from './send/settings';
 
 // The listing's exact origins, inlined at build time so a bundle carries only its own.
 declare const __SPART_ORIGINS__: readonly string[];
@@ -147,6 +154,125 @@ const tourList = createTourListWorker({
   now: () => Date.now(),
 });
 
+// Send to SpartBoard (IMPORT D14-D16): staff with `universal-import` get the edge tab, the right-click item and the side panel section.
+const SEND_MENU_ID = 'spartboard-send';
+const send = createSendWorker({
+  origins,
+  isStaff: async () => (await getChromeProfile()) === 'staff',
+  status: () => callSpartBoard(api, 'importStatusV1', {}),
+  // A click sent it, so Chrome may ask to sign in once.
+  send: (request) => callSpartBoard(api, 'importInboxV1', request, true),
+  loadStatus: async () =>
+    (await chrome.storage.session.get(SEND_STATUS_KEY))[SEND_STATUS_KEY] as
+      SendStatusCache | undefined,
+  saveStatus: (status) =>
+    chrome.storage.session.set({ [SEND_STATUS_KEY]: status }),
+  loadSettings: async () =>
+    parseSendSettings(
+      (await chrome.storage.local.get(SEND_SETTINGS_KEY))[SEND_SETTINGS_KEY]
+    ),
+  saveSettings: (settings) =>
+    chrome.storage.local.set({ [SEND_SETTINGS_KEY]: settings }),
+  inject: (tabId) =>
+    chrome.scripting
+      .executeScript({ target: { tabId }, files: [SEND_CONTENT_FILE] })
+      .then(
+        () => true,
+        () => false
+      ),
+  tell: async (tabId, message) => {
+    await chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
+  },
+  tabUrl: async (tabId) =>
+    (await chrome.tabs.get(tabId).catch(() => null))?.url,
+  syncMenu: async (on) => {
+    await chrome.contextMenus.removeAll();
+    if (on)
+      chrome.contextMenus.create({
+        id: SEND_MENU_ID,
+        title: 'Send to SpartBoard',
+        contexts: ['page', 'selection'],
+        documentUrlPatterns: ['https://*/*', 'http://*/*'],
+      });
+  },
+  // Declared below; only called after the worker has started.
+  schoologyEnabled: () => schoology.enabled(),
+  boardTabs: async () => {
+    const tabs = await chrome.tabs.query({
+      url: origins.map((o) => `${o}/*`),
+    });
+    return tabs
+      .filter((t) => t.id !== undefined && t.url)
+      .sort(
+        (a, b) =>
+          (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0) ||
+          Number(b.active) - Number(a.active)
+      )
+      .map((t) => ({
+        id: t.id as number,
+        windowId: t.windowId,
+        origin: new URL(t.url as string).origin,
+        ready: t.status === 'complete' && !t.discarded,
+      }));
+  },
+  focus: async ({ id, windowId }) => {
+    await chrome.tabs.update(id, { active: true });
+    await chrome.windows.update(windowId, { focused: true });
+  },
+  askForInbox: async (tabId) => {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      // The board cancels the event when it opens the Import screen.
+      func: (name: string) =>
+        !window.dispatchEvent(new CustomEvent(name, { cancelable: true })),
+      args: [IMPORT_INBOX_EVENT],
+    });
+    return result?.result === true;
+  },
+  navigate: async (tabId, url) => {
+    await chrome.tabs.update(tabId, { url, active: true });
+  },
+  openTab: async (url) => {
+    await chrome.tabs.create({ url });
+  },
+  now: () => Date.now(),
+});
+chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
+  if (sender.id !== chrome.runtime.id || !sender.tab || sender.frameId !== 0)
+    return false;
+  const answer = send.message(message, sender.url);
+  if (!answer) return false;
+  answer.then(reply, () => reply({ ok: false, why: 'offline' }));
+  return true;
+});
+// The side panel's Send section: only our own panel, an extension page rather than a tab, may ask.
+chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
+  if (sender.id !== chrome.runtime.id || sender.tab) return false;
+  const answer = send.panel(message);
+  if (!answer) return false;
+  answer.then(reply, () => reply({ ok: false }));
+  return true;
+});
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== SEND_MENU_ID || tab?.id === undefined) return;
+  // The top page can't see a selection made inside an embedded frame, so Chrome's copy of it is sent.
+  void send.sendFromBrowser(
+    tab.id,
+    info.frameId && info.frameUrl
+      ? { url: info.frameUrl, selectionText: info.selectionText }
+      : undefined
+  );
+});
+chrome.webNavigation.onCommitted.addListener(({ tabId, frameId, url }) => {
+  void send.navigated(tabId, frameId, url);
+});
+chrome.webNavigation.onHistoryStateUpdated.addListener(
+  ({ tabId, frameId, url }) => {
+    void send.changedInPlace(tabId, frameId, url);
+  }
+);
+
 // Schoology quiz import (SCHOOLOGY_QUIZ_IMPORT Q4, Q8): staff with the flag get a Send button on quiz pages.
 const schoology = createSchoologyWorker({
   origins,
@@ -160,10 +286,25 @@ const schoology = createSchoologyWorker({
       { enabled: boolean; at: number } | undefined,
   saveStatus: (status) => chrome.storage.session.set({ [STATUS_KEY]: status }),
   inject: async (tabId) => {
+    // With the Send edge tab showing, it reads single quizzes and this script keeps only the checklists (IMPORT D14).
+    const url = (await chrome.tabs.get(tabId).catch(() => null))?.url;
+    // Only when the edge tab shows there, so hiding it brings back the quiz button.
+    const universal = !!url && (await send.stateFor(url)).show;
+    await chrome.scripting
+      .executeScript({
+        target: { tabId },
+        func: (on: boolean) => {
+          (globalThis as { spartUniversalSend?: boolean }).spartUniversalSend =
+            on;
+        },
+        args: [universal],
+      })
+      .catch(() => undefined);
     await chrome.scripting
       .executeScript({ target: { tabId }, files: [SCHOOLOGY_CONTENT_FILE] })
       .catch(() => undefined);
   },
+  blocked: async (url) => (await send.stateFor(url)).blocked,
   boardTabs: async () => {
     const tabs = await chrome.tabs.query({
       url: origins.map((o) => `${o}/*`),
@@ -229,7 +370,7 @@ chrome.webNavigation.onReferenceFragmentUpdated.addListener(
   }
 );
 
-// Focus sessions (CHROME_EXTENSION.md F3, F5): student profiles pull their session; staff never enforce.
+// Focus sessions (CHROME_EXTENSION.md F3, F5): every district profile asks; the server's roster lookup refuses staff, who never enforce.
 const scope = self as unknown as PushScope & {
   addEventListener(
     type: 'push' | 'pushsubscriptionchange',
@@ -276,7 +417,8 @@ const handle = createExternalHandler({
   // A new sign-in drops the cached "no", so the next Schoology page asks SpartBoard again.
   signIn: async (ask) => {
     const signedIn = !!(await chromeTokens.getToken(ask));
-    if (ask && signedIn) await chrome.storage.session.remove(STATUS_KEY);
+    if (ask && signedIn)
+      await chrome.storage.session.remove([STATUS_KEY, SEND_STATUS_KEY]);
     return signedIn;
   },
 });
@@ -419,6 +561,8 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   if (sender.id !== chrome.runtime.id || sender.tab) return false;
   const msg = parseFocusPanelMessage(message);
   if (!msg) return false;
+  // Opening the panel pulls this profile's own session at once, even for a profile refused earlier.
+  if (msg.body.action === 'list') void focus.check(true);
   const answer = async (): Promise<FocusPanelReply> =>
     (await getChromeProfile()) === 'staff'
       ? // Only a button press may show Chrome's sign-in prompt; opening the panel lists quietly.
@@ -444,11 +588,11 @@ void chrome.alarms.get(TOUR_LIST_ALARM).then((alarm) => {
 });
 chrome.runtime.onStartup.addListener(() => {
   void tourList.refresh();
-  void focus.check();
+  void focus.check(true);
 });
 chrome.runtime.onInstalled.addListener(() => {
   void tourList.refresh();
-  void focus.check();
+  void focus.check(true);
 });
 chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   if (change.url !== undefined || change.status === 'complete')
@@ -456,6 +600,8 @@ chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   if (change.url !== undefined && tab.active) void focus.observe();
   // Catches what the navigation events can't, such as a prerendered page being shown.
   if (change.url !== undefined) blockedNavigation(tabId, change.url, true);
+  // A prerendered page that is shown fires no new commit, so it gets the Send button here.
+  if (change.url !== undefined) void send.changedInPlace(tabId, 0, change.url);
   if (change.status === 'complete') void enforcer.tabShown(tabId);
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -470,7 +616,7 @@ scope.addEventListener('push', (event) => event.waitUntil(focus.check()));
 scope.addEventListener('pushsubscriptionchange', (event) =>
   event.waitUntil(focus.check())
 );
-chrome.identity.onSignInChanged.addListener(() => void focus.check());
+chrome.identity.onSignInChanged.addListener(() => void focus.check(true));
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   void focus.observe();
   void enforcer.tabShown(tabId);

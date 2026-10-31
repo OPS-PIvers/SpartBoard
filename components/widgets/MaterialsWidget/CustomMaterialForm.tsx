@@ -129,7 +129,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
               tourWidget?.id,
               tourWidget?.type
             )}
-            className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-hidden"
           />
         </div>
       </div>
@@ -149,7 +149,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
               tourWidget?.id,
               tourWidget?.type
             )}
-            className="w-full py-2 pl-9 pr-3 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full py-2 pl-9 pr-3 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-hidden"
           />
         </div>
         <span id={iconGroupId} className="sr-only">

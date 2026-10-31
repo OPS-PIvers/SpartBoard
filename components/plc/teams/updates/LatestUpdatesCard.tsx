@@ -47,7 +47,7 @@ export const LatestUpdatesView: React.FC<{
                   u.id
                 )}
                 onClick={onAll}
-                className="max-w-full truncate rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+                className="max-w-full truncate rounded-sm text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
               >
                 {u.title}
               </button>

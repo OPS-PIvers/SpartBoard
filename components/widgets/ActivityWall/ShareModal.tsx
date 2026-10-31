@@ -94,7 +94,7 @@ const CopyableLink: React.FC<CopyableLinkProps> = ({
       readOnly
       value={url}
       onFocus={(e) => e.currentTarget.select()}
-      className="flex-1 bg-transparent text-xs text-slate-700 truncate focus:outline-none"
+      className="flex-1 bg-transparent text-xs text-slate-700 truncate focus:outline-hidden"
       aria-label={label}
       {...tourTypeAttr('activity-wall-link.url', 'activity-wall')}
     />
@@ -403,7 +403,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
                 'activity-wall-link.expiration-date',
                 'activity-wall'
               )}
-              className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
             />
           </div>
         )}
@@ -483,7 +483,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
                     'activity-wall',
                     t.id
                   )}
-                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
                     selected
                       ? 'border-brand-blue-primary text-brand-blue-primary'
                       : 'border-transparent text-slate-500 hover:text-slate-700'

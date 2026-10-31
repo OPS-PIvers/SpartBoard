@@ -10,7 +10,11 @@ import type {
   PaperPageItem,
   PaperPageMap,
 } from '@/types';
-import { PAPER_FULL_PAGE_LINES, paperBoxLines } from './paperWritten';
+import {
+  PAPER_BOX_LINES,
+  PAPER_FULL_PAGE_LINES,
+  paperBoxLines,
+} from './paperWritten';
 import {
   COLUMN_X_MM,
   CORNER_WINDOW_H_MM,
@@ -19,6 +23,15 @@ import {
   BUBBLE_DIAMETER_MM,
   MAX_CHOICE_COUNT,
   MIN_CHOICE_COUNT,
+  NUMBER_WIDTH_MM,
+  PROMPT_BASE_PT,
+  PROMPT_FIGURE_MIN_H_MM,
+  PROMPT_FIGURE_W_MM,
+  PROMPT_GUTTER_MM,
+  PROMPT_LABEL_MM,
+  PROMPT_MAX_ROWS,
+  PT_CHAR_MM,
+  PT_LINE_MM,
   QUESTION_CHOICE_LINE_MM,
   QUESTION_CHOICE_TOP_MM,
   QUESTION_GRID_BOTTOM_MM,
@@ -60,6 +73,8 @@ export interface PlanPaperPagesInput {
   choiceCount?: number;
   /** Question-text sheets: printed stem lines per question id; a missing id takes the most. */
   stemLines?: Readonly<Record<string, number>>;
+  /** Header rows per written question that prints its whole prompt above its box, on a page of its own. */
+  promptRows?: Readonly<Record<string, number>>;
 }
 
 export type PlanPaperPagesResult =
@@ -81,9 +96,10 @@ function writtenBlock(
   top: number,
   lines: number,
   stems: boolean,
-  box: { x: number; w: number }
+  box: { x: number; w: number },
+  rows = headerRows(stems)
 ): WrittenItem {
-  const headerH = headerRows(stems) * ROW_PITCH_MM - WRITTEN_BLOCK_GAP_MM;
+  const headerH = rows * ROW_PITCH_MM - WRITTEN_BLOCK_GAP_MM;
   const headerRight = box.x + box.w;
   return {
     kind: 'written',
@@ -110,7 +126,56 @@ const ONE_COLUMN = { x: WRITTEN_ONE_COLUMN_X_MM, w: WRITTEN_ONE_COLUMN_W_MM };
 
 /** A box that gets a page of its own: Full everywhere, and L on one-column sheets (D10). */
 const ownsPage = (size: PaperBoxSize, grid: PaperGrid): boolean =>
-  size === 'full' || (size === 'L' && grid === 1);
+  paperBoxLines(size) >= PAPER_FULL_PAGE_LINES ||
+  (grid === 1 && paperBoxLines(size) >= PAPER_BOX_LINES.L);
+
+/** Rows a page gives a header plus its box: a Full box's own page. */
+const PAGE_BLOCK_ROWS = WRITTEN_HEADER_ROWS_WITH_STEM + PAPER_FULL_PAGE_LINES;
+
+/** A prompt and its box on one page; a Full box takes every row the prompt leaves. */
+function promptBlock(
+  entry: Extract<PaperSheetEntry, { kind: 'written' }>,
+  rows: number
+): WrittenItem {
+  const header = Math.min(
+    Math.max(rows, WRITTEN_HEADER_ROWS_WITH_STEM),
+    PROMPT_MAX_ROWS
+  );
+  const room = PAGE_BLOCK_ROWS - header;
+  const lines =
+    paperBoxLines(entry.size) >= PAPER_FULL_PAGE_LINES
+      ? room
+      : Math.min(paperBoxLines(entry.size), room);
+  return writtenBlock(entry, GRID_TOP_MM, lines, true, FULL_WIDTH, header);
+}
+
+/** Header rows a whole prompt needs at 11 pt, beside its figures when it has any. */
+export function promptHeaderRows(
+  text: string,
+  figures: number,
+  labelled: boolean
+): number {
+  const left = WRITTEN_HEADER_X_MM + NUMBER_WIDTH_MM;
+  const right =
+    WRITTEN_BOX_X_MM +
+    WRITTEN_BOX_W_MM -
+    (figures > 0 ? PROMPT_FIGURE_W_MM + PROMPT_GUTTER_MM : 0);
+  const charsPerLine = Math.max(
+    1,
+    Math.floor((right - left) / (PROMPT_BASE_PT * PT_CHAR_MM))
+  );
+  const textLines = text
+    .split('\n')
+    .reduce((n, p) => n + Math.max(1, Math.ceil(p.length / charsPerLine)), 0);
+  const textH =
+    textLines * PROMPT_BASE_PT * PT_LINE_MM + (labelled ? PROMPT_LABEL_MM : 0);
+  const h = Math.max(textH, figures > 0 ? PROMPT_FIGURE_MIN_H_MM : 0);
+  const rows = Math.ceil((h + WRITTEN_BLOCK_GAP_MM) / ROW_PITCH_MM);
+  return Math.min(
+    Math.max(rows, WRITTEN_HEADER_ROWS_WITH_STEM),
+    PROMPT_MAX_ROWS
+  );
+}
 
 /** Lines a question-text box gets in `slots` whole 42 mm slots; every slot is ruled. */
 export function questionSlotLines(slots: number): number {
@@ -123,7 +188,7 @@ export function questionSlotLines(slots: number): number {
 }
 
 /** Whole slots a box of `size` needs on the question-text layout. */
-export function questionSlotsFor(size: Exclude<PaperBoxSize, 'full'>): number {
+export function questionSlotsFor(size: PaperBoxSize): number {
   const want = paperBoxLines(size);
   let slots = 1;
   while (questionSlotLines(slots) < want) slots += 1;
@@ -166,8 +231,7 @@ export function planPaperPages(
     entry: Extract<PaperSheetEntry, { kind: 'written' }>
   ): void => {
     if (current().length > 0) newPage();
-    const lines =
-      entry.size === 'full' ? PAPER_FULL_PAGE_LINES : paperBoxLines(entry.size);
+    const lines = Math.min(paperBoxLines(entry.size), PAPER_FULL_PAGE_LINES);
     current().push(writtenBlock(entry, GRID_TOP_MM, lines, stems, FULL_WIDTH));
     // Nothing shares a page with it; the next entry starts a fresh one.
     cursor = Number.POSITIVE_INFINITY;
@@ -186,11 +250,18 @@ export function planPaperPages(
 
     if (entry.kind === 'written') {
       i += 1;
+      const prompt = input.promptRows?.[entry.questionId];
+      if (prompt !== undefined) {
+        if (current().length > 0) newPage();
+        current().push(promptBlock(entry, prompt));
+        cursor = Number.POSITIVE_INFINITY;
+        continue;
+      }
       if (ownsPage(entry.size, grid)) {
         placeOwnPage(entry);
         continue;
       }
-      const size = entry.size as Exclude<PaperBoxSize, 'full'>;
+      const size = entry.size;
       const lines = paperBoxLines(size);
       const rows = headerRows(stems) + lines;
       const fits = (at: number): boolean =>
@@ -315,6 +386,13 @@ function planQuestionTextPages(
       });
       continue;
     }
+    const prompt = input.promptRows?.[entry.questionId];
+    if (prompt !== undefined) {
+      if (current().length > 0) newPage();
+      current().push(promptBlock(entry, prompt));
+      y = Number.POSITIVE_INFINITY;
+      continue;
+    }
     if (ownsPage(entry.size, 'questions')) {
       if (current().length > 0) newPage();
       current().push(
@@ -330,7 +408,7 @@ function planQuestionTextPages(
       y = Number.POSITIVE_INFINITY;
       continue;
     }
-    const size = entry.size as Exclude<PaperBoxSize, 'full'>;
+    const size = entry.size;
     const lines = questionSlotLines(questionSlotsFor(size));
     const top = place(QUESTION_CHOICE_TOP_MM + lines * WRITTEN_LINE_PITCH_MM);
     current().push({

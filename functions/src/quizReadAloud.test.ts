@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const INCREMENT = Symbol('increment');
 const DELETE = Symbol('delete');
 
-vi.mock('firebase-admin', () => ({
+vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   auth: vi.fn(() => ({ getUser: vi.fn() })),
@@ -44,7 +44,7 @@ vi.mock('./quizMediaArchive', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
 }));
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import {
   buildDefaultDeps,

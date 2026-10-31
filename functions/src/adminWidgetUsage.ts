@@ -8,7 +8,7 @@
  * can show the change from the day before and from 30 days before.
  */
 
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import { chicagoDateKey } from './adminAnalyticsHistory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;

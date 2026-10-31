@@ -22,11 +22,7 @@ const GROUPS: {
 }[] = [
   { id: 'sun', lines: ['sunrise', 'sunset', 'uvIndex'] },
   { id: 'wind', headline: 'windAvg', lines: ['windGust'] },
-  {
-    id: 'wet',
-    headline: 'humidity',
-    lines: ['dewPoint', 'rainDaily', 'rainMonthly'],
-  },
+  { id: 'wet', headline: 'humidity', lines: ['dewPoint'] },
   { id: 'air', headline: 'pressure', lines: ['highLow', 'feelsLike'] },
   { id: 'moon', headline: 'moon', lines: [] },
 ];
@@ -373,7 +369,7 @@ export const WeatherDetailsLayout: React.FC<{
       className={`flex h-full w-full ${wide ? 'flex-row' : 'flex-col'} ${className}`}
     >
       <div
-        className="shrink-0 min-h-0 min-w-0 [container-type:size]"
+        className="shrink-0 min-h-0 min-w-0 @container-size"
         style={
           wide
             ? { width: `${WIDE_HERO_SHARE * 100}%` }

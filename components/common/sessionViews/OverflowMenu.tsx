@@ -169,7 +169,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
         {...triggerProps}
         {...triggerAnchor}
         onClick={() => setOpen((o) => !o)}
-        className={`inline-flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${triggerClassName}`}
+        className={`inline-flex items-center justify-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${triggerClassName}`}
         style={
           triggerContent != null
             ? triggerStyle
@@ -225,7 +225,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
                     triggerRef.current?.focus();
                     item.onClick();
                   }}
-                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors focus:outline-none aria-disabled:cursor-not-allowed aria-disabled:opacity-40 ${
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors focus:outline-hidden aria-disabled:cursor-not-allowed aria-disabled:opacity-40 ${
                     item.destructive
                       ? 'text-brand-red-dark hover:bg-brand-red-lighter/30 focus:bg-brand-red-lighter/30'
                       : 'text-slate-700 hover:bg-slate-100 focus:bg-slate-100'

@@ -2632,6 +2632,7 @@
         "zoomIn": "Acercar",
         "zoomOut": "Alejar",
         "zoomFit": "Ajustar",
+        "darken": "Oscurecer la escritura",
         "loading": "Cargando escritura",
         "unavailable": "Escritura no disponible",
         "reload": "Reintentar",

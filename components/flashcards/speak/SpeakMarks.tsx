@@ -69,7 +69,7 @@ export const SpeakMarks: React.FC<SpeakMarksProps> = ({
       aria-expanded={openId === mark.id}
       title={t('flashcards.speak.verdict.showHint')}
       className={cx(
-        'touch-target-expand mx-[0.05em] inline-flex items-center justify-center rounded-full border align-super font-black leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+        'touch-target-expand mx-[0.05em] inline-flex items-center justify-center rounded-full border align-super font-black leading-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
         mark.emphasised
           ? dark
             ? 'border-rose-300 text-rose-100'
@@ -102,7 +102,7 @@ export const SpeakMarks: React.FC<SpeakMarksProps> = ({
       {segments ? (
         <p
           lang={language}
-          className="font-black leading-tight [overflow-wrap:anywhere]"
+          className="font-black leading-tight wrap-anywhere"
           style={{
             marginTop: 'min(6px, 1.4cqmin)',
             paddingBottom: '0.2em',
@@ -123,7 +123,7 @@ export const SpeakMarks: React.FC<SpeakMarksProps> = ({
                     aria-expanded={openId === mark.id}
                     title={t('flashcards.speak.verdict.showHint')}
                     className={cx(
-                      'rounded-md font-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+                      'rounded-md font-black focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
                       SHAPE[mark.kind],
                       mark.emphasised
                         ? 'decoration-[0.1em]'
@@ -154,7 +154,7 @@ export const SpeakMarks: React.FC<SpeakMarksProps> = ({
                 onClick={() => toggle(mark)}
                 aria-expanded={openId === mark.id}
                 className={cx(
-                  'rounded-lg border font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+                  'rounded-lg border font-bold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
                   mark.emphasised
                     ? dark
                       ? 'border-rose-300/60 text-white'

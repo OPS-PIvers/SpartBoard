@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  compareVersions,
   PublishError,
   readCredentials,
+  storeVersion,
   uploadAndPublish,
   type Credentials,
 } from './webStore';
@@ -132,5 +134,55 @@ describe('uploadAndPublish', () => {
       })
     ).rejects.toBeInstanceOf(PublishError);
     expect(f.calls).toHaveLength(0);
+  });
+});
+
+describe('compareVersions', () => {
+  it('compares each part as a number', () => {
+    expect(compareVersions('0.1.23', '0.1.9')).toBeGreaterThan(0);
+    expect(compareVersions('0.1.23', '0.1.23')).toBe(0);
+    expect(compareVersions('0.1', '0.1.0')).toBe(0);
+    expect(compareVersions('0.1.19', '0.2')).toBeLessThan(0);
+  });
+});
+
+describe('storeVersion', () => {
+  const channel = (crxVersion: string) => ({
+    distributionChannels: [{ deployPercentage: 100, crxVersion }],
+  });
+
+  it('takes the higher of the published and submitted versions', async () => {
+    const f = fakeFetch([
+      { body: { access_token: 'tok' } },
+      {
+        body: {
+          publishedItemRevisionStatus: channel('0.1.19'),
+          submittedItemRevisionStatus: channel('0.1.23'),
+        },
+      },
+    ]);
+    await expect(
+      storeVersion({ creds, itemId, fetchImpl: f.impl })
+    ).resolves.toBe('0.1.23');
+    expect(f.calls[1].url).toContain(
+      `/v2/publishers/pub-1/items/${itemId}:fetchStatus`
+    );
+  });
+
+  it('returns undefined when the item reports no version', async () => {
+    const f = fakeFetch([{ body: { access_token: 'tok' } }, { body: {} }]);
+    await expect(
+      storeVersion({ creds, itemId, fetchImpl: f.impl })
+    ).resolves.toBeUndefined();
+  });
+
+  it('fails when the status call fails', async () => {
+    const f = fakeFetch([
+      { body: { access_token: 'tok' } },
+      { status: 403, body: { error: 'denied' } },
+    ]);
+    await expect(
+      storeVersion({ creds, itemId, fetchImpl: f.impl })
+    ).rejects.toThrow('Reading the listing failed (HTTP 403)');
   });
 });

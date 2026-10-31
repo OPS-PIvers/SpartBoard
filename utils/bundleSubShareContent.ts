@@ -60,6 +60,7 @@ import type {
   VideoActivityMetadata,
   WidgetData,
 } from '@/types';
+import { videoActivityPlayback } from '@/utils/videoActivityClip';
 
 export interface SubShareBundleItem {
   id: string;
@@ -491,6 +492,7 @@ async function bundleVideoActivity(
     createdAt: data.createdAt ?? meta.createdAt ?? 0,
     updatedAt: data.updatedAt ?? meta.updatedAt ?? 0,
     ...(data.videoDuration ? { videoDuration: data.videoDuration } : {}),
+    ...videoActivityPlayback(data),
   };
   return { activity };
 }

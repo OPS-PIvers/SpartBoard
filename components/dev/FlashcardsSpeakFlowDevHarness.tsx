@@ -129,7 +129,7 @@ export const FlashcardsSpeakFlowDevHarness: React.FC = () => {
   const study = view === 'teacher' ? adapter.load() : null;
 
   return (
-    <div className="flex h-screen [height:100dvh] flex-col items-center gap-3 overflow-y-auto bg-slate-100 p-4 pb-8">
+    <div className="flex h-screen h-dvh flex-col items-center gap-3 overflow-y-auto bg-slate-100 p-4 pb-8">
       <div className="flex gap-2">
         {/* no-tour-anchor: dev harness switch */}
         <button
@@ -149,7 +149,7 @@ export const FlashcardsSpeakFlowDevHarness: React.FC = () => {
         </button>
       </div>
       <div
-        className="w-full max-w-[900px] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow"
+        className="w-full max-w-[900px] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
         style={{ height: 640, containerType: 'size' }}
       >
         {view === 'student' ? (

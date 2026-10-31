@@ -63,7 +63,7 @@ export const MemberSuggestDevHarness: React.FC = () => {
   return (
     <AuthContext.Provider value={HARNESS_AUTH}>
       <DialogProvider>
-        <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50">
+        <div className="h-screen h-dvh overflow-y-auto bg-slate-50">
           <div className="max-w-3xl mx-auto p-6 pb-16">
             {screen === 'members' ? (
               <MembersBody plc={PLC} />

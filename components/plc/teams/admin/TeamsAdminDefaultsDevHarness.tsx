@@ -24,7 +24,7 @@ export const TeamsAdminDefaultsDevHarness: React.FC = () => {
 
   return (
     <div
-      className={`flex flex-col bg-white font-sans ${initial.capture ? 'min-h-screen' : 'h-screen [height:100dvh] overflow-hidden'}`}
+      className={`flex flex-col bg-white font-sans ${initial.capture ? 'min-h-screen' : 'h-screen h-dvh overflow-hidden'}`}
     >
       <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-slate-200 bg-slate-100 px-4 py-2 text-xs text-slate-700">
         <span className="font-bold uppercase tracking-widest text-slate-500">
@@ -35,7 +35,7 @@ export const TeamsAdminDefaultsDevHarness: React.FC = () => {
           <select
             value={type}
             onChange={(e) => setType(e.target.value as PlcGroupType)}
-            className="rounded border border-slate-300 bg-white px-2 py-1"
+            className="rounded-sm border border-slate-300 bg-white px-2 py-1"
           >
             {TEAM_TYPE_ORDER.map((t) => (
               <option key={t} value={t}>

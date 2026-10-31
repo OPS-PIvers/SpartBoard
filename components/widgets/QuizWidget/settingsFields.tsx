@@ -29,7 +29,7 @@ export const QuizManagementField: React.FC<{ ctx: CustomRenderCtx }> = ({
           }
           placeholder={ctx.t('widgetSettings.quiz.widgetLabelPlaceholder')}
           {...tourAttr('quiz-settings.widget-label', ctx.widget.id, 'quiz')}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-hidden focus:ring-2 focus:ring-blue-500"
         />
       </label>
       <button

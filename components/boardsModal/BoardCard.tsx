@@ -188,12 +188,12 @@ export const BoardCard: React.FC<BoardCardProps> = ({
                 color: pickReadableForeground(collectionBadge.color),
               }}
             >
-              <Folder className="w-2.5 h-2.5 flex-shrink-0" />
+              <Folder className="w-2.5 h-2.5 shrink-0" />
               <span className="truncate">{collectionBadge.name}</span>
             </div>
           ) : (
             <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-xxs text-slate-600 max-w-full">
-              <Folder className="w-2.5 h-2.5 flex-shrink-0" />
+              <Folder className="w-2.5 h-2.5 shrink-0" />
               <span className="truncate">{collectionBadge.name}</span>
             </div>
           )}
@@ -218,7 +218,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
           title={t('boardsModal.editBoard', { defaultValue: 'Edit board' })}
           aria-haspopup="menu"
           {...tourAttr('boards-modal.board-edit')}
-          className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+          className="p-1 rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
@@ -232,7 +232,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
             onPointerDown={(e) => e.stopPropagation()}
             aria-label={t('boardsModal.share', { defaultValue: 'Share' })}
             {...tourAttr('boards.share-board')}
-            className="p-1 rounded text-slate-300 hover:text-brand-blue-primary hover:bg-brand-blue-lighter transition"
+            className="p-1 rounded-sm text-slate-300 hover:text-brand-blue-primary hover:bg-brand-blue-lighter transition"
           >
             <Share2 className="w-3.5 h-3.5" />
           </button>
@@ -249,7 +249,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
           aria-busy={isDuplicating}
           aria-label={t('boardsModal.duplicate', { defaultValue: 'Duplicate' })}
           {...tourAttr('boards-modal.board-duplicate')}
-          className="p-1 rounded text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-300"
+          className="p-1 rounded-sm text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-300"
         >
           {isDuplicating ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -275,7 +275,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
               : t('boardsModal.pin', { defaultValue: 'Pin' })
           }
           {...tourAttr('boards-modal.board-pin')}
-          className="p-1 rounded text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition"
+          className="p-1 rounded-sm text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition"
         >
           <Pin
             className={`w-3.5 h-3.5 ${board.isPinned ? 'fill-amber-500 text-amber-500' : ''}`}
@@ -318,12 +318,12 @@ export const BoardCardDragPreview: React.FC<{
               color: pickReadableForeground(collectionBadge.color),
             }}
           >
-            <Folder className="w-2.5 h-2.5 flex-shrink-0" />
+            <Folder className="w-2.5 h-2.5 shrink-0" />
             <span className="truncate">{collectionBadge.name}</span>
           </div>
         ) : (
           <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-xxs text-slate-600 max-w-full">
-            <Folder className="w-2.5 h-2.5 flex-shrink-0" />
+            <Folder className="w-2.5 h-2.5 shrink-0" />
             <span className="truncate">{collectionBadge.name}</span>
           </div>
         ))}

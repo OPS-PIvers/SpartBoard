@@ -773,8 +773,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "weather#detail_humidity",
       "weather#detail_moon",
       "weather#detail_pressure",
-      "weather#detail_rainDaily",
-      "weather#detail_rainMonthly",
       "weather#detail_sunrise",
       "weather#detail_sunset",
       "weather#detail_uvIndex",
@@ -1041,6 +1039,203 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu"
         ],
         "reveal": "sidebar.open-menu"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.close",
+    "label": "Close button in the Backgrounds window",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.rail-section",
+    "label": "Section in the Backgrounds window sidebar",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "backgrounds#(favorites|recent|colors|patterns|gradients|uploads|row-[1-9]\\d*)",
+    "key_hint": "backgrounds#colors; media categories are backgrounds#row-1, row-2",
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.search",
+    "label": "Search field in the Backgrounds window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.type-filter",
+    "label": "Type filter button in the Backgrounds window",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "backgrounds#(all|still|video|color|pattern|gradient|upload)",
+    "key_hint": "backgrounds#still for the Stills filter",
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.custom-color",
+    "label": "Custom color picker in the Backgrounds window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#colors"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#colors"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.custom-color-apply",
+    "label": "Apply button for the custom color in the Backgrounds window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#colors"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#colors"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.gradient-start",
+    "label": "Start color picker for the custom gradient",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.gradient-end",
+    "label": "End color picker for the custom gradient",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.gradient-direction",
+    "label": "Direction button for the custom gradient",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "backgrounds#row-[1-4]",
+    "key_hint": "backgrounds#row-1 for the first direction",
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.gradient-apply",
+    "label": "Apply button for the custom gradient",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#gradients"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#gradients"
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.upload",
+    "label": "Upload an image button in the Backgrounds window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds",
+          "backgrounds.rail-section:backgrounds#uploads"
+        ],
+        "reveal": "backgrounds.rail-section:backgrounds#uploads"
       }
     ]
   },
@@ -8496,6 +8691,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import.reference.convert",
+    "label": "Convert instead button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import.reference.add-link",
+    "label": "Add as a link button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import.reference.cancel",
+    "label": "Cancel button when a page refuses to show in an Embed",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "import.reference",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-import.cartridge-close",
     "label": "Close in Quiz import",
     "scope": "widget type",
@@ -9237,6 +9472,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Blank answer in Quiz import, by item",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-import",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.paper-skip-page",
+    "label": "Pages to import select (all or skip one page) in Quiz import",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -11732,6 +11990,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-print.written-box-size",
     "label": "Written box size select in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-print",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-3"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.written-box-lines",
+    "label": "Written box custom line count in the Quiz widget",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -38661,6 +38938,106 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.import-block-list.add",
+    "label": "Add button in Import block list",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.new-pattern",
+    "label": "New blocked address field in Import block list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.remove",
+    "label": "Remove button in an Import block list row",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.restore-defaults",
+    "label": "Restore defaults button in Import block list",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.import-block-list.test-url",
+    "label": "Test an address field in Import block list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.import-block-list",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#import-block-list"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.subjects.add",
     "label": "Add content area button in Subjects",
     "scope": "board",
@@ -46471,6 +46848,80 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "video-activity.editor-youtube-url",
     "label": "YouTube URL box in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-clip-start",
+    "label": "Start at time in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-clip-end",
+    "label": "End at time in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-notes-toggle",
+    "label": "Notes list toggle in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-add-note",
+    "label": "Add note button in the video activity editor",
     "scope": "board",
     "persists": true,
     "sandboxed": true,
@@ -66274,6 +66725,67 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.results-to-mark",
+    "label": "Short answers to mark notice in the Video Activity results",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#archive",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.results-mark-toggle",
+    "label": "Mark button on a short-answer question in the Video Activity results",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#archive",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.results-mark-points",
+    "label": "Points box for a student's short answer in the Video Activity results",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#archive",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.folder",
     "label": "Folder picker in the Quiz editor header",
     "scope": "widget type",
@@ -67337,6 +67849,259 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import-notice.open",
+    "label": "Add to board button on the sent-pages notice on the board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-screen.close",
+    "label": "Close button in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-screen.sent-remove",
+    "label": "Remove button on a page sent from the browser, in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-screen.target",
+    "label": "A one-tap choice (Flashcards, Quiz, Embed…) in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-screen.course",
+    "label": "Whole course button for a Schoology course export in the Add to board window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import",
+        "kind": "modal",
+        "path": [
+          "import-notice.open"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.close",
+    "label": "Close button in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.folder-name",
+    "label": "Folder name field in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.row-target",
+    "label": "What an item becomes (Quiz, PDF library, Skip…) in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.share-pictures",
+    "label": "Copy pictures to Drive checkbox in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.cancel",
+    "label": "Cancel or Done button in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.import",
+    "label": "Import button in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.retry",
+    "label": "Retry failed button in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.review",
+    "label": "Review pages button for AI pages in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.review-skip",
+    "label": "Skip button when AI could not read a page in the course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.review-retry",
+    "label": "Try again button when AI could not read a page in the course import",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-course.links-board",
+    "label": "Put these links on a new board button in the Schoology course import",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.import-course",
+        "kind": "modal",
+        "path": [
+          "import-notice.open",
+          "import-screen.course"
+        ]
+      }
+    ]
+  },
+  {
     "id": "import-wizard.close",
     "label": "Close button in the Import wizard",
     "scope": "board",
@@ -67566,6 +68331,71 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.wall-prompt",
+    "label": "Prompt box when reviewing an imported Activity Wall",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wall-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.wall-layout",
+    "label": "Layout menu when reviewing an imported Activity Wall",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wall-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.board-name",
+    "label": "Board name box when reviewing an imported board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-board-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.board-cancel",
+    "label": "Cancel button when reviewing an imported board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-board-review",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-review.board-create",
+    "label": "Create board button when reviewing an imported board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.import-board-review",
         "kind": "shared",
         "path": []
       }

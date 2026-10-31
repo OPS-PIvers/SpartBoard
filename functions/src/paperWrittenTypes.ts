@@ -39,7 +39,7 @@ export interface PaperPageMap {
   prompt?: string;
 }
 
-export type PaperBoxSize = 'S' | 'M' | 'L' | 'full';
+export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
 export type PaperTranscriptState = 'pending' | 'done' | 'blank';
 export type PaperPrivateStatus =
   'pending' | 'done' | 'failed' | 'blank' | 'over-quota';

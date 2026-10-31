@@ -32,7 +32,7 @@ export const QuietSelect: React.FC<{
     title={label}
     value={value}
     onChange={(e) => onChange(e.target.value)}
-    className="max-w-[16rem] truncate rounded-md border-0 bg-transparent py-0.5 pl-1 pr-6 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+    className="max-w-[16rem] truncate rounded-md border-0 bg-transparent py-0.5 pl-1 pr-6 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
   >
     {noneLabel !== undefined && <option value="">{noneLabel}</option>}
     {groups.map((g) =>
@@ -238,10 +238,10 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
             aria-label={t('teams.notes.decision.title', {
               defaultValue: 'Decision',
             })}
-            className="mt-1 block w-full resize-none border-0 bg-transparent p-0 text-sm leading-relaxed text-slate-700 [field-sizing:content] focus:outline-none focus:ring-0"
+            className="mt-1 block w-full resize-none border-0 bg-transparent p-0 text-sm leading-relaxed text-slate-700 field-sizing-content focus:outline-hidden focus:ring-0"
           />
         ) : (
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">
+          <p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-slate-700">
             {text}
           </p>
         )}
@@ -289,7 +289,7 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
                     dateRef.current?.focus();
                   }
                 }}
-                className="rounded hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+                className="rounded-sm hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
               >
                 {revisitLabel ??
                   t('teams.notes.decision.revisitPick', {
@@ -308,7 +308,7 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
                     anchorKey
                   )}
                   onClick={() => edit.onRevisit('')}
-                  className="rounded p-0.5 text-slate-400 hover:text-slate-700"
+                  className="rounded-sm p-0.5 text-slate-400 hover:text-slate-700"
                 >
                   <X className="h-3 w-3" aria-hidden="true" />
                 </button>
@@ -363,7 +363,7 @@ export const AgendaRow: React.FC<{
                 anchorKey
               )}
               onClick={onRemove}
-              className="rounded p-0.5 text-slate-400 transition-colors hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+              className="rounded-sm p-0.5 text-slate-400 transition-colors hover:text-slate-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>

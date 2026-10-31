@@ -27,7 +27,7 @@ export const QRDestinationField: React.FC<{ ctx: CustomRenderCtx }> = ({
       value={value}
       onChange={(event) => ctx.updateConfig({ url: event.target.value })}
       disabled={config.syncWithTextWidget}
-      className="w-full rounded-lg border border-slate-200 p-2 text-sm outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+      className="w-full rounded-lg border border-slate-200 p-2 text-sm outline-hidden transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
       placeholder="https://..."
       {...tourAttr('widget-settings.qr.url', ctx.widget.id, ctx.widget.type)}
     />

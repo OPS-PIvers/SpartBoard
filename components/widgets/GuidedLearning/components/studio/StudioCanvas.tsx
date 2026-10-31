@@ -236,7 +236,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   const { view, attachRoot, panning, spaceHeld, panHandlers, fit, zoomBy } =
     viewport;
   const toolButton =
-    'flex h-8 w-8 items-center justify-center rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+    'flex h-8 w-8 items-center justify-center rounded-md transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
   const toolClass = (active: boolean) =>
     `${toolButton} ${
       active
@@ -254,7 +254,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       role="application"
       aria-label={t('glStudio.canvasLabel')}
       aria-describedby="gl-studio-canvas-keys"
-      className={`relative h-full w-full touch-none overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${
+      className={`relative h-full w-full touch-none overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${
         panning ? 'cursor-grabbing' : spaceHeld ? 'cursor-grab' : ''
       }`}
       {...panHandlers}
@@ -375,9 +375,9 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                 aria-pressed={blurMode === m}
                 {...tourAttr('studio.blur-mode')}
                 onClick={() => setBlurMode(m)}
-                className={`rounded px-2 py-1 font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+                className={`rounded px-2 py-1 font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                   blurMode === m
-                    ? 'bg-white text-slate-800 shadow-sm'
+                    ? 'bg-white text-slate-800 shadow-xs'
                     : 'text-slate-600 hover:text-slate-800'
                 }`}
               >
@@ -390,7 +390,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             {...tourAttr('studio.blur-apply')}
             onClick={() => void applyBlur()}
             disabled={blurRects.length === 0 || redaction.applying}
-            className="rounded-md bg-brand-blue-primary px-3 py-1.5 font-bold text-white hover:bg-brand-blue-dark disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1"
+            className="rounded-md bg-brand-blue-primary px-3 py-1.5 font-bold text-white hover:bg-brand-blue-dark disabled:opacity-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1"
           >
             {redaction.applying
               ? t('glStudio.blurApplying')
@@ -401,7 +401,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             {...tourAttr('studio.blur-cancel')}
             onClick={exitBlur}
             disabled={redaction.applying}
-            className="rounded-md px-2 py-1.5 font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            className="rounded-md px-2 py-1.5 font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             {t('common.cancel')}
           </button>

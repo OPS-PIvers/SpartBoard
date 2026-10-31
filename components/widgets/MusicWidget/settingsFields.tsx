@@ -82,7 +82,7 @@ export const MusicSourceField: React.FC<{ ctx: CustomRenderCtx }> = ({
             data-tour-widget={ctx.widget.id}
             className={`flex items-center gap-2 rounded-xl border-2 p-3 text-left transition-all ${
               active
-                ? 'border-green-500 bg-green-50 shadow-sm'
+                ? 'border-green-500 bg-green-50 shadow-xs'
                 : 'border-slate-100 bg-white hover:border-slate-300'
             }`}
           >
@@ -216,13 +216,13 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
             data-tour-widget={ctx.widget.id}
             className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 text-center transition-all ${
               active
-                ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                ? 'border-indigo-500 bg-indigo-50 shadow-xs'
                 : 'border-slate-100 bg-white hover:border-slate-300'
             }`}
           >
             {station.thumbnail ? (
               <div
-                className="h-10 w-10 rounded-full bg-cover bg-center shadow-sm"
+                className="h-10 w-10 rounded-full bg-cover bg-center shadow-xs"
                 style={{ backgroundImage: `url(${station.thumbnail})` }}
               />
             ) : (

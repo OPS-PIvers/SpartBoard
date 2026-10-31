@@ -1168,7 +1168,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label={tg('title')}
-        className="fixed inset-0 z-overlay flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm"
+        className="fixed inset-0 z-overlay flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-xs"
       >
         <div
           aria-hidden
@@ -1204,7 +1204,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const paperCrop = textEntry ? handwritingArtifact(textEntry) : null;
   const headerVocabulary = targetVocabulary(target, privateDoc?.status);
   const paperBadge = (
-    <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-slate-200 px-1 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-700">
+    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-sm bg-slate-200 px-1 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-700">
       <FileScan aria-hidden className="h-3 w-3" />
       {tg('paper.badge')}
     </span>
@@ -1258,13 +1258,13 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   );
 
   const stepperButton =
-    'rounded p-1 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30';
+    'rounded-sm p-1 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30';
 
   // The current target's state (and, with the list collapsed, tab switches); the rail shows the name.
   const studentStatusRow = response && (
     <div className="flex flex-wrap items-center gap-2">
       <span
-        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${headerVocabulary.chip}`}
+        className={`inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xxs uppercase tracking-wider ${headerVocabulary.chip}`}
       >
         {headerVocabulary.key.endsWith('.scored') && !slotExcused && (
           <CheckCircle2 aria-hidden className="h-3 w-3" />
@@ -1274,7 +1274,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       {isPaperAnswer && paperBadge}
       {railCollapsed && tabSwitches > 0 && (
         <span
-          className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700"
+          className="inline-flex items-center gap-1 rounded-sm bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700"
           title={tg('tabSwitchesTitle', { count: tabSwitches })}
         >
           <ShieldAlert aria-hidden className="h-3 w-3" />
@@ -1338,7 +1338,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             aria-pressed={mode === m}
             className={`rounded-md px-2.5 py-1 transition-colors ${
               mode === m
-                ? 'bg-white text-brand-blue-dark shadow-sm'
+                ? 'bg-white text-brand-blue-dark shadow-xs'
                 : 'text-slate-600 hover:bg-white/60'
             }`}
           >
@@ -1404,7 +1404,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         <span
           aria-hidden
           data-testid="advance-fill"
-          className={`absolute inset-0 origin-left bg-white/25 transition-transform ease-linear [transition-duration:900ms] motion-reduce:transition-none ${
+          className={`absolute inset-0 origin-left bg-white/25 transition-transform ease-linear duration-900 motion-reduce:transition-none ${
             advanceArmed ? 'scale-x-100' : 'scale-x-0'
           }`}
         />
@@ -1462,7 +1462,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       footerEnd={footerNav}
       onSave={() => undefined}
       onClose={handleClose}
-      bodyClassName="!p-0 !overflow-hidden"
+      bodyClassName="p-0! overflow-hidden!"
       saveErrorMessage={false}
     >
       <div
@@ -1507,7 +1507,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             aria-label={tg('queueLabel')}
             className="overflow-y-auto border-r border-slate-200 bg-slate-50 pb-2"
           >
-            <div className="sticky top-0 z-10 flex items-center gap-1 border-b border-slate-200 bg-slate-50/95 py-1.5 pl-4 pr-2 backdrop-blur">
+            <div className="sticky top-0 z-10 flex items-center gap-1 border-b border-slate-200 bg-slate-50/95 py-1.5 pl-4 pr-2 backdrop-blur-sm">
               <button
                 type="button"
                 onClick={toggleRail}
@@ -1575,7 +1575,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       </span>
                       {entryTabSwitches > 0 && (
                         <span
-                          className="inline-flex shrink-0 items-center gap-0.5 rounded bg-amber-100 px-1 py-0.5 text-xxs font-bold text-amber-700"
+                          className="inline-flex shrink-0 items-center gap-0.5 rounded-sm bg-amber-100 px-1 py-0.5 text-xxs font-bold text-amber-700"
                           title={tg('tabSwitchesTitle', {
                             count: entryTabSwitches,
                           })}
@@ -1589,7 +1589,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       )}
                       {paper && paperBadge}
                       <span
-                        className={`shrink-0 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${vocabulary.chip}`}
+                        className={`shrink-0 rounded-sm px-1.5 py-0.5 text-xxs uppercase tracking-wider ${vocabulary.chip}`}
                       >
                         {t(vocabulary.key)}
                       </span>
@@ -1603,7 +1603,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
         {/* Center — the response itself. */}
         <section className="overflow-y-auto bg-slate-50">
-          <div className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">
+          <div className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur-sm">
             <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               {tg('questionLabel')}
               <span className="text-slate-300">·</span>
@@ -1639,7 +1639,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 >
                   <ChevronLeft aria-hidden className="h-4 w-4" />
                 </button>
-                <span className="min-w-[4.5rem] text-center text-xs font-bold text-slate-700">
+                <span className="min-w-18 text-center text-xs font-bold text-slate-700">
                   {tg('questionStep', {
                     index: questionIdx + 1,
                     total: questions.length,
@@ -1694,7 +1694,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       aria-pressed={x.slot.slot === slot.slot}
                       className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
                         x.slot.slot === slot.slot
-                          ? 'bg-white text-brand-blue-dark shadow-sm'
+                          ? 'bg-white text-brand-blue-dark shadow-xs'
                           : 'text-slate-600 hover:bg-white/60'
                       }`}
                     >
@@ -1745,7 +1745,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       {wordCounterLabel(answerWordCount, question)}
                     </span>
                     {textEntry?.timedOutUnderMinimum && (
-                      <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
+                      <span className="inline-flex items-center gap-1 rounded-sm bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
                         <Clock aria-hidden className="h-3 w-3" />
                         {tg('timedOutUnderMinimum')}
                       </span>
@@ -1821,7 +1821,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                           'quiz',
                           choice
                         )}
-                        className={`rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                        className={`rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 ${
                           adjudication === choice
                             ? 'border-brand-blue-primary bg-brand-blue-primary/5 ring-1 ring-brand-blue-primary'
                             : 'border-slate-300 bg-white hover:bg-slate-50'
@@ -1857,7 +1857,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               !isUnavailable &&
               (activeTake?.micState === 'denied' ||
                 activeTake?.micState === 'unavailable') && (
-                <span className="inline-flex w-fit items-center gap-1 rounded bg-slate-200 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-700">
+                <span className="inline-flex w-fit items-center gap-1 rounded-sm bg-slate-200 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-700">
                   <MicOff aria-hidden className="h-3 w-3" />
                   {tg(`takes.mic.${activeTake.micState}`)}
                 </span>
@@ -1949,7 +1949,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   onKeyDown={handlePointsKeyDown}
                   {...tourTypeAttr('quiz-grading.points', 'quiz')}
                   aria-invalid={pointsOutOfRange || undefined}
-                  className="w-28 rounded-lg border-2 border-emerald-500/30 bg-white px-3 py-2 text-lg font-bold text-emerald-800 focus:border-emerald-500 focus:outline-none aria-[invalid]:border-brand-red-primary/60"
+                  className="w-28 rounded-lg border-2 border-emerald-500/30 bg-white px-3 py-2 text-lg font-bold text-emerald-800 focus:border-emerald-500 focus:outline-hidden aria-[invalid]:border-brand-red-primary/60"
                   placeholder="0"
                 />
                 <span className="font-mono text-base text-slate-500">
@@ -2013,7 +2013,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 aria-required={adjudication === 'substitute'}
                 {...tourTypeAttr('quiz-grading.comment', 'quiz')}
                 placeholder={tg('commentPlaceholder')}
-                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
               />
             </div>
           )}
@@ -2047,7 +2047,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   onClick={handleUndoExcuse}
                   {...tourTypeAttr('quiz-grading.undo-excuse', 'quiz')}
                   disabled={clearing}
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Undo2 aria-hidden className="h-3.5 w-3.5" />
                   {tg('undoExcuse')}
@@ -2121,7 +2121,7 @@ const AnnotationsList: React.FC<{
             }`}
           >
             <span
-              className={`inline-block rounded px-1.5 ${highlightClass(a.highlightColor)} pointer-events-none`}
+              className={`inline-block rounded-sm px-1.5 ${highlightClass(a.highlightColor)} pointer-events-none`}
             >
               {truncated || 'highlight'}
             </span>

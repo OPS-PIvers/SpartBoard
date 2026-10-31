@@ -138,7 +138,7 @@ export const WidgetTypographySettings: React.FC<
               baseTextSize: nextBaseTextSize,
             });
           }}
-          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary"
+          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary"
           aria-label="Select default text size"
         >
           {SIZES.map((size) => (

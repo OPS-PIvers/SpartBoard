@@ -88,7 +88,16 @@ import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import { glSetToLiveTour } from './utils/glToLiveTour';
 import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
+import {
+  completeImportHandoff,
+  takeImportHandoff,
+  useImportHandoff,
+} from '@/components/import/importHandoff';
 import { createGuidedLearningImportAdapter } from './adapters/guidedLearningImportAdapter';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { UNIVERSAL_IMPORT_FEATURE } from '@/utils/import/contract';
+import { readPageSource } from '@/utils/import/pageImages';
+import { ImportedPagesPreview } from '@/components/common/ImportedPagesPreview';
 import {
   buildGlExportFilename,
   defaultImportDestination,
@@ -237,6 +246,8 @@ const TeacherGuidedLearningWidget: React.FC<{
   const { user, isAdmin, getAssignmentMode, canAccessFeature, appSettings } =
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
+  const { driveService } = useGoogleDrive();
+  const slidesImportOn = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
   const canEditToursOnBoard = isAdmin === true;
   const canUseAi =
     canAccessFeature('gemini-functions') &&
@@ -1247,6 +1258,14 @@ const TeacherGuidedLearningWidget: React.FC<{
     setImportDestination(null);
     setShowImportWizard(true);
   };
+  const importHandoff = useImportHandoff(widget.id);
+  const glHandoff =
+    importHandoff?.target === 'guidedLearning' ? importHandoff : null;
+  const openGlHandoff = useEffectEvent(openImportWizard);
+  // The handoff store lives outside React; open the review when a Source arrives.
+  useEffect(() => {
+    if (glHandoff) void Promise.resolve().then(openGlHandoff);
+  }, [glHandoff]);
 
   // Best-effort deletion of uploads whose save never succeeded.
   const discardRehostedUploads = (cached: {
@@ -1308,8 +1327,13 @@ const TeacherGuidedLearningWidget: React.FC<{
 
   // Recreated per render on purpose — the wizard holds its own parsed state,
   // and useStorage's function identities change every render anyway.
-  // eslint-disable-next-line react-hooks/refs -- adapter reads refs only when the wizard calls it
   const importAdapter = createGuidedLearningImportAdapter({
+    ...(slidesImportOn
+      ? {
+          readPages: (file: File) =>
+            readPageSource(file, { drive: driveService }),
+        }
+      : {}),
     save: async (set, title) => {
       if (!user?.uid) throw new Error('Not authenticated');
       const destination = importDestinationFor(set);
@@ -1427,6 +1451,14 @@ const TeacherGuidedLearningWidget: React.FC<{
               </p>
             </div>
           </div>
+          {slidesImportOn && (
+            <ImportedPagesPreview
+              pages={set.imageUrls.map((src, i) => {
+                const step = set.steps.find((st) => st.imageIndex === i);
+                return { src, text: step?.label };
+              })}
+            />
+          )}
           <ImportDestinationPicker
             canChoose={canImportToBuilding}
             destination={importDestinationFor(set)}
@@ -1770,7 +1802,7 @@ const TeacherGuidedLearningWidget: React.FC<{
                           },
                         });
                       }}
-                      className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
+                      className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-xs transition-colors"
                       style={{
                         paddingInline: 'min(12px, 3cqmin)',
                         paddingBlock: 'min(8px, 2cqmin)',
@@ -1825,7 +1857,7 @@ const TeacherGuidedLearningWidget: React.FC<{
                       type="button"
                       {...tourAttr('gl-results.error-back')}
                       onClick={closeResults}
-                      className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
+                      className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-xs transition-colors"
                       style={{
                         marginTop: 'min(8px, 2cqmin)',
                         gap: 'min(6px, 1.5cqmin)',
@@ -1917,8 +1949,11 @@ const TeacherGuidedLearningWidget: React.FC<{
       )}
 
       <ImportWizard<GuidedLearningSet>
+        key={glHandoff?.id ?? 'import'}
         isOpen={showImportWizard}
+        initialSource={glHandoff?.source}
         onClose={() => {
+          if (glHandoff) takeImportHandoff(widget.id);
           setShowImportWizard(false);
           importWizardClosedRef.current = true;
           // Defer cleanup to the save's settle handler while a save is in flight.
@@ -1931,6 +1966,7 @@ const TeacherGuidedLearningWidget: React.FC<{
             'success'
           );
           setImportFocusCounter((c) => c + 1);
+          if (glHandoff) completeImportHandoff(widget.id);
         }}
       />
 

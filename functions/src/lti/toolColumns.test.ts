@@ -85,6 +85,10 @@ class MemoryStore implements ColumnStore {
     const r = this.records.get(ctx);
     if (r) r.categoryId = categoryId;
   }
+  async markPublished(ctx: string) {
+    const r = this.records.get(ctx);
+    if (r) r.published = true;
+  }
   async getPref(ctx: string) {
     return this.prefs.get(ctx) ?? null;
   }
@@ -102,6 +106,7 @@ function makeRest(overrides: Partial<RestOps> = {}): RestOps {
     createGradingCategories: vi.fn(async () => []),
     setColumnCategory: vi.fn(async () => undefined),
     getColumnCategory: vi.fn(async () => '222'),
+    publishColumn: vi.fn(async () => undefined),
     listColumnGrades: vi.fn(async () => []),
     setExceptions: vi.fn(async (_s: string, rows: unknown[]) =>
       rows.map(() => true)
@@ -228,6 +233,59 @@ describe('pushSection: creating the column', () => {
     expect(deps.updateLineItemMaximum).toHaveBeenCalledWith(ITEM, 'tok', 10);
     expect(out.columnCreated).toBe(false);
     expect(store.records.get(CTX)?.lineitemUrl).toBe(ITEM);
+  });
+
+  it('uses the shared column id and publishes it in a linked section', async () => {
+    const shared = `${schoologySectionUrls('8497573101').lineitemsUrl}/8631284348/csm/${CTX}`;
+    deps.listLineItems = vi.fn(async () => [
+      { id: shared, label: 'Cells quiz', scoreMaximum: 10 },
+    ]);
+    await pushSection(deps, input());
+    expect(store.records.get(CTX)?.columnId).toBe('8631284348');
+    expect(deps.rest?.setColumnCategory).toHaveBeenCalledWith(
+      CTX,
+      '8631284348',
+      '222'
+    );
+    expect(deps.rest?.publishColumn).toHaveBeenCalledWith(CTX, '8631284348');
+  });
+
+  it('publishes a linked column saved before publishing existed, once', async () => {
+    const shared = `${schoologySectionUrls('8497573101').lineitemsUrl}/8631284348/csm/${CTX}`;
+    store.records.set(CTX, {
+      lineitemUrl: shared,
+      columnId: '8631284348',
+      scoreMaximum: 10,
+      categoryId: '222',
+      lastPushed: {},
+    });
+    await pushSection(deps, input());
+    await pushSection(deps, input());
+    expect(deps.rest?.publishColumn).toHaveBeenCalledTimes(1);
+    expect(deps.rest?.publishColumn).toHaveBeenCalledWith(CTX, '8631284348');
+    expect(store.records.get(CTX)?.published).toBe(true);
+  });
+
+  it('retries publishing an existing linked column after a failure', async () => {
+    const shared = `${schoologySectionUrls('8497573101').lineitemsUrl}/8631284348/csm/${CTX}`;
+    store.records.set(CTX, {
+      lineitemUrl: shared,
+      columnId: '8631284348',
+      scoreMaximum: 10,
+      categoryId: '222',
+      lastPushed: {},
+    });
+    vi.mocked(deps.rest!.publishColumn).mockRejectedValueOnce(new Error('503'));
+    await pushSection(deps, input());
+    expect(store.records.get(CTX)?.published).toBeUndefined();
+    await pushSection(deps, input());
+    expect(deps.rest?.publishColumn).toHaveBeenCalledTimes(2);
+    expect(store.records.get(CTX)?.published).toBe(true);
+  });
+
+  it('leaves publishing alone outside linked sections', async () => {
+    await pushSection(deps, input());
+    expect(deps.rest?.publishColumn).not.toHaveBeenCalled();
   });
 
   it('is blocked while a parallel create holds the lease', async () => {

@@ -161,7 +161,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
                   }}
                   className={`w-full flex items-center justify-between p-2.5 rounded-md transition-all ${
                     currentStyle.fontFamily === f.id
-                      ? 'bg-brand-blue-primary text-white shadow-sm'
+                      ? 'bg-brand-blue-primary text-white shadow-xs'
                       : 'bg-white hover:bg-slate-50 text-slate-600'
                   }`}
                 >
@@ -239,7 +239,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
               }
               className={`flex-1 py-1.5 rounded-md text-xxs font-bold uppercase transition-all ${
                 currentStyle.windowBorderRadius === r.id
-                  ? 'bg-white shadow-sm text-brand-blue-primary'
+                  ? 'bg-white shadow-xs text-brand-blue-primary'
                   : 'text-slate-500'
               }`}
             >

@@ -2,7 +2,7 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { parseChooseSections } from './quizSectionsChosen';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import './functionsInit';
 import {
   AGGREGATE_SCHEMA_VERSION,
@@ -66,7 +66,7 @@ export function parseCompletedResponse(
 }
 
 /** `grading[questionId]` for primary slots; media slot keys (`id::slot`) are skipped. */
-function parseManualGrades(
+export function parseManualGrades(
   raw: unknown
 ): Record<string, ManualGrade> | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;

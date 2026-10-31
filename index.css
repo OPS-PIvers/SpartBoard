@@ -1,6 +1,56 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@config "./tailwind.config.js";
+
+/* Tracked, but `.gitignore`'s `Data/` hides it from source detection on case-insensitive disks. */
+@source "./components/plc/teams/data";
+
+/* v4 has no config safelist. Fonts picked by name (`font-${fontFamily}`) and the written-response highlights. */
+@source inline("font-{sans,serif,mono,handwritten,rounded,fun,comic,slab,retro,marker,cursive}");
+@source inline("bg-amber-300/60 bg-emerald-300/60 bg-pink-300/60 bg-sky-300/60 bg-violet-200/50 outline-violet-400");
+
+/* Keeps Tailwind v3's preflight defaults that v4 changed (border, ring and placeholder colours, field backgrounds, button cursor). */
+@theme {
+  --default-ring-color: rgb(59 130 246 / 0.5);
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
+  input:where(
+    :not(
+      [type='button'],
+      [type='reset'],
+      [type='submit'],
+      [type='checkbox'],
+      [type='radio'],
+      [type='range'],
+      [type='color'],
+      [type='file'],
+      [type='image']
+    )
+  ),
+  select,
+  textarea {
+    background-color: Field;
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 /* Traffic Light Glows */
 .light-red.active {

@@ -720,6 +720,10 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // the widget changes in place and doesn't otherwise hint at the action).
   const [isRotating, setIsRotating] = useState(false);
   const rotateAnimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // In-flight pick timers, cleared on unmount so a closed widget stops ticking.
+  const spinTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
+  // Saves an in-flight pick's result on unmount, since maximize and spotlight remount the widget.
+  const pendingFinishRef = useRef<(() => void) | null>(null);
 
   // Rotate students one group forward (Group N's unlocked members go to
   // Group N+1; wraps around). Group IDs / names / colors stay put, so
@@ -751,8 +755,17 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Clean up the rotate-animation timer on unmount so it doesn't fire into
   // a dead component.
   useEffect(() => {
+    const spinTimers = spinTimersRef.current;
     return () => {
       if (rotateAnimTimer.current) clearTimeout(rotateAnimTimer.current);
+      spinTimers.forEach((id) => {
+        clearTimeout(id);
+        clearInterval(id);
+      });
+      spinTimers.clear();
+      const finish = pendingFinishRef.current;
+      pendingFinishRef.current = null;
+      finish?.();
     };
   }, []);
 
@@ -1004,6 +1017,30 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       spinningRef.current = false;
       setIsSpinning(false);
     };
+    const timers = spinTimersRef.current;
+    const schedule = (fn: () => void, ms: number) => {
+      const id = setTimeout(() => {
+        timers.delete(id);
+        fn();
+      }, ms);
+      timers.add(id);
+    };
+    const scheduleFinal = (fn: () => void, ms: number) => {
+      const run = () => {
+        pendingFinishRef.current = null;
+        fn();
+      };
+      pendingFinishRef.current = run;
+      schedule(run, ms);
+    };
+    const repeat = (fn: () => void, ms: number) => {
+      const id = setInterval(fn, ms);
+      timers.add(id);
+      return () => {
+        clearInterval(id);
+        timers.delete(id);
+      };
+    };
 
     // CRITICAL: Resume AudioContext within the click handler to unlock sound
     const ctx = getAudioCtx();
@@ -1127,10 +1164,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const winnerIndexInPool = Math.floor(Math.random() * pool.length);
       const winnerName = pool[winnerIndexInPool];
       const nextRemaining = pool.filter((_, i) => i !== winnerIndexInPool);
+      const finish = () => {
+        pendingFinishRef.current = null;
+        performUpdate(winnerName, nextRemaining);
+      };
+      pendingFinishRef.current = finish;
 
       if (visualStyle === 'flash') {
         let count = 0;
-        const interval = setInterval(() => {
+        const stop = repeat(() => {
           // Read from refs so we always have the current students list and
           // soundEnabled flag — config/props can change between the time
           // setInterval fires and when it was created (stale-closure fix).
@@ -1141,11 +1183,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (soundEnabledRef.current) playTick(150 + Math.random() * 50);
           count++;
           if (count > 20) {
-            clearInterval(interval);
+            stop();
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
             endSpin();
-            performUpdate(winnerName, nextRemaining);
+            finish();
           }
         }, 80);
       } else if (visualStyle === 'wheel') {
@@ -1171,13 +1213,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
             endSpin();
-            performUpdate(winnerName, nextRemaining);
+            finish();
             return;
           }
           if (soundEnabledRef.current) playTick(150);
           const progress = elapsed / duration;
           const nextInterval = 50 + Math.pow(progress, 2) * 400;
-          setTimeout(() => {
+          schedule(() => {
             tickSequence(count + 1);
           }, nextInterval);
         };
@@ -1185,7 +1227,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       } else if (visualStyle === 'slots') {
         let count = 0;
         const max = 25;
-        const interval = setInterval(() => {
+        const stop = repeat(() => {
           // Read from refs so we always have the current students list and
           // soundEnabled flag — config/props can change between the time
           // setInterval fires and when it was created (stale-closure fix).
@@ -1196,17 +1238,17 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (soundEnabledRef.current) playTick(150, 0.05);
           count++;
           if (count > max) {
-            clearInterval(interval);
+            stop();
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
             endSpin();
-            performUpdate(winnerName, nextRemaining);
+            finish();
           }
         }, 100);
       }
     } else if (mode === 'jigsaw') {
       const myGen = ++spinGenRef.current;
-      setTimeout(() => {
+      scheduleFinal(() => {
         // Bail if the user reset / cycled mode / changed class while the
         // 500 ms timeout was pending — otherwise we'd write home/expert
         // groups for a mode the user already moved away from.
@@ -1396,7 +1438,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }, 500);
     } else {
       const myGen = ++spinGenRef.current;
-      setTimeout(() => {
+      scheduleFinal(() => {
         if (myGen !== spinGenRef.current) {
           endSpin();
           return;
@@ -1799,7 +1841,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   onClick={cycleMode}
                   disabled={isSpinning}
                   {...tourAttr('random.mode', widget.id, widget.type)}
-                  className="flex items-center min-w-0 bg-transparent border-0 p-0 m-0 hover:opacity-80 transition-opacity cursor-pointer disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2 rounded"
+                  className="flex items-center min-w-0 bg-transparent border-0 p-0 m-0 hover:opacity-80 transition-opacity cursor-pointer disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2 rounded-sm"
                   style={{ gap: 'clamp(6px, 1.5cqmin, 10px)' }}
                   aria-label={
                     mode === 'single' && remainingStudents.length > 0
@@ -2081,7 +2123,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 {...tourAttr('random.pick', widget.id, widget.type)}
                 onClick={handlePick}
                 disabled={isSpinning}
-                className="flex-shrink-0"
+                className="shrink-0"
                 style={{
                   width: 'clamp(40px, 10cqmin, 72px)',
                   height: 'clamp(40px, 10cqmin, 72px)',
@@ -2131,7 +2173,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       height: 'clamp(40px, 10cqmin, 72px)',
                       padding: 0,
                     }}
-                    className="flex-shrink-0"
+                    className="shrink-0"
                     title={t('widgets.random.sendToScoreboard')}
                     icon={
                       <Trophy
@@ -2233,7 +2275,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       height: 'clamp(40px, 10cqmin, 72px)',
                       padding: 0,
                     }}
-                    className="flex-shrink-0 ml-auto"
+                    className="shrink-0 ml-auto"
                     title={t('widgets.random.rotateGroupsHint', {
                       defaultValue:
                         'Rotate — shift each group forward by one (locked students stay put).',

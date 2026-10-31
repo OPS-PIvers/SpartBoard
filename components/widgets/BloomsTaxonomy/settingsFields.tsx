@@ -67,7 +67,7 @@ export const BloomsCategoriesField: React.FC<{ ctx: CustomRenderCtx }> = ({
             type="checkbox"
             checked={enabledCategories.includes(category)}
             onChange={() => toggleCategory(category)}
-            className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+            className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
           />
           {t(category)}
         </label>

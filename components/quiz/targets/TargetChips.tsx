@@ -40,9 +40,7 @@ export const TargetChips: React.FC<TargetChipsProps> = ({
             compact ? 'px-1 py-px text-xxs' : 'px-1.5 py-0.5 text-xs'
           } ${KIND_CLASS[tag.kind]} ${muted ? 'opacity-60' : ''}`}
         >
-          <span
-            className={compact ? 'max-w-[7rem] truncate' : 'max-w-xs truncate'}
-          >
+          <span className={compact ? 'max-w-28 truncate' : 'max-w-xs truncate'}>
             {compact
               ? tagDisplay(tag)
               : tag.code
@@ -57,7 +55,7 @@ export const TargetChips: React.FC<TargetChipsProps> = ({
                 onRemove(tag.id);
               }}
               aria-label={`Remove ${tagDisplay(tag)}`}
-              className="rounded hover:bg-black/10 p-px"
+              className="rounded-sm hover:bg-black/10 p-px"
             >
               <X className="w-3 h-3" />
             </button>

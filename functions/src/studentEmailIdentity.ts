@@ -1,5 +1,5 @@
 // Maps a verified student email to its pseudonym uid, shared by studentLoginV1 and the Focus endpoints (CHROME_EXTENSION.md F3).
-import * as admin from 'firebase-admin';
+import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import {
   ONEROSTER_BASE,
@@ -18,15 +18,40 @@ export interface OneRosterUserWithRole extends ClassLinkUser {
   roles?: Array<{ role?: string; roleType?: string }>;
 }
 
-export function isOneRosterStudent(user: OneRosterUserWithRole): boolean {
-  if (user.role && user.role.toLowerCase() === 'student') return true;
-  if (Array.isArray(user.roles)) {
-    return user.roles.some((r) => {
-      const v = (r.role ?? r.roleType ?? '').toLowerCase();
-      return v === 'student' || v === 'primary';
-    });
+const ONEROSTER_STAFF_ROLES = new Set([
+  'teacher',
+  'administrator',
+  'aide',
+  'proctor',
+  'principal',
+  'counselor',
+  'districtadministrator',
+  'siteadministrator',
+  'systemadministrator',
+]);
+
+function oneRosterRoleNames(user: OneRosterUserWithRole): string[] {
+  const names = typeof user.role === 'string' ? [user.role] : [];
+  for (const r of Array.isArray(user.roles) ? user.roles : []) {
+    if (typeof r?.role === 'string') names.push(r.role);
   }
-  return false;
+  return names.map((n) => n.toLowerCase());
+}
+
+/** A student record; a roles entry with only roleType 'primary' still counts, as studentLoginV1 always has. */
+export function isOneRosterStudent(user: OneRosterUserWithRole): boolean {
+  if (oneRosterRoleNames(user).includes('student')) return true;
+  return (
+    Array.isArray(user.roles) &&
+    user.roles.some(
+      (r) => !r?.role && (r?.roleType ?? '').toLowerCase() === 'primary'
+    )
+  );
+}
+
+/** A staff record: a teacher, aide, counselor or administrator role (staff also enrolled in a course still count). */
+export function isOneRosterStaff(user: OneRosterUserWithRole): boolean {
+  return oneRosterRoleNames(user).some((r) => ONEROSTER_STAFF_ROLES.has(r));
 }
 
 export interface StudentLookupSecrets {
@@ -98,20 +123,7 @@ export async function resolveStudentByEmail(
   }
   let users: OneRosterUserWithRole[];
   try {
-    const usersBaseUrl = `${secrets.tenantUrl.replace(/\/$/, '')}${ONEROSTER_BASE}/users`;
-    const userParams = { filter: `email='${email}'` };
-    const userHeaders = getOAuthHeaders(
-      usersBaseUrl,
-      userParams,
-      'GET',
-      secrets.classlinkClientId,
-      secrets.classlinkClientSecret
-    );
-    const userResp = await axios.get<{ users: OneRosterUserWithRole[] }>(
-      usersBaseUrl,
-      { params: userParams, headers: { ...userHeaders } }
-    );
-    users = userResp.data.users ?? [];
+    users = await fetchOneRosterUsersByEmail(email, secrets);
   } catch (err) {
     if (axios.isAxiosError(err)) {
       console.error(
@@ -134,4 +146,29 @@ export async function resolveStudentByEmail(
     uid: computeStudentUid(studentUser.sourcedId, secrets.hmacSecret),
     sourcedId: studentUser.sourcedId,
   };
+}
+
+/** The OneRoster user records for one address; the caller checks isSafeEmailForOneRosterFilter first. */
+export async function fetchOneRosterUsersByEmail(
+  email: string,
+  secrets: Pick<
+    StudentLookupSecrets,
+    'classlinkClientId' | 'classlinkClientSecret' | 'tenantUrl'
+  >,
+  timeoutMs = 20000
+): Promise<OneRosterUserWithRole[]> {
+  const usersBaseUrl = `${secrets.tenantUrl.replace(/\/$/, '')}${ONEROSTER_BASE}/users`;
+  const userParams = { filter: `email='${email}'` };
+  const userHeaders = getOAuthHeaders(
+    usersBaseUrl,
+    userParams,
+    'GET',
+    secrets.classlinkClientId,
+    secrets.classlinkClientSecret
+  );
+  const userResp = await axios.get<{ users: OneRosterUserWithRole[] }>(
+    usersBaseUrl,
+    { params: userParams, headers: { ...userHeaders }, timeout: timeoutMs }
+  );
+  return userResp.data.users ?? [];
 }

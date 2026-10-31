@@ -14,7 +14,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { randomBytes } from 'node:crypto';
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 
 import {
   getLtiPlatformConfig,
@@ -41,7 +41,7 @@ import {
   contextOwnedBy,
 } from './nrpsStore';
 import { assertViewAsAllowed } from '../viewAsGuard';
-import { isVerifiedDistrictTeacher } from './teacherAuth';
+import { isDistrictTeacher } from './teacherAuth';
 
 /** The Firestore session collection a launch `kind` targets. */
 function sessionCollectionForKind(kind: LtiSessionKind): string {
@@ -73,7 +73,7 @@ export const ltiSignDeepLinkResponseV1 = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    if (!isVerifiedDistrictTeacher(request.auth.token)) {
+    if (!(await isDistrictTeacher(request.auth.token))) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
 
@@ -183,7 +183,7 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    if (!isVerifiedDistrictTeacher(request.auth.token)) {
+    if (!(await isDistrictTeacher(request.auth.token))) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
 
@@ -408,7 +408,7 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     }
     // Teachers only: verified district email, no studentRole — defense in depth
     // on top of the session-ownership gate below.
-    if (!isVerifiedDistrictTeacher(request.auth.token)) {
+    if (!(await isDistrictTeacher(request.auth.token))) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
     const data = (request.data ?? {}) as {

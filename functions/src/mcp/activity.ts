@@ -1,5 +1,5 @@
 // Write log, daily write cap and pre-edit snapshots for Claude writes (CC-D9, CC-D16).
-import * as admin from 'firebase-admin';
+import * as admin from '../firebaseAdmin';
 import { DAILY_BOARD_OP_LIMIT, DAILY_WRITE_LIMIT, LOG_TTL_MS } from './config';
 
 type Firestore = admin.firestore.Firestore;

@@ -16,6 +16,22 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Staff is decided by an org member doc (districtStaff.ts); here any verified non-student token is staff.
+const districtStaffMock = vi.hoisted(() =>
+  vi.fn(
+    (
+      _db: unknown,
+      token: { email_verified?: boolean; studentRole?: unknown }
+    ): Promise<boolean> =>
+      Promise.resolve(
+        token.email_verified === true && token.studentRole !== true
+      )
+  )
+);
+vi.mock('../districtStaff', () => ({
+  isDistrictStaffToken: districtStaffMock,
+}));
+
 vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     code: string;
@@ -48,7 +64,7 @@ let ownedTestClasses: string[] = [];
 const seenSections = new Map<string, { sessionId: string }>();
 const courseLinks = new Map<string, Record<string, unknown>>();
 
-vi.mock('firebase-admin', () => ({
+vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(() => ({

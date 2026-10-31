@@ -75,7 +75,7 @@ export const PlcMentionPicker: React.FC<PlcMentionPickerProps> = ({
                 onSelect(candidate);
               }}
               onMouseEnter={() => onHoverIndex(index)}
-              className={`w-full text-left px-3 py-1.5 flex flex-col gap-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+              className={`w-full text-left px-3 py-1.5 flex flex-col gap-0.5 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                 isActive ? 'bg-brand-blue-primary/10' : 'hover:bg-slate-50'
               }`}
             >
