@@ -2,6 +2,9 @@
 
 /** D29 preview flag gating Import, drop-to-import and the any-page Send. */
 export const UNIVERSAL_IMPORT_FEATURE = 'universal-import';
+/** Per-entry rollout flags, each ANDed with UNIVERSAL_IMPORT_FEATURE: the extension Send and a drop onto a board. */
+export const IMPORT_SEND_FEATURE = 'import-extension-send';
+export const IMPORT_DROP_FEATURE = 'import-board-drop';
 
 /** The URL parameter a new SpartBoard tab opens with after a Send. */
 export const IMPORT_INBOX_PARAM = 'importInbox';

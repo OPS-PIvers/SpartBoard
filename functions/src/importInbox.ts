@@ -36,6 +36,7 @@ import {
   IMPORT_READER_FAILURE_TTL_MS,
   IMPORT_SEND_BLOCK_LIST_DOC,
   UNIVERSAL_IMPORT_FEATURE,
+  IMPORT_SEND_FEATURE,
   YOUTUBE_VIDEO_ID,
   isUrlBlocked,
   resolveBlockPatterns,
@@ -470,11 +471,11 @@ function defaultDeps(db: Firestore): ImporterDeps {
         (await db.collection('admins').doc(email).get()).exists;
       if (!staff) return false;
       const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
-      return isGlobalFeatureGranted(
-        db,
-        UNIVERSAL_IMPORT_FEATURE,
-        email,
-        uid ?? ''
+      const granted = (feature: string) =>
+        isGlobalFeatureGranted(db, feature, email, uid ?? '');
+      return (
+        (await granted(UNIVERSAL_IMPORT_FEATURE)) &&
+        (await granted(IMPORT_SEND_FEATURE))
       );
     },
   };

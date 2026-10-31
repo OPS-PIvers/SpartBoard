@@ -136,8 +136,12 @@ board. Schoology is one Source among many. This picks up the out-of-scope list o
   - Each import queues at most 25 AI Conversions at once; the rest wait for the teacher to continue.
   - An `admin_settings` kill switch for AI Conversion has its own toggle in the admin panel and ships off on dev until it is tested.
   - Parser routes are never limited.
-- **D29 One preview flag**, `universal-import` (admin, `stage: 'preview'`, `afterLaunch: 'retire'`). It gates Import, drop-to-import and the any-page Send. Existing per-widget imports are untouched.
-  - To open it: Admin Settings > Access > Previews > set to Public.
+- **D29 Master flag**, `universal-import` (admin, `stage: 'preview'`, `afterLaunch: 'retire'`). Every Import entry point and type needs it on. Existing per-widget imports are untouched.
+- **D38 One flag per way in and per type (Paul, 2026-10-31).** Each is ANDed with `universal-import`, ships at access level admin, and opens one at a time to admins, Beta users or everyone. Admin Settings > Access > Previews, each row "Import: ...".
+  - Ways in: `import-extension-send` (the extension's Send, the corner notice and `?importInbox=1`; `importStatusV1` and `importInboxV1` check it too) and `import-board-drop` (drop onto a board; `fetchImportPageV1` checks it too).
+  - Types, one per button in Add to board (`IMPORT_TARGET_FEATURES` in `components/import/importTargets.ts`): `import-quiz` (Quiz and Question bank), `import-flashcards`, `import-activity-wall`, `import-new-board`, `import-guided-learning` and `import-notebook` (also the slides import inside those widgets), `import-video-activity` (YouTube and Edpuzzle), `import-mini-app`, `import-pdf`, `import-sticker`, `import-embed`, `import-link`, and `import-schoology-course` (Whole course).
+  - A type still needs its own widget and its existing gates (quiz document import, `.imscc` flags, Magic Layout for New board, AI switches).
+  - Fully open means `universal-import`, the way in and the type are all Public.
 
 ## Feasibility map
 
