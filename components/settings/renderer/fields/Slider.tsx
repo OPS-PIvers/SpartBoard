@@ -13,7 +13,7 @@ export const SliderField: React.FC<FieldProps<SliderFieldSchema<string>>> = ({
   const current = typeof value === 'number' ? value : field.min;
   return (
     <div className="flex items-center gap-3">
-      <input
+      <input // no-tour-anchor: covered by the settings.field row anchor
         id={id}
         type="range"
         value={current}

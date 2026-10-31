@@ -17,7 +17,7 @@ export const TextField: React.FC<FieldProps<TextFieldSchema<string>>> = ({
     : undefined;
 
   return (
-    <input
+    <input // no-tour-anchor: covered by the settings.field row anchor
       id={id}
       type="text"
       value={typeof value === 'string' ? value : ''}

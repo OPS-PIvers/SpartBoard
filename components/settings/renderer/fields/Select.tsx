@@ -15,7 +15,7 @@ export const SelectField: React.FC<FieldProps<SelectFieldSchema<string>>> = ({
   const current =
     typeof value === 'string' || typeof value === 'number' ? String(value) : '';
   return (
-    <select
+    <select // no-tour-anchor: covered by the settings.field row anchor
       id={id}
       value={current}
       disabled={disabled}

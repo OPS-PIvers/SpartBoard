@@ -28,7 +28,7 @@ export const IconPicker: React.FC<
       aria-describedby={describedBy}
       className="flex flex-col gap-1.5"
     >
-      <input
+      <input // no-tour-anchor: covered by the settings.field row anchor
         type="search"
         value={search}
         disabled={disabled}
@@ -50,7 +50,7 @@ export const IconPicker: React.FC<
           const selected = name === current;
           const tabbable = selected || (selectedIndex < 0 && index === 0);
           return (
-            <button
+            <button // no-tour-anchor: covered by the settings.field row anchor
               key={name}
               type="button"
               role="radio"

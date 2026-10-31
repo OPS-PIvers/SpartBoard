@@ -25,7 +25,7 @@ export const SegmentedField: React.FC<
         const selected = value === option.value;
         const tabbable = selected || (selectedIndex < 0 && index === 0);
         return (
-          <button
+          <button // no-tour-anchor: covered by the settings.field row anchor
             key={option.value}
             type="button"
             role="radio"
