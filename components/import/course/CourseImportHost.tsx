@@ -86,6 +86,10 @@ export const CourseImportHost: React.FC<{
   const madeFolders = useRef(new Map<FolderLibrary, Map<string, string>>());
   // One folder made at a time, so rows sharing a new folder never make it twice.
   const folderChain = useRef<Promise<unknown>>(Promise.resolve());
+  // Pictured quizzes by row, so Retry failed never uploads a row's pictures to Drive twice.
+  const pictured = useRef(
+    new Map<string, Awaited<ReturnType<typeof attachDocumentImages>>>()
+  );
 
   const wallDefaults = useMemo(
     () =>
@@ -174,11 +178,15 @@ export const CourseImportHost: React.FC<{
             target === 'quiz' ? 'quiz' : 'question_bank',
             path
           );
-          const quiz = await attachDocumentImages(
-            quizFromBank(row.bank),
-            withPictures ? row.bank.images : [],
-            uploader
-          );
+          const key = `${row.id}:${withPictures ? 'pictures' : 'plain'}`;
+          const quiz =
+            pictured.current.get(key) ??
+            (await attachDocumentImages(
+              quizFromBank(row.bank),
+              withPictures ? row.bank.images : [],
+              uploader
+            ));
+          pictured.current.set(key, quiz);
           if (target === 'quiz') {
             const meta = await saveQuiz(quiz);
             // The quiz is saved by now, so a failed move leaves it at the top rather than failing the row.
@@ -327,6 +335,7 @@ export const CourseImportHost: React.FC<{
         },
         ai:
           canAccessFeature(UNIVERSAL_IMPORT_FEATURE) &&
+          canAccessFeature('gemini-functions') &&
           conversion.enabled &&
           !outward.locked,
         drive: !!driveService,

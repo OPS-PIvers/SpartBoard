@@ -121,7 +121,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   const [noEmbed, setNoEmbed] = useState<ReadonlySet<string>>(new Set());
   // Convert is offered only when the row has a target besides Embed and Link.
   const canConvert = (row: Row): boolean =>
-    targetChoices(row.source, allowed).targets.some(
+    targetChoices(row.source, allowed, aiOn).targets.some(
       (t) => t !== 'embed' && t !== 'links'
     );
   const rows: Row[] = [
@@ -190,7 +190,8 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
           title={embedding.source.title}
           onPlace={(widget) => onPlaceReference(widget, embedding.source)}
           onConvert={
-            canConvert(embedding)
+            // The live row, so a dropped page read after Embed was picked still counts.
+            canConvert(rows.find((r) => r.key === embedding.key) ?? embedding)
               ? () => {
                   setNoEmbed((prev) => new Set(prev).add(embedding.key));
                   setEmbedding(null);
