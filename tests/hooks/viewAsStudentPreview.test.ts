@@ -1,4 +1,4 @@
-// View as student (docs/plans/ADMIN_VIEW_AS.md D15): a preview loads the student's work and writes nothing.
+// View as student (docs/plans/shipped/ADMIN_VIEW_AS.md D15): a preview loads the student's work and writes nothing.
 import {
   describe,
   it,

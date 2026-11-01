@@ -1804,7 +1804,7 @@ const App: React.FC = () => {
     );
   }
 
-  // Claude connector OAuth consent (docs/plans/CLAUDE_CONNECTOR.md); teacher auth only, no dashboard.
+  // Claude connector OAuth consent (docs/plans/shipped/CLAUDE_CONNECTOR.md); teacher auth only, no dashboard.
   if (pathname === '/connect') {
     return (
       <AuthProvider>

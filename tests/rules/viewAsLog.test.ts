@@ -1,4 +1,4 @@
-// Rules for the View as log (docs/plans/ADMIN_VIEW_AS.md D16): view-as entries are
+// Rules for the View as log (docs/plans/shipped/ADMIN_VIEW_AS.md D16): view-as entries are
 // super-admin reads only, and nobody but the server or a view-as tab writes them.
 // Requires the emulator; run via `pnpm run test:rules`.
 

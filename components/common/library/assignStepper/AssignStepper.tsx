@@ -1,4 +1,4 @@
-// Accordion assign dialog: optional top switch, one open step, Assign always in the footer (docs/plans/ASSIGN_STEPPER.md D1).
+// Accordion assign dialog: optional top switch, one open step, Assign always in the footer (docs/plans/shipped/ASSIGN_STEPPER.md D1).
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Loader2, Rocket } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';

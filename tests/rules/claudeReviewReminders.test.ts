@@ -1,5 +1,5 @@
 // Firestore security-rules tests for the Claude "Review before assigning"
-// rollout switch (docs/plans/CLAUDE_CONNECTOR.md CC-D19):
+// rollout switch (docs/plans/shipped/CLAUDE_CONNECTOR.md CC-D19):
 //   /admin_settings/claude_review_reminders — any authed user reads it; only
 //   an admin flips it. Teachers must read it or the mark could never be hidden.
 //

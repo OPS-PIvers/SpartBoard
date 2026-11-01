@@ -1,4 +1,4 @@
-// Mini App results sheet export maps best attempts onto the Quiz exporter (docs/plans/MINI_APP_RESULTS.md D10).
+// Mini App results sheet export maps best attempts onto the Quiz exporter (docs/plans/shipped/MINI_APP_RESULTS.md D10).
 import { describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({ exportResultsToSheet: vi.fn() }));

@@ -1,4 +1,4 @@
-// Rules for super admin "View as" (docs/plans/ADMIN_VIEW_AS.md D7, D16).
+// Rules for super admin "View as" (docs/plans/shipped/ADMIN_VIEW_AS.md D7, D16).
 // A view-as tab is signed in as its target with a server-minted `viewAs`
 // claim. It reads until exp and writes only while unlocked; admin powers
 // never write from it. Requires the emulators; run via `pnpm run test:rules`.

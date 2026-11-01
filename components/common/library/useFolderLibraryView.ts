@@ -80,7 +80,7 @@ const defaultRecentAt = (item: unknown): number | undefined => {
   return updated ?? created;
 };
 
-/** `useLibraryView` plus folder navigation (docs/plans/LIBRARY_FOLDERS.md D1-D10). */
+/** `useLibraryView` plus folder navigation (docs/plans/shipped/LIBRARY_FOLDERS.md D1-D10). */
 export function useFolderLibraryView<TItem>(
   options: UseLibraryViewOptions<TItem> & {
     folderView: FolderViewOptions<TItem>;

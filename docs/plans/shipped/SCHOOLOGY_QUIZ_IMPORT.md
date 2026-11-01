@@ -93,7 +93,7 @@ district key (2026-10-29, statuses and field names only):
 - **Q11 Provenance, not linking.** Each imported quiz and bank records where it came from:
   `source: { system: 'schoology', kind, sectionId?, itemId, collectionId?, importedAt }`. Q10 uses
   it. Linking a quiz to its Schoology gradebook column is not part of this feature; the
-  tool-columns work (`docs/plans/SCHOOLOGY_TOOL_COLUMNS.md`) can use these ids later.
+  tool-columns work (`docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md`) can use these ids later.
 - **Q12 Points and settings.** Per-question points come across. Quiz-level settings come across
   only where SpartBoard has the same setting (for example shuffle questions); others are dropped
   and named on the review screen.

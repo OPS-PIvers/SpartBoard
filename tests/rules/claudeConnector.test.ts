@@ -1,4 +1,4 @@
-// Firestore security-rules regression for the Claude connector (docs/plans/CLAUDE_CONNECTOR.md).
+// Firestore security-rules regression for the Claude connector (docs/plans/shipped/CLAUDE_CONNECTOR.md).
 // Requires the Firestore emulator: `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';

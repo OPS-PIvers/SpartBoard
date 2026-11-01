@@ -1,4 +1,4 @@
-// Maps Video Activity questions to and from the Quiz editor's shape; VA storage is unchanged (docs/plans/VA_QUIZ_ALIGNMENT.md V7).
+// Maps Video Activity questions to and from the Quiz editor's shape; VA storage is unchanged (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md V7).
 import type {
   QuizQuestion,
   QuizQuestionType,

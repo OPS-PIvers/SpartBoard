@@ -1,4 +1,4 @@
-// Mini App results v2 in the student runner (docs/plans/MINI_APP_RESULTS.md D2, D6, D8): v2 sessions
+// Mini App results v2 in the student runner (docs/plans/shipped/MINI_APP_RESULTS.md D2, D6, D8): v2 sessions
 // get the helper and submit through the callable; v1 and view-only sessions are untouched.
 import '@testing-library/jest-dom';
 import { act, render, screen, waitFor } from '@testing-library/react';

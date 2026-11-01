@@ -1,4 +1,4 @@
-// Per-student progress for a Guided Learning session: the teacher-side read of progress/{uid} (docs/plans/STUDENT_LANDING_V2.md D24).
+// Per-student progress for a Guided Learning session: the teacher-side read of progress/{uid} (docs/plans/shipped/STUDENT_LANDING_V2.md D24).
 import { useEffect, useState } from 'react';
 import { collection, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';

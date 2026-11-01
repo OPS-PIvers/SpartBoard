@@ -1,4 +1,4 @@
-// Drive in a super admin "View as" tab: the target's stored grant, or nothing (docs/plans/ADMIN_VIEW_AS.md D5).
+// Drive in a super admin "View as" tab: the target's stored grant, or nothing (docs/plans/shipped/ADMIN_VIEW_AS.md D5).
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';

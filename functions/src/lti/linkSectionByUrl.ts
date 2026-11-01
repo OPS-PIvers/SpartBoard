@@ -1,5 +1,5 @@
 // Schoology LTI 1.3 — link a section to a class by pasting its course URL
-// (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D1–D2).
+// (docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md D1–D2).
 //
 //   ltiLinkSectionByUrlV1 — { url } returns the section title and the caller's
 //                           classes ranked by student overlap; { url, rosterId }

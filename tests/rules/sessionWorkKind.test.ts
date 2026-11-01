@@ -1,4 +1,4 @@
-// Firestore rules regression for the session `workKind` field (docs/plans/STUDENT_LANDING_V2.md D8):
+// Firestore rules regression for the session `workKind` field (docs/plans/shipped/STUDENT_LANDING_V2.md D8):
 // only the session's teacher writes it, students read it. Run via `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';

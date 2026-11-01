@@ -1,4 +1,4 @@
-// Solid light chrome shared by live tours and Guided Learning (docs/plans/TOUR_LIGHT_CHROME.md).
+// Solid light chrome shared by live tours and Guided Learning (docs/plans/shipped/TOUR_LIGHT_CHROME.md).
 export const chromeShadow =
   'shadow-[0_1px_2px_rgba(2,6,23,.2),0_12px_24px_-6px_rgba(2,6,23,.45),0_32px_64px_-16px_rgba(2,6,23,.55)]';
 export const chromeSurface = `border border-slate-900/8 bg-white text-slate-900 ${chromeShadow}`;

@@ -1,4 +1,4 @@
-// The injected `window.SpartBoard` helper (docs/plans/MINI_APP_RESULTS.md D2, D3), run in jsdom as the frame.
+// The injected `window.SpartBoard` helper (docs/plans/shipped/MINI_APP_RESULTS.md D2, D3), run in jsdom as the frame.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   MSG_BLOCK_CONTEXT_MENU,

@@ -1,4 +1,4 @@
-// Pure helpers for Google Tasks sync of team action items (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md).
+// Pure helpers for Google Tasks sync of team action items (docs/plans/shipped/GOOGLE_TASKS_ACTION_ITEMS.md).
 import { createHash } from 'node:crypto';
 
 export const GOOGLE_TASKS_FEATURE_ID = 'google-tasks-sync';

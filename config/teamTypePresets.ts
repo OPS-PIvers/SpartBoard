@@ -1,4 +1,4 @@
-/** Built-in team type presets and the page/card catalogs (docs/plans/TEAMS_REDESIGN.md T1, T6). */
+/** Built-in team type presets and the page/card catalogs (docs/plans/shipped/TEAMS_REDESIGN.md T1, T6). */
 
 import type {
   PlcGroupType,

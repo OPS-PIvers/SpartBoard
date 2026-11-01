@@ -1,4 +1,4 @@
-// Before/after rows for View as pending changes (docs/plans/ADMIN_VIEW_AS.md D11).
+// Before/after rows for View as pending changes (docs/plans/shipped/ADMIN_VIEW_AS.md D11).
 import { stableStringify } from '@/utils/stableStringify';
 import type { PendingChange } from '@/utils/viewAsBoards';
 

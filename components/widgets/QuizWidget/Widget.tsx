@@ -4550,7 +4550,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
     />
   );
 
-/** Live review games over the same quiz library (docs/plans/QUIZ_REVIEW_SPLIT.md). Never shared with subs (D13). */
+/** Live review games over the same quiz library (docs/plans/shipped/QUIZ_REVIEW_SPLIT.md). Never shared with subs (D13). */
 export const ReviewWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
   useInSubShare() ? (
     <ScaledEmptyState icon={Gamepad2} title="Not available to substitutes" />

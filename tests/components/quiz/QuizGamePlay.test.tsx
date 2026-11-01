@@ -1,4 +1,4 @@
-// Self-paced Review game on a student device (docs/plans/QUIZ_REVIEW_SPLIT.md D22-D25).
+// Self-paced Review game on a student device (docs/plans/shipped/QUIZ_REVIEW_SPLIT.md D22-D25).
 
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

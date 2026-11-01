@@ -1,4 +1,4 @@
-// View as pending board changes: grouped by board and widget, approve or discard each (docs/plans/ADMIN_VIEW_AS.md D11).
+// View as pending board changes: grouped by board and widget, approve or discard each (docs/plans/shipped/ADMIN_VIEW_AS.md D11).
 import React, { useState } from 'react';
 import { Check, Loader2, Undo2, X } from 'lucide-react';
 import { TOOLS } from '@/config/tools';

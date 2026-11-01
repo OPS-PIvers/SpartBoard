@@ -1,4 +1,4 @@
-// PLC goal coach callable: checks a draft goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22).
+// PLC goal coach callable: checks a draft goal against the district rubric (docs/plans/shipped/TEAMS_REDESIGN.md T22).
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';

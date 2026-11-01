@@ -800,7 +800,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Video Activity editor and assign rules on the Quiz versions (docs/plans/VA_QUIZ_ALIGNMENT.md).
+  // Video Activity editor and assign rules on the Quiz versions (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md).
   'va-quiz-alignment': {
     label: 'Video Activity matches Quiz',
     icon: ListChecks,
@@ -842,7 +842,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Quiz attempt history and the Final score setting (docs/plans/QUIZ_ATTEMPT_HISTORY.md).
+  // Quiz attempt history and the Final score setting (docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md).
   'quiz-attempt-history': {
     label: 'Quiz attempt history',
     icon: History,

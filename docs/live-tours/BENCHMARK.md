@@ -1,6 +1,6 @@
 # Live tour benchmark
 
-The 12 benchmark tours from `docs/plans/LIVE_TOUR_ONE_SHOT.md` (D16, D17, "Benchmark run"), authored fresh with the Spartboard-Dev connector on 2026-10-13 and saved as building drafts on `spartboard-dev` (none added to the Help Center). Each was dry-run clean, then played on the dummy board (`vite-verify`, port 56320) with `scripts/run-live-tour.mjs`, which also uploaded its step pictures.
+The 12 benchmark tours from `docs/plans/shipped/LIVE_TOUR_ONE_SHOT.md` (D16, D17, "Benchmark run"), authored fresh with the Spartboard-Dev connector on 2026-10-13 and saved as building drafts on `spartboard-dev` (none added to the Help Center). Each was dry-run clean, then played on the dummy board (`vite-verify`, port 56320) with `scripts/run-live-tour.mjs`, which also uploaded its step pictures.
 
 A tour passes only if Paul makes no edits. Find them in the Guided Learning widget > library > building sets on https://spartboard-dev.web.app.
 

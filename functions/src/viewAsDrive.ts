@@ -1,4 +1,4 @@
-// Drive access token for a super admin "View as" tab (docs/plans/ADMIN_VIEW_AS.md D5).
+// Drive access token for a super admin "View as" tab (docs/plans/shipped/ADMIN_VIEW_AS.md D5).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { ALLOWED_ORIGINS } from './classlinkShared';

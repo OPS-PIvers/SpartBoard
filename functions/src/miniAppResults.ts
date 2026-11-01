@@ -1,4 +1,4 @@
-// The one write path for v2 Mini App submissions (docs/plans/MINI_APP_RESULTS.md D6, D8, D9).
+// The one write path for v2 Mini App submissions (docs/plans/shipped/MINI_APP_RESULTS.md D6, D8, D9).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import './functionsInit';

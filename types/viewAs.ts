@@ -1,4 +1,4 @@
-// Wire shapes for super admin "View as" (docs/plans/ADMIN_VIEW_AS.md); mirrored in functions/src/viewAs.ts.
+// Wire shapes for super admin "View as" (docs/plans/shipped/ADMIN_VIEW_AS.md); mirrored in functions/src/viewAs.ts.
 
 /** The `viewAs` custom claim the server mints onto the target's token. `exp` is epoch ms. */
 export interface ViewAsClaim {

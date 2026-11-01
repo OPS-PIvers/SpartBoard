@@ -1,4 +1,4 @@
-// Pure planning for Synced / View-Only collection membership sync (docs/plans/COLLECTION_SHARING.md slice 4).
+// Pure planning for Synced / View-Only collection membership sync (docs/plans/shipped/COLLECTION_SHARING.md slice 4).
 
 import { collectDescendantIds } from '@/utils/folderTree';
 import {

@@ -1,4 +1,4 @@
-// View as student (docs/plans/ADMIN_VIEW_AS.md D15): the teacher tab opens and hands off; the student tab signs in read-only.
+// View as student (docs/plans/shipped/ADMIN_VIEW_AS.md D15): the teacher tab opens and hands off; the student tab signs in read-only.
 import { signInWithCustomToken, signOut } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { auth, functions } from '@/config/firebase';
