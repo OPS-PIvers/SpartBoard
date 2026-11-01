@@ -91,7 +91,7 @@ const Preview: React.FC = () => {
   return (
     <div className="space-y-2 text-sm text-slate-600">
       <p>Add ?activity=quiz|video|gl|flashcards and &amp;plc=1 to the URL.</p>
-      <button
+      <button // no-tour-anchor: dev-only mockup page, not on the teacher board
         type="button"
         onClick={() => setOpen(true)}
         className="font-bold text-brand-blue-primary"

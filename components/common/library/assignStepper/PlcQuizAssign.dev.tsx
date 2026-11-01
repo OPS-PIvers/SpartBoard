@@ -56,7 +56,10 @@ const Preview: React.FC = () => {
       onSubmit={() => undefined}
     />
   ) : (
-    <button type="button" onClick={() => setOpen(true)}>
+    <button // no-tour-anchor: dev-only mockup page, not on the teacher board
+      type="button"
+      onClick={() => setOpen(true)}
+    >
       Open
     </button>
   );
