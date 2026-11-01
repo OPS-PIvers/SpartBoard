@@ -137,8 +137,9 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
         >
           {/* Title */}
           <div
-            className={`w-full text-center font-bold leading-tight truncate mb-2 ${getTitleFontClass()}`}
+            className={`w-full text-center font-bold leading-tight truncate ${getTitleFontClass()}`}
             style={{
+              marginBottom: 'min(8px, 2cqmin)',
               fontSize: `min(${24 * textScale}px, max(${14 * textScale}px, ${7 * textScale}cqmin))`,
               color: titleColor,
               opacity: gridItems.length === 0 ? 0.3 : 1,
@@ -148,7 +149,10 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
           </div>
 
           {/* Main Grid Area */}
-          <div className="flex-1 min-h-0 relative mb-2">
+          <div
+            className="flex-1 min-h-0 relative"
+            style={{ marginBottom: 'min(8px, 2cqmin)' }}
+          >
             {gridItems.length > 0 ? (
               <div
                 className="grid h-full w-full"
@@ -202,8 +206,12 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
           {/* Selection Bar (only when focused) */}
           {isFocused && selectionItems.length > 0 && (
             <div
-              className="w-full shrink-0 bg-slate-100/80 rounded-2xl p-1.5 flex gap-2 overflow-x-auto custom-scrollbar no-scrollbar"
-              style={{ minHeight: 'max(64px, min(80px, 20cqmin))' }}
+              className="w-full shrink-0 bg-slate-100/80 rounded-2xl flex overflow-x-auto custom-scrollbar no-scrollbar"
+              style={{
+                minHeight: 'max(64px, min(80px, 20cqmin))',
+                padding: 'min(6px, 1.5cqmin)',
+                gap: 'min(8px, 2cqmin)',
+              }}
             >
               {selectionItems.map((item, itemIndex) => {
                 const isActive = activeSet.has(item.id);
@@ -237,8 +245,12 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                       className={isActive ? 'text-blue-600' : 'opacity-40'}
                     />
                     <span
-                      className="text-xxxs font-bold uppercase truncate w-full px-1 text-center"
-                      style={{ fontSize: 'max(8px, min(10px, 3cqmin))' }}
+                      className="text-xxxs font-bold uppercase truncate w-full text-center"
+                      style={{
+                        fontSize: 'max(8px, min(10px, 3cqmin))',
+                        paddingLeft: 'min(4px, 1cqmin)',
+                        paddingRight: 'min(4px, 1cqmin)',
+                      }}
                     >
                       {item.label}
                     </span>
