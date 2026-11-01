@@ -59,7 +59,7 @@ const Preview: React.FC = () => {
             Your name{' '}
             <span className="font-normal text-slate-500">(optional)</span>
           </label>
-          <input
+          <input // no-tour-anchor: dev-only mockup page, not on the teacher board
             type="text"
             placeholder="Teacher name"
             className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900"

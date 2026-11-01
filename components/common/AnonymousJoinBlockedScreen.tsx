@@ -11,7 +11,7 @@ export const AnonymousJoinBlockedScreen: React.FC<{ nextTarget: string }> = ({
     <p className="text-slate-700 text-sm text-center max-w-sm">
       {ANONYMOUS_JOIN_BLOCKED_MESSAGE}
     </p>
-    <button
+    <button // no-tour-anchor: student join screen, tours run on the board
       type="button"
       onClick={() =>
         window.location.assign(
