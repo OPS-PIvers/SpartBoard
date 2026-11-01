@@ -1,6 +1,6 @@
 # Schoology quiz import
 
-Status: built 2026-10-29. PR 1 readers (#4849), PR 2 inbox (#4851), PR 3 review (#4855), PR 4 extension buttons (#4858), question banks (#4864) and PR 5 guided `.imscc` route (#4865) merged to dev-paul; extension 0.1.23 (#4868). Release steps are in `TODO.md`; the wider import work is `docs/plans/IMPORT.md`.
+Status: built 2026-10-29. PR 1 readers (#4849), PR 2 inbox (#4851), PR 3 review (#4855), PR 4 extension buttons (#4858), question banks (#4864) and PR 5 guided `.imscc` route (#4865) merged to dev-paul; extension 0.1.23 (#4868). Release steps are in `PAUL_TODO.md`; the wider import work is `docs/plans/IMPORT.md`.
 
 ## Goal
 

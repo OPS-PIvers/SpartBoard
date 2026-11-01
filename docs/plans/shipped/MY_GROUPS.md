@@ -1,7 +1,7 @@
 # My Groups
 
 Source: Paul and Bailey's work list, section D (project thread "My Groups", 2026-10-01).
-Status: Built (verified 2026-11-01 sweep); human leftovers are in `TODO.md`. Earlier status: slice 0 merged (#3710). Defaults below are the recommendations Paul was asked to confirm on 2026-10-01.
+Status: Built (verified 2026-11-01 sweep); human leftovers are in `PAUL_TODO.md`. Earlier status: slice 0 merged (#3710). Defaults below are the recommendations Paul was asked to confirm on 2026-10-01.
 Page design per group type is redesigned in [TEAMS_REDESIGN.md](TEAMS_REDESIGN.md), which supersedes D3 below.
 
 ## Goal
