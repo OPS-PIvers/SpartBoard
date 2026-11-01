@@ -147,7 +147,7 @@ feature is built, even if a flag flip or cleanup step remains; track that step i
 ### The two backlogs
 
 - `AGENT_BACKLOG.md` holds work an agent can do without asking, as self-contained `AB-n` briefs; `PAUL_TODO.md` holds work that needs Paul, as `PT-n` items marked "You" (only he can) or "🤖 With an agent" (he approves or steers; the item carries a paste-ready prompt).
-- Delete an item in the PR that finishes it. Add new items with the next free ID; IDs are never reused. Anything needing Paul's click, test, decision or OK goes in `PAUL_TODO.md`, with its agent half under Blocked in `AGENT_BACKLOG.md` naming the `PT-` ID. A flag waiting on his prod test goes in the `PAUL_TODO.md` flags table with its retire prompt, not in the agent file.
+- Delete an item in the PR that finishes it. Take the "Next free ID" from the file header and bump it in the same PR; IDs are never reused. Anything needing Paul's click, test, decision or OK goes in `PAUL_TODO.md`, with its agent half under Blocked in `AGENT_BACKLOG.md` naming the `PT-` ID. A flag waiting on his prod test goes in the `PAUL_TODO.md` flags table with its retire prompt, not in the agent file.
 
 **Before rewriting or substantially revising any `docs/plans/*.md`, list open PRs that touch that
 file and rebase onto them instead of rewriting from the version on `main`.** These docs get multiple
