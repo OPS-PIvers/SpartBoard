@@ -4982,3 +4982,15 @@ rather than "no data") is also still open.
     - `onBoundsChanged` queues a `cover()` on every resize step.
     - The PR body says version 0.1.18, but the manifest is 0.1.19.
 - Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-11-01
+
+- PRs reviewed: #4971 css-scaling: scale residual widget margins/padding with cqmin; #4967 Unifier run 133: aligned, no drift found
+- Comments processed: 1 total. 0 fixed, 0 needing a reply.
+  - Neither PR had inline review threads.
+  - The one comment was a `claude[bot]` "no issues found" summary on #4971.
+- Fixes pushed: none
+- Reviews posted: 2
+  - Ready: #4967.
+  - Ready with minor notes: #4971. Its journal entry says PollWidget is clean, but `mb-1` is still on the option-row header (`components/widgets/PollWidget/Widget.tsx:454`).
+- Notes: GitHub access went through MCP (the `gh` token is invalid). The log goes to the session branch through a PR into `dev-paul`, not to `scheduled-tasks`. No code fixes were made, so I ran no local type-check, lint or tests.
