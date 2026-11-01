@@ -12,7 +12,7 @@ _2026-10-18: Sunday audit. `console.log(` in components/context/hooks/utils (non
 
 _2026-10-11: Sunday light pass. `console.log(` in components/context/hooks/utils (non-test): 0 hits. `migrateLocalStorageToFirestore` is still called at `context/DashboardContext.tsx:2715`, so it is not dead. No `'stopwatch'`/`'workSymbols'` type strings generated outside migration/tests; `'timer'` hits are the live TimeTool mode and widget-builder block types. Commented-out-block and unused-export scans not re-run this cycle. 0 new issues._
 
-_2026-11-01: Sunday Audit D2 (light pass). 0 `console.log` in components/context/hooks/utils; `migrateLocalStorageToFirestore` still called at `context/DashboardContext.tsx:2761` (open MEDIUM stands); `scripts/tools/` still absent; legacy `timer`/`stopwatch` type strings appear only in tests. The full dead-export scan timed out this run, so the existing dead-export Open items were not re-verified. 0 new issues._
+_2026-11-01: Sunday Audit D2 (light pass). 0 `console.log` in components/context/hooks/utils; `migrateLocalStorageToFirestore` still called at `context/DashboardContext.tsx:2761` (open MEDIUM stands); `scripts/tools/` still absent; legacy `timer`/`stopwatch` type strings appear only in tests. A name-match dead-export scan of `hooks/` and `utils/` found 564 candidates, mostly test-only helpers and constants, too noisy to file; the existing dead-export Open items stand unchanged (`useScaledFont` and `usePlcStandalonePresence` still have no production imports). 0 new issues._
 
 ---
 
