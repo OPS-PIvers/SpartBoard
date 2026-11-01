@@ -47,7 +47,13 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 - **AB-20 GL copy audit** (M). Apply the remaining SHORTEN/DELETE/MOVE verdicts (about 40 rows) in `docs/plans/copy-audit/guided-learning.md`, spot-checking each first; update all four locales.
 - **AB-21 Confirm VA/GL target tagging** (S). Gradebook D29 expects learning-target tagging on VA and GL questions. Check that it shipped; if not, add a brief here.
 - **AB-22 Speak editor re-lookups** (S). From S13 (`docs/multilingual-pronunciation-engine.md`): when hosting runs a newer engine version than functions, editor saves look up every card again.
-- **AB-23 Import review minors** (S). The minors from the 2026-10-30 release review are in the Claude Project file `follow-ups/NOTES-FOR-THREADS.md` under "Import review minors", which agents in this repo can't read. If they aren't pasted here, ask Paul for them. They must be fixed before Import opens (PT-49).
+- **AB-23 Import review minors** (S). From the 2026-10-30 release review; all behind the admin-only `universal-import` flag. They must be fixed before Import opens (PT-49).
+  - S1: image URLs not run through `storedUrl`; the reader-failure log can be spammed; the inbox cap is soft.
+  - S2: Import code is statically imported into the `DashboardView` chunk (bundle size).
+  - S3: student devices call `importStatusV1` every 30 minutes; a `user:pass` image URL fails the whole send.
+  - S4: the page fetch has no port restriction; the rate limit is per instance.
+  - S5: flashcard and Activity Wall text skip the link filter.
+  - S6: notebook SVGs carry a double href (memory use).
 
 ### PLC, Schoology and imports
 
