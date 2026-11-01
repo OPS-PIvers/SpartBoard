@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-31_
+_Last audited: 2026-11-01_
 _Last action: 2026-10-07 — LOW `projects` scaling base updated to 620×560 to match its spawn size. Prior: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
 
 _2026-10-30: Daily audit (Friday). Merged `origin/dev-paul` into `scheduled-tasks` (a rebase conflicts on pr-review-log.md replaying earlier merge commits). Scripted cross-reference: `WidgetType` 69 members (new: `focus`). `WIDGET_COMPONENTS` 68/69 (only `sticker`, documented), `WIDGET_SETTINGS_COMPONENTS` 66/69 (`sticker`/`blooms-detail`/`onboarding`), `WIDGET_DEFAULTS` 69/69, `config/tools.ts` gaps are the documented exclusions (`blooms-detail`, `catalyst-instruction`, `catalyst-visual`, `custom-widget`, `mathTool`, `onboarding`, `sticker`) with `magic`/`record`/`remote` as InternalToolType entries, `WIDGET_GRADE_LEVELS` = 69 + those 3. 0 orphans. `WIDGET_APPEARANCE_COMPONENTS` is now an empty `{}` (all appearance UI moved to the schema-driven drawer; the `settings.schema.*` tests assert it stays undefined) — the existing LOW JSDoc item remains the only follow-up. All 66 `lazyNamed()` calls resolve to a real named export (count fell from 146 as settings migrated to schemas). 0 new issues._
@@ -65,6 +65,8 @@ Re-verified all 3 existing Open items against current file content rather than t
 _2026-10-09: Friday daily audit (rebased on `origin/dev-paul`). Scripted cross-reference: `WidgetType` 68; `WIDGET_COMPONENTS` 67/68 (`sticker`, documented); `WIDGET_SCALING_CONFIG`/`WIDGET_DEFAULTS` 68/68; `WIDGET_GRADE_LEVELS` 71 = 68 + `magic`/`record`/`remote`; `config/tools.ts` 64 types, gaps exactly the 7 documented exclusions, 0 unexplained orphans. All 65 `lazyNamed()` calls resolve to a real named export (barrels followed). 0 new issues._
 
 _2026-10-11: Daily audit (Sunday), after merging `origin/dev-paul`. `WidgetType` 68. Scripted cross-reference: `WIDGET_COMPONENTS` 67/68 (`sticker`, documented), `WIDGET_SCALING_CONFIG` 68/68, `WIDGET_DEFAULTS` 68/68, `tools.ts` gaps are only the 7 documented exclusions, `WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS` remain empty (documented migration). `lazyNamed()` names resolve (`PollWidget` via `export *` in index.ts). 0 new issues._
+
+_2026-11-01: Daily audit (Sunday). `WidgetType` 69 members. `WIDGET_COMPONENTS` 68/69 (only `sticker`, documented), `WIDGET_DEFAULTS` 69/69, `WIDGET_SCALING_CONFIG` 69/69, `WIDGET_SETTINGS_SCHEMAS` 66/69 (absent: `blooms-detail`, `onboarding`, `sticker`, all documented), `tools.ts` gaps are the 7 documented exclusions, `WIDGET_GRADE_LEVELS` has only the 3 InternalToolType extras. Both `WIDGET_SETTINGS_COMPONENTS` and `WIDGET_APPEARANCE_COMPONENTS` are now intentionally empty (legacy hand-written panels only; settings are schema-driven), so earlier per-map counts no longer apply. All 66 `lazyNamed()` export names resolve (the three `@/components/widgets/Catalyst` calls resolve through `export *` in index.ts). 0 new issues._
 
 ---
 

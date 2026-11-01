@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-31_
+_Last audited: 2026-11-01_
 _Last action: 2026-10-22 — LOW SmartNotebook Viewer page-counter `minWidth` scaled with cqmin (moved to Completed). Prior: 2026-10-21 — LOW MusicWidget landscape status row `gap-2` replaced with `min(8px, 2cqh)` gap (moved to Completed). Prior: 2026-10-18 — LOW `MiniAppAssignModal` skipped-students warning text scaled with cqmin (both duplicate entries moved to Completed). Prior: 2026-10-17 — LOW Soundboard active-sound dot scaled with cqmin._
 
 _2026-10-30: Daily audit (Friday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; fixed-px hits are the known exempt ones (portaled `fixed` DrawingWidget popovers, LunchCount drag ghost, NeedDoPutThen resize handles, 1px dividers). 0 new issues._
@@ -79,6 +79,8 @@ _2026-09-13 action notes (Sunday): Reading list = three dailies (widget-registry
 _2026-09-17 action notes (Thursday): Reading list = three dailies only (widget-registry, css-scaling, typescript-eslint) — no weekly journal carries a Thursday cadence, confirmed by grepping every `docs/scheduled-tasks/*.md` header for `cadence: weekly — Thursday` (0 matches). Nothing In Progress in any of the three. widget-registry's Open section carries only 3 LOW items; typescript-eslint has no structured `### [SEVERITY]` items at all (narrative-log-only journal). css-scaling (order 2 of 3) is therefore the first journal with an open MEDIUM, and per document order its first open MEDIUM was `AssignTargetingSection.tsx` (ahead of the second, `QuizStimulusView.tsx`). File-recency check passed: `git log --oneline -10 -- components/common/library/AssignTargetingSection.tsx` shows the last touching commit (`a81498e`) predates all 5 of the branch's most recent commits (today's five docs-only audit commits). Resolution recorded above; moved to Completed._
 
 _2026-10-09: Friday daily audit. Scanned `Widget.tsx` files for `max-w/h-[Npx]` caps and fixed-pixel `w/h/min-w-[Npx]` classes: no `max-*-[Npx]` hits; the only 2 fixed-px hits are `fixed` floating popovers in `DrawingWidget/Widget.tsx` (lines 1293, 1378), not content-area sizing, so not flagged. Existing Open items not re-diffed. 0 new issues._
+
+_2026-11-01: Daily audit (Sunday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; only 2 fixed-px hits remain (portaled DrawingWidget popovers, exempt). 0 new issues._
 
 ---
 
