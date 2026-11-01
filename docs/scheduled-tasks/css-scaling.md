@@ -435,7 +435,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 
 ## Completed
 
-- **2026-11-01 — Second-pass residual margin/padding on `skipScaling` widgets (LOW).** Converted the remaining hardcoded Tailwind spacing to inline `cqmin`-capped values in CatalystWidget (3 margins), MaterialsWidget (title/grid `mb-2`, selection bar `p-1.5`/`gap-2`, chip label `px-1`), SoundboardWidget (chip label `px-1`) and SpecialistScheduleWidget (`ml-2` suffix). ExpectationsWidget, PollWidget and RevealGrid no longer carry the flagged classes (already converted or removed in earlier commits). Related vitest suites passed (1025 tests).
+- **2026-11-01 — Second-pass residual margin/padding on `skipScaling` widgets (LOW).** Converted the remaining hardcoded Tailwind spacing to inline `cqmin`-capped values in CatalystWidget (3 margins), MaterialsWidget (title/grid `mb-2`, selection bar `p-1.5`/`gap-2`, chip label `px-1`), SoundboardWidget (chip label `px-1`) and SpecialistScheduleWidget (`ml-2` suffix). PollWidget's option-row `mb-1` converted too. ExpectationsWidget and RevealGrid no longer carry the flagged classes (already converted or removed in earlier commits). Related vitest suites passed (1025 tests).
 
 ### RESOLVED 2026-10-29 `QuizResults` StudentsScreen provisional/pre-sync badges use hardcoded `mt-0.5` margin
 

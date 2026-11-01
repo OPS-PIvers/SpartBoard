@@ -451,10 +451,11 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   className={buttonCls}
                 >
                   <div
-                    className={`flex justify-between mb-1 uppercase tracking-wider ${isAnnouncement ? 'text-white/90' : 'text-slate-600'} font-${globalStyle.fontFamily}`}
+                    className={`flex justify-between uppercase tracking-wider ${isAnnouncement ? 'text-white/90' : 'text-slate-600'} font-${globalStyle.fontFamily}`}
                     style={{
                       fontSize: 'min(16px, 5.5cqmin)',
                       gap: 'min(16px, 3cqmin)',
+                      marginBottom: 'min(4px, 1cqmin)',
                     }}
                   >
                     <span className="font-bold min-w-0 wrap-anywhere">
