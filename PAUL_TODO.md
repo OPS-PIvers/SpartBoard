@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-102.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-103.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -173,6 +173,8 @@ Each prompt starts a grilling; the agent writes your answers into the plan and m
 - [ ] **PT-91 🤖 Import waves 2 and 3** (F80). Send one sample link each for Google Forms, Quizlet, Edpuzzle, YouTube and one Canvas/QTI export, and rank the wave 3 sites.
   > Here are my import samples and wave 3 ranking: … Update docs/plans/IMPORT.md and add the readers to AGENT_BACKLOG.md.
 - [ ] **PT-92 🤖 Schoology Resources quizzes** (F70). Send a link to one real Resources quiz page if you want a Send button there.
+- [ ] **PT-102 🤖 Video note stops in live runs.** Note stops are silent when you run a video activity teacher-paced. Decide whether live mode should pause on notes (AB-67).
+  > Show me how a note stop behaves in a teacher-paced Video Activity run and ask whether it should pause, then add the answer to AB-67.
 - [ ] **PT-93 🤖 Improvement review calls** (F23, `improve-2026-10-16/FINDINGS.md` in the Project): #15 archive answers when a completed unlimited-attempts quiz is reopened, #18 gradual OAuth token re-encryption, #12 split the tour-anchor registry out of the student chunk, #19 raise the test-count floor, the group reminders scan.
   > Grill me on improvement findings #12, #15, #18, #19 and the group reminders scan; add each yes to AGENT_BACKLOG.md.
 - [ ] **PT-94 🤖 Widget rubric: re-norm Expectations** (F26, S5 paused for drift).

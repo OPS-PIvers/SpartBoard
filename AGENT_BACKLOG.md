@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-59**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-72**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -29,6 +29,13 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 - **AB-8 Pseudonym call errors** (S). `getPseudonymsForAssignmentV1` returned 79 × 404 and 34 × 403 out of 876 calls in the 30 days to 2026-10-01. Find which callers hit them (function logs, then the client call sites). Agents can't read prod Cloud Run; if prod logs are needed, add a `PT-` item asking Paul to pull them.
 - **AB-9 Board save contention** (M). `Commit FAILED_PRECONDITION` grew from 13-146/day mid-September to 2,000-3,845/day by late September. `saveDashboard` (`hooks/useFirestore.ts` ~:365) is the likely source. Find the loop and fix it without dropping the transactional read (see Rejected). An alert fires above 1,000/hour.
 - **AB-10 Force-reload stale clients** (M, MED). A tab left on an old build kept the September 10 egress spike going about 1 GiB/hour after the fix shipped; `hooks/useAppVersion.ts` only prompts. Force a reload for clients N builds behind, at a safe moment and never with unsaved edits.
+- **AB-59 Class-claim gate leftovers** (M, MED, _re-verify_). From the 2026-10-25 security fixes (#4670-#4682): the quiz attempt `history` rules read, `getQuizArtifactPlaybackUrl` and `getPaperWrittenCropV1` need the same class-claim gate #4678 added. Grade rows should get kind-qualified ids (#4677). Done when: each path has an allow and a deny test.
+- **AB-60 Permission-error leftovers** (S, _re-verify_). From #4683-#4695: the org admin panel still offers role, status and Deactivate on a domain or building admin's own row (now fail, #4693), so disable them there; team viewers still see "Sync" in the import modal and viewer teammates in the print picker (both fail, #4692), so hide them; Video Activity import may still offer Synced for a share whose author left the group (#4694 fixed only the quiz preview); a refused paper-crop entry that already has a Drive id still retries (#4691); `plcDetached` markers (#4692) outlive deleted groups (tiny, no names).
+- **AB-61 Synced PLC header after Stop syncing** (S, _re-verify_). If the sharer clicks Stop syncing and the group was first made outside that PLC, new members can't synced-import, assign or edit it (copy import works). `assertGroupLinkedToPlc` (`functions/src/plcSyncJoinGuards.ts`) should accept any active PLC member who is a participant (#4692/#4694).
+- **AB-62 Duplicate rules denials** (S). `firestore.rules` repeats the `artifactArchive`/`hasStuckArchive`/`backTranslations` create denials (#4690 and #4691, ~line 5068 and 5076); drop one copy and confirm `pnpm run check:rules-size` shrinks.
+- **AB-63 PIN and second-tab edges** (M, _re-verify_). Low while PINs are off at the org. From #4684 and #4734: 30 PIN misses in 15 minutes send later joiners to the plain anonymous PIN join (no identity carry-over); the PIN roster budget (150 misses/day) can do the same for linked students on new devices; `/project/*` and `/flashcards/a/*` accept a PIN token that rules now deny, so show "sign in with your school account"; opening Poll, a wall, GL or a Mini App in a second tab during a PIN quiz swaps the quiz tab to anonymous (shared auth; fix is an isolated auth instance); `isOrgOnlyAdmin` (`utils/superAdmin.ts`) ignores member status, so an invited admin of another org sees a tab rules refuse.
+- **AB-64 Release 2026.10.29 minors** (S, _re-verify_). All admin-only or flag-on (#4834): Focus Start button briefly re-enables before the session appears; the fullscreen cover needs focus management and translations, and a teacher preview of a Lock session goes fullscreen; push subscriptions aren't pruned on 400/403 and have no TTL; the tokeninfo call has no timeout; the VA Settings modal shows an error if the pointer update fails after saving.
+- **AB-65 Triage the 2026-10-28 release minors** (S). Issue #4786 (#4785: a rare widget-reappear race in the board sync fix, cross-board saves no longer atomic, AI boards polish) and the #4807 description (VA shuffle-off, Countdown scrollbar at tiny sizes, Number Line step at 500px, Music old-tab station, long Activity Wall prompt). Fix what's still real, close or update #4786.
 
 ### Performance and cost
 
@@ -54,17 +61,31 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   - S4: the page fetch has no port restriction; the rate limit is per instance.
   - S5: flashcard and Activity Wall text skip the link filter.
   - S6: notebook SVGs carry a double href (memory use).
+- **AB-66 Quiz settings stale class removal** (S, _re-verify_). From #4734: adding or removing a class while another class's roster was deleted or re-imported still marks that stale class removed and hides its work. Record only classes the teacher unchecked (`nextRemovedClasses`, `hooks/useQuizAssignments.ts`). Also: GL Results can show a removed class's work for a moment before the session loads.
+- **AB-67 Video import review minors** (M). From release 2026.10.31 (#4959); all behind admin-only flags, fix before those flags open.
+  - Re-marking a short answer after Publish leaves the stored score until the teacher republishes (`functions/src/gradebook/gradeRowMath.ts` uses `stored ?? live`). A blank mark box can't clear a mark back to unmarked (`utils/videoActivityShortAnswerMark.ts`).
+  - Clip and note stops reach PLC peers without `video-activity-stops` through sync, shared boards, sub-shares and LTI; the flag gates authoring only.
+  - Note stops are silent in teacher-paced live runs (`VideoActivityLivePlayer.tsx` passes only `clip`); whether they should pause is PT-102.
+  - Every synced publish writes `notes: []`; an old synced group costs one extra Drive read on its first pull (`hooks/useVideoActivity.ts`).
+  - Edpuzzle pictures: copies are orphaned if the widget unmounts mid-copy; removing a picture in the editor doesn't delete its Drive file; stops past 200 aren't counted in "Left out".
+  - `AGGREGATE_SCHEMA_VERSION` wasn't bumped with the short-answer grading fix (#4961); old PLC video aggregates with a short answer refresh only when next marked dirty.
+  - `sendId` now hashes `send.video`, so re-sending a page already in the inbox after the release makes a second item (TTL cleans it).
+  - Per-type Import flags (#4960): AI conversion on the server checks only `universal-import`; `import-link` also hides the Embed check's "Add as a link"; tests don't render a flag-off case.
+- **AB-68 PLC aggregates for video activities** (M). From the #4961 review: they're never built. `recomputeOnePlcAssessment` reads only `quiz_sessions`/`synced_quizzes` and `status == 'completed'`, and `markPlcAssessmentDirty` watches only quiz sessions. A video kind needs `video_activity_sessions`, `synced_video_activities`, `completedAt != null`, and short answer mapped to free-response.
 
 ### PLC, Schoology and imports
 
 - **AB-24 Schoology columns Phase 6** (M). Score never-launched students on Schoology-attached sessions through NRPS matching. Plan: `docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md`.
 - **AB-25 PLC sync rollback gaps** (M). `docs/PLC_ROADMAP.md` "Still open": the share-write rollback gap and the `detachSyncLinkage` API.
 - **AB-26 Rostered join link** (L). Quiz, Video Activity and GL get a rostered join link (`docs/wide-distro-plan.md`).
+- **AB-69 Schoology quiz import review screen** (M). The next PR after server PR1+PR2, carrying the #4854 review findings: inbox docs store `blankAlternates` as `{answers}[]` but `ExtractedQuestion` uses `string[][]`, so `fibAlternates` drops them; the inbox re-send path should claim the replaced `sendId` in a transaction so pictures aren't orphaned; `assessmentReader` turns null points into 0; `readResult` image `src` values must be limited to https Schoology URLs before any credentialed fetch. Accepted as is: `?schoologyImport=1` from any link adds a Quiz widget for a flagged user with none on the board (own data only); the 24 MB picture cap.
 
 ### Tours and extension
 
 - **AB-27 Live tour benchmark fixes** (M). `docs/live-tours/BENCHMARK.md` B1-B6, B10: `get_live_tour` drops the material sample; picture `upload_url` unreachable; a type step with no value is refused against the guide; the `editor.save:quiz` key; demo content in the guide; multiple openers per surface; video activity tour 11 not green.
 - **AB-28 Web tour pictures with suggestions** (M). C15 in `docs/plans/shipped/WEB_TOURS_CLAUDE.md`: save a fresh picture with a suggestion from an admin's own run or a check run (PR 5 sends clues only).
+- **AB-70 Schoology Materials Send button goes stale** (S). From the #4858 review: the Materials checklist is built once at injection, so an AJAX-filled table or a pushState move to a subfolder leaves it stale or empty and no Send button shows. Add a `webNavigation.onHistoryStateUpdated` re-inject and a MutationObserver/retry. Also: the `openReview` reload fallback reloads an open board tab if the event isn't heard (consider a new tab); `render()`'s `if (!page)` branch is unreachable. Raise the extension version in the same PR.
+- **AB-71 PDF viewer tour anchor route** (S). From the #4670 review: the PDF viewer needs an anchor route so live tours can reach its controls (`config/tourSurfaces/`).
 
 ### Widgets and UI
 
@@ -137,6 +158,14 @@ Each stays in `docs/plans/` until built, then moves to `docs/plans/shipped/` and
 | `docs/plans/WIDGET_RUBRIC.md`                                  | Living reference for the widget grader; not backlog                                                 |              |
 
 Other references: roadmaps and design docs (`docs/nexus.md`, `docs/wide-distro-plan.md`), runbooks (`docs/admin_settings_widget_configs.md`, `docs/external-availability-*.md`, `docs/assign-from-spartboard-to-lms-feasibility.md`, `docs/ADMIN_SETUP.md`, `docs/DEV_WORKFLOW.md`, `docs/LINTING_SETUP.md`, `docs/DEPLOY_CHECK.md`), and the decision record in `docs/plans/shipped/`.
+
+### Known limits (accepted; no work unless Paul asks)
+
+- Drawing (#4650-#4663): the sticky note editor keeps its starting text size while typing and shrinks on save; alignment guides use a rotated item's unrotated box.
+- Poll (#4637-#4666), with the flag on: Reset after Stop ends that session, so the next Start gets a new join code; typed answers drop off the board after Stop (they stay in Results and the CSV); reordering questions after a session maps old votes by position.
+- Sound (#4648-#4664): goal progress and the session summary live only in the open tab, so a reload clears them; lowering the goal below time already counted doesn't award the point.
+- `/plc/:id/dataOverview` URLs stay on that path when PLC Home is off (URL only, #4734).
+- Chrome Extension CI bench budget (frame gap p95 150 ms) failed once on a runner at 183 ms (#4698); fix the bench if it flakes again.
 
 ### Rejected; don't re-propose without answering these
 
