@@ -24,7 +24,7 @@ const Frame: React.FC<{
   <div
     className={`rounded-xl border bg-white ${open ? 'border-brand-blue-primary/40 shadow-xs' : 'border-slate-200'}`}
   >
-    <button
+    <button // no-tour-anchor: dev-only mockup page, not on the teacher board
       type="button"
       onClick={onOpen}
       aria-expanded={open}

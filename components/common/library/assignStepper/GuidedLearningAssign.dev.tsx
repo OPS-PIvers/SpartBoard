@@ -31,7 +31,7 @@ const Preview: React.FC = () => {
       onAssign={() => setOpen(false)}
     />
   ) : (
-    <button
+    <button // no-tour-anchor: dev-only mockup page, not on the teacher board
       type="button"
       onClick={() => setOpen(true)}
       className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white"
