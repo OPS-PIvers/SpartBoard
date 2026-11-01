@@ -4,7 +4,7 @@
 
 - **History.** Grilled 2026-10-13 (G1–G22, kept for the quiz type in §13). Redirected 2026-10-19 to a Flashcards **Speak** study mode (F-decisions, §3). Strictness re-grilled the same day to mirror Write mode (§4).
 - **Built so far:** the whole Speak mode: editor settings and card review, save-time lookup (editor and connector), the player, the Speaking results view, and the end-to-end test (`tests/e2e/flashcards-speak.spec.ts` on `/flashcards-speak-dev`). The flag starts fail-closed, admins included.
-- **Next step:** Paul's §10 actions (P1, P2 prod upload at release, P5), then open the flag at Admin Settings > Access > Previews. Move this doc to `docs/plans/shipped/` once S11 lands; follow-ups are in `TODO.md`.
+- **Next step:** Paul's §10 actions (P1, P2 prod upload at release, P5), then open the flag at Admin Settings > Access > Previews. Move this doc to `docs/plans/shipped/` once S11 lands; follow-ups are in `PAUL_TODO.md` and `AGENT_BACKLOG.md`.
 
 **Owner:** Paul (OPS-PIvers) + Claude
 
@@ -878,7 +878,7 @@ Each slice lists **owns** (exclusive files), **does**, and **done when**.
 
 **S13 — End to end and release (Opus, high; Haiku, low for the docs lines).**
 
-- **Owns:** `tests/e2e/flashcards-speak.spec.ts`, `docs/AI_MODELS.md` (G21 section), the `CLAUDE.md` one-liner under Layout, `TODO.md`, and this doc's status block.
+- **Owns:** `tests/e2e/flashcards-speak.spec.ts`, `docs/AI_MODELS.md` (G21 section), the `CLAUDE.md` one-liner under Layout, `PAUL_TODO.md`, `AGENT_BACKLOG.md`, and this doc's status block.
 - **Does:**
   - Playwright on `vite-harness` with the fake recognizer: teacher saves a Speak set, assigns Study with a lock, student practises to mastery aloud, teacher sees the Speaking view;
   - the long-task check from §7;
