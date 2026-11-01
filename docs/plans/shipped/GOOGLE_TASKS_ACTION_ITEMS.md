@@ -1,6 +1,6 @@
 # Google Tasks sync for team action items
 
-Status: decided, not started. Interviewed with Paul on 2026-10-06.
+Status: decided 2026-10-06. Built (verified 2026-11-01 sweep); human leftovers are in `TODO.md`. Originally: Interviewed with Paul on 2026-10-06.
 
 ## Goal
 

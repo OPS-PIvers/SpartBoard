@@ -491,7 +491,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/rich-response-wayfinder.md`
 
-- [ ] Build deferred video capture (peer-mode UI, framing check, transcode runtime, district gate) and the whiteboard response — now planned in `docs/plans/shipped/QUIZ_WHITEBOARD_RESPONSE.md` (spoken-answer fixes first, D28); the drawing widget page-space migration is a separate fix (D29). (L)
+- [ ] Build deferred video capture (peer-mode UI, framing check, transcode runtime, district gate); the whiteboard response is built (`docs/plans/shipped/QUIZ_WHITEBOARD_RESPONSE.md`); the drawing widget page-space migration is a separate fix (D29). (L)
 
 #### `docs/rich-response/README.md`
 
