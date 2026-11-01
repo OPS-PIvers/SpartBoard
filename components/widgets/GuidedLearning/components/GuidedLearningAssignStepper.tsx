@@ -1,4 +1,4 @@
-// Guided Learning's assign dialog on the stepper (docs/plans/ASSIGN_STEPPER.md D2, D4).
+// Guided Learning's assign dialog on the stepper (docs/plans/shipped/ASSIGN_STEPPER.md D2, D4).
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssignmentAudience, ClassRoster } from '@/types';

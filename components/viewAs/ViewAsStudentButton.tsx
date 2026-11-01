@@ -1,4 +1,4 @@
-// "View as student" on a student row, shown only inside a teacher's View as tab (docs/plans/ADMIN_VIEW_AS.md D15).
+// "View as student" on a student row, shown only inside a teacher's View as tab (docs/plans/shipped/ADMIN_VIEW_AS.md D15).
 import React, { useContext, useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Loader2, ScanEye } from 'lucide-react';

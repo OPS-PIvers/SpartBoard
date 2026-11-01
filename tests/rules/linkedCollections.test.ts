@@ -1,4 +1,4 @@
-// Rules for `/linked_collections/{linkId}` (docs/plans/COLLECTION_SHARING.md): reads, host,
+// Rules for `/linked_collections/{linkId}` (docs/plans/shipped/COLLECTION_SHARING.md): reads, host,
 // collaborator, self-join (role pinned to the mode), self-leave, delete, and the link host ending board shares.
 // Requires a running Firestore emulator: pnpm run test:rules
 

@@ -1,4 +1,4 @@
-// Admin-side half of the View as handoff (docs/plans/ADMIN_VIEW_AS.md D4): opens the tab, mints, posts the token.
+// Admin-side half of the View as handoff (docs/plans/shipped/ADMIN_VIEW_AS.md D4): opens the tab, mints, posts the token.
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import type {

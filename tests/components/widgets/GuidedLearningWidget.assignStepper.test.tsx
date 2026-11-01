@@ -1,4 +1,4 @@
-// The Guided Learning assign stepper's wiring into performAssign (docs/plans/ASSIGN_STEPPER.md slice 11).
+// The Guided Learning assign stepper's wiring into performAssign (docs/plans/shipped/ASSIGN_STEPPER.md slice 11).
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {

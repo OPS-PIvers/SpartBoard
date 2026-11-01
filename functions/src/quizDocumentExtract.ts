@@ -498,7 +498,7 @@ async function withDeadline<T>(
   }
 }
 
-// ── Versioned tests (docs/plans/QUIZ_IMPORT_VERSIONS.md V7, V11, V12) ────
+// ── Versioned tests (docs/plans/shipped/QUIZ_IMPORT_VERSIONS.md V7, V11, V12) ────
 
 export type DocumentSectionKind = 'version' | 'rubric' | 'answer-key' | 'other';
 export type VersionGroupKind = 'parallel' | 'retake' | 'split';

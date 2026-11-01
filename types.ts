@@ -10660,7 +10660,7 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Learning targets read off an imported test, offered as chips in its review. */
   | 'quiz-import-suggested-targets'
-  /** Multi-version test import: versions, FRQ rubrics, balanced dealing, Stop checkpoints (docs/plans/QUIZ_IMPORT_VERSIONS.md). */
+  /** Multi-version test import: versions, FRQ rubrics, balanced dealing, Stop checkpoints (docs/plans/shipped/QUIZ_IMPORT_VERSIONS.md). */
   | 'quiz-import-versions'
   /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
   | 'quiz-import-versions-plain'
@@ -10682,13 +10682,13 @@ export type GlobalFeature =
   | 'quiz-results-tools'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
-  /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
+  /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
   | 'claude-connector-guided-learning'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
-  /** Video Activity questions and assign rules work like Quiz (docs/plans/VA_QUIZ_ALIGNMENT.md). */
+  /** Video Activity questions and assign rules work like Quiz (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md). */
   | 'va-quiz-alignment'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
@@ -10729,19 +10729,19 @@ export type GlobalFeature =
   | 'sparty'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
   | 'plc-docs-toolbar'
-  /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
+  /** Team action items sync to the assignee's Google Tasks (docs/plans/shipped/GOOGLE_TASKS_ACTION_ITEMS.md). */
   | 'google-tasks-sync'
   /** Move up and Move down in a library folder's menu. */
   | 'library-folder-reorder'
   /** Simple/Detailed choice in Arts & Letters Agenda settings. */
   | 'agenda-versions'
-  /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
+  /** AI coach that checks a draft team goal against the district rubric (docs/plans/shipped/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
+  /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md D11). */
   | 'schoology-tool-columns'
-  /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
+  /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
   | 'quiz-monitor-declutter'

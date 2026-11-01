@@ -1,6 +1,8 @@
 # Import: any Source into SpartBoard
 
-Status: planned 2026-10-29 (grill with Paul). Not built. Terms are defined in `GLOSSARY.md`; the
+Status: planned 2026-10-29 (grill with Paul). Built (verified 2026-11-01): Wave 1 slices S1-S8, the
+Edpuzzle, YouTube and Quizlet readers, all behind `universal-import` and the per-type `import-*`
+flags. Not built: Wave 2 (Google Forms, Canvas/QTI files), Wave 3 readers, S8 PR2. Terms are defined in `GLOSSARY.md`; the
 extension-side reading decision is `docs/adr/0001-platform-readers-run-in-the-extension.md`.
 
 ## Goal

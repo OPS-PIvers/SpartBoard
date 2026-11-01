@@ -1,4 +1,4 @@
-// Admin-made building groups and their auto-roster (docs/plans/MY_GROUPS.md slices 2 and 3).
+// Admin-made building groups and their auto-roster (docs/plans/shipped/MY_GROUPS.md slices 2 and 3).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';

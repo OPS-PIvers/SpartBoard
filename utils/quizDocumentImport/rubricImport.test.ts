@@ -134,7 +134,7 @@ const rubricFrom = (
   })),
 });
 
-/** Modelled on the reference PDF's table in docs/plans/QUIZ_IMPORT_VERSIONS.md. */
+/** Modelled on the reference PDF's table in docs/plans/shipped/QUIZ_IMPORT_VERSIONS.md. */
 const fixture = (): ExtractedTestSet => ({
   kind: 'test-set',
   title: 'Unit 3 FRQ (2025)',

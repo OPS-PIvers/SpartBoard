@@ -1,6 +1,6 @@
 # SpartBoard Consolidated Backlog
 
-**Last verified:** 2026-07-18; plan-sweep additions 2026-09-26; cost-audit additions 2026-10-01 — every item below was checked against the actual code and git
+**Last verified:** 2026-11-01 (plan sweep: 40 docs and every item here re-checked against code and git by 44 assessor agents; 18 shipped or obsolete items dropped, 20 built plans moved to `docs/plans/shipped/`). Earlier passes 2026-07-18, 2026-09-26, 2026-10-01 — every item below was checked against the actual code and git
 history by a per-doc audit sweep (43 assessor agents). Items already shipped were dropped;
 what remains is genuinely unshipped. This file replaces `docs/remaining-todos-audit.md`,
 `docs/repo-improvement-plan-2026-07-13.md`, `docs/optimize-pass/`, `todo/`, and the other
@@ -9,11 +9,33 @@ deleted planning docs (see PR that introduced this file; git history preserves a
 **Living references kept alongside this file:**
 
 - Feature specs (the plan-of-record for large items): `docs/specs/` (LO12, M16)
+- Live plans (each is the plan of record for its feature; see "Live plans" below): `docs/plans/*.md`
 - Roadmaps / design docs: `docs/PLC_ROADMAP.md`, `docs/nexus.md`, `docs/wide-distro-plan.md` (referenced from code comments), `docs/plans/shipped/written-response-quiz-questions.md`
 - Shipped plans kept as the decision record cited by code comments: `docs/plans/shipped/`
 - References / runbooks: `docs/admin_settings_widget_configs.md`, `docs/external-availability-oauth-runbook.md`, `docs/external-availability-legal-review.md`, `docs/external-availability-journal.md`, `docs/assign-from-spartboard-to-lms-feasibility.md`, setup docs (`ADMIN_SETUP`, `DEV_WORKFLOW`, `LINTING_SETUP`, `DEPLOY_CHECK`)
 
 Legend: effort S/M/L, risk LOW/MED/HIGH. Sections ordered: human-gated first.
+
+---
+
+## Live plans (`docs/plans/`, `docs/specs/`)
+
+Each stays in `docs/plans/` until its feature is built; then it moves to `docs/plans/shipped/` and its human leftovers come here. State verified 2026-11-01.
+
+- `docs/plans/IMPORT.md`: Wave 1 (S1-S8) plus Edpuzzle, YouTube and Quizlet readers built behind `universal-import` and `import-*`. Open: Wave 2 (Google Forms reader; Canvas/QTI file route), Wave 3 readers once Paul ranks them, S8 PR2 (needs Paul's Schoology links).
+- `docs/plans/CHROME_EXTENSION.md`: web tours and Focus FS1-9, FS12 built. Open: slice 15 / F13 quiz and video hand-off (code, L); FS10 student pilot, G1 counsel, web tours pilot (human).
+- `docs/plans/GRADEBOOK.md`: phases 1-6 built behind admin flags. Open: D37 grade-doc move (also section 3 below); confirm D29 VA/GL target tagging shipped; flag opens and the Assignments hub retire PR.
+- `docs/plans/QUIZ_ROSTER_GRADING_AND_REOPEN.md`: approved 2026-10-30, slices 0-6 unbuilt.
+- `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`: PR1-PR10 unbuilt.
+- `docs/plans/SCHOOLOGY_GRADE_IMPORT.md`: unbuilt; starts with Paul's D19 read-only REST probe.
+- `docs/plans/STARRED_CLASS_AUDIT.md`: PR1-PR4 unbuilt.
+- `docs/plans/UNIT_OVERVIEW_WIDGET.md`: unbuilt (Phase 1 steps 1-8).
+- `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`: unbuilt; PR1-PR3 plus district wording sign-off.
+- `docs/plans/ANNOTATION_OVERLAY_PR3.md`: items 1-5 unbuilt.
+- `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`: waiting on a grilling session with Paul for scope.
+- `docs/plans/copy-audit/guided-learning.md`: most verdicts unapplied.
+- `docs/specs/M16-plc-phases-7-8-spec.md`, `docs/specs/LO12-nexus-widget-connections-spec.md`, `docs/PLC_ROADMAP.md`: unbuilt (see section 2).
+- `docs/plans/WIDGET_RUBRIC.md`: living reference read by the widget grader and nightly routines; not a backlog item.
 
 ---
 
@@ -52,7 +74,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md`
 
-- [ ] Upload extension 0.1.23 to the Chrome Web Store and stage it without auto-publish; publish after the `main` promotion that carries the inbox, banks and PR 5. (S)
+- [ ] Upload the current extension (manifest 0.1.26 or later) to the Chrome Web Store, staged without auto-publish; publish after the `main` promotion that carries the inbox, banks and PR 5. (S)
 - [ ] Ask IT to force-install the extension once the store item is Published. (S)
 - [ ] Test in prod with `schoology-quiz-import` (admin): send a classic Test/Quiz, an Assessment, a classic bank and an item bank, the Materials/Resources checklists, and the From Schoology tile in both Import wizards; check the export-step wording against Schoology. (S)
 - [ ] Open Admin Settings > Access > Previews > "Send quizzes from Schoology" > Public; then add the changelog entry and retire `quiz-imscc-import` and `question-bank-imscc-import`. (S)
@@ -102,10 +124,6 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] Write public/changelog.json entries once each flag opens (per CLAUDE.md, not at merge). (S)
 
-#### `docs/plans/shipped/LIVE_TOURS_V2.md`
-
-#### `docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md`
-
 #### `docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md`
 
 - [ ] Flip admin_settings/plc_delegated_printing (Rollouts switch) to Public in prod after Paul tests it live, per the flag-release convention. (S)
@@ -144,7 +162,6 @@ Each item names the plan it came from; the plan holds the detail.
 #### `docs/plans/shipped/QUIZ_READ_ALOUD.md`
 
 - [ ] Flip 'quiz-read-aloud' from admin to beta/public in Admin Settings once Paul has tested it in prod on his own account. (S)
-- [ ] Out-of-scope items explicitly deferred by the plan itself (word-level sync, per-student usage logging for IEP docs, per-question pronunciation overrides, Drive tiering, OCR beyond 4 pages) remain unbuilt by design (§9), not oversight. (M)
 
 #### `docs/plans/shipped/QUIZ_RESULTS_PRINT.md`
 
@@ -183,7 +200,6 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] Paul saves the "AI boards" row once in prod, tries building and editing a board through the connector and the new Magic Board, then sets `ai-boards` to Public in Admin Settings > Access > Previews and adds the changelog entry. (S)
 - [ ] OK the wording of the "Claude is editing" toast and the Boards list badge (#4775). (S)
-- [ ] Before opening: Magic Board sends the teacher's allowed widget types with its template request, so it never picks a widget the teacher can't use (#4776 leaves that zone empty). (S)
 
 #### `docs/plans/shipped/VA_TEACHER_PACED.md`
 
@@ -192,12 +208,10 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/WEB_TOURS_UX.md`
 
-- [ ] Paul tests the dev extension (0.1.4, `extension\dist\dev`) in real Chrome: record on a website, send about ten steps with pictures to a New tour with no editor open, check the background tab saves them and closes, use Open in SpartBoard, then publish and play the tour. (S)
 - [ ] Set `web-tours` to Public in Admin Settings > Access > Previews once Paul has tested in prod, then add the public changelog entry. (S)
 
 #### `docs/plans/shipped/WEB_TOURS_CLAUDE.md`
 
-- [ ] Paul tries the dev extension (0.1.11) in real Chrome: scored matching, blur before capture, Write with Claude, Check tour and the Publish gate, and a Suggested fix from a check run and from two teacher runs. (S)
 - [ ] C15 pictures: save a fresh picture with a suggestion from an admin's own run or a check run (PR 5 sends clues only). (M)
 
 #### `docs/plans/shipped/WEB_TOURS_HELP_PANEL.md`
@@ -236,12 +250,11 @@ Each item names the plan it came from; the plan holds the detail.
 #### `docs/rich-response-wayfinder.md`
 
 - [ ] Enable the `quiz-media-response` global permission to actually turn on audio capture for admin/beta testing. (S)
-- [x] ~~Run RR-B3's whiteboard grading-time prototype~~ — dropped 2026-10-13 (`docs/plans/QUIZ_WHITEBOARD_RESPONSE.md` D27).
+- [x] ~~Run RR-B3's whiteboard grading-time prototype~~ — dropped 2026-10-13 (`docs/plans/shipped/QUIZ_WHITEBOARD_RESPONSE.md` D27).
 
 #### `docs/plans/shipped/rich-response/IMPLEMENTATION.md`
 
 - [ ] Create the 'quiz-media-response' global_permissions Firestore record to actually enable audio capture (doc says 'no record exists yet'). (S)
-- [ ] Video capture and B track (whiteboard) remain deferred/unscheduled by design, not unshipped scope of this doc. (L)
 
 #### `docs/multilingual-pronunciation-engine.md`
 
@@ -253,21 +266,36 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Confirm aiplatform.googleapis.com is enabled and roles/aiplatform.user is granted on spartboard. (S)
 - [ ] Counsel review of Gemini API age-restriction clause before wide distribution. (M)
 
+### From the 2026-11-01 plan sweep (plans now in `docs/plans/shipped/`)
+
+- [ ] **View as** (`ADMIN_VIEW_AS.md` D17): after testing, turn the `admin_settings/view_as` switch on in prod; check that custom claims survive an ID-token refresh and that student join paths load an existing response without creating one. (S/HIGH)
+- [ ] **Claude connector** (`CLAUDE_CONNECTOR.md`): set `claude-connector` (and `claude-connector-guided-learning` if wanted) to Public on Previews, with the changelog entry; confirm the prod SpartBoard custom connector is added in Claude org settings; decide whether the plan's $5 budget alert is still wanted next to the $30/mo prod budget. (S)
+- [ ] **Google Tasks** (`GOOGLE_TASKS_ACTION_ITEMS.md`): enable the Tasks API and add the tasks scope to the OAuth consent screen (prod, and dev if needed); confirm the district does not block third-party Tasks access for staff; then open `google-tasks-sync`. (S)
+- [ ] **Library folders** (`LIBRARY_FOLDERS.md` D26): the folder view has no flag and no release note; confirm it is meant to be on for everyone and add the changelog entry at the next release if so. (S)
+- [ ] **Live tours** (`LIVE_TOUR_CONSISTENT_START.md`, `LIVE_TOUR_ONE_SHOT.md`): changelog note at the release carrying PR 1 ("tours start from the same screen every time"); merge the claude-skills live-tours.md finish-pass update; rerun the three benchmark workflows; review the 12 benchmark tours and record edits in `docs/live-tours/BENCHMARK.md`; decide whether D18's never-added `live-tour-self-heal` gate is still wanted or record dropping it. (M)
+- [ ] **Mini App results** (`MINI_APP_RESULTS.md`): open `mini-app-results`, then retire the gate; confirm the claude-skills `references/mini-apps.md` rewrite landed. (S)
+- [ ] **My groups** (`MY_GROUPS.md`): open questions on the mentoring content owner, Danielson rubric details for evaluators (D9), and whether department groups differ from PLCs. (S)
+- [ ] **Quiz attempt history** (`QUIZ_ATTEMPT_HISTORY.md`): open `quiz-attempt-history`, then retire the gate. (S)
+- [ ] **Quiz import versions** (`QUIZ_IMPORT_VERSIONS.md`): open `quiz-import-versions` (and `-plain`; Beta with the AP Human Geography teacher first); time a real 40-page versioned import on dev and adjust `MAX_VERSIONED_DOCUMENT_PAGES` if needed. (S)
+- [ ] **Review** (`QUIZ_REVIEW_SPLIT.md` PR 6): confirm the Review Help Center article and live tour were imported to prod. (S)
+- [ ] **Whiteboard responses** (`QUIZ_WHITEBOARD_RESPONSE.md`): open `quiz-whiteboard-response` after `quiz-media-response`, and test in prod. (S)
+- [ ] **Schoology gradebook columns** (`SCHOOLOGY_TOOL_COLUMNS.md`): Phase 5 prod pilot on one real section (answer Q1-Q3 on cross-listed sections, visibility timing, dropped students), then open the flag; delete the leftover Schoology test columns and local `scripts/schoology-api.key`; confirm both Schoology secrets exist in both projects. (M)
+- [ ] **Shared boards** (`SHARED_BOARD_COTEACHING.md` slice 6): OK wording for a "<name>'s wall" label for members, or drop it. (S)
+- [ ] **Student landing v2** (`STUDENT_LANDING_V2.md`): no teacher-facing changelog entry for the new student page was found; add one if it is open to everyone. (S)
+- [ ] **Teams** (`TEAMS_REDESIGN.md`): open `plc-goal-coach`; approve the wording list in `docs/plans/shipped/mockups/teams-redesign-wording.md`; decide whether to delete the retired `users/{uid}/plc_layouts` rule and its tests. (S)
+- [ ] **Light tour chrome** (`TOUR_LIGHT_CHROME.md`): changelog note at the release carrying the Guided Learning light-chrome PR. (S)
+- [ ] **VA/Quiz alignment** (`VA_QUIZ_ALIGNMENT.md`): slices 6 and 7 have merged, so drop `failClosedForAdmins` from `va-quiz-alignment` (and its `config/featureDefaults.test.ts` assertion), test in prod, open it, then retire the gate and the old VA settings surfaces. (M)
+
 ## 2. Spec-backed feature work (specs are the plan of record — build from the spec, not from here)
 
 - [x] **M12 — Written-response rubrics (Phase 3)** — SHIPPED to dev-paul 2026-08-28 (PRs #2614–#2619, #2628–#2630; issues #2602–#2610 closed): all phases 3-A..3-I landed — types, `/users/{uid}/rubrics` + `/shared_rubrics` + `/plcs/{plcId}/rubrics` rules + emulator tests, RubricBuilderPanel, RubricScoringPanel, useRubrics/usePlcRubrics, CSV import/export + export columns, link sharing with `/share/rubric/{id}` deep link, PLC Rubrics tab, `GradeResult.state` (RR-06 interleave — fixes ungraded-essay-pushes-0), student-facing rubric views. Phase-1 rules-test carry-over included. Remaining follow-ups: PLC Trash surfacing for unshared rubrics (task chip filed); share-to-PLC from the builder panel (spec §10 3-I bullet, PLC-tab share picker shipped instead); `plcContributions` share counting (no resource type counts shares today — parity holds vacuously). Playwright pause/resume E2E still deferred; Phase 4 (AI-assisted grading) deferred. (L)
-- [ ] **Student landing v2** (`docs/plans/STUDENT_LANDING_V2.md`, replaces M13): 5 PRs — class list fix (no flag), bell period + auto-select, Work/Resource toggle (`study-resources`), new Up next page (`student-landing-v2`, beta by class), per-student GL progress (`gl-student-progress`). (L/MED)
 - [ ] **M16 — PLC Phases 7–8** (`docs/specs/M16-plc-phases-7-8-spec.md` + `docs/PLC_ROADMAP.md`): synced mini-app groups infra then guided-learning mirror; widen `assignment_index` rule to make `sheetUrl` optional for kinds `mini-app`/`guided-learning`. (L)
 - [ ] **LO12 — Nexus widget connections** (`docs/specs/LO12-nexus-widget-connections-spec.md`): Phase 1 tracer Checklist→Timer (S), Phase 2 Webcam/Drawing→GL (M), Phase 3 AI quiz-analysis/concept-map CF (L), Phase 4 GL→Quiz (M), Phase 5 Scoreboard→Stickers (M).
 
 ## 3. Security & correctness (code-only, actionable now)
 
-- [ ] **S1**: remove `allow-same-origin` from MiniApp teacher iframe sandbox (`components/widgets/MiniApp/Widget.tsx:1283`) — auth-token exposure, account-takeover class. (S/HIGH priority)
-- [ ] **S4**: gate `nextup_sessions/entries` create rule with class check, owner binding, shape/size validation (`firestore.rules` ~3318) + emulator tests. (M/MED)
-- [ ] **S5**: gate legacy `sessions/{userId}/students` create rule on parent session active + field validation (`firestore.rules` ~2822) + emulator tests. (M/MED)
-- [ ] **E1**: `functions/src/embedProxy.ts:209-217` — return false/unknown instead of fail-open `true` on HEAD-probe failure. (S/LOW)
+- [ ] **S4**: `nextup_sessions/entries` create rule already checks an active parent session and shape/size (`tests/rules/nextupEntries.test.ts`); add the class check and owner binding + emulator tests. (M/MED)
 - [ ] **C1**: `defaultBoardCreatedForUidRef` guard against duplicate "My First Board" on first sign-in (`context/DashboardContext.tsx` ~2003). (S/LOW)
-- [ ] **C2**: `hooks/useLiveSession.ts:255-262` — add else branch to student status listener so teacher-removed students are ejected. (S/LOW)
 - [ ] **C3/C4/C5**: PIN-uniqueness TOCTOU race, >30-class SSO assignment query cap, join-code collision handling (`useLiveSession.ts` / `useStudentAssignments.ts`) — re-verify then fix. (M/MED)
 - [ ] **LO9**: synced-board drawings `hostUid` support (sync correctness). (L)
 - [ ] **Gradebook D37 grade doc**: move `score`, publish `isCorrect` and quiz `grading` off quiz, VA and GL response docs into a teacher-gated `grades/{responseKey}` doc so students can't read unpublished scores (`docs/plans/GRADEBOOK.md` D37). A read rule alone can't do it. (L/MED)
@@ -277,17 +305,14 @@ Each item names the plan it came from; the plan holds the detail.
 ## 4. Performance & cost
 
 - [ ] **F2 dual-query consolidation** (blocked on backfill): run migration writing `classIds` onto session docs that only carry legacy `classId`, stop legacy write paths, confirm via telemetry, then collapse `useStudentAssignments` to a single query + regression test. (M/MED)
-- [ ] **P2**: lazy-import tesseract.js in Webcam OCR handler (`components/widgets/Webcam/Widget.tsx:21`). (S/LOW)
 - [ ] **P5**: `hooks/useBackgrounds.ts` — one-shot `getDocs` on modal open instead of permanent `onSnapshot` for admin_backgrounds. (S/LOW)
 - [ ] **P3/P4**: manualChunks + bundle-size CI guard; client-side image compression on upload paths — re-verify then implement. (M/LOW)
 - [ ] **LO14**: DashboardContext churn — ~192 `useDashboard` call sites; decide whether to pursue full data/actions context split beyond the shipped stable-actions + canvas-store mechanism (`context/DashboardContext.tsx` is still ~5,865 lines). Also verify DashboardView chunk size vs the 500KB warn limit. (L/MED — wide blast radius)
-- [ ] **Wildcard lucide-react imports**: `import * as Icons from 'lucide-react'` in 7 files (StickerItemWidget, CatalystVisualWidget, catalystHelpers, ExpectationsWidget, InstructionalRoutines/IconPicker + Widget, Stations/IconOrImageInput) — replace with targeted imports/maps to restore tree-shaking. (M/LOW)
 - [ ] **PR 2 of link shortener**: per-click event log (`short_link_events`), nightly rollup CF (`daily_clicks`), clicks-over-time chart in LinksPanel — FERPA-aware schema per the phase-2 design (in git history: `docs/link-shortener-phase-2.md`). (M/MED)
 - [ ] **PR 4 of link shortener**: bulk CSV import/export for short_links (low priority, deferred until real distribution). (M/LOW)
 
 From the 2026-10-01 cost audit (adversarially reviewed). Steady-state cost is ~$15–20/mo; Firestore egress sits right at the 10 GiB free tier, so the items below are about stopping loops, not dollars.
 
-- [ ] **Google token retry loop**: in `context/AuthContext.tsx`, a backend `needs-consent` reply schedules a retry every 5 min forever, even in hidden tabs (~:215, ~:709, interval ~:1186-1240; since #2840). About 70% of real `refreshGoogleAccessToken` calls are those 400s (~60k requests/mo including preflights). Latch backend retries per session after `needs-consent`. Clear the latch on a `storage` event for `spart_google_access_token`, after a successful code exchange, and on sign-out or user change. Allow one throttled backend attempt (~30 min) on focus. Keep silent GIS retries and the pre-expiry refresh in all tabs, including hidden ones, and keep `DriveOfflineGrantCard` surfacing. Don't skip hidden tabs wholesale: Drive calls right after a tab becomes visible would get an expired token. (M/MED)
 - [ ] **Admin weather fetch dedupe**: `components/admin/AdminWeatherFetcher.tsx` (~:60-75) runs in every admin tab and fetches Earth Networks through `fetchExternalProxy` every 5 min (~28k requests/mo). Each tab also rewrites `global_weather/current`, which fans out a widget update on every open teacher dashboard. Freshness skip (fetch + write skipped when `updatedAt` is under 0.9 × the frequency) shipped in `perf/weather-fetch-freshness`; still open: skip the write when values are unchanged (needs a separate `lastCheckedAt` or teacher widgets' last-sync time goes stale). Don't skip hidden tabs: teacher Weather widgets rely entirely on admin tabs. Optional: a weekday-hours scheduled function instead. (S/LOW)
 - [ ] **Board-save transaction contention**: `Commit FAILED_PRECONDITION` was 13–146/day mid-Sept and 2,000–3,845/day by late Sept. `saveDashboard` (`hooks/useFirestore.ts` ~:365) is the likely source. Investigate before it becomes another loop. The 2026-10-01 alert fires above 1,000/hour. (M)
 - [ ] **Force-reload stale clients**: the Sept 10 egress spike kept running ~1 GiB/hour after the fix deployed, likely a tab left open on an old build; `hooks/useAppVersion.ts` only prompts. Force a reload (at a safe moment, with no unsaved edits) for clients N builds behind. (M/MED)
@@ -305,8 +330,6 @@ From the 2026-10-01 cost audit (adversarially reviewed). Steady-state cost is ~$
 - [ ] **F23**: group the 153 flat `utils/` files into domain subfolders with barrels + updated imports (mechanical, wide-reaching, collision-prone — coordinate with other work). (L/LOW)
 - [ ] **F11**: finish CI lint memory work — split root/functions ESLint type-aware passes so the `NODE_OPTIONS` override can drop, or document why 5120MB stays. (M/LOW)
 - [ ] **F18**: decide whether `functions/tsconfig.json` gets a real alias to share root `types.ts`, or close the item (ClassLinkUser duplication already resolved via `functions/src/classlinkShared.ts`). (S/LOW)
-- [ ] **D1**: add `.nvmrc` pinning Node 24 (confirmed absent). (S/LOW)
-- [ ] **D2**: fix `README.md:80` — `pnpm install` → `pnpm run install:all` (confirmed still wrong). (S/LOW)
 - [ ] **useEffect cleanups** (last two from the May audit): move `prevIndexRef` assignment out of useEffect into render body in `components/layout/DashboardView.tsx`; extract the ~175-line live-scoreboard-sync effect in `components/widgets/QuizWidget/Widget.tsx` (~line 525) into a `useLiveScoreboardSync` hook. (S + M)
 - [ ] **LO8**: make the `internal` tier's domain (`orono.k12.mn.us`, hardcoded in `utils/userTier.ts`) and /subs operator scoping admin-configurable. (S–M/LOW)
 - [ ] **M6**: Quiz edit modal AssignClassPicker + `rosterIds` migration (data-model change). (M/MED)
@@ -325,6 +348,12 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 ### Ready for an agent
 
+#### From the 2026-11-01 plan sweep
+
+- [ ] **Live tour benchmark fixes** (`docs/live-tours/BENCHMARK.md` B1-B6, B10): `get_live_tour` drops the material sample; picture `upload_url` unreachable; a type step with no value is refused against the guide; `editor.save:quiz` key; demo content in the guide; multiple openers per surface; video activity tour 11 not green. (M)
+- [ ] **Schoology gradebook columns Phase 6** (`docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md`): score never-launched students on Schoology-attached sessions through NRPS matching. (M)
+- [ ] **Drawing widget page-space migration** (`docs/plans/shipped/QUIZ_WHITEBOARD_RESPONSE.md` D29): decoupled follow-up on its own schedule. (M)
+
 #### `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`
 
 - [ ] Implement widget types/registration: types.ts WidgetType, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts, WidgetRegistry.ts for ai-responsible-use and ai-responsible-use-card. (L)
@@ -339,10 +368,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] Narrow Dock/DashboardView gesture-guard and pointer-event-drop logic so it applies only for drawing tools, not select mode, with the accompanying Dock test. (S)
 - [ ] Append-only in-progress stroke redraw fast path in useDrawingCanvas plus tests/perf benchmark asserting no clearRect after first frame. (M)
 - [ ] Full AnnotationOverlay.test.tsx coverage for the new pass-through/selection/pen-capture behaviors, then pnpm run validate before push. (S)
-
-#### `docs/plans/shipped/PLC_ASSESSMENT_DATA.md`
-
-- [ ] D3/showPerTeacher per-teacher gated view was superseded by a later decision (PR #3400) to remove per-teacher breakdown entirely -- not simply implemented as planned. (S)
 
 #### `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`
 
@@ -387,12 +412,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 - [ ] Spot-check and apply remaining SHORTEN/DELETE/MOVE verdicts across the ~40 remaining findings rows (Studio tour controls, recorder dialogs, screen-capture modal, classic editor chips, student app class-picker/paused overlay, Help Center). (M)
 
-#### `docs/specs/README.md`
-
-- [ ] Add M17 row to specs table. (S)
-- [ ] Update reference from 'docs/remaining-todos-audit.md (since consolidated into TODO.md)' to just TODO.md. (S)
-- [ ] Consider adding 'Status' column or 'Shipped Specs' section to clarify M12 and M17 completion. (S)
-
 #### `docs/specs/LO12-nexus-widget-connections-spec.md`
 
 - [ ] Candidate 2: Checklist → Timer auto-trigger (ChecklistItem.duration, checklistAutoTimer toggle) — recommended tracer 1. (S)
@@ -401,10 +420,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] Candidate 8: Scoreboard → Stickers threshold spawn. (S)
 - [ ] Candidate 6: Video Activity → Guided Learning spawn. (M)
 - [ ] Candidate 9: Schedule → Catalyst live sync. (L)
-
-#### `docs/plans/shipped/specs/M17-individual-assignments-spec.md`
-
-- [ ] Spec's own non-goals (per-student server-side window enforcement, automatic reduction presets, cross-assignment profiles) remain explicitly out of scope — not gaps, by design. (S)
 
 #### `docs/PLC_ROADMAP.md`
 
@@ -416,13 +431,8 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 - [ ] Build rostered-join link for Quiz/Video/GL widgets. (L)
 
-#### `docs/assign-from-spartboard-to-lms-feasibility.md`
-
-- [ ] Update the doc's own status header and §7 to reflect that the scope/Marketplace step already happened and the flag is live (admin-only), since the doc text still reads as pre-flip guidance. (S)
-
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [x] ~~Build Flashcards Speak mode per plan §9 (sessions S0–S13), behind `flashcards-speak`.~~ Built 2026-10-20; the scorer rebuild (S11b, S11c) may still be landing.
 - [ ] Paul: save the Flashcards Speak row on Admin Settings > Access > Previews on dev, then on prod after release (the flag is fail-closed until a row exists). (S)
 - [ ] Paul: upload the phoneme model to prod at release, `node scripts/upload-pronunciation-model.mjs --project prod` (plan §10, P2). (S)
 - [ ] Paul: review "words to check" in the Speaking view during the admin-only period, then open the flag (P5). (M)
@@ -481,7 +491,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/rich-response-wayfinder.md`
 
-- [ ] Build deferred video capture (peer-mode UI, framing check, transcode runtime, district gate) and the whiteboard response — now planned in `docs/plans/QUIZ_WHITEBOARD_RESPONSE.md` (spoken-answer fixes first, D28); the drawing widget page-space migration is a separate fix (D29). (L)
+- [ ] Build deferred video capture (peer-mode UI, framing check, transcode runtime, district gate) and the whiteboard response — now planned in `docs/plans/shipped/QUIZ_WHITEBOARD_RESPONSE.md` (spoken-answer fixes first, D28); the drawing widget page-space migration is a separate fix (D29). (L)
 
 #### `docs/rich-response/README.md`
 

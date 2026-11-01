@@ -1,4 +1,4 @@
-// Question fields shared by the Quiz and Video Activity editors (docs/plans/VA_QUIZ_ALIGNMENT.md slice 1).
+// Question fields shared by the Quiz and Video Activity editors (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md slice 1).
 import React from 'react';
 import { AlertCircle, Plus, Tag } from 'lucide-react';
 import type {

@@ -2,11 +2,11 @@
 
 > **Status: decided 2026-10-13 (grilled with Paul). Nothing built yet.** The
 > original design came from the rich-response wayfinder, 2026-08-04 → 08-07
-> ([RR-B1](../rich-response-wayfinder.md#rr-b1--can-drawingwidget-be-the-student-whiteboard-substrate),
-> [RR-B2](../rich-response-wayfinder.md#rr-b2--is-the-audio-synchronized-to-the-strokes-or-just-attached-alongside),
-> [RR-B4](../rich-response-wayfinder.md#rr-b4--what-is-a-whiteboard-responses-canonical-coordinate-space-and-page-size)).
+> ([RR-B1](../../rich-response-wayfinder.md#rr-b1--can-drawingwidget-be-the-student-whiteboard-substrate),
+> [RR-B2](../../rich-response-wayfinder.md#rr-b2--is-the-audio-synchronized-to-the-strokes-or-just-attached-alongside),
+> [RR-B4](../../rich-response-wayfinder.md#rr-b4--what-is-a-whiteboard-responses-canonical-coordinate-space-and-page-size)).
 > The audio track then shipped 2026-09-02
-> ([IMPLEMENTATION.md](shipped/rich-response/IMPLEMENTATION.md)) and two months
+> ([IMPLEMENTATION.md](rich-response/IMPLEMENTATION.md)) and two months
 > of quiz work landed on top of it, so the plan was audited against current code
 > (C1–C14 below) and re-decided. **This doc supersedes the wayfinder's B-track
 > tickets wherever they differ**; the wayfinder stays the record of why the

@@ -1,4 +1,4 @@
-// Editor-side answer key rows and the save-time app check (docs/plans/MINI_APP_RESULTS.md D5, D12).
+// Editor-side answer key rows and the save-time app check (docs/plans/shipped/MINI_APP_RESULTS.md D5, D12).
 import type {
   MiniAppAnswerKey,
   MiniAppAnswerKeyEntry,

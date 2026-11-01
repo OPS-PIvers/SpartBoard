@@ -26,7 +26,7 @@ service firebase.storage {
               adminDoc.get('roleId', '') in ['super_admin', 'domain_admin']);
     }
 
-    // Super admin "View as" (docs/plans/ADMIN_VIEW_AS.md D7): a view-as token
+    // Super admin "View as" (docs/plans/shipped/ADMIN_VIEW_AS.md D7): a view-as token
     // writes only while unlocked and before exp, and never with admin powers.
     function viewAsReadOk() {
       return request.auth.token.get('viewAs', null) == null ||

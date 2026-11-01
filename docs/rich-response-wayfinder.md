@@ -4243,7 +4243,7 @@ Three consequences for this ticket:
 ## B. Whiteboard & audio
 
 > **Re-decided 2026-10-13 →
-> [`plans/QUIZ_WHITEBOARD_RESPONSE.md`](plans/QUIZ_WHITEBOARD_RESPONSE.md),
+> [`plans/shipped/QUIZ_WHITEBOARD_RESPONSE.md`](plans/shipped/QUIZ_WHITEBOARD_RESPONSE.md),
 > which supersedes these tickets where they differ.** The tickets below stay as
 > the record of the August reasoning. Changed: a teacher starting page replaces
 > the blank start, 300 s replaces 600 s, three flat Drive files per take replace

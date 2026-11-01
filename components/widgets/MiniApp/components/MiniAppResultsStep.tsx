@@ -1,4 +1,4 @@
-// Mini App results on the assign stepper: attempts and what students see (docs/plans/MINI_APP_RESULTS.md D8, D9).
+// Mini App results on the assign stepper: attempts and what students see (docs/plans/shipped/MINI_APP_RESULTS.md D8, D9).
 import React from 'react';
 import { AttemptLimitRow } from '@/components/common/library/AssignmentSettingsToggleGroup';
 import { StepToggleRow } from '@/components/common/library/assignStepper/QuizStepRows';

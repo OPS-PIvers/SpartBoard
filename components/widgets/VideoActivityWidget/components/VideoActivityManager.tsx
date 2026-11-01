@@ -113,7 +113,7 @@ import type { FolderDeleteActions } from '@/components/common/library/FolderSide
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
-/** What only the assign stepper sends (docs/plans/ASSIGN_STEPPER.md). */
+/** What only the assign stepper sends (docs/plans/shipped/ASSIGN_STEPPER.md). */
 export interface VideoActivityAssignExtras {
   /** Picked classes with per-class student picks (D5b). */
   classes: AssignClassesValue;

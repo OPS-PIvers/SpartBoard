@@ -1,4 +1,4 @@
-// Rules for super admin "View as student" (docs/plans/ADMIN_VIEW_AS.md D15).
+// Rules for super admin "View as student" (docs/plans/shipped/ADMIN_VIEW_AS.md D15).
 // A preview token is signed in as the student with a read-only `viewAs` claim:
 // it reads the student's own work and can never join, answer or post. PIN and
 // SSO students without the claim keep their write paths. Run via `pnpm run test:rules`.

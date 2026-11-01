@@ -1,4 +1,4 @@
-// Membership sync for Synced / View-Only collections (docs/plans/COLLECTION_SHARING.md slice 4).
+// Membership sync for Synced / View-Only collections (docs/plans/shipped/COLLECTION_SHARING.md slice 4).
 
 import {
   useCallback,

@@ -1,4 +1,4 @@
-// Google Sheets export for Mini App results v2, through the Quiz exporter (docs/plans/MINI_APP_RESULTS.md D10).
+// Google Sheets export for Mini App results v2, through the Quiz exporter (docs/plans/shipped/MINI_APP_RESULTS.md D10).
 import { QuizDriveService } from '@/utils/quizDriveService';
 import type {
   MiniAppBestAttempt,

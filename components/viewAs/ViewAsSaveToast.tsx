@@ -1,4 +1,4 @@
-// "Saved to X's account" toast for unlocked direct saves (docs/plans/ADMIN_VIEW_AS.md D13).
+// "Saved to X's account" toast for unlocked direct saves (docs/plans/shipped/ADMIN_VIEW_AS.md D13).
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Z_INDEX } from '@/config/zIndex';
 import { useAuth } from '@/context/useAuth';

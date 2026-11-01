@@ -1,4 +1,4 @@
-// Resolves the assign stepper's Mini App choices into what the session, archive row and callable write (docs/plans/ASSIGN_STEPPER.md D20).
+// Resolves the assign stepper's Mini App choices into what the session, archive row and callable write (docs/plans/shipped/ASSIGN_STEPPER.md D20).
 import type { AssignmentAudience, ClassRoster } from '@/types';
 import type { AssignClassesValue } from '@/components/common/library/assignStepper/assignClassesValue';
 import type { AssignWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';

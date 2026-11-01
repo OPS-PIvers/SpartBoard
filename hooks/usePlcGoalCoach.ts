@@ -1,4 +1,4 @@
-// Calls the PLC goal coach (docs/plans/TEAMS_REDESIGN.md T22); gate the UI with canAccessFeature('plc-goal-coach').
+// Calls the PLC goal coach (docs/plans/shipped/TEAMS_REDESIGN.md T22); gate the UI with canAccessFeature('plc-goal-coach').
 import { useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';

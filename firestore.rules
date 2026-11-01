@@ -57,7 +57,7 @@ service cloud.firestore {
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
     }
 
-    // ---- Super admin "View as" (docs/plans/ADMIN_VIEW_AS.md D7) ----
+    // ---- Super admin "View as" (docs/plans/shipped/ADMIN_VIEW_AS.md D7) ----
     // A view-as tab is signed in as its target with a server-minted `viewAs`
     // claim { by, sid, ro, adminTarget, exp(ms) }. It may read until exp, and
     // write only while unlocked (ro == false) and live; authUid() enforces it for
@@ -1644,7 +1644,7 @@ service cloud.firestore {
         changedOnly(['participants']);
 
       // The host of the shared collection a board belongs to may end it (Stop sharing),
-      // including boards a current collaborator added (docs/plans/COLLECTION_SHARING.md
+      // including boards a current collaborator added (docs/plans/shipped/COLLECTION_SHARING.md
       // step 5). The author must still be a member: a host can't add members, so a link
       // re-created at an orphaned id never covers another teacher's board.
       allow delete: if signedIn() && (
@@ -1866,7 +1866,7 @@ service cloud.firestore {
       }
     }
 
-    // Synced / View-Only collection link (docs/plans/COLLECTION_SHARING.md). Board content
+    // Synced / View-Only collection link (docs/plans/shipped/COLLECTION_SHARING.md). Board content
     // lives in /shared_boards; this doc holds the collection's name, board list and members.
     match /linked_collections/{linkId} {
       function lcTeacher() {
@@ -6893,7 +6893,7 @@ service cloud.firestore {
         && isInt('updatedAt');
     }
 
-    // === Claude connector (docs/plans/CLAUDE_CONNECTOR.md): server-written, owner-readable ===
+    // === Claude connector (docs/plans/shipped/CLAUDE_CONNECTOR.md): server-written, owner-readable ===
     match /users/{userId}/mcp_grants/{grantId} {
       allow read: if ownsUserTeacher(userId);
     }

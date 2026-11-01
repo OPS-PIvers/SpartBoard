@@ -1,4 +1,4 @@
-// Option sets for the assign stepper's top switch (docs/plans/ASSIGN_STEPPER.md D2).
+// Option sets for the assign stepper's top switch (docs/plans/shipped/ASSIGN_STEPPER.md D2).
 import { BookOpen, PenLine, Play, User } from 'lucide-react';
 import type { AssignKind } from './assignSteps';
 import type { AssignTopSwitchOption } from './AssignTopSwitch';

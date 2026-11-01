@@ -1,4 +1,4 @@
-// The super admin "View as" row action (docs/plans/ADMIN_VIEW_AS.md D8).
+// The super admin "View as" row action (docs/plans/shipped/ADMIN_VIEW_AS.md D8).
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';

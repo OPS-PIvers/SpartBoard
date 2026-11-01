@@ -1,4 +1,4 @@
-// Default goal-coach rubric (docs/plans/TEAMS_REDESIGN.md T22); mirrored in functions/src/plcGoalCoachRubric.ts.
+// Default goal-coach rubric (docs/plans/shipped/TEAMS_REDESIGN.md T22); mirrored in functions/src/plcGoalCoachRubric.ts.
 
 import type { GoalCoachCriterion } from '@/types';
 

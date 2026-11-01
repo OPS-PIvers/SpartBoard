@@ -1,4 +1,4 @@
-// View as tab gate and context (docs/plans/ADMIN_VIEW_AS.md D4, D9).
+// View as tab gate and context (docs/plans/shipped/ADMIN_VIEW_AS.md D4, D9).
 import React, {
   useCallback,
   useEffect,

@@ -1,4 +1,4 @@
-// Callable-side enforcement of a super admin "View as" token (docs/plans/ADMIN_VIEW_AS.md D7).
+// Callable-side enforcement of a super admin "View as" token (docs/plans/shipped/ADMIN_VIEW_AS.md D7).
 import { HttpsError } from 'firebase-functions/v2/https';
 
 /** The `viewAs` claim minted by startViewAsSessionV1; `exp` is epoch ms. Mirrors types/viewAs.ts. */

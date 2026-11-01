@@ -1,6 +1,6 @@
 # Student landing v2 (`/my-assignments`)
 
-Grilled and settled 2026-10-02 against `dev-paul` at `ac39a15c2`, in three rounds with clickable prototypes ([final prototype](https://claude.ai/artifact/1HNDueyupebLr4Mm9JEa67), private to Paul). Five PRs to `dev-paul`. Replaces `docs/specs/M13-student-landing-overhaul-spec.md` (see "What happens to M13" below).
+Grilled and settled 2026-10-02 against `dev-paul` at `ac39a15c2`, in three rounds with clickable prototypes ([final prototype](https://claude.ai/artifact/1HNDueyupebLr4Mm9JEa67), private to Paul). Five PRs to `dev-paul`. Replaces `docs/plans/shipped/specs/M13-student-landing-overhaul-spec.md` (see "What happens to M13" below).
 
 ## Goal
 
@@ -95,7 +95,7 @@ PR 4 depends on 2 and 3; 1 and 5 are independent.
 
 ## What happens to M13
 
-`docs/specs/M13-student-landing-overhaul-spec.md` is superseded by this plan.
+`docs/plans/shipped/specs/M13-student-landing-overhaul-spec.md` is superseded by this plan.
 
 - **Folded in:** result visibility on the landing page (per-student publish already shipped through the quiz results drill-down; D17 covers opening results), sections/hooks rework.
 - **Dropped from the student landing:** the teacher directory, announcements and lunch menu sections, the `buildingIds` claim, `ResultsModal`, and the section-order admin UI. The Overview was deliberately narrowed to Live + Up next (D19). Revive any of them as a separate plan if wanted.

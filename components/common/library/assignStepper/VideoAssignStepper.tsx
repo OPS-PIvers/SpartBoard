@@ -1,4 +1,4 @@
-// Video Activity on the assign stepper: pacing switch, Classes, When, rule steps (va-quiz-alignment), Sharing (docs/plans/ASSIGN_STEPPER.md D4).
+// Video Activity on the assign stepper: pacing switch, Classes, When, rule steps (va-quiz-alignment), Sharing (docs/plans/shipped/ASSIGN_STEPPER.md D4).
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Play } from 'lucide-react';

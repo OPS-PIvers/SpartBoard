@@ -1,4 +1,4 @@
-// Review's Start dialog (docs/plans/QUIZ_REVIEW_SPLIT.md D14-D21).
+// Review's Start dialog (docs/plans/shipped/QUIZ_REVIEW_SPLIT.md D14-D21).
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';

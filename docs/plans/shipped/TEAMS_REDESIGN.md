@@ -1,7 +1,7 @@
 # My Groups Redesign: A Purpose-Built Page Set Per Team Type
 
 Source: Paul's design interview, 2026-10-07 (grill-me session, 52 questions across 13 rounds).
-Status: decisions confirmed by Paul; nothing built. Builds on [MY_GROUPS.md](MY_GROUPS.md) (group types, building groups, auto-roster, goals) and supersedes parts of [shipped/PLC_HOME_V2.md](shipped/PLC_HOME_V2.md) (see "Superseded decisions").
+Status: decisions confirmed by Paul; nothing built. Builds on [MY_GROUPS.md](MY_GROUPS.md) (group types, building groups, auto-roster, goals) and supersedes parts of [shipped/PLC_HOME_V2.md](PLC_HOME_V2.md) (see "Superseded decisions").
 
 ## Problem
 

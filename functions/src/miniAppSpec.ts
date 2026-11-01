@@ -1,4 +1,4 @@
-// One Mini App spec for every creation path (docs/plans/MINI_APP_RESULTS.md D14).
+// One Mini App spec for every creation path (docs/plans/shipped/MINI_APP_RESULTS.md D14).
 import type { MiniAppQuestionType } from './miniAppGrading';
 
 export const QUESTION_TYPE_HELP: Record<MiniAppQuestionType, string> = {

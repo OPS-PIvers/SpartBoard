@@ -1,4 +1,4 @@
-/** Team layout parsing and resolution (docs/plans/TEAMS_REDESIGN.md T1–T3, T6, T35). */
+/** Team layout parsing and resolution (docs/plans/shipped/TEAMS_REDESIGN.md T1–T3, T6, T35). */
 
 import {
   getPlcFeatures,
