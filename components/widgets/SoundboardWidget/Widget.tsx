@@ -440,8 +440,12 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                       }}
                     />
                     <span
-                      className="font-bold uppercase truncate w-full px-1 text-center"
-                      style={{ fontSize: 'max(8px, min(10px, 3cqmin))' }}
+                      className="font-bold uppercase truncate w-full text-center"
+                      style={{
+                        fontSize: 'max(8px, min(10px, 3cqmin))',
+                        paddingLeft: 'min(4px, 1cqmin)',
+                        paddingRight: 'min(4px, 1cqmin)',
+                      }}
                     >
                       {sound.label}
                     </span>
