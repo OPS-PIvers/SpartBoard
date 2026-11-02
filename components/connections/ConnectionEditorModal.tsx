@@ -222,8 +222,10 @@ export const ConnectionEditorModal: React.FC<{
     });
     updateDashboard({ connections: [...kept, ...cleaned] });
     close();
-    const saved = cleaned.find((c) => c.kind === 'sequence');
-    if (start && saved) sendRunCommand(saved.id, 'start');
+    const saved = cleaned.find(
+      (c): c is SequenceConnection => c.kind === 'sequence'
+    );
+    if (start && saved) sendRunCommand(saved.id, 'start', saved.steps);
   };
 
   const remove = () => {

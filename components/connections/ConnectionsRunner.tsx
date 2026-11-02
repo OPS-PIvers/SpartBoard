@@ -5,6 +5,7 @@ import { useAuth } from '@/context/useAuth';
 import type { DashboardContextValue } from '@/context/DashboardContextValue';
 import type {
   ChecklistConfig,
+  ConnectionStep,
   Dashboard,
   SequenceConnection,
   WidgetConnection,
@@ -146,7 +147,8 @@ export const ConnectionsRunner: React.FC = () => {
     const handle = (
       connectionId: string,
       command: 'start' | 'stop',
-      tries: number
+      tries: number,
+      savedSteps?: ConnectionStep[]
     ) => {
       const board = latest.current.dashboards.find((d) =>
         (d.connections ?? []).some((c) => c.id === connectionId)
@@ -155,11 +157,15 @@ export const ConnectionsRunner: React.FC = () => {
         (c): c is SequenceConnection =>
           c.id === connectionId && c.kind === 'sequence'
       );
-      if (!board || !seq) {
-        // Save and start sends the command before the saved board reaches this copy.
+      // Save and start sends the command before the saved steps reach this board copy.
+      const stale =
+        !!savedSteps &&
+        !!seq &&
+        JSON.stringify(seq.steps) !== JSON.stringify(savedSteps);
+      if (!board || !seq || stale) {
         if (tries < 20) {
           retry = window.setTimeout(
-            () => handle(connectionId, command, tries + 1),
+            () => handle(connectionId, command, tries + 1, savedSteps),
             100
           );
         }
@@ -203,7 +209,9 @@ export const ConnectionsRunner: React.FC = () => {
         );
       }
     };
-    const off = onRunCommand((id, command) => handle(id, command, 0));
+    const off = onRunCommand((id, command, savedSteps) =>
+      handle(id, command, 0, savedSteps)
+    );
     return () => {
       off();
       window.clearTimeout(retry);
