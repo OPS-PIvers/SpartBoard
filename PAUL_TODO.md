@@ -122,6 +122,8 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
   > Set one AI integration to a Claude model on dev, run it, then do the same on prod with me. Tell me if anything falls back to Gemini or web tour writing fails.
 - [ ] **PT-104 🤖 PLCs started by non-staff accounts** (security batch 1C, optional). New PLCs now need a staff account; older ones were not checked.
   > On prod, list PLCs whose lead has no active staff member doc (anonymous, student or unknown account). Read-only; deleting any needs my OK.
+- [ ] **PT-105 🤖 Strip leaderboard names from old quiz sessions** (security batch 1A, #4986). After the next main release, so no open monitor still writes them:
+  > Remove `name` from every `liveLeaderboard` entry on prod `quiz_sessions` docs: dry run with a count, then apply after I say go.
 - [ ] **PT-66 You: password reset domains** (F56, #4585). Admin Settings > Organization > Domains on prod: the Orono domains show Verified.
 - [ ] **PT-67 You: ClassLink PIN lists** (F57, #4738). ClassLink students got 6-digit PINs in the 10-27 sync. If teachers weren't told, they need new PIN lists.
 - [ ] **PT-68 You: delete branches** (F65). 152 branches from earlier delete lines still exist (checked 2026-11-01; none has an open PR). Agents can't delete branches from cloud sessions. From a local checkout, run the command below, or ask an agent for a fresh list first.

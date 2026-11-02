@@ -118,6 +118,7 @@ The plan holds the slices; build the **Next** one and update this line in the sa
 - **AB-44 AI Responsible Use widget**: `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`. Next: PR1 (registration, flag, `config/aiResponsibleUseContent.ts` with the verbatim district content). The flag can't open until PT-82.
 - **AB-45 Chrome extension quiz and video hand-off**: `docs/plans/CHROME_EXTENSION.md`. Next: slice 15 / F13.
 - **AB-46 Drawing page space**: `docs/plans/shipped/QUIZ_WHITEBOARD_RESPONSE.md` D29, the decoupled Drawing widget page-space migration.
+- **AB-80 Clearer message when a long PIN can't join a ClassLink quiz** (S, needs Paul's wording OK). Since security batch 1A (#4986), an anonymous join with a 6+ character PIN on a session with both rosters and class ids is refused when the PIN sign-in doesn't match (stale PIN index, rate limit, outage, or a local roster linked only to a Schoology section). The student sees the "already in this quiz on another tab" message from `hooks/useQuizSession.ts`; it should tell them to sign in with their school account. Also consider counting only non-`schoology:` class ids in that rule.
 
 ## Blocked
 
