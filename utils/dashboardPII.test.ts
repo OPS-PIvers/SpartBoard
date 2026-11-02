@@ -333,6 +333,29 @@ describe('dashboardPII', () => {
       ).toEqual(d);
     });
 
+    it('moves history that still names a quiz team after the teams change', () => {
+      const teams = [{ id: uuid, name: 'Group 1', score: 0 }];
+      const history = [
+        { id: 'h1', at: 1, changes: [{ teamId: 'pin-0042', from: 8, to: 9 }] },
+      ];
+      const d = board([w('sb', 'scoreboard', { teams, history })]);
+      expect(scrubDashboardPII(d).widgets[0].config).toEqual({ teams });
+      expect(extractDashboardPII(d)).toEqual({ sb: { history } });
+    });
+
+    it('lets a board without Drive save when its only names are quiz teams', () => {
+      const d = board([
+        w('sb', 'scoreboard', {
+          teams: [{ id: 'pin-0042', name: 'Ada', score: 9 }],
+        }),
+      ]);
+      expect(dashboardHasPII(d)).toBe(true);
+      expect(dashboardHasPII(d, { includeScoreboard: false })).toBe(false);
+      expect(
+        dashboardHasPII(mockDashboardWithPii, { includeScoreboard: false })
+      ).toBe(true);
+    });
+
     it('keeps hand-made Scoreboard teams in Firestore', () => {
       const teams = [{ id: uuid, name: 'Team A', score: 2 }];
       const d = board([w('sb', 'scoreboard', { teams })]);

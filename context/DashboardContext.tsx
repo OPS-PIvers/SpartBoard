@@ -380,6 +380,9 @@ const isSavedWidget = (w: WidgetData) => !w.transient;
 const PII_CONFIG_KEYS: ReadonlySet<string> = new Set([
   ...PII_WIDGET_FIELDS,
   'assignments',
+  'savedPlans',
+  'teams',
+  'history',
 ]);
 
 // Live-tour widgets stay in memory until the teacher keeps them.
@@ -1792,6 +1795,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
       if (!driveService) {
+        if (!dashboardHasPII(dashboard, { includeScoreboard: false })) return;
         // No live Drive connection — abort rather than scrub PII with nowhere to back it up.
         // `authError` fires the latched "Reconnect" toast so the abort is actionable, not just loud.
         throw authError(

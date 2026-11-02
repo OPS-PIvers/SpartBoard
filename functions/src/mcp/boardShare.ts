@@ -57,14 +57,28 @@ const piiKeys = (type: string, config: Doc): string[] => {
     )
   )
     keys.push('savedPlans');
-  if (
-    type === 'scoreboard' &&
-    Array.isArray(config.teams) &&
-    config.teams.some(
-      (team: unknown) => isObject(team) && QUIZ_TEAM_ID.test(str(team.id))
+  if (type === 'scoreboard') {
+    if (
+      Array.isArray(config.teams) &&
+      config.teams.some(
+        (team: unknown) => isObject(team) && QUIZ_TEAM_ID.test(str(team.id))
+      )
     )
-  )
-    keys.push('teams', 'history');
+      keys.push('teams', 'history');
+    else if (
+      Array.isArray(config.history) &&
+      config.history.some(
+        (entry: unknown) =>
+          isObject(entry) &&
+          Array.isArray(entry.changes) &&
+          entry.changes.some(
+            (change: unknown) =>
+              isObject(change) && QUIZ_TEAM_ID.test(str(change.teamId))
+          )
+      )
+    )
+      keys.push('history');
+  }
   return keys;
 };
 

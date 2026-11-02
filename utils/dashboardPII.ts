@@ -58,6 +58,21 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const hasNameKeys = (map: unknown): boolean =>
   isRecord(map) && Object.keys(map).some((key) => !ROSTER_ID.test(key));
 
+// Score changes outlive the teams they name, so a quiz team's id can sit in history after the teams are replaced.
+const hasQuizTeamHistory = (history: unknown): boolean =>
+  Array.isArray(history) &&
+  history.some(
+    (entry: unknown) =>
+      isRecord(entry) &&
+      Array.isArray(entry.changes) &&
+      entry.changes.some(
+        (change: unknown) =>
+          isRecord(change) &&
+          typeof change.teamId === 'string' &&
+          QUIZ_TEAM_ID.test(change.teamId)
+      )
+  );
+
 /** Config keys of this widget that hold student names and so live only in the Drive supplement. */
 export function widgetPiiKeys(
   type: string,
@@ -79,17 +94,19 @@ export function widgetPiiKeys(
     )
   )
     keys.push('savedPlans');
-  if (
-    type === 'scoreboard' &&
-    Array.isArray(config.teams) &&
-    config.teams.some(
-      (team: unknown) =>
-        isRecord(team) &&
-        typeof team.id === 'string' &&
-        QUIZ_TEAM_ID.test(team.id)
+  if (type === 'scoreboard') {
+    if (
+      Array.isArray(config.teams) &&
+      config.teams.some(
+        (team: unknown) =>
+          isRecord(team) &&
+          typeof team.id === 'string' &&
+          QUIZ_TEAM_ID.test(team.id)
+      )
     )
-  )
-    keys.push('teams', 'history');
+      keys.push('teams', 'history');
+    else if (hasQuizTeamHistory(config.history)) keys.push('history');
+  }
   return keys;
 }
 
@@ -202,8 +219,13 @@ export function mergeWidgetsPII(
  * Returns true if any widget in `dashboard` holds actual PII content.
  * Empty strings/arrays (widget defaults) do not count.
  */
-export function dashboardHasPII(dashboard: Dashboard): boolean {
+export function dashboardHasPII(
+  dashboard: Dashboard,
+  { includeScoreboard = true }: { includeScoreboard?: boolean } = {}
+): boolean {
   for (const widget of dashboard.widgets) {
+    // Scoreboard teams from a quiz can be sent again, so a board without Drive may still save without them.
+    if (!includeScoreboard && widget.type === 'scoreboard') continue;
     const config = widget.config as Record<string, unknown>;
     for (const field of widgetPiiKeys(widget.type, config)) {
       if (field in config && hasPiiContent(config[field])) return true;

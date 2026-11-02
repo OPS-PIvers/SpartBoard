@@ -48,6 +48,13 @@ describe('connector shared-board scrub', () => {
         { teams: [{ id: 'team-a', name: 'Team A', score: 1 }] },
         'scoreboard'
       ),
+      widget(
+        {
+          teams: [{ id: 'team-a', name: 'Team A', score: 1 }],
+          history: [{ id: 'h', at: 1, changes: [{ teamId: 'pin-01' }] }],
+        },
+        'scoreboard'
+      ),
       widget({ hiddenResponses: ['q:1', 'q#abc'] }, 'poll'),
       widget({}),
     ];
