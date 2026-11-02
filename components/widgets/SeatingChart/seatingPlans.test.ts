@@ -141,7 +141,6 @@ describe('seatingPlans', () => {
   it('never cuts an emoji in half at the length cap', () => {
     const out = cleanPlanName('x'.repeat(39) + '😀tail');
     expect(out).toBe('x'.repeat(39));
-    expect(out.isWellFormed()).toBe(true);
   });
 });
 
