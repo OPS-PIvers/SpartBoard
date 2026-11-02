@@ -162,15 +162,15 @@ export const ConnectionsRunner: React.FC = () => {
         !!savedSteps &&
         !!seq &&
         JSON.stringify(seq.steps) !== JSON.stringify(savedSteps);
-      if (!board || !seq || stale) {
-        if (tries < 20) {
-          retry = window.setTimeout(
-            () => handle(connectionId, command, tries + 1, savedSteps),
-            100
-          );
-        }
+      if ((!board || !seq || stale) && tries < 20) {
+        retry = window.setTimeout(
+          () => handle(connectionId, command, tries + 1, savedSteps),
+          100
+        );
         return;
       }
+      // After the retries, a step mismatch still starts the copy the board has.
+      if (!board || !seq) return;
       if (command === 'stop') {
         write(
           latest.current.applyConnectionChanges,
