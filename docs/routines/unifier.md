@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 133_
-_Last run: 2026-11-01_
+_Run count: 134_
+_Last run: 2026-11-02_
 _Base branch: dev-paul_
 
 ---
@@ -577,6 +577,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-11-02 | `nightly/unifier-log-2026-11-02` | D1/D2/D3/D4/D5 | Aligned (run 134) — light probe of 9 commits / 103 non-test client files since run 133 (mostly docs, tour-anchor sweep, css-scaling margins, extension release). Diff-scoped greps over added lines for `'../'` imports, `<Toast`, `#2d3f89`/`#ad2122`, hand-rolled `text-xxs font-black/bold uppercase` labels, `aria-pressed` and `role="group"` returned zero hits; no new `Widget.tsx`. No subagents dispatched, no code shipped; `validate` not run (docs-only; CLAUDE.md forbids full-repo runs). | — |
 | 2026-11-01 | `nightly/unifier-log-2026-11-01` | D1/D2/D3/D4/D5 | Aligned (run 133) — light probe of 4 commits / 19 client `.tsx` files since run 132 (`faaa01b4..dev-paul`: Quizlet import, tour-anchor sweep, EmbedWidget css-scaling). Diff-scoped greps over added lines for `'../'` imports, `<Toast`, `#2d3f89`/`#ad2122`, hand-rolled `text-xxs font-black/bold uppercase` labels, `aria-pressed` and `role="group"` returned zero hits; no new `Widget.tsx`. No subagents dispatched, no code shipped; `validate` not run (docs-only; CLAUDE.md forbids full-repo runs). | — |
 | 2026-10-31 | `claude/kind-johnson-5ivvtv` | D1/D2/D3/D4/D5 | Aligned (run 132) — light probe of 46 commits since run 131 (`7c62889b^..dev-paul`: Weather details, Magic Board allowed widgets, widget library dock gap). Diff-scoped greps over added lines: `'../'` imports are ActivityWall `editor/`/`buildingDefaults` (own-widget gray zone, D4-E3) and a `?url` wasm asset path; no `<Toast`, no `#2d3f89`/`#ad2122` in production code (one test assertion); `text-xxs ... uppercase` hits are button/chip styles, not form labels (not SettingsLabel cases); new `aria-pressed` is a non-exclusive toggle; no new empty states. No subagents dispatched, no code shipped; `validate` not run (docs-only; CLAUDE.md forbids full-repo runs). | — |
 | 2026-10-30 | `claude/kind-johnson-vzcxrw` | D1/D2/D3/D4/D5 | Aligned (run 131) — light probe of 26 commits / 88 non-test client files since run 130 (`fdcf752c..dev-paul`: Magic Board allowed widgets, Schoology extension, Blooms/quiz cross-out). Diff-scoped greps over added lines: `'../spartboardApi'` imports are all in `extension/src/schoology/` (separate package, no `@/` alias, outside D4); no `<Toast`, `#2d3f89`/`#ad2122` or hand-rolled `text-xxs font-black/bold uppercase` labels; the new `aria-pressed` sites (`CrossOutChoiceButton.tsx`, `BloomsTaxonomy/QuestionStarters.tsx`) are non-exclusive toggles, not radiogroup cases. No subagents dispatched, no code shipped; `validate` not run (docs-only; CLAUDE.md forbids full-repo runs). | — |
