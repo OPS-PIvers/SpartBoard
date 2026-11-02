@@ -137,6 +137,12 @@ describe('seatingPlans', () => {
   it('caps plan names', () => {
     expect(cleanPlanName('x'.repeat(80))).toHaveLength(40);
   });
+
+  it('never cuts an emoji in half at the length cap', () => {
+    const out = cleanPlanName('x'.repeat(39) + '😀tail');
+    expect(out).toBe('x'.repeat(39));
+    expect(out.isWellFormed()).toBe(true);
+  });
 });
 
 describe('detachPlan', () => {
