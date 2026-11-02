@@ -19,5 +19,24 @@ export const onHandAction = (listener: Listener): (() => void) => {
   };
 };
 
+export type RunCommand = 'start' | 'stop';
+type CommandListener = (connectionId: string, command: RunCommand) => void;
+const commandListeners = new Set<CommandListener>();
+
+/** Start or stop a Sequence's Run from the step badge; this device carries it out. */
+export const sendRunCommand = (
+  connectionId: string,
+  command: RunCommand
+): void => {
+  commandListeners.forEach((l) => l(connectionId, command));
+};
+
+export const onRunCommand = (listener: CommandListener): (() => void) => {
+  commandListeners.add(listener);
+  return () => {
+    commandListeners.delete(listener);
+  };
+};
+
 // One id per page load: two tabs on one computer are two devices.
 export const CONNECTION_DEVICE_ID = crypto.randomUUID();

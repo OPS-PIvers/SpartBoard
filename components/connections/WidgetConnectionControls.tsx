@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Plus, Workflow } from 'lucide-react';
+import { Pencil, Play, Plus, Square, Workflow } from 'lucide-react';
 import type { WidgetConnection, WidgetData } from '@/types';
 import { IconButton } from '@/components/common/IconButton';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
@@ -18,6 +18,7 @@ import {
 import { isConnectable } from '@/config/widgetConnections';
 import { liveConnections, liveSteps } from '@/utils/connectionEngine';
 import { getTitle } from '@/utils/widgetHelpers';
+import { sendRunCommand } from '@/utils/connectionSignals';
 import { tourAttr } from '@/config/tourAnchors';
 import { Z_INDEX } from '@/config/zIndex';
 
@@ -31,6 +32,8 @@ const summaryKey = (
   let running = false;
   let follows = false;
   let firstId = '';
+  let seqId = '';
+  let seqRunning = false;
   for (const c of liveConnections(connections, widgets)) {
     if (c.kind === 'follow') {
       if (c.leaderId === widgetId || c.followerId === widgetId) {
@@ -43,6 +46,10 @@ const summaryKey = (
       if (!s.actions.some((a) => a.widgetId === widgetId)) return;
       numbers.push(i + 1);
       firstId ||= c.id;
+      if (!seqId) {
+        seqId = c.id;
+        seqRunning = !!c.run;
+      }
       if (c.run?.stepIndex === i) running = true;
     });
   }
@@ -52,6 +59,8 @@ const summaryKey = (
     numbers.join(' · '),
     running ? '1' : '',
     follows ? '1' : '',
+    seqId,
+    seqRunning ? '1' : '',
   ].join('|');
 };
 
@@ -64,12 +73,15 @@ const useWidgetConnectionSummary = (widgetId: string) => {
     )
   );
   if (!key) return null;
-  const [connectionId, numbers, running, follows] = key.split('|');
+  const [connectionId, numbers, running, follows, seqId, seqRunning] =
+    key.split('|');
   return {
     connectionId,
     numbers,
     running: running === '1',
     follows: follows === '1',
+    seqId,
+    seqRunning: seqRunning === '1',
   };
 };
 
@@ -83,7 +95,7 @@ const openEditor = (boardId: string, connection: WidgetConnection) =>
     connectMode: null,
   });
 
-/** Corner badge on a connected widget: its step numbers; opens the step editor. */
+/** Corner badge on a connected widget: its step numbers; opens Start/Stop and Edit steps. */
 export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
@@ -93,42 +105,130 @@ export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
   const boardId = useDashboardCanvasSelector((s) => s.activeDashboard?.id);
   const inConnectMode = useConnectionsUi((s) => !!s.connectMode);
   const getCanvasState = useDashboardCanvasStateGetter();
+  const [menuAt, setMenuAt] = useState<DOMRect | null>(null);
   if (!enabled || !summary || !boardId || inConnectMode) return null;
-  const open = () => {
-    const connection = findConnection(getCanvasState, summary.connectionId);
+  const close = () => setMenuAt(null);
+  const edit = () => {
+    close();
+    const connection = findConnection(
+      getCanvasState,
+      summary.seqId || summary.connectionId
+    );
     if (connection) openEditor(boardId, connection);
   };
+  const label = t('connections.badgeTitle', {
+    name: getTitle(widget),
+    defaultValue: 'Connected: open the steps',
+  });
+  const itemClass =
+    'w-full text-left px-3 py-2 hover:bg-slate-100 flex items-center gap-2';
   return (
-    <button
-      type="button"
-      {...tourAttr('widget.connection-badge', widget.id, widget.type)}
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => {
-        e.stopPropagation();
-        open();
-      }}
-      onPointerEnter={() =>
-        connectionsUi.set({ highlightedId: summary.connectionId })
-      }
-      onPointerLeave={() => connectionsUi.set({ highlightedId: null })}
-      title={t('connections.badgeTitle', {
-        name: getTitle(widget),
-        defaultValue: 'Connected: open the steps',
-      })}
-      aria-label={t('connections.badgeTitle', {
-        name: getTitle(widget),
-        defaultValue: 'Connected: open the steps',
-      })}
-      className={`touch-target-expand absolute -top-3 -left-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-xxs font-bold shadow-md [-webkit-tap-highlight-color:transparent] ${
-        summary.running
-          ? 'bg-brand-red-primary text-white ring-2 ring-white motion-safe:animate-pulse'
-          : 'bg-brand-blue-primary text-white'
-      }`}
-      style={{ zIndex: 12 }}
-    >
-      <Workflow className="w-3 h-3" aria-hidden="true" />
-      {summary.numbers && <span>{summary.numbers}</span>}
-    </button>
+    <>
+      <button
+        type="button"
+        {...tourAttr('widget.connection-badge', widget.id, widget.type)}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!summary.seqId) {
+            edit();
+            return;
+          }
+          setMenuAt(menuAt ? null : e.currentTarget.getBoundingClientRect());
+        }}
+        onPointerEnter={() =>
+          connectionsUi.set({ highlightedId: summary.connectionId })
+        }
+        onPointerLeave={() => connectionsUi.set({ highlightedId: null })}
+        title={label}
+        aria-label={label}
+        aria-haspopup={summary.seqId ? 'menu' : undefined}
+        aria-expanded={summary.seqId ? !!menuAt : undefined}
+        className={`touch-target-expand absolute -top-3 -left-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-xxs font-bold shadow-md [-webkit-tap-highlight-color:transparent] ${
+          summary.running
+            ? 'bg-brand-red-primary text-white ring-2 ring-white motion-safe:animate-pulse'
+            : 'bg-brand-blue-primary text-white'
+        }`}
+        style={{ zIndex: 12 }}
+      >
+        <Workflow className="w-3 h-3" aria-hidden="true" />
+        {summary.numbers && <span>{summary.numbers}</span>}
+      </button>
+      {menuAt &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0"
+              style={{ zIndex: Z_INDEX.toolMenu }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                close();
+              }}
+            />
+            <div
+              role="menu"
+              className="fixed min-w-48 rounded-xl bg-white shadow-xl border border-slate-200 py-1 text-sm text-slate-700"
+              style={{
+                left: menuAt.left,
+                top: menuAt.bottom + 6,
+                zIndex: Z_INDEX.toolMenu + 1,
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              {summary.seqRunning ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  {...tourAttr(
+                    'widget.connection-stop',
+                    widget.id,
+                    widget.type
+                  )}
+                  className={itemClass}
+                  onClick={() => {
+                    close();
+                    sendRunCommand(summary.seqId, 'stop');
+                  }}
+                >
+                  <Square className="w-4 h-4" aria-hidden="true" />
+                  {t('connections.stop', { defaultValue: 'Stop' })}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  {...tourAttr(
+                    'widget.connection-start',
+                    widget.id,
+                    widget.type
+                  )}
+                  className={itemClass}
+                  onClick={() => {
+                    close();
+                    sendRunCommand(summary.seqId, 'start');
+                  }}
+                >
+                  <Play className="w-4 h-4" aria-hidden="true" />
+                  {t('connections.startFromTop', {
+                    defaultValue: 'Start from step 1',
+                  })}
+                </button>
+              )}
+              <button
+                type="button"
+                role="menuitem"
+                {...tourAttr('widget.connection-edit', widget.id, widget.type)}
+                className={`${itemClass} border-t border-slate-100`}
+                onClick={edit}
+              >
+                <Pencil className="w-4 h-4" aria-hidden="true" />
+                {t('connections.editSteps', { defaultValue: 'Edit steps' })}
+              </button>
+            </div>
+          </>,
+          document.body
+        )}
+    </>
   );
 };
 

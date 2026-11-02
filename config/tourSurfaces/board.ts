@@ -108,6 +108,9 @@ export const SURFACES: TourSurfaceMap = {
       'widget.connect-menu.connection': 'widget.connect',
       'widget.connect-menu.new': 'widget.connect',
       'widget.connect-pick': 'widget.connect',
+      'widget.connection-start': 'widget.connection-badge',
+      'widget.connection-stop': 'widget.connection-badge',
+      'widget.connection-edit': 'widget.connection-badge',
       'widget.close-confirm.cancel': 'widget.close',
       'widget.close-confirm.confirm': 'widget.close',
       'widget.annotate-toolbar.eraser': 'widget.annotate',
@@ -127,12 +130,12 @@ export const SURFACES: TourSurfaceMap = {
   'board.connections-editor': {
     label: 'Connection steps window',
     kind: 'modal',
-    files: ['components/connections/ConnectionEditorModal.tsx'],
-    opensWith: 'dashboard.connect-done',
-    alsoOpensWith: [
-      'widget.connection-badge',
-      'widget.connect-menu.connection',
+    files: [
+      'components/connections/ConnectionEditorModal.tsx',
+      'components/connections/StepParamPicker.tsx',
     ],
+    opensWith: 'dashboard.connect-done',
+    alsoOpensWith: ['widget.connection-edit', 'widget.connect-menu.connection'],
     needs: ['widget-on-stage'],
   },
   'board.settings-drawer': {
