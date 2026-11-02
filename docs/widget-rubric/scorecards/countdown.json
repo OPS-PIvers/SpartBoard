@@ -202,38 +202,42 @@
     },
     "I1": {
       "score": 4,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 4
+        "script": null,
+        "judge": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-countdown-2026-10-27-after3/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/countdown/default__typical.png"
         ],
-        "runId": "loop-countdown-2026-10-27-after3"
+        "runId": "spot-2026-11-02"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:15:06.101Z",
+      "gradedAt": "2026-11-02T18:57:19.353Z",
       "stale": false
     },
     "I7": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": null,
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-countdown-2026-10-27-after3/screenshots/countdown/envelope-min__typical__selected.png",
-          "scripts/widget-grader/out/loop-countdown-2026-10-27-after3/screenshots/countdown/default__typical__selected.png",
-          "scripts/widget-grader/out/loop-countdown-2026-10-27-after3/screenshots/countdown/large-1400x900__typical__selected.png",
-          "scripts/widget-grader/out/loop-countdown-2026-10-27-after3/screenshots/countdown/widest-aspect__typical__selected.png",
-          "scripts/widget-grader/out/loop-countdown-2026-10-27-after3/screenshots/countdown/tallest-aspect__typical__selected.png"
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/countdown/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/countdown/default__typical__selected.png",
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/countdown/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/countdown/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/countdown/tallest-aspect__typical__selected.png"
         ],
-        "runId": "loop-countdown-2026-10-27-after3"
+        "runId": "spot-2026-11-02"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:15:06.101Z",
+      "gradedAt": "2026-11-02T18:57:27.867Z",
       "stale": false
     },
     "V1": {
@@ -468,36 +472,38 @@
     },
     "R3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": null,
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-countdown-2026-10-27-after3/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/countdown/default__typical.png"
         ],
-        "runId": "loop-countdown-2026-10-27-after3"
+        "runId": "spot-2026-11-02"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:15:06.101Z",
+      "gradedAt": "2026-11-02T18:57:34.807Z",
       "stale": false
     },
     "R4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-countdown-2026-10-27-after3/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/countdown/default__typical.png"
         ],
-        "runId": "loop-countdown-2026-10-27-after3"
+        "runId": "spot-2026-11-02"
       },
-      "note": "No student data appears on the face, only an event name and a day count.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:15:06.101Z",
+      "gradedAt": "2026-11-02T18:57:40.535Z",
       "stale": false
     },
     "E1": {
