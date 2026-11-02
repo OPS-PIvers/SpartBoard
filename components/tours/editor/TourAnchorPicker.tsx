@@ -67,9 +67,10 @@ const elementBelow = (e: MouseEvent): Element | null => {
 };
 
 // Re-sends the click without its modifier, so the app opens its menu as for a plain click.
-const passThrough = (e: MouseEvent) => {
+const passThrough = (e: MouseEvent, type = e.type) => {
   const el = elementBelow(e);
-  if (!el) return;
+  // A link would navigate away from the editor.
+  if (!el || el.closest('a[href]')) return;
   const init: PointerEventInit = {
     bubbles: true,
     cancelable: true,
@@ -87,7 +88,7 @@ const passThrough = (e: MouseEvent) => {
   };
   const copy =
     typeof PointerEvent === 'function' && e instanceof PointerEvent
-      ? new PointerEvent(e.type, {
+      ? new PointerEvent(type, {
           ...init,
           pointerId: e.pointerId,
           pointerType: e.pointerType,
@@ -96,8 +97,8 @@ const passThrough = (e: MouseEvent) => {
           height: e.height,
           pressure: e.pressure,
         })
-      : new MouseEvent(e.type, init);
-  if (e.type === 'mousedown')
+      : new MouseEvent(type, init);
+  if (type === 'mousedown')
     el.closest<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
   asScriptedClick(() => el.dispatchEvent(copy));
 };
@@ -156,17 +157,30 @@ export const TourAnchorPicker: React.FC<Props> = ({
           : found
       );
     };
-    const onSwallow = (e: Event) => {
+    // Whether the current press started with the modifier, so one gesture is never split.
+    let passing: boolean | null = null;
+    const onSwallow = (event: Event) => {
+      const e = event as MouseEvent;
       // Fast-forward's own clicks still reach the board.
       if (isScriptedClick() || ignored(e.target)) return;
       e.preventDefault();
       e.stopPropagation();
-      if (passesThrough(e as MouseEvent)) {
-        passThrough(e as MouseEvent);
+      if (e.type === 'pointerdown') passing = passesThrough(e);
+      const pass = passing ?? passesThrough(e);
+      const ends = e.type === 'click' || e.type === 'dblclick';
+      if (ends || e.type === 'contextmenu') passing = null;
+      if (e.type === 'contextmenu') {
+        // A Mac Ctrl-click fires contextmenu instead of click.
+        if (pass && isMac() && e.ctrlKey && e.button === 0)
+          passThrough(e, 'click');
+        return;
+      }
+      if (pass) {
+        passThrough(e);
         return;
       }
       if (e.type !== 'click') return;
-      const found = pickAt(e as MouseEvent, slots);
+      const found = pickAt(e, slots);
       if (found) onPick(found.pick);
     };
     const onKey = (e: KeyboardEvent) => {

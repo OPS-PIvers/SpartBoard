@@ -201,6 +201,44 @@ describe('TourAnchorPicker', () => {
     layer.remove();
   });
 
+  it('keeps a press whole when Ctrl is pressed or let go midway', () => {
+    boardClick.mockClear();
+    const { onPick } = setup();
+    const tools = screen.getByText('Tools');
+    fireEvent.pointerDown(tools, { ctrlKey: true });
+    fireEvent.click(tools);
+    expect(boardClick).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+    fireEvent.pointerDown(tools);
+    fireEvent.click(tools, { ctrlKey: true });
+    expect(boardClick).toHaveBeenCalledTimes(1);
+    expect(onPick).toHaveBeenCalledTimes(1);
+  });
+
+  it('never passes a right click through', () => {
+    const onMenu = vi.fn();
+    const { onPick } = setup();
+    const tools = screen.getByText('Tools');
+    tools.addEventListener('contextmenu', onMenu);
+    fireEvent.contextMenu(tools, { ctrlKey: true, button: 2 });
+    expect(onMenu).not.toHaveBeenCalled();
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it('does not follow a link on a Ctrl click', () => {
+    const follow = vi.fn((e: MouseEvent) => e.preventDefault());
+    const { onPick } = setup();
+    const link = document.createElement('a');
+    link.href = '#elsewhere';
+    link.textContent = 'Link';
+    link.addEventListener('click', follow);
+    document.body.appendChild(link);
+    fireEvent.click(link, { ctrlKey: true });
+    expect(follow).not.toHaveBeenCalled();
+    expect(onPick).not.toHaveBeenCalled();
+    link.remove();
+  });
+
   it('shows the Ctrl hint', () => {
     setup();
     expect(
