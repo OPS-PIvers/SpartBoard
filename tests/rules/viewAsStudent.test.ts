@@ -269,7 +269,7 @@ describe.each(['quiz_sessions', 'video_activity_sessions'])(
       await assertSucceeds(
         setDoc(
           doc(asAnon(), `${coll}/open/responses/pin-period_1-02`),
-          joinFor(coll, pinResponse(ANON_UID))
+          joinFor(coll, { ...pinResponse(ANON_UID), pin: '02' })
         )
       );
       await assertSucceeds(

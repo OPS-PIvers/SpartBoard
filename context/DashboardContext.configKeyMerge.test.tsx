@@ -291,7 +291,7 @@ async function moveStudents(
     const current = assignmentsOf(stateRef);
     act(() => {
       stateRef.current?.updateWidget('w1', {
-        config: { assignments: { ...current, [`s${i}`]: 'hot' } },
+        config: { assignments: { ...current, [`student-id-0000${i}`]: 'hot' } },
       });
     });
     await act(async () => {

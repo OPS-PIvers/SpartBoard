@@ -135,17 +135,6 @@ export interface PlcSheetRow {
   questionAnswers: string[];
 }
 
-interface DrivePermission {
-  id: string;
-  type?: string;
-  role?: string;
-  emailAddress?: string;
-}
-
-interface DrivePermissionsListResponse {
-  permissions?: DrivePermission[];
-}
-
 /**
  * Thrown by `appendToExistingSheet` when the shared PLC sheet is either
  * missing (404) or the caller has lost access (403). Callers catch this
@@ -1413,71 +1402,8 @@ export class QuizDriveService {
   }
 
   /**
-   * Ensure every email in `memberEmailsToShareWith` has writer access on
-   * the PLC sheet. Called from the invite-accept path so a teammate
-   * admitted after the sheet was created still gets access automatically.
-   *
-   * Silent no-op when the caller is not the sheet owner (listing
-   * permissions returns 403) — the actual owner will reconcile next time
-   * they assign something. A 404 is treated the same way; the caller
-   * should clear `plcs/{id}.sharedSheetUrl` if it can be confirmed
-   * elsewhere that the sheet is truly gone.
-   */
-  async reconcilePlcSheetPermissions(args: {
-    sheetUrl: string;
-    memberEmailsToShareWith: string[];
-  }): Promise<{ granted: string[]; skipped: boolean }> {
-    const spreadsheetId = QuizDriveService.extractSheetId(args.sheetUrl);
-    if (!spreadsheetId) return { granted: [], skipped: true };
-
-    const wanted = new Set(
-      args.memberEmailsToShareWith
-        .map((e) => e.trim().toLowerCase())
-        .filter((e) => e.length > 0 && e.includes('@'))
-    );
-    if (wanted.size === 0) return { granted: [], skipped: false };
-
-    // List existing permissions so we only grant what's missing. fields=
-    // restricts the payload to the keys we consume.
-    const listRes = await fetch(
-      `${DRIVE_API_URL}/files/${spreadsheetId}/permissions?fields=permissions(id,type,role,emailAddress)`,
-      { headers: this.authHeaders }
-    );
-    if (!listRes.ok) {
-      // 403 = caller isn't the owner (so can't list permissions); 404 =
-      // sheet gone. Either way we can't do anything here — the actual
-      // owner (or the next assignment create) will reconcile.
-      if (listRes.status === 403 || listRes.status === 404) {
-        return { granted: [], skipped: true };
-      }
-      throw new Error(
-        `Failed to list PLC sheet permissions (${listRes.status})`
-      );
-    }
-    const listData = (await listRes.json()) as DrivePermissionsListResponse;
-    const existing = new Set(
-      (listData.permissions ?? [])
-        .map((p) => (p.emailAddress ?? '').toLowerCase())
-        .filter((e) => e.length > 0)
-    );
-
-    const granted: string[] = [];
-    for (const email of wanted) {
-      if (existing.has(email)) continue;
-      try {
-        await this.grantSheetWriterPermission(spreadsheetId, email);
-        granted.push(email);
-      } catch (err) {
-        console.error(`Failed to grant PLC sheet access to ${email}:`, err);
-      }
-    }
-    return { granted, skipped: false };
-  }
-
-  /**
    * Low-level helper: grant a single `writer` permission on a Drive file
-   * by email. Extracted so `createPlcSheetAndShare` and
-   * `reconcilePlcSheetPermissions` share one code path.
+   * by email, used by `createPlcSheetAndShare`.
    *
    * `sendNotificationEmail=false` because the sheet URL is surfaced inside
    * SpartBoard — a separate Drive-generated email would be noise. Drive
