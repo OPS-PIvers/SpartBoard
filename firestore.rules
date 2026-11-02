@@ -6315,20 +6315,30 @@ service cloud.firestore {
       // on and what sessionListScoped() proves.
       allow get: if signedIn();
       allow list: if signedIn() && sessionListScoped();
-      // Only authenticated non-anonymous teachers/admins can create or update the session document itself.
+      // Only a teacher identity (never anonymous, studentRole or deactivated) or a site admin writes the session doc.
       allow create, update: if signedIn() &&
                             notAnon() &&
-                            (isAdmin() ||
-                              (sessionId.matches(authUid() + '_.*') &&
-                                incoming().get('teacherUid', authUid()) == authUid()));
+                            !isStudentRoleUser() &&
+                            notDeactivated() &&
+                            ((sessionId.matches(authUid() + '_.*') &&
+                                incoming().get('teacherUid', authUid()) == authUid()) ||
+                              awSiteAdmin());
       allow delete: if false;
 
+      // Site admin as storage.rules isSiteAdmin(): a narrowed synced admin can't publish or moderate another teacher's wall.
+      function awSiteAdmin() {
+        return isAdmin() && awSiteAdminDoc(get(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())).data);
+      }
+      function awSiteAdminDoc(a) {
+        return a.get('source', '') != 'organizationMembersSync' ||
+               (a.get('orgId', '') == 'orono' && a.get('roleId', '') in ['super_admin', 'domain_admin']);
+      }
       // Merged student page helpers (shared by submissions, likes, comments).
       function awParentSession() {
         return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data;
       }
       function awIsOwner() {
-        return isAdmin() || sessionId.matches(authUid() + '_.*');
+        return sessionId.matches(authUid() + '_.*') || awSiteAdmin();
       }
       // Padlet-lite audience: an enrolled studentRole user, or anyone once the
       // teacher opted into guests. Legacy sessions (no layout) never match.
@@ -6517,6 +6527,20 @@ service cloud.firestore {
                   p.size() == sessionId.size() + submissionId.size() + parts[3].size() + 22);
         }
 
+        // Content edits only on text-like posts; an untyped legacy post counts as text while it holds no media or URL.
+        function awContentEditable(types) {
+          let t = existing().get('type', '');
+          return t in types ||
+                 (t == '' && !('storagePath' in existing()) &&
+                  !existing().content.matches('(?i)https?:.*') &&
+                  !incoming().content.matches('(?i)https?:.*'));
+        }
+        // An upload's media is its own transit object: content names that storagePath, never an outside URL.
+        function awUploadPathOk() {
+          return !(incoming().get('type', 'text') in ['photo', 'file', 'video']) ||
+                 incoming().get('storagePath', '') == incoming().content;
+        }
+
         // Any authed user (incl. anon) can create a submission (photo subs may carry storage
         // metadata for Drive archiving). studentRole users must be enrolled; uses the
         // Phase-5A compat gate (classIds ?? legacy classId). hasOnly() closes an
@@ -6535,7 +6559,7 @@ service cloud.firestore {
             'label', 'lat', 'lng', 'linkPreview', 'order',
             'fileName', 'mimeType', 'sizeBytes', 'editedAt'
           ]) &&
-          isStr('id') &&
+          incoming().id == submissionId &&
           isStr('content') &&
           incoming().content.size() > 0 &&
           incoming().content.size() <= 5000 &&
@@ -6548,8 +6572,10 @@ service cloud.firestore {
             incoming().authorUid.size() <= 200)) &&
           (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
           awStoragePathOk() &&
+          awUploadPathOk() &&
           (!awIsPadletSession() ||
-            (awAcceptingResponses() &&
+            ('type' in incoming() &&
+             awAcceptingResponses() &&
              awPadletAccessOk() &&
              incoming().authorUid == authUid() &&
              awTypeAllowed() &&
@@ -6567,7 +6593,7 @@ service cloud.firestore {
             'label', 'lat', 'lng', 'linkPreview', 'order',
             'fileName', 'mimeType', 'sizeBytes', 'editedAt', 'authorRole'
           ]) &&
-          isStr('id') &&
+          incoming().id == submissionId &&
           isStr('content') &&
           incoming().content.size() > 0 &&
           incoming().content.size() <= 5000 &&
@@ -6575,10 +6601,12 @@ service cloud.firestore {
           incoming().status == 'approved' &&
           incoming().authorRole == 'teacher' &&
           incoming().authorUid == authUid() &&
+          'type' in incoming() &&
           awFieldTypesOk() &&
           awTypeAllowed() &&
           (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
           awStoragePathOk() &&
+          awUploadPathOk() &&
           // Storage takes uploads only from the owner, so a co-teacher posts text, words and links.
           (awIsOwner() ||
            (incoming().get('type', 'text') in ['text', 'word', 'link'] &&
@@ -6593,8 +6621,8 @@ service cloud.firestore {
         // lists unfiltered and would break otherwise). Merged student page: the student-link
         // audience reads approved posts while the teacher keeps the wall visible.
         allow read: if signedIn() &&
-                            (isAdmin() ||
-                             sessionId.matches(authUid() + '_.*') ||
+                            (sessionId.matches(authUid() + '_.*') ||
+                             awSiteAdmin() ||
                              (awSession().get('publiclyShared', false) == true &&
                               (!awIsPadletSession() ||
                                existing().status == 'approved')) ||
@@ -6605,7 +6633,7 @@ service cloud.firestore {
                              awBoardMemberOk(true) ||
                              (existing().status == 'approved' && awBoardMemberOk(false)));
         allow delete: if signedIn() &&
-                            (isAdmin() || sessionId.matches(authUid() + '_.*'));
+                            (sessionId.matches(authUid() + '_.*') || awSiteAdmin());
         // Students may retract their own post while the wall is open and the
         // teacher enabled deletion (Padlet-lite sessions only).
         allow delete: if signedIn() &&
@@ -6620,7 +6648,7 @@ service cloud.firestore {
         // doc AFTER merge - untouched existing fields (e.g. driveFileId) stay present and
         // must pass the whitelist too. See create's comment for why an extra field matters.
         allow update: if signedIn() &&
-                            (isAdmin() || sessionId.matches(authUid() + '_.*')) &&
+                            (sessionId.matches(authUid() + '_.*') || awSiteAdmin()) &&
                             incoming().keys().hasOnly([
                               'id', 'activityId', 'content', 'submittedAt', 'status',
                               'participantLabel', 'storagePath', 'archiveStatus',
@@ -6632,7 +6660,7 @@ service cloud.firestore {
                               'linkPreview', 'fileName', 'mimeType', 'sizeBytes',
                               'editedAt', 'authorRole'
                             ]) &&
-                            isStr('id') &&
+                            sameId() &&
                             isStr('content') &&
                             incoming().content.size() > 0 &&
                             incoming().content.size() <= 5000 &&
@@ -6651,10 +6679,10 @@ service cloud.firestore {
                             optString(incoming(), 'drivePermission') &&
                             (!changed(['storagePath']) || awStoragePathOk());
         // Student self-edit: only the author, only while the wall is open and the teacher
-        // enabled editing, only content-shaped fields. `status` is writable in exactly one
-        // direction: when moderation is on and the edit touches `content`, the post returns
-        // to 'pending' - otherwise a student could smuggle unreviewed text into an approved
-        // card. With moderation off, status must stay untouched.
+        // enabled editing, only text and placement fields (media and link previews stay as
+        // reviewed). `status` is writable in exactly one direction: when moderation is on
+        // and the edit touches `content`, the post returns to 'pending'. With moderation
+        // off, status must stay untouched.
         allow update: if signedIn() &&
                             awIsPadletSession() &&
                             existing().get('authorUid', '') == authUid() &&
@@ -6662,10 +6690,10 @@ service cloud.firestore {
                             awAcceptingResponses() &&
                             changedOnly([
                               'content', 'title', 'label', 'sectionId', 'cellKey',
-                              'lat', 'lng', 'editedAt', 'linkPreview', 'storagePath',
-                              'archiveStatus', 'fileName', 'mimeType', 'sizeBytes',
-                              'status'
+                              'lat', 'lng', 'editedAt', 'status'
                             ]) &&
+                            (!changed(['content']) ||
+                             awContentEditable(['text', 'word', 'link'])) &&
                             (awSessionModerationEnabled() &&
                              changed(['content'])
                               ? incoming().status == 'pending'
@@ -6673,12 +6701,7 @@ service cloud.firestore {
                             isStr('content') &&
                             incoming().content.size() > 0 &&
                             incoming().content.size() <= 5000 &&
-                            awFieldTypesOk() &&
-                            // A re-upload may only re-enter the pipeline at 'firebase', under its own object path.
-                            (!changed(['archiveStatus']) ||
-                             incoming().archiveStatus == 'firebase') &&
-                            (!changed(['storagePath']) ||
-                             ('storagePath' in incoming() && awStoragePathOk()));
+                            awFieldTypesOk();
         // Board co-moderator: moderation and content fields only, never archive or authorship
         // fields; a content edit is stamped, and an upload's or link's content is its pointer.
         allow update: if signedIn() &&
@@ -6689,7 +6712,7 @@ service cloud.firestore {
                             ]) &&
                             incoming().status in ['approved', 'pending'] &&
                             (!changed(['content']) ||
-                             !(existing().get('type', 'text') in ['photo', 'video', 'file', 'link'])) &&
+                             awContentEditable(['text', 'word'])) &&
                             (!changed(['content', 'title', 'label']) || changed(['editedAt'])) &&
                             (!changed(['editedAt']) ||
                              (isInt('editedAt') &&

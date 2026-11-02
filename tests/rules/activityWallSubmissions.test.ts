@@ -307,7 +307,7 @@ describe('activity wall submissions — type gating', () => {
         doc(asStudent(), submissionPath('sub-1')),
         newSubmission({
           type: 'photo',
-          content: 'https://example.com/p.jpg',
+          content: `activity_wall_media/${SESSION_ID}/sub-1/c.jpg`,
           storagePath: `activity_wall_media/${SESSION_ID}/sub-1/c.jpg`,
           archiveStatus: 'firebase',
           fileName: 'c.jpg',
@@ -421,7 +421,10 @@ describe('activity wall submissions — per-student cap', () => {
 
   it('denies a random doc id when a cap is set', async () => {
     await assertFails(
-      setDoc(doc(asStudent(), submissionPath('random-id')), newSubmission())
+      setDoc(
+        doc(asStudent(), submissionPath('random-id')),
+        newSubmission({ id: 'random-id' })
+      )
     );
   });
 
@@ -437,7 +440,10 @@ describe('activity wall submissions — per-student cap', () => {
   it('allows a random doc id when the cap is unlimited', async () => {
     await seedSession(padletSession({ maxPostsPerStudent: 0 }));
     await assertSucceeds(
-      setDoc(doc(asStudent(), submissionPath('random-id')), newSubmission())
+      setDoc(
+        doc(asStudent(), submissionPath('random-id')),
+        newSubmission({ id: 'random-id' })
+      )
     );
   });
 });
@@ -516,10 +522,10 @@ describe('activity wall submissions — student edit and delete toggles', () => 
     );
   });
 
-  it('author can re-upload with a valid storagePath', async () => {
+  it('author cannot swap media on a self-edit, even to a valid storagePath', async () => {
     await seedSession(padletSession({ allowStudentEdit: true }));
     await seedSubmission('sub-1', existing({ archiveStatus: 'firebase' }));
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asStudent(), submissionPath('sub-1')), {
         archiveStatus: 'firebase',
         storagePath: `activity_wall_media/${SESSION_ID}/sub-1/photo.jpg`,
@@ -642,7 +648,7 @@ describe('activity wall submissions — storagePath stays inside its own submiss
     newSubmission({
       id: sub,
       type: 'photo',
-      content: 'https://example.com/p.jpg',
+      content: path,
       storagePath: path,
       archiveStatus: 'firebase',
       authorUid,
