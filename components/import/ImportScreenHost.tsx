@@ -218,8 +218,6 @@ const OpenImportScreen: React.FC<
       return canReadQuizDocuments;
     if (target === 'quiz' && CARTRIDGE.test(name))
       return schoology || canAccessFeature('quiz-imscc-import');
-    if (target === 'questionBank' && CARTRIDGE.test(name))
-      return schoology || canAccessFeature('question-bank-imscc-import');
     return true;
   };
 

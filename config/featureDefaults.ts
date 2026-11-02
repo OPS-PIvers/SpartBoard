@@ -464,21 +464,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Folded into schoology-quiz-import (SCHOOLOGY_QUIZ_IMPORT PR 5); retire both .imscc flags once that one opens.
-  'question-bank-imscc-import': {
-    label: 'Import question banks from Schoology',
-    icon: FileUp,
-    description:
-      'Import every question bank in a Schoology export (.imscc) at once.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Import question banks from Schoology',
-    group: 'building',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
+  // Folded into schoology-quiz-import (SCHOOLOGY_QUIZ_IMPORT PR 5); retire once that one opens.
   'quiz-imscc-import': {
     label: 'Import quizzes from Schoology',
     icon: FileUp,
