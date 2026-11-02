@@ -2632,7 +2632,7 @@
         "zoomIn": "Acercar",
         "zoomOut": "Alejar",
         "zoomFit": "Ajustar",
-        "darken": "Oscurecer la escritura",
+        "contrast": "Aumentar el contraste",
         "loading": "Cargando escritura",
         "unavailable": "Escritura no disponible",
         "reload": "Reintentar",

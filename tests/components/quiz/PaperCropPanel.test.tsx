@@ -6,6 +6,10 @@ import type { PaperPrivateAnswer, QuizResponseAnswer } from '@/types';
 import type { PaperWrittenActions } from '@/utils/paperCropFetch';
 import { PaperCropUnavailableError } from '@/utils/paperCropFetch';
 
+vi.mock('@/utils/scanContrast', () => ({
+  enhancedScanUrl: vi.fn(() => Promise.resolve('blob:enhanced')),
+}));
+
 const answer = (
   over: Partial<QuizResponseAnswer> = {}
 ): QuizResponseAnswer => ({
@@ -82,20 +86,31 @@ describe('PaperCropPanel', () => {
     );
   });
 
-  it('opens below fit width with darkening on, and zooms out further', async () => {
+  it('opens below fit width with contrast on, and zooms out further', async () => {
+    const revoke = vi
+      .spyOn(URL, 'revokeObjectURL')
+      .mockImplementation(() => undefined);
     setup();
     const img = await screen.findByAltText('Handwritten answer, question 7');
     expect(img.style.width).toBe('75%');
-    expect(img.style.filter).toMatch(/paper-darken-/);
+    await waitFor(() =>
+      expect(
+        screen.getByAltText('Handwritten answer, question 7')
+      ).toHaveAttribute('src', 'blob:enhanced')
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
     expect(img.style.width).toBe('50%');
     expect(screen.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Fit' }));
     expect(img.style.width).toBe('100%');
-    const darken = screen.getByRole('button', { name: 'Darken handwriting' });
-    expect(darken).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(darken);
-    expect(img.style.filter).toBe('');
+    const contrast = screen.getByRole('button', { name: 'Boost contrast' });
+    expect(contrast).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(contrast);
+    expect(contrast).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      screen.getByAltText('Handwritten answer, question 7')
+    ).toHaveAttribute('src', 'data:image/webp;base64,AA');
+    expect(revoke).toHaveBeenCalledWith('blob:enhanced');
   });
 
   it('offers a reload when the crop fails, but not when it is gone', async () => {
