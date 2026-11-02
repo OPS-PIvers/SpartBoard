@@ -2159,6 +2159,13 @@ export interface RandomConfig {
   rosterPoolGroupId?: string | null;
   /** Lock: saved class groups kept together when building groups. */
   lockedRosterGroupIds?: string[];
+  /** Shuffle mode: names as cards (default) or rows split by hairlines. */
+  rowStyle?: 'cards' | 'lines';
+  /** Shuffle mode: name card colour; unset keeps the white chip. */
+  cardColor?: string;
+  cardOpacity?: number;
+  /** Shuffle mode: name text colour; unset keeps the default slate. */
+  fontColor?: string;
 }
 
 export interface DiceConfig {

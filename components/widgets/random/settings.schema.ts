@@ -226,5 +226,36 @@ export default defineSettings<RandomConfig>({
         },
       ],
     },
+    {
+      id: 'display',
+      fields: [
+        {
+          key: 'rowStyle',
+          type: 'segmented',
+          label: 'rowStyle',
+          visibleWhen: isMode('shuffle'),
+          readValue: (ctx) => ctx.config.rowStyle ?? 'cards',
+          options: [
+            { value: 'cards', label: 'rowCards' },
+            { value: 'lines', label: 'rowLines' },
+          ],
+        },
+        {
+          key: 'cardColor',
+          type: 'surfaceColor',
+          label: 'style.cardColor',
+          opacityKey: 'cardOpacity',
+          readValue: (ctx) => ctx.config.cardColor ?? '#ffffff',
+          visibleWhen: isMode('shuffle'),
+        },
+        {
+          key: 'fontColor',
+          type: 'color',
+          label: 'style.fontColor',
+          readValue: (ctx) => ctx.config.fontColor ?? '#1e293b',
+          visibleWhen: isMode('shuffle'),
+        },
+      ],
+    },
   ],
 });

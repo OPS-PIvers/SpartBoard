@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Layers } from 'lucide-react';
 import { StudentChip } from './StudentChip';
+import { hexToRgba } from '@/utils/styles';
 
 const SHUFFLE_LIST_ZONE_ID = 'shuffle-list';
 
@@ -14,6 +15,10 @@ interface ShuffleRowProps {
   onToggleDone: (name: string) => void;
   fontSize: string;
   iconSize: string;
+  lines: boolean;
+  firstInColumn: boolean;
+  cardBackground?: string;
+  textColor?: string;
 }
 
 const ShuffleRow: React.FC<ShuffleRowProps> = ({
@@ -25,6 +30,10 @@ const ShuffleRow: React.FC<ShuffleRowProps> = ({
   onToggleDone,
   fontSize,
   iconSize,
+  lines,
+  firstInColumn,
+  cardBackground,
+  textColor,
 }) => {
   // Each row is a droppable insertion point. Drop on row N → insert before N.
   const dropId = `shuffle-row:${index}`;
@@ -38,13 +47,21 @@ const ShuffleRow: React.FC<ShuffleRowProps> = ({
       }`}
       style={{
         gap: 'clamp(4px, 1.5cqmin, 10px)',
+        ...(lines && !firstInColumn
+          ? {
+              borderTop: `1px solid color-mix(in srgb, ${textColor ?? '#1e293b'} 14%, transparent)`,
+            }
+          : {}),
       }}
     >
       <span
-        className="font-mono font-black text-slate-400 shrink-0 tabular-nums flex items-center justify-end"
+        className={`font-mono font-black shrink-0 tabular-nums flex items-center justify-end ${textColor ? '' : 'text-slate-400'}`}
         style={{
           fontSize,
           minWidth: iconSize,
+          ...(textColor
+            ? { color: `color-mix(in srgb, ${textColor} 55%, transparent)` }
+            : {}),
         }}
       >
         {index + 1}
@@ -60,6 +77,9 @@ const ShuffleRow: React.FC<ShuffleRowProps> = ({
           onToggleDone={onToggleDone}
           variant="row"
           fontSize={fontSize}
+          lines={lines}
+          cardBackground={cardBackground}
+          textColor={textColor}
         />
       </div>
     </div>
@@ -72,6 +92,12 @@ interface ShuffleListProps {
   onToggleLock: (name: string) => void;
   doneNames: string[];
   onToggleDone: (name: string) => void;
+  rowStyle?: 'cards' | 'lines';
+  cardColor?: string;
+  cardOpacity?: number;
+  fontColor?: string;
+  /** Window text size multiplier (resolveBaseTextScale). */
+  textScale?: number;
 }
 
 /**
@@ -106,7 +132,16 @@ export const ShuffleList: React.FC<ShuffleListProps> = ({
   onToggleLock,
   doneNames,
   onToggleDone,
+  rowStyle,
+  cardColor,
+  cardOpacity,
+  fontColor,
+  textScale = 1,
 }) => {
+  const lines = rowStyle === 'lines';
+  const cardBackground = cardColor
+    ? hexToRgba(cardColor, cardOpacity ?? 1)
+    : undefined;
   const lockedSet = React.useMemo(() => new Set(lockedNames), [lockedNames]);
   const doneSet = React.useMemo(() => new Set(doneNames), [doneNames]);
   const { isOver, setNodeRef } = useDroppable({ id: SHUFFLE_LIST_ZONE_ID });
@@ -195,7 +230,10 @@ export const ShuffleList: React.FC<ShuffleListProps> = ({
   const fontFromWidth = chipWidth / Math.max(4.5 + 0.6 * maxNameLen, 1);
   // Leave 4px headroom (2px border + small gap) so chips never overflow.
   const fontFromHeight = (rowHeight - 4) * 0.5;
-  const fontSizePx = Math.max(10, Math.min(20, fontFromWidth, fontFromHeight));
+  const fontSizePx = Math.max(
+    10 * textScale,
+    Math.min(20 * textScale, fontFromWidth, fontFromHeight)
+  );
   const fontSize = `${fontSizePx}px`;
   // Lock icon stays at 1em via StudentChip's em-relative sizing, so we
   // don't need to thread a separate icon-size override anymore — but keep
@@ -216,8 +254,9 @@ export const ShuffleList: React.FC<ShuffleListProps> = ({
         // read a numbered list when scanning a wide widget.
         gridAutoFlow: 'column',
         columnGap: 'clamp(8px, 2.5cqmin, 18px)',
-        rowGap: 'clamp(5px, 1.5cqmin, 12px)',
-        padding: 'clamp(2px, 1cqmin, 6px) 0',
+        rowGap: lines ? 0 : 'clamp(5px, 1.5cqmin, 12px)',
+        padding: lines ? '0 min(8px, 2cqmin)' : 'clamp(2px, 1cqmin, 6px) 0',
+        ...(lines ? { backgroundColor: cardBackground ?? '#ffffff' } : {}),
       }}
     >
       {names.map((name, i) => (
@@ -231,6 +270,10 @@ export const ShuffleList: React.FC<ShuffleListProps> = ({
           onToggleDone={onToggleDone}
           fontSize={fontSize}
           iconSize={iconSize}
+          lines={lines}
+          firstInColumn={i % rows === 0}
+          cardBackground={cardBackground}
+          textColor={fontColor}
         />
       ))}
     </div>
