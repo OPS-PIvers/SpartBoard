@@ -60,6 +60,7 @@ export const FibMultiBlankInput: React.FC<{
             <BlankBadge n={i + 1} light={light} />
           </span>
           <input
+            // no-tour-anchor: student quiz screen; tours walk teachers
             type="text"
             aria-label={`Blank ${i + 1}`}
             value={parts[i] ?? ''}

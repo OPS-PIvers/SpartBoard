@@ -21,6 +21,7 @@ import {
   type NextUpQueueAction,
 } from './nextUpQueueUtils';
 import { getNextUpQueueStore } from './nextUpQueueStore';
+import { assertNextUpQueueFile } from './nextUpDriveFile';
 import {
   collection,
   onSnapshot,
@@ -116,6 +117,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
       setLoading(true);
       store
         .load(async () => {
+          await assertNextUpQueueFile(driveService, activeDriveFileId);
           const blob = await driveService.downloadFile(activeDriveFileId);
           return JSON.parse(await blob.text()) as NextUpQueueItem[];
         })
@@ -136,6 +138,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const writeQueue = useCallback(
     async (fileId: string, updatedQueue: NextUpQueueItem[]) => {
       if (!driveService) throw new Error('Google Drive is not connected');
+      await assertNextUpQueueFile(driveService, fileId);
       const blob = new Blob([JSON.stringify(updatedQueue)], {
         type: 'application/json',
       });
