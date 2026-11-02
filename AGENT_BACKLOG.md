@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-86**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-87**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -98,6 +98,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 - **AB-30 Activity Wall leftovers** (S). P3-3: delete the no-op `archiveActivityWallPhoto` callable and its test, the `activity_wall_photos` block in `storage.rules`, the `?data=` decoder remnants, and the deprecated `mode`/`identificationMode` writes (`functions/src/driveArchive.ts`, `functions/src/index.ts`, `types.ts`, `components/widgets/ActivityWall/`). Keep old docs readable.
 - **AB-31 Dead sidebar component** (S). `components/layout/sidebar/SidebarBoardsActive.tsx` is rendered nowhere; remove it, its test, and its entries in `config/tourSurfaces/board.ts`, `tests/e2e/sharing.spec.ts` and `tests/i18n/boardsModalCollectionLocales.test.ts`.
 - **AB-32 Always-visible copy leftovers** (S). From `docs/plans/shipped/ALWAYS_VISIBLE_COPY.md`: decorative accent strips (Analytics KPI cards, LinksPanel, WhatsNewModal, TalkingTool); colour-only status (Drive sidebar dot, class-row dot, Poll and VA markers, PLC switches missing `role="switch"`); static help styled as blue alert boxes (QuizEditor, StimulusManagerPanel).
+- **AB-86 Connector timers use the teacher starting length** (S). #5009 starts new Time Tool timers at the teacher's `timeToolStartSeconds` (flag `timer-starting-length`) on client adds only; timers the Claude connector adds still use the building default. Files: `functions/src/mcp/boardConfig.ts` (`widgetConfigSources`), `functions/src/mcp/boardWrite.ts`, `utils/timeToolClock.ts` (`withTimerStartSeconds`). Done when: a connector-added timer starts at the saved length when the flag allows, a stopwatch stays at 0, and a test covers both. Do before PT-109 opens the flag.
 
 ### Build hygiene
 
