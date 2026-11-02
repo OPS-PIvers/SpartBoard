@@ -317,7 +317,7 @@ export const ConnectionEditorModal: React.FC<{
                                     ),
                                   })
                                 }
-                                className="touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100"
+                                className="relative touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100"
                               >
                                 <X className="w-4 h-4" aria-hidden="true" />
                               </button>
@@ -375,7 +375,7 @@ export const ConnectionEditorModal: React.FC<{
                         defaultValue: 'Move step up',
                       })}
                       onClick={() => moveStep(i, -1)}
-                      className="touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                      className="relative touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
                     >
                       <ArrowUp className="w-4 h-4" aria-hidden="true" />
                     </button>
@@ -387,7 +387,7 @@ export const ConnectionEditorModal: React.FC<{
                         defaultValue: 'Move step down',
                       })}
                       onClick={() => moveStep(i, 1)}
-                      className="touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                      className="relative touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
                     >
                       <ArrowDown className="w-4 h-4" aria-hidden="true" />
                     </button>
@@ -400,7 +400,7 @@ export const ConnectionEditorModal: React.FC<{
                       onClick={() =>
                         setSteps(seq.steps.filter((_, j) => j !== i))
                       }
-                      className="touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100"
+                      className="relative touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100"
                     >
                       <Trash2 className="w-4 h-4" aria-hidden="true" />
                     </button>
@@ -517,7 +517,7 @@ export const ConnectionEditorModal: React.FC<{
                     onClick={() =>
                       setConnections((cs) => cs.filter((c) => c.id !== f.id))
                     }
-                    className="touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100"
+                    className="relative touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100"
                   >
                     <X className="w-4 h-4" aria-hidden="true" />
                   </button>
