@@ -60,6 +60,7 @@ import {
   sniffImageMime,
   type ExtractDeps,
   type PublicGet,
+  extractStimulusReadAloudTextV1,
 } from './quizStimulusText';
 import type { Firestore } from 'firebase-admin/firestore';
 
@@ -537,5 +538,32 @@ describe('chargeOcrQuota', () => {
     await expect(
       chargeOcrQuota(off.db, 't1', null, NOW)
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('extractStimulusReadAloudTextV1 caller gate', () => {
+  const handler = extractStimulusReadAloudTextV1 as unknown as (req: {
+    auth: unknown;
+    data: unknown;
+  }) => Promise<unknown>;
+
+  it('refuses anonymous and unverified callers before any feature lookup', async () => {
+    vi.mocked(isGlobalFeatureGranted).mockClear();
+    for (const auth of [
+      { uid: 'anon-1', token: { firebase: { sign_in_provider: 'anonymous' } } },
+      {
+        uid: 'u-1',
+        token: {
+          email: 'teacher@orono.k12.mn.us',
+          email_verified: false,
+          firebase: { sign_in_provider: 'password' },
+        },
+      },
+    ]) {
+      await expect(handler({ auth, data: {} })).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+    }
+    expect(isGlobalFeatureGranted).not.toHaveBeenCalled();
   });
 });
