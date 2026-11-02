@@ -478,3 +478,34 @@ describe('uploaders cannot pull or swap media on a written post (Storage)', () =
     );
   });
 });
+
+describe('padlet posts name their type', () => {
+  it('a guest post with no type is denied on a padlet wall', async () => {
+    await seed(
+      `activity_wall_sessions/${SESSION_ID}`,
+      session({ allowGuests: true, mode: 'photo' })
+    );
+    const { type: _omit, ...typeless } = post('anon-uid__abc12345', {
+      authorUid: 'anon-uid',
+      content: 'https://evil.example/x.png',
+    });
+    void _omit;
+    await assertFails(
+      setDoc(doc(asAnon().firestore(), subPath('anon-uid__abc12345')), typeless)
+    );
+  });
+
+  it('a co-moderator or student cannot rewrite the content of a typeless post', async () => {
+    const id = `${STUDENT_UID}__legacy12`;
+    const { type: _omit, ...typeless } = post(id, { status: 'approved' });
+    void _omit;
+    await seed(subPath(id), typeless);
+    await assertFails(
+      updateDoc(doc(asStudent().firestore(), subPath(id)), {
+        content: 'https://evil.example/x.png',
+        status: 'pending',
+        editedAt: 2,
+      })
+    );
+  });
+});

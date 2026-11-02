@@ -29,7 +29,6 @@ import {
   setDoc,
   getDoc,
   getDocs,
-  addDoc,
   collection,
   deleteDoc,
   updateDoc,
@@ -37,6 +36,7 @@ import {
   query,
   where,
   writeBatch,
+  type CollectionReference,
 } from 'firebase/firestore';
 import { seedDistrictStaff } from './districtStaffSeed';
 
@@ -853,6 +853,10 @@ describe('guided_learning_sessions/responses — student-role gate', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Wall posts carry their doc id in `id`, so these write at 'sub-1' rather than an auto id.
+const addWallSub = (c: CollectionReference, d: Record<string, unknown>) =>
+  setDoc(doc(c, 'sub-1'), d);
+
 // activity_wall_sessions/submissions — create
 // ---------------------------------------------------------------------------
 
@@ -874,16 +878,16 @@ describe('activity_wall_sessions/submissions — student-role gate', () => {
   });
 
   it('student in class-A can submit to session-A', async () => {
-    await assertSucceeds(addDoc(subCol(SESSION_A), validSub()));
+    await assertSucceeds(addWallSub(subCol(SESSION_A), validSub()));
   });
 
   it('student in class-A cannot submit to session-B (wrong class)', async () => {
-    await assertFails(addDoc(subCol(SESSION_B), validSub()));
+    await assertFails(addWallSub(subCol(SESSION_B), validSub()));
   });
 
   it('student with empty classIds cannot submit to any session', async () => {
     await assertFails(
-      addDoc(
+      addWallSub(
         collection(asStudentEmpty(), `${col}/${SESSION_A}/submissions`),
         validSub()
       )
@@ -892,7 +896,7 @@ describe('activity_wall_sessions/submissions — student-role gate', () => {
 
   it('anonymous PIN student can submit without studentRole restriction', async () => {
     await assertSucceeds(
-      addDoc(
+      addWallSub(
         collection(asAnonStudent(), `${col}/${SESSION_A}/submissions`),
         validSub()
       )
@@ -901,7 +905,7 @@ describe('activity_wall_sessions/submissions — student-role gate', () => {
 
   it('teacher (non-anonymous) can submit (no studentRole block)', async () => {
     await assertSucceeds(
-      addDoc(
+      addWallSub(
         collection(asTeacher(), `${col}/${SESSION_A}/submissions`),
         validSub()
       )
@@ -910,7 +914,7 @@ describe('activity_wall_sessions/submissions — student-role gate', () => {
 
   it('unauthenticated caller cannot submit', async () => {
     await assertFails(
-      addDoc(
+      addWallSub(
         collection(asUnauth(), `${col}/${SESSION_A}/submissions`),
         validSub()
       )
@@ -957,7 +961,7 @@ describe('activity_wall_sessions/submissions — Phase-5A compat (classIds list)
 
   it('student in class-A can submit to a classIds-list session-A', async () => {
     await assertSucceeds(
-      addDoc(
+      addWallSub(
         collection(asStudentA(), `${col}/${SESSION_A}/submissions`),
         validSub()
       )
@@ -966,7 +970,7 @@ describe('activity_wall_sessions/submissions — Phase-5A compat (classIds list)
 
   it('student in class-A cannot submit to a classIds-list session-B (wrong class)', async () => {
     await assertFails(
-      addDoc(
+      addWallSub(
         collection(asStudentA(), `${col}/${SESSION_B}/submissions`),
         validSub()
       )
@@ -975,7 +979,7 @@ describe('activity_wall_sessions/submissions — Phase-5A compat (classIds list)
 
   it('student with empty classIds cannot submit to a classIds-list session', async () => {
     await assertFails(
-      addDoc(
+      addWallSub(
         collection(asStudentEmpty(), `${col}/${SESSION_A}/submissions`),
         validSub()
       )
@@ -984,7 +988,7 @@ describe('activity_wall_sessions/submissions — Phase-5A compat (classIds list)
 
   it('anonymous PIN student can still submit to a classIds-list session', async () => {
     await assertSucceeds(
-      addDoc(
+      addWallSub(
         collection(asAnonStudent(), `${col}/${SESSION_A}/submissions`),
         validSub()
       )
@@ -1032,7 +1036,7 @@ describe('activity_wall_sessions/submissions — moderation status gate', () => 
 
   it('cannot self-approve a submission when moderation is enabled', async () => {
     await assertFails(
-      addDoc(
+      addWallSub(
         collection(asStudentA(), `${col}/${MODERATED_SESSION}/submissions`),
         subFor('approved')
       )
@@ -1041,7 +1045,7 @@ describe('activity_wall_sessions/submissions — moderation status gate', () => 
 
   it('can submit as pending when moderation is enabled', async () => {
     await assertSucceeds(
-      addDoc(
+      addWallSub(
         collection(asStudentA(), `${col}/${MODERATED_SESSION}/submissions`),
         subFor('pending')
       )
@@ -1050,7 +1054,7 @@ describe('activity_wall_sessions/submissions — moderation status gate', () => 
 
   it('auto-approves when moderation is disabled', async () => {
     await assertSucceeds(
-      addDoc(
+      addWallSub(
         collection(asStudentA(), `${col}/${OPEN_SESSION}/submissions`),
         subFor('approved')
       )
@@ -1059,7 +1063,7 @@ describe('activity_wall_sessions/submissions — moderation status gate', () => 
 
   it('cannot submit as pending when moderation is disabled', async () => {
     await assertFails(
-      addDoc(
+      addWallSub(
         collection(asStudentA(), `${col}/${OPEN_SESSION}/submissions`),
         subFor('pending')
       )

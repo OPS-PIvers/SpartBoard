@@ -6528,7 +6528,8 @@ service cloud.firestore {
           awStoragePathOk() &&
           awUploadPathOk() &&
           (!awIsPadletSession() ||
-            (awAcceptingResponses() &&
+            ('type' in incoming() &&
+             awAcceptingResponses() &&
              awPadletAccessOk() &&
              incoming().authorUid == authUid() &&
              awTypeAllowed() &&
@@ -6554,6 +6555,7 @@ service cloud.firestore {
           incoming().status == 'approved' &&
           incoming().authorRole == 'teacher' &&
           incoming().authorUid == authUid() &&
+          'type' in incoming() &&
           awFieldTypesOk() &&
           awTypeAllowed() &&
           (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
@@ -6645,7 +6647,7 @@ service cloud.firestore {
                               'lat', 'lng', 'editedAt', 'status'
                             ]) &&
                             (!changed(['content']) ||
-                             !(existing().get('type', 'text') in ['photo', 'video', 'file'])) &&
+                             existing().get('type', '') in ['text', 'word', 'link']) &&
                             (awSessionModerationEnabled() &&
                              changed(['content'])
                               ? incoming().status == 'pending'
@@ -6664,7 +6666,7 @@ service cloud.firestore {
                             ]) &&
                             incoming().status in ['approved', 'pending'] &&
                             (!changed(['content']) ||
-                             !(existing().get('type', 'text') in ['photo', 'video', 'file', 'link'])) &&
+                             existing().get('type', '') in ['text', 'word']) &&
                             (!changed(['content', 'title', 'label']) || changed(['editedAt'])) &&
                             (!changed(['editedAt']) ||
                              (isInt('editedAt') &&

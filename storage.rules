@@ -247,18 +247,14 @@ service firebase.storage {
             /databases/(default)/documents/activity_wall_sessions/$(sessionId)/submissions/$(submissionId)
           ).data.get('status', '') == 'approved';
       }
-      // The owning teacher (uid prefix in sessionId) and admins post from the
-      // widget face and are never subject to the student/guest audience gates.
-      function awIsOwner() {
-        // Owner prefix first so the owner never spends a Firestore lookup on the admin check.
-        return sessionId.matches(request.auth.uid + '_.*') || isSiteAdmin();
-      }
       // studentRole users always; anyone else only once the teacher opted into
       // guest posting (anonymous callers never carry the studentRole claim).
+      // Site admin last: Storage rules may read only two Firestore docs, and the admins doc would be a third.
       function awCallerAllowed() {
-        return awIsOwner() ||
+        return sessionId.matches(request.auth.uid + '_.*') ||
                request.auth.token.get('studentRole', false) == true ||
-               awSession().get('allowGuests', false) == true;
+               awSession().get('allowGuests', false) == true ||
+               isSiteAdmin();
       }
       // Storage mirror of firestore.rules passesStudentClassGateCompat: a
       // studentRole caller must be enrolled in one of the session's classes.
@@ -314,7 +310,9 @@ service firebase.storage {
         ) &&
         // The owner is exempt from the closed-wall gate so this layer agrees
         // with the Firestore teacher-create branch, which never checks it.
-        (awIsOwner() || awSession().get('acceptingResponses', true) != false) &&
+        (sessionId.matches(request.auth.uid + '_.*') ||
+         awSession().get('acceptingResponses', true) != false ||
+         isSiteAdmin()) &&
         // Uploads come before the post; nobody else adds media to a post already written.
         (sessionId.matches(request.auth.uid + '_.*') || !awSubmissionExists()) &&
         awCallerAllowed() &&
@@ -340,12 +338,12 @@ service firebase.storage {
       // submission write, or when the teacher lets students delete posts on an open wall.
       allow delete: if request.auth != null && viewAsWriteOk() && pinScopeOk(sessionId) &&
         (sessionId.matches(request.auth.uid + '_.*') ||
-         isSiteAdmin() ||
          ((submissionId == request.auth.uid ||
            submissionId.matches('^' + request.auth.uid + '__.*')) &&
           (!awSubmissionExists() ||
            (awSession().get('allowStudentDelete', false) == true &&
-            awSession().get('acceptingResponses', true) != false))));
+            awSession().get('acceptingResponses', true) != false))) ||
+         isSiteAdmin());
     }
 
     // Quiz recorded media — transit buffer only. The path segment is the
