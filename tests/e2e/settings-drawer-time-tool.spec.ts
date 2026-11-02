@@ -59,6 +59,13 @@ test.describe('time-tool settings drawer at 1280x800', () => {
   test('edits one field per group, reflects it on the board, and keeps values on reopen', async ({
     page,
   }) => {
+    // The timer-end partner cards are the old toggles, which Widget Connections hides from the mock admin.
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        'authBypassFeatureOverrides',
+        JSON.stringify({ 'widget-connections': false })
+      )
+    );
     await page.goto('/');
     const widget = await addTimerWidget(page);
     let drawer = await openDrawer(page);
