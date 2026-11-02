@@ -320,39 +320,39 @@
     },
     "V2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/default__typical.png",
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/default__stress.png"
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/url/default__typical.png",
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/url/default__stress.png"
         ],
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "spot-2026-11-02"
       },
-      "note": "The purpose is clear at a glance and the face is just labelled tiles, though 7 colours and 10 boxes sit a little over the minimum.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-20T04:16:40.160Z",
+      "gradedAt": "2026-11-02T18:58:08.453Z",
       "stale": false
     },
     "V3": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/url/default__typical.png"
         ],
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "spot-2026-11-02"
       },
-      "note": "The tile is the clear primary element with the icon above the label, though every tile carries equal weight.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-20T04:16:40.160Z",
+      "gradedAt": "2026-11-02T18:58:10.647Z",
       "stale": false
     },
     "V4": {
@@ -375,20 +375,20 @@
     },
     "V6": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-11-02/screenshots/url/default__typical.png"
         ],
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "spot-2026-11-02"
       },
-      "note": "Copy guard shows no violations, labels are short and plain, and every icon is lucide.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-20T04:16:40.160Z",
+      "gradedAt": "2026-11-02T18:58:13.105Z",
       "stale": false
     },
     "C1": {
