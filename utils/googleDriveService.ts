@@ -1,6 +1,7 @@
 import { APP_NAME } from '@/config/constants';
 import { Dashboard } from '@/types';
 import { authError } from './driveAuthErrors';
+import { isInAppFolder, type DriveParentMeta } from './driveAppFolder';
 import { migrateBoardWidgets } from './migration';
 
 // Re-export so existing imports of `isDriveAuthError` from this module keep
@@ -962,6 +963,20 @@ export class GoogleDriveService {
       );
       throw new Error(message);
     }
+  }
+
+  /** True when the file sits directly in one of the given app folders, by Drive metadata. */
+  async isInAppFolder(
+    fileId: string,
+    folderPaths: readonly string[]
+  ): Promise<boolean> {
+    return isInAppFolder(fileId, folderPaths, async (id) => {
+      const res = await this.fetchWithRetry(
+        `${DRIVE_API_URL}/files/${id}?fields=name,parents,trashed`,
+        { headers: this.headers }
+      );
+      return res.ok ? ((await res.json()) as DriveParentMeta) : null;
+    });
   }
 
   /**
