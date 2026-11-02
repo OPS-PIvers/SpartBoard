@@ -1,10 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowDown,
   ArrowUp,
   Clock,
+  MoreHorizontal,
+  Play,
   Plus,
+  Repeat,
   Square,
   Trash2,
   X,
@@ -13,6 +17,7 @@ import type {
   ConnectionAction,
   ConnectionStep,
   Dashboard,
+  FollowConnection,
   SequenceConnection,
   WidgetConnection,
   WidgetData,
@@ -25,7 +30,14 @@ import {
   type EditorDraft,
 } from '@/context/connectionsUiStore';
 import { connectionDefFor } from '@/config/widgetConnections';
+import { Z_INDEX } from '@/config/zIndex';
 import { isConnectionLive } from '@/utils/connectionEngine';
+import { sendRunCommand } from '@/utils/connectionSignals';
+import {
+  headingAfter,
+  loopRunsOut,
+  type RowHeading,
+} from '@/utils/connectionWording';
 import { getTitle } from '@/utils/widgetHelpers';
 import { tourAttr } from '@/config/tourAnchors';
 import { StepParamPicker } from './StepParamPicker';
@@ -74,6 +86,62 @@ const cleanForSave = (
   return steps.length >= 2 && isConnectionLive(seq, widgets) ? seq : null;
 };
 
+// A small menu pinned under the button that opened it, above the modal.
+const PopMenu: React.FC<{
+  at: DOMRect;
+  onClose: () => void;
+  children: React.ReactNode;
+  alignRight?: boolean;
+}> = ({ at, onClose, children, alignRight }) => {
+  // Escape closes just this menu, not the editor under it.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0"
+        style={{ zIndex: Z_INDEX.popover }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      />
+      <div
+        role="menu"
+        className="fixed min-w-48 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 pb-1 text-sm text-slate-700 shadow-xl"
+        style={{
+          left: Math.max(
+            8,
+            Math.min(
+              alignRight ? at.right - 192 : at.left,
+              window.innerWidth - 208
+            )
+          ),
+          top: at.bottom + 6,
+          zIndex: Z_INDEX.popover + 1,
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </>,
+    document.body
+  );
+};
+
+const menuItem =
+  'flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent';
+
+const actionSelectClass =
+  'rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-700 hover:border-slate-300';
+
 export const ConnectionEditorModal: React.FC<{
   draft: EditorDraft;
   board: Dashboard;
@@ -81,6 +149,12 @@ export const ConnectionEditorModal: React.FC<{
   const { t } = useTranslation();
   const { updateDashboard } = useDashboard();
   const [connections, setConnections] = useState(draft.connections);
+  const [rowMenu, setRowMenu] = useState<{ i: number; at: DOMRect } | null>(
+    null
+  );
+  const [alsoMenu, setAlsoMenu] = useState<{ i: number; at: DOMRect } | null>(
+    null
+  );
   const names = useWidgetNames(board.widgets);
   const widgetsById = useMemo(
     () => new Map(board.widgets.map((w) => [w.id, w])),
@@ -93,7 +167,9 @@ export const ConnectionEditorModal: React.FC<{
   const seq = connections.find(
     (c): c is SequenceConnection => c.kind === 'sequence'
   );
-  const follows = connections.filter((c) => c.kind === 'follow');
+  const follows = connections.filter(
+    (c): c is FollowConnection => c.kind === 'follow'
+  );
   const liveRun = board.connections?.find(
     (c) => c.kind === 'sequence' && draft.replaces.includes(c.id) && c.run
   );
@@ -117,7 +193,7 @@ export const ConnectionEditorModal: React.FC<{
     setSteps(steps);
   };
 
-  const addWait = () => {
+  const addPause = () => {
     if (!seq) return;
     setSteps([...seq.steps, { id: newStepId(), actions: [], waitSeconds: 5 }]);
   };
@@ -125,7 +201,7 @@ export const ConnectionEditorModal: React.FC<{
   const addWidgets = () =>
     startConnectMode(board.id, null, { ...draft, connections });
 
-  const save = () => {
+  const save = (start: boolean) => {
     const kept = (board.connections ?? []).filter(
       (c) => !draft.replaces.includes(c.id)
     );
@@ -135,6 +211,8 @@ export const ConnectionEditorModal: React.FC<{
     });
     updateDashboard({ connections: [...kept, ...cleaned] });
     close();
+    const saved = cleaned.find((c) => c.kind === 'sequence');
+    if (start && saved) sendRunCommand(saved.id, 'start');
   };
 
   const remove = () => {
@@ -165,16 +243,78 @@ export const ConnectionEditorModal: React.FC<{
     });
   };
 
+  const headingText = (h: RowHeading) => {
+    switch (h.kind) {
+      case 'start':
+        return t('connections.editor.headStart', { defaultValue: 'Start' });
+      case 'after-pause':
+        return t('connections.editor.headAfterPause', {
+          defaultValue: 'After the pause',
+        });
+      case 'right-after':
+        return t('connections.editor.headRightAfter', {
+          defaultValue: 'Right after',
+        });
+      case 'next-block':
+        return t('connections.editor.headNextBlock', {
+          defaultValue: 'When the next block starts',
+        });
+      case 'ends': {
+        const list = h.widgetIds.map((id) => names.get(id) ?? '').join(' and ');
+        return h.widgetIds.length > 1
+          ? t('connections.editor.headEndMany', {
+              names: list,
+              defaultValue: 'When {{names}} end',
+            })
+          : t('connections.editor.headEnds', {
+              names: list,
+              defaultValue: 'When {{names}} ends',
+            });
+      }
+    }
+  };
+
+  const followText = (f: FollowConnection) => {
+    const follower = widgetsById.get(f.followerId);
+    const values = {
+      follower: names.get(f.followerId) ?? '',
+      leader: names.get(f.leaderId) ?? '',
+    };
+    return t(`connections.editor.followLine.${follower?.type ?? 'other'}`, {
+      ...values,
+      defaultValue: t('connections.editor.followsLine', {
+        ...values,
+        defaultValue: '{{follower}} follows {{leader}}',
+      }),
+    });
+  };
+
+  const runsOut = seq ? loopRunsOut(seq, board.widgets) : null;
+  const untilLabel =
+    runsOut === 'names'
+      ? t('connections.editor.loopUntilNames', {
+          defaultValue: 'Loop until every name is used',
+        })
+      : runsOut === 'items'
+        ? t('connections.editor.loopUntilItems', {
+            defaultValue: 'Loop until every item is checked',
+          })
+        : t('connections.editor.loopUntilStop', {
+            defaultValue: 'Loop until I press Stop',
+          });
+
+  const canStart = !!seq && !!cleanForSave(seq, board.widgets);
+
   const footer = (
-    <div className="flex items-center gap-2 w-full">
+    <div className="flex w-full items-center gap-2">
       {draft.replaces.length > 0 && (
         <button
           type="button"
           {...tourAttr('connections.editor.delete')}
           onClick={remove}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-brand-red-primary hover:bg-brand-red-lighter/40 rounded-lg"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-brand-red-primary hover:bg-brand-red-lighter/40"
         >
-          <Trash2 className="w-4 h-4" aria-hidden="true" />
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
           {t('connections.editor.delete', {
             defaultValue: 'Delete connection',
           })}
@@ -185,20 +325,124 @@ export const ConnectionEditorModal: React.FC<{
         type="button"
         {...tourAttr('connections.editor.cancel')}
         onClick={close}
-        className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+        className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
       >
         {t('common.cancel')}
       </button>
       <button
         type="button"
         {...tourAttr('connections.editor.save')}
-        onClick={save}
-        className="px-5 py-2 text-sm font-semibold rounded-full bg-brand-blue-primary text-white hover:bg-brand-blue-dark"
+        onClick={() => save(false)}
+        className={
+          canStart
+            ? 'rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50'
+            : 'rounded-full bg-brand-blue-primary px-5 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark'
+        }
       >
         {t('common.save', { defaultValue: 'Save' })}
       </button>
+      {canStart && (
+        <button
+          type="button"
+          {...tourAttr('connections.editor.save-start')}
+          onClick={() => save(true)}
+          className="flex items-center gap-1.5 rounded-full bg-brand-blue-primary px-5 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark"
+        >
+          <Play className="h-4 w-4" aria-hidden="true" />
+          {t('connections.editor.saveStart', {
+            defaultValue: 'Save and start',
+          })}
+        </button>
+      )}
     </div>
   );
+
+  const rowHead = (text: string) => (
+    <p className="text-xs font-bold uppercase tracking-wide text-brand-blue-primary">
+      {text}
+    </p>
+  );
+
+  const actionLine = (step: ConnectionStep, i: number) =>
+    step.actions.map((a, k) => {
+      const w = widgetsById.get(a.widgetId);
+      if (!w) return null;
+      const def = connectionDefFor(w.type);
+      const name = names.get(w.id);
+      return (
+        <div
+          key={`${a.widgetId}-${k}`}
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+        >
+          <span className="font-semibold text-slate-800">{name}</span>
+          {def && def.actions.length > 1 ? (
+            <select
+              value={a.action}
+              {...tourAttr('connections.editor.step-action')}
+              aria-label={t('connections.editor.actionFor', {
+                name,
+                defaultValue: 'What {{name}} does',
+              })}
+              onChange={(e) =>
+                updateStep(i, {
+                  ...step,
+                  actions: step.actions.map((x, j) =>
+                    j === k ? withDefaults(w, e.target.value) : x
+                  ),
+                })
+              }
+              className={actionSelectClass}
+            >
+              {def.actions.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {actionLabel(w, opt.id)}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-slate-600">{actionLabel(w, a.action)}</span>
+          )}
+          <StepParamPicker
+            widget={w}
+            action={a.action}
+            params={a.params}
+            label={t('connections.editor.choiceFor', {
+              name,
+              defaultValue: 'Choice for {{name}}',
+            })}
+            onChange={(params) =>
+              updateStep(i, {
+                ...step,
+                actions: step.actions.map((x, j) =>
+                  j === k ? { ...x, params } : x
+                ),
+              })
+            }
+          />
+          {step.actions.length > 1 && (
+            <button
+              type="button"
+              {...tourAttr('connections.editor.remove-action')}
+              aria-label={t('connections.editor.removeAction', {
+                defaultValue: 'Remove from this step',
+              })}
+              onClick={() =>
+                updateStep(i, {
+                  ...step,
+                  actions: step.actions.filter((_, j) => j !== k),
+                })
+              }
+              className="relative touch-target-expand rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      );
+    });
+
+  const menuStep = rowMenu && seq ? seq.steps[rowMenu.i] : undefined;
+  const alsoStep = alsoMenu && seq ? seq.steps[alsoMenu.i] : undefined;
 
   return (
     <Modal
@@ -209,7 +453,7 @@ export const ConnectionEditorModal: React.FC<{
       footer={footer}
       closeTourId="connections.editor.close"
     >
-      <div className="flex flex-col gap-5 pb-2">
+      <div className="flex flex-col gap-4 pb-2">
         {liveRun && (
           <div className="flex items-center gap-3 rounded-xl bg-brand-red-lighter/40 px-4 py-2.5 text-sm text-brand-red-dark">
             <span className="flex-1 font-medium">
@@ -223,31 +467,41 @@ export const ConnectionEditorModal: React.FC<{
               onClick={stopRun}
               className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 font-semibold shadow-sm"
             >
-              <Square className="w-3.5 h-3.5" aria-hidden="true" />
+              <Square className="h-3.5 w-3.5" aria-hidden="true" />
               {t('connections.editor.stop', { defaultValue: 'Stop' })}
             </button>
           </div>
         )}
 
         {seq && (
-          <section className="flex flex-col gap-2">
-            <ol className="flex flex-col gap-2">
+          <section className="flex flex-col">
+            <ol className="flex flex-col divide-y divide-slate-100">
               {seq.steps.map((step, i) => (
-                <li
-                  key={step.id}
-                  className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3"
-                >
-                  <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-sm font-bold text-white">
+                <li key={step.id} className="flex gap-3 py-3 first:pt-0">
+                  <span
+                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500"
+                    aria-label={t('connections.editor.stepNumber', {
+                      n: i + 1,
+                      defaultValue: 'Step {{n}}',
+                    })}
+                  >
                     {i + 1}
                   </span>
-                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    {rowHead(
+                      headingText(headingAfter(seq.steps[i - 1], board.widgets))
+                    )}
                     {step.actions.length === 0 ? (
                       <label className="flex items-center gap-2 text-sm text-slate-700">
                         <Clock
-                          className="w-4 h-4 text-slate-500"
+                          className="h-4 w-4 text-slate-500"
                           aria-hidden="true"
                         />
-                        {t('connections.editor.wait', { defaultValue: 'Wait' })}
+                        <span className="font-semibold text-slate-800">
+                          {t('connections.editor.pause', {
+                            defaultValue: 'Pause',
+                          })}
+                        </span>
                         <input
                           type="number"
                           min={1}
@@ -263,184 +517,138 @@ export const ConnectionEditorModal: React.FC<{
                               ),
                             })
                           }
-                          className="w-20 rounded-lg border border-slate-300 px-2 py-1"
+                          className="w-16 rounded-lg border border-slate-300 px-2 py-1"
                         />
                         {t('connections.editor.seconds', {
                           defaultValue: 'seconds',
                         })}
                       </label>
                     ) : (
-                      step.actions.map((a, k) => {
-                        const w = widgetsById.get(a.widgetId);
-                        if (!w) return null;
-                        const def = connectionDefFor(w.type);
-                        return (
-                          <div
-                            key={`${a.widgetId}-${k}`}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <span className="min-w-0 flex-1 truncate font-semibold text-slate-800">
-                              {names.get(w.id)}
-                            </span>
-                            <select
-                              value={a.action}
-                              {...tourAttr('connections.editor.step-action')}
-                              aria-label={t('connections.editor.actionFor', {
-                                name: names.get(w.id),
-                                defaultValue: 'What {{name}} does',
-                              })}
-                              onChange={(e) =>
-                                updateStep(i, {
-                                  ...step,
-                                  actions: step.actions.map((x, j) =>
-                                    j === k
-                                      ? withDefaults(w, e.target.value)
-                                      : x
-                                  ),
-                                })
-                              }
-                              className="rounded-lg border border-slate-300 px-2 py-1"
-                            >
-                              {def?.actions.map((opt) => (
-                                <option key={opt.id} value={opt.id}>
-                                  {actionLabel(w, opt.id)}
-                                </option>
-                              ))}
-                            </select>
-                            <StepParamPicker
-                              widget={w}
-                              action={a.action}
-                              params={a.params}
-                              label={t('connections.editor.choiceFor', {
-                                name: names.get(w.id),
-                                defaultValue: 'Choice for {{name}}',
-                              })}
-                              onChange={(params) =>
-                                updateStep(i, {
-                                  ...step,
-                                  actions: step.actions.map((x, j) =>
-                                    j === k ? { ...x, params } : x
-                                  ),
-                                })
-                              }
-                            />
-                            {step.actions.length > 1 && (
-                              <button
-                                type="button"
-                                {...tourAttr(
-                                  'connections.editor.remove-action'
-                                )}
-                                aria-label={t(
-                                  'connections.editor.removeAction',
-                                  {
-                                    defaultValue: 'Remove from this step',
-                                  }
-                                )}
-                                onClick={() =>
-                                  updateStep(i, {
-                                    ...step,
-                                    actions: step.actions.filter(
-                                      (_, j) => j !== k
-                                    ),
-                                  })
-                                }
-                                className="relative touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100"
-                              >
-                                <X className="w-4 h-4" aria-hidden="true" />
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })
+                      actionLine(step, i)
                     )}
                     {step.actions.length > 0 && (
-                      <select
-                        value=""
+                      <button
+                        type="button"
                         {...tourAttr('connections.editor.add-same-time')}
-                        aria-label={t('connections.editor.sameTime', {
-                          defaultValue: 'At the same time',
-                        })}
-                        onChange={(e) => {
-                          const w = widgetsById.get(e.target.value);
-                          const action =
-                            w && connectionDefFor(w.type)?.defaultAction;
-                          if (!w || !action) return;
-                          updateStep(i, {
-                            ...step,
-                            actions: [...step.actions, withDefaults(w, action)],
-                          });
-                        }}
-                        className="self-start rounded-lg border border-dashed border-slate-300 bg-transparent px-2 py-1 text-xs text-slate-600"
+                        aria-haspopup="menu"
+                        aria-expanded={alsoMenu?.i === i}
+                        onClick={(e) =>
+                          setAlsoMenu({
+                            i,
+                            at: e.currentTarget.getBoundingClientRect(),
+                          })
+                        }
+                        className="relative touch-target-expand flex items-center gap-1 self-start rounded-md py-0.5 text-xs font-medium text-slate-500 hover:text-brand-blue-primary"
                       >
-                        <option value="">
-                          {t('connections.editor.sameTime', {
-                            defaultValue: 'At the same time',
-                          })}
-                        </option>
-                        {connectable
-                          .filter(
-                            (w) =>
-                              !step.actions.some((x) => x.widgetId === w.id)
-                          )
-                          .map((w) => (
-                            <option key={w.id} value={w.id}>
-                              {names.get(w.id)}
-                            </option>
-                          ))}
-                      </select>
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t('connections.editor.also', {
+                          defaultValue: 'Also…',
+                        })}
+                      </button>
                     )}
                   </div>
-                  <div className="flex shrink-0 flex-col items-center gap-0.5">
-                    <button
-                      type="button"
-                      disabled={i === 0}
-                      {...tourAttr('connections.editor.move-up')}
-                      aria-label={t('connections.editor.moveUp', {
-                        defaultValue: 'Move step up',
-                      })}
-                      onClick={() => moveStep(i, -1)}
-                      className="relative touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
-                    >
-                      <ArrowUp className="w-4 h-4" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={i === seq.steps.length - 1}
-                      {...tourAttr('connections.editor.move-down')}
-                      aria-label={t('connections.editor.moveDown', {
-                        defaultValue: 'Move step down',
-                      })}
-                      onClick={() => moveStep(i, 1)}
-                      className="relative touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
-                    >
-                      <ArrowDown className="w-4 h-4" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      {...tourAttr('connections.editor.remove-step')}
-                      aria-label={t('connections.editor.removeStep', {
-                        defaultValue: 'Remove step',
-                      })}
-                      onClick={() =>
-                        setSteps(seq.steps.filter((_, j) => j !== i))
-                      }
-                      className="relative touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100"
-                    >
-                      <Trash2 className="w-4 h-4" aria-hidden="true" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    {...tourAttr('connections.editor.step-menu')}
+                    aria-label={t('connections.editor.stepMenu', {
+                      n: i + 1,
+                      defaultValue: 'Step {{n}} options',
+                    })}
+                    aria-haspopup="menu"
+                    aria-expanded={rowMenu?.i === i}
+                    onClick={(e) =>
+                      setRowMenu({
+                        i,
+                        at: e.currentTarget.getBoundingClientRect(),
+                      })
+                    }
+                    className="relative touch-target-expand h-8 w-8 shrink-0 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                  >
+                    <MoreHorizontal
+                      className="mx-auto h-5 w-5"
+                      aria-hidden="true"
+                    />
+                  </button>
                 </li>
               ))}
+              <li className="flex gap-3 py-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                  <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  {rowHead(
+                    headingText(
+                      headingAfter(
+                        seq.steps[seq.steps.length - 1],
+                        board.widgets
+                      )
+                    )
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                    <select
+                      value={seq.repeat}
+                      {...tourAttr('connections.editor.repeat')}
+                      aria-label={t('connections.editor.repeat', {
+                        defaultValue: 'Repeat',
+                      })}
+                      onChange={(e) =>
+                        setSeq({
+                          ...seq,
+                          repeat: e.target
+                            .value as SequenceConnection['repeat'],
+                        })
+                      }
+                      className={actionSelectClass}
+                    >
+                      <option value="until-done">{untilLabel}</option>
+                      <option value="count">
+                        {t('connections.editor.loopCount', {
+                          defaultValue: 'Loop a set number of times',
+                        })}
+                      </option>
+                      <option value="once">
+                        {t('connections.editor.stopAtEnd', {
+                          defaultValue: 'Stop at the end',
+                        })}
+                      </option>
+                    </select>
+                    {seq.repeat === 'count' && (
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          max={MAX_REPEAT}
+                          value={seq.repeatCount ?? 2}
+                          {...tourAttr('connections.editor.repeat-count')}
+                          onChange={(e) =>
+                            setSeq({
+                              ...seq,
+                              repeatCount: Math.min(
+                                MAX_REPEAT,
+                                Math.max(1, Number(e.target.value) || 1)
+                              ),
+                            })
+                          }
+                          className="w-20 rounded-lg border border-slate-300 px-2 py-1"
+                        />
+                        {t('connections.editor.timesInAll', {
+                          defaultValue: 'times in all',
+                        })}
+                      </label>
+                    )}
+                  </div>
+                </div>
+              </li>
             </ol>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pt-1">
               <button
                 type="button"
                 {...tourAttr('connections.editor.add-widget')}
                 onClick={addWidgets}
                 className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                <Plus className="w-4 h-4" aria-hidden="true" />
+                <Plus className="h-4 w-4" aria-hidden="true" />
                 {t('connections.editor.addWidget', {
                   defaultValue: 'Add widget',
                 })}
@@ -448,106 +656,46 @@ export const ConnectionEditorModal: React.FC<{
               <button
                 type="button"
                 {...tourAttr('connections.editor.add-wait')}
-                onClick={addWait}
+                onClick={addPause}
                 className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                <Clock className="w-4 h-4" aria-hidden="true" />
-                {t('connections.editor.addWait', { defaultValue: 'Add wait' })}
+                <Clock className="h-4 w-4" aria-hidden="true" />
+                {t('connections.editor.addPause', {
+                  defaultValue: 'Add a pause',
+                })}
               </button>
             </div>
-
-            <label className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-700">
-              <span className="font-semibold">
-                {t('connections.editor.repeat', { defaultValue: 'Repeat' })}
-              </span>
-              <select
-                value={seq.repeat}
-                {...tourAttr('connections.editor.repeat')}
-                onChange={(e) =>
-                  setSeq({
-                    ...seq,
-                    repeat: e.target.value as SequenceConnection['repeat'],
-                  })
-                }
-                className="rounded-lg border border-slate-300 px-2 py-1"
-              >
-                <option value="until-done">
-                  {t('connections.editor.repeatUntilDone', {
-                    defaultValue: 'Until a step has nothing left to do',
-                  })}
-                </option>
-                <option value="once">
-                  {t('connections.editor.repeatOnce', {
-                    defaultValue: "Don't repeat",
-                  })}
-                </option>
-                <option value="count">
-                  {t('connections.editor.repeatCount', {
-                    defaultValue: 'A set number of times',
-                  })}
-                </option>
-              </select>
-              {seq.repeat === 'count' && (
-                <input
-                  type="number"
-                  min={1}
-                  max={MAX_REPEAT}
-                  value={seq.repeatCount ?? 2}
-                  {...tourAttr('connections.editor.repeat-count')}
-                  aria-label={t('connections.editor.timesLabel', {
-                    defaultValue: 'Times',
-                  })}
-                  onChange={(e) =>
-                    setSeq({
-                      ...seq,
-                      repeatCount: Math.min(
-                        MAX_REPEAT,
-                        Math.max(1, Number(e.target.value) || 1)
-                      ),
-                    })
-                  }
-                  className="w-20 rounded-lg border border-slate-300 px-2 py-1"
-                />
-              )}
-            </label>
           </section>
         )}
 
         {follows.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <h3 className="text-sm font-semibold text-slate-800">
-              {t('connections.editor.follows', { defaultValue: 'Follows' })}
-            </h3>
-            {follows.map((f) => {
-              if (f.kind !== 'follow') return null;
-              return (
-                <div
-                  key={f.id}
-                  className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+          <section className="flex flex-col gap-1.5 border-t border-slate-100 pt-3">
+            {rowHead(
+              t('connections.editor.wholeTime', {
+                defaultValue: 'The whole time',
+              })
+            )}
+            {follows.map((f) => (
+              <div
+                key={f.id}
+                className="flex items-center gap-2 text-sm text-slate-700"
+              >
+                <span className="flex-1">{followText(f)}</span>
+                <button
+                  type="button"
+                  {...tourAttr('connections.editor.remove-follow')}
+                  aria-label={t('connections.editor.removeFollow', {
+                    defaultValue: 'Remove',
+                  })}
+                  onClick={() =>
+                    setConnections((cs) => cs.filter((c) => c.id !== f.id))
+                  }
+                  className="relative touch-target-expand rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                 >
-                  <span className="flex-1">
-                    {t('connections.editor.followsLine', {
-                      follower: names.get(f.followerId) ?? '',
-                      leader: names.get(f.leaderId) ?? '',
-                      defaultValue: '{{follower}} follows {{leader}}',
-                    })}
-                  </span>
-                  <button
-                    type="button"
-                    {...tourAttr('connections.editor.remove-follow')}
-                    aria-label={t('connections.editor.removeFollow', {
-                      defaultValue: 'Remove',
-                    })}
-                    onClick={() =>
-                      setConnections((cs) => cs.filter((c) => c.id !== f.id))
-                    }
-                    className="relative touch-target-expand rounded p-1 text-slate-500 hover:bg-slate-100"
-                  >
-                    <X className="w-4 h-4" aria-hidden="true" />
-                  </button>
-                </div>
-              );
-            })}
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            ))}
           </section>
         )}
 
@@ -560,6 +708,80 @@ export const ConnectionEditorModal: React.FC<{
           </p>
         )}
       </div>
+
+      {rowMenu && seq && menuStep && (
+        <PopMenu at={rowMenu.at} onClose={() => setRowMenu(null)} alignRight>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={rowMenu.i === 0}
+            {...tourAttr('connections.editor.move-up')}
+            className={menuItem}
+            onClick={() => {
+              moveStep(rowMenu.i, -1);
+              setRowMenu(null);
+            }}
+          >
+            <ArrowUp className="h-4 w-4" aria-hidden="true" />
+            {t('connections.editor.moveUp', { defaultValue: 'Move up' })}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={rowMenu.i === seq.steps.length - 1}
+            {...tourAttr('connections.editor.move-down')}
+            className={menuItem}
+            onClick={() => {
+              moveStep(rowMenu.i, 1);
+              setRowMenu(null);
+            }}
+          >
+            <ArrowDown className="h-4 w-4" aria-hidden="true" />
+            {t('connections.editor.moveDown', { defaultValue: 'Move down' })}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            {...tourAttr('connections.editor.remove-step')}
+            className={`${menuItem} border-t border-slate-100 text-brand-red-primary`}
+            onClick={() => {
+              setSteps(seq.steps.filter((_, j) => j !== rowMenu.i));
+              setRowMenu(null);
+            }}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            {t('connections.editor.removeStep', { defaultValue: 'Remove' })}
+          </button>
+        </PopMenu>
+      )}
+
+      {alsoMenu && alsoStep && (
+        <PopMenu at={alsoMenu.at} onClose={() => setAlsoMenu(null)}>
+          {connectable
+            .filter((w) => !alsoStep.actions.some((x) => x.widgetId === w.id))
+            .map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                role="menuitem"
+                {...tourAttr('connections.editor.also-option')}
+                className={menuItem}
+                onClick={() => {
+                  const action = connectionDefFor(w.type)?.defaultAction;
+                  if (action) {
+                    updateStep(alsoMenu.i, {
+                      ...alsoStep,
+                      actions: [...alsoStep.actions, withDefaults(w, action)],
+                    });
+                  }
+                  setAlsoMenu(null);
+                }}
+              >
+                {names.get(w.id)}
+              </button>
+            ))}
+        </PopMenu>
+      )}
     </Modal>
   );
 };

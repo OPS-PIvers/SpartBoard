@@ -42,6 +42,10 @@ export interface ConnectionActionDef {
   defaultParams?: (config: Config) => Record<string, unknown>;
   /** The hand action, reported by the widget, that counts as doing this step. */
   hand?: ConnectionHandAction;
+  /** What the next step waits for, worded in the editor ("When Timer ends"). */
+  waitsFor?: 'end' | 'next-block';
+  /** What runs out to end a looping Sequence ("until every name is used"), if anything. */
+  runsOut?: (config: Config) => 'names' | 'items' | undefined;
 }
 
 export type ConnectionHandAction = 'start' | 'next';
@@ -81,14 +85,15 @@ const timerAction = (
           : timeToolClockPatch(t, { type: event, now });
     return { patch: patch ?? {} };
   },
-  ...(waits && { isFinished: timerFinished }),
+  ...(waits && { isFinished: timerFinished, waitsFor: 'end' as const }),
   ...(event === 'restart' || event === 'start' ? { hand: 'start' } : {}),
 });
 
 const randomNext: ConnectionActionDef = {
   id: 'next',
-  label: 'Next name',
+  label: 'moves on to the next name',
   hand: 'next',
+  runsOut: (c) => (c.mode === 'shuffle' ? 'names' : undefined),
   apply: (c, now) => {
     const r = c as unknown as RandomConfig;
     if (r.mode !== 'shuffle') return { patch: { externalTrigger: now } };
@@ -120,8 +125,9 @@ const bump = (
 
 const checklistNext: ConnectionActionDef = {
   id: 'next',
-  label: 'Check off the next item',
+  label: 'checks off the next item',
   hand: 'next',
+  runsOut: () => 'items',
   apply: (c) => {
     const result = checkOffCurrent(c as unknown as ChecklistConfig);
     return result ? { patch: result.patch, ends: result.ends } : null;
@@ -165,10 +171,10 @@ export const WIDGET_CONNECTIONS: Partial<
   'time-tool': {
     defaultAction: 'restart',
     actions: [
-      timerAction('restart', 'Start from the top', 'restart', true),
-      timerAction('start', 'Start or resume', 'start', true),
-      timerAction('pause', 'Pause', 'pause', false),
-      timerAction('reset', 'Reset', 'reset', false),
+      timerAction('restart', 'starts over from the beginning', 'restart', true),
+      timerAction('start', 'starts, or keeps going if paused', 'start', true),
+      timerAction('pause', 'pauses', 'pause', false),
+      timerAction('reset', 'resets without starting', 'reset', false),
     ],
   },
   random: { defaultAction: 'next', actions: [randomNext] },
@@ -176,26 +182,30 @@ export const WIDGET_CONNECTIONS: Partial<
   traffic: {
     defaultAction: 'red',
     actions: [
-      setField('red', 'Turn red', { active: 'red' }),
-      setField('yellow', 'Turn yellow', { active: 'yellow' }),
-      setField('green', 'Turn green', { active: 'green' }),
-      setField('off', 'Turn off', { active: 'none' }),
+      setField('red', 'turns red', { active: 'red' }),
+      setField('yellow', 'turns yellow', { active: 'yellow' }),
+      setField('green', 'turns green', { active: 'green' }),
+      setField('off', 'turns off', { active: 'none' }),
     ],
     follows: ['sound'],
   },
   expectations: {
     defaultAction: 'voice-0',
     actions: VOLUME_OPTIONS.map((o) =>
-      setField(`voice-${o.id}`, `Voice: ${o.label}`, { voiceLevel: o.id })
+      setField(`voice-${o.id}`, `sets voice to ${o.label}`, {
+        voiceLevel: o.id,
+      })
     ),
   },
   nextUp: {
     defaultAction: 'next',
-    actions: [bump('next', 'Next student', 'externalTrigger', 'next')],
+    actions: [
+      bump('next', 'moves to the next student', 'externalTrigger', 'next'),
+    ],
   },
   stations: {
     defaultAction: 'rotate',
-    actions: [bump('rotate', 'Rotate stations', 'rotationTrigger', 'next')],
+    actions: [bump('rotate', 'rotates the groups', 'rotationTrigger', 'next')],
   },
   sound: { defaultAction: '', actions: [], follows: ['expectations'] },
   qr: { defaultAction: '', actions: [], follows: ['text'] },
@@ -206,9 +216,10 @@ export const WIDGET_CONNECTIONS: Partial<
     actions: [
       {
         id: 'next-block',
-        label: 'Wait until the next block starts',
+        label: 'waits for the next block to start',
         apply: () => ({ patch: {} }),
         isFinished: nextBlockStarted,
+        waitsFor: 'next-block',
       },
     ],
   },
@@ -217,7 +228,7 @@ export const WIDGET_CONNECTIONS: Partial<
     actions: [
       {
         id: 'show',
-        label: 'Show a symbol',
+        label: 'shows',
         apply: (_c, _now, params) =>
           typeof params?.symbolId === 'string'
             ? { patch: { selectedSymbolId: params.symbolId } }
@@ -231,7 +242,7 @@ export const WIDGET_CONNECTIONS: Partial<
     actions: [
       {
         id: 'show',
-        label: 'Show materials',
+        label: 'shows',
         apply: (c, _now, params) => {
           // Only materials the widget still offers, so a removed one can't come back.
           const offered = new Set(

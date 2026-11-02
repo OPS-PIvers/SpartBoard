@@ -5752,44 +5752,44 @@
     "closeWarning": "Closing removes this widget from its connection.",
     "actions": {
       "time-tool": {
-        "restart": "Start from the top",
-        "start": "Start or resume",
-        "pause": "Pause",
-        "reset": "Reset"
+        "restart": "starts over from the beginning",
+        "start": "starts, or keeps going if paused",
+        "pause": "pauses",
+        "reset": "resets without starting"
       },
       "random": {
-        "next": "Next name"
+        "next": "moves on to the next name"
       },
       "traffic": {
-        "red": "Turn red",
-        "yellow": "Turn yellow",
-        "green": "Turn green",
-        "off": "Turn off"
+        "red": "turns red",
+        "yellow": "turns yellow",
+        "green": "turns green",
+        "off": "turns off"
       },
       "expectations": {
-        "voice-0": "Voice: Silence",
-        "voice-1": "Voice: Whisper",
-        "voice-2": "Voice: Conversation",
-        "voice-3": "Voice: Presenter",
-        "voice-4": "Voice: Outside"
+        "voice-0": "sets voice to Silence",
+        "voice-1": "sets voice to Whisper",
+        "voice-2": "sets voice to Conversation",
+        "voice-3": "sets voice to Presenter",
+        "voice-4": "sets voice to Outside"
       },
       "nextUp": {
-        "next": "Next student"
+        "next": "moves to the next student"
       },
       "stations": {
-        "rotate": "Rotate stations"
+        "rotate": "rotates the groups"
       },
       "checklist": {
-        "next": "Check off the next item"
+        "next": "checks off the next item"
       },
       "schedule": {
-        "next-block": "Wait until the next block starts"
+        "next-block": "waits for the next block to start"
       },
       "work-symbols": {
-        "show": "Show a symbol"
+        "show": "shows"
       },
       "materials": {
-        "show": "Show materials"
+        "show": "shows"
       }
     },
     "editor": {
@@ -5797,28 +5797,46 @@
       "delete": "Delete connection",
       "running": "Running now. Saving changes stops it.",
       "stop": "Stop",
-      "wait": "Wait",
       "seconds": "seconds",
       "actionFor": "What {{name}} does",
       "removeAction": "Remove from this step",
-      "sameTime": "At the same time",
-      "moveUp": "Move step up",
-      "moveDown": "Move step down",
-      "removeStep": "Remove step",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeStep": "Remove",
       "addWidget": "Add widget",
-      "addWait": "Add wait",
       "repeat": "Repeat",
-      "repeatUntilDone": "Until a step has nothing left to do",
-      "repeatOnce": "Don't repeat",
-      "repeatCount": "A set number of times",
-      "timesLabel": "Times",
-      "follows": "Follows",
       "followsLine": "{{follower}} follows {{leader}}",
       "removeFollow": "Remove",
       "empty": "Nothing left in this connection. Save to remove it.",
       "pickSymbol": "Pick a symbol",
       "noMaterials": "None",
-      "choiceFor": "Choice for {{name}}"
+      "choiceFor": "Choice for {{name}}",
+      "stepNumber": "Step {{n}}",
+      "stepMenu": "Step {{n}} options",
+      "headStart": "Start",
+      "headAfterPause": "After the pause",
+      "headRightAfter": "Right after",
+      "headNextBlock": "When the next block starts",
+      "headEnds": "When {{names}} ends",
+      "headEndMany": "When {{names}} end",
+      "pause": "Pause",
+      "also": "Also…",
+      "addPause": "Add a pause",
+      "loopUntilNames": "Loop until every name is used",
+      "loopUntilItems": "Loop until every item is checked",
+      "loopUntilStop": "Loop until I press Stop",
+      "loopCount": "Loop a set number of times",
+      "stopAtEnd": "Stop at the end",
+      "timesInAll": "times in all",
+      "wholeTime": "The whole time",
+      "saveStart": "Save and start",
+      "followLine": {
+        "music": "While {{leader}} runs, {{follower}} plays",
+        "qr": "{{follower}} shows what {{leader}} says",
+        "traffic": "{{follower}} changes color with {{leader}}",
+        "sound": "{{follower}} matches the {{leader}} voice level",
+        "recessGear": "{{follower}} uses the weather from {{leader}}"
+      }
     },
     "nothingToStart": "The first step has nothing to do yet.",
     "stop": "Stop",

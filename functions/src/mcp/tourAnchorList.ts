@@ -55340,7 +55340,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.add-same-time",
-    "label": "At the same time menu on a connection step",
+    "label": "Also button that adds a widget to a connection step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -55386,9 +55386,79 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.wait-seconds",
-    "label": "Seconds field on a connection wait step",
+    "label": "Seconds field on a connection pause",
     "scope": "board",
     "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.step-menu",
+    "label": "Options menu on a connection step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.also-option",
+    "label": "A widget in the Also menu on a connection step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.save-start",
+    "label": "Save and start button in the connection steps window",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
     "routes": [
       {
         "surface": "board.connections-editor",
@@ -55501,7 +55571,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.add-wait",
-    "label": "Add wait button in the connection steps window",
+    "label": "Add a pause button in the connection steps window",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -55524,7 +55594,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.repeat",
-    "label": "Repeat menu in the connection steps window",
+    "label": "Loop menu at the end of a connection",
     "scope": "board",
     "panel": true,
     "routes": [

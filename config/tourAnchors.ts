@@ -12230,7 +12230,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'connections.editor.add-same-time': {
-    label: 'At the same time menu on a connection step',
+    label: 'Also button that adds a widget to a connection step',
     panel: true,
   },
   'connections.editor.remove-action': {
@@ -12238,8 +12238,21 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'connections.editor.wait-seconds': {
-    label: 'Seconds field on a connection wait step',
+    label: 'Seconds field on a connection pause',
     panel: true,
+  },
+  'connections.editor.step-menu': {
+    label: 'Options menu on a connection step',
+    panel: true,
+  },
+  'connections.editor.also-option': {
+    label: 'A widget in the Also menu on a connection step',
+    panel: true,
+  },
+  'connections.editor.save-start': {
+    label: 'Save and start button in the connection steps window',
+    panel: true,
+    closes: 'own',
   },
   'connections.editor.move-up': {
     label: 'Move a connection step up',
@@ -12258,11 +12271,11 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'connections.editor.add-wait': {
-    label: 'Add wait button in the connection steps window',
+    label: 'Add a pause button in the connection steps window',
     panel: true,
   },
   'connections.editor.repeat': {
-    label: 'Repeat menu in the connection steps window',
+    label: 'Loop menu at the end of a connection',
     panel: true,
   },
   'connections.editor.repeat-count': {

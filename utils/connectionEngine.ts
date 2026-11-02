@@ -253,6 +253,17 @@ const followPair = (
 };
 
 // Turns Connect-mode picks into a Sequence plus Follows; picking the first widget again makes it repeat.
+// A list that can run out (names, checklist items) makes a draft loop until it does.
+const canRunOut = (steps: ConnectionStep[], picks: PickedWidget[]) => {
+  const byId = new Map(picks.map((p) => [p.id, p]));
+  return steps.some((s) =>
+    s.actions.some((a) => {
+      const p = byId.get(a.widgetId);
+      return !!p && !!actionDefFor(p.type, a.action)?.runsOut?.(p.config ?? {});
+    })
+  );
+};
+
 export const draftFromPicks = (
   picks: PickedWidget[],
   { minSteps = 2 }: { minSteps?: number } = {}
@@ -296,7 +307,7 @@ export const draftFromPicks = (
           id: newId(),
           kind: 'sequence',
           steps,
-          repeat: closesLoop ? 'until-done' : 'once',
+          repeat: closesLoop || canRunOut(steps, picks) ? 'until-done' : 'once',
         }
       : null;
   return { sequence, follows };

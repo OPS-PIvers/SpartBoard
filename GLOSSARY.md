@@ -59,7 +59,7 @@ A Connection that runs steps in order, where each step waits for the one before 
 _Avoid_: chain, routine (Instructional Routines is a widget), automation
 
 **Step**:
-One numbered entry in a Sequence: one or more widget actions that happen at the same moment. The Sequence moves on when the step's widgets finish (a timer ends) or right away if they finish instantly (next name).
+One numbered entry in a Sequence: one or more widget actions that happen at the same moment. The Sequence moves on when the step's widgets finish (a timer ends) or right away if they finish instantly (next name). The editor heads each step with what it waits for: Start, When Timer ends, Right after, After the pause.
 _Avoid_: event, stage
 
 **Wait step**:

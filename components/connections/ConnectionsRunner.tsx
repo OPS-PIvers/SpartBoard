@@ -142,7 +142,12 @@ export const ConnectionsRunner: React.FC = () => {
   // Start/Stop from a step badge.
   useEffect(() => {
     if (!enabled) return;
-    return onRunCommand((connectionId, command) => {
+    let retry: number | undefined;
+    const handle = (
+      connectionId: string,
+      command: 'start' | 'stop',
+      tries: number
+    ) => {
       const board = latest.current.dashboards.find((d) =>
         (d.connections ?? []).some((c) => c.id === connectionId)
       );
@@ -150,7 +155,16 @@ export const ConnectionsRunner: React.FC = () => {
         (c): c is SequenceConnection =>
           c.id === connectionId && c.kind === 'sequence'
       );
-      if (!board || !seq) return;
+      if (!board || !seq) {
+        // Save and start sends the command before the saved board reaches this copy.
+        if (tries < 20) {
+          retry = window.setTimeout(
+            () => handle(connectionId, command, tries + 1),
+            100
+          );
+        }
+        return;
+      }
       if (command === 'stop') {
         write(
           latest.current.applyConnectionChanges,
@@ -188,7 +202,12 @@ export const ConnectionsRunner: React.FC = () => {
           'info'
         );
       }
-    });
+    };
+    const off = onRunCommand((id, command) => handle(id, command, 0));
+    return () => {
+      off();
+      window.clearTimeout(retry);
+    };
   }, [enabled]);
 
   // Old nexus toggles become Connections, once per widget (the marker stops a repeat).

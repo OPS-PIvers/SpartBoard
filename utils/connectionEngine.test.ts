@@ -96,6 +96,14 @@ describe('draftFromPicks', () => {
     ]);
     expect(draft.sequence?.repeat).toBe('once');
   });
+
+  it('loops until the names run out when a Randomizer is in it', () => {
+    const draft = draftFromPicks([
+      { id: 't1', type: 'time-tool' },
+      { id: 'r', type: 'random', config: { mode: 'shuffle' } },
+    ]);
+    expect(draft.sequence?.repeat).toBe('until-done');
+  });
 });
 
 describe('shareout loop', () => {
