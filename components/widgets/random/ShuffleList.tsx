@@ -55,11 +55,12 @@ const ShuffleRow: React.FC<ShuffleRowProps> = ({
       }}
     >
       <span
-        className={`font-mono font-black shrink-0 tabular-nums flex items-center justify-end ${textColor ? '' : 'text-slate-400'}`}
+        className={`font-mono font-black shrink-0 tabular-nums flex items-center justify-end ${lines && textColor ? '' : 'text-slate-400'}`}
         style={{
           fontSize,
           minWidth: iconSize,
-          ...(textColor
+          // In Cards the number sits on the window, not the card, so it keeps slate.
+          ...(lines && textColor
             ? { color: `color-mix(in srgb, ${textColor} 55%, transparent)` }
             : {}),
         }}
@@ -139,9 +140,10 @@ export const ShuffleList: React.FC<ShuffleListProps> = ({
   textScale = 1,
 }) => {
   const lines = rowStyle === 'lines';
-  const cardBackground = cardColor
-    ? hexToRgba(cardColor, cardOpacity ?? 1)
-    : undefined;
+  const cardBackground =
+    cardColor || cardOpacity !== undefined
+      ? hexToRgba(cardColor ?? '#ffffff', cardOpacity ?? 1)
+      : undefined;
   const lockedSet = React.useMemo(() => new Set(lockedNames), [lockedNames]);
   const doneSet = React.useMemo(() => new Set(doneNames), [doneNames]);
   const { isOver, setNodeRef } = useDroppable({ id: SHUFFLE_LIST_ZONE_ID });

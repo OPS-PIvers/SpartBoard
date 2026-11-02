@@ -46,6 +46,13 @@ describe('ShuffleList styling', () => {
     expect(chip.style.color).toBe('rgb(29, 78, 216)');
   });
 
+  it('applies an opacity saved without a picked color', () => {
+    renderList({ cardOpacity: 0.5 });
+    expect(chipFor('Kai Nguyen').style.backgroundColor).toBe(
+      'rgba(255, 255, 255, 0.5)'
+    );
+  });
+
   it('draws hairlines between rows in lines style', () => {
     renderList({ rowStyle: 'lines' });
     const first = chipFor('Ava Patel');
