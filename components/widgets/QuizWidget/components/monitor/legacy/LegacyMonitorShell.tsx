@@ -28,7 +28,11 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { deleteField, doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
+import {
+  clearLiveLeaderboard,
+  publishLiveLeaderboard,
+} from '@/components/widgets/QuizWidget/utils/liveLeaderboard';
 import {
   QuizSession,
   QuizResponse,
@@ -359,7 +363,6 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     clearedRef.current = false;
   }, [session.id]);
   useEffect(() => {
-    const sessionRef = doc(db, 'quiz_sessions', session.id);
     const shouldBroadcast =
       session.status === 'active' &&
       (isGame || isGamificationActive(scoringConfig));
@@ -367,7 +370,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       if (session.status === 'ended' || clearedRef.current) return;
       clearedRef.current = true;
       fingerprintRef.current = null;
-      updateDoc(sessionRef, { liveLeaderboard: deleteField() }).catch((err) =>
+      clearLiveLeaderboard(session.id).catch((err) =>
         console.error(
           '[QuizLiveMonitor] Failed clearing live leaderboard:',
           err
@@ -381,7 +384,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       const fingerprint = JSON.stringify(entries);
       if (fingerprint === fingerprintRef.current) return;
       fingerprintRef.current = fingerprint;
-      updateDoc(sessionRef, { liveLeaderboard: entries }).catch((err) =>
+      publishLiveLeaderboard(session.id, entries).catch((err) =>
         console.error(
           '[QuizLiveMonitor] Failed updating live leaderboard:',
           err
@@ -435,10 +438,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     setEnding(true);
     try {
       // The game's final ranks land before devices switch to their end screen.
-      if (isGame)
-        await updateDoc(doc(db, 'quiz_sessions', session.id), {
-          liveLeaderboard: liveEntries(),
-        });
+      if (isGame) await publishLiveLeaderboard(session.id, liveEntries());
       await onEnd();
     } catch (err) {
       logError('QuizLiveMonitor.end', err);

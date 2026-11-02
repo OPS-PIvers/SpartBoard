@@ -42,6 +42,13 @@ import {
   planBalancedDeal,
 } from '@/utils/quizBalancedDeal';
 import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
+import {
+  LIVE_LEADERBOARD_COLLECTION,
+  LIVE_LEADERBOARD_DOC,
+  readLeaderboardNames,
+  withLeaderboardNames,
+  type LeaderboardNames,
+} from '@/utils/quizLeaderboardNames';
 import { dropPinLoginFromOtherSession } from '@/utils/pinLoginScope';
 import { db, auth, functions } from '@/config/firebase';
 import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -2436,10 +2443,67 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     gateSignature,
     contentRetry,
   ]);
-  const mergedSession = useMemo(
-    () => mergeQuizSessionContent(session, content),
-    [session, content]
-  );
+  // Leaderboard names live beside the session; this device reads them once seated.
+  const [boardNames, setBoardNames] = useState<{
+    sessionId: string;
+    names: LeaderboardNames;
+  } | null>(null);
+  const hasLiveBoard = !!session?.liveLeaderboard;
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!hasLiveBoard || !sessionIdState || !responseKeyState || !uid) return;
+    let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
+    const seated = studentPreviewBlocksWrite()
+      ? Promise.resolve()
+      : setDoc(seatRef(sessionIdState, uid), {
+          responseKey: responseKeyState,
+        }).catch((err: unknown) => {
+          console.warn('[useQuizSessionStudent] seat write failed:', err);
+        });
+    void seated.then(() => {
+      if (cancelled) return;
+      unsubscribe = onSnapshot(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionIdState,
+          LIVE_LEADERBOARD_COLLECTION,
+          LIVE_LEADERBOARD_DOC
+        ),
+        (snap) =>
+          setBoardNames({
+            sessionId: sessionIdState,
+            names: readLeaderboardNames(snap.data()),
+          }),
+        (err) => {
+          if ((err as { code?: string }).code !== 'permission-denied') {
+            console.error(
+              '[useQuizSessionStudent] leaderboard names error:',
+              err
+            );
+          }
+        }
+      );
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [hasLiveBoard, sessionIdState, responseKeyState]);
+  const names =
+    boardNames && boardNames.sessionId === sessionIdState
+      ? boardNames.names
+      : null;
+  const mergedSession = useMemo(() => {
+    const merged = mergeQuizSessionContent(session, content);
+    return merged?.liveLeaderboard && names
+      ? {
+          ...merged,
+          liveLeaderboard: withLeaderboardNames(merged.liveLeaderboard, names),
+        }
+      : merged;
+  }, [session, content, names]);
 
   const lookupSession = useCallback(
     async (

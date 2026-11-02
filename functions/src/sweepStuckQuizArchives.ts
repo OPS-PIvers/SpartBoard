@@ -215,6 +215,11 @@ export interface StragglerItem {
   permanent?: boolean;
 }
 
+/** Student-written text cut to a short id-like token before an email quotes it. */
+export function safeMailToken(value: string, max: number): string {
+  return value.replace(/[^A-Za-z0-9_-]/g, '').slice(0, max);
+}
+
 /** Bounded list for one section of the email body. */
 function stragglerLines(items: readonly StragglerItem[]): string[] {
   const listed = items.slice(0, MAX_LISTED_STRAGGLERS);
@@ -342,7 +347,8 @@ export async function runSweepStuckQuizArchives(
 
       const studentUid =
         typeof data.studentUid === 'string' ? data.studentUid : '';
-      const pin = typeof data.pin === 'string' ? data.pin : '';
+      const pin =
+        typeof data.pin === 'string' ? safeMailToken(data.pin, 10) : '';
       // A whiteboard take's files are one line in the email, not one per file.
       const mailedTakes = new Set<number>();
 
@@ -407,7 +413,7 @@ export async function runSweepStuckQuizArchives(
           list.push({
             ...(kind === 'handwriting' ? { kind } : {}),
             quizTitle: session.quizTitle,
-            questionId,
+            questionId: safeMailToken(questionId, 64) || 'unknown',
             studentLabel,
             ...(permanent ? { permanent: true } : {}),
           });

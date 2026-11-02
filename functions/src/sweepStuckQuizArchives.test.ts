@@ -39,6 +39,7 @@ import {
   needsDeleteCompletion,
   findQuestionIdForArtifact,
   buildStragglerEmail,
+  safeMailToken,
   STUCK_ARCHIVE_AGE_MS,
   MAX_LISTED_STRAGGLERS,
   type SweepDeps,
@@ -711,5 +712,50 @@ describe('whiteboard takes', () => {
     expect(message.subject).toBe(
       'SpartBoard: 2 student recordings could not be saved to Drive'
     );
+  });
+});
+
+describe('student-written text in the archive email', () => {
+  it('cuts pins and question ids to a short id-like token', () => {
+    expect(safeMailToken('4821', 10)).toBe('4821');
+    expect(safeMailToken('12\nVisit https://evil.example/now', 10)).toBe(
+      '12Visithtt'
+    );
+    expect(safeMailToken('q-1_a', 64)).toBe('q-1_a');
+  });
+
+  it('never quotes newlines, links or long text from a response', async () => {
+    const evil = '99\n\nYour Drive is locked. Sign in at https://evil.example';
+    const { db, mailWrites } = makeStubDb(
+      [
+        {
+          sessionId: 's1',
+          id: 'r1',
+          data: {
+            hasStuckArchive: true,
+            pin: evil,
+            answers: answersWith(evil, 'a1'),
+            artifactArchive: {
+              a1: { archiveStatus: 'failed', archiveStartedAt: OLD },
+            },
+          },
+        },
+      ],
+      { s1: { teacherUid: 't1', quizTitle: 'Unit 3' } }
+    );
+    const deps = makeDeps({
+      archiveOne: vi.fn(() => Promise.reject(new Error('drive down'))),
+    });
+    await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(deps.archiveOne).toHaveBeenCalledWith(
+      expect.objectContaining({ questionId: evil })
+    );
+    const text = (mailWrites[0]?.data.message as { text: string }).text;
+    expect(text).not.toContain('evil.example');
+    expect(text).not.toContain('Sign in');
+    expect(text).toContain('Unit 3 — Pin99YourDriv: question');
   });
 });

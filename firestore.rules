@@ -5011,6 +5011,19 @@ service cloud.firestore {
                  (!k.hasAny(['answers']) || d.answers.size() == 0 || justFrozen(s, classId));
         }
 
+        // PIN keys: one doc per roster seat, keyed by the canonical encoding of the
+        // doc's own period and PIN (encodeResponseKeySegment). A sign-in-length PIN
+        // on a rostered session joins through pinLoginV1, which rate-limits guesses.
+        function keySeg(v) {
+          let t = v.trim().lower().replace('[^a-z0-9]+', '_').replace('^_+|_+$', '');
+          return t == '' ? 'default' : t;
+        }
+        function pinKeyOk(s, d) {
+          let p = keySeg(d.get('pin', ''));
+          return responseKey == 'pin-' + keySeg(d.get('classPeriod', '')) + '-' + p &&
+            (s.get('rosterIds', []).size() == 0 || p.replace('_', '').size() < 6);
+        }
+
         // A missing doc is readable only at the caller's own uid key, so a
         // `pin-{period}-{pin}` key reads as denied whether or not it exists
         // (else probing keys reveals which PINs have joined). The class gate
@@ -5088,7 +5101,10 @@ service cloud.firestore {
           afterOpen(sessionData()) &&
           periodJoinOk(sessionData(), incoming()) &&
           staffJoinOk(sessionData(), incoming()) &&
-          joinKeyOk(sessionData(), responseKey);
+          joinKeyOk(sessionData(), responseKey) &&
+          // The PIN is short text the hourly archive email quotes.
+          incoming().get('pin', '') is string && incoming().get('pin', '').size() <= 10 &&
+          (responseKey == authUid() || pinKeyOk(sessionData(), incoming()));
         // The student branch runs first so a student's write skips the teacher and admin checks.
         allow update: if signedIn() && (
           // Students update only their own response (ownership via studentUid, not the key).
@@ -5233,8 +5249,9 @@ service cloud.firestore {
            (sessionAttemptLimit() == null ||
             incoming().get('completedAttempts', 0) <= sessionAttemptLimit()) &&
            (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
-          // Teacher and admins can update any field
-          authUid() == sessionTeacherUid() || isAdmin()
+          // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
+          authUid() == sessionTeacherUid() ||
+          (isAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'backTranslations']))
         );
         allow delete: if signedIn() &&
           (authUid() == sessionTeacherUid() || isAdmin());
@@ -5289,6 +5306,17 @@ service cloud.firestore {
             isMap('grading');
           allow create, delete: if false;
         }
+      }
+
+      // Live leaderboard names, kept off the any-reader session doc: only the
+      // session's teacher writes; a reader must be seated on their own response here.
+      match /live/{docId} {
+        allow read: if signedIn() && (
+          authUid() == sessionTeacherUid() || isAdmin() ||
+          isSubMonitor(sessionData()) ||
+          get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/seats/$(authUid())).data.responseKey)).data.studentUid == authUid()
+        );
+        allow write: if signedIn() && authUid() == sessionTeacherUid();
       }
 
       // Per-attempt scores beside the response, since students can read their response before release.
