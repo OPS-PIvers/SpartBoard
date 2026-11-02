@@ -14,7 +14,11 @@ import {
 } from '@/utils/assignmentWindow';
 import { formatDueLabel } from '@/utils/studentTurnIn';
 import { tourFieldAttr } from '@/config/tourAnchors';
-import { nextScheduledOpen, studentCanEnter } from '@/utils/periodAccess';
+import {
+  effectivePeriodState,
+  nextScheduledOpen,
+  studentCanEnter,
+} from '@/utils/periodAccess';
 import type { DoneItem, LandingRow } from '@/utils/studentLanding';
 import {
   formatPoints,
@@ -196,13 +200,23 @@ export const WorkRow: React.FC<WorkRowProps> = ({
 }) => {
   const a = row.assignment;
   const gate = a.periodGate;
+  // No matching class means the page can't tell; the assignment picks the class itself.
   const periodLocked =
-    !!gate && !studentCanEnter(gate, gate.periodKeys, pseudonymUid, nowMs);
+    !!gate &&
+    gate.periodKeys.length > 0 &&
+    !studentCanEnter(gate, gate.periodKeys, pseudonymUid, nowMs);
   const periodOpensAt = periodLocked
     ? nextScheduledOpen(gate, gate.periodKeys, nowMs)
     : null;
-  // A Manual start class the teacher has started.
-  const started = !!gate && !periodLocked && gate.accessMode === 'assessment';
+  // A Manual start class the teacher has started (not a Let in now pass on a closed class).
+  const started =
+    !!gate &&
+    gate.accessMode === 'assessment' &&
+    (row.state === 'open' || row.state === 'in-progress') &&
+    gate.periodKeys.some((k) => {
+      const access = gate.periodAccess?.[k];
+      return !!access && effectivePeriodState(access, nowMs) === 'open';
+    });
   const body = (
     <>
       <KindIcon kind={a.kind} />

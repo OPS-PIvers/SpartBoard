@@ -23,7 +23,10 @@ const base: AssignmentSummary = {
   workKind: 'work',
 };
 
-const manual = (state: 'open' | 'closed'): AssignmentSummary => ({
+const manual = (
+  state: 'open' | 'closed',
+  over: { periodKeys?: string[]; studentAccess?: Record<string, number> } = {}
+): AssignmentSummary => ({
   ...base,
   periodGate: {
     accessMode: 'assessment',
@@ -37,7 +40,8 @@ const manual = (state: 'open' | 'closed'): AssignmentSummary => ({
         label: 'P1',
       },
     },
-    periodKeys: ['c1'],
+    periodKeys: over.periodKeys ?? ['c1'],
+    studentAccess: over.studentAccess,
   },
 });
 
@@ -81,5 +85,23 @@ describe('WorkRow', () => {
     renderRow({ assignment: base, state: 'in-progress' });
     expect(screen.getByText('In progress')).toBeInTheDocument();
     expect(screen.getByText('Open')).toBeInTheDocument();
+  });
+
+  it('does not call a Let in now pass on a closed class Live', () => {
+    renderRow({
+      assignment: manual('closed', { studentAccess: { s1: NOW + 60_000 } }),
+      state: 'open',
+    });
+    expect(screen.queryByText('Live')).toBeNull();
+    expect(screen.getByText('Open')).toBeInTheDocument();
+  });
+
+  it('keeps Open when the student matches no class on the session', () => {
+    renderRow({
+      assignment: manual('closed', { periodKeys: [] }),
+      state: 'open',
+    });
+    expect(screen.getByText('Open')).toBeInTheDocument();
+    expect(screen.queryByText('Not started yet')).toBeNull();
   });
 });
