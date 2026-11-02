@@ -217,12 +217,15 @@ function parseWallPosts(body: unknown): ActivityWallSubmission[] {
 /** The queue file is the teacher's own; read it defensively all the same. */
 function parseNextUpQueue(body: unknown): NextUpQueueItem[] {
   if (!Array.isArray(body)) throw new Error('queue file is not a list');
-  return body.filter(
-    (item): item is NextUpQueueItem =>
-      typeof item === 'object' &&
-      item !== null &&
-      typeof (item as NextUpQueueItem).name === 'string'
-  );
+  // Only the queue fields travel, never anything else a file carries.
+  return body
+    .filter(
+      (item): item is NextUpQueueItem =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as NextUpQueueItem).name === 'string'
+    )
+    .map(({ id, name, status, joinedAt }) => ({ id, name, status, joinedAt }));
 }
 
 export function subShareNamesIsEmpty(file: SubShareNamesFile): boolean {
@@ -333,10 +336,22 @@ export type SubShareNamesWriter = (
 
 /** The queue reader, when the teacher's client has a live Drive service. */
 export function driveQueueReader(
-  drive: { downloadFile: (fileId: string) => Promise<Blob> } | null | undefined
+  drive:
+    | {
+        downloadFile: (fileId: string) => Promise<Blob>;
+        isInAppFolder: (
+          fileId: string,
+          folderPaths: readonly string[]
+        ) => Promise<boolean>;
+      }
+    | null
+    | undefined
 ): ((fileId: string) => Promise<unknown>) | undefined {
   if (!drive) return undefined;
   return async (fileId) => {
+    // An imported widget can name any app file; only a NextUp queue file is read.
+    if (!(await drive.isInAppFolder(fileId, ['NextUp'])))
+      throw new Error('queue file is not in the NextUp folder');
     const blob = await drive.downloadFile(fileId);
     return JSON.parse(await blob.text()) as unknown;
   };
