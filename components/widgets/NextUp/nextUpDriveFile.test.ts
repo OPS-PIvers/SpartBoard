@@ -29,3 +29,12 @@ describe('isNextUpQueueFile', () => {
     expect(drive.isInAppFolder).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('isNextUpQueueFile per account', () => {
+  it('checks again for a different Drive connection', async () => {
+    const first = { isInAppFolder: vi.fn().mockResolvedValue(true) };
+    const second = { isInAppFolder: vi.fn().mockResolvedValue(false) };
+    expect(await isNextUpQueueFile(first, 'sharedFileId12')).toBe(true);
+    expect(await isNextUpQueueFile(second, 'sharedFileId12')).toBe(false);
+  });
+});

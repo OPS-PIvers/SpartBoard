@@ -4,24 +4,27 @@ export const NEXTUP_FOLDER_NAME = 'NextUp';
 
 type FolderCheck = Pick<GoogleDriveService, 'isInAppFolder'>;
 
-// One Drive lookup per queue file; a failed lookup is retried next time.
-const verdicts = new Map<string, Promise<boolean>>();
+// One Drive lookup per queue file per signed-in Drive; a failed lookup is retried next time.
+let verdictsByDrive = new WeakMap<FolderCheck, Map<string, Promise<boolean>>>();
 
 /** True when the queue file sits in the teacher's NextUp folder, so an imported widget's id is never used. */
 export function isNextUpQueueFile(
   drive: FolderCheck,
   fileId: string
 ): Promise<boolean> {
+  let verdicts = verdictsByDrive.get(drive);
+  if (!verdicts) {
+    verdicts = new Map();
+    verdictsByDrive.set(drive, verdicts);
+  }
   const cached = verdicts.get(fileId);
   if (cached) return cached;
   const check = drive.isInAppFolder(fileId, [NEXTUP_FOLDER_NAME]);
   verdicts.set(fileId, check);
-  void check.then(
-    (owned) => {
-      if (!owned) verdicts.delete(fileId);
-    },
-    () => verdicts.delete(fileId)
-  );
+  const forget = () => verdicts.delete(fileId);
+  void check.then((owned) => {
+    if (!owned) forget();
+  }, forget);
   return check;
 }
 
@@ -35,4 +38,6 @@ export async function assertNextUpQueueFile(
 }
 
 // Test hook.
-export const resetNextUpQueueFileCache = (): void => verdicts.clear();
+export const resetNextUpQueueFileCache = (): void => {
+  verdictsByDrive = new WeakMap();
+};
