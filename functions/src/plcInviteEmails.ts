@@ -232,24 +232,38 @@ export function isPlcMembershipManager(
   return (role === 'lead' || role === 'coLead') && status !== 'removed';
 }
 
-/** Mail goes out only when a staff lead invites a well-formed address on a verified org domain. */
+const MAX_NAME_LENGTH = 100;
+const cleanName = (raw: unknown): string =>
+  typeof raw === 'string'
+    ? raw.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME_LENGTH)
+    : '';
+
+export type InviteMailDecision =
+  | { ok: true; inviterName: string; plcName: string }
+  | { ok: false; reason: string };
+
+/** Mail goes out only when a staff lead invites a well-formed org address; names come from Auth and the PLC, not the invite. */
 export async function inviteMayBeMailed(
   db: admin.firestore.Firestore,
   auth: Pick<admin.auth.Auth, 'getUser'>,
   invite: PlcInvitationDoc,
   plcData: admin.firestore.DocumentData | undefined
-): Promise<string | null> {
-  if (!isWellFormedEmail(invite.inviteeEmailLower)) return 'bad recipient';
+): Promise<InviteMailDecision> {
+  const no = (reason: string): InviteMailDecision => ({ ok: false, reason });
+  if (!isWellFormedEmail(invite.inviteeEmailLower)) return no('bad recipient');
   if (!isPlcMembershipManager(plcData, invite.invitedByUid))
-    return 'inviter does not manage the PLC';
+    return no('inviter does not manage the PLC');
+  const plcName = cleanName(plcData?.name);
+  if (!plcName) return no('PLC has no name');
   const inviter = await auth.getUser(invite.invitedByUid).catch(() => null);
   const inviterEmail = provenGoogleEmail(inviter);
-  if (!inviterEmail) return 'inviter is not a verified Google account';
+  if (!inviterEmail) return no('inviter is not a verified Google account');
   const checker = createOrgEmailChecker(db);
-  if (!(await checker.isStaff(inviterEmail))) return 'inviter is not staff';
+  if (!(await checker.isStaff(inviterEmail))) return no('inviter is not staff');
   if (!(await checker.isOrgAddress(invite.inviteeEmailLower)))
-    return 'recipient is not on an org domain';
-  return null;
+    return no('recipient is not on an org domain');
+  const inviterName = cleanName(inviter?.displayName) || inviterEmail;
+  return { ok: true, inviterName, plcName };
 }
 
 // ---------------------------------------------------------------------------
@@ -335,24 +349,33 @@ export const plcInvitationEmail = onDocumentWritten(
       return;
     }
 
-    const refusal = await inviteMayBeMailed(
-      db,
-      admin.auth(),
-      invite,
-      plcSnap.data()
-    );
-    if (refusal) {
+    let decision: InviteMailDecision;
+    try {
+      decision = await inviteMayBeMailed(
+        db,
+        admin.auth(),
+        invite,
+        plcSnap.data()
+      );
+    } catch (err) {
+      logger.error('plcInvitationEmail: sender check failed', {
+        inviteId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
+    if (!decision.ok) {
       logger.warn('plcInvitationEmail: not mailing invite', {
         inviteId,
         plcId: invite.plcId,
-        reason: refusal,
+        reason: decision.reason,
       });
       return;
     }
 
     const body = buildPlcInvitationEmail({
-      plcName: invite.plcName,
-      invitedByName: invite.invitedByName,
+      plcName: decision.plcName,
+      invitedByName: decision.inviterName,
       acceptUrl: buildPlcAcceptUrl(inviteId),
     });
     const mailDoc: MailDoc = {

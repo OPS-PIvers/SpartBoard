@@ -172,6 +172,7 @@ beforeEach(() => {
       'lead-uid',
       {
         email: 'lead@example.com',
+        displayName: 'Lead Teacher',
         emailVerified: true,
         disabled: false,
         providerData: [{ providerId: 'google.com' }],
@@ -546,11 +547,35 @@ describe('plcInvitationEmail trigger — who may send', () => {
 
   it('lets an active co-lead invite', async () => {
     adminMock.plcDocs.set('plc-1', {
+      name: 'Grade 3 Math',
       leadUid: 'other',
       memberUids: ['other', 'lead-uid'],
       members: { 'lead-uid': { role: 'coLead' } },
     });
     await run(fresh());
     expect(adminMock.mailSets).toHaveLength(1);
+  });
+
+  it('takes the inviter and PLC names from Auth and the PLC, not the invite', async () => {
+    await run(
+      fresh({ invitedByName: 'IT Help Desk', plcName: 'Reset your password' })
+    );
+    expect(adminMock.mailSets).toHaveLength(1);
+    const text = JSON.stringify(adminMock.mailSets[0].payload);
+    expect(text).toContain('Lead Teacher');
+    expect(text).toContain('Grade 3 Math');
+    expect(text).not.toContain('IT Help Desk');
+    expect(text).not.toContain('Reset your password');
+  });
+
+  it('logs and sends nothing when a lookup fails', async () => {
+    adminMock.orgDomains = {
+      get: () => {
+        throw new Error('firestore down');
+      },
+    } as never;
+    await run(fresh());
+    expect(adminMock.mailSets).toHaveLength(0);
+    expect(loggerMock.error).toHaveBeenCalled();
   });
 });
