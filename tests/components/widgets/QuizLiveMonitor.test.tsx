@@ -65,13 +65,22 @@ vi.mock('@/utils/quizAudio', () => ({
 // firebase/firestore is real in this repo but db/auth from `@/config/firebase`
 // are globally stubbed in tests/setup.ts. Mock the primitives the monitor
 // calls so the leaderboard broadcast effect is observable without a backend.
+const leaderboardBatch = vi.hoisted(() => {
+  const batch = {
+    update: vi.fn((..._args: unknown[]) => batch),
+    set: vi.fn((..._args: unknown[]) => batch),
+    delete: vi.fn(() => batch),
+    commit: vi.fn(() => Promise.resolve()),
+  };
+  return batch;
+});
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((..._args: unknown[]) => ({ __doc: _args.slice(1) })),
   updateDoc: vi.fn().mockResolvedValue(undefined),
   deleteField: vi.fn(() => '__DELETE__'),
+  writeBatch: vi.fn(() => leaderboardBatch),
 }));
 
-import * as firestore from 'firebase/firestore';
 import { MonitorShell as QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/monitor/MonitorShell';
 import { QuestionDetail } from '@/components/widgets/QuizWidget/components/monitor/QuestionResults';
 
@@ -413,10 +422,8 @@ describe('QuizLiveMonitor (rebuilt)', () => {
   it('narrows buckets by period chips but keeps the leaderboard broadcast on the unfiltered set', () => {
     vi.useFakeTimers();
     try {
-      const updateDocMock = firestore.updateDoc as unknown as ReturnType<
-        typeof vi.fn
-      >;
-      updateDocMock.mockClear();
+      leaderboardBatch.update.mockClear();
+      leaderboardBatch.set.mockClear();
       renderMonitor({
         session: { periodNames: ['P1', 'P2'], speedBonusEnabled: true },
         responses: [
@@ -431,7 +438,7 @@ describe('QuizLiveMonitor (rebuilt)', () => {
       act(() => {
         vi.advanceTimersByTime(400);
       });
-      const leaderboardCall = updateDocMock.mock.calls.find(
+      const leaderboardCall = leaderboardBatch.update.mock.calls.find(
         (c) =>
           typeof c[1] === 'object' &&
           c[1] !== null &&
@@ -441,7 +448,14 @@ describe('QuizLiveMonitor (rebuilt)', () => {
       const broadcast = (leaderboardCall[1] as { liveLeaderboard: object[] })
         .liveLeaderboard;
       expect(broadcast).toHaveLength(2);
-      for (const entry of broadcast) expect(entry).not.toHaveProperty('pin');
+      for (const entry of broadcast) {
+        expect(entry).not.toHaveProperty('pin');
+        expect(entry).not.toHaveProperty('name');
+      }
+      expect(leaderboardBatch.set).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ names: expect.any(Object) })
+      );
     } finally {
       vi.useRealTimers();
     }

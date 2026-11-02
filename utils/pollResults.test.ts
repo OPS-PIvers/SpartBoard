@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PollQuestion } from '@/types';
 import {
-  legacyHiddenWordKey,
   pollResultsCsv,
   summarizeLocalPoll,
   summarizePoll,
@@ -147,7 +146,7 @@ describe('hidden answers', () => {
     expect(t.answered).toBe(2);
   });
 
-  it('still honours a word hidden under the older hashed key', () => {
+  it('ignores an older hashed hidden-word key', () => {
     const [w] = summarizePoll(
       [words],
       [],
@@ -155,9 +154,9 @@ describe('hidden answers', () => {
         { id: '0_u1', questionIndex: 0, text: 'Rude', votedAt: 1 },
         { id: '0_u2', questionIndex: 0, text: 'fun', votedAt: 2 },
       ],
-      [legacyHiddenWordKey('q3', 'rude')]
+      ['q3#1x2y3z']
     );
-    expect(w.texts).toEqual([{ text: 'fun', count: 1 }]);
+    expect(w.texts.map((x) => x.text)).toEqual(['fun', 'rude']);
   });
 });
 

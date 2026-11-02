@@ -124,7 +124,10 @@ describe('quiz response CREATE — server-owned archive fields', () => {
       )
     );
     await assertSucceeds(
-      setDoc(doc(asTeacher(), TEACHER_RESPONSE_PATH), baseResponse(TEACHER_UID))
+      setDoc(doc(asTeacher(), TEACHER_RESPONSE_PATH), {
+        ...baseResponse(TEACHER_UID),
+        pin: '02',
+      })
     );
   });
 
@@ -154,6 +157,7 @@ describe('quiz response CREATE — server-owned archive fields', () => {
       await assertFails(
         setDoc(doc(asTeacher(), TEACHER_RESPONSE_PATH), {
           ...baseResponse(TEACHER_UID),
+          pin: '02',
           [field]: value,
         })
       );

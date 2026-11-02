@@ -452,6 +452,21 @@ describe('board helpers', () => {
     ).toEqual({ content: '[embedded file]' });
   });
 
+  it('never shows a quiz-built scoreboard team, live or not', () => {
+    const teams = [
+      { id: 'pin-0042', name: 'PIN 0042', score: 9 },
+      { id: 'uid-kid1', name: 'Ada Lovelace', score: 7 },
+      { id: 'team-a', name: 'Team A', score: 1 },
+    ];
+    for (const config of [{ teams }, { teams, liveQuizWidgetId: 'q' }]) {
+      const text = JSON.stringify(summarizeSettings('scoreboard', config));
+      expect(text).not.toMatch(/Ada|PIN|pin-|uid-/);
+    }
+    expect(summarizeSettings('scoreboard', { teams }).teams).toEqual([
+      { id: 'team-a', name: 'Team A' },
+    ]);
+  });
+
   it('finds the zone a widget sits on and none for a hand-placed one', () => {
     for (const layout of SNAP_ZONE_LAYOUTS)
       for (const z of layout.zones) {
