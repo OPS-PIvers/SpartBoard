@@ -1,4 +1,5 @@
 import type { SeatingChartConfig, SeatingPlan } from '@/types';
+import { clipText } from '@/utils/clipText';
 
 export const MAX_SEATING_PLANS = 12;
 export const MAX_PLAN_NAME_LENGTH = 40;
@@ -9,7 +10,7 @@ type PlanPatch = Pick<
 >;
 
 export const cleanPlanName = (raw: string): string =>
-  raw.trim().replace(/\s+/g, ' ').slice(0, MAX_PLAN_NAME_LENGTH);
+  clipText(raw.trim().replace(/\s+/g, ' '), MAX_PLAN_NAME_LENGTH);
 
 export const getActivePlan = (config: SeatingChartConfig): SeatingPlan | null =>
   config.savedPlans?.find((p) => p.id === config.activePlanId) ?? null;
