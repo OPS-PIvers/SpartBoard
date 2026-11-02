@@ -144,12 +144,13 @@ export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
         aria-label={label}
         aria-haspopup={summary.seqId ? 'menu' : undefined}
         aria-expanded={summary.seqId ? !!menuAt : undefined}
-        className={`touch-target-expand absolute -top-3 -left-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-xxs font-bold shadow-md [-webkit-tap-highlight-color:transparent] ${
+        className={`touch-target-expand absolute -top-3 left-7 flex items-center gap-1 rounded-full px-2 py-0.5 text-xxs font-bold shadow-md [-webkit-tap-highlight-color:transparent] ${
           summary.running
             ? 'bg-brand-red-primary text-white ring-2 ring-white motion-safe:animate-pulse'
             : 'bg-brand-blue-primary text-white'
         }`}
-        style={{ zIndex: 12 }}
+        // Clear of the corner resize zone and above the edge resize strips.
+        style={{ zIndex: Z_INDEX.widgetResize + 1 }}
       >
         <Workflow className="w-3 h-3" aria-hidden="true" />
         {summary.numbers && <span>{summary.numbers}</span>}
