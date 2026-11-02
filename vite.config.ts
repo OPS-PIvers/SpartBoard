@@ -55,7 +55,7 @@ const pdfjsWasmPlugin = (): Plugin => ({
   },
 });
 
-// App imports of 'firebase/firestore' get the View as write guard (docs/plans/ADMIN_VIEW_AS.md D13).
+// App imports of 'firebase/firestore' get the View as write guard (docs/plans/shipped/ADMIN_VIEW_AS.md D13).
 const FIRESTORE_GUARD = path.resolve(
   __dirname,
   'utils/firestoreViewAsGuard.ts'

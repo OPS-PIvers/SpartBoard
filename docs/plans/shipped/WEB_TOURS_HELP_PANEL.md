@@ -1,6 +1,6 @@
 # Web tours: start after sign-in, and a help center in the side panel
 
-**Shipped** 2026-10-24: slices 1-3 merged to `dev-paul` (#4619, #4620, #4622), extension 0.1.14. The store upload, IT trusting the OAuth clients and the real-Chrome check are tracked in `TODO.md`.
+**Shipped** 2026-10-24: slices 1-3 merged to `dev-paul` (#4619, #4620, #4622), extension 0.1.14. The store upload, IT trusting the OAuth clients and the real-Chrome check are tracked in `PAUL_TODO.md`.
 
 Goal: a web tour link keeps working on sites behind a sign-in (most of ours go through ClassLink), and staff can find every tour for the site they're on by clicking the extension's icon, without a link at all.
 

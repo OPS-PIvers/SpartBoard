@@ -1,4 +1,4 @@
-// Firestore security-rules tests for Mini App results v2 (docs/plans/MINI_APP_RESULTS.md D5, D6):
+// Firestore security-rules tests for Mini App results v2 (docs/plans/shipped/MINI_APP_RESULTS.md D5, D6):
 // v2 sessions refuse direct submission writes, attempts are server-only, the session key and the
 // teacher's key library are hidden from students, and v1 sessions keep working unchanged.
 // Requires a running Firestore emulator; invoke via `pnpm run test:rules`.

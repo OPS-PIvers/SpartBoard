@@ -1,4 +1,4 @@
-// Super admin "View as" session callables (docs/plans/ADMIN_VIEW_AS.md D1-D4, D16, D17).
+// Super admin "View as" session callables (docs/plans/shipped/ADMIN_VIEW_AS.md D1-D4, D16, D17).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { ALLOWED_ORIGINS } from './classlinkShared';

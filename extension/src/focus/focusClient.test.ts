@@ -51,6 +51,7 @@ function setup(over: Partial<FocusClientDeps> = {}) {
   const reports: FocusReportRequest[] = [];
   const deps = {
     origins: ['https://spartboard.web.app'],
+    ownPages: 'chrome-extension://abc/',
     protocol: 9,
     email: vi.fn(() => Promise.resolve('kid@orono.k12.mn.us')),
     status: vi.fn((body: FocusStatusRequest) => {
@@ -283,6 +284,19 @@ describe('createFocusClient reports', () => {
     t.setNow(65_000);
     await t.client.tick();
     expect(t.reports).toHaveLength(3);
+  });
+
+  it('reports a page that can show any site as away, with no domain', async () => {
+    const t = setup();
+    await t.client.check();
+    t.setUrl('data:text/html,<iframe src="https://games.example/">');
+    t.setNow(5_000);
+    await t.client.observe();
+    expect(t.reports.at(-1)).toMatchObject({ status: 'away', host: null });
+    t.setUrl('chrome-extension://abc/focus/index.html');
+    t.setNow(10_000);
+    await t.client.observe();
+    expect(t.reports.at(-1)?.status).toBe('on-task');
   });
 
   it('includes the domain only while the live-site switch is on', async () => {

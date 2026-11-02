@@ -1,4 +1,4 @@
-// Client side of Mini App results v2 (docs/plans/MINI_APP_RESULTS.md).
+// Client side of Mini App results v2 (docs/plans/shipped/MINI_APP_RESULTS.md).
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';

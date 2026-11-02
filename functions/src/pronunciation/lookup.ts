@@ -5,6 +5,7 @@ import * as admin from '../firebaseAdmin';
 import '../functionsInit';
 import { ALLOWED_ORIGINS } from '../classlinkShared';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import { isAiTeacherCaller } from '../aiCallerGate';
 import { cmudictStress, disagreesWithCmudict, lookupCmudict } from './cmudict';
 import { loadPhonemizer, type Phonemizer } from './espeak';
 import { SPEAK_G2P_VERSION, SPEAK_G2P_VOICES_PENDING } from './g2pVersion';
@@ -424,10 +425,7 @@ export const lookupSpeakReferencesV1 = onCall(
     assertViewAsAllowed(request, { read: true });
     const auth = request.auth;
     if (!auth) throw new HttpsError('unauthenticated', 'Sign in first.');
-    if (
-      auth.token.firebase?.sign_in_provider === 'anonymous' ||
-      auth.token.studentRole === true
-    ) {
+    if (!(await isAiTeacherCaller(admin.firestore(), auth.token))) {
       throw new HttpsError('permission-denied', 'Teachers only.');
     }
     const email =

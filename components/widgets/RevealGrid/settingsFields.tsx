@@ -22,6 +22,8 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 const inputClass =
   'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500';
 
+const SET_FOLDERS = ['RevealGridSets'];
+
 const isRevealCard = (value: unknown): value is RevealCard => {
   if (!value || typeof value !== 'object') return false;
   const card = value as Partial<RevealCard>;
@@ -101,6 +103,9 @@ export const RevealGridCardsField: React.FC<{
         setName: fileName,
       });
       let fileId = config.activeDriveFileId;
+      // A file id that came with an imported widget is never overwritten; save a new set instead.
+      if (fileId && !(await driveService.isInAppFolder(fileId, SET_FOLDERS)))
+        fileId = undefined;
       if (fileId) {
         await driveService.updateFileContent(
           fileId,
@@ -171,7 +176,12 @@ export const RevealGridCardsField: React.FC<{
   };
 
   const handleShareUrl = async () => {
-    if (!config.activeDriveFileId || !driveService) {
+    const fileId = config.activeDriveFileId;
+    if (
+      !fileId ||
+      !driveService ||
+      !(await driveService.isInAppFolder(fileId, SET_FOLDERS))
+    ) {
       await showAlert(t('saveBeforeShare'), {
         variant: 'info',
         title: t('saveRequiredTitle'),
@@ -180,7 +190,7 @@ export const RevealGridCardsField: React.FC<{
     }
     try {
       setIsLoadingDrive(true);
-      const url = await driveService.getShareableLink(config.activeDriveFileId);
+      const url = await driveService.getShareableLink(fileId);
       await navigator.clipboard.writeText(url);
       await showAlert(t('shareCopied'), {
         variant: 'info',

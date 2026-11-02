@@ -1,4 +1,4 @@
-// View as unlock: audited reason and recent-activity warning (docs/plans/ADMIN_VIEW_AS.md D10, D11).
+// View as unlock: audited reason and recent-activity warning (docs/plans/shipped/ADMIN_VIEW_AS.md D10, D11).
 import React, { useState } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';

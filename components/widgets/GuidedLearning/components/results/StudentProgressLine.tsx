@@ -12,7 +12,7 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-/** "Slide 7 of 12 · active 2 days ago" for one student (docs/plans/STUDENT_LANDING_V2.md D24). */
+/** "Slide 7 of 12 · active 2 days ago" for one student (docs/plans/shipped/STUDENT_LANDING_V2.md D24). */
 export const StudentProgressLine: React.FC<Props> = ({
   progress,
   playerV2,

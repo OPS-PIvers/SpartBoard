@@ -1,4 +1,4 @@
-// OAuth consent page for the Claude connector (docs/plans/CLAUDE_CONNECTOR.md CC-D1).
+// OAuth consent page for the Claude connector (docs/plans/shipped/CLAUDE_CONNECTOR.md CC-D1).
 import React from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { AlertCircle, Check, Loader2, LogIn, X } from 'lucide-react';

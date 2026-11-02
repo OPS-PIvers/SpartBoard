@@ -340,8 +340,9 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 {currentDayLabel}
                 {specialistClass && (
                   <span
-                    className="ml-2 font-bold"
+                    className="font-bold"
                     style={{
+                      marginLeft: 'min(8px, 2cqmin)',
                       fontSize: `min(${Math.round(14 * textScale)}px, ${(3.5 * textScale).toFixed(2)}cqmin)`,
                       color: fontColor,
                     }}

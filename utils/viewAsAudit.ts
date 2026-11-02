@@ -1,4 +1,4 @@
-// View as audit entries and the unlocked direct-save path (docs/plans/ADMIN_VIEW_AS.md D13, D14, D16).
+// View as audit entries and the unlocked direct-save path (docs/plans/shipped/ADMIN_VIEW_AS.md D13, D14, D16).
 import { getDoc, setDoc, type DocumentReference } from 'firebase/firestore';
 import {
   getViewAsTabState,

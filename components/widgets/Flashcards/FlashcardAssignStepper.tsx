@@ -1,4 +1,4 @@
-// Flashcards assign on the accordion stepper (docs/plans/ASSIGN_STEPPER.md D2, D4, D9, D12).
+// Flashcards assign on the accordion stepper (docs/plans/shipped/ASSIGN_STEPPER.md D2, D4, D9, D12).
 import React, { useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AuthContext } from '@/context/AuthContextValue';

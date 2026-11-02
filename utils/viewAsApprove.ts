@@ -1,4 +1,4 @@
-// Transactional per-widget approve for View as pending changes (docs/plans/ADMIN_VIEW_AS.md D11, D16).
+// Transactional per-widget approve for View as pending changes (docs/plans/shipped/ADMIN_VIEW_AS.md D11, D16).
 import {
   collection,
   doc,

@@ -27,6 +27,10 @@ vi.mock('../quizMediaArchive', () => ({
   isGlobalFeatureGranted: (...args: unknown[]) =>
     isGlobalFeatureGranted(...args),
 }));
+const isDistrictStaffToken = vi.fn(() => Promise.resolve(true));
+vi.mock('../districtStaff', () => ({
+  isDistrictStaffToken: () => isDistrictStaffToken(),
+}));
 
 import {
   computeSpeakReferences,
@@ -333,6 +337,7 @@ const teacher = {
   uid: 't1',
   token: {
     email: 'teacher@example.com',
+    email_verified: true,
     firebase: { sign_in_provider: 'google.com' },
   },
 };
@@ -380,6 +385,23 @@ describe('lookupSpeakReferencesV1', () => {
         data,
       })
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('rejects an unverified email/password account before the flag lookup', async () => {
+    await expect(
+      call({
+        auth: {
+          uid: 'x1',
+          token: {
+            email: 'teacher@example.com',
+            email_verified: false,
+            firebase: { sign_in_provider: 'password' },
+          },
+        },
+        data,
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(isGlobalFeatureGranted).not.toHaveBeenCalled();
   });
 
   it('rejects a teacher without the flag', async () => {

@@ -1,4 +1,4 @@
-// Pure helpers for the folder view (docs/plans/LIBRARY_FOLDERS.md D1-D10).
+// Pure helpers for the folder view (docs/plans/shipped/LIBRARY_FOLDERS.md D1-D10).
 import type { LibraryFolder } from '@/types';
 import type { LibrarySortDir } from './types';
 import { isSourceFolderId } from './sourceFolders';

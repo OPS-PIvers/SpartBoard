@@ -1,4 +1,4 @@
-// Prompt, schema and parser for the PLC goal coach (docs/plans/TEAMS_REDESIGN.md T22).
+// Prompt, schema and parser for the PLC goal coach (docs/plans/shipped/TEAMS_REDESIGN.md T22).
 import { Type, type Schema } from '@google/genai';
 import { parseGeminiJson } from './parseGeminiJson';
 import type { GoalCoachCriterion } from './plcGoalCoachRubric';

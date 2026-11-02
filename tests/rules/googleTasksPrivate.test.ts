@@ -1,4 +1,4 @@
-// Google Tasks sync state is server-only, so a teammate can't learn who connected (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md D11).
+// Google Tasks sync state is server-only, so a teammate can't learn who connected (docs/plans/shipped/GOOGLE_TASKS_ACTION_ITEMS.md D11).
 // Requires the Firestore emulator: `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -39,6 +39,8 @@ const labels: Record<string, string> = {
   frontContent: 'Front (Question / Term)',
   backContent: 'Back (Answer / Definition)',
   addCard: 'Add Card',
+  saveToDrive: 'Save to Drive',
+  shareUrl: 'Share URL',
 };
 
 const makeCtx = (widget: WidgetData = baseWidget): CustomRenderCtx => ({
@@ -131,5 +133,73 @@ describe('RevealGridCardsField', () => {
     expect(
       screen.getByLabelText('Paste two columns (Term, Definition)')
     ).toBeInTheDocument();
+  });
+  describe('Drive files from an imported widget', () => {
+    const importedWidget: WidgetData = {
+      ...baseWidget,
+      config: { ...baseWidget.config, activeDriveFileId: 'foreignFileId123' },
+    };
+    // The folder listing on mount disables the buttons until it finishes.
+    const ready = () =>
+      waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: /save to drive/i })
+        ).toBeEnabled()
+      );
+    const makeDrive = (owned: boolean) => ({
+      isInAppFolder: vi.fn().mockResolvedValue(owned),
+      getShareableLink: vi.fn().mockResolvedValue('https://drive/link'),
+      updateFileContent: vi.fn().mockResolvedValue(undefined),
+      uploadFile: vi.fn().mockResolvedValue({ id: 'newFileId12345' }),
+      getFolderPath: vi.fn().mockResolvedValue('folder'),
+      listFiles: vi.fn().mockResolvedValue([]),
+    });
+
+    it('does not publish a file outside the RevealGridSets folder', async () => {
+      const drive = makeDrive(false);
+      vi.mocked(useGoogleDrive).mockReturnValue({
+        driveService: drive,
+      } as never);
+      render(<RevealGridCardsField ctx={makeCtx(importedWidget)} />);
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: /share url/i }));
+      await waitFor(() => expect(showAlert).toHaveBeenCalled());
+      expect(drive.isInAppFolder).toHaveBeenCalledWith('foreignFileId123', [
+        'RevealGridSets',
+      ]);
+      expect(drive.getShareableLink).not.toHaveBeenCalled();
+    });
+
+    it('saves a new file instead of overwriting a foreign one', async () => {
+      const drive = makeDrive(false);
+      vi.mocked(useGoogleDrive).mockReturnValue({
+        driveService: drive,
+      } as never);
+      render(<RevealGridCardsField ctx={makeCtx(importedWidget)} />);
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: /save to drive/i }));
+      await waitFor(() => expect(drive.uploadFile).toHaveBeenCalled());
+      expect(drive.updateFileContent).not.toHaveBeenCalled();
+      expect(updateConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ activeDriveFileId: 'newFileId12345' })
+      );
+    });
+
+    it("still shares and updates the widget's own set", async () => {
+      const drive = makeDrive(true);
+      vi.mocked(useGoogleDrive).mockReturnValue({
+        driveService: drive,
+      } as never);
+      render(<RevealGridCardsField ctx={makeCtx(importedWidget)} />);
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: /share url/i }));
+      await waitFor(() =>
+        expect(drive.getShareableLink).toHaveBeenCalledWith('foreignFileId123')
+      );
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: /save to drive/i }));
+      await waitFor(() => expect(drive.updateFileContent).toHaveBeenCalled());
+      expect(drive.uploadFile).not.toHaveBeenCalled();
+    });
   });
 });

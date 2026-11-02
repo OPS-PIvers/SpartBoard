@@ -33,7 +33,7 @@ Approved by Paul 2026-10-30 (grilling session, cloud). Covers Quiz and Video Act
 - **D15. The deadline is enforced by the student app and a scheduled server sweep**: the app auto-submits at `unlockedUntil`; a scheduled function (same pattern as the idle-finalize sweep) finalizes and re-locks any unlocked response past it. No rules change.
 - **D11. Reopen is offered in three places**: the Quiz (and VA) Results roster list (row action and multi-select, extending "Reopen for selected"), the Assignments hub roster pane (`components/assignmentsHub/AssignmentDetailPane.tsx`), and the Quiz monitor.
 - **D12. The assignment stays Closed for everyone else.** The reopened student sees it open on their student landing, marked "Reopened by your teacher", and can also join by code although the session has ended. The code-join lookup drops ended sessions today (`acceptsStudents`, `hooks/useQuizSession.ts`); it must admit a caller whose response is unlocked. The student's `student_assignments` pointer doc carries the reopen so the landing can show it.
-- **D14. Reopening a student who has a teacher-entered score asks first.** On confirm, the entered score becomes that student's earlier attempt (closed copy under `attempts/{n}`, per `docs/plans/QUIZ_ATTEMPT_HISTORY.md`) and the student starts a fresh attempt; the quiz's Final score setting decides which counts.
+- **D14. Reopening a student who has a teacher-entered score asks first.** On confirm, the entered score becomes that student's earlier attempt (closed copy under `attempts/{n}`, per `docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md`) and the student starts a fresh attempt; the quiz's Final score setting decides which counts.
 
 ## Slices
 

@@ -1,4 +1,4 @@
-// The `window.SpartBoard` helper injected into v2 Mini App frames (docs/plans/MINI_APP_RESULTS.md D2, D3).
+// The `window.SpartBoard` helper injected into v2 Mini App frames (docs/plans/shipped/MINI_APP_RESULTS.md D2, D3).
 
 export const MINI_APP_HELPER_VERSION = 1;
 export const MAX_RESULT_ITEMS = 200;

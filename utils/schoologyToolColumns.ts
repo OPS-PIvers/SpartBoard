@@ -1,6 +1,6 @@
 /**
  * Client seam for Schoology gradebook columns SpartBoard creates
- * (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D8–D9, D12–D13): the callable wrappers,
+ * (docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md D8–D9, D12–D13): the callable wrappers,
  * Missing entries for students with no submission, and the push toast.
  */
 import { httpsCallable, type Functions } from 'firebase/functions';

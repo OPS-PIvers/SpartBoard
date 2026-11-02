@@ -1,4 +1,4 @@
-// Self-paced Review game engine (docs/plans/QUIZ_REVIEW_SPLIT.md D18, D22, D23).
+// Self-paced Review game engine (docs/plans/shipped/QUIZ_REVIEW_SPLIT.md D18, D22, D23).
 
 import { describe, it, expect } from 'vitest';
 import {

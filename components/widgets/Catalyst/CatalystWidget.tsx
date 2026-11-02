@@ -173,8 +173,11 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                     </span>
                     {routine.description && (
                       <span
-                        className="text-white/80 block text-center truncate mt-0.5"
-                        style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                        className="text-white/80 block text-center truncate"
+                        style={{
+                          fontSize: 'min(9px, 2.5cqmin)',
+                          marginTop: 'min(2px, 0.5cqmin)',
+                        }}
                       >
                         {routine.description}
                       </span>
@@ -272,15 +275,21 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                   </span>
                   {set.description && (
                     <span
-                      className="text-white/80 truncate block mt-0.5"
-                      style={{ fontSize: 'min(10px, 3cqmin)' }}
+                      className="text-white/80 truncate block"
+                      style={{
+                        fontSize: 'min(10px, 3cqmin)',
+                        marginTop: 'min(2px, 0.5cqmin)',
+                      }}
                     >
                       {set.description}
                     </span>
                   )}
                   <span
-                    className="text-indigo-200 font-bold mt-1"
-                    style={{ fontSize: 'min(10px, 3cqmin)' }}
+                    className="text-indigo-200 font-bold"
+                    style={{
+                      fontSize: 'min(10px, 3cqmin)',
+                      marginTop: 'min(4px, 1cqmin)',
+                    }}
                   >
                     {set.routines.length} ROUTINE
                     {set.routines.length !== 1 ? 'S' : ''}

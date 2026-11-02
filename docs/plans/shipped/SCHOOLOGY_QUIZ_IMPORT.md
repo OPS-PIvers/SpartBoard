@@ -1,6 +1,6 @@
 # Schoology quiz import
 
-Status: built 2026-10-29. PR 1 readers (#4849), PR 2 inbox (#4851), PR 3 review (#4855), PR 4 extension buttons (#4858), question banks (#4864) and PR 5 guided `.imscc` route (#4865) merged to dev-paul; extension 0.1.23 (#4868). Release steps are in `TODO.md`; the wider import work is `docs/plans/IMPORT.md`.
+Status: built 2026-10-29. PR 1 readers (#4849), PR 2 inbox (#4851), PR 3 review (#4855), PR 4 extension buttons (#4858), question banks (#4864) and PR 5 guided `.imscc` route (#4865) merged to dev-paul; extension 0.1.23 (#4868). Release steps are in `PAUL_TODO.md`; the wider import work is `docs/plans/IMPORT.md`.
 
 ## Goal
 
@@ -93,7 +93,7 @@ district key (2026-10-29, statuses and field names only):
 - **Q11 Provenance, not linking.** Each imported quiz and bank records where it came from:
   `source: { system: 'schoology', kind, sectionId?, itemId, collectionId?, importedAt }`. Q10 uses
   it. Linking a quiz to its Schoology gradebook column is not part of this feature; the
-  tool-columns work (`docs/plans/SCHOOLOGY_TOOL_COLUMNS.md`) can use these ids later.
+  tool-columns work (`docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md`) can use these ids later.
 - **Q12 Points and settings.** Per-question points come across. Quiz-level settings come across
   only where SpartBoard has the same setting (for example shuffle questions); others are dropped
   and named on the review screen.

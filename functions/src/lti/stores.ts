@@ -35,10 +35,25 @@ function isExpired(data: { expiresAtMs?: number } | undefined): boolean {
 }
 
 // ── OIDC state/nonce ───────────────────────────────────────────────────────
+/** Extra login facts bound to the state: the browser-binding hash and the login params to replay. */
+export interface OidcStateExtra {
+  bindingHash?: string;
+  loginParams?: Record<string, string | null>;
+  topLevel?: boolean;
+}
+
+export interface OidcStateRecord {
+  nonce: string;
+  bindingHash: string | null;
+  loginParams: Record<string, string | null> | null;
+  topLevel: boolean;
+}
+
 export async function putOidcState(
   db: Db,
   state: string,
-  nonce: string
+  nonce: string,
+  extra: OidcStateExtra = {}
 ): Promise<void> {
   const now = Date.now();
   await db
@@ -46,10 +61,48 @@ export async function putOidcState(
     .doc(state)
     .set({
       nonce,
+      ...(extra.bindingHash ? { bindingHash: extra.bindingHash } : {}),
+      ...(extra.loginParams ? { loginParams: extra.loginParams } : {}),
+      ...(extra.topLevel ? { topLevel: true } : {}),
       createdAt: now,
       expiresAtMs: now + STATE_TTL_MS,
       expiresAt: new Date(now + STATE_TTL_MS),
     });
+}
+
+/** Atomically reads + deletes the state doc. Returns its record, or null if missing/expired. */
+export async function consumeOidcStateRecord(
+  db: Db,
+  state: string
+): Promise<OidcStateRecord | null> {
+  if (!state) return null;
+  const ref = db.collection(LTI_STATE_COLLECTION).doc(state);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return null;
+    const data = snap.data() as {
+      nonce?: string;
+      expiresAtMs?: number;
+      bindingHash?: unknown;
+      loginParams?: unknown;
+      topLevel?: unknown;
+    };
+    tx.delete(ref);
+    if (isExpired(data)) return null;
+    if (typeof data.nonce !== 'string' || !data.nonce) return null;
+    return {
+      nonce: data.nonce,
+      bindingHash:
+        typeof data.bindingHash === 'string' && data.bindingHash
+          ? data.bindingHash
+          : null,
+      loginParams:
+        data.loginParams && typeof data.loginParams === 'object'
+          ? (data.loginParams as Record<string, string | null>)
+          : null,
+      topLevel: data.topLevel === true,
+    };
+  });
 }
 
 /** Atomically reads + deletes the state doc. Returns the nonce, or null if missing/expired. */
@@ -57,16 +110,7 @@ export async function consumeOidcState(
   db: Db,
   state: string
 ): Promise<string | null> {
-  if (!state) return null;
-  const ref = db.collection(LTI_STATE_COLLECTION).doc(state);
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) return null;
-    const data = snap.data() as { nonce?: string; expiresAtMs?: number };
-    tx.delete(ref);
-    if (isExpired(data)) return null;
-    return typeof data.nonce === 'string' && data.nonce ? data.nonce : null;
-  });
+  return (await consumeOidcStateRecord(db, state))?.nonce ?? null;
 }
 
 // ── Launch codes ────────────────────────────────────────────────────────────

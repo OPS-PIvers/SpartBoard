@@ -1,5 +1,5 @@
 // Schoology LTI 1.3 — push scores into gradebook columns SpartBoard creates
-// (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D4–D7, D12–D13). Network, Firestore and
+// (docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md D4–D7, D12–D13). Network, Firestore and
 // secrets come in through `ToolColumnDeps`, so the callables in
 // toolColumnEndpoints.ts stay thin and this logic is testable on its own.
 

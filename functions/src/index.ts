@@ -242,7 +242,7 @@ export { recomputePlcAssessments } from './recomputePlcAssessments';
 export { pollCodePointer } from './pollCodePointer';
 
 // Gradebook grade index and student projection (docs/plans/GRADEBOOK.md D10, D37); off until admin_settings/gradebook_index.enabled.
-// gradeIndexQuizResponse also keeps quiz attempt history, which is always on (docs/plans/QUIZ_ATTEMPT_HISTORY.md).
+// gradeIndexQuizResponse also keeps quiz attempt history, which is always on (docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md).
 export {
   gradeIndexQuizResponse,
   gradeIndexVideoResponse,
@@ -280,7 +280,7 @@ export {
 // exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
 export { mirrorPlcIndex } from './mirrorPlcIndex';
 
-// My Groups: admin-made building groups and their auto-roster (docs/plans/MY_GROUPS.md).
+// My Groups: admin-made building groups and their auto-roster (docs/plans/shipped/MY_GROUPS.md).
 export {
   createBuildingGroupV1,
   syncBuildingGroupV1,
@@ -302,7 +302,7 @@ export {
   runPlcMeetingNotesJob,
 } from './plcMeetingNotes';
 
-// PLC goal coach: checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22).
+// PLC goal coach: checks a draft team goal against the district rubric (docs/plans/shipped/TEAMS_REDESIGN.md T22).
 export { plcGoalCoachV1 } from './plcGoalCoach';
 export { importConvertV1 } from './importConversion';
 
@@ -405,7 +405,7 @@ export {
   ltiDeleteToolColumnsV1,
 } from './lti/toolColumnEndpoints';
 
-// Claude connector (remote MCP server) — see docs/plans/CLAUDE_CONNECTOR.md.
+// Claude connector (remote MCP server) — see docs/plans/shipped/CLAUDE_CONNECTOR.md.
 export { mcpServer } from './mcp/mcpEndpoint';
 export { mcpOAuth } from './mcp/oauthEndpoints';
 export { mcpAuthorizeV1, revokeMcpGrantV1 } from './mcp/authorizeCallables';

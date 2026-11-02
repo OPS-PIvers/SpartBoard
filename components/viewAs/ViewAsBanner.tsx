@@ -1,4 +1,4 @@
-// Persistent View as banner (docs/plans/ADMIN_VIEW_AS.md D9, D10).
+// Persistent View as banner (docs/plans/shipped/ADMIN_VIEW_AS.md D9, D10).
 import React, {
   useEffect,
   useMemo,

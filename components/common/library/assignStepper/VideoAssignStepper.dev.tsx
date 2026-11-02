@@ -28,7 +28,7 @@ const Preview: React.FC = () => {
   const [open, setOpen] = useState(true);
   if (!open)
     return (
-      <button
+      <button // no-tour-anchor: dev-only mockup page, not on the teacher board
         type="button"
         onClick={() => setOpen(true)}
         className="m-6 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white"

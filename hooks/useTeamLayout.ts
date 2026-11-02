@@ -1,4 +1,4 @@
-/** Team type defaults listener and team layout writes (docs/plans/TEAMS_REDESIGN.md T2, T3). */
+/** Team type defaults listener and team layout writes (docs/plans/shipped/TEAMS_REDESIGN.md T2, T3). */
 
 import { useEffect, useState } from 'react';
 import {

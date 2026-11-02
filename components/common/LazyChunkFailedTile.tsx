@@ -27,7 +27,7 @@ export const LazyChunkFailedTile: React.FC<{ onRetry: () => void }> = ({
         ) : undefined
       }
       action={
-        <button
+        <button // no-tour-anchor: error fallback shown when a widget fails to load
           type="button"
           onClick={onRetry}
           className={RETRY_BUTTON_CLASS}

@@ -1,4 +1,4 @@
-// Claude connector constants (docs/plans/CLAUDE_CONNECTOR.md).
+// Claude connector constants (docs/plans/shipped/CLAUDE_CONNECTOR.md).
 
 /** GlobalFeature id gating the connector (CC-D7). */
 export const CONNECTOR_FEATURE_ID = 'claude-connector';

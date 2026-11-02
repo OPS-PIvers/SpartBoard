@@ -1,4 +1,4 @@
-// Firestore security-rules regression for personal library folders (docs/plans/LIBRARY_FOLDERS.md).
+// Firestore security-rules regression for personal library folders (docs/plans/shipped/LIBRARY_FOLDERS.md).
 // Requires the Firestore emulator: `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';

@@ -1,4 +1,4 @@
-// Mini App result shape, privacy filter and server grading (docs/plans/MINI_APP_RESULTS.md D3, D7, D11).
+// Mini App result shape, privacy filter and server grading (docs/plans/shipped/MINI_APP_RESULTS.md D3, D7, D11).
 
 // Local mirrors of the root types.ts shapes; functions cannot import root code.
 export type MiniAppQuestionType =

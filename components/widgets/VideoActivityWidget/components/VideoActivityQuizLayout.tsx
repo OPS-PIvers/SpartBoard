@@ -1,4 +1,4 @@
-// Video Activity editor panes on the Quiz editor layout (docs/plans/VA_QUIZ_ALIGNMENT.md slice 2, flag va-quiz-alignment).
+// Video Activity editor panes on the Quiz editor layout (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md slice 2, flag va-quiz-alignment).
 import React, {
   useCallback,
   useLayoutEffect,

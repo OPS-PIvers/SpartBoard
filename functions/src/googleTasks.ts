@@ -1,4 +1,4 @@
-// Google Tasks sync for team action items (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md).
+// Google Tasks sync for team action items (docs/plans/shipped/GOOGLE_TASKS_ACTION_ITEMS.md).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
