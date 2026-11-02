@@ -5601,7 +5601,7 @@
   },
   "tourPicker": {
     "prompt": "Click a control for this step",
-    "altHint": "Hold Alt to open a menu first",
+    "menuHint": "Hold {{key}} and click to open a menu first",
     "chooseFromList": "Choose from list",
     "cancel": "Cancel",
     "search": "Search controls",
