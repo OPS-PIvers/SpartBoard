@@ -431,6 +431,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
         {
           studentUid: ANON_UID,
           pin: '5678',
+          classPeriod: 'p1',
           joinedAt: 2000,
           score: null,
           answers: [],
@@ -454,6 +455,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
         {
           studentUid: ANON_UID,
           pin: '5678',
+          classPeriod: 'p1',
           joinedAt: 2000,
           score: null,
           answers: [],
@@ -512,6 +514,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
       setDoc(responseRef, {
         studentUid: ANON_UID,
         pin: '5678',
+        classPeriod: 'p1',
         joinedAt: 2000,
         score: null,
         answers: [],
@@ -530,6 +533,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
       setDoc(responseRef, {
         studentUid: ANON_UID,
         pin: '5678',
+        classPeriod: 'p1',
         joinedAt: 2000,
         score: null,
         answers: [{ questionId: 'q1', value: 'B' }],
