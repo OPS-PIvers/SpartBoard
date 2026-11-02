@@ -4591,16 +4591,20 @@ export const TOUR_ANCHORS = {
     label: 'Starting length minutes in Time Tool settings',
     perWidget: true,
     panel: true,
+    persists: true,
   },
   'widget-settings.time-tool.start-seconds': {
     label: 'Starting length seconds in Time Tool settings',
     perWidget: true,
     panel: true,
+    persists: true,
   },
   'widget-settings.time-tool.start-clear': {
     label: 'Use school default button for the timer starting length',
     perWidget: true,
     panel: true,
+    persists: true,
+    destructive: true,
   },
   'widget-settings.weather.show-feels-like': {
     label: 'Show feels-like toggle in Weather settings',

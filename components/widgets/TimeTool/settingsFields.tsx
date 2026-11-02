@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { TimeToolConfig, WidgetType } from '@/types';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { resolveLabel } from '@/components/settings/renderer/resolveLabel';
@@ -232,12 +232,20 @@ export const TimeToolStartLengthField: React.FC<CustomFieldProps> = ({
       .duration
   );
   const seconds = timeToolStartSeconds || buildingSeconds || 600;
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+  // Holds a 0:00 entry so the other box can finish it (0 min, then 30 s) instead of building on the old value.
+  const [zeroDraft, setZeroDraft] = useState<{ m: number; s: number } | null>(
+    null
+  );
+  const mins = zeroDraft?.m ?? Math.floor(seconds / 60);
+  const secs = zeroDraft?.s ?? seconds % 60;
   const save = (m: number, s: number) => {
     const total = Math.max(0, Math.trunc(m)) * 60 + Math.max(0, Math.trunc(s));
-    // A zero length would make every new timer finished; keep the current one.
-    if (total <= 0) return;
+    // A zero length would make every new timer finished; hold it until the other box adds time.
+    if (total <= 0) {
+      setZeroDraft({ m, s });
+      return;
+    }
+    setZeroDraft(null);
     void updateUserPreference('timeToolStartSeconds', total);
   };
   return (
@@ -285,7 +293,10 @@ export const TimeToolStartLengthField: React.FC<CustomFieldProps> = ({
             ctx.widget.id,
             ctx.widget.type
           )}
-          onClick={() => void updateUserPreference('timeToolStartSeconds', 0)}
+          onClick={() => {
+            setZeroDraft(null);
+            void updateUserPreference('timeToolStartSeconds', 0);
+          }}
           className="text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark px-2 py-1 rounded-lg hover:bg-slate-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
         >
           {leaf('startLengthClear')}

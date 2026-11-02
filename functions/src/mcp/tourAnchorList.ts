@@ -18976,6 +18976,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Starting length minutes in Time Tool settings",
     "scope": "widget",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.time-tool.settings",
@@ -18995,6 +18996,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Starting length seconds in Time Tool settings",
     "scope": "widget",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.time-tool.settings",
@@ -19014,6 +19016,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Use school default button for the timer starting length",
     "scope": "widget",
     "panel": true,
+    "destructive": true,
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.time-tool.settings",

@@ -169,6 +169,23 @@ describe('time-tool settings drawer accessibility', () => {
       'timeToolStartSeconds',
       150
     );
+    // 0 minutes first holds 0:00, so the seconds box finishes a sub-minute length.
+    fireEvent.change(
+      within(group).getByRole('spinbutton', { name: 'Minutes' }),
+      {
+        target: { value: '0' },
+      }
+    );
+    fireEvent.change(
+      within(group).getByRole('spinbutton', { name: 'Seconds' }),
+      {
+        target: { value: '45' },
+      }
+    );
+    expect(updateUserPreference).toHaveBeenLastCalledWith(
+      'timeToolStartSeconds',
+      45
+    );
     fireEvent.click(
       within(group).getByRole('button', { name: 'Use school default' })
     );
