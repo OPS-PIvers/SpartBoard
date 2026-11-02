@@ -230,8 +230,9 @@ export const ShuffleList: React.FC<ShuffleListProps> = ({
   const fontFromWidth = chipWidth / Math.max(4.5 + 0.6 * maxNameLen, 1);
   // Leave 4px headroom (2px border + small gap) so chips never overflow.
   const fontFromHeight = (rowHeight - 4) * 0.5;
+  // Window text size moves the cap only, so a bigger setting never pushes names past the fit.
   const fontSizePx = Math.max(
-    10 * textScale,
+    10,
     Math.min(20 * textScale, fontFromWidth, fontFromHeight)
   );
   const fontSize = `${fontSizePx}px`;
