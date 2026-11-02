@@ -103,23 +103,59 @@ describe('time left', () => {
 
 describe('statusFor', () => {
   const origins = ['https://spartboard.web.app'];
+  const OWN = 'chrome-extension://abc/';
   it('is away only on a web page outside the allowlist', () => {
     expect(
-      statusFor('https://www.desmos.com/calculator', session, origins)
+      statusFor('https://www.desmos.com/calculator', session, origins, OWN)
     ).toBe('on-task');
     expect(
-      statusFor('https://desmos.com.evil.example/', session, origins)
+      statusFor('https://desmos.com.evil.example/', session, origins, OWN)
     ).toBe('away');
-    expect(statusFor('https://spartboard.web.app/quiz', session, origins)).toBe(
-      'on-task'
-    );
-    expect(statusFor('https://accounts.google.com/', session, origins)).toBe(
-      'on-task'
-    );
     expect(
-      statusFor('chrome-extension://abc/focus/index.html', session, origins)
+      statusFor('https://spartboard.web.app/quiz', session, origins, OWN)
     ).toBe('on-task');
-    expect(statusFor(undefined, session, origins)).toBe('on-task');
+    expect(
+      statusFor('https://accounts.google.com/', session, origins, OWN)
+    ).toBe('on-task');
+    expect(
+      statusFor(
+        'chrome-extension://abc/focus/index.html',
+        session,
+        origins,
+        OWN
+      )
+    ).toBe('on-task');
+    expect(statusFor(undefined, session, origins, OWN)).toBe('on-task');
+  });
+
+  it('is away on a page that can show any site, and on task on browser screens', () => {
+    for (const url of [
+      'data:text/html,<iframe src="https://games.example/">',
+      'DATA:text/html,x',
+      'file:///home/kid/page.html',
+      'view-source:https://games.example/',
+      'chrome-extension://other/proxy.html',
+      'chrome-extension://abcd/page.html',
+      'chrome-untrusted://terminal/',
+      'about:srcdoc',
+      'javascript:void(0)',
+      'blob:https://games.example/uuid',
+      'blob:null/uuid',
+      'filesystem:https://games.example/temporary/x.html',
+      'not a url',
+    ])
+      expect(statusFor(url, session, origins, OWN), url).toBe('away');
+    for (const url of [
+      'chrome-extension://abc/focus/index.html?notice=blocked',
+      'chrome://newtab/',
+      'chrome://new-tab-page/',
+      'chrome-search://local-ntp/local-ntp.html',
+      'about:blank',
+      'blob:https://www.desmos.com/uuid',
+      'blob:https://spartboard.web.app/uuid',
+      'filesystem:https://desmos.com/temporary/x',
+    ])
+      expect(statusFor(url, session, origins, OWN), url).toBe('on-task');
   });
 });
 

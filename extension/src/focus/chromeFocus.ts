@@ -2,7 +2,7 @@
 import type { FocusPushSubscription } from '@/utils/focus/contract';
 import { FOCUS_CHECK_MINUTES } from '@/utils/focus/contract';
 import type { FocusClientDeps, PushSent, ProfileRefused } from './focusClient';
-import { ownPageUrls } from './chromeEnforce';
+import { ownPageUrls, topFrameUrl } from './chromeEnforce';
 import {
   FOCUS_ENDED_KEY,
   FOCUS_STATE_KEY,
@@ -113,7 +113,8 @@ export const chromeFocusDeps: Pick<
       active: true,
       lastFocusedWindow: true,
     });
-    return tab?.url || tab?.pendingUrl;
+    if (tab?.url || tab?.pendingUrl) return tab.url || tab.pendingUrl;
+    return tab?.id === undefined ? undefined : await topFrameUrl(tab.id);
   },
   openFocusPage: async () => {
     const url = chrome.runtime.getURL(FOCUS_PAGE_PATH);

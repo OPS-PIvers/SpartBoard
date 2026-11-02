@@ -26,7 +26,8 @@ interface FakeWindow {
 function fakeChrome(
   tabs: FakeTab[],
   windows: FakeWindow[],
-  own: [number, string][] = []
+  own: [number, string][] = [],
+  frames: [number, string][] = []
 ) {
   const session = new Map<string, unknown>();
   let rules: chrome.declarativeNetRequest.Rule[] = [];
@@ -123,6 +124,12 @@ function fakeChrome(
           return Promise.resolve();
         }
       ),
+    },
+    webNavigation: {
+      getFrame: (o: { tabId: number }) => {
+        const frame = frames.find(([id]) => id === o.tabId);
+        return Promise.resolve(frame ? { url: frame[1] } : null);
+      },
     },
     scripting: {
       executeScript: vi.fn(
@@ -275,6 +282,83 @@ describe('createChromeEnforcer sync', () => {
     current = local(session());
     await enforcer().returnToFullscreen(1);
     expect(windows[0].state).toBe('normal');
+  });
+});
+
+describe('createChromeEnforcer non-web pages', () => {
+  const DATA = 'data:text/html,<iframe src="https://games.example/">';
+
+  it('sends a page that can show any site to the focus page, reading addresses Chrome hides', async () => {
+    const tabs: FakeTab[] = [
+      { id: 1, windowId: 1, url: '', active: true, lastAccessed: 1 },
+      { id: 2, windowId: 1, url: '', active: false, lastAccessed: 2 },
+      { id: 3, windowId: 1, url: '', active: false, lastAccessed: 3 },
+      { id: 4, windowId: 1, url: '', active: false, lastAccessed: 4 },
+    ];
+    const c = fakeChrome(
+      tabs,
+      [{ id: 1, type: 'normal', state: 'maximized' }],
+      [[3, BASE]],
+      [
+        [1, DATA],
+        [2, 'chrome://newtab/'],
+        [4, 'file:///home/kid/page.html'],
+      ]
+    );
+    current = local(session());
+    await enforcer().sync(current);
+    const sent = c.updates.filter((u) => typeof u.props.url === 'string');
+    expect(sent).toEqual([
+      { id: 1, props: { url: `${BASE}?notice=blocked` } },
+      { id: 4, props: { url: `${BASE}?notice=blocked` } },
+    ]);
+  });
+
+  it('leaves non-web pages alone at Monitor and once the session ends', async () => {
+    const tabs: FakeTab[] = [
+      { id: 1, windowId: 1, url: '', active: true, lastAccessed: 1 },
+    ];
+    const c = fakeChrome(
+      tabs,
+      [{ id: 1, type: 'normal', state: 'maximized' }],
+      [],
+      [[1, DATA]]
+    );
+    current = local(session({ level: 'monitor' }));
+    await enforcer().sync(current);
+    expect(await enforcer().navigated(1, DATA, undefined, true)).toBe(false);
+    current = undefined;
+    await enforcer().sync(null);
+    expect(c.updates).toEqual([]);
+  });
+
+  it('sends a data: navigation back and counts it, but lets our pages and the new tab page through', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/',
+        active: true,
+        lastAccessed: 1,
+      },
+    ];
+    const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    const e = enforcer();
+    current = local(session());
+    expect(await e.navigated(1, DATA, 'https://desmos.com/', false)).toBe(true);
+    expect(c.updates.at(-1)).toEqual({
+      id: 1,
+      props: { url: 'https://desmos.com/' },
+    });
+    const before = c.updates.length;
+    expect(await e.navigated(1, 'chrome://newtab/', undefined, true)).toBe(
+      false
+    );
+    expect(
+      await e.navigated(1, `${BASE}?notice=blocked`, undefined, true)
+    ).toBe(false);
+    expect(await e.navigated(1, 'about:blank', undefined, true)).toBe(false);
+    expect(c.updates.length).toBe(before);
   });
 });
 

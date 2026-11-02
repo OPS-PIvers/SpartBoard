@@ -67,21 +67,33 @@ export async function ownPageUrls(): Promise<Map<number, string>> {
   );
 }
 
+/** The top frame's address; `tabs.query` hides data:, file: and browser pages, webNavigation doesn't. */
+export async function topFrameUrl(tabId: number): Promise<string> {
+  try {
+    return (
+      (await chrome.webNavigation.getFrame({ tabId, frameId: 0 }))?.url ?? ''
+    );
+  } catch {
+    return '';
+  }
+}
+
 const allTabs = async (): Promise<TabInfo[]> => {
   const [tabs, own] = await Promise.all([chrome.tabs.query({}), ownPageUrls()]);
-  return tabs.flatMap((t) =>
-    t.id === undefined || t.id === chrome.tabs.TAB_ID_NONE
-      ? []
-      : [
-          {
-            id: t.id,
-            windowId: t.windowId,
-            url: t.pendingUrl || t.url || own.get(t.id) || '',
-            active: t.active,
-            lastAccessed: t.lastAccessed ?? 0,
-          },
-        ]
+  const out = await Promise.all(
+    tabs.map(async (t): Promise<TabInfo | null> => {
+      if (t.id === undefined || t.id === chrome.tabs.TAB_ID_NONE) return null;
+      return {
+        id: t.id,
+        windowId: t.windowId,
+        url:
+          t.pendingUrl || t.url || own.get(t.id) || (await topFrameUrl(t.id)),
+        active: t.active,
+        lastAccessed: t.lastAccessed ?? 0,
+      };
+    })
   );
+  return out.filter((t): t is TabInfo => t !== null);
 };
 
 function lockRules(
@@ -160,6 +172,7 @@ export function createChromeEnforcer(deps: {
   now(): number;
 }) {
   const base = chrome.runtime.getURL('focus/index.html');
+  const ownPages = chrome.runtime.getURL('');
   // Tabs sent back to a page that should show the notice once it loads; lost with the worker, which only skips a notice.
   const noticeOnLoad = new Set<number>();
   const loadCovered = async () => {
@@ -263,7 +276,13 @@ export function createChromeEnforcer(deps: {
     if (locking) await setLockRules(lockRules(locking, deps.origins));
     else await setLockRules([]);
     const tabs = await allTabs();
-    for (const t of tabsToRestore(tabs, blocking, deps.origins, base)) {
+    for (const t of tabsToRestore(
+      tabs,
+      blocking,
+      deps.origins,
+      base,
+      ownPages
+    )) {
       restoring.set(t.id, deps.now());
       await chrome.tabs.update(t.id, { url: t.url }).catch(() => undefined);
     }
@@ -272,7 +291,7 @@ export function createChromeEnforcer(deps: {
       const allowed = tabs.filter(
         (t) =>
           /^https?:/i.test(t.url) &&
-          !isBlockedUrl(t.url, blocking, deps.origins)
+          !isBlockedUrl(t.url, blocking, deps.origins, ownPages)
       );
       if (allowed.length)
         await chrome.storage.session.set(
@@ -282,8 +301,11 @@ export function createChromeEnforcer(deps: {
         );
     }
     if (blocking)
-      for (const t of tabsToPark(tabs, blocking, deps.origins)) {
-        const parked = parkedUrl(base, t.url);
+      for (const t of tabsToPark(tabs, blocking, deps.origins, ownPages)) {
+        // Only a web page can come back; any other page is sent to the focus page instead.
+        const parked = /^https?:/i.test(t.url)
+          ? parkedUrl(base, t.url)
+          : focusPageUrl(base, true);
         await rememberTab(t.id, parked);
         await chrome.tabs.update(t.id, { url: parked }).catch(() => undefined);
       }
@@ -331,7 +353,7 @@ export function createChromeEnforcer(deps: {
     if (!isBlocking(state, now)) return false;
     const since = restoring.get(tabId);
     if (since !== undefined && now - since < RESTORING_MS) return false;
-    if (!isBlockedUrl(url, state, deps.origins)) {
+    if (!isBlockedUrl(url, state, deps.origins, ownPages)) {
       // Remember where an allowed tab is, so a late event can still send it back there rather than close it.
       // Only a page the tab actually showed, so a redirecting address can't become the way back.
       if (committed && /^https?:/i.test(url)) await rememberTab(tabId, url);
@@ -346,7 +368,7 @@ export function createChromeEnforcer(deps: {
       own !== undefined && isFocusPage(own, base)
         ? own
         : currentUrl &&
-            !isBlockedUrl(currentUrl, state, deps.origins) &&
+            !isBlockedUrl(currentUrl, state, deps.origins, ownPages) &&
             /^https?:/i.test(currentUrl)
           ? currentUrl
           : await rememberedTab(tabId);
