@@ -81,6 +81,10 @@ import { GroupSizeStepper } from './GroupSizeStepper';
 import { ShuffleList } from './ShuffleList';
 import { resolveBaseTextScale } from '@/config/widgetAppearance';
 import { timeToolClockReducer } from '@/utils/timeToolClock';
+import { reportHandAction } from '@/utils/connectionSignals';
+import { currentShuffleName } from '@/utils/randomCurrentName';
+import { liveConnections } from '@/utils/connectionEngine';
+import { useAuth } from '@/context/useAuth';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -166,6 +170,18 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     () => (Array.isArray(config.doneNames) ? config.doneNames : []),
     [config.doneNames]
   );
+  const { canAccessFeature } = useAuth();
+  const inSequence =
+    canAccessFeature('widget-connections') &&
+    liveConnections(
+      activeDashboard?.connections,
+      activeDashboard?.widgets ?? []
+    ).some(
+      (c) =>
+        c.kind === 'sequence' &&
+        c.steps.some((s) => s.actions.some((a) => a.widgetId === widget.id))
+    );
+  const currentName = inSequence ? currentShuffleName(config) : null;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, {
@@ -706,14 +722,19 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleToggleDone = useCallback(
     (name: string) => {
-      const next = doneNames.includes(name)
-        ? doneNames.filter((n) => n !== name)
-        : [...doneNames, name];
+      const marking = !doneNames.includes(name);
+      const next = marking
+        ? [...doneNames, name]
+        : doneNames.filter((n) => n !== name);
       updateWidget(widget.id, {
         config: { doneNames: next },
       });
+      // Checking off the Current name by hand moves a Connection Run to its "next name" step.
+      if (marking && name === currentShuffleName(config)) {
+        reportHandAction(widget.id, 'next');
+      }
     },
-    [doneNames, updateWidget, widget.id]
+    [config, doneNames, updateWidget, widget.id]
   );
 
   // Transient flag that pulses on each rotate click so the rotate icon can
@@ -1603,6 +1624,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   };
 
+  // A teacher's own pick counts as a Connection "next name"; shuffle's button reshuffles instead.
+  const handlePickByHand = () => {
+    if (mode !== 'shuffle') reportHandAction(widget.id, 'next');
+    void handlePick();
+  };
+
   const handlePickRef = useRef(handlePick);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   handlePickRef.current = handlePick;
@@ -1998,6 +2025,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       cardOpacity={config.cardOpacity}
                       fontColor={config.fontColor}
                       textScale={resolveBaseTextScale(widget.baseTextSize)}
+                      currentName={currentName}
                     />
                   ) : (
                     <RandomGroups
@@ -2127,7 +2155,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 size="md"
                 shape="pill"
                 {...tourAttr('random.pick', widget.id, widget.type)}
-                onClick={handlePick}
+                onClick={handlePickByHand}
                 disabled={isSpinning}
                 className="shrink-0"
                 style={{
@@ -2302,7 +2330,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 size="md"
                 shape="pill"
                 {...tourAttr('random.pick', widget.id, widget.type)}
-                onClick={handlePick}
+                onClick={handlePickByHand}
                 disabled={isSpinning}
                 className={`flex-shrink-0${mode === 'groups' && Array.isArray(displayResult) && displayResult.length > 1 ? '' : ' ml-auto'}`}
                 style={{

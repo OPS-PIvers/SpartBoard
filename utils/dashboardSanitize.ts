@@ -38,6 +38,7 @@ import { scrubDashboardPII } from '@/utils/dashboardPII';
  * - `viewportWidth` / `viewportHeight` — layout hints for proportional
  *   widget scaling on load. Recipient benefits from seeing the original
  *   composition's intended viewport.
+ * - `connections`, minus any Sequence Run in progress.
  * - `globalStyle`, `settings`, `libraryOrder`, `widgets`, `background`,
  *   `name`, `id`, `createdAt`, `order` — the Board's design itself.
  */
@@ -61,6 +62,12 @@ export const sanitizeBoardSnapshot = (board: Dashboard): Dashboard => {
     claudeUnseen: _claudeUnseen,
     ...rest
   } = board;
+  // A copy keeps its Connections but never a Run in progress.
+  if (rest.connections) {
+    rest.connections = rest.connections.map((c) =>
+      c.kind === 'sequence' && c.run ? { ...c, run: null } : c
+    );
+  }
   return rest;
 };
 

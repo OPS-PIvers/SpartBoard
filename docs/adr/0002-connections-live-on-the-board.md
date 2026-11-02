@@ -8,4 +8,4 @@ Each Run is carried out only by the device it started on; other open copies of t
 
 - The legacy toggles (`timerEnd*`, `autoStartTimer`, `autoTrafficLight`, `syncWithTimeTool`, `syncWithTextWidget`, `syncExpectations`, `linkedWeatherWidgetId`) are converted into Connections and removed once the flag is public.
 - Board duplicate, share and import keep widget ids, so Connections copy with the board; duplicating a single widget does not join the copy to any Connection.
-- Removing a widget must also remove its Steps and Follows, or the list holds dangling ids.
+- A closed widget's Steps and Follows are skipped wherever Connections are read, not deleted, so undoing the close brings them back; the next save from the step editor drops the stale ids.

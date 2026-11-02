@@ -19,6 +19,7 @@ interface ShuffleRowProps {
   firstInColumn: boolean;
   cardBackground?: string;
   textColor?: string;
+  current?: boolean;
 }
 
 const ShuffleRow: React.FC<ShuffleRowProps> = ({
@@ -34,6 +35,7 @@ const ShuffleRow: React.FC<ShuffleRowProps> = ({
   firstInColumn,
   cardBackground,
   textColor,
+  current = false,
 }) => {
   // Each row is a droppable insertion point. Drop on row N → insert before N.
   const dropId = `shuffle-row:${index}`;
@@ -42,8 +44,13 @@ const ShuffleRow: React.FC<ShuffleRowProps> = ({
   return (
     <div
       ref={setNodeRef}
+      aria-current={current ? 'step' : undefined}
       className={`flex items-stretch overflow-hidden min-w-0 min-h-0 transition-colors ${
-        isOver ? 'rounded-lg ring-2 ring-brand-blue-primary/40' : ''
+        isOver
+          ? 'rounded-lg ring-2 ring-brand-blue-primary/40'
+          : current
+            ? 'rounded-lg ring-[3px] ring-brand-red-primary'
+            : ''
       }`}
       style={{
         gap: 'clamp(4px, 1.5cqmin, 10px)',
@@ -99,6 +106,8 @@ interface ShuffleListProps {
   fontColor?: string;
   /** Window text size multiplier (resolveBaseTextScale). */
   textScale?: number;
+  /** The Current name to highlight, when the list is part of a Connection Sequence. */
+  currentName?: string | null;
 }
 
 /**
@@ -138,6 +147,7 @@ export const ShuffleList: React.FC<ShuffleListProps> = ({
   cardOpacity,
   fontColor,
   textScale = 1,
+  currentName = null,
 }) => {
   const lines = rowStyle === 'lines';
   const cardBackground =
@@ -277,6 +287,7 @@ export const ShuffleList: React.FC<ShuffleListProps> = ({
           firstInColumn={i % rows === 0}
           cardBackground={cardBackground}
           textColor={fontColor}
+          current={name === currentName}
         />
       ))}
     </div>

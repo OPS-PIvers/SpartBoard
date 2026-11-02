@@ -11,6 +11,7 @@ import {
   WidgetData,
   WidgetType,
   WidgetConfig,
+  WidgetConnection,
   Toast,
   GradeFilter,
   DockItem,
@@ -448,6 +449,7 @@ const widgetMirrorSignature = (widgets: WidgetData[]): string =>
 const UNTARGETED_DASHBOARD_FIELDS: readonly MergedDashboardField[] = [
   'globalStyle',
   'sharedGroups',
+  'connections',
 ];
 
 // Key-stable: a merged snapshot echo carries Firestore's key order, and a plain JSON.stringify would read it as an unsaved change and save again, forever.
@@ -7274,6 +7276,46 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [saveDashboards, addToast]
   );
 
+  // A Connection Run's own writes: no undo entry, and a board that isn't shown is saved straight away.
+  const applyConnectionChanges = useCallback(
+    (
+      boardId: string,
+      widgetPatches: Record<string, Record<string, unknown>>,
+      connections?: WidgetConnection[]
+    ) => {
+      const board = dashboardsRef.current.find((d) => d.id === boardId);
+      if (!board) return;
+      const isActive = boardId === activeIdRef.current;
+      if (isActive && isActiveBoardReadOnlyRef.current) return;
+      const patchBoard = (d: Dashboard): Dashboard => ({
+        ...d,
+        widgets: d.widgets.map((w) => {
+          const patch = widgetPatches[w.id];
+          if (!patch) return w;
+          return {
+            ...w,
+            config: { ...w.config, ...patch },
+            version: (w.version ?? 1) + 1,
+          };
+        }),
+        ...(connections && { connections }),
+      });
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
+      lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
+      lastUpdateWasSettingsOnly.current = false;
+      setDashboards((prev) =>
+        prev.map((d) => (d.id === boardId ? patchBoard(d) : d))
+      );
+      if (!isActive) {
+        saveDashboards([patchBoard(board)], [board]).catch((err: unknown) =>
+          logError('DashboardContext.applyConnectionChanges', err, { boardId })
+        );
+      }
+    },
+    [saveDashboards]
+  );
+
   // --- Widget grouping ---
 
   const updateWidgets = useCallback(
@@ -8284,6 +8326,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ungroupWidgets,
       updateWidgets,
       updateWidgetConfigsAcrossBoards,
+      applyConnectionChanges,
       selectedWidgetIds,
       setSelectedWidgetIds,
       groupBuildMode,
@@ -8422,6 +8465,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ungroupWidgets,
       updateWidgets,
       updateWidgetConfigsAcrossBoards,
+      applyConnectionChanges,
       selectedWidgetIds,
       setSelectedWidgetIds,
       groupBuildMode,

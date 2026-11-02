@@ -89,6 +89,12 @@ import { Z_INDEX } from '@/config/zIndex';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useTourRunning } from '@/components/tours/tourState';
 import { getWidgetMinSize, hasExplicitMinSize } from '@/config/widgetEnvelopes';
+import {
+  ConnectPickOverlay,
+  ConnectToolbarButton,
+  ConnectionBadge,
+  ConnectionCloseWarning,
+} from '@/components/connections/WidgetConnectionControls';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
 const SCREENSHOT_BLACKLIST: WidgetType[] = ['webcam', 'embed'];
@@ -2475,6 +2481,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         </div>
       )}
 
+      <ConnectPickOverlay widget={widget} />
+      {!isMaximized && <ConnectionBadge widget={widget} />}
+
       {/* Group-build mode selection overlay */}
       {groupBuildMode && (
         <div
@@ -2533,6 +2542,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             >
               {t('widgetWindow.closeWidget')}
             </p>
+            <ConnectionCloseWarning widgetId={widget.id} />
             <div className="flex gap-2">
               <button
                 {...tourAttr(
@@ -3464,6 +3474,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       variant="glass"
                     />
                   ))}
+
+                {!isLocked && (
+                  <ConnectToolbarButton
+                    widget={widget}
+                    onAction={handleCloseTools}
+                  />
+                )}
 
                 {/* NEW: Snap Layouts Button & Popover */}
                 <div className="relative flex items-center">

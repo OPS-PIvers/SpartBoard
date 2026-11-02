@@ -7392,6 +7392,29 @@ export const TOUR_ANCHORS = {
     label: 'Group with button in the widget toolbar',
     perWidget: true,
   },
+  'widget.connect': {
+    label: 'Connect button in the widget toolbar',
+    perWidget: true,
+  },
+  'widget.connect-menu.connection': {
+    label: 'A connection row in the Connect button menu',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connect-menu.new': {
+    label: 'New connection item in the Connect button menu',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connect-pick': {
+    label: 'Tap target on a widget while picking widgets to connect',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connection-badge': {
+    label: 'Step number badge on a connected widget',
+    perWidget: true,
+  },
   'widget.snap-layout.option': {
     label: 'Snap zone option in the widget snap layout popover',
     perField: true,
@@ -12144,6 +12167,87 @@ export const TOUR_ANCHORS = {
   },
   'dashboard.group-widgets': {
     label: 'Group button on the widget group bar',
+    panel: true,
+  },
+  'dashboard.connect-cancel': {
+    label: 'Cancel button on the connect bar',
+    panel: true,
+  },
+  'dashboard.connect-done': {
+    label: 'Done button on the connect bar',
+    panel: true,
+  },
+  'connections.editor.close': {
+    label: 'Close button in the connection steps window',
+    panel: true,
+    closes: 'own',
+  },
+  'connections.editor.cancel': {
+    label: 'Cancel button in the connection steps window',
+    panel: true,
+    closes: 'own',
+  },
+  'connections.editor.save': {
+    label: 'Save button in the connection steps window',
+    panel: true,
+    closes: 'own',
+  },
+  'connections.editor.delete': {
+    label: 'Delete connection button in the connection steps window',
+    panel: true,
+    destructive: true,
+    closes: 'own',
+  },
+  'connections.editor.stop': {
+    label: 'Stop button for a running connection',
+    panel: true,
+  },
+  'connections.editor.step-action': {
+    label: 'What a widget does in a connection step',
+    panel: true,
+  },
+  'connections.editor.add-same-time': {
+    label: 'At the same time menu on a connection step',
+    panel: true,
+  },
+  'connections.editor.remove-action': {
+    label: 'Remove a widget from a connection step',
+    panel: true,
+  },
+  'connections.editor.wait-seconds': {
+    label: 'Seconds field on a connection wait step',
+    panel: true,
+  },
+  'connections.editor.move-up': {
+    label: 'Move a connection step up',
+    panel: true,
+  },
+  'connections.editor.move-down': {
+    label: 'Move a connection step down',
+    panel: true,
+  },
+  'connections.editor.remove-step': {
+    label: 'Remove a connection step',
+    panel: true,
+  },
+  'connections.editor.add-widget': {
+    label: 'Add widget button in the connection steps window',
+    panel: true,
+  },
+  'connections.editor.add-wait': {
+    label: 'Add wait button in the connection steps window',
+    panel: true,
+  },
+  'connections.editor.repeat': {
+    label: 'Repeat menu in the connection steps window',
+    panel: true,
+  },
+  'connections.editor.repeat-count': {
+    label: 'Number of times a connection repeats',
+    panel: true,
+  },
+  'connections.editor.remove-follow': {
+    label: 'Remove a follow from a connection',
     panel: true,
   },
   'dashboard.bg-sound-toggle': {

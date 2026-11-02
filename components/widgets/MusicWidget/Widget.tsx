@@ -18,6 +18,7 @@ import { useAuth } from '@/context/useAuth';
 import { tourAttr } from '@/config/tourAnchors';
 import { resolveActiveStation } from './mySongs';
 import { resolveSyncedTimer } from './linkedTimer';
+import { liveConnections } from '@/utils/connectionEngine';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -153,7 +154,18 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Nexus connection: watch Time Tool running state
   const widgets = activeDashboard?.widgets ?? [];
-  const timeToolWidget = resolveSyncedTimer(widgets, config.linkedTimerId);
+  // A Connection Follow names its Timer and turns the sync on by itself.
+  const followedTimerId = canAccessFeature('widget-connections')
+    ? liveConnections(activeDashboard?.connections, widgets).find(
+        (c) => c.kind === 'follow' && c.followerId === widget.id
+      )
+    : undefined;
+  const leaderId =
+    followedTimerId?.kind === 'follow' ? followedTimerId.leaderId : undefined;
+  const syncWithTimer = !!config.syncWithTimeTool || !!leaderId;
+  const timeToolWidget = leaderId
+    ? widgets.find((w) => w.id === leaderId)
+    : resolveSyncedTimer(widgets, config.linkedTimerId);
   const isTimeToolRunning = (
     timeToolWidget?.config as TimeToolConfig | undefined
   )?.isRunning;
@@ -210,14 +222,14 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Nexus sync: play/pause with Time Tool
   useEffect(() => {
-    if (!config.syncWithTimeTool || !youtubeId || !isPlayerReady) return;
+    if (!syncWithTimer || !youtubeId || !isPlayerReady) return;
     if (typeof playerRef.current?.playVideo !== 'function') return;
     if (isTimeToolRunning) {
       playerRef.current.playVideo();
     } else {
       playerRef.current.pauseVideo();
     }
-  }, [isTimeToolRunning, config.syncWithTimeTool, youtubeId, isPlayerReady]);
+  }, [isTimeToolRunning, syncWithTimer, youtubeId, isPlayerReady]);
 
   const canLaunchTimer =
     !!youtubeId &&
@@ -225,7 +237,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     !isActiveBoardReadOnly &&
     canAccessFeature('music-timer-link') &&
     canAccessWidget('time-tool') &&
-    !(config.syncWithTimeTool && timeToolWidget);
+    !(syncWithTimer && timeToolWidget);
 
   const launchLinkedTimer = () => {
     const timerId = crypto.randomUUID();
@@ -541,7 +553,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   color={textColor === '#ffffff' ? '#ffffff' : '#6366f1'}
                 />
               ) : (
-                config.syncWithTimeTool && (
+                syncWithTimer && (
                   <Link
                     className="shrink-0"
                     style={{
@@ -655,7 +667,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       color={textColor === '#ffffff' ? '#ffffff' : '#6366f1'}
                     />
                   ) : (
-                    config.syncWithTimeTool && (
+                    syncWithTimer && (
                       <Link
                         className="shrink-0"
                         style={{

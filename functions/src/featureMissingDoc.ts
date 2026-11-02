@@ -66,6 +66,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'timer-starting-length',
   'music-my-songs',
   'music-timer-link',
+  'widget-connections',
   'focus-sessions',
   'staff-audience',
   'universal-import',
