@@ -235,7 +235,9 @@ export function isPlcMembershipManager(
 const MAX_NAME_LENGTH = 100;
 const cleanName = (raw: unknown): string =>
   typeof raw === 'string'
-    ? raw.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME_LENGTH)
+    ? Array.from(raw.replace(/\s+/g, ' ').trim())
+        .slice(0, MAX_NAME_LENGTH)
+        .join('')
     : '';
 
 export type InviteMailDecision =
@@ -262,7 +264,11 @@ export async function inviteMayBeMailed(
   if (!(await checker.isStaff(inviterEmail))) return no('inviter is not staff');
   if (!(await checker.isOrgAddress(invite.inviteeEmailLower)))
     return no('recipient is not on an org domain');
-  const inviterName = cleanName(inviter?.displayName) || inviterEmail;
+  // The Google profile name, which the user can't rewrite from the client the way Auth displayName can.
+  const googleName = inviter?.providerData.find(
+    (p) => p.providerId === 'google.com'
+  )?.displayName;
+  const inviterName = cleanName(googleName) || inviterEmail;
   return { ok: true, inviterName, plcName };
 }
 

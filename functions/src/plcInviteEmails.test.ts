@@ -172,10 +172,12 @@ beforeEach(() => {
       'lead-uid',
       {
         email: 'lead@example.com',
-        displayName: 'Lead Teacher',
+        displayName: 'IT Help Desk',
         emailVerified: true,
         disabled: false,
-        providerData: [{ providerId: 'google.com' }],
+        providerData: [
+          { providerId: 'google.com', displayName: 'Lead Teacher' },
+        ],
       },
     ],
   ]);
