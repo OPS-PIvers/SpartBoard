@@ -60,7 +60,7 @@ export interface PaperCropPanelProps {
 
 type CropState =
   | { kind: 'loading' }
-  | { kind: 'ready'; url: string }
+  | { kind: 'ready'; url: string; key: string }
   | { kind: 'error'; permanent: boolean };
 
 type Busy = 'save' | 'retry' | 'transcribe' | 'newScan' | null;
@@ -89,7 +89,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   const [zoomIdx, setZoomIdx] = useState<number>(DEFAULT_ZOOM_IDX);
   const [contrast, setContrast] = useState(true);
   const [enhanced, setEnhanced] = useState<{
-    src: string;
+    key: string;
     url: string | null;
   } | null>(null);
   const [editing, setEditing] = useState(false);
@@ -124,7 +124,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           if (created) URL.revokeObjectURL(created);
           return;
         }
-        setCrop({ kind: 'ready', url });
+        setCrop({ kind: 'ready', url, key: cropKey });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -142,8 +142,9 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   }, [cropKey]);
 
   const readyUrl = crop.kind === 'ready' ? crop.url : null;
+  const readyKey = crop.kind === 'ready' ? crop.key : null;
   useEffect(() => {
-    if (!contrast || !readyUrl) return;
+    if (!contrast || !readyUrl || !readyKey) return;
     let cancelled = false;
     let made: string | null = null;
     void enhancedScanUrl(readyUrl).then((url) => {
@@ -152,15 +153,17 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
         if (url) URL.revokeObjectURL(url);
         return;
       }
-      setEnhanced({ src: readyUrl, url });
+      setEnhanced({ key: readyKey, url });
     });
     return () => {
       cancelled = true;
       if (made) URL.revokeObjectURL(made);
     };
-  }, [contrast, readyUrl]);
-  const shownUrl =
-    contrast && enhanced?.src === readyUrl && enhanced.url
+  }, [contrast, readyUrl, readyKey]);
+  const enhancing = contrast && !!readyKey && enhanced?.key !== readyKey;
+  const shownUrl = enhancing
+    ? null
+    : contrast && enhanced?.url
       ? enhanced.url
       : readyUrl;
 
@@ -353,7 +356,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
       </div>
 
       <div className="max-h-[50vh] overflow-auto rounded-sm border border-slate-200 bg-slate-100 p-3">
-        {crop.kind === 'loading' && (
+        {(crop.kind === 'loading' || enhancing) && (
           <div
             role="status"
             className="flex h-32 items-center justify-center gap-2 text-xs font-semibold text-slate-500"

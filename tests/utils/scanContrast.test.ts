@@ -66,4 +66,16 @@ describe('enhanceScanContrast', () => {
       enhanceScanContrast(new Uint8ClampedArray(0), 0, 0)
     ).not.toThrow();
   });
+
+  it('handles tiny images and widths off the cell grid', () => {
+    for (const [w, h] of [
+      [1, 1],
+      [3, 2],
+      [37, 13],
+    ]) {
+      const data = new Uint8ClampedArray(w * h * 4).fill(200);
+      enhanceScanContrast(data, w, h);
+      expect(data.every((v) => Number.isFinite(v))).toBe(true);
+    }
+  });
 });

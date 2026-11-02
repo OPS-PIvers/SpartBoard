@@ -7,6 +7,9 @@ const MIN_BLACK_POINT = 0.45;
 // Mild curve that deepens grey pencil without moving white paper or stroke edges much.
 const INK_GAMMA = 1.3;
 
+// Long edge cap so a large scan can't stall the page or exhaust canvas memory.
+const MAX_EDGE = 2400;
+
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 function rankFilter(
@@ -152,15 +155,23 @@ export async function enhancedScanUrl(src: string): Promise<string | null> {
     const img = new Image();
     img.src = src;
     await img.decode();
-    const width = img.naturalWidth;
-    const height = img.naturalHeight;
-    if (!width || !height) return null;
+    if (!img.naturalWidth || !img.naturalHeight) return null;
+    const scale = Math.min(
+      1,
+      MAX_EDGE / Math.max(img.naturalWidth, img.naturalHeight)
+    );
+    const width = Math.max(1, Math.round(img.naturalWidth * scale));
+    const height = Math.max(1, Math.round(img.naturalHeight * scale));
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return null;
-    ctx.drawImage(img, 0, 0);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    // Let the spinner paint before the synchronous pass.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const pixels = ctx.getImageData(0, 0, width, height);
     enhanceScanContrast(pixels.data, width, height);
     ctx.putImageData(pixels, 0, 0);

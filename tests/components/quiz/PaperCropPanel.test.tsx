@@ -6,8 +6,13 @@ import type { PaperPrivateAnswer, QuizResponseAnswer } from '@/types';
 import type { PaperWrittenActions } from '@/utils/paperCropFetch';
 import { PaperCropUnavailableError } from '@/utils/paperCropFetch';
 
+let enhancedCount = 0;
 vi.mock('@/utils/scanContrast', () => ({
-  enhancedScanUrl: vi.fn(() => Promise.resolve('blob:enhanced')),
+  enhancedScanUrl: vi.fn(() =>
+    Promise.resolve(
+      enhancedCount++ ? `blob:enhanced-${enhancedCount}` : 'blob:enhanced'
+    )
+  ),
 }));
 
 const answer = (
@@ -73,7 +78,10 @@ const setup = (
   return { actions: a, resolveCrop };
 };
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  enhancedCount = 0;
+});
 
 describe('PaperCropPanel', () => {
   it('shows the crop with its question alt text', async () => {
@@ -111,6 +119,39 @@ describe('PaperCropPanel', () => {
       screen.getByAltText('Handwritten answer, question 7')
     ).toHaveAttribute('src', 'data:image/webp;base64,AA');
     expect(revoke).toHaveBeenCalledWith('blob:enhanced');
+  });
+
+  it('re-enhances a reloaded crop even when its URL is unchanged', async () => {
+    const revoke = vi
+      .spyOn(URL, 'revokeObjectURL')
+      .mockImplementation(() => undefined);
+    const resolveCrop = vi.fn().mockResolvedValue('data:image/webp;base64,AA');
+    const props = {
+      questionNumber: 7,
+      sessionId: 's1',
+      responseKey: 'r1',
+      questionId: 'q1',
+      answer: answer(),
+      privateDoc: priv(),
+      hasSnapshot: false,
+      resolveCrop,
+      actions: actions(),
+    };
+    const { rerender } = render(<PaperCropPanel {...props} />);
+    await waitFor(() =>
+      expect(
+        screen.getByAltText('Handwritten answer, question 7')
+      ).toHaveAttribute('src', 'blob:enhanced')
+    );
+    rerender(
+      <PaperCropPanel {...props} archive={{ archiveStatus: 'archived' }} />
+    );
+    expect(revoke).toHaveBeenCalledWith('blob:enhanced');
+    await waitFor(() =>
+      expect(
+        screen.getByAltText('Handwritten answer, question 7')
+      ).toHaveAttribute('src', 'blob:enhanced-2')
+    );
   });
 
   it('offers a reload when the crop fails, but not when it is gone', async () => {
