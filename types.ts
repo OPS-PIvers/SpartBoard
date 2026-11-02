@@ -10459,6 +10459,49 @@ export interface SpartStickerDropPayload {
  */
 export type DashboardShareRole = 'owner' | 'collaborator' | 'viewer';
 
+/** One widget doing one thing inside a Sequence step (docs/adr/0002). */
+export interface ConnectionAction {
+  widgetId: string;
+  /** Action id from config/widgetConnections.ts, e.g. 'restart', 'next'. */
+  action: string;
+}
+
+/** One numbered Step; no actions plus `waitSeconds` makes it a Wait step. */
+export interface ConnectionStep {
+  id: string;
+  actions: ConnectionAction[];
+  waitSeconds?: number;
+}
+
+/** The live pass of a Sequence, carried out only by `deviceId`. */
+export interface ConnectionRun {
+  deviceId: string;
+  stepIndex: number;
+  /** When the current step's actions were applied. */
+  stepStartedAt: number;
+  /** Completed passes through the whole list. */
+  loops: number;
+}
+
+export interface SequenceConnection {
+  id: string;
+  kind: 'sequence';
+  steps: ConnectionStep[];
+  repeat: 'until-done' | 'once' | 'count';
+  repeatCount?: number;
+  run?: ConnectionRun | null;
+}
+
+/** `followerId` keeps matching `leaderId` the whole time. */
+export interface FollowConnection {
+  id: string;
+  kind: 'follow';
+  leaderId: string;
+  followerId: string;
+}
+
+export type WidgetConnection = SequenceConnection | FollowConnection;
+
 export interface Dashboard {
   id: string;
   name: string;
@@ -10519,6 +10562,8 @@ export interface Dashboard {
   claudeAction?: 'created' | 'edited';
   /** True until the teacher opens the board after Claude's change; drives the Boards list badge. */
   claudeUnseen?: boolean;
+  /** Teacher-made Connections between this board's widgets (docs/adr/0002). */
+  connections?: WidgetConnection[];
 }
 
 /**
@@ -10789,6 +10834,8 @@ export type GlobalFeature =
   | 'music-my-songs'
   /** Timer button on the Music widget that opens a Timer linked to it. */
   | 'music-timer-link'
+  /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
+  | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */

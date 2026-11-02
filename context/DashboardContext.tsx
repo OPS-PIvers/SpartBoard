@@ -448,6 +448,7 @@ const widgetMirrorSignature = (widgets: WidgetData[]): string =>
 const UNTARGETED_DASHBOARD_FIELDS: readonly MergedDashboardField[] = [
   'globalStyle',
   'sharedGroups',
+  'connections',
 ];
 
 // Key-stable: a merged snapshot echo carries Firestore's key order, and a plain JSON.stringify would read it as an unsaved change and save again, forever.
