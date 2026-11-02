@@ -174,6 +174,12 @@ export const SURFACES: TourSurfaceMap = {
     files: ['components/sharedBoard/SharedBoardItemGate.tsx'],
   },
   // Mounted by the quiz grader, the student's take review and student results.
+  // Opens after importing a shared quiz assignment, so it has no single opener.
+  'board.quiz-import-setup': {
+    label: 'Set up imported assignment dialog',
+    kind: 'shared',
+    files: ['components/quiz/QuizAssignmentImportSetupModal.tsx'],
+  },
   'board.whiteboard-replay': {
     label: 'Whiteboard answer replay',
     kind: 'shared',

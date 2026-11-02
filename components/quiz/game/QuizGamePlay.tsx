@@ -655,6 +655,7 @@ const GameHeader: React.FC<{
       )}
       {handRaise && (
         <button
+          // no-tour-anchor: student quiz screen; tours walk teachers
           type="button"
           onClick={handRaise.onToggle}
           aria-pressed={handRaise.raised}
@@ -734,6 +735,7 @@ const GameQuestion: React.FC<{
         <div className="grid gap-3 sm:grid-cols-2">
           {choices.map((choice) => (
             <button
+              // no-tour-anchor: student quiz screen; tours walk teachers
               key={choice}
               type="button"
               disabled={submitting}
@@ -752,6 +754,7 @@ const GameQuestion: React.FC<{
             const on = picked.has(choice);
             return (
               <button
+                // no-tour-anchor: student quiz screen; tours walk teachers
                 key={choice}
                 type="button"
                 role="checkbox"
@@ -799,6 +802,7 @@ const GameQuestion: React.FC<{
           />
         ) : (
           <input
+            // no-tour-anchor: student quiz screen; tours walk teachers
             type="text"
             value={draft}
             autoFocus
@@ -842,6 +846,7 @@ const GameQuestion: React.FC<{
 
       {question.type !== 'MC' && (
         <button
+          // no-tour-anchor: student quiz screen; tours walk teachers
           type="button"
           onClick={() => onSubmit(answer || draft)}
           disabled={!ready || submitting}
@@ -935,6 +940,7 @@ const GameFeedback: React.FC<{
         </p>
       )}
       <button
+        // no-tour-anchor: student quiz screen; tours walk teachers
         ref={nextRef}
         type="button"
         onClick={onNext}
@@ -983,6 +989,7 @@ const SectionDivider: React.FC<{
               const full = !on && picked.length >= (chooseCount ?? 0);
               return (
                 <button
+                  // no-tour-anchor: student quiz screen; tours walk teachers
                   key={q.id}
                   type="button"
                   role="checkbox"
@@ -1017,6 +1024,7 @@ const SectionDivider: React.FC<{
         </>
       )}
       <button
+        // no-tour-anchor: student quiz screen; tours walk teachers
         type="button"
         disabled={!ready}
         onClick={() => onContinue(needsPick ? picked : undefined)}
