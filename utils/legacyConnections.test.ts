@@ -80,6 +80,18 @@ describe('convertLegacyConnections', () => {
     expect(Object.keys(r?.markers ?? {}).sort()).toEqual(['r', 't']);
   });
 
+  it('makes the same single loop when the Randomizer comes before the Timer', () => {
+    const r = convertLegacyConnections(
+      board([
+        w('r', 'random', { mode: 'single', autoStartTimer: true }),
+        w('t', 'time-tool', { duration: 60, timerEndTriggerRandom: true }),
+      ])
+    );
+    expect(seqs(r)).toHaveLength(1);
+    expect(seqs(r)[0].repeat).toBe('until-done');
+    expect(Object.keys(r?.markers ?? {}).sort()).toEqual(['r', 't']);
+  });
+
   it('turns Randomizer auto-start into pick-then-restart', () => {
     const r = convertLegacyConnections(
       board([

@@ -64,6 +64,32 @@ export const convertLegacyConnections = (
   };
   const timer = first('time-tool');
 
+  // Pickers that the first Timer triggers and that also start it back; found up front so widget order can't split the loop in two.
+  const loopPartners = new Set<string>();
+  if (timer && !isMarked(timer)) {
+    const tc = timer.config as TimeToolConfig;
+    const random = first('random');
+    const rc = random?.config as RandomConfig | undefined;
+    if (
+      random &&
+      !isMarked(random) &&
+      tc.timerEndTriggerRandom &&
+      rc?.autoStartTimer &&
+      rc.mode === 'single'
+    ) {
+      loopPartners.add(random.id);
+    }
+    const nextUp = first('nextUp');
+    if (
+      nextUp &&
+      !isMarked(nextUp) &&
+      tc.timerEndTriggerNextUp &&
+      (nextUp.config as NextUpConfig).autoStartTimer
+    ) {
+      loopPartners.add(nextUp.id);
+    }
+  }
+
   for (const w of widgets) {
     if (isMarked(w) || marked.has(w.id)) continue;
     let converted = false;
@@ -71,7 +97,7 @@ export const convertLegacyConnections = (
     if (w.type === 'time-tool') {
       const c = w.config as TimeToolConfig;
       const ends: ConnectionAction[] = [];
-      let loopWith: WidgetData | undefined;
+      const loops = w.id === timer?.id && loopPartners.size > 0;
       const expectations = first('expectations');
       if (c.timerEndVoiceLevel != null && expectations) {
         ends.push({
@@ -86,20 +112,10 @@ export const convertLegacyConnections = (
       const random = first('random');
       if (c.timerEndTriggerRandom && random) {
         ends.push({ widgetId: random.id, action: 'next' });
-        const rc = random.config as RandomConfig;
-        if (rc.autoStartTimer && rc.mode === 'single' && timer?.id === w.id) {
-          loopWith = random;
-        }
       }
       const nextUp = first('nextUp');
       if (c.timerEndTriggerNextUp && nextUp) {
         ends.push({ widgetId: nextUp.id, action: 'next' });
-        if (
-          (nextUp.config as NextUpConfig).autoStartTimer &&
-          timer?.id === w.id
-        ) {
-          loopWith ??= nextUp;
-        }
       }
       const stations = first('stations');
       if (c.timerEndTriggerStationsRotate && stations) {
@@ -110,19 +126,20 @@ export const convertLegacyConnections = (
         out.push(
           sequence(
             [[{ widgetId: w.id, action: 'start' }], ends],
-            loopWith ? 'until-done' : 'once'
+            loops ? 'until-done' : 'once'
           )
         );
-        if (loopWith) marked.add(loopWith.id);
+        if (loops) loopPartners.forEach((id) => marked.add(id));
         converted = true;
       }
     }
 
     if (
-      (w.type === 'random' &&
+      !loopPartners.has(w.id) &&
+      ((w.type === 'random' &&
         (w.config as RandomConfig).autoStartTimer &&
         (w.config as RandomConfig).mode === 'single') ||
-      (w.type === 'nextUp' && (w.config as NextUpConfig).autoStartTimer)
+        (w.type === 'nextUp' && (w.config as NextUpConfig).autoStartTimer))
     ) {
       if (timer) {
         out.push(
