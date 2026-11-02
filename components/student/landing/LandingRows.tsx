@@ -127,16 +127,19 @@ const OpenRow: React.FC<{
   children: React.ReactNode;
   /** Shows the Open button; off for rows that are not available yet. */
   available?: boolean;
-}> = ({ href, children, available = true }) => (
+  /** Live mark beside the Open button. */
+  live?: boolean;
+}> = ({ href, children, available = true, live = false }) => (
   <a href={href} className={`${ROW_CLASS} ${available ? '' : 'opacity-60'}`}>
     {children}
+    {live && <LiveMark />}
     {available ? <OpenLabel /> : <LockMark />}
   </a>
 );
 
 const LiveMark: React.FC = () => (
-  <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
-    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-red-500" />
+  <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-800">
+    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-red-500" />
     Live
   </span>
 );
@@ -231,12 +234,6 @@ export const WorkRow: React.FC<WorkRowProps> = ({
               <Dot />
             </>
           )}
-          {started && (
-            <>
-              <LiveMark />
-              <Dot />
-            </>
-          )}
           {dueLine(row, nowMs)}
           {row.state === 'in-progress' && (
             <>
@@ -267,7 +264,7 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   }
   // A class not started yet still opens, to the waiting screen where the teacher sees the student.
   return (
-    <OpenRow href={a.openHref} available={!periodLocked}>
+    <OpenRow href={a.openHref} available={!periodLocked} live={started}>
       {body}
     </OpenRow>
   );
