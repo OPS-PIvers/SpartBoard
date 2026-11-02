@@ -289,6 +289,18 @@ describe('parseInvitesCsv', () => {
     expect(result.errors.map((e) => e.line)).toEqual([3, 4, 5]);
   });
 
+  it('reports physical line numbers after a quoted cell that spans lines', () => {
+    const csv = [
+      'name,email,role,building',
+      '"Alice',
+      'Smith",alice@orono.k12.mn.us,Teacher,Middle School',
+      'Bob,not-an-email,Teacher,Middle School',
+    ].join('\n');
+    const result = parseInvitesCsv(csv, baseOptions);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.line).toBe(4);
+  });
+
   it('ignores unknown columns (e.g. "message") without erroring', () => {
     const csv = [
       'name,email,role,message',
