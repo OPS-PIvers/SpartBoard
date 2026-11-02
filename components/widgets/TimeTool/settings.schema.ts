@@ -9,12 +9,16 @@ import { TIME_TOOL_SOUNDS } from '@/config/timeTool';
 import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
 import {
   TimeToolModeField,
+  TimeToolStartLengthField,
   TimeToolTrafficColorField,
   TimeToolVoiceLevelField,
 } from './settingsFields';
 
 const renderMode = (ctx: CustomRenderCtx) =>
   React.createElement(TimeToolModeField, { ctx });
+
+const renderStartLength = (ctx: CustomRenderCtx) =>
+  React.createElement(TimeToolStartLengthField, { ctx });
 
 const renderVoiceLevel = (ctx: CustomRenderCtx) =>
   React.createElement(TimeToolVoiceLevelField, { ctx });
@@ -29,7 +33,8 @@ export const previewTimerSound = (sound: string) => {
 
 const isTimerMode = (ctx: FieldCtx) => (ctx.config.mode ?? 'timer') === 'timer';
 
-export default defineSettings<TimeToolConfig>({
+// `startLength` names the profile-backed field only; it is never written to widget config.
+export default defineSettings<TimeToolConfig & { startLength?: never }>({
   groups: [
     {
       id: 'content',
@@ -64,6 +69,16 @@ export default defineSettings<TimeToolConfig>({
           max: 60,
           step: 5,
           visibleWhen: isTimerMode,
+        },
+        // Saved to the teacher's profile, not this widget; `startLength` is not a config key.
+        {
+          type: 'custom',
+          key: 'startLength',
+          label: 'startLength',
+          help: 'startLengthHelp',
+          visibleWhen: (ctx) =>
+            isTimerMode(ctx) && ctx.canAccessFeature('timer-starting-length'),
+          render: renderStartLength,
         },
         // Timer-end partner cards: each disables while its partner is off the board and offers a one-tap add.
         {

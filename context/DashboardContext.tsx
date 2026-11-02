@@ -183,6 +183,7 @@ import {
   validatePlacement,
   sanitizeAIConfig,
 } from '@/utils/ai_security';
+import { withTimerStartSeconds } from '@/utils/timeToolClock';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
@@ -621,6 +622,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     selectedBuildings,
     savedWidgetConfigs,
     materialsPreferences,
+    timeToolStartSeconds,
+    canAccessFeature,
     profileLoaded,
     setupCompleted,
     lastActiveCollectionId,
@@ -6403,6 +6406,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [featurePermissions, selectedBuildings]
   );
 
+  // The building layer for a new widget, with the teacher's own timer starting length over it.
+  const timerStartSeconds =
+    timeToolStartSeconds && canAccessFeature('timer-starting-length')
+      ? timeToolStartSeconds
+      : 0;
+  const getNewWidgetBaseConfig = useCallback(
+    (type: WidgetType): Record<string, unknown> | undefined => {
+      const building = getAdminBuildingConfig(type);
+      return type === 'time-tool'
+        ? withTimerStartSeconds(building, timerStartSeconds)
+        : building;
+    },
+    [getAdminBuildingConfig, timerStartSeconds]
+  );
+
   // Board-level undo/redo of widget mutations, keyed by dashboard id.
   const widgetHistoryRef = useRef(new Map<string, WidgetHistoryStack>());
   const [widgetHistoryVersion, setWidgetHistoryVersion] = useState(0);
@@ -6535,7 +6553,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       overrides: AddWidgetOverrides | undefined,
       opts: { transient?: boolean; exact?: boolean } = {}
     ): string => {
-      const adminConfig = getAdminBuildingConfig(type);
+      const adminConfig = getNewWidgetBaseConfig(type);
       const newWidgetId = overrides?.id ?? crypto.randomUUID();
       locallyAddedWidgetIds.current.add(newWidgetId);
 
@@ -6644,7 +6662,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       return newWidgetId;
     },
-    [activeId, getAdminBuildingConfig, materialsPreferences, savedWidgetConfigs]
+    [activeId, getNewWidgetBaseConfig, materialsPreferences, savedWidgetConfigs]
   );
 
   const addWidget = useCallback(
@@ -6809,7 +6827,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           };
           const newWidgets = widgetsToAdd.map((item) => {
             const defaults = WIDGET_DEFAULTS[item.type] ?? {};
-            const adminConfig = getAdminBuildingConfig(item.type);
+            const adminConfig = getNewWidgetBaseConfig(item.type);
             maxZ++;
 
             // Sanitize AI-provided config and grid positions
@@ -6931,7 +6949,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [activeId, getAdminBuildingConfig, savedWidgetConfigs, recordHistory]
+    [activeId, getNewWidgetBaseConfig, savedWidgetConfigs, recordHistory]
   );
 
   const removeWidget = useCallback(

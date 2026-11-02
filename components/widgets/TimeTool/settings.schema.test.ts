@@ -114,6 +114,7 @@ describe('time-tool settings schema', () => {
       ['mode', 'selectedSound'],
       [
         'adjustStepSeconds',
+        'startLength',
         'timerEndVoiceLevel',
         'timerEndTrafficColor',
         'timerEndTriggerRandom',

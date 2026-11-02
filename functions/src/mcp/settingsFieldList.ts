@@ -343,6 +343,11 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'number',
     },
     {
+      anchor: 'settings.field:time-tool#startLength',
+      label: 'Start new timers at',
+      kind: 'custom',
+    },
+    {
       anchor: 'settings.field:time-tool#timerEndVoiceLevel',
       label: 'Switch to Voice Level when finished',
       kind: 'custom',

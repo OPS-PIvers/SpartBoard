@@ -63,6 +63,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'widget-library-large',
   'alignment-guides',
   'spell-check-setting',
+  'timer-starting-length',
   'music-my-songs',
   'music-timer-link',
   'focus-sessions',

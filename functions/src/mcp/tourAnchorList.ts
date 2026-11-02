@@ -696,6 +696,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "time-tool#fontFamily",
       "time-tool#mode",
       "time-tool#selectedSound",
+      "time-tool#startLength",
       "time-tool#themeColor",
       "time-tool#timerEndTrafficColor",
       "time-tool#timerEndTriggerNextUp",
@@ -18956,6 +18957,67 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Traffic color picker in Time Tool settings",
     "scope": "widget",
     "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.time-tool.settings",
+        "kind": "settings-drawer",
+        "widget_type": "time-tool",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.time-tool.start-minutes",
+    "label": "Starting length minutes in Time Tool settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.time-tool.settings",
+        "kind": "settings-drawer",
+        "widget_type": "time-tool",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.time-tool.start-seconds",
+    "label": "Starting length seconds in Time Tool settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.time-tool.settings",
+        "kind": "settings-drawer",
+        "widget_type": "time-tool",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.time-tool.start-clear",
+    "label": "Use school default button for the timer starting length",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.time-tool.settings",

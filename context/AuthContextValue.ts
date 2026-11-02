@@ -19,7 +19,7 @@ import {
 import type { BuildingRecord } from '@/types/organization';
 
 /** Keys writable via `updateUserPreference`. Grows as more per-user numeric prefs land. */
-export type UserPreferenceKey = 'settingsDrawerWidth';
+export type UserPreferenceKey = 'settingsDrawerWidth' | 'timeToolStartSeconds';
 
 export interface AuthContextType {
   user: User | null;
@@ -251,6 +251,8 @@ export interface AuthContextType {
   alignmentGuidesEnabled: boolean;
   /** Teacher's own spell check switch; only turns it off where `spell-check-setting` allows. */
   spellCheckEnabled: boolean;
+  /** Teacher's own starting length for new timers, in seconds; 0 or absent means the building default. */
+  timeToolStartSeconds?: number;
   /**
    * The Collection the teacher was most recently in. Restored from the
    * userProfile doc on sign-in so the app can re-open the correct Collection
