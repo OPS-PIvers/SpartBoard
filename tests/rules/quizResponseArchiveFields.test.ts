@@ -45,6 +45,8 @@ const asTeacher = (uid: string) =>
 
 const baseResponse = (uid: string) => ({
   studentUid: uid,
+  pin: '01',
+  classPeriod: 'period_1',
   joinedAt: 1000,
   status: 'joined',
   answers: [{ questionId: 'q1', artifacts: [{ id: 'art-1', kind: 'audio' }] }],
