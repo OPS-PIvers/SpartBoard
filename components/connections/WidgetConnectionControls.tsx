@@ -1,10 +1,10 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, Workflow } from 'lucide-react';
 import type { WidgetConnection, WidgetData } from '@/types';
 import { IconButton } from '@/components/common/IconButton';
-import { AuthContext } from '@/context/AuthContextValue';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import {
   useDashboardCanvasSelector,
   useDashboardCanvasStateGetter,
@@ -20,10 +20,6 @@ import { liveConnections, liveSteps } from '@/utils/connectionEngine';
 import { getTitle } from '@/utils/widgetHelpers';
 import { tourAttr } from '@/config/tourAnchors';
 import { Z_INDEX } from '@/config/zIndex';
-
-// Hosts without AuthProvider (tests, harness pages) never show Connections.
-const useConnectionsEnabled = (): boolean =>
-  useContext(AuthContext)?.canAccessFeature('widget-connections') ?? false;
 
 /** Step numbers this widget holds across its board's live Sequences, plus whether the current Run step is its own. */
 const summaryKey = (

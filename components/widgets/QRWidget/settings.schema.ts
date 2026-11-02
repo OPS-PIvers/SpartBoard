@@ -3,6 +3,7 @@ import { defineSettings } from '@/components/settings/schema/defineSettings';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { QRConfig } from '@/types';
 import { QRDestinationField, QRTextSyncField } from './settingsFields';
+import { hiddenWithConnections } from '@/components/settings/schema/hiddenWithConnections';
 
 const renderDestination = (ctx: CustomRenderCtx) =>
   React.createElement(QRDestinationField, { ctx });
@@ -33,6 +34,7 @@ export default defineSettings<QRConfig>({
           label: 'linkRepeater',
           searchTerms: ['syncWithTextWidget'],
           render: renderTextSync,
+          visibleWhen: hiddenWithConnections,
         },
       ],
     },

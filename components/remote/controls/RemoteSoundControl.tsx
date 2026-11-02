@@ -1,5 +1,8 @@
-import React from 'react';
-import { WidgetData, SoundConfig } from '@/types';
+import React, { useContext } from 'react';
+import { WidgetData, SoundConfig, WidgetConnection } from '@/types';
+import { DashboardContext } from '@/context/DashboardContextValue';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
+import { followerIds } from '@/utils/connectionEngine';
 import { useAuth } from '@/context/useAuth';
 import { NOISE_METER_PRO } from '@/components/widgets/SoundWidget/noiseTarget';
 
@@ -34,10 +37,45 @@ export const RemoteSoundControl: React.FC<RemoteSoundControlProps> = ({
   const setVisual = (visual: SoundConfig['visual']) =>
     updateWidget(widget.id, { config: { ...config, visual } });
 
-  const toggleTrafficLight = () =>
-    updateWidget(widget.id, {
-      config: { ...config, autoTrafficLight: !config.autoTrafficLight },
+  // With Connections on, the button adds or removes "Traffic Light follows Sound" for the board's first Traffic Light.
+  const connectionsOn = useConnectionsEnabled();
+  const dashboard = useContext(DashboardContext);
+  const board = dashboard?.activeDashboard;
+  const traffic = board?.widgets.find((w) => w.type === 'traffic');
+  const trafficOn = connectionsOn
+    ? !!traffic &&
+      followerIds(board?.connections, board?.widgets ?? [], widget.id).includes(
+        traffic.id
+      )
+    : !!config.autoTrafficLight;
+
+  const toggleTrafficLight = () => {
+    if (!connectionsOn) {
+      updateWidget(widget.id, {
+        config: { ...config, autoTrafficLight: !config.autoTrafficLight },
+      });
+      return;
+    }
+    if (!board || !traffic) return;
+    const isPair = (c: WidgetConnection) =>
+      c.kind === 'follow' &&
+      c.leaderId === widget.id &&
+      c.followerId === traffic.id;
+    const rest = (board.connections ?? []).filter((c) => !isPair(c));
+    dashboard?.updateDashboard({
+      connections: trafficOn
+        ? rest
+        : [
+            ...rest,
+            {
+              id: crypto.randomUUID(),
+              kind: 'follow',
+              leaderId: widget.id,
+              followerId: traffic.id,
+            },
+          ],
     });
+  };
 
   const sensitivityPct = Math.round((config.sensitivity ?? 50) * 100) / 100;
 
@@ -106,21 +144,21 @@ export const RemoteSoundControl: React.FC<RemoteSoundControlProps> = ({
       <button
         onClick={toggleTrafficLight}
         className={`touch-manipulation flex items-center justify-between w-full px-4 py-4 rounded-2xl border transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
-          config.autoTrafficLight
+          trafficOn
             ? 'bg-green-500/20 border-green-400/50 text-white'
             : 'bg-white/5 border-white/10 text-white/60'
         }`}
-        aria-pressed={config.autoTrafficLight ?? false}
+        aria-pressed={trafficOn}
       >
         <span className="font-bold">Auto Traffic Light</span>
         <div
           className={`w-12 h-6 rounded-full relative transition-colors ${
-            config.autoTrafficLight ? 'bg-green-500' : 'bg-white/20'
+            trafficOn ? 'bg-green-500' : 'bg-white/20'
           }`}
         >
           <div
             className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-              config.autoTrafficLight ? 'translate-x-7' : 'translate-x-1'
+              trafficOn ? 'translate-x-7' : 'translate-x-1'
             }`}
           />
         </div>

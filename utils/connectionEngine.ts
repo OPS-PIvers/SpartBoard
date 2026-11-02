@@ -259,3 +259,25 @@ export const draftFromPicks = (
       : null;
   return { sequence, follows };
 };
+
+/** The widget `followerId` Follows on this board, if any. */
+export const followLeaderId = (
+  connections: WidgetConnection[] | undefined,
+  widgets: WidgetData[],
+  followerId: string
+): string | undefined => {
+  for (const c of liveConnections(connections, widgets)) {
+    if (c.kind === 'follow' && c.followerId === followerId) return c.leaderId;
+  }
+  return undefined;
+};
+
+/** Widgets that Follow `leaderId` on this board. */
+export const followerIds = (
+  connections: WidgetConnection[] | undefined,
+  widgets: WidgetData[],
+  leaderId: string
+): string[] =>
+  liveConnections(connections, widgets).flatMap((c) =>
+    c.kind === 'follow' && c.leaderId === leaderId ? [c.followerId] : []
+  );

@@ -12,6 +12,7 @@ import {
   MusicStationField,
   MusicSyncField,
 } from './settingsFields';
+import { hiddenWithConnections } from '@/components/settings/schema/hiddenWithConnections';
 
 const source = (ctx: FieldCtx) => ctx.config.source ?? 'curated';
 
@@ -69,6 +70,7 @@ export default defineSettings<MusicConfig>({
       fields: [
         {
           key: 'syncWithTimeTool',
+          visibleWhen: hiddenWithConnections,
           type: 'partnerWidget',
           label: 'syncWithTimeTool',
           section: 'connections',

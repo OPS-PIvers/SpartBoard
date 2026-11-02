@@ -6,6 +6,7 @@ import type {
 } from '@/components/settings/schema/types';
 import type { RecessGearConfig } from '@/types';
 import { RecessWeatherSourceField } from './settingsFields';
+import { hiddenWithConnections } from '@/components/settings/schema/hiddenWithConnections';
 
 const defaultUseFeelsLike = (ctx: FieldCtx) => ctx.config.useFeelsLike ?? true;
 
@@ -25,6 +26,7 @@ export default defineSettings<RecessGearConfig>({
           label: 'sourceWeatherWidget',
           section: 'connections',
           partner: 'weather',
+          visibleWhen: hiddenWithConnections,
           control: {
             key: 'linkedWeatherWidgetId',
             type: 'custom',

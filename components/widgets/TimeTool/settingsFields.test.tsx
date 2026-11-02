@@ -40,7 +40,7 @@ const makeCtx = (config: Record<string, unknown>): FieldCtx => ({
   config,
   widget: { ...widget, config },
   isAdmin: false,
-  canAccessFeature: () => true,
+  canAccessFeature: (id: string) => id !== 'widget-connections',
   t,
 });
 
