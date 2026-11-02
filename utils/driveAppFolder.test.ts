@@ -15,6 +15,13 @@ const tree: Record<string, DriveParentMeta> = {
     trashed: true,
   },
   inTrashFile123: { name: 'a.webp', parents: ['trashedFolder1'] },
+  legacyFile1234: { name: 'b.webp', parents: ['legacyHotspot1'] },
+  legacyHotspot1: { name: 'HotspotImages', parents: ['legacyAssets12'] },
+  legacyAssets12: { name: 'Assets', parents: ['legacyApp12345'] },
+  legacyApp12345: { name: 'SPART Board', parents: ['rootFolder1234'] },
+  strayFile12345: { name: 'c.webp', parents: ['strayHotspot1'] },
+  strayHotspot1: { name: 'HotspotImages', parents: ['strayAssets123'] },
+  strayAssets123: { name: 'Stuff', parents: ['appFolder12345'] },
 };
 const getMeta = (id: string) => Promise.resolve(tree[id] ?? null);
 
@@ -23,6 +30,18 @@ describe('isInAppFolder', () => {
     expect(
       await isInAppFolder('slideFileId1234', ['Assets/HotspotImages'], getMeta)
     ).toBe(true);
+  });
+
+  it('accepts the legacy app folder name', async () => {
+    expect(
+      await isInAppFolder('legacyFile1234', ['Assets/HotspotImages'], getMeta)
+    ).toBe(true);
+  });
+
+  it('rejects a same-named folder under the wrong parent', async () => {
+    expect(
+      await isInAppFolder('strayFile12345', ['Assets/HotspotImages'], getMeta)
+    ).toBe(false);
   });
 
   it('rejects an app file in another folder', async () => {
