@@ -1354,3 +1354,76 @@ describe('DashboardContext PII supplement shared with another device', () => {
     expect(driveWrites()).toHaveLength(0);
   });
 });
+
+describe('DashboardContext quiz Scoreboard teams when Drive fails', () => {
+  const realDriveService = driveMock.driveService;
+  const quizTeams = [{ id: 'pin-0042', name: 'Ada Lovelace', score: 9 }];
+  const quizBoard = () =>
+    makeDashboard('dash-q', [
+      {
+        id: 'sb',
+        type: 'scoreboard',
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1,
+        z: 1,
+        flipped: false,
+        config: { teams: quizTeams },
+      },
+    ]);
+
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardsMock.mockClear();
+    uploadFileMock.mockClear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    driveMock.driveService = realDriveService;
+    uploadFileMock.mockReset();
+    uploadFileMock.mockResolvedValue({
+      id: 'pii-file-1',
+      name: 'dash-2-pii.json',
+    });
+    vi.useRealTimers();
+  });
+
+  const saveAndEcho = async (stateRef: { current: ContextSnapshot | null }) => {
+    await act(async () => {
+      await stateRef.current?.updateWidgetConfigsAcrossBoards(
+        'scoreboard',
+        (config) => ({ ...config, layout: 'rows' })
+      );
+    });
+    const saved = saveDashboardsMock.mock.calls[0]?.[0] as
+      Dashboard[] | undefined;
+    expect(saved).toBeDefined();
+    const savedBoard = saved?.find((d) => d.id === 'dash-q');
+    expect(
+      (savedBoard?.widgets[0].config as { teams: unknown[] }).teams
+    ).toEqual([]);
+    if (savedBoard) await pushSnapshot([savedBoard]);
+    const live = stateRef.current?.dashboards.find((d) => d.id === 'dash-q');
+    expect((live?.widgets[0].config as { teams: unknown[] }).teams).toEqual(
+      quizTeams
+    );
+  };
+
+  it('still saves, and keeps the teams on screen, with no Drive connection', async () => {
+    driveMock.driveService = null as unknown as typeof realDriveService;
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard('dash-1', []), quizBoard()]);
+    saveDashboardsMock.mockClear();
+    await saveAndEcho(stateRef);
+  });
+
+  it('still saves, and keeps the teams on screen, when the Drive upload fails', async () => {
+    uploadFileMock.mockRejectedValue(new Error('drive down'));
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard('dash-1', []), quizBoard()]);
+    saveDashboardsMock.mockClear();
+    await saveAndEcho(stateRef);
+  });
+});

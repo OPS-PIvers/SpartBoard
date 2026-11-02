@@ -380,6 +380,9 @@ const isSavedWidget = (w: WidgetData) => !w.transient;
 const PII_CONFIG_KEYS: ReadonlySet<string> = new Set([
   ...PII_WIDGET_FIELDS,
   'assignments',
+  'savedPlans',
+  'teams',
+  'history',
 ]);
 
 // Live-tour widgets stay in memory until the teacher keeps them.
@@ -1733,6 +1736,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [piiRestoreNonce, setPiiRestoreNonce] = useState(0);
   // Boards whose names were cleared here but whose `{}` Drive write has not landed; restores skip them.
   const pendingPiiClearRef = useRef<Set<string>>(new Set());
+  // Boards whose cached supplement holds quiz Scoreboard teams Drive hasn't got yet.
+  const piiNotOnDriveRef = useRef<Set<string>>(new Set());
   // `updatedAt` values this device itself wrote. A transaction write bypasses
   // the local mutation queue, so its own commit arrives as a real snapshot
   // (hasPendingWrites === false) that would otherwise be mistaken for a remote
@@ -1791,7 +1796,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         return;
       }
+      // Quiz Scoreboard teams can be sent again, so without Drive they stay on screen (via the cache) and the save goes on.
+      const onlyQuizTeams = !dashboardHasPII(dashboard, {
+        includeScoreboard: false,
+      });
+      const keepQuizTeamsLocal = () => {
+        dashboardPiiRef.current.set(
+          dashboard.id,
+          stampPiiVersions(dashboard, extractDashboardPII(dashboard))
+        );
+        piiNotOnDriveRef.current.add(dashboard.id);
+      };
       if (!driveService) {
+        if (onlyQuizTeams) return keepQuizTeamsLocal();
         // No live Drive connection — abort rather than scrub PII with nowhere to back it up.
         // `authError` fires the latched "Reconnect" toast so the abort is actionable, not just loud.
         throw authError(
@@ -1803,6 +1820,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Unchanged since this device last wrote or read it: rewriting would put this copy over a newer one from another device.
       if (
         cached &&
+        !piiNotOnDriveRef.current.has(dashboard.id) &&
         stableStringify(cached.supplement) === stableStringify(pii)
       ) {
         dashboardPiiRef.current.set(
@@ -1827,6 +1845,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           piiDriveFileIdRef.current.set(dashboard.id, file.id);
         }
         pendingPiiClearRef.current.delete(dashboard.id);
+        piiNotOnDriveRef.current.delete(dashboard.id);
         // Only once Drive holds it: a cache stamped with unsaved versions reads as another device's edit and triggers a Drive restore over the local text.
         dashboardPiiRef.current.set(
           dashboard.id,
@@ -1834,6 +1853,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       } catch (e) {
         console.error('[PII] Failed to save PII supplement to Drive:', e);
+        if (onlyQuizTeams) return keepQuizTeamsLocal();
         // Rejecting stops callers' success toasts/ref updates/localStorage removal from firing.
         throw new Error(
           '[PII] Aborted dashboard save because PII supplement could not be saved to Drive'
@@ -2040,9 +2060,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // would be invisible to teammates.
       if (!plcId && !isAdmin && driveService) {
         try {
-          const fileId = await driveService.exportDashboard(dashboard);
-          await driveService.makePublic(fileId, userDomain);
-          return `drive-${fileId}`;
+          // A separate scrubbed copy: the board's own backup file keeps student names and live-syncs.
+          const { driveFileId: _backupId, ...shareCopy } =
+            scrubDashboardPII(dashboard);
+          const file = await driveService.uploadFile(
+            new Blob([JSON.stringify(shareCopy, null, 2)], {
+              type: 'application/json',
+            }),
+            `${dashboard.name}.spart`,
+            'Shared Boards'
+          );
+          await driveService.makePublic(file.id, userDomain);
+          return `drive-${file.id}`;
         } catch (e) {
           console.error('Drive sharing failed, falling back to Firestore:', e);
         }
