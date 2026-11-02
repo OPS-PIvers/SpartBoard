@@ -85,8 +85,32 @@ afterAll(async () => {
   await testEnv?.cleanup();
 });
 
+// PLC create needs district staff: a verified district address with an active member doc.
+const staffDb = (uid: string) =>
+  testEnv
+    .authenticatedContext(uid, {
+      email: `${uid}@orono.k12.mn.us`,
+      email_verified: true,
+    })
+    .firestore();
+const seedStaff = (uids: string[]) =>
+  testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await Promise.all(
+      uids.map((uid) =>
+        setDoc(
+          doc(
+            ctx.firestore(),
+            `organizations/orono/members/${uid}@orono.k12.mn.us`
+          ),
+          { orgId: 'orono', roleId: 'teacher', status: 'active' }
+        )
+      )
+    );
+  });
+
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await seedStaff([OUTSIDER]);
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     const member = (uid: string, role: string) => ({
@@ -229,13 +253,15 @@ describe('plcs/{plcId} create with a layout', () => {
     ...extra,
   });
   const create = (extra: Record<string, unknown> = {}) =>
-    setDoc(doc(as(OUTSIDER), 'plcs/new-team'), newTeam(extra));
+    setDoc(doc(staffDb(OUTSIDER), 'plcs/new-team'), newTeam(extra));
 
   it('a teacher creates a team with or without a valid layout', async () => {
     await assertSucceeds(create());
     await testEnv.clearFirestore();
+    await seedStaff([OUTSIDER]);
     await assertSucceeds(create({ layout }));
     await testEnv.clearFirestore();
+    await seedStaff([OUTSIDER]);
     await assertSucceeds(create({ layout, features: { notes: false } }));
   });
 

@@ -438,6 +438,7 @@ describe('plcs/{plcId} — member branches unaffected by the admin branch', () =
         doc(ctx.firestore(), `plc_invitations/${ORG_PLC_ID}_${INVITEE_EMAIL}`),
         {
           plcId: ORG_PLC_ID,
+          inviteeEmailLower: INVITEE_EMAIL,
           email: INVITEE_EMAIL,
           invitedBy: LEAD_UID,
           status: 'pending',

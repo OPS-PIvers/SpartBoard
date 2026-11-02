@@ -2554,7 +2554,12 @@ service cloud.firestore {
         // Dual-accept the timestamp bump (serverTimestamp resolves to a
         // `timestamp`; legacy clients still write `int` during rollout).
         && plcUpdatedAtOk()
-        && get(/databases/$(database)/documents/plc_invitations/$(plcInviteDocId(plcId, emailLower))).data.status == 'pending';
+        && plcInviteMatches(get(/databases/$(database)/documents/plc_invitations/$(plcInviteDocId(plcId, emailLower))).data, plcId, emailLower);
+    }
+
+    // The id alone is ambiguous ('a_b' + '_' + 'c' == 'a' + '_' + 'b_c'), so the invite's own fields must match.
+    function plcInviteMatches(inv, plcId, emailLower) {
+      return inv.status == 'pending' && inv.plcId == plcId && inv.inviteeEmailLower == emailLower;
     }
 
     // updatedAt dual-accept (timestamp || legacy int millis) during the
@@ -3100,7 +3105,8 @@ service cloud.firestore {
       // carries exactly that uid at role 'lead' (active), mirrored by
       // memberUids == [uid] and leadUid == uid. Optional tenancy (orgId/
       // buildingId) null or string; createdAt/updatedAt dual-accept timestamp||int.
-      allow create: if signedIn()
+      // Only district staff start a PLC; anonymous, student and unverified accounts can't lead one.
+      allow create: if isDistrictStaff()
         && authUid() == incoming().leadUid
         && incoming().memberUids == [authUid()]
         && incoming().members.keys().hasOnly([authUid()])

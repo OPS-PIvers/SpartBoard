@@ -101,8 +101,32 @@ afterAll(async () => {
 // The base root doc mirrors the shape the existing PLC suites seed:
 // leadUid + memberUids + memberEmails (+ name / createdAt / updatedAt).
 // Member A is the lead; A and B are members; the non-member is not yet in.
+// PLC create needs district staff: a verified district address with an active member doc.
+const staffDb = (uid: string) =>
+  testEnv
+    .authenticatedContext(uid, {
+      email: `${uid}@orono.k12.mn.us`,
+      email_verified: true,
+    })
+    .firestore();
+const seedStaff = (uids: string[]) =>
+  testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await Promise.all(
+      uids.map((uid) =>
+        setDoc(
+          doc(
+            ctx.firestore(),
+            `organizations/orono/members/${uid}@orono.k12.mn.us`
+          ),
+          { orgId: 'orono', roleId: 'teacher', status: 'active' }
+        )
+      )
+    );
+  });
+
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await seedStaff([MEMBER_A_UID]);
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
       name: 'Test PLC',
@@ -127,6 +151,7 @@ const seedPendingInvite = async (emailLower: string, status = 'pending') => {
       doc(ctx.firestore(), `plc_invitations/${PLC_ID}_${emailLower}`),
       {
         plcId: PLC_ID,
+        inviteeEmailLower: emailLower,
         email: emailLower,
         invitedBy: MEMBER_A_UID,
         status,
@@ -531,7 +556,7 @@ describe('plcs/{plcId} — members map + orgId/buildingId fields', () => {
   it('a creator can create a PLC carrying members map + orgId/buildingId', async () => {
     const NEW_PLC = 'plc-members-create';
     await assertSucceeds(
-      setDoc(doc(asMemberA(), `plcs/${NEW_PLC}`), {
+      setDoc(doc(staffDb(MEMBER_A_UID), `plcs/${NEW_PLC}`), {
         name: 'New PLC',
         leadUid: MEMBER_A_UID,
         memberUids: [MEMBER_A_UID],
@@ -687,7 +712,7 @@ describe('plcs/{plcId} — T6 members-map read gate + create + dual-accept', () 
   it('create requires a sole-member members map at role lead + mirrors', async () => {
     const NEW_PLC = 'plc-create-new-model';
     await assertSucceeds(
-      setDoc(doc(asMemberA(), `plcs/${NEW_PLC}`), {
+      setDoc(doc(staffDb(MEMBER_A_UID), `plcs/${NEW_PLC}`), {
         name: 'New PLC',
         orgId: null,
         buildingId: null,
@@ -713,7 +738,7 @@ describe('plcs/{plcId} — T6 members-map read gate + create + dual-accept', () 
   it('rejects create whose sole member is not role lead', async () => {
     const NEW_PLC = 'plc-create-bad-role';
     await assertFails(
-      setDoc(doc(asMemberA(), `plcs/${NEW_PLC}`), {
+      setDoc(doc(staffDb(MEMBER_A_UID), `plcs/${NEW_PLC}`), {
         name: 'Bad PLC',
         leadUid: MEMBER_A_UID,
         memberUids: [MEMBER_A_UID],
@@ -737,7 +762,7 @@ describe('plcs/{plcId} — T6 members-map read gate + create + dual-accept', () 
   it('rejects create whose members map carries a second member', async () => {
     const NEW_PLC = 'plc-create-two-members';
     await assertFails(
-      setDoc(doc(asMemberA(), `plcs/${NEW_PLC}`), {
+      setDoc(doc(staffDb(MEMBER_A_UID), `plcs/${NEW_PLC}`), {
         name: 'Two-member PLC',
         leadUid: MEMBER_A_UID,
         memberUids: [MEMBER_A_UID],
@@ -769,7 +794,7 @@ describe('plcs/{plcId} — T6 members-map read gate + create + dual-accept', () 
   it('create accepts a serverTimestamp createdAt/updatedAt (dual-accept)', async () => {
     const NEW_PLC = 'plc-create-server-ts';
     await assertSucceeds(
-      setDoc(doc(asMemberA(), `plcs/${NEW_PLC}`), {
+      setDoc(doc(staffDb(MEMBER_A_UID), `plcs/${NEW_PLC}`), {
         name: 'Server-TS PLC',
         leadUid: MEMBER_A_UID,
         memberUids: [MEMBER_A_UID],
