@@ -136,3 +136,31 @@ describe('uploadGuidedLearningImage', () => {
     });
   });
 });
+
+describe('deleteDriveFile', () => {
+  const slideDrive = {
+    isInAppFolder: vi.fn(),
+    deleteFile: vi.fn().mockResolvedValue(undefined),
+  };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useGoogleDrive as Mock).mockReturnValue({ driveService: slideDrive });
+  });
+
+  it('deletes a slide that sits in the app slide folder', async () => {
+    slideDrive.isInAppFolder.mockResolvedValue(true);
+    const { result } = renderHook(() => useStorage());
+    await act(() => result.current.deleteDriveFile('slideFileId1234'));
+    expect(slideDrive.isInAppFolder).toHaveBeenCalledWith('slideFileId1234', [
+      'Assets/HotspotImages',
+    ]);
+    expect(slideDrive.deleteFile).toHaveBeenCalledWith('slideFileId1234');
+  });
+
+  it('leaves any other Drive file alone', async () => {
+    slideDrive.isInAppFolder.mockResolvedValue(false);
+    const { result } = renderHook(() => useStorage());
+    await act(() => result.current.deleteDriveFile('rosterFileId1234'));
+    expect(slideDrive.deleteFile).not.toHaveBeenCalled();
+  });
+});

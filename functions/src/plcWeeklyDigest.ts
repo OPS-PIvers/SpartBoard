@@ -41,6 +41,10 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
+import {
+  createOrgEmailChecker,
+  resolveStaffEmailsForUids,
+} from './mailRecipients';
 
 // ───────────────────────── tunables (per-run caps) ─────────────────────────
 
@@ -311,65 +315,44 @@ export async function loadDigestConfig(
   };
 }
 
-/** Lowercased, de-duplicated, valid recipient list for a PLC root doc. */
-export function collectRecipientEmails(plc: {
+/** Most member uids looked up per PLC; Auth is read in batches of 100. */
+export const MAX_RECIPIENT_UIDS = 500;
+
+/** Active member uids for a PLC root doc; addresses are then read from Firebase Auth, never from this doc. */
+export function collectRecipientUids(plc: {
   memberEmails?: unknown;
   members?: unknown;
   memberUids?: unknown;
 }): string[] {
-  const out = new Set<string>();
-  const add = (raw: unknown) => {
-    if (typeof raw !== 'string') return;
-    const email = raw.trim().toLowerCase();
-    if (email.includes('@')) out.add(email);
-  };
-  // Denormalized index of CURRENT (active) member uids — maintained active-only
-  // since Wave 1. Used to filter the legacy memberEmails mirror so a removed
-  // teacher still lingering there (un-migrated PLC) is never emailed. Null when
-  // absent (cannot filter — fall back to all, the legacy-of-legacy case).
-  const activeMemberUids = Array.isArray(plc.memberUids)
-    ? new Set(plc.memberUids as string[])
-    : null;
-  // Prefer the canonical members map (carries email); fall back to the
-  // denormalized memberEmails mirror for legacy PLCs.
-  //
-  // Track UIDs of removed members so the memberEmails pass below can exclude
-  // them even when `memberUids` is absent (legacy PLCs pre-dating the
-  // active-only uid index). Without this, a uid marked `removed` in `members`
-  // leaks back in via the unguarded memberEmails path.
-  const removedUids = new Set<string>();
-  const members = plc.members;
-  if (members && typeof members === 'object') {
+  const removed = new Set<string>();
+  const fromMembers: string[] = [];
+  if (plc.members && typeof plc.members === 'object') {
     for (const [uid, member] of Object.entries(
-      members as Record<string, unknown>
+      plc.members as Record<string, unknown>
     )) {
-      if (member && typeof member === 'object') {
-        // Removed members keep an audit entry in the map (status 'removed')
-        // but must NOT receive the digest — only active members are recipients.
-        if ((member as { status?: unknown }).status === 'removed') {
-          removedUids.add(uid);
-          continue;
-        }
-        add((member as { email?: unknown }).email);
+      if (!member || typeof member !== 'object') continue;
+      if ((member as { status?: unknown }).status === 'removed') {
+        removed.add(uid);
+      } else {
+        fromMembers.push(uid);
       }
     }
   }
-  const memberEmails = plc.memberEmails;
-  if (memberEmails && typeof memberEmails === 'object') {
-    for (const [uid, email] of Object.entries(
-      memberEmails as Record<string, unknown>
-    )) {
-      // Skip emails whose uid is no longer an active member (defends the
-      // legacy/un-migrated path; the members-map path above filters by status).
-      if (activeMemberUids && !activeMemberUids.has(uid)) continue;
-      // Also skip UIDs that were explicitly marked 'removed' in the members
-      // map — prevents a removed member whose email lingers in the legacy
-      // memberEmails mirror from receiving the digest when memberUids is absent.
-      if (removedUids.has(uid)) continue;
-      add(email);
-    }
+  // memberUids is the active-only index; legacy PLCs without it fall back to the map keys.
+  const candidates = Array.isArray(plc.memberUids)
+    ? (plc.memberUids as unknown[])
+    : [
+        ...fromMembers,
+        ...(plc.memberEmails && typeof plc.memberEmails === 'object'
+          ? Object.keys(plc.memberEmails)
+          : []),
+      ];
+  const out = new Set<string>();
+  for (const uid of candidates) {
+    if (typeof uid !== 'string' || !uid || removed.has(uid)) continue;
+    out.add(uid);
   }
-  return [...out].sort();
+  return [...out].sort().slice(0, MAX_RECIPIENT_UIDS);
 }
 
 /**
@@ -428,6 +411,13 @@ async function readWindowedUpdates(
   return out;
 }
 
+function staffRecipientResolver(
+  db: Firestore
+): (uids: string[]) => Promise<string[]> {
+  const checker = createOrgEmailChecker(db);
+  return (uids) => resolveStaffEmailsForUids(admin.auth(), checker, uids);
+}
+
 interface DigestRunCounts {
   plcsConsidered: number;
   optedIn: number;
@@ -443,7 +433,8 @@ interface DigestRunCounts {
  */
 export async function runPlcWeeklyDigest(
   db: Firestore,
-  now: number = Date.now()
+  now: number = Date.now(),
+  resolveRecipients?: (uids: string[]) => Promise<string[]>
 ): Promise<DigestRunCounts> {
   const counts: DigestRunCounts = {
     plcsConsidered: 0,
@@ -459,6 +450,8 @@ export async function runPlcWeeklyDigest(
     logger.info('plcWeeklyDigest: kill switch off — skipping run');
     return counts;
   }
+
+  const recipientsFor = resolveRecipients ?? staffRecipientResolver(db);
 
   // Paginated sweep (startAfter cursor on document id) so EVERY PLC is covered,
   // not just the first page — bounded by MAX_PLCS_PER_RUN (runaway guard) and
@@ -487,7 +480,16 @@ export async function runPlcWeeklyDigest(
         continue;
       }
 
-      const recipients = collectRecipientEmails(plc);
+      let recipients: string[];
+      try {
+        recipients = await recipientsFor(collectRecipientUids(plc));
+      } catch (err) {
+        logger.error('plcWeeklyDigest: failed to resolve recipients', {
+          plcId: plcDoc.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        continue;
+      }
       if (recipients.length === 0) {
         counts.skippedNoRecipients += 1;
         continue;

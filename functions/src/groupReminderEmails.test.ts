@@ -114,11 +114,13 @@ describe('runGroupReminderEmails', () => {
       }),
     };
   };
-  const auth = {
-    getUser: vi.fn(() =>
-      Promise.resolve({ email: 'teacher@school.edu', disabled: false })
-    ),
+  const teacher = {
+    email: 'teacher@school.edu',
+    emailVerified: true,
+    disabled: false,
+    providerData: [{ providerId: 'google.com' }],
   };
+  const auth = { getUser: vi.fn(() => Promise.resolve(teacher)) };
 
   it('queues nothing while the switch is off', async () => {
     const created = new Map<string, unknown>();
@@ -146,5 +148,21 @@ describe('runGroupReminderEmails', () => {
       to: ['teacher@school.edu'],
       message: { subject: 'Speech at 10:15 AM' },
     });
+  });
+
+  it('mails no one whose address is unverified or not a Google sign-in', async () => {
+    for (const patch of [
+      { emailVerified: false },
+      { providerData: [{ providerId: 'password' }] },
+      { email: undefined, providerData: [] },
+    ]) {
+      const created = new Map<string, unknown>();
+      const db = stubDb(true, created) as never;
+      const other = {
+        getUser: () => Promise.resolve({ ...teacher, ...patch }),
+      };
+      await runGroupReminderEmails(db, other as never, MON_1017);
+      expect(created.size).toBe(0);
+    }
   });
 });

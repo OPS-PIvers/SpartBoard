@@ -21,6 +21,7 @@ export interface GuidedLearningDriveLike {
   saveSet(set: GuidedLearningSet, existingFileId?: string): Promise<string>;
   loadSet(driveFileId: string): Promise<GuidedLearningSet>;
   deleteSetFile(driveFileId: string): Promise<void>;
+  deleteSlideFile(driveFileId: string): Promise<void>;
 }
 
 export class MockGuidedLearningDriveService implements GuidedLearningDriveLike {
@@ -47,6 +48,11 @@ export class MockGuidedLearningDriveService implements GuidedLearningDriveLike {
 
   deleteSetFile(driveFileId: string): Promise<void> {
     localStorage.removeItem(this.key(driveFileId));
+    return Promise.resolve();
+  }
+
+  // Mock slides live in the page, never in Drive.
+  deleteSlideFile(): Promise<void> {
     return Promise.resolve();
   }
 }

@@ -61,6 +61,8 @@ import {
   teacherDailyDocId,
   wholeSubParts,
   type ReadAloudDeps,
+  prepareQuizReadAloudV1,
+  synthesizeQuizAudioV1,
 } from './quizReadAloud';
 
 type Doc = Record<string, unknown>;
@@ -824,5 +826,63 @@ describe('buildDefaultDeps isFeatureGranted', () => {
     const call = vi.mocked(isGlobalFeatureGranted).mock.calls[0];
     expect(call[2]).toBe('teacher@school.org');
     expect(call[3]).toBe('t1');
+  });
+});
+
+describe('prepareQuizReadAloudV1 caller gate', () => {
+  const handler = prepareQuizReadAloudV1 as unknown as (req: {
+    auth: unknown;
+    data: unknown;
+  }) => Promise<unknown>;
+
+  it('refuses anonymous and unverified callers before any feature lookup', async () => {
+    vi.mocked(isGlobalFeatureGranted).mockClear();
+    for (const auth of [
+      { uid: 'anon-1', token: { firebase: { sign_in_provider: 'anonymous' } } },
+      {
+        uid: 'u-1',
+        token: {
+          email: 'teacher@orono.k12.mn.us',
+          email_verified: false,
+          firebase: { sign_in_provider: 'password' },
+        },
+      },
+    ]) {
+      await expect(
+        handler({ auth, data: { sessionId: 's-1' } })
+      ).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+    }
+    expect(isGlobalFeatureGranted).not.toHaveBeenCalled();
+  });
+});
+
+describe('synthesizeQuizAudioV1 caller gate', () => {
+  const handler = synthesizeQuizAudioV1 as unknown as (req: {
+    auth: unknown;
+    data: unknown;
+  }) => Promise<unknown>;
+
+  it('refuses anonymous and unverified callers before any feature lookup', async () => {
+    vi.mocked(isGlobalFeatureGranted).mockClear();
+    for (const auth of [
+      { uid: 'anon-1', token: { firebase: { sign_in_provider: 'anonymous' } } },
+      {
+        uid: 'u-1',
+        token: {
+          email: 'teacher@orono.k12.mn.us',
+          email_verified: false,
+          firebase: { sign_in_provider: 'password' },
+        },
+      },
+    ]) {
+      await expect(
+        handler({ auth, data: { mode: 'preview', language: 'en-US' } })
+      ).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+    }
+    expect(isGlobalFeatureGranted).not.toHaveBeenCalled();
   });
 });

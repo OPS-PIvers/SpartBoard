@@ -6,6 +6,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
+import { provenGoogleEmail } from './mailRecipients';
 
 /** Late alerts still send within this window, covering scheduler jitter. */
 export const SEND_WINDOW_MIN = 10;
@@ -151,7 +152,7 @@ export async function runGroupReminderEmails(
   const emailFor = async (uid: string) => {
     if (!emails.has(uid)) {
       const user = await auth.getUser(uid).catch(() => null);
-      emails.set(uid, user?.disabled ? null : (user?.email ?? null));
+      emails.set(uid, provenGoogleEmail(user));
     }
     return emails.get(uid) ?? null;
   };

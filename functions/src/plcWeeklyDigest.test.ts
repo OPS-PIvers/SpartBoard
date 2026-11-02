@@ -59,7 +59,8 @@ import {
   escapeHtml,
   isDigestOptIn,
   isWithinDigestWindow,
-  collectRecipientEmails,
+  collectRecipientUids,
+  MAX_RECIPIENT_UIDS,
   describeDigestEvent,
   buildPlcDigestEmail,
   runPlcWeeklyDigest,
@@ -69,6 +70,18 @@ import {
 } from './plcWeeklyDigest';
 
 const NOW = 1_700_000_000_000;
+
+// Stands in for Firebase Auth plus the staff check: only these uids have a verified staff address.
+const STAFF_BY_UID: Record<string, string> = {
+  u1: 'lead@school.org',
+  u2: 'member@school.org',
+  u3: 'third@school.org',
+  lead: 'lead@school.org',
+};
+const resolveStaff = (uids: string[]) =>
+  Promise.resolve(
+    [...new Set(uids.flatMap((u) => STAFF_BY_UID[u] ?? []))].sort()
+  );
 const day = 24 * 60 * 60 * 1000;
 
 // ===========================================================================
@@ -123,81 +136,49 @@ describe('isWithinDigestWindow — trailing 7 days', () => {
   });
 });
 
-describe('collectRecipientEmails — de-dupe + lowercase, no fan-out', () => {
-  it('merges members-map emails and memberEmails mirror, de-duplicated', () => {
-    const recipients = collectRecipientEmails({
-      members: {
-        u1: { email: 'Lead@School.org' },
-        u2: { email: 'member@school.org' },
-      },
-      memberEmails: { u1: 'lead@school.org', u3: 'third@school.org' },
-    });
-    expect(recipients).toEqual([
-      'lead@school.org',
-      'member@school.org',
-      'third@school.org',
-    ]);
+describe('collectRecipientUids — active members only, uids not emails', () => {
+  it('uses the active-only memberUids index when present', () => {
+    expect(
+      collectRecipientUids({
+        memberUids: ['u2', 'u1', 'u1'],
+        memberEmails: { u1: 'a@school.org', u9: 'gone@school.org' },
+      })
+    ).toEqual(['u1', 'u2']);
   });
 
-  it('drops non-string / invalid (no @) entries', () => {
-    const recipients = collectRecipientEmails({
-      members: { u1: { email: 'good@school.org' } },
-      memberEmails: { u2: 'not-an-email', u3: 42 as unknown as string },
-    });
-    expect(recipients).toEqual(['good@school.org']);
+  it('falls back to members and memberEmails keys, skipping removed members', () => {
+    expect(
+      collectRecipientUids({
+        members: {
+          u1: { email: 'active@school.org', status: 'active' },
+          u2: { email: 'removed@school.org', status: 'removed' },
+        },
+        memberEmails: { u2: 'removed@school.org', u3: 'third@school.org' },
+      })
+    ).toEqual(['u1', 'u3']);
   });
 
-  it('excludes members whose status is removed (audit entry stays, no digest)', () => {
-    const recipients = collectRecipientEmails({
-      members: {
-        u1: { email: 'active@school.org', status: 'active' },
-        u2: { email: 'removed@school.org', status: 'removed' },
-      },
-    });
-    expect(recipients).toEqual(['active@school.org']);
+  it('drops a removed member even when memberUids still lists them', () => {
+    expect(
+      collectRecipientUids({
+        memberUids: ['u1', 'u2'],
+        members: { u2: { status: 'removed' } },
+      })
+    ).toEqual(['u1']);
   });
 
-  it('does not leak a removed member via legacy memberEmails when memberUids is absent', () => {
-    // Regression: a legacy PLC may carry BOTH a canonical `members` map (which
-    // gates on status) AND a denormalized `memberEmails` mirror (no per-uid
-    // status).  When `memberUids` is absent, the memberEmails guard
-    // (`if (activeMemberUids && !activeMemberUids.has(uid)) continue`) never
-    // fires, so a uid marked `removed` in `members` still slips through via
-    // memberEmails and receives the digest — a privacy leak.
-    //
-    // Correct behavior: the removed member's email must never appear in the
-    // result, regardless of which source of truth (members map or memberEmails
-    // mirror) it comes from.
-    const recipients = collectRecipientEmails({
-      members: {
-        u1: { email: 'active@school.org', status: 'active' },
-        u2: { email: 'removed@school.org', status: 'removed' },
-      },
-      memberEmails: {
-        u1: 'active@school.org',
-        u2: 'removed@school.org',
-      },
-      // No memberUids — simulates a legacy PLC that pre-dates the active-only
-      // memberUids index.
-    });
-    expect(recipients).toEqual(['active@school.org']);
+  it('ignores non-string entries and caps the lookup', () => {
+    expect(collectRecipientUids({ memberUids: [42, '', null] })).toEqual([]);
+    const many = Array.from({ length: MAX_RECIPIENT_UIDS + 50 }, (_, i) =>
+      String(i).padStart(4, '0')
+    );
+    expect(collectRecipientUids({ memberUids: many })).toHaveLength(
+      MAX_RECIPIENT_UIDS
+    );
   });
 
-  it('drops a legacy memberEmails entry whose uid is not in (active-only) memberUids', () => {
-    // Un-migrated PLC: no members map; memberEmails still lists a removed
-    // teacher. memberUids is the active-only source of truth → filter by it.
-    const recipients = collectRecipientEmails({
-      memberUids: ['u1'],
-      memberEmails: {
-        u1: 'active@school.org',
-        u2: 'removed@school.org',
-      },
-    });
-    expect(recipients).toEqual(['active@school.org']);
-  });
-
-  it('returns empty when there are no recipients', () => {
-    expect(collectRecipientEmails({})).toEqual([]);
+  it('returns empty when there are no members', () => {
+    expect(collectRecipientUids({})).toEqual([]);
   });
 });
 
@@ -466,7 +447,7 @@ describe('runPlcWeeklyDigest — kill switch (default OFF)', () => {
         },
       ],
     });
-    const counts = await runPlcWeeklyDigest(db, NOW);
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
     expect(counts.mailQueued).toBe(0);
     expect(mail.size).toBe(0);
   });
@@ -486,7 +467,7 @@ describe('runPlcWeeklyDigest — kill switch (default OFF)', () => {
         },
       ],
     });
-    const counts = await runPlcWeeklyDigest(db, NOW);
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
     expect(counts.mailQueued).toBe(0);
     expect(mail.size).toBe(0);
   });
@@ -513,7 +494,7 @@ describe('runPlcWeeklyDigest — switch ON', () => {
       ],
     });
 
-    const counts = await runPlcWeeklyDigest(db, NOW);
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
 
     expect(counts.mailQueued).toBe(1);
     expect(mail.size).toBe(1);
@@ -543,7 +524,7 @@ describe('runPlcWeeklyDigest — switch ON', () => {
         },
       ],
     });
-    const counts = await runPlcWeeklyDigest(db, NOW);
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
     expect(counts.optedIn).toBe(0);
     expect(counts.mailQueued).toBe(0);
     expect(mail.size).toBe(0);
@@ -573,7 +554,7 @@ describe('runPlcWeeklyDigest — switch ON', () => {
         },
       ],
     });
-    const counts = await runPlcWeeklyDigest(db, NOW);
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
     expect(counts.optedIn).toBe(1);
     expect(counts.skippedNoActivity).toBe(1);
     expect(counts.mailQueued).toBe(0);
@@ -591,7 +572,7 @@ describe('runPlcWeeklyDigest — switch ON', () => {
         },
       ],
     });
-    const counts = await runPlcWeeklyDigest(db, NOW);
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
     expect(counts.skippedNoRecipients).toBe(1);
     expect(counts.mailQueued).toBe(0);
     expect(mail.size).toBe(0);
@@ -621,9 +602,84 @@ describe('runPlcWeeklyDigest — switch ON', () => {
         },
       ],
     });
-    const counts = await runPlcWeeklyDigest(db, NOW);
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
     expect(counts.mailQueued).toBe(2);
     expect(mail.size).toBe(2);
+  });
+});
+
+describe('runPlcWeeklyDigest — recipients come from Auth, not the PLC doc', () => {
+  it('never mails an address written into the PLC doc for an unknown or external uid', async () => {
+    const { db, mail } = makeStubDb({
+      digestEnabled: true,
+      plcs: [
+        {
+          id: 'plc-x',
+          data: {
+            name: 'Math',
+            digestOptIn: true,
+            memberUids: ['u1', 'ghost'],
+            members: {
+              u1: { email: 'outsider@evil.example' },
+              ghost: { email: 'victim@evil.example' },
+            },
+            memberEmails: { u1: 'outsider@evil.example' },
+          },
+          activity: [recentActivity('e1')],
+        },
+      ],
+    });
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
+    expect(counts.mailQueued).toBe(1);
+    const [[, doc]] = [...mail.entries()];
+    expect(doc.bcc).toEqual(['lead@school.org']);
+    expect(JSON.stringify(doc)).not.toContain('evil.example');
+  });
+
+  it('queues nothing when no member resolves to a staff address', async () => {
+    const { db, mail } = makeStubDb({
+      digestEnabled: true,
+      plcs: [
+        {
+          id: 'plc-y',
+          data: {
+            name: 'Math',
+            digestOptIn: true,
+            memberUids: ['ghost'],
+            memberEmails: { ghost: 'victim@evil.example' },
+          },
+          activity: [recentActivity('e1')],
+        },
+      ],
+    });
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
+    expect(counts.skippedNoRecipients).toBe(1);
+    expect(mail.size).toBe(0);
+  });
+
+  it('skips a PLC whose recipient lookup fails and keeps going', async () => {
+    const { db, mail } = makeStubDb({
+      digestEnabled: true,
+      plcs: [
+        {
+          id: 'plc-a',
+          data: { name: 'A', digestOptIn: true, memberUids: ['u1'] },
+          activity: [recentActivity('e1')],
+        },
+        {
+          id: 'plc-b',
+          data: { name: 'B', digestOptIn: true, memberUids: ['u2'] },
+          activity: [recentActivity('e2')],
+        },
+      ],
+    });
+    const flaky = (uids: string[]) =>
+      uids.includes('u1')
+        ? Promise.reject(new Error('auth down'))
+        : resolveStaff(uids);
+    const counts = await runPlcWeeklyDigest(db, NOW, flaky);
+    expect(counts.mailQueued).toBe(1);
+    expect([...mail.keys()][0]).toContain('plc-b');
   });
 });
 
@@ -664,7 +720,7 @@ describe('runPlcWeeklyDigest — team updates (TEAMS_REDESIGN T27)', () => {
         ]),
       ],
     });
-    const counts = await runPlcWeeklyDigest(db, NOW);
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
     expect(counts.mailQueued).toBe(1);
     const [[, doc]] = [...mail.entries()];
     const message = doc.message as { text: string; subject: string };
@@ -679,7 +735,7 @@ describe('runPlcWeeklyDigest — team updates (TEAMS_REDESIGN T27)', () => {
       digestEnabled: true,
       plcs: [team([update('u1', { requiresAck: true }), update('u2')])],
     });
-    await runPlcWeeklyDigest(db, NOW);
+    await runPlcWeeklyDigest(db, NOW, resolveStaff);
     const [[, doc]] = [...mail.entries()];
     const { text, html } = doc.message as { text: string; html: string };
     expect(text).toContain('Update u1 (Erin Walsh) · Needs acknowledgement');
@@ -692,7 +748,7 @@ describe('runPlcWeeklyDigest — team updates (TEAMS_REDESIGN T27)', () => {
       digestEnabled: true,
       plcs: [team([update('u1')])],
     });
-    const counts = await runPlcWeeklyDigest(db, NOW);
+    const counts = await runPlcWeeklyDigest(db, NOW, resolveStaff);
     expect(counts.mailQueued).toBe(1);
     const [[, doc]] = [...mail.entries()];
     expect((doc.message as { text: string }).text).toContain('Update u1');
@@ -702,7 +758,7 @@ describe('runPlcWeeklyDigest — team updates (TEAMS_REDESIGN T27)', () => {
     const t = team([update('u1')]);
     t.data.digestOptIn = false;
     const { db, mail } = makeStubDb({ digestEnabled: true, plcs: [t] });
-    await runPlcWeeklyDigest(db, NOW);
+    await runPlcWeeklyDigest(db, NOW, resolveStaff);
     expect(mail.size).toBe(0);
   });
 });

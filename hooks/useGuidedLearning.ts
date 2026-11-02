@@ -391,7 +391,7 @@ export const useGuidedLearning = (
             isAdmin: isAdmin === true,
             loadSet: (id) => drive.loadSet(id),
           },
-          (id) => drive.deleteSetFile(id)
+          (id) => drive.deleteSlideFile(id)
         );
       }
     },
@@ -406,7 +406,7 @@ export const useGuidedLearning = (
     releasedTombstoneUsers.add(key);
     void releaseClosedTombstones(
       userId,
-      (id) => driveService.deleteSetFile(id),
+      (id) => driveService.deleteSlideFile(id),
       {
         isAdmin,
         loadSet: (id) => driveService.loadSet(id),

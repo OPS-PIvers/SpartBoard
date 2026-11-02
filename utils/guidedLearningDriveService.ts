@@ -12,10 +12,12 @@
 import { GuidedLearningSet } from '@/types';
 import { APP_NAME } from '@/config/constants';
 import { authError } from '@/utils/driveAuthErrors';
+import { isInAppFolder, type DriveParentMeta } from '@/utils/driveAppFolder';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const GL_FOLDER_NAME = 'Guided Learning';
+const GL_SLIDE_FOLDERS = ['Assets/HotspotImages'];
 
 function driveQueryEscape(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -218,6 +220,22 @@ export class GuidedLearningDriveService {
     if (!res.ok)
       throw new Error('Failed to load guided learning set from Drive');
     return (await res.json()) as GuidedLearningSet;
+  }
+
+  /** Deletes a slide image only when Drive shows it in the app's own slide folder. */
+  async deleteSlideFile(driveFileId: string): Promise<void> {
+    const owned = await isInAppFolder(
+      driveFileId,
+      GL_SLIDE_FOLDERS,
+      async (id) => {
+        const res = await this.request(
+          `${DRIVE_API_URL}/files/${id}?fields=name,parents,trashed`,
+          { headers: this.authHeaders }
+        );
+        return res.ok ? ((await res.json()) as DriveParentMeta) : null;
+      }
+    );
+    if (owned) await this.deleteSetFile(driveFileId);
   }
 
   /** Delete a set file from Drive (ignores 404) */

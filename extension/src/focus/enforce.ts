@@ -1,7 +1,11 @@
 // Redirect and Lock decisions (docs/plans/CHROME_EXTENSION.md F2, F9, F10): pure, so the Chrome glue stays thin.
 import { FOCUS_ALWAYS_ALLOWED_HOSTS } from '@/utils/focus/contract';
 import { matchFocusUrl } from '@/utils/focus/allowlist';
-import { isEnforcing, type FocusLocalState } from './focusState';
+import {
+  isBlockedTopLevel,
+  isEnforcing,
+  type FocusLocalState,
+} from './focusState';
 
 export interface TabInfo {
   id: number;
@@ -24,12 +28,13 @@ export const isLocking = (
 ): state is FocusLocalState =>
   isBlocking(state, now) && state.session.level === 'lock';
 
-/** Only a web address outside the allowlist is blocked; browser and extension pages never are. */
+/** A web address outside the allowlist, or a non-web page that could show one; `ownPages` is `chrome.runtime.getURL('')`. */
 export const isBlockedUrl = (
   url: string,
   state: FocusLocalState,
-  origins: readonly string[]
-) => matchFocusUrl(url, state.session.sites, origins) === 'blocked';
+  origins: readonly string[],
+  ownPages: string
+) => isBlockedTopLevel(url, state.session.sites, origins, ownPages);
 
 /** The focus page, optionally with the notice that a site was blocked. */
 export const focusPageUrl = (base: string, notice = false) =>
@@ -108,21 +113,23 @@ export function returnPlan(
 export const tabsToPark = (
   tabs: readonly TabInfo[],
   state: FocusLocalState,
-  origins: readonly string[]
-) => tabs.filter((t) => isBlockedUrl(t.url, state, origins));
+  origins: readonly string[],
+  ownPages: string
+) => tabs.filter((t) => isBlockedUrl(t.url, state, origins, ownPages));
 
 /** Parked tabs to restore: all of them once nothing blocks, else those a newly added site now allows. */
 export function tabsToRestore(
   tabs: readonly TabInfo[],
   blocking: FocusLocalState | null,
   origins: readonly string[],
-  base: string
+  base: string,
+  ownPages: string
 ): { id: number; url: string }[] {
   const out: { id: number; url: string }[] = [];
   for (const t of tabs) {
     const original = parkedOriginal(t.url, base);
     if (!original) continue;
-    if (!blocking || !isBlockedUrl(original, blocking, origins))
+    if (!blocking || !isBlockedUrl(original, blocking, origins, ownPages))
       out.push({ id: t.id, url: original });
   }
   return out;
