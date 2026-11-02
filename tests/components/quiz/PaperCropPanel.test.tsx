@@ -147,6 +147,9 @@ describe('PaperCropPanel', () => {
       <PaperCropPanel {...props} archive={{ archiveStatus: 'archived' }} />
     );
     expect(revoke).toHaveBeenCalledWith('blob:enhanced');
+    expect(
+      screen.queryByAltText('Handwritten answer, question 7')
+    ).not.toBeInTheDocument();
     await waitFor(() =>
       expect(
         screen.getByAltText('Handwritten answer, question 7')

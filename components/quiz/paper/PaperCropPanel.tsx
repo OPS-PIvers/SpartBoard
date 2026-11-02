@@ -163,7 +163,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   const enhancing = contrast && !!readyKey && enhanced?.key !== readyKey;
   const shownUrl = enhancing
     ? null
-    : contrast && enhanced?.url
+    : contrast && enhanced?.key === readyKey && enhanced.url
       ? enhanced.url
       : readyUrl;
 
