@@ -70,7 +70,10 @@ const plcDoc = (): StubData => ({
   },
 });
 
-function setup(rec: StubData, opts: { admin?: boolean } = {}) {
+function setup(
+  rec: StubData,
+  opts: { admin?: boolean; teacher?: boolean } = {}
+) {
   const fs = makeStubFirestore({
     [`plcs/${PLC}`]: plcDoc(),
     [REC_PATH]: rec,
@@ -81,6 +84,7 @@ function setup(rec: StubData, opts: { admin?: boolean } = {}) {
     now: () => NOW,
     newId: () => `id-${(id += 1)}`,
     isAdmin: vi.fn(() => Promise.resolve(opts.admin === true)),
+    isTeacher: vi.fn(() => Promise.resolve(opts.teacher !== false)),
     charge: vi.fn(() => Promise.resolve(CHARGE)),
     refund: vi.fn(() => Promise.resolve()),
     record: vi.fn(() => Promise.resolve(ADMIN_CHARGE)),
@@ -176,6 +180,21 @@ describe('notesBlocker', () => {
 });
 
 describe('requestMeetingNotes', () => {
+  it('refuses a caller who is not a teacher before charging or queueing', async () => {
+    const { fs, deps } = setup(ready(), { teacher: false });
+    await expect(
+      requestMeetingNotes(
+        { plcId: PLC, recordingId: REC, mode: 'transcribe' },
+        EDITOR,
+        {},
+        deps
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(deps.isAdmin).not.toHaveBeenCalled();
+    expect(deps.charge).not.toHaveBeenCalled();
+    expect(fs.get(REC_PATH)).toMatchObject({ status: ready().status });
+  });
+
   it('charges a non-admin editor and queues a transcribe job', async () => {
     const { fs, deps } = setup(ready());
     await requestMeetingNotes(

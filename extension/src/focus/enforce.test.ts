@@ -16,6 +16,7 @@ import {
 
 const BASE = 'chrome-extension://abc/focus/index.html';
 const ORIGINS = ['https://spartboard.web.app'];
+const OWN = 'chrome-extension://abc/';
 
 const state = (over: Partial<FocusActiveSession> = {}): FocusLocalState => ({
   session: {
@@ -96,8 +97,14 @@ describe('parked pages', () => {
       tab(4, 'chrome://newtab/'),
       tab(5, 'https://docs.google.com/document/d/xyz/edit'),
       tab(6, 'https://docs.google.com/document/u/1/d/abc/edit'),
+      tab(7, 'data:text/html,<iframe src="https://games.example/">'),
+      tab(8, BASE),
+      tab(9, 'file:///home/kid/page.html'),
+      tab(10, ''),
     ];
-    expect(tabsToPark(tabs, state(), ORIGINS).map((t) => t.id)).toEqual([2, 5]);
+    expect(tabsToPark(tabs, state(), ORIGINS, OWN).map((t) => t.id)).toEqual([
+      2, 5, 7, 9,
+    ]);
   });
 
   it('restores every parked tab once nothing blocks, else only newly allowed ones', () => {
@@ -107,14 +114,14 @@ describe('parked pages', () => {
       tab(3, 'https://games.example/'),
       tab(4, BASE),
     ];
-    expect(tabsToRestore(tabs, null, ORIGINS, BASE)).toEqual([
+    expect(tabsToRestore(tabs, null, ORIGINS, BASE, OWN)).toEqual([
       { id: 1, url: 'https://games.example/' },
       { id: 2, url: 'https://news.example/today' },
     ]);
     const added = state({
       sites: [{ host: 'news.example', path: '' }],
     });
-    expect(tabsToRestore(tabs, added, ORIGINS, BASE)).toEqual([
+    expect(tabsToRestore(tabs, added, ORIGINS, BASE, OWN)).toEqual([
       { id: 2, url: 'https://news.example/today' },
     ]);
   });
