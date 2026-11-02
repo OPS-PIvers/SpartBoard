@@ -5823,6 +5823,7 @@
     "nothingToStart": "The first step has nothing to do yet.",
     "stop": "Stop",
     "startFromTop": "Start from step 1",
-    "editSteps": "Edit steps"
+    "editSteps": "Edit steps",
+    "classNotLoaded": "Your class is still loading. Try again in a moment."
   }
 }
