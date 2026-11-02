@@ -346,9 +346,22 @@ describe('driveQueueReader', () => {
       text: () => Promise.resolve('[{"id":"q1","name":"Ada"}]'),
     });
 
-    const read = driveQueueReader({ downloadFile });
+    const isInAppFolder = vi.fn().mockResolvedValue(true);
+    const read = driveQueueReader({ downloadFile, isInAppFolder });
 
     expect(await read?.('queue-file')).toEqual([{ id: 'q1', name: 'Ada' }]);
+    expect(isInAppFolder).toHaveBeenCalledWith('queue-file', ['NextUp']);
+  });
+
+  it('never reads a file outside the NextUp folder', async () => {
+    const downloadFile = vi.fn();
+    const read = driveQueueReader({
+      downloadFile,
+      isInAppFolder: vi.fn().mockResolvedValue(false),
+    });
+
+    await expect(read?.('roster-file')).rejects.toThrow();
+    expect(downloadFile).not.toHaveBeenCalled();
   });
 });
 

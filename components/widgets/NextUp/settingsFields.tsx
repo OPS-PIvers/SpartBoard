@@ -15,8 +15,8 @@ import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { getNextUpQueueStore } from './nextUpQueueStore';
+import { assertNextUpQueueFile, NEXTUP_FOLDER_NAME } from './nextUpDriveFile';
 
-const NEXTUP_FOLDER_NAME = 'NextUp';
 const SESSIONS_COLLECTION = 'nextup_sessions';
 const THEME_COLORS = [
   { value: '#2d3f89', name: 'Navy' },
@@ -161,9 +161,10 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
     );
     if (!confirmed) return;
 
-    if (!save && config.activeDriveFileId && driveService) {
-      void driveService
-        .deleteFile(config.activeDriveFileId)
+    const fileId = config.activeDriveFileId;
+    if (!save && fileId && driveService) {
+      void assertNextUpQueueFile(driveService, fileId)
+        .then(() => driveService.deleteFile(fileId))
         .catch(console.error);
     }
     if (user) {
@@ -242,11 +243,13 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
     try {
       await getNextUpQueueStore(ctx.widget.id).dispatch(
         { type: 'replace', queue },
-        (updated) =>
-          driveService.updateFileContent(
+        async (updated) => {
+          await assertNextUpQueueFile(driveService, fileId);
+          await driveService.updateFileContent(
             fileId,
             new Blob([JSON.stringify(updated)], { type: 'application/json' })
-          )
+          );
+        }
       );
       ctx.updateConfig({ lastUpdated: Date.now() });
       addToast(
