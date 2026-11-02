@@ -141,7 +141,7 @@ const post = (id: string, authorUid?: string) => ({
   content: 'hello',
   submittedAt: 1000,
   status: 'approved',
-  ...(authorUid ? { authorUid } : {}),
+  ...(authorUid ? { authorUid, type: 'text' } : {}),
 });
 
 beforeEach(async () => {

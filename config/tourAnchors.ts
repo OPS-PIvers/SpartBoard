@@ -2180,6 +2180,27 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-import.setup-close': {
+    label: 'Close in Set up imported work',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.setup-edit-all-settings': {
+    label: 'Edit all settings in Set up imported work',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.setup-skip': {
+    label: 'Skip for now in Set up imported work',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.setup-save': {
+    label: 'Save in Set up imported work',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
   'quiz-import.schoology-close': {
     label: 'Close in From Schoology review',
     perWidgetType: true,

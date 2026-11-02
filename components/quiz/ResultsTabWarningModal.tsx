@@ -50,6 +50,7 @@ export const ResultsTabWarningModal: React.FC<ResultsTabWarningModalProps> = ({
             : ' — next time you leave, you will be locked out.'}
         </p>
         <button
+          // no-tour-anchor: student quiz screen; tours walk teachers
           type="button"
           autoFocus
           onClick={onDismiss}
