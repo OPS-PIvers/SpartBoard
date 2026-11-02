@@ -10,6 +10,7 @@ import {
   timeToolClockPatch,
 } from '@/utils/timeToolClock';
 import { useAuth } from '@/context/useAuth';
+import { getAdminBuildingConfig } from '@/utils/adminBuildingConfig';
 import { DraftNumberField } from '@/components/admin/DraftNumberField';
 
 export type CustomFieldProps = { ctx: CustomRenderCtx };
@@ -219,8 +220,17 @@ export const TimeToolStartLengthField: React.FC<CustomFieldProps> = ({
   ctx,
 }) => {
   const leaf = leafResolver(ctx);
-  const { timeToolStartSeconds = 0, updateUserPreference } = useAuth();
-  const buildingSeconds = normalizeTimerStartSeconds(ctx.adminConfig?.duration);
+  const {
+    timeToolStartSeconds = 0,
+    updateUserPreference,
+    featurePermissions,
+    selectedBuildings,
+  } = useAuth();
+  // The building layer new timers actually start from, resolved like addWidget does.
+  const buildingSeconds = normalizeTimerStartSeconds(
+    getAdminBuildingConfig('time-tool', featurePermissions, selectedBuildings)
+      .duration
+  );
   const seconds = timeToolStartSeconds || buildingSeconds || 600;
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;

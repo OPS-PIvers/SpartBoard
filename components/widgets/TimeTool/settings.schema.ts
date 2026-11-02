@@ -33,7 +33,8 @@ export const previewTimerSound = (sound: string) => {
 
 const isTimerMode = (ctx: FieldCtx) => (ctx.config.mode ?? 'timer') === 'timer';
 
-export default defineSettings<TimeToolConfig>({
+// `startLength` names the profile-backed field only; it is never written to widget config.
+export default defineSettings<TimeToolConfig & { startLength?: never }>({
   groups: [
     {
       id: 'content',
@@ -69,10 +70,10 @@ export default defineSettings<TimeToolConfig>({
           step: 5,
           visibleWhen: isTimerMode,
         },
-        // Saved to the teacher's profile, not this widget; `duration` is only the field's key.
+        // Saved to the teacher's profile, not this widget; `startLength` is not a config key.
         {
           type: 'custom',
-          key: 'duration',
+          key: 'startLength',
           label: 'startLength',
           help: 'startLengthHelp',
           visibleWhen: (ctx) =>

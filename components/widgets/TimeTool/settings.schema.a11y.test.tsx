@@ -17,7 +17,17 @@ vi.mock('@/context/useDashboard', () => ({
 const updateUserPreference = vi.fn(() => Promise.resolve());
 let timeToolStartSeconds = 0;
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ timeToolStartSeconds, updateUserPreference }),
+  useAuth: () => ({
+    timeToolStartSeconds,
+    updateUserPreference,
+    selectedBuildings: ['middle'],
+    featurePermissions: [
+      {
+        widgetType: 'time-tool',
+        config: { buildingDefaults: { middle: { duration: 300 } } },
+      },
+    ],
+  }),
 }));
 
 const config: TimeToolConfig = {
@@ -124,6 +134,19 @@ describe('time-tool settings drawer accessibility', () => {
     expect(
       within(dialog).getByRole('switch', { name: 'Auto-rotate stations' })
     ).toBeDisabled();
+  });
+
+  it('shows the building default length while the teacher has none saved', () => {
+    renderDrawer();
+    const group = within(screen.getByRole('dialog')).getByRole('group', {
+      name: 'Start new timers at',
+    });
+    expect(
+      within(group).getByRole('spinbutton', { name: 'Minutes' })
+    ).toHaveValue(5);
+    expect(
+      within(group).queryByRole('button', { name: 'Use school default' })
+    ).not.toBeInTheDocument();
   });
 
   it('saves the starting length to the teacher and offers the school default', () => {
