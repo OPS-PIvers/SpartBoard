@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useLayoutEffect,
-} from 'react';
+import React, { useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { hexToRgba } from '@/utils/styles';
@@ -130,7 +124,6 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     widgetId: widget.id,
     mode,
     currentId,
-    firstOpenId,
   });
 
   // Update ref synchronously during useLayoutEffect to avoid stale state issues in callbacks
@@ -142,29 +135,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
       widgetId: widget.id,
       mode,
       currentId,
-      firstOpenId,
     };
-  }, [items, completedNames, config, widget.id, mode, currentId, firstOpenId]);
-
-  // A Connection step bumps nextTrigger for class rosters, whose order only this widget knows.
-  const lastNextTrigger = useRef(config.nextTrigger ?? 0);
-  useEffect(() => {
-    const trigger = config.nextTrigger ?? 0;
-    if (trigger <= lastNextTrigger.current) return;
-    lastNextTrigger.current = trigger;
-    const state = latestState.current;
-    if (!state.firstOpenId || state.mode === 'manual') return;
-    updateWidget(
-      state.widgetId,
-      {
-        config: {
-          ...state.config,
-          completedNames: [...state.completedNames, state.firstOpenId],
-        },
-      },
-      { skipHistory: true }
-    );
-  }, [config.nextTrigger, updateWidget]);
+  }, [items, completedNames, config, widget.id, mode, currentId]);
 
   const toggleItem = useCallback(
     (idOrName: string) => {

@@ -1,9 +1,22 @@
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import type { DashboardContextValue } from '@/context/DashboardContextValue';
-import type { Dashboard, SequenceConnection, WidgetConnection } from '@/types';
+import type {
+  ChecklistConfig,
+  ClassRoster,
+  Dashboard,
+  SequenceConnection,
+  WidgetConnection,
+  WidgetData,
+} from '@/types';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
+import { rosterGroupMemberIds } from '@/utils/rosterGroups';
+import {
+  CHECKLIST_ROSTER_ORDER,
+  checklistUsesClassRoster,
+} from '@/utils/checklistCurrent';
 import {
   advanceRun,
   isStepFinished,
@@ -40,16 +53,86 @@ const write = (
   apply?.(board.id, patches, connections);
 };
 
+interface RosterView {
+  rosters: ClassRoster[];
+  activeRosterId: string | null;
+  groupsEnabled: boolean;
+}
+
+// The board's widgets as the engine needs them: a class-roster Checklist gets its rows' student ids, in the order the widget shows.
+const engineWidgets = (board: Dashboard, view: RosterView): WidgetData[] => {
+  const roster = view.rosters.find((r) => r.id === view.activeRosterId);
+  return board.widgets.map((w) => {
+    if (w.type !== 'checklist') return w;
+    const c = w.config as ChecklistConfig;
+    if (!checklistUsesClassRoster(c)) return w;
+    const inPool = rosterGroupMemberIds(
+      roster,
+      c.rosterPoolGroupId,
+      view.groupsEnabled
+    );
+    const order = (roster?.students ?? [])
+      .filter((st) => !inPool || inPool.has(st.id))
+      .map((st) => st.id);
+    return {
+      ...w,
+      config: { ...c, [CHECKLIST_ROSTER_ORDER]: order },
+    };
+  });
+};
+
+// Reads the saved-groups gate only while some Connection needs it, so most boards open no extra listener.
+const RosterGroupsGateReader: React.FC<{
+  onChange: (enabled: boolean) => void;
+}> = ({ onChange }) => {
+  const enabled = useRosterGroupsGate();
+  useLayoutEffect(() => {
+    onChange(enabled);
+  }, [enabled, onChange]);
+  return null;
+};
+
+const needsRosterGroups = (boards: Dashboard[]) =>
+  boards.some(
+    (b) =>
+      (b.connections ?? []).length > 0 &&
+      b.widgets.some(
+        (w) =>
+          w.type === 'checklist' &&
+          checklistUsesClassRoster(w.config as ChecklistConfig) &&
+          !!(w.config as ChecklistConfig).rosterPoolGroupId
+      )
+  );
+
 // Carries out Sequence Runs on every board; renders nothing.
 export const ConnectionsRunner: React.FC = () => {
   const { t } = useTranslation();
-  const { dashboards, applyConnectionChanges, addToast } = useDashboard();
+  const {
+    dashboards,
+    applyConnectionChanges,
+    addToast,
+    rosters,
+    activeRosterId,
+  } = useDashboard();
   const { canAccessFeature } = useAuth();
   const enabled = canAccessFeature('widget-connections');
+  const [groupsEnabled, setGroupsEnabled] = useState(false);
 
-  const latest = useRef({ dashboards, applyConnectionChanges, addToast, t });
+  const latest = useRef({
+    dashboards,
+    applyConnectionChanges,
+    addToast,
+    t,
+    roster: { rosters, activeRosterId, groupsEnabled },
+  });
   useLayoutEffect(() => {
-    latest.current = { dashboards, applyConnectionChanges, addToast, t };
+    latest.current = {
+      dashboards,
+      applyConnectionChanges,
+      addToast,
+      t,
+      roster: { rosters, activeRosterId, groupsEnabled },
+    };
   });
 
   // Hand actions: start a Run at the matching step, or move the Run there.
@@ -67,7 +150,7 @@ export const ConnectionsRunner: React.FC = () => {
         if (c.kind !== 'sequence') continue;
         const joined = joinRunByHand(
           c,
-          board.widgets,
+          engineWidgets(board, latest.current.roster),
           widgetId,
           hand,
           now,
@@ -105,7 +188,7 @@ export const ConnectionsRunner: React.FC = () => {
       }
       const started = startRun(
         seq,
-        board.widgets,
+        engineWidgets(board, latest.current.roster),
         Date.now(),
         CONNECTION_DEVICE_ID
       );
@@ -122,6 +205,12 @@ export const ConnectionsRunner: React.FC = () => {
         started.patches,
         new Map([[seq.id, started.sequence]])
       );
+      if (started.finished) {
+        latest.current.addToast(
+          latest.current.t('connections.runFinished'),
+          'info'
+        );
+      }
     });
   }, [enabled]);
 
@@ -158,6 +247,7 @@ export const ConnectionsRunner: React.FC = () => {
         const patches: WidgetPatches = {};
         const updated = new Map<string, WidgetConnection>();
         let finishedAny = false;
+        const widgets = engineWidgets(board, latest.current.roster);
         for (const c of board.connections ?? []) {
           if (c.kind !== 'sequence' || !c.run) continue;
           // The last write may not have reached this board copy yet.
@@ -167,8 +257,7 @@ export const ConnectionsRunner: React.FC = () => {
           const steps = liveSteps(seq, board.widgets);
           const step = steps[run.stepIndex];
           const done =
-            !step ||
-            isStepFinished(step, board.widgets, run.stepStartedAt, now);
+            !step || isStepFinished(step, widgets, run.stepStartedAt, now);
           if (!done) {
             overdueSince.current.delete(c.id);
             continue;
@@ -180,7 +269,7 @@ export const ConnectionsRunner: React.FC = () => {
           }
           overdueSince.current.delete(c.id);
           advancedAt.current.set(c.id, now);
-          const r = advanceRun(seq, board.widgets, now, CONNECTION_DEVICE_ID);
+          const r = advanceRun(seq, widgets, now, CONNECTION_DEVICE_ID);
           updated.set(c.id, r.sequence);
           Object.assign(patches, r.patches);
           if (r.finished) finishedAny = true;
@@ -199,5 +288,7 @@ export const ConnectionsRunner: React.FC = () => {
     return () => window.clearInterval(id);
   }, [anyRun]);
 
-  return null;
+  return enabled && needsRosterGroups(dashboards) ? (
+    <RosterGroupsGateReader onChange={setGroupsEnabled} />
+  ) : null;
 };
