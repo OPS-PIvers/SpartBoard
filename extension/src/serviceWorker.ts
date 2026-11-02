@@ -394,6 +394,7 @@ const focus = createFocusClient({
   enforce: enforcer.sync,
   activeFullscreen: enforcer.activeFullscreen,
   origins,
+  ownPages: chrome.runtime.getURL(''),
   protocol: FOCUS_ENFORCE_PROTOCOL,
   email: getChromeEmail,
   status: (body) => callSpartBoard(focusApi, 'focusStatusV1', body),

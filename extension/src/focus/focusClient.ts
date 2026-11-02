@@ -39,6 +39,8 @@ export interface ProfileRefused {
 export interface FocusClientDeps {
   /** This listing's SpartBoard origins, always allowed (F9). */
   origins: readonly string[];
+  /** The extension's own page prefix, `chrome.runtime.getURL('')`; our pages count as on task. */
+  ownPages: string;
   protocol: number;
   /** The Chrome profile's email, read fresh each time. */
   email(): Promise<string | undefined>;
@@ -114,7 +116,13 @@ export function createFocusClient(deps: FocusClientDeps) {
     const fullscreen =
       state.session.level !== 'lock' ||
       (await deps.activeFullscreen().catch(() => true));
-    const status = statusFor(url, state.session, deps.origins, fullscreen);
+    const status = statusFor(
+      url,
+      state.session,
+      deps.origins,
+      deps.ownPages,
+      fullscreen
+    );
     const host = liveHostFor(url, state.session);
     // A few seconds' slack, so the once-a-minute alarm doesn't skip every other report.
     const due =
