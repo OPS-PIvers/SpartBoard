@@ -8,10 +8,10 @@ import {
 export const createDockCollisionDetection =
   (folderIds: ReadonlySet<string>): CollisionDetection =>
   (args) => {
-    // The dragged folder's own slot must not win, or it can't reorder past neighbors.
-    const folderCollisions = rectIntersection(args).filter(
-      (collision) =>
-        folderIds.has(String(collision.id)) && collision.id !== args.active?.id
+    // Folders never group into folders, so a dragged folder only reorders.
+    if (folderIds.has(String(args.active.id))) return closestCenter(args);
+    const folderCollisions = rectIntersection(args).filter((collision) =>
+      folderIds.has(String(collision.id))
     );
 
     if (folderCollisions.length > 0) {

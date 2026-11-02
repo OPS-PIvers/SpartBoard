@@ -13,8 +13,12 @@ const rect = (left: number) => ({
   height: 50,
 });
 
-const run = (activeId: string, dragLeft: number, folders: string[]) => {
-  const slots: Record<string, number> = { folder: 0, toolA: 60, toolB: 120 };
+const run = (
+  activeId: string,
+  dragLeft: number,
+  folders: string[],
+  slots: Record<string, number> = { folder: 0, toolA: 60, toolB: 120 }
+) => {
   const droppableRects = new Map(
     Object.entries(slots).map(([id, left]) => [id, rect(left)])
   );
@@ -45,5 +49,11 @@ describe('createDockCollisionDetection', () => {
 
   it('still targets another folder for grouping/drop', () => {
     expect(run('toolA', 5, ['folder'])[0]).toBe('folder');
+  });
+
+  it('keeps a dragged folder in place on a small overlap with another folder', () => {
+    const slots = { folder: 0, folderB: 60, toolA: 120 };
+    expect(run('folder', 15, ['folder', 'folderB'], slots)[0]).toBe('folder');
+    expect(run('folder', 45, ['folder', 'folderB'], slots)[0]).toBe('folderB');
   });
 });
