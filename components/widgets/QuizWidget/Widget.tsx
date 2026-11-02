@@ -529,10 +529,8 @@ const TeacherQuizWidget: React.FC<{
   const [bankImportOpen, setBankImportOpen] = useState(false);
   const pendingHandoff = useImportHandoff(widget.id);
   const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
-  // The .imscc flags fold into schoology-quiz-import and retire once it opens.
-  const canImportBankCartridge =
-    canImportFromSchoology || canAccessFeature('question-bank-imscc-import');
   const [bankCartridge, setBankCartridge] = useState<File | null>(null);
+  // The quiz .imscc flag folds into schoology-quiz-import and retires once it opens.
   const canImportQuizCartridge =
     canImportFromSchoology || canAccessFeature('quiz-imscc-import');
   const [quizCartridge, setQuizCartridge] = useState<File | null>(null);
@@ -1955,27 +1953,25 @@ const TeacherQuizWidget: React.FC<{
         });
       },
     });
-    const adapter = canImportBankCartridge
-      ? {
-          ...baseAdapter,
-          bulkSource: {
-            title: 'From Schoology',
-            description:
-              'Choose a Schoology export (.imscc). Every question bank in it comes in as its own bank.',
-            accept: '.imscc',
-            guide: (
-              <SchoologyExportGuide
-                kind="banks"
-                canSend={canImportFromSchoology}
-              />
-            ),
-            onFile: (file: File) => {
-              closeBankImport();
-              setBankCartridge(file);
-            },
-          },
-        }
-      : baseAdapter;
+    const adapter = {
+      ...baseAdapter,
+      bulkSource: {
+        title: 'From Schoology',
+        description:
+          'Choose a Schoology export (.imscc). Every question bank in it comes in as its own bank.',
+        accept: '.imscc',
+        guide: (
+          <SchoologyExportGuide
+            kind="banks"
+            canSend={canImportFromSchoology}
+          />
+        ),
+        onFile: (file: File) => {
+          closeBankImport();
+          setBankCartridge(file);
+        },
+      },
+    };
     return (
       <ImportWizard
         key={importHandoff?.id ?? 'bank-import'}
