@@ -44,6 +44,7 @@ vi.mock('./quizMediaArchive', () => ({
 }));
 
 import type { Firestore } from 'firebase-admin/firestore';
+import { isGlobalFeatureGranted } from './quizMediaArchive';
 import {
   DOCUMENT_MAP_PROMPT,
   MAX_DOCUMENT_BYTES,
@@ -69,6 +70,7 @@ import {
   normalizeAiQuiz,
   parseExtractDocumentRequest,
   type ExtractDocumentDeps,
+  extractQuizFromDocumentV1,
 } from './quizDocumentExtract';
 
 // ── Minimal Firestore fake (docs + transactions with set-merge) ────────────
@@ -1360,5 +1362,32 @@ describe('chargeQuizQuota', () => {
     await expect(chargeQuizQuota(db, 'u1', null, NOW)).rejects.toThrow(
       /Daily limit/
     );
+  });
+});
+
+describe('extractQuizFromDocumentV1 caller gate', () => {
+  const handler = extractQuizFromDocumentV1 as unknown as (req: {
+    auth: unknown;
+    data: unknown;
+  }) => Promise<unknown>;
+
+  it('refuses anonymous and unverified callers before any feature lookup', async () => {
+    vi.mocked(isGlobalFeatureGranted).mockClear();
+    for (const auth of [
+      { uid: 'anon-1', token: { firebase: { sign_in_provider: 'anonymous' } } },
+      {
+        uid: 'u-1',
+        token: {
+          email: 'teacher@orono.k12.mn.us',
+          email_verified: false,
+          firebase: { sign_in_provider: 'password' },
+        },
+      },
+    ]) {
+      await expect(handler({ auth, data: {} })).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+    }
+    expect(isGlobalFeatureGranted).not.toHaveBeenCalled();
   });
 });

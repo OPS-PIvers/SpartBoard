@@ -94,39 +94,69 @@ afterAll(async () => {
   await testEnv?.cleanup();
 });
 
+// PLC create needs district staff: a verified district address with an active member doc.
+const staffDb = (uid: string) =>
+  testEnv
+    .authenticatedContext(uid, {
+      email: `${uid}@orono.k12.mn.us`,
+      email_verified: true,
+    })
+    .firestore();
+const seedStaff = (uids: string[]) =>
+  testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await Promise.all(
+      uids.map((uid) =>
+        setDoc(
+          doc(
+            ctx.firestore(),
+            `organizations/orono/members/${uid}@orono.k12.mn.us`
+          ),
+          { orgId: 'orono', roleId: 'teacher', status: 'active' }
+        )
+      )
+    );
+  });
+
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await seedStaff([LEAD_UID]);
 });
 
 describe('create', () => {
   it('allows a teacher to create a group with no type (a PLC)', async () => {
-    await assertSucceeds(setDoc(doc(asLead(), 'plcs/g1'), newGroup()));
+    await assertSucceeds(setDoc(doc(staffDb(LEAD_UID), 'plcs/g1'), newGroup()));
   });
 
   it.each(['plc', 'department', 'mentoring'])(
     'allows a teacher to create a %s group',
     async (groupType) => {
       await assertSucceeds(
-        setDoc(doc(asLead(), `plcs/g-${groupType}`), newGroup({ groupType }))
+        setDoc(
+          doc(staffDb(LEAD_UID), `plcs/g-${groupType}`),
+          newGroup({ groupType })
+        )
       );
     }
   );
 
   it('rejects a teacher creating a building group', async () => {
     await assertFails(
-      setDoc(doc(asLead(), 'plcs/g2'), newGroup({ groupType: 'building' }))
+      setDoc(
+        doc(staffDb(LEAD_UID), 'plcs/g2'),
+        newGroup({ groupType: 'building' })
+      )
     );
   });
 
   it('rejects an unknown group type', async () => {
     await assertFails(
-      setDoc(doc(asLead(), 'plcs/g3'), newGroup({ groupType: 'club' }))
+      setDoc(doc(staffDb(LEAD_UID), 'plcs/g3'), newGroup({ groupType: 'club' }))
     );
   });
 
   it('rejects a teacher turning on auto-roster', async () => {
     await assertFails(
-      setDoc(doc(asLead(), 'plcs/g4'), newGroup({ autoRoster: false }))
+      setDoc(doc(staffDb(LEAD_UID), 'plcs/g4'), newGroup({ autoRoster: false }))
     );
   });
 });

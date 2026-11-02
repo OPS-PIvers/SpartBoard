@@ -402,12 +402,16 @@ function assertShown(type: string, settings: Doc, stored: Doc): void {
 /** Scoreboard teams that are a class's students or groups; get_board never shows their real names. */
 function hasClassTeams(config: Doc): boolean {
   if (str(config.liveQuizWidgetId)) return true;
+  // An empty list on a saved board is quiz-built teams kept in the teacher's Drive.
+  if (Array.isArray(config.teams) && config.teams.length === 0) return true;
   return (
     Array.isArray(config.teams) &&
     config.teams.some(
       (t: unknown) =>
         isObject(t) &&
-        (Array.isArray(t.memberStudentIds) || str(t.linkedRosterGroupId))
+        (Array.isArray(t.memberStudentIds) ||
+          str(t.linkedRosterGroupId) ||
+          /^(?:pin|uid)-/.test(str(t.id)))
     )
   );
 }

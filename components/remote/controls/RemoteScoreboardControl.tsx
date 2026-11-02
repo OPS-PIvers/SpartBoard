@@ -14,23 +14,23 @@ export const RemoteScoreboardControl: React.FC<
 > = ({ widget, updateWidget }) => {
   const config = widget.config as ScoreboardConfig;
 
-  const teams: ScoreboardTeam[] =
-    config.teams && config.teams.length > 0
-      ? config.teams
-      : [
-          {
-            id: 'a',
-            name: config.teamA ?? 'Team A',
-            score: config.scoreA ?? 0,
-            color: DEFAULT_COLORS[0],
-          },
-          {
-            id: 'b',
-            name: config.teamB ?? 'Team B',
-            score: config.scoreB ?? 0,
-            color: DEFAULT_COLORS[1],
-          },
-        ];
+  // An empty list is a quiz-built scoreboard whose student teams stay off the saved board; seeding A/B would overwrite them.
+  const teams: ScoreboardTeam[] = Array.isArray(config.teams)
+    ? config.teams
+    : [
+        {
+          id: 'a',
+          name: config.teamA ?? 'Team A',
+          score: config.scoreA ?? 0,
+          color: DEFAULT_COLORS[0],
+        },
+        {
+          id: 'b',
+          name: config.teamB ?? 'Team B',
+          score: config.scoreB ?? 0,
+          color: DEFAULT_COLORS[1],
+        },
+      ];
 
   const adjustScore = (teamId: string, delta: number) => {
     const updatedTeams = teams.map((t) =>

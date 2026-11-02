@@ -31,19 +31,71 @@ export const PII_WIDGET_FIELDS = [
   'customRoster',
 ] as const;
 
-const isCustomModeAssignments = (config: Doc): boolean =>
-  config.rosterMode === 'custom' && config.assignments !== undefined;
+// Same name-key rules as widgetPiiKeys in utils/dashboardPII.ts.
+const ROSTER_ID =
+  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(?=[\w-]*\d)[\w-]{16,})$/i;
+const NAME_KEYED_TYPES = new Set(['stations', 'lunchCount', 'seating-chart']);
+const QUIZ_TEAM_ID = /^(?:pin|uid)-/;
 
-const piiKeys = (config: Doc): string[] => [
-  ...PII_WIDGET_FIELDS,
-  ...(isCustomModeAssignments(config) ? ['assignments'] : []),
-];
+const hasNameKeys = (map: unknown): boolean =>
+  isObject(map) && Object.keys(map).some((key) => !ROSTER_ID.test(key));
+
+const piiKeys = (type: string, config: Doc): string[] => {
+  const keys: string[] = [...PII_WIDGET_FIELDS];
+  const custom = config.rosterMode === 'custom';
+  if (
+    config.assignments !== undefined &&
+    (custom || (NAME_KEYED_TYPES.has(type) && hasNameKeys(config.assignments)))
+  )
+    keys.push('assignments');
+  if (
+    type === 'seating-chart' &&
+    Array.isArray(config.savedPlans) &&
+    config.savedPlans.some(
+      (plan: unknown) =>
+        isObject(plan) && (custom || hasNameKeys(plan.assignments))
+    )
+  )
+    keys.push('savedPlans');
+  if (type === 'scoreboard') {
+    if (
+      Array.isArray(config.teams) &&
+      config.teams.some(
+        (team: unknown) => isObject(team) && QUIZ_TEAM_ID.test(str(team.id))
+      )
+    )
+      keys.push('teams', 'history');
+    else if (
+      Array.isArray(config.history) &&
+      config.history.some(
+        (entry: unknown) =>
+          isObject(entry) &&
+          Array.isArray(entry.changes) &&
+          entry.changes.some(
+            (change: unknown) =>
+              isObject(change) && QUIZ_TEAM_ID.test(str(change.teamId))
+          )
+      )
+    )
+      keys.push('history');
+  }
+  return keys;
+};
+
+const isLegacyHiddenWordKey = (key: unknown): boolean =>
+  typeof key === 'string' && key.includes('#') && !key.includes(':');
 
 /** Same scrub as scrubWidgetsPII in utils/dashboardPII.ts. */
 export function scrubWidgetsPII(widgets: Doc[]): Doc[] {
   return widgets.map((widget) => {
     const config: Doc = isObject(widget.config) ? { ...widget.config } : {};
-    for (const key of piiKeys(config)) delete config[key];
+    const keys = piiKeys(str(widget.type), config);
+    for (const key of keys) delete config[key];
+    if (keys.includes('teams')) config.teams = [];
+    if (Array.isArray(config.hiddenResponses))
+      config.hiddenResponses = config.hiddenResponses.filter(
+        (key: unknown) => !isLegacyHiddenWordKey(key)
+      );
     return { ...widget, config };
   });
 }
@@ -208,7 +260,7 @@ export function withShareContent(board: Doc, share: LiveShare | null): Doc {
     if (mine.lastUse !== undefined) out.lastUse = mine.lastUse;
     const mineConfig = isObject(mine.config) ? mine.config : {};
     const config: Doc = isObject(shared.config) ? { ...shared.config } : {};
-    for (const key of piiKeys(mineConfig))
+    for (const key of piiKeys(str(mine.type), mineConfig))
       if (key in mineConfig) config[key] = mineConfig[key];
     out.config = config;
     return out;

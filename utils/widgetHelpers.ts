@@ -11,6 +11,7 @@ import {
   FeaturePermission,
 } from '@/types';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
+import { scrubWidgetsPII } from '@/utils/dashboardPII';
 
 export const isWidgetLayout = (
   output: WidgetOutput
@@ -77,10 +78,11 @@ export const getDefaultWidgetConfig = (type: WidgetType): WidgetConfig => {
   return structuredClone(config);
 };
 
+/** A starter pack or Catalyst copy of these widgets, with student names left out. */
 export const createBoardSnapshot = (
   widgets: WidgetData[]
 ): Omit<WidgetData, 'id'>[] => {
-  return widgets.map((w) => {
+  return scrubWidgetsPII(widgets).map((w) => {
     const { id: _id, ...rest } = w;
     return {
       ...rest,

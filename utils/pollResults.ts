@@ -36,26 +36,6 @@ const percentOf = (count: number, total: number): number =>
 export const cloudKey = (text: string): string =>
   text.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 
-// cyrb53: words hidden before owner-only hidden_words were stored in board config as this hash.
-const hashWord = (word: string): string => {
-  let h1 = 0xdeadbeef;
-  let h2 = 0x41c6ce57;
-  for (let i = 0; i < word.length; i++) {
-    const ch = word.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
-  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
-  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
-};
-
-/** Legacy `hiddenResponses` key for a word cloud word (`word` is already a cloudKey); still honoured, never written. */
-export const legacyHiddenWordKey = (questionId: string, word: string): string =>
-  `${questionId}#${hashWord(word)}`;
-
 const typedAnswers = (answers: PollVoteEntry[]): PollVoteEntry[] =>
   answers
     .filter((a) => typeof a.text === 'string' && a.text.trim() !== '')
@@ -75,8 +55,7 @@ const summarizeTexts = (
   const counts = new Map<string, number>();
   for (const text of shown) {
     const key = cloudKey(text);
-    if (!hiddenWords.has(key) && !hidden.has(legacyHiddenWordKey(q.id, key)))
-      counts.set(key, (counts.get(key) ?? 0) + 1);
+    if (!hiddenWords.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))

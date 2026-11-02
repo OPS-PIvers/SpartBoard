@@ -519,6 +519,12 @@ vi.mock('firebase-functions/params', () => ({
   }),
 }));
 
+// The teacher gate has its own tests (aiCallerGate.test.ts); these suites test what runs after it.
+vi.mock('./aiCallerGate', () => ({
+  assertAiTeacherCaller: vi.fn(() => Promise.resolve()),
+  isAiTeacherCaller: vi.fn(() => Promise.resolve(true)),
+}));
+
 // Mock axios
 vi.mock('axios');
 vi.mock('dns', () => {

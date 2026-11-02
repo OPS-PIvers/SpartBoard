@@ -132,6 +132,7 @@ const StimulusErrorCard: React.FC<{
       This attachment didn&apos;t load. You can keep answering.
     </span>
     <button
+      // no-tour-anchor: student quiz screen; tours walk teachers
       type="button"
       onClick={onRetry}
       className={`inline-flex items-center rounded-lg font-bold transition-colors ${
@@ -1019,6 +1020,7 @@ export const CollapsibleStimuli: React.FC<{
   return (
     <div>
       <button
+        // no-tour-anchor: student quiz screen; tours walk teachers
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`inline-flex items-center font-bold rounded-lg transition-colors ${

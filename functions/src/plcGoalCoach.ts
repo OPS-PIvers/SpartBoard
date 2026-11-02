@@ -31,11 +31,12 @@ import {
   type GoalCoachCriterion,
 } from './plcGoalCoachRubric';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isAiTeacherCaller, type AiCallerToken } from './aiCallerGate';
 import { generateAi } from './aiRouter';
 
 type Firestore = admin.firestore.Firestore;
 type Data = Record<string, unknown>;
-type Token = { email?: string; email_verified?: boolean };
+type Token = AiCallerToken;
 
 export const PLC_GOAL_COACH_FEATURE_ID = 'plc-goal-coach';
 export const GOAL_COACH_DAILY_LIMIT = 30;
@@ -49,6 +50,7 @@ export interface GoalCoachRequest {
 export interface GoalCoachDeps {
   db: Firestore;
   isAdmin: (token: Token) => Promise<boolean>;
+  isTeacher: (token: Token) => Promise<boolean>;
   charge: (token: Token, uid: string) => Promise<AiUsageCharge>;
   refund: (charge: AiUsageCharge) => Promise<void>;
   /** Counts an admin's check with no limit checks. */
@@ -130,6 +132,8 @@ export async function runGoalCoach(
   token: Token,
   deps: GoalCoachDeps
 ): Promise<GoalCoachResult> {
+  if (!(await deps.isTeacher(token)))
+    throw new HttpsError('permission-denied', 'Teacher account required.');
   const snap = await deps.db.collection('plcs').doc(req.plcId).get();
   const plc = snap.data();
   if (!snap.exists || !plc || !isPlcMember(plc, uid)) {
@@ -183,6 +187,7 @@ function defaultDeps(): GoalCoachDeps {
     db,
     isAdmin: (token) =>
       adminSkipsGoalCoachQuota(db, token, resolveCallerIsAdmin),
+    isTeacher: (token) => isAiTeacherCaller(db, token),
     charge: (token, uid) =>
       enforceAiFeatureAccess(db, token, uid, PLC_GOAL_COACH_FEATURE_ID, false, {
         key: 'plc-goal-coach-checks',

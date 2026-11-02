@@ -36,10 +36,11 @@ import {
   type TranscriptSegment,
 } from './plcMeetingNotesAi';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isAiTeacherCaller, type AiCallerToken } from './aiCallerGate';
 
 type Firestore = admin.firestore.Firestore;
 type Data = Record<string, unknown>;
-type Token = { email?: string; email_verified?: boolean };
+type Token = AiCallerToken;
 
 export const PLC_MEETING_AI_FEATURE_ID = 'plc-meeting-ai-notes';
 export const TRANSCRIBE_DAILY_LIMIT = 3;
@@ -69,6 +70,7 @@ export interface MeetingNotesDeps {
   now: () => number;
   newId: () => string;
   isAdmin: (token: Token) => Promise<boolean>;
+  isTeacher: (token: Token) => Promise<boolean>;
   charge: (
     token: Token,
     uid: string,
@@ -256,6 +258,8 @@ export async function requestMeetingNotes(
   token: Token,
   deps: MeetingNotesDeps
 ): Promise<{ status: 'queued' }> {
+  if (!(await deps.isTeacher(token)))
+    throw new HttpsError('permission-denied', 'Teacher account required.');
   await loadEditablePlc(deps.db, req.plcId, uid);
   const pre = await recordingRef(deps.db, req.plcId, req.recordingId).get();
   const blocker = notesBlocker(pre.data(), req.mode, deps.now());
@@ -553,6 +557,7 @@ function defaultDeps(): MeetingNotesDeps {
     now: () => Date.now(),
     newId: () => db.collection('plcs').doc().id,
     isAdmin: (token) => adminSkipsQuota(db, token),
+    isTeacher: (token) => isAiTeacherCaller(db, token),
     charge: (token, uid, mode) =>
       enforceAiFeatureAccess(db, token, uid, PLC_MEETING_AI_FEATURE_ID, false, {
         key: `plc-meeting-${mode}`,

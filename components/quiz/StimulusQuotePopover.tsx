@@ -82,6 +82,7 @@ export const StimulusQuotePopover: React.FC<{
 
   return createPortal(
     <button
+      // no-tour-anchor: student quiz screen; tours walk teachers
       type="button"
       data-testid="stimulus-quote-button"
       style={{ top, left }}

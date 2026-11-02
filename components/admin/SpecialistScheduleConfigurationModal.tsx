@@ -27,6 +27,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
+import { DraftNumberField } from './DraftNumberField';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Card } from '@/components/common/Card';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
@@ -498,19 +499,19 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                       >
                         {isBlockMode ? 'Number of Blocks' : 'Days in Cycle'}
                       </label>
-                      <input
+                      <DraftNumberField
                         id="specialist-cycle-length"
                         {...tourFieldAttr(
                           'admin.widget-config.field',
                           'specialist-schedule',
                           'cycleLength'
                         )}
-                        type="number"
                         min={MIN_CYCLE_LENGTH}
                         max={MAX_CYCLE_LENGTH}
                         step={1}
                         value={currentBuildingConfig.cycleLength}
-                        onChange={(e) => setCycleLength(e.target.valueAsNumber)}
+                        normalize={clampCycleLength}
+                        onCommit={setCycleLength}
                         className="w-24 px-2 py-1 text-sm border border-slate-200 rounded-lg text-right font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-hidden"
                       />
                     </div>

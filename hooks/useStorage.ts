@@ -19,6 +19,21 @@ import { isTestRunProject } from '@/components/tours/tourTestRun';
 
 export const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 
+const GL_SLIDE_FOLDERS = ['Assets/HotspotImages'];
+// Folders the app uploads images, drawings and PDFs to; only these files are ever trashed by URL.
+export const DRIVE_UPLOAD_FOLDERS = [
+  'Assets/Backgrounds',
+  'Assets/DisplayImages',
+  'Assets/HotspotImages',
+  'Assets/PDFs',
+  'Assets/PaperSheetStimuli',
+  'Assets/QuizStimuli',
+  'Assets/Screenshots',
+  'Assets/Stickers',
+  'Backgrounds',
+  'Drawings',
+];
+
 /** Personal sets keep slides on the teacher's Drive; district sets on Firebase Storage. */
 export type GuidedLearningMediaHome = 'drive' | 'storage';
 
@@ -239,8 +254,10 @@ export const useStorage = () => {
     }
   };
 
+  // Only a slide in the app's own image folder is deleted, never an id named by imported content.
   const deleteDriveFile = async (fileId: string): Promise<void> => {
     if (!driveService) return;
+    if (!(await driveService.isInAppFolder(fileId, GL_SLIDE_FOLDERS))) return;
     await driveService.deleteFile(fileId);
   };
 
@@ -264,7 +281,7 @@ export const useStorage = () => {
                   await (await driveService.downloadFile(id)).text()
                 ) as GuidedLearningSet,
             },
-            (id) => driveService.deleteFile(id)
+            deleteDriveFile
           )
         : null,
     ]);
@@ -357,13 +374,16 @@ export const useStorage = () => {
     ) {
       if (driveService) {
         try {
+          // The id comes from the path only, and the file must sit in an app upload folder.
           const match =
-            /\/file\/d\/([^/?#]+)/.exec(filePath) ??
-            /[?&]id=([^&#]+)/.exec(filePath) ??
+            /^\/file\/d\/([^/]+)/.exec(filePathPathname) ??
             (filePathHostname === 'lh3.googleusercontent.com'
-              ? /^\/d\/([^/?#=]+)/.exec(filePathPathname)
+              ? /^\/d\/([^/=]+)/.exec(filePathPathname)
               : null);
-          if (match) {
+          if (
+            match &&
+            (await driveService.isInAppFolder(match[1], DRIVE_UPLOAD_FOLDERS))
+          ) {
             await driveService.trashFile(match[1]);
           }
         } catch (e) {

@@ -225,12 +225,18 @@ function redactStudentFields(type: string, config: Doc): Doc {
   }
   return {
     ...config,
-    teams: config.teams.map((team: unknown) =>
-      isObject(team) &&
-      (Array.isArray(team.memberStudentIds) || str(team.linkedRosterGroupId))
-        ? { ...team, name: '[class group]' }
-        : team
-    ),
+    teams: config.teams
+      // A quiz-built team (Send to Scoreboard, or an ended live sync) is one student: `pin-`/`uid-` id, their name.
+      .filter(
+        (team: unknown) =>
+          !(isObject(team) && /^(?:pin|uid)-/.test(str(team.id)))
+      )
+      .map((team: unknown) =>
+        isObject(team) &&
+        (Array.isArray(team.memberStudentIds) || str(team.linkedRosterGroupId))
+          ? { ...team, name: '[class group]' }
+          : team
+      ),
   };
 }
 

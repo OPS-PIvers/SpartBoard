@@ -288,4 +288,127 @@ describe('dashboardPII', () => {
       expect(dashboardHasPII(mockDashboardWithPii)).toBe(true);
     });
   });
+
+  describe('quiz Scoreboard teams, name-keyed assignments and legacy poll keys', () => {
+    const w = (
+      id: string,
+      type: string,
+      config: Record<string, unknown>
+    ): Dashboard['widgets'][number] =>
+      ({
+        id,
+        type,
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1,
+        z: 1,
+        flipped: false,
+        config,
+      }) as unknown as Dashboard['widgets'][number];
+    const uuid = '3f2b8c1e-9a4d-4e7b-8c2a-1d5e6f7a8b9c';
+    const board = (widgets: Dashboard['widgets']): Dashboard => ({
+      ...mockDashboardNoPii,
+      widgets,
+    });
+
+    it('moves quiz-built Scoreboard teams and their history to Drive', () => {
+      const teams = [
+        { id: 'pin-0042', name: 'Ada Lovelace', score: 9 },
+        { id: 'uid-abc', name: 'Bo Diddley', score: 7 },
+      ];
+      const history = [
+        { id: 'h1', at: 1, changes: [{ teamId: 'pin-0042', from: 8, to: 9 }] },
+      ];
+      const d = board([
+        w('sb', 'scoreboard', { teams, history, liveQuizWidgetId: 'q' }),
+      ]);
+      const scrubbed = scrubDashboardPII(d).widgets[0].config;
+      expect(scrubbed).toEqual({ teams: [], liveQuizWidgetId: 'q' });
+      expect(JSON.stringify(scrubbed)).not.toMatch(/Ada|pin-|uid-/);
+      expect(extractDashboardPII(d)).toEqual({ sb: { teams, history } });
+      expect(dashboardHasPII(d)).toBe(true);
+      expect(
+        mergeDashboardPII(scrubDashboardPII(d), extractDashboardPII(d))
+      ).toEqual(d);
+    });
+
+    it('moves history that still names a quiz team after the teams change', () => {
+      const teams = [{ id: uuid, name: 'Group 1', score: 0 }];
+      const history = [
+        { id: 'h1', at: 1, changes: [{ teamId: 'pin-0042', from: 8, to: 9 }] },
+      ];
+      const d = board([w('sb', 'scoreboard', { teams, history })]);
+      expect(scrubDashboardPII(d).widgets[0].config).toEqual({ teams });
+      expect(extractDashboardPII(d)).toEqual({ sb: { history } });
+    });
+
+    it('lets a board without Drive save when its only names are quiz teams', () => {
+      const d = board([
+        w('sb', 'scoreboard', {
+          teams: [{ id: 'pin-0042', name: 'Ada', score: 9 }],
+        }),
+      ]);
+      expect(dashboardHasPII(d)).toBe(true);
+      expect(dashboardHasPII(d, { includeScoreboard: false })).toBe(false);
+      expect(
+        dashboardHasPII(mockDashboardWithPii, { includeScoreboard: false })
+      ).toBe(true);
+    });
+
+    it('keeps hand-made Scoreboard teams in Firestore', () => {
+      const teams = [{ id: uuid, name: 'Team A', score: 2 }];
+      const d = board([w('sb', 'scoreboard', { teams })]);
+      expect(scrubDashboardPII(d).widgets[0].config).toEqual({ teams });
+      expect(dashboardHasPII(d)).toBe(false);
+    });
+
+    it.each(['stations', 'lunchCount', 'seating-chart'])(
+      'moves %s class-mode assignments with a name key to Drive',
+      (type) => {
+        const assignments = { [uuid]: 'a', 'Emma Smith': 'b' };
+        const d = board([w('x', type, { rosterMode: 'class', assignments })]);
+        expect(scrubDashboardPII(d).widgets[0].config).toEqual({
+          rosterMode: 'class',
+        });
+        expect(extractDashboardPII(d)).toEqual({ x: { assignments } });
+      }
+    );
+
+    it('keeps class-mode assignments keyed only by roster ids', () => {
+      const assignments = { [uuid]: 'a', 'roster-student-id-123': 'b' };
+      const d = board([
+        w('x', 'stations', { rosterMode: 'class', assignments }),
+      ]);
+      expect(scrubDashboardPII(d).widgets[0].config).toEqual({
+        rosterMode: 'class',
+        assignments,
+      });
+      expect(dashboardHasPII(d)).toBe(false);
+    });
+
+    it('moves Seating Chart saved plans keyed by names to Drive', () => {
+      const savedPlans = [
+        { id: 'p', name: 'Plan', assignments: { Ada: 'f1' } },
+      ];
+      const d = board([
+        w('sc', 'seating-chart', { rosterMode: 'class', savedPlans }),
+      ]);
+      expect(scrubDashboardPII(d).widgets[0].config).toEqual({
+        rosterMode: 'class',
+      });
+      expect(extractDashboardPII(d)).toEqual({ sc: { savedPlans } });
+    });
+
+    it('drops legacy hashed hidden poll words but keeps answer hides', () => {
+      const d = board([
+        w('p', 'poll', {
+          hiddenResponses: ['q1:0_u1', 'q1#1x2y3z', 'q2#rude'],
+        }),
+      ]);
+      expect(scrubDashboardPII(d).widgets[0].config).toEqual({
+        hiddenResponses: ['q1:0_u1'],
+      });
+    });
+  });
 });
