@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-103.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-104.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -104,6 +104,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
   > Merge the claude-skills live-tours.md finish-pass update, rerun the three live-tour benchmark workflows, walk me through the 12 benchmark tours so I can record edits in docs/live-tours/BENCHMARK.md, and ask me whether D18's `live-tour-self-heal` gate is still wanted.
 - [ ] **PT-99 You: real copier check for stimulus answer sheets** (`docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md` D4). Print one single-column sheet with a dark photo and a coordinate grid, scan it on the real copier and import it. Only real toner proves the post-fit Otsu exclusion; tell an agent if any bubble misreads.
 - [ ] **PT-100 You: Speak "words to check"** (P5, `docs/multilingual-pronunciation-engine.md`). During the admin-only period, review the words to check in the Speaking view; open `flashcards-speak` only after this, PT-4 and PT-79.
+- [ ] **PT-103 You: turn on the Schoology launch browser check** (batch 1I). After the release, launch one Schoology assignment as a student on a Chromebook and one on an iPad or Mac Safari, and add one quiz as a teacher from Schoology's resource picker. In the prod `ltiLaunch` logs, each `[ltiLaunch] browser binding` line should say `binding: 'ok'` (Safari may say `missing`). If teacher picker launches say `missing`, keep it off: the new-tab fallback can't return a picked item to Schoology. Otherwise set `launchBinding: "enforce"` on `admin_settings/lti_config` in the prod console. A launch without the check then shows one "Open SpartBoard" button that reopens it in a new tab; OK that wording or ask for another. Remove the field to switch it back off.
 
 ## 3. Prod steps that need your OK
 

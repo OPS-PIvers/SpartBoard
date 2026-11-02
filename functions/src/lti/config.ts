@@ -6,6 +6,7 @@
 // set/rotated without a code change or redeploy. They are read (and cached) at runtime.
 
 import type * as admin from '../firebaseAdmin';
+import { parseLaunchBindingMode } from './browserBinding';
 
 // ── Schoology platform endpoints (constants) ───────────────────────────────
 export const SCHOOLOGY_ISSUER = 'https://schoology.schoology.com';
@@ -73,6 +74,8 @@ export interface LtiPlatformConfig {
   authorizeUrl: string;
   tokenUrl: string;
   jwksUri: string;
+  /** `enforce` rejects launches the login browser didn't start; `monitor` only logs them. */
+  launchBinding: 'monitor' | 'enforce';
 }
 
 export const LTI_CONFIG_DOC = 'admin_settings/lti_config';
@@ -118,6 +121,7 @@ export async function getLtiPlatformConfig(
     authorizeUrl: SCHOOLOGY_AUTHORIZE_URL,
     tokenUrl: SCHOOLOGY_TOKEN_URL,
     jwksUri: SCHOOLOGY_JWKS_URI,
+    launchBinding: parseLaunchBindingMode(data.launchBinding),
   };
   cachedConfig = { value, at: now };
   return value;
