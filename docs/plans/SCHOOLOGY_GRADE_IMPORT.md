@@ -6,7 +6,7 @@ Grilled and settled with Paul on 2026-10-29. Not built. Starts with a read-only 
 
 A teacher's Gradebook shows every score a class earned, including those earned on assignments made only in Schoology (a Schoology test, a discussion, a hand-entered column). Those scores feed the grid, the analysis tab, the student view, insights, standards proficiency and, when tagged, PLC target results. Schoology stays the owner of those grades. SpartBoard reads them and never edits them.
 
-This is the reverse of [SCHOOLOGY_TOOL_COLUMNS.md](SCHOOLOGY_TOOL_COLUMNS.md), which pushes SpartBoard-only scores into Schoology.
+This is the reverse of [SCHOOLOGY_TOOL_COLUMNS.md](shipped/SCHOOLOGY_TOOL_COLUMNS.md), which pushes SpartBoard-only scores into Schoology.
 
 ## Current-state facts the design builds on
 

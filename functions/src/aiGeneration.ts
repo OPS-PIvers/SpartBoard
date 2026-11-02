@@ -21,6 +21,7 @@ import { ALLOWED_ORIGINS, resolveOrgIdForDomain } from './classlinkShared';
 import { resolveDomainCandidates } from './resolveOrgForUser';
 import { GlobalPermission, GlobalPermConfig } from './shared';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertAiTeacherCaller } from './aiCallerGate';
 import {
   VERTEX_LOCATION,
   getAiModelConfig,
@@ -610,6 +611,7 @@ export const generateWithAI = onCall(
     }
 
     const db = admin.firestore();
+    await assertAiTeacherCaller(db, callerToken);
 
     // Check if user is an admin (cached for 5 minutes per warm instance).
     const isAdmin = await resolveCallerIsAdmin(db, callerToken);
@@ -806,8 +808,7 @@ export const generateWithAI = onCall(
         throw error;
       }
       console.error('Usage tracking error:', error);
-      // Don't block AI generation if tracking fails
-      console.warn('AI usage tracking failed, proceeding with generation.');
+      throw new HttpsError('internal', 'Failed to verify AI usage limits.');
     }
 
     // Read model config from Firestore (for both admins and non-admins)
@@ -1761,6 +1762,8 @@ export const generateVideoActivity = onCall(
       );
     }
 
+    await assertAiTeacherCaller(admin.firestore(), request.auth.token);
+
     const { url, typeCounts, questionCount, durationSeconds } = data;
 
     if (!url || typeof url !== 'string') {
@@ -1950,6 +1953,7 @@ export const transcribeVideoWithGemini = onCall(
     }
 
     const db = admin.firestore();
+    await assertAiTeacherCaller(db, request.auth.token);
 
     // Check feature permission — admin-gated, off by default
     const permDoc = await db
@@ -2275,6 +2279,7 @@ export const generateGuidedLearning = onCall(
       );
     }
     const db = admin.firestore();
+    await assertAiTeacherCaller(db, request.auth?.token ?? {});
 
     const { prompt } = data;
     const images: GuidedLearningImageInput[] =
@@ -2477,6 +2482,7 @@ export const draftGuidedLearningStepTextV1 = onCall(
       );
     }
     const db = admin.firestore();
+    await assertAiTeacherCaller(db, request.auth.token);
     const parsedRequest = parseStepTextRequest(request.data);
     if (!(await resolveCallerIsAdmin(db, request.auth.token))) {
       await enforceAiFeatureAccess(

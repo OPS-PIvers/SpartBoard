@@ -1,4 +1,4 @@
-// Revert one logged View as change with the Admin SDK (docs/plans/ADMIN_VIEW_AS.md D16).
+// Revert one logged View as change with the Admin SDK (docs/plans/shipped/ADMIN_VIEW_AS.md D16).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { ALLOWED_ORIGINS } from './classlinkShared';

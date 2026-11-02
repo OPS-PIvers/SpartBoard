@@ -1,4 +1,4 @@
-// Team updates and acknowledgements (docs/plans/TEAMS_REDESIGN.md T27).
+// Team updates and acknowledgements (docs/plans/shipped/TEAMS_REDESIGN.md T27).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {

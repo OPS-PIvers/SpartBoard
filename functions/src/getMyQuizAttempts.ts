@@ -1,4 +1,4 @@
-// A student's own earlier quiz attempts, shown only as far as the quiz's results settings allow (docs/plans/QUIZ_ATTEMPT_HISTORY.md D3).
+// A student's own earlier quiz attempts, shown only as far as the quiz's results settings allow (docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md D3).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import './functionsInit';

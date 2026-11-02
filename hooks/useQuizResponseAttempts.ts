@@ -6,7 +6,7 @@ import type { QuizResponse, QuizSessionSection } from '@/types';
 import { logError } from '@/utils/logError';
 import { notChosenQuestionIds } from '@/utils/quizSections';
 
-/** A server-saved copy of one finished attempt (docs/plans/QUIZ_ATTEMPT_HISTORY.md D1). */
+/** A server-saved copy of one finished attempt (docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md D1). */
 export type QuizAttemptCopy = Partial<QuizResponse> & {
   n: number;
   closed?: boolean;

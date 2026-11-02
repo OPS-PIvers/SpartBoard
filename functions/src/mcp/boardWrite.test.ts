@@ -567,6 +567,31 @@ describe('edit_board', () => {
     expect(docs.get(BOARD)).toEqual(s[BOARD]);
   });
 
+  it('refuses to replace quiz-built teams kept off the saved board', async () => {
+    const s = seed();
+    (s[BOARD].widgets as Data[]).push({
+      id: 'w4',
+      type: 'scoreboard',
+      ...zone('grid-2x2', 'bottom-left'),
+      z: 4,
+      config: { teams: [] },
+    });
+    const { db, commits } = fakeDb(s);
+    const call = await connect(db);
+    const out = await call('edit_board', {
+      board_id: 'b1',
+      changes: [
+        {
+          op: 'update_widget',
+          widget_id: 'w4',
+          settings: { teams: [{ id: 'a', name: 'Team A', score: 0 }] },
+        },
+      ],
+    });
+    expect(out.error).toMatch(/come from a class/);
+    expect(commits).toHaveLength(0);
+  });
+
   it('retries when SpartBoard saves the board in between', async () => {
     const { db, docs, failNext } = fakeDb(seed());
     failNext.commits = 1;

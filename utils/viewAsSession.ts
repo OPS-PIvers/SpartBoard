@@ -1,4 +1,4 @@
-// View as tab session: token handoff, custom-token sign-in, renew/unlock/end (docs/plans/ADMIN_VIEW_AS.md D4).
+// View as tab session: token handoff, custom-token sign-in, renew/unlock/end (docs/plans/shipped/ADMIN_VIEW_AS.md D4).
 import { signInWithCustomToken, signOut } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { auth, functions } from '@/config/firebase';

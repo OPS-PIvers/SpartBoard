@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 
 type Mode = 'read' | 'write' | 'outward' | 'session';
 
-// Reviewed View as mode per callable (docs/plans/ADMIN_VIEW_AS.md D7, D14); a new onCall needs a row here.
+// Reviewed View as mode per callable (docs/plans/shipped/ADMIN_VIEW_AS.md D7, D14); a new onCall needs a row here.
 const CALLABLE_MODES: Record<string, Mode> = {
   // Reads only: a read-only View as tab may call these.
   checkUrlCompatibility: 'read',

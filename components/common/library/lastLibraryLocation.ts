@@ -1,4 +1,4 @@
-// Per-user, per-library "last folder" preference (docs/plans/LIBRARY_FOLDERS.md D2).
+// Per-user, per-library "last folder" preference (docs/plans/shipped/LIBRARY_FOLDERS.md D2).
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';

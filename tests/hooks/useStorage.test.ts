@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { useStorage } from '@/hooks/useStorage';
+import { DRIVE_UPLOAD_FOLDERS, useStorage } from '@/hooks/useStorage';
 import { vi, describe, it, expect, beforeEach, Mock } from 'vitest';
 import {
   ref,
@@ -49,10 +49,12 @@ describe('useStorage', () => {
     makePublic: vi.fn(),
     deleteFile: vi.fn(),
     trashFile: vi.fn(),
+    isInAppFolder: vi.fn(),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDriveService.isInAppFolder.mockResolvedValue(true);
     // Default: Drive not connected
     mockUseGoogleDrive.mockReturnValue({ driveService: null });
 
@@ -308,11 +310,10 @@ describe('useStorage', () => {
       expect(mockDriveService.trashFile).toHaveBeenCalledWith('admin-file-id');
     });
 
-    it('should extract file ID from webContentLink uc?id= format', async () => {
+    it('never takes the file id from the query or fragment', async () => {
       mockUseGoogleDrive.mockReturnValue({
         driveService: mockDriveService,
       });
-      mockDriveService.trashFile.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useStorage());
 
@@ -320,12 +321,33 @@ describe('useStorage', () => {
         await result.current.deleteFile(
           'https://drive.google.com/uc?export=download&id=webContentFileId'
         );
+        await result.current.deleteFile(
+          'https://lh3.googleusercontent.com/x#/file/d/rosterFileId1234'
+        );
       });
 
-      expect(mockDeleteObject).not.toHaveBeenCalled();
-      expect(mockDriveService.trashFile).toHaveBeenCalledWith(
-        'webContentFileId'
+      expect(mockDriveService.trashFile).not.toHaveBeenCalled();
+    });
+
+    it('does not trash a Drive file outside the app upload folders', async () => {
+      mockUseGoogleDrive.mockReturnValue({
+        driveService: mockDriveService,
+      });
+      mockDriveService.isInAppFolder.mockResolvedValue(false);
+
+      const { result } = renderHook(() => useStorage());
+
+      await act(async () => {
+        await result.current.deleteFile(
+          'https://lh3.googleusercontent.com/d/rosterFileId1234'
+        );
+      });
+
+      expect(mockDriveService.isInAppFolder).toHaveBeenCalledWith(
+        'rosterFileId1234',
+        DRIVE_UPLOAD_FOLDERS
       );
+      expect(mockDriveService.trashFile).not.toHaveBeenCalled();
     });
   });
 

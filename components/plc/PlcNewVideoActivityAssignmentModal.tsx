@@ -137,7 +137,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           lastRules.lastUsed
         ))
       : null;
-  // Assign stepper state (docs/plans/ASSIGN_STEPPER.md, Video follows D4).
+  // Assign stepper state (docs/plans/shipped/ASSIGN_STEPPER.md, Video follows D4).
   const [classes, setClasses] = useState<AssignClassesValue>(
     EMPTY_ASSIGN_CLASSES_VALUE
   );

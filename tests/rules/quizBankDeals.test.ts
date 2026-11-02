@@ -1,4 +1,4 @@
-// Firestore rules for balanced bank slots (docs/plans/QUIZ_IMPORT_VERSIONS.md V18-V19):
+// Firestore rules for balanced bank slots (docs/plans/shipped/QUIZ_IMPORT_VERSIONS.md V18-V19):
 //   - quiz_sessions/{id}/bank_deals/{dealId}: any signed-in read; a counter that
 //     only a seated student advances, by one, on a session with bank slots; teacher deletes
 //   - the counter's `by` is the caller's uid, never the (PIN-bearing) response key

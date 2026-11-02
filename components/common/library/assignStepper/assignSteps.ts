@@ -1,4 +1,4 @@
-// Step list and shared types for the assign stepper (docs/plans/ASSIGN_STEPPER.md D4).
+// Step list and shared types for the assign stepper (docs/plans/shipped/ASSIGN_STEPPER.md D4).
 import type React from 'react';
 
 export type AssignStepId =

@@ -1,4 +1,4 @@
-// Pure helpers for importing a Synced / View-Only shared collection (docs/plans/COLLECTION_SHARING.md slice 3).
+// Pure helpers for importing a Synced / View-Only shared collection (docs/plans/shipped/COLLECTION_SHARING.md slice 3).
 
 import type {
   Dashboard,

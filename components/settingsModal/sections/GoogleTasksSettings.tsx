@@ -1,4 +1,4 @@
-// Google Tasks opt-in for team action items (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md D1).
+// Google Tasks opt-in for team action items (docs/plans/shipped/GOOGLE_TASKS_ACTION_ITEMS.md D1).
 import React from 'react';
 import { tourAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';

@@ -1,4 +1,4 @@
-/** Kill switch `admin_settings/view_as` for super admin "View as" (docs/plans/ADMIN_VIEW_AS.md D17). */
+/** Kill switch `admin_settings/view_as` for super admin "View as" (docs/plans/shipped/ADMIN_VIEW_AS.md D17). */
 
 export const VIEW_AS_SETTINGS_DOC = 'view_as';
 

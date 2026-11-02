@@ -57,7 +57,7 @@ service cloud.firestore {
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
     }
 
-    // ---- Super admin "View as" (docs/plans/ADMIN_VIEW_AS.md D7) ----
+    // ---- Super admin "View as" (docs/plans/shipped/ADMIN_VIEW_AS.md D7) ----
     // A view-as tab is signed in as its target with a server-minted `viewAs`
     // claim { by, sid, ro, adminTarget, exp(ms) }. It may read until exp, and
     // write only while unlocked (ro == false) and live; authUid() enforces it for
@@ -1644,7 +1644,7 @@ service cloud.firestore {
         changedOnly(['participants']);
 
       // The host of the shared collection a board belongs to may end it (Stop sharing),
-      // including boards a current collaborator added (docs/plans/COLLECTION_SHARING.md
+      // including boards a current collaborator added (docs/plans/shipped/COLLECTION_SHARING.md
       // step 5). The author must still be a member: a host can't add members, so a link
       // re-created at an orphaned id never covers another teacher's board.
       allow delete: if signedIn() && (
@@ -1866,7 +1866,7 @@ service cloud.firestore {
       }
     }
 
-    // Synced / View-Only collection link (docs/plans/COLLECTION_SHARING.md). Board content
+    // Synced / View-Only collection link (docs/plans/shipped/COLLECTION_SHARING.md). Board content
     // lives in /shared_boards; this doc holds the collection's name, board list and members.
     match /linked_collections/{linkId} {
       function lcTeacher() {
@@ -2554,7 +2554,12 @@ service cloud.firestore {
         // Dual-accept the timestamp bump (serverTimestamp resolves to a
         // `timestamp`; legacy clients still write `int` during rollout).
         && plcUpdatedAtOk()
-        && get(/databases/$(database)/documents/plc_invitations/$(plcInviteDocId(plcId, emailLower))).data.status == 'pending';
+        && plcInviteMatches(get(/databases/$(database)/documents/plc_invitations/$(plcInviteDocId(plcId, emailLower))).data, plcId, emailLower);
+    }
+
+    // The id alone is ambiguous ('a_b' + '_' + 'c' == 'a' + '_' + 'b_c'), so the invite's own fields must match.
+    function plcInviteMatches(inv, plcId, emailLower) {
+      return inv.status == 'pending' && inv.plcId == plcId && inv.inviteeEmailLower == emailLower;
     }
 
     // updatedAt dual-accept (timestamp || legacy int millis) during the
@@ -3100,7 +3105,8 @@ service cloud.firestore {
       // carries exactly that uid at role 'lead' (active), mirrored by
       // memberUids == [uid] and leadUid == uid. Optional tenancy (orgId/
       // buildingId) null or string; createdAt/updatedAt dual-accept timestamp||int.
-      allow create: if signedIn()
+      // Only district staff start a PLC; anonymous, student and unverified accounts can't lead one.
+      allow create: if isDistrictStaff()
         && authUid() == incoming().leadUid
         && incoming().memberUids == [authUid()]
         && incoming().members.keys().hasOnly([authUid()])
@@ -5011,6 +5017,23 @@ service cloud.firestore {
                  (!k.hasAny(['answers']) || d.answers.size() == 0 || justFrozen(s, classId));
         }
 
+        // PIN keys: one doc per roster seat, keyed by the canonical encoding of the
+        // doc's own period (one the session offers) and PIN (encodeResponseKeySegment).
+        // A sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1,
+        // which rate-limits guesses.
+        function keySeg(v) {
+          let t = v.trim().lower().replace('[^a-z0-9]+', '_').replace('^_+|_+$', '');
+          return t == '' ? 'default' : t;
+        }
+        function pinKeyOk(s, d) {
+          let p = keySeg(d.get('pin', ''));
+          let pn = s.get('periodNames', []);
+          return responseKey == 'pin-' + keySeg(d.get('classPeriod', '')) + '-' + p &&
+            (pn.size() == 0 || d.get('classPeriod', '') in pn) &&
+            (s.get('rosterIds', []).size() == 0 || s.get('classIds', []).size() == 0 ||
+             p.replace('_', '').size() < 6);
+        }
+
         // A missing doc is readable only at the caller's own uid key, so a
         // `pin-{period}-{pin}` key reads as denied whether or not it exists
         // (else probing keys reveals which PINs have joined). The class gate
@@ -5088,7 +5111,10 @@ service cloud.firestore {
           afterOpen(sessionData()) &&
           periodJoinOk(sessionData(), incoming()) &&
           staffJoinOk(sessionData(), incoming()) &&
-          joinKeyOk(sessionData(), responseKey);
+          joinKeyOk(sessionData(), responseKey) &&
+          // The PIN is short text the hourly archive email quotes.
+          incoming().get('pin', '') is string && incoming().get('pin', '').size() <= 10 &&
+          (responseKey == authUid() || pinKeyOk(sessionData(), incoming()));
         // The student branch runs first so a student's write skips the teacher and admin checks.
         allow update: if signedIn() && (
           // Students update only their own response (ownership via studentUid, not the key).
@@ -5233,8 +5259,9 @@ service cloud.firestore {
            (sessionAttemptLimit() == null ||
             incoming().get('completedAttempts', 0) <= sessionAttemptLimit()) &&
            (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
-          // Teacher and admins can update any field
-          authUid() == sessionTeacherUid() || isAdmin()
+          // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
+          authUid() == sessionTeacherUid() ||
+          (isAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'backTranslations']))
         );
         allow delete: if signedIn() &&
           (authUid() == sessionTeacherUid() || isAdmin());
@@ -5289,6 +5316,17 @@ service cloud.firestore {
             isMap('grading');
           allow create, delete: if false;
         }
+      }
+
+      // Live leaderboard names, kept off the any-reader session doc: only the
+      // session's teacher writes; a reader must be seated on their own response here.
+      match /live/{docId} {
+        allow read: if signedIn() && (
+          authUid() == sessionTeacherUid() || isAdmin() ||
+          isSubMonitor(sessionData()) ||
+          get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/seats/$(authUid())).data.responseKey)).data.studentUid == authUid()
+        );
+        allow write: if signedIn() && authUid() == sessionTeacherUid();
       }
 
       // Per-attempt scores beside the response, since students can read their response before release.
@@ -6277,20 +6315,30 @@ service cloud.firestore {
       // on and what sessionListScoped() proves.
       allow get: if signedIn();
       allow list: if signedIn() && sessionListScoped();
-      // Only authenticated non-anonymous teachers/admins can create or update the session document itself.
+      // Only a teacher identity (never anonymous, studentRole or deactivated) or a site admin writes the session doc.
       allow create, update: if signedIn() &&
                             notAnon() &&
-                            (isAdmin() ||
-                              (sessionId.matches(authUid() + '_.*') &&
-                                incoming().get('teacherUid', authUid()) == authUid()));
+                            !isStudentRoleUser() &&
+                            notDeactivated() &&
+                            ((sessionId.matches(authUid() + '_.*') &&
+                                incoming().get('teacherUid', authUid()) == authUid()) ||
+                              awSiteAdmin());
       allow delete: if false;
 
+      // Site admin as storage.rules isSiteAdmin(): a narrowed synced admin can't publish or moderate another teacher's wall.
+      function awSiteAdmin() {
+        return isAdmin() && awSiteAdminDoc(get(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())).data);
+      }
+      function awSiteAdminDoc(a) {
+        return a.get('source', '') != 'organizationMembersSync' ||
+               (a.get('orgId', '') == 'orono' && a.get('roleId', '') in ['super_admin', 'domain_admin']);
+      }
       // Merged student page helpers (shared by submissions, likes, comments).
       function awParentSession() {
         return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data;
       }
       function awIsOwner() {
-        return isAdmin() || sessionId.matches(authUid() + '_.*');
+        return sessionId.matches(authUid() + '_.*') || awSiteAdmin();
       }
       // Padlet-lite audience: an enrolled studentRole user, or anyone once the
       // teacher opted into guests. Legacy sessions (no layout) never match.
@@ -6479,6 +6527,20 @@ service cloud.firestore {
                   p.size() == sessionId.size() + submissionId.size() + parts[3].size() + 22);
         }
 
+        // Content edits only on text-like posts; an untyped legacy post counts as text while it holds no media or URL.
+        function awContentEditable(types) {
+          let t = existing().get('type', '');
+          return t in types ||
+                 (t == '' && !('storagePath' in existing()) &&
+                  !existing().content.matches('(?i)https?:.*') &&
+                  !incoming().content.matches('(?i)https?:.*'));
+        }
+        // An upload's media is its own transit object: content names that storagePath, never an outside URL.
+        function awUploadPathOk() {
+          return !(incoming().get('type', 'text') in ['photo', 'file', 'video']) ||
+                 incoming().get('storagePath', '') == incoming().content;
+        }
+
         // Any authed user (incl. anon) can create a submission (photo subs may carry storage
         // metadata for Drive archiving). studentRole users must be enrolled; uses the
         // Phase-5A compat gate (classIds ?? legacy classId). hasOnly() closes an
@@ -6497,7 +6559,7 @@ service cloud.firestore {
             'label', 'lat', 'lng', 'linkPreview', 'order',
             'fileName', 'mimeType', 'sizeBytes', 'editedAt'
           ]) &&
-          isStr('id') &&
+          incoming().id == submissionId &&
           isStr('content') &&
           incoming().content.size() > 0 &&
           incoming().content.size() <= 5000 &&
@@ -6510,8 +6572,10 @@ service cloud.firestore {
             incoming().authorUid.size() <= 200)) &&
           (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
           awStoragePathOk() &&
+          awUploadPathOk() &&
           (!awIsPadletSession() ||
-            (awAcceptingResponses() &&
+            ('type' in incoming() &&
+             awAcceptingResponses() &&
              awPadletAccessOk() &&
              incoming().authorUid == authUid() &&
              awTypeAllowed() &&
@@ -6529,7 +6593,7 @@ service cloud.firestore {
             'label', 'lat', 'lng', 'linkPreview', 'order',
             'fileName', 'mimeType', 'sizeBytes', 'editedAt', 'authorRole'
           ]) &&
-          isStr('id') &&
+          incoming().id == submissionId &&
           isStr('content') &&
           incoming().content.size() > 0 &&
           incoming().content.size() <= 5000 &&
@@ -6537,10 +6601,12 @@ service cloud.firestore {
           incoming().status == 'approved' &&
           incoming().authorRole == 'teacher' &&
           incoming().authorUid == authUid() &&
+          'type' in incoming() &&
           awFieldTypesOk() &&
           awTypeAllowed() &&
           (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
           awStoragePathOk() &&
+          awUploadPathOk() &&
           // Storage takes uploads only from the owner, so a co-teacher posts text, words and links.
           (awIsOwner() ||
            (incoming().get('type', 'text') in ['text', 'word', 'link'] &&
@@ -6555,8 +6621,8 @@ service cloud.firestore {
         // lists unfiltered and would break otherwise). Merged student page: the student-link
         // audience reads approved posts while the teacher keeps the wall visible.
         allow read: if signedIn() &&
-                            (isAdmin() ||
-                             sessionId.matches(authUid() + '_.*') ||
+                            (sessionId.matches(authUid() + '_.*') ||
+                             awSiteAdmin() ||
                              (awSession().get('publiclyShared', false) == true &&
                               (!awIsPadletSession() ||
                                existing().status == 'approved')) ||
@@ -6567,7 +6633,7 @@ service cloud.firestore {
                              awBoardMemberOk(true) ||
                              (existing().status == 'approved' && awBoardMemberOk(false)));
         allow delete: if signedIn() &&
-                            (isAdmin() || sessionId.matches(authUid() + '_.*'));
+                            (sessionId.matches(authUid() + '_.*') || awSiteAdmin());
         // Students may retract their own post while the wall is open and the
         // teacher enabled deletion (Padlet-lite sessions only).
         allow delete: if signedIn() &&
@@ -6582,7 +6648,7 @@ service cloud.firestore {
         // doc AFTER merge - untouched existing fields (e.g. driveFileId) stay present and
         // must pass the whitelist too. See create's comment for why an extra field matters.
         allow update: if signedIn() &&
-                            (isAdmin() || sessionId.matches(authUid() + '_.*')) &&
+                            (sessionId.matches(authUid() + '_.*') || awSiteAdmin()) &&
                             incoming().keys().hasOnly([
                               'id', 'activityId', 'content', 'submittedAt', 'status',
                               'participantLabel', 'storagePath', 'archiveStatus',
@@ -6594,7 +6660,7 @@ service cloud.firestore {
                               'linkPreview', 'fileName', 'mimeType', 'sizeBytes',
                               'editedAt', 'authorRole'
                             ]) &&
-                            isStr('id') &&
+                            sameId() &&
                             isStr('content') &&
                             incoming().content.size() > 0 &&
                             incoming().content.size() <= 5000 &&
@@ -6613,10 +6679,10 @@ service cloud.firestore {
                             optString(incoming(), 'drivePermission') &&
                             (!changed(['storagePath']) || awStoragePathOk());
         // Student self-edit: only the author, only while the wall is open and the teacher
-        // enabled editing, only content-shaped fields. `status` is writable in exactly one
-        // direction: when moderation is on and the edit touches `content`, the post returns
-        // to 'pending' - otherwise a student could smuggle unreviewed text into an approved
-        // card. With moderation off, status must stay untouched.
+        // enabled editing, only text and placement fields (media and link previews stay as
+        // reviewed). `status` is writable in exactly one direction: when moderation is on
+        // and the edit touches `content`, the post returns to 'pending'. With moderation
+        // off, status must stay untouched.
         allow update: if signedIn() &&
                             awIsPadletSession() &&
                             existing().get('authorUid', '') == authUid() &&
@@ -6624,10 +6690,10 @@ service cloud.firestore {
                             awAcceptingResponses() &&
                             changedOnly([
                               'content', 'title', 'label', 'sectionId', 'cellKey',
-                              'lat', 'lng', 'editedAt', 'linkPreview', 'storagePath',
-                              'archiveStatus', 'fileName', 'mimeType', 'sizeBytes',
-                              'status'
+                              'lat', 'lng', 'editedAt', 'status'
                             ]) &&
+                            (!changed(['content']) ||
+                             awContentEditable(['text', 'word', 'link'])) &&
                             (awSessionModerationEnabled() &&
                              changed(['content'])
                               ? incoming().status == 'pending'
@@ -6635,12 +6701,7 @@ service cloud.firestore {
                             isStr('content') &&
                             incoming().content.size() > 0 &&
                             incoming().content.size() <= 5000 &&
-                            awFieldTypesOk() &&
-                            // A re-upload may only re-enter the pipeline at 'firebase', under its own object path.
-                            (!changed(['archiveStatus']) ||
-                             incoming().archiveStatus == 'firebase') &&
-                            (!changed(['storagePath']) ||
-                             ('storagePath' in incoming() && awStoragePathOk()));
+                            awFieldTypesOk();
         // Board co-moderator: moderation and content fields only, never archive or authorship
         // fields; a content edit is stamped, and an upload's or link's content is its pointer.
         allow update: if signedIn() &&
@@ -6651,7 +6712,7 @@ service cloud.firestore {
                             ]) &&
                             incoming().status in ['approved', 'pending'] &&
                             (!changed(['content']) ||
-                             !(existing().get('type', 'text') in ['photo', 'video', 'file', 'link'])) &&
+                             awContentEditable(['text', 'word'])) &&
                             (!changed(['content', 'title', 'label']) || changed(['editedAt'])) &&
                             (!changed(['editedAt']) ||
                              (isInt('editedAt') &&
@@ -6893,7 +6954,7 @@ service cloud.firestore {
         && isInt('updatedAt');
     }
 
-    // === Claude connector (docs/plans/CLAUDE_CONNECTOR.md): server-written, owner-readable ===
+    // === Claude connector (docs/plans/shipped/CLAUDE_CONNECTOR.md): server-written, owner-readable ===
     match /users/{userId}/mcp_grants/{grantId} {
       allow read: if ownsUserTeacher(userId);
     }

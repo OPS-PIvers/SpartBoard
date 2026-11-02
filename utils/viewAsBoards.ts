@@ -1,4 +1,4 @@
-// View as board working copy and pending changes (docs/plans/ADMIN_VIEW_AS.md D11, D12).
+// View as board working copy and pending changes (docs/plans/shipped/ADMIN_VIEW_AS.md D11, D12).
 import type { Dashboard, WidgetData } from '@/types';
 import { LAYOUT_FIELDS, STYLE_FIELDS } from '@/utils/widgetMergeFields';
 import { scrubWidgetsPII } from '@/utils/dashboardPII';

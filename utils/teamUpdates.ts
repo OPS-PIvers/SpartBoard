@@ -1,4 +1,4 @@
-/** Team updates and calendar helpers (docs/plans/TEAMS_REDESIGN.md T26–T28). */
+/** Team updates and calendar helpers (docs/plans/shipped/TEAMS_REDESIGN.md T26–T28). */
 
 import type { Plc, PlcMember, PlcUpdate, PlcUpdateAck } from '@/types';
 import { getPlcMembers, tsToMillis } from '@/utils/plc';

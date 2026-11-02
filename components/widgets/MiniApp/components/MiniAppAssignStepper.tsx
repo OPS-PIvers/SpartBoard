@@ -1,4 +1,4 @@
-// Mini App's assign dialog on the stepper: name, Students submit work / Study resource, Classes, When (docs/plans/ASSIGN_STEPPER.md D20).
+// Mini App's assign dialog on the stepper: name, Students submit work / Study resource, Classes, When (docs/plans/shipped/ASSIGN_STEPPER.md D20).
 import React, { useState } from 'react';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';

@@ -1,4 +1,4 @@
-// Firestore security-rules tests for quiz attempt history (docs/plans/QUIZ_ATTEMPT_HISTORY.md).
+// Firestore security-rules tests for quiz attempt history (docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md).
 // Requires a running Firestore emulator; invoke via `pnpm run test:rules`.
 //
 // Contract: attempt copies and attempt scores are server-written. The session

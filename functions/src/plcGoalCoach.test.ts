@@ -20,6 +20,9 @@ vi.mock('firebase-functions/v2/https', () => {
 });
 vi.mock('./functionsInit', () => ({}));
 vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
+vi.mock('./districtStaff', () => ({
+  isDistrictStaffToken: vi.fn(() => Promise.resolve(true)),
+}));
 vi.mock('./aiGeneration', () => ({
   enforceAiFeatureAccess: vi.fn(),
   getGeminiModelConfig: vi.fn(),
@@ -121,12 +124,17 @@ const goodResponse = (overrides: Record<string, boolean> = {}) =>
   });
 
 function setup(
-  opts: { admin?: boolean; extra?: Record<string, StubData> } = {}
+  opts: {
+    admin?: boolean;
+    teacher?: boolean;
+    extra?: Record<string, StubData>;
+  } = {}
 ) {
   const fs = makeStubFirestore({ ...seed(), ...opts.extra });
   const deps: GoalCoachDeps = {
     db: fs.db as never,
     isAdmin: vi.fn(() => Promise.resolve(opts.admin === true)),
+    isTeacher: vi.fn(() => Promise.resolve(opts.teacher !== false)),
     charge: vi.fn(() => Promise.resolve(CHARGE)),
     refund: vi.fn(() => Promise.resolve()),
     record: vi.fn(() => Promise.resolve(ADMIN_CHARGE)),
@@ -339,6 +347,16 @@ describe('resolveGoalCoachRubric', () => {
 });
 
 describe('runGoalCoach gating', () => {
+  it('refuses a caller who is not a teacher before reading the team or charging', async () => {
+    const { deps } = setup({ teacher: false });
+    await expect(
+      runGoalCoach({ plcId: PLC, goal: GOAL }, MEMBER, {}, deps)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(deps.isAdmin).not.toHaveBeenCalled();
+    expect(deps.charge).not.toHaveBeenCalled();
+    expect(deps.generate).not.toHaveBeenCalled();
+  });
+
   it('denies a non-member and a removed member before charging', async () => {
     for (const uid of [OUTSIDER, REMOVED]) {
       const { deps } = setup();
@@ -440,6 +458,12 @@ describe('adminSkipsGoalCoachQuota', () => {
   });
 });
 
+const TEACHER_TOKEN = {
+  email: 'teacher@orono.k12.mn.us',
+  email_verified: true,
+  firebase: { sign_in_provider: 'google.com' },
+};
+
 describe('plcGoalCoachV1 handler', () => {
   const handler = plcGoalCoachV1 as unknown as (req: {
     auth?: { uid: string; token: Record<string, unknown> } | null;
@@ -450,6 +474,24 @@ describe('plcGoalCoachV1 handler', () => {
     await expect(
       handler({ auth: null, data: { plcId: PLC, goal: GOAL } })
     ).rejects.toMatchObject({ code: 'unauthenticated' });
+  });
+
+  it('refuses an anonymous team owner before any flag lookup or charge', async () => {
+    const fs = makeStubFirestore(seed());
+    vi.mocked(admin.firestore).mockReturnValue(fs.db as never);
+    vi.mocked(enforceAiFeatureAccess).mockClear();
+    vi.mocked(resolveCallerIsAdmin).mockClear();
+    await expect(
+      handler({
+        auth: {
+          uid: MEMBER,
+          token: { firebase: { sign_in_provider: 'anonymous' } },
+        },
+        data: { plcId: PLC, goal: GOAL },
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(resolveCallerIsAdmin).not.toHaveBeenCalled();
+    expect(enforceAiFeatureAccess).not.toHaveBeenCalled();
   });
 
   it('gates a teacher on the plc-goal-coach flag with no missing-doc pass', async () => {
@@ -463,13 +505,13 @@ describe('plcGoalCoachV1 handler', () => {
     );
     await expect(
       handler({
-        auth: { uid: MEMBER, token: {} },
+        auth: { uid: MEMBER, token: TEACHER_TOKEN },
         data: { plcId: PLC, goal: GOAL },
       })
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(enforceAiFeatureAccess).toHaveBeenCalledWith(
       fs.db,
-      {},
+      TEACHER_TOKEN,
       MEMBER,
       'plc-goal-coach',
       false,

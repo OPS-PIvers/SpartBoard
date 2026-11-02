@@ -1,4 +1,4 @@
-// Pure question-edit helpers shared by the Quiz and Video Activity editors (docs/plans/VA_QUIZ_ALIGNMENT.md slice 1).
+// Pure question-edit helpers shared by the Quiz and Video Activity editors (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md slice 1).
 import {
   type QuizQuestion,
   type QuizQuestionType,

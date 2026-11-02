@@ -24,6 +24,7 @@ import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
 import { mp3DurationMs, storedDurationMs } from './mp3Duration';
 import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertAiTeacherCaller } from './aiCallerGate';
 
 export { ttsLanguageForTranslationLocale };
 
@@ -1490,8 +1491,7 @@ export const prepareQuizReadAloudV1 = onCall(
     assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
-    if (request.auth.token.studentRole === true)
-      throw new HttpsError('permission-denied', 'Teacher account required.');
+    await assertAiTeacherCaller(admin.firestore(), request.auth.token);
     const data = (request.data ?? {}) as Record<string, unknown>;
     const sessionId =
       typeof data.sessionId === 'string' ? data.sessionId.trim() : '';
@@ -1527,6 +1527,8 @@ export const synthesizeQuizAudioV1 = onCall(
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     const parsed = parseSynthesizeRequest(request.data);
+    if (parsed.mode === 'preview')
+      await assertAiTeacherCaller(admin.firestore(), request.auth.token);
     return synthesizeQuizAudio(
       parsed,
       {

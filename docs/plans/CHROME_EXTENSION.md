@@ -11,7 +11,7 @@ Scope was settled in a design interview with Paul on 2026-10-22, then revised th
 
 **Focus sessions** were re-decided in a second interview with Paul on 2026-10-28: the student's extension identifies the student itself and pulls its session from SpartBoard, nothing records where a student went, and the standalone session ships before the quiz hand-off. The Focus sessions section below replaces the 2026-10-22 F0-F10.
 
-**Web tours UX** (2026-10-22): [WEB_TOURS_UX.md](WEB_TOURS_UX.md) overrides T2 (web tours now appear in the Help Center), T6's per-step student-data tick (one publish check) and T11 (library cards, not links only).
+**Web tours UX** (2026-10-22): [WEB_TOURS_UX.md](shipped/WEB_TOURS_UX.md) overrides T2 (web tours now appear in the Help Center), T6's per-step student-data tick (one publish check) and T11 (library cards, not links only).
 
 **Web tours help panel** (2026-10-23): [WEB_TOURS_HELP_PANEL.md](shipped/WEB_TOURS_HELP_PANEL.md) revises D3 (the extension calls SpartBoard's HTTPS functions with a Google token), T7, T9 and T11, and lists tours in the side panel.
 

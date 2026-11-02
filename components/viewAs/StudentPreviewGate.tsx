@@ -1,4 +1,4 @@
-// View as student tab gate and banner (docs/plans/ADMIN_VIEW_AS.md D15).
+// View as student tab gate and banner (docs/plans/shipped/ADMIN_VIEW_AS.md D15).
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { Eye } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';

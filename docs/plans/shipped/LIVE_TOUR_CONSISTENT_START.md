@@ -2,7 +2,7 @@
 
 Goal: a live tour that an admin asks Claude for in claude.ai starts from the same screen for every teacher, adds widgets the same way for every teacher, and gets a second pass from Claude after the admin has played it once, without the admin rewriting steps by hand.
 
-Scope was settled in a design interview with Paul on 2026-10-14. This document is the contract. Each PR is self-contained: an implementer should be able to build it from the PR text plus the code, without the interview. It follows on from `docs/plans/LIVE_TOUR_ONE_SHOT.md`, whose decisions (D1 to D18) still hold.
+Scope was settled in a design interview with Paul on 2026-10-14. This document is the contract. Each PR is self-contained: an implementer should be able to build it from the PR text plus the code, without the interview. It follows on from `docs/plans/shipped/LIVE_TOUR_ONE_SHOT.md`, whose decisions (D1 to D18) still hold.
 
 **Code references** were taken at `dev-paul` commit `566821e`. Symbol names are authoritative and line numbers are hints; if a line number is off, grep for the symbol.
 

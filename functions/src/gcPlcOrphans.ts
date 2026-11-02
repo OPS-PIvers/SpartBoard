@@ -209,12 +209,15 @@ export function isStalePresence(
 export function isExpiredTombstone(
   deletedAt: unknown,
   now: number,
-  graceMs: number = TOMBSTONE_GRACE_MS
+  graceMs: number = TOMBSTONE_GRACE_MS,
+  lastWriteMs?: number
 ): boolean {
   if (deletedAt === null || deletedAt === undefined) return false;
   const ms = toMillis(deletedAt);
   if (ms <= 0) return false; // malformed → don't risk deleting live content
-  return now - ms > graceMs;
+  // deletedAt is client-written; the server-observed last write keeps a backdated value from skipping the grace window.
+  const since = Math.max(ms, lastWriteMs ?? 0);
+  return now - since > graceMs;
 }
 
 /**
@@ -458,7 +461,14 @@ async function sweepPlc(
       liveNoteIds = new Set();
     }
     for (const d of subDocs) {
-      if (isExpiredTombstone(d.data().deletedAt, now)) {
+      if (
+        isExpiredTombstone(
+          d.data().deletedAt,
+          now,
+          TOMBSTONE_GRACE_MS,
+          d.updateTime.toMillis()
+        )
+      ) {
         expiredTombstones.push(d.ref);
       } else if (sub === 'assessments' && d.data().deletedAt == null) {
         liveAssessmentIds.add(d.id);

@@ -152,8 +152,32 @@ const seedBase = async () => {
   });
 };
 
+// PLC create needs district staff: a verified district address with an active member doc.
+const staffDb = (uid: string) =>
+  testEnv
+    .authenticatedContext(uid, {
+      email: `${uid}@orono.k12.mn.us`,
+      email_verified: true,
+    })
+    .firestore();
+const seedStaff = (uids: string[]) =>
+  testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await Promise.all(
+      uids.map((uid) =>
+        setDoc(
+          doc(
+            ctx.firestore(),
+            `organizations/orono/members/${uid}@orono.k12.mn.us`
+          ),
+          { orgId: 'orono', roleId: 'teacher', status: 'active' }
+        )
+      )
+    );
+  });
+
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await seedStaff([LEAD_UID]);
   await seedBase();
 });
 
@@ -165,6 +189,7 @@ const seedPendingInvite = async (emailLower: string, status = 'pending') => {
       doc(ctx.firestore(), `plc_invitations/${PLC_ID}_${emailLower}`),
       {
         plcId: PLC_ID,
+        inviteeEmailLower: emailLower,
         email: emailLower,
         invitedBy: LEAD_UID,
         status,
@@ -234,7 +259,7 @@ describe('plcs/{plcId} read — members-map gate', () => {
 // ===========================================================================
 
 describe('plcs/{plcId} create — lead-only sole-member members map', () => {
-  const newDoc = (id: string) => doc(asLead(), `plcs/${id}`);
+  const newDoc = (id: string) => doc(staffDb(LEAD_UID), `plcs/${id}`);
 
   it('creates with the sole creator at role lead + mirrored indexes', async () => {
     await assertSucceeds(

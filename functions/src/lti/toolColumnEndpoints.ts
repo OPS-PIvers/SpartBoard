@@ -1,5 +1,5 @@
 // Schoology LTI 1.3 — callables for SpartBoard-created gradebook columns
-// (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D4–D8, D12–D14).
+// (docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md D4–D8, D12–D14).
 //
 //   ltiToolColumnCategoriesV1       — each target section's categories, column state and default pick
 //   ltiCreateToolColumnCategoriesV1 — create categories in a section that has none

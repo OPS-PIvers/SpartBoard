@@ -16,6 +16,7 @@ import {
   type ResolvedAddress,
 } from './ssrfGuard';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertAiTeacherCaller } from './aiCallerGate';
 
 export const MAX_STORED_CHARS = 50_000;
 export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
@@ -455,6 +456,7 @@ export const extractStimulusReadAloudTextV1 = onCall(
     assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
+    await assertAiTeacherCaller(admin.firestore(), request.auth.token);
     const parsed = parseExtractRequest(request.data);
     return extractStimulusReadAloudText(
       parsed,

@@ -1,6 +1,6 @@
 # Review help content
 
-Help content for the Review widget (docs/plans/QUIZ_REVIEW_SPLIT.md, D30). Agents don't write help content to Firestore; an admin imports these.
+Help content for the Review widget (docs/plans/shipped/QUIZ_REVIEW_SPLIT.md, D30). Agents don't write help content to Firestore; an admin imports these.
 
 ## Help article
 

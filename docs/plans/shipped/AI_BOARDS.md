@@ -2,7 +2,7 @@
 
 Grilled and settled 2026-10-27 against `dev-paul` at `f088bd3ed`. Two PRs to `dev-paul`, behind one preview flag.
 
-Shipped 2026-10-28 as ten slices (`/mnt/project-files/ai-boards/SLICES.md`): #4770, #4771, #4772, #4773, #4774, #4775, #4776, #4781, #4782, and S10 (connector instructions, `spartboard` skill, this move). Remaining step: Paul opens `ai-boards` (TODO.md).
+Shipped 2026-10-28 as ten slices (`/mnt/project-files/ai-boards/SLICES.md`): #4770, #4771, #4772, #4773, #4774, #4775, #4776, #4781, #4782, and S10 (connector instructions, `spartboard` skill, this move). Remaining step: Paul opens `ai-boards` (PAUL_TODO.md).
 
 ## Goal
 

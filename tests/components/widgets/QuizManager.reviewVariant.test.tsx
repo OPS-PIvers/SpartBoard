@@ -1,4 +1,4 @@
-// Review hosts the same quiz library as Quiz (docs/plans/QUIZ_REVIEW_SPLIT.md D1).
+// Review hosts the same quiz library as Quiz (docs/plans/shipped/QUIZ_REVIEW_SPLIT.md D1).
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';

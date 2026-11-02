@@ -1,4 +1,4 @@
-// Rules for super admin "View as student" (docs/plans/ADMIN_VIEW_AS.md D15).
+// Rules for super admin "View as student" (docs/plans/shipped/ADMIN_VIEW_AS.md D15).
 // A preview token is signed in as the student with a read-only `viewAs` claim:
 // it reads the student's own work and can never join, answer or post. PIN and
 // SSO students without the claim keep their write paths. Run via `pnpm run test:rules`.
@@ -141,7 +141,7 @@ const post = (id: string, authorUid?: string) => ({
   content: 'hello',
   submittedAt: 1000,
   status: 'approved',
-  ...(authorUid ? { authorUid } : {}),
+  ...(authorUid ? { authorUid, type: 'text' } : {}),
 });
 
 beforeEach(async () => {
@@ -269,7 +269,7 @@ describe.each(['quiz_sessions', 'video_activity_sessions'])(
       await assertSucceeds(
         setDoc(
           doc(asAnon(), `${coll}/open/responses/pin-period_1-02`),
-          joinFor(coll, pinResponse(ANON_UID))
+          joinFor(coll, { ...pinResponse(ANON_UID), pin: '02' })
         )
       );
       await assertSucceeds(

@@ -96,6 +96,9 @@ vi.mock('@/utils/guidedLearningDriveService', () => ({
     deleteSetFile() {
       return Promise.resolve();
     }
+    deleteSlideFile() {
+      return Promise.resolve();
+    }
   },
 }));
 

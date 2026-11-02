@@ -1,4 +1,4 @@
-// Super admin "View as" tab state (docs/plans/ADMIN_VIEW_AS.md D4, D6, D7); dependency-free so it loads first.
+// Super admin "View as" tab state (docs/plans/shipped/ADMIN_VIEW_AS.md D4, D6, D7); dependency-free so it loads first.
 
 import type { StudentPreviewHandoff } from '@/types/viewAs';
 

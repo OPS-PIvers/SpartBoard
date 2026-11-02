@@ -32,6 +32,8 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | components/settingsModal/sections/ConnectedAppsSection.tsx:193 | Disconnect button | One per connected app, generated per row. |
 | components/widgets/GuidedLearning/components/recorder/ | Tour recorder panel, frame review and session controls | Authoring tool for recording tours; unclear whether a tour would ever walk a teacher through it. |
 | components/backgroundsModal/BackgroundThumbnail.tsx:21 | Background select and favorite buttons | One per catalog item, generated; needs an index or id prop from every caller to key them. |
+| components/common/ (shared pickers, radiogroups, sliders, dialogs, library importer) | ActiveClassChip, AssignClassPicker, ColorPresetPicker, DialogContainer, PenColorSwatches, RosterModeControl, RosterGroupSelect, StepSlider, SurfaceColorSettings, TextSizePresetSettings, TypographySettings, UniversalStyleSettings, WidgetBuildingToggle, TabExitsPopover, MagicInput, library/* | Each renders on many surfaces; one fixed id would mean different things, so they need a caller-supplied anchor prop. |
+| components/common/library/assignStepper/MiniAppEditor.dev.tsx:19 | Inputs and button inside the sample HTML string | False positives from a template literal; nothing to tag. |
 
 ## Run log
 
@@ -52,3 +54,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-10-29 | claude/tour-anchors-2026-10-29 | Board chrome (layout, Profile & Settings sections) | 0 | 20 | 2 | 539 in 213 files |
 | 2026-10-30 | claude/tour-anchors-2026-10-30 | Board chrome (Backgrounds window) | 11 | 2 | 1 file | 525 in 207 files |
 | 2026-10-31 | claude/tour-anchors-2026-10-31 | Board chrome (settings field renderer and window style schema) | 0 | 21 | 0 | 504 in 193 files |
+| 2026-11-01 | claude/tour-anchors-2026-11-01 | Shared pieces (assignStepper dev mockups, join-blocked screen, lazy-chunk fallback) | 0 | 11 | 2 areas | 82 in 35 files |

@@ -96,16 +96,57 @@ export const badgeText = (
     ? `${minutesLeft(state, deviceNow)}m`
     : '';
 
-/** On task unless the top-level page is a web page outside the allowlist, or Lock's window left fullscreen (F2); extension and browser pages count as on task. */
+/** Browser schemes that only show browser or ChromeOS screens (and Chrome's load-error page), never a site of the student's choosing. */
+const BROWSER_SCHEMES = new Set(['chrome:', 'chrome-search:', 'chrome-error:']);
+
+/**
+ * Whether Redirect or Lock blocks a top-level page: a web page off the allowlist, or any other page that can show one
+ * (data:, file:, view-source:, another extension's page). Our own pages, browser screens and about:blank pass;
+ * blob: and filesystem: pages follow the site that made them. `ownPages` is `chrome.runtime.getURL('')`.
+ */
+export function isBlockedTopLevel(
+  url: string,
+  sites: FocusActiveSession['sites'],
+  origins: readonly string[],
+  ownPages: string
+): boolean {
+  if (!url) return false;
+  const verdict = matchFocusUrl(url, sites, origins);
+  if (verdict !== 'not-web') return verdict === 'blocked';
+  if (ownPages && url.startsWith(ownPages)) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return true;
+  }
+  const scheme = parsed.protocol.toLowerCase();
+  if (BROWSER_SCHEMES.has(scheme)) return false;
+  if (scheme === 'about:') return parsed.pathname.toLowerCase() !== 'blank';
+  if (scheme === 'blob:' || scheme === 'filesystem:') {
+    let inner: URL;
+    try {
+      inner = new URL(parsed.pathname);
+    } catch {
+      return true;
+    }
+    if (inner.protocol !== 'https:' && inner.protocol !== 'http:') return true;
+    return matchFocusUrl(`${inner.origin}/`, sites, origins) !== 'allowed';
+  }
+  return true;
+}
+
+/** On task unless the top-level page is blocked (see isBlockedTopLevel), or Lock's window left fullscreen (F2). */
 export function statusFor(
   url: string | undefined,
   session: FocusActiveSession,
   origins: readonly string[],
+  ownPages: string,
   fullscreen = true
 ): FocusReportedStatus {
   if (session.level === 'lock' && !session.released && !fullscreen)
     return 'away';
-  return url && matchFocusUrl(url, session.sites, origins) === 'blocked'
+  return url && isBlockedTopLevel(url, session.sites, origins, ownPages)
     ? 'away'
     : 'on-task';
 }

@@ -1,4 +1,4 @@
-// Results for v2 Mini App sessions, laid out like the Quiz results page (docs/plans/MINI_APP_RESULTS.md D10).
+// Results for v2 Mini App sessions, laid out like the Quiz results page (docs/plans/shipped/MINI_APP_RESULTS.md D10).
 import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft,

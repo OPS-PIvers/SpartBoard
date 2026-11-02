@@ -20,7 +20,7 @@
  */
 import '@testing-library/jest-dom';
 import React from 'react';
-import { act, render } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextUpWidget } from './Widget';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
@@ -44,7 +44,10 @@ vi.mock('@/context/useAuth', () => ({
 
 const downloadFile = vi.fn();
 const updateFileContent = vi.fn((..._args: unknown[]) => Promise.resolve());
-const driveService = { downloadFile, updateFileContent };
+const isInAppFolder = vi.fn((fileId: string) =>
+  Promise.resolve(fileId !== 'foreign-file-1')
+);
+const driveService = { downloadFile, updateFileContent, isInAppFolder };
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => ({ driveService }),
 }));
@@ -231,7 +234,7 @@ describe('NextUpWidget inside a sub share', () => {
     expect(getByText('No queue')).toBeInTheDocument();
   });
 
-  it('still runs the teacher’s own session off the share', () => {
+  it('still runs the teacher’s own session off the share', async () => {
     downloadFile.mockResolvedValue({ text: () => Promise.resolve('[]') });
     const { getByText } = render(
       <NextUpWidget
@@ -244,7 +247,9 @@ describe('NextUpWidget inside a sub share', () => {
     );
 
     expect(getByText('NEXT')).toBeInTheDocument();
-    expect(downloadFile).toHaveBeenCalledWith('queue-file');
+    await waitFor(() =>
+      expect(downloadFile).toHaveBeenCalledWith('queue-file')
+    );
   });
 });
 
@@ -304,5 +309,29 @@ describe('NextUpWidget taking in student joins', () => {
       expect(update).toEqual({ config: { lastUpdated: expect.any(Number) } });
     }
     expect(mockUpdateWidget).toHaveBeenCalled();
+  });
+
+  it('never reads or writes a queue file outside the NextUp folder', async () => {
+    downloadFile.mockClear();
+    render(
+      <NextUpWidget
+        widget={{
+          ...buildWidget({
+            isActive: true,
+            activeDriveFileId: 'foreign-file-1',
+            createdAt: Date.now(),
+          }),
+          id: 'nextup-foreign',
+        }}
+      />
+    );
+    await act(async () => {
+      entriesListener?.(entrySnap('a'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(isInAppFolder).toHaveBeenCalledWith('foreign-file-1', ['NextUp']);
+    expect(downloadFile).not.toHaveBeenCalled();
+    expect(updateFileContent).not.toHaveBeenCalled();
   });
 });

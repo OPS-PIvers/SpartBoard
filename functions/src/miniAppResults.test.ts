@@ -1,4 +1,4 @@
-// Unit tests for submitMiniAppResultV1 (docs/plans/MINI_APP_RESULTS.md D6, D8, D9).
+// Unit tests for submitMiniAppResultV1 (docs/plans/shipped/MINI_APP_RESULTS.md D6, D8, D9).
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('./firebaseAdmin', () => ({
