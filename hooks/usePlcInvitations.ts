@@ -15,9 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import { Plc, PlcInvitation } from '@/types';
-import { QuizDriveService } from '@/utils/quizDriveService';
-import { getPlcMemberEmails } from '@/utils/plc';
+import { PlcInvitation } from '@/types';
 
 const INVITATIONS_COLLECTION = 'plc_invitations';
 const PLCS_COLLECTION = 'plcs';
@@ -131,7 +129,7 @@ export const usePlcInvitations = (
   options?: UsePlcInvitationsOptions
 ): UsePlcInvitationsResult => {
   const enabled = options?.enabled ?? true;
-  const { user, googleAccessToken } = useAuth();
+  const { user } = useAuth();
   const [pendingInvites, setPendingInvites] = useState<PlcInvitation[]>([]);
   const [sentInvites, setSentInvites] = useState<PlcInvitation[]>([]);
   const [pendingLoaded, setPendingLoaded] = useState(false);
@@ -301,9 +299,7 @@ export const usePlcInvitations = (
         // between send and accept. The rule's `newMembers.size() ==
         // oldMembers.size() + 1` check then refuses the PLC update (arrayUnion
         // becomes a no-op). Close out the invite on its own so the UI stops
-        // showing it as pending. Don't `return` — fall through to the
-        // post-accept Drive reconcile below so the (now-confirmed) member
-        // still gets best-effort permission top-up.
+        // showing it as pending, then confirm membership below.
         const code = (err as { code?: string } | null)?.code;
         if (code !== 'permission-denied') throw err;
         await updateDoc(inviteRef, {
@@ -343,104 +339,8 @@ export const usePlcInvitations = (
           throw confirmErr;
         }
       }
-
-      // Post-accept: if the PLC already has a shared Google Sheet,
-      // attempt a best-effort permission reconcile. In the common case
-      // the accepter is NOT the sheet owner, so Drive returns 403 on
-      // listing permissions and `reconcilePlcSheetPermissions` short-
-      // circuits to a no-op (`skipped: true`). In rarer cases — e.g. a
-      // Workspace-domain admin whose policy lets them list permissions
-      // on a domain-shared file — this top-up succeeds. The actual
-      // load-bearing reconcile happens on the *owner's* next assign
-      // flow (see `Widget.tsx` cached-URL path).
-      //
-      // Runs after both the transactional happy path and the
-      // permission-denied fallback (where membership was already in
-      // place), so a pre-existing member who completes the invite-
-      // accept handshake still benefits.
-      //
-      // No-ops when: the sheet hasn't been created yet (first PLC
-      // assignment will pick up the new member via memberEmails); the
-      // accepter has no Google OAuth token; or the accepter isn't the
-      // sheet owner (403 on permissions list).
-      //
-      // Catch scope is deliberately narrow: only the Drive API call is
-      // swallowed. A failed `getDoc` on the just-accepted PLC indicates
-      // a rules regression (we just wrote the doc) — log loudly and
-      // skip rather than masking. The Firestore parse is pure and
-      // shouldn't throw, but if it does we'd rather see the stack.
-      if (googleAccessToken) {
-        let plcSnap: Awaited<ReturnType<typeof getDoc>> | null = null;
-        try {
-          plcSnap = await getDoc(plcRef);
-        } catch (snapErr) {
-          console.error(
-            '[usePlcInvitations] Failed to read PLC after accept (unexpected — rules regression?):',
-            snapErr
-          );
-        }
-        if (plcSnap?.exists()) {
-          const data = plcSnap.data() as {
-            sharedSheetUrl?: unknown;
-            memberEmails?: Record<string, unknown>;
-            memberUids?: unknown;
-            members?: unknown;
-            leadUid?: unknown;
-            name?: unknown;
-            createdAt?: unknown;
-            updatedAt?: unknown;
-          };
-          const sheetUrl =
-            typeof data.sharedSheetUrl === 'string'
-              ? data.sharedSheetUrl
-              : null;
-          if (sheetUrl) {
-            // Reconstruct the minimal Plc shape the helper consumes.
-            // The accept transaction has just committed so the post-
-            // accept doc must include this user in memberEmails.
-            const memberEmails: Record<string, string> = {};
-            for (const [k, v] of Object.entries(data.memberEmails ?? {})) {
-              if (typeof v === 'string') memberEmails[k] = v;
-            }
-            const emails = getPlcMemberEmails({
-              id: invite.plcId,
-              name: typeof data.name === 'string' ? data.name : '',
-              // Pass the canonical members map when present so the helper reads
-              // it; legacy PLCs without it fall back to the arrays below.
-              members:
-                data.members && typeof data.members === 'object'
-                  ? (data.members as Plc['members'])
-                  : {},
-              leadUid: typeof data.leadUid === 'string' ? data.leadUid : '',
-              memberUids: Array.isArray(data.memberUids)
-                ? data.memberUids.filter(
-                    (u): u is string => typeof u === 'string'
-                  )
-                : [],
-              memberEmails,
-              sharedSheetUrl: sheetUrl,
-              createdAt:
-                typeof data.createdAt === 'number' ? data.createdAt : 0,
-              updatedAt:
-                typeof data.updatedAt === 'number' ? data.updatedAt : 0,
-            });
-            const service = new QuizDriveService(googleAccessToken);
-            try {
-              await service.reconcilePlcSheetPermissions({
-                sheetUrl,
-                memberEmailsToShareWith: emails,
-              });
-            } catch (reconcileErr) {
-              console.error(
-                '[usePlcInvitations] PLC sheet reconcile after accept failed:',
-                reconcileErr
-              );
-            }
-          }
-        }
-      }
     },
-    [user, myEmailLower, googleAccessToken]
+    [user, myEmailLower]
   );
 
   const declineInvite = useCallback(

@@ -154,3 +154,35 @@ describe('GuidedLearningDriveService.saveSet', () => {
     expect(folderLookups()).toBe(2);
   });
 });
+
+describe('GuidedLearningDriveService.deleteSlideFile', () => {
+  const meta: Record<string, { name: string; parents: string[] }> = {
+    slideFileId1234: { name: 's.webp', parents: ['hotspotFolder1'] },
+    rosterFileId1234: { name: 'r.json', parents: ['rosterFolder12'] },
+    hotspotFolder1: { name: 'HotspotImages', parents: ['assetsFolder12'] },
+    assetsFolder12: { name: 'Assets', parents: ['appFolder12345'] },
+    rosterFolder12: { name: 'Rosters', parents: ['appFolder12345'] },
+    appFolder12345: { name: 'SpartBoard', parents: ['root'] },
+  };
+  beforeEach(() => {
+    handler = (url, init) => {
+      if ((init.method ?? 'GET') === 'DELETE') return empty(204);
+      const id = /files\/([^?]+)\?fields=/.exec(url)?.[1] ?? '';
+      return meta[id] ? json(meta[id]) : empty(404);
+    };
+  });
+  const deletes = () => calls.filter((c) => c.method === 'DELETE');
+
+  it('deletes a slide in the app slide folder', async () => {
+    await service().deleteSlideFile('slideFileId1234');
+    expect(deletes().map((c) => c.url)).toEqual([
+      'https://www.googleapis.com/drive/v3/files/slideFileId1234',
+    ]);
+  });
+
+  it('never deletes a file outside it', async () => {
+    await service().deleteSlideFile('rosterFileId1234');
+    await service().deleteSlideFile('missingFileId12');
+    expect(deletes()).toEqual([]);
+  });
+});
