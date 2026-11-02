@@ -478,6 +478,7 @@ function buildAssignmentSummary(
     live: isLiveSession(kind, channel, record) ? true : undefined,
     periodGate: hasPeriodAccess(record)
       ? {
+          accessMode: (record as PeriodAccessSessionFields).accessMode,
           periodAccess: (record as PeriodAccessSessionFields).periodAccess,
           studentAccess: (record as PeriodAccessSessionFields).studentAccess,
           periodKeys: studentPeriodKeys(record, [...studentClassIds]),

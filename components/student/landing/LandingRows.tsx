@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, Lock, MessageSquareText } from 'lucide-react';
+import { Lock, MessageSquareText } from 'lucide-react';
 import {
   KIND_CONFIG,
   type AssignmentSummary,
@@ -80,6 +80,24 @@ const Dot: React.FC = () => (
   </span>
 );
 
+const LockMark: React.FC = () => (
+  <Lock
+    className="h-4 w-4 shrink-0 text-slate-400"
+    aria-hidden="true"
+    strokeWidth={2}
+  />
+);
+
+/** The row's call to action; the whole row is the link, so this is not its own control. */
+const OpenLabel: React.FC = () => (
+  <span
+    aria-hidden="true"
+    className="shrink-0 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-brand-blue-dark"
+  >
+    Open
+  </span>
+);
+
 /** A row that says why it can't open yet instead of navigating. */
 const LockedRow: React.FC<{
   message: string;
@@ -95,26 +113,28 @@ const LockedRow: React.FC<{
       className={`${ROW_CLASS} opacity-60`}
     >
       {children}
-      <Lock
-        className="h-4 w-4 shrink-0 text-slate-400"
-        aria-hidden="true"
-        strokeWidth={2}
-      />
+      <LockMark />
     </button>
   );
 };
 
-const OpenRow: React.FC<{ href: string; children: React.ReactNode }> = ({
-  href,
-  children,
-}) => (
-  <a href={href} className={ROW_CLASS}>
+const OpenRow: React.FC<{
+  href: string;
+  children: React.ReactNode;
+  /** Shows the Open button; off for rows that are not available yet. */
+  available?: boolean;
+}> = ({ href, children, available = true }) => (
+  <a href={href} className={`${ROW_CLASS} ${available ? '' : 'opacity-60'}`}>
     {children}
-    <ChevronRight
-      className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-500"
-      aria-hidden="true"
-    />
+    {available ? <OpenLabel /> : <LockMark />}
   </a>
+);
+
+const LiveMark: React.FC = () => (
+  <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
+    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-red-500" />
+    Live
+  </span>
 );
 
 const ClassMark: React.FC<{ cls: LandingClass }> = ({ cls }) => (
@@ -181,15 +201,25 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   const periodOpensAt = periodLocked
     ? nextScheduledOpen(gate, gate.periodKeys, nowMs)
     : null;
+  // A Manual start class the teacher has started.
+  const started = !!gate && !periodLocked && gate.accessMode === 'assessment';
   const body = (
     <>
       <KindIcon kind={a.kind} />
       <span className="min-w-0 flex-1">
-        <Title muted={row.state === 'upcoming'}>{a.title}</Title>
+        <Title muted={row.state === 'upcoming' || periodLocked}>
+          {a.title}
+        </Title>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs">
           {cls && (
             <>
               <ClassMark cls={cls} />
+              <Dot />
+            </>
+          )}
+          {started && (
+            <>
+              <LiveMark />
               <Dot />
             </>
           )}
@@ -221,7 +251,12 @@ export const WorkRow: React.FC<WorkRowProps> = ({
         : 'Not available yet.';
     return <LockedRow message={message}>{body}</LockedRow>;
   }
-  return <OpenRow href={a.openHref}>{body}</OpenRow>;
+  // A class not started yet still opens, to the waiting screen where the teacher sees the student.
+  return (
+    <OpenRow href={a.openHref} available={!periodLocked}>
+      {body}
+    </OpenRow>
+  );
 };
 
 export const ResourceRow: React.FC<{ row: LandingRow; nowMs: number }> = ({
