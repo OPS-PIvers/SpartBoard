@@ -101,6 +101,8 @@ export const isStepFinished = (
   if ((step.waitSeconds ?? 0) > 0 && step.actions.length === 0) {
     return now >= stepStartedAt + (step.waitSeconds ?? 0) * 1000;
   }
+  if (step.advance === 'now') return true;
+  if (step.advance === 'next') return false;
   const map = byId(widgets);
   return step.actions.every((a) => {
     const w = map.get(a.widgetId);
@@ -263,43 +265,6 @@ const followPair = (
 };
 
 // Turns Connect-mode picks into a Sequence plus Follows; picking the first widget again makes it repeat.
-const isPauseStep = (s: ConnectionStep) =>
-  s.actions.length === 0 && (s.waitSeconds ?? 0) > 0;
-
-/** Joins a step into the one before it when that one waits for nothing, since they happen at the same moment. */
-export const mergeInstantSteps = (
-  steps: ConnectionStep[],
-  typeOf: (widgetId: string) => WidgetType | undefined
-): ConnectionStep[] => {
-  const waits = (s: ConnectionStep) =>
-    s.actions.some((a) => {
-      const type = typeOf(a.widgetId);
-      return !!type && !!actionDefFor(type, a.action)?.isFinished;
-    });
-  const out: ConnectionStep[] = [];
-  for (const s of steps) {
-    const prev = out[out.length - 1];
-    const joinable =
-      prev &&
-      !isPauseStep(prev) &&
-      !isPauseStep(s) &&
-      prev.actions.length > 0 &&
-      !waits(prev) &&
-      !s.actions.some((a) =>
-        prev.actions.some((p) => p.widgetId === a.widgetId)
-      );
-    if (joinable) {
-      out[out.length - 1] = {
-        ...prev,
-        actions: [...prev.actions, ...s.actions],
-      };
-    } else {
-      out.push(s);
-    }
-  }
-  return out;
-};
-
 // A list that can run out (names, checklist items) makes a draft loop until it does.
 const canRunOut = (steps: ConnectionStep[], picks: PickedWidget[]) => {
   const byId = new Map(picks.map((p) => [p.id, p]));
@@ -348,18 +313,13 @@ export const draftFromPicks = (
         },
       ];
     });
-  const types = new Map(picks.map((p) => [p.id, p.type]));
-  const joined = mergeInstantSteps(steps, (id) => types.get(id));
-  // Two instant widgets alone stay two steps, or there'd be no Sequence at all.
-  const merged = joined.length >= minSteps ? joined : steps;
   const sequence: SequenceConnection | null =
-    merged.length >= minSteps
+    steps.length >= minSteps
       ? {
           id: newId(),
           kind: 'sequence',
-          steps: merged,
-          repeat:
-            closesLoop || canRunOut(merged, picks) ? 'until-done' : 'once',
+          steps,
+          repeat: closesLoop || canRunOut(steps, picks) ? 'until-done' : 'once',
         }
       : null;
   return { sequence, follows };

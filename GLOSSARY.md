@@ -59,15 +59,15 @@ A Connection that runs steps in order, where each step waits for the one before 
 _Avoid_: chain, routine (Instructional Routines is a widget), automation
 
 **Step**:
-One numbered entry in a Sequence: one or more widget actions that happen at the same moment. The Sequence moves on when the step's widgets finish (a timer ends) or right away if they finish instantly (next name). The editor heads each step with what it waits for: Start, When Timer ends, Then, After the pause. A step right after one that waits for nothing joins it, since both happen at the same moment.
+One numbered card in a Sequence: a widget action, plus any side cards that happen at the same moment. The arrow under it says what moves the Sequence on: the step's widget finishing (a timer ends), right away, the Next button, or a few seconds later.
 _Avoid_: event, stage
 
 **Wait step**:
-A Step with no widget that only pauses the Sequence for a set number of seconds.
+The pause behind an arrow set to "After a few seconds". It is saved as a step with no widget, and the editor shows it on the arrow, not as a card.
 _Avoid_: delay, timer step
 
 **Follow**:
-A Connection where one widget keeps matching another the whole time, not at a moment: Music plays while a Timer runs, a QR code shows what a Text widget says.
+A Connection where one widget keeps matching another the whole time, not at a moment: Music plays while a Timer runs, a QR code shows what a Text widget says. In the editor it is a side card beside the step that starts its leader.
 _Avoid_: sync, live link, mirror
 
 **Current name**:

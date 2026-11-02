@@ -20,7 +20,7 @@ export const onHandAction = (listener: Listener): (() => void) => {
   };
 };
 
-export type RunCommand = 'start' | 'stop';
+export type RunCommand = 'start' | 'stop' | 'next';
 type CommandListener = (
   connectionId: string,
   command: RunCommand,
@@ -28,7 +28,7 @@ type CommandListener = (
 ) => void;
 const commandListeners = new Set<CommandListener>();
 
-/** Start or stop a Sequence's Run from the step badge; this device carries it out. */
+/** Start, stop or move on a Sequence's Run from the step badge; this device carries it out. */
 export const sendRunCommand = (
   connectionId: string,
   command: RunCommand,

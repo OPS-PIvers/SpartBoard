@@ -23,12 +23,15 @@ export interface ConnectionsUiState {
   editor: EditorDraft | null;
   /** Connection whose lines are drawn while its badge is hovered. */
   highlightedId: string | null;
+  /** Widget outlined on the board while its card is picked in the editor. */
+  highlightedWidgetId: string | null;
 }
 
 let state: ConnectionsUiState = {
   connectMode: null,
   editor: null,
   highlightedId: null,
+  highlightedWidgetId: null,
 };
 const listeners = new Set<() => void>();
 

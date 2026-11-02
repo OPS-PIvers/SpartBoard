@@ -91,7 +91,7 @@ const timerAction = (
 
 const randomNext: ConnectionActionDef = {
   id: 'next',
-  label: 'moves on to the next name',
+  label: 'Pick next name',
   hand: 'next',
   runsOut: (c) => (c.mode === 'shuffle' ? 'names' : undefined),
   apply: (c, now) => {
@@ -125,7 +125,7 @@ const bump = (
 
 const checklistNext: ConnectionActionDef = {
   id: 'next',
-  label: 'checks off the next item',
+  label: 'Check next item',
   hand: 'next',
   runsOut: () => 'items',
   apply: (c) => {
@@ -171,10 +171,10 @@ export const WIDGET_CONNECTIONS: Partial<
   'time-tool': {
     defaultAction: 'restart',
     actions: [
-      timerAction('restart', 'starts over from the beginning', 'restart', true),
-      timerAction('start', 'starts, or keeps going if paused', 'start', true),
-      timerAction('pause', 'pauses', 'pause', false),
-      timerAction('reset', 'resets without starting', 'reset', false),
+      timerAction('restart', 'Start', 'restart', true),
+      timerAction('start', 'Resume', 'start', true),
+      timerAction('pause', 'Pause', 'pause', false),
+      timerAction('reset', 'Reset', 'reset', false),
     ],
   },
   random: { defaultAction: 'next', actions: [randomNext] },
@@ -182,30 +182,28 @@ export const WIDGET_CONNECTIONS: Partial<
   traffic: {
     defaultAction: 'red',
     actions: [
-      setField('red', 'turns red', { active: 'red' }),
-      setField('yellow', 'turns yellow', { active: 'yellow' }),
-      setField('green', 'turns green', { active: 'green' }),
-      setField('off', 'turns off', { active: 'none' }),
+      setField('red', 'Turn red', { active: 'red' }),
+      setField('yellow', 'Turn yellow', { active: 'yellow' }),
+      setField('green', 'Turn green', { active: 'green' }),
+      setField('off', 'Turn off', { active: 'none' }),
     ],
     follows: ['sound'],
   },
   expectations: {
     defaultAction: 'voice-0',
     actions: VOLUME_OPTIONS.map((o) =>
-      setField(`voice-${o.id}`, `sets voice to ${o.label}`, {
+      setField(`voice-${o.id}`, o.label, {
         voiceLevel: o.id,
       })
     ),
   },
   nextUp: {
     defaultAction: 'next',
-    actions: [
-      bump('next', 'moves to the next student', 'externalTrigger', 'next'),
-    ],
+    actions: [bump('next', 'Next student', 'externalTrigger', 'next')],
   },
   stations: {
     defaultAction: 'rotate',
-    actions: [bump('rotate', 'rotates the groups', 'rotationTrigger', 'next')],
+    actions: [bump('rotate', 'Rotate', 'rotationTrigger', 'next')],
   },
   sound: { defaultAction: '', actions: [], follows: ['expectations'] },
   qr: { defaultAction: '', actions: [], follows: ['text'] },
@@ -216,7 +214,7 @@ export const WIDGET_CONNECTIONS: Partial<
     actions: [
       {
         id: 'next-block',
-        label: 'waits for the next block to start',
+        label: 'Wait for next block',
         apply: () => ({ patch: {} }),
         isFinished: nextBlockStarted,
         waitsFor: 'next-block',
@@ -228,7 +226,7 @@ export const WIDGET_CONNECTIONS: Partial<
     actions: [
       {
         id: 'show',
-        label: 'shows',
+        label: 'Show',
         apply: (_c, _now, params) =>
           typeof params?.symbolId === 'string'
             ? { patch: { selectedSymbolId: params.symbolId } }
@@ -242,7 +240,7 @@ export const WIDGET_CONNECTIONS: Partial<
     actions: [
       {
         id: 'show',
-        label: 'shows',
+        label: 'Show',
         apply: (c, _now, params) => {
           // Only materials the widget still offers, so a removed one can't come back.
           const offered = new Set(

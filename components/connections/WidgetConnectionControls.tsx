@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Play, Plus, Square, Workflow } from 'lucide-react';
+import {
+  Pencil,
+  Play,
+  Plus,
+  Square,
+  Workflow,
+  SkipForward,
+} from 'lucide-react';
 import type { WidgetConnection, WidgetData } from '@/types';
 import { IconButton } from '@/components/common/IconButton';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
@@ -176,6 +183,25 @@ export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
               }}
               onPointerDown={(e) => e.stopPropagation()}
             >
+              {summary.seqRunning && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  {...tourAttr(
+                    'widget.connection-next',
+                    widget.id,
+                    widget.type
+                  )}
+                  className={itemClass}
+                  onClick={() => {
+                    close();
+                    sendRunCommand(summary.seqId, 'next');
+                  }}
+                >
+                  <SkipForward className="w-4 h-4" aria-hidden="true" />
+                  {t('connections.next', { defaultValue: 'Next' })}
+                </button>
+              )}
               {summary.seqRunning ? (
                 <button
                   type="button"
@@ -237,6 +263,21 @@ const findConnection = (
   getState: ReturnType<typeof useDashboardCanvasStateGetter>,
   id: string
 ) => getState().activeDashboard?.connections?.find((c) => c.id === id);
+
+/** Outlines the widget whose card is picked in the step editor. */
+export const ConnectionWidgetHighlight: React.FC<{ widgetId: string }> = ({
+  widgetId,
+}) => {
+  const lit = useConnectionsUi((s) => s.highlightedWidgetId === widgetId);
+  if (!lit) return null;
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute -inset-1.5 rounded-[inherit] ring-4 ring-brand-blue-primary"
+      style={{ zIndex: 21 }}
+    />
+  );
+};
 
 /** Dims, numbers and highlights widgets while Connect mode is picking; it takes the tap so the widget underneath doesn't act. */
 export const ConnectPickOverlay: React.FC<{ widget: WidgetData }> = ({

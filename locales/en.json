@@ -5752,44 +5752,44 @@
     "closeWarning": "Closing removes this widget from its connection.",
     "actions": {
       "time-tool": {
-        "restart": "starts over from the beginning",
-        "start": "starts, or keeps going if paused",
-        "pause": "pauses",
-        "reset": "resets without starting"
+        "restart": "Start",
+        "start": "Resume",
+        "pause": "Pause",
+        "reset": "Reset"
       },
       "random": {
-        "next": "moves on to the next name"
+        "next": "Pick next name"
       },
       "traffic": {
-        "red": "turns red",
-        "yellow": "turns yellow",
-        "green": "turns green",
-        "off": "turns off"
+        "red": "Turn red",
+        "yellow": "Turn yellow",
+        "green": "Turn green",
+        "off": "Turn off"
       },
       "expectations": {
-        "voice-0": "sets voice to Silence",
-        "voice-1": "sets voice to Whisper",
-        "voice-2": "sets voice to Conversation",
-        "voice-3": "sets voice to Presenter",
-        "voice-4": "sets voice to Outside"
+        "voice-0": "Silence",
+        "voice-1": "Whisper",
+        "voice-2": "Conversation",
+        "voice-3": "Presenter",
+        "voice-4": "Outside"
       },
       "nextUp": {
-        "next": "moves to the next student"
+        "next": "Next student"
       },
       "stations": {
-        "rotate": "rotates the groups"
+        "rotate": "Rotate"
       },
       "checklist": {
-        "next": "checks off the next item"
+        "next": "Check next item"
       },
       "schedule": {
-        "next-block": "waits for the next block to start"
+        "next-block": "Wait for next block"
       },
       "work-symbols": {
-        "show": "shows"
+        "show": "Show"
       },
       "materials": {
-        "show": "shows"
+        "show": "Show"
       }
     },
     "editor": {
@@ -5799,50 +5799,47 @@
       "stop": "Stop",
       "seconds": "seconds",
       "actionFor": "What {{name}} does",
-      "removeAction": "Remove from this step",
-      "moveUp": "Move up",
-      "moveDown": "Move down",
-      "removeStep": "Remove",
-      "addWidget": "Add widget",
+      "removeAction": "Remove",
       "repeat": "Repeat",
-      "followsLine": "{{follower}} follows {{leader}}",
-      "removeFollow": "Remove",
       "empty": "Nothing left in this connection. Save to remove it.",
       "pickSymbol": "Pick a symbol",
       "noMaterials": "None",
       "choiceFor": "Choice for {{name}}",
+      "saveStart": "Save and start",
       "stepNumber": "Step {{n}}",
       "stepMenu": "Step {{n}} options",
-      "headStart": "Start",
-      "headAfterPause": "After the pause",
-      "headNextBlock": "When the next block starts",
-      "headEnds": "When {{names}} ends",
-      "headEndMany": "When {{names}} end",
-      "pause": "Pause",
-      "also": "Also…",
-      "addPause": "Add a pause",
-      "loopUntilNames": "Loop until every name is used",
-      "loopUntilItems": "Loop until every item is checked",
-      "loopUntilStop": "Loop until I press Stop",
-      "loopCount": "Loop a set number of times",
-      "stopAtEnd": "Stop",
-      "timesInAll": "times in all",
-      "wholeTime": "The whole time",
-      "saveStart": "Save and start",
-      "followLine": {
-        "music": "While {{leader}} runs, {{follower}} plays",
-        "qr": "{{follower}} shows what {{leader}} says",
-        "traffic": "{{follower}} changes color with {{leader}}",
-        "sound": "{{follower}} matches the {{leader}} voice level",
-        "recessGear": "{{follower}} uses the weather from {{leader}}"
-      },
-      "headThen": "Then",
-      "atTheEnd": "At the end"
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeStep": "Remove",
+      "addSide": "Add something at the same time",
+      "addStep": "Add a step",
+      "advanceEnds": "When {{names}} ends",
+      "advanceEndMany": "When {{names}} end",
+      "advanceNextBlock": "When the next block starts",
+      "advanceNow": "Right away",
+      "advanceNext": "When I press Next",
+      "advancePause": "After a few seconds",
+      "advanceFor": "What moves on from step {{n}}",
+      "repeatUntilNames": "Repeat until every name is picked",
+      "repeatUntilItems": "Repeat until every item is checked",
+      "repeatUntilStop": "Repeat until I press Stop",
+      "repeatCount": "Repeat a set number of times",
+      "repeatOnce": "Don't repeat",
+      "times": "times",
+      "timerName": "Timer {{time}}"
     },
     "nothingToStart": "The first step has nothing to do yet.",
     "stop": "Stop",
     "startFromTop": "Start from step 1",
     "editSteps": "Edit steps",
-    "classNotLoaded": "Your class is still loading. Try again in a moment."
+    "classNotLoaded": "Your class is still loading. Try again in a moment.",
+    "followAction": {
+      "music": "Play",
+      "qr": "Show the text",
+      "traffic": "Match the noise level",
+      "sound": "Match the voice level",
+      "recessGear": "Use the weather"
+    },
+    "next": "Next"
   }
 }

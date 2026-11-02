@@ -31953,6 +31953,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget.connection-next",
+    "label": "Next in a connected widget's badge menu",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget.connection-edit",
     "label": "Edit steps in a connected widget's badge menu",
     "scope": "widget",
@@ -55340,7 +55356,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.add-same-time",
-    "label": "Also button that adds a widget to a connection step",
+    "label": "'+' button beside a connection step that adds something at the same time",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -55363,7 +55379,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.remove-action",
-    "label": "Remove a widget from a connection step",
+    "label": "Remove a side card from a connection step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -55386,7 +55402,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.wait-seconds",
-    "label": "Seconds field on a connection pause",
+    "label": "Seconds box on a connection arrow",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -55432,7 +55448,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.also-option",
-    "label": "A widget in the Also menu on a connection step",
+    "label": "A widget in the '+' menu beside a connection step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -55459,6 +55475,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "closes": "own",
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.advance",
+    "label": "What moves a connection on to its next step",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "board.connections-editor",
@@ -55548,30 +55587,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.add-widget",
-    "label": "Add widget button in the connection steps window",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.connections-editor",
-        "kind": "modal",
-        "path": [
-          "widget.connect",
-          "dashboard.connect-done"
-        ],
-        "opened_by": [
-          "widget.connection-edit",
-          "widget.connect-menu.connection"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "connections.editor.add-wait",
-    "label": "Add a pause button in the connection steps window",
+    "label": "Add a step button in the connection window",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -55594,7 +55610,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.repeat",
-    "label": "Loop menu at the end of a connection",
+    "label": "Repeat menu in the connection window",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -55640,7 +55656,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "connections.editor.remove-follow",
-    "label": "Remove a follow from a connection",
+    "label": "Remove a widget that plays along with a connection step",
     "scope": "board",
     "panel": true,
     "routes": [

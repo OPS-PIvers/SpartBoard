@@ -25,6 +25,7 @@ import {
   CONNECTION_DEVICE_ID,
   onHandAction,
   onRunCommand,
+  type RunCommand,
 } from '@/utils/connectionSignals';
 import { convertLegacyConnections } from '@/utils/legacyConnections';
 
@@ -140,13 +141,13 @@ export const ConnectionsRunner: React.FC = () => {
     });
   }, [enabled]);
 
-  // Start/Stop from a step badge.
+  // Start, Stop and Next from a step badge.
   useEffect(() => {
     if (!enabled) return;
     let retry: number | undefined;
     const handle = (
       connectionId: string,
-      command: 'start' | 'stop',
+      command: RunCommand,
       tries: number,
       savedSteps?: ConnectionStep[]
     ) => {
@@ -186,6 +187,28 @@ export const ConnectionsRunner: React.FC = () => {
           latest.current.t('connections.classNotLoaded'),
           'info'
         );
+        return;
+      }
+      if (command === 'next') {
+        if (!seq.run) return;
+        const moved = advanceRun(
+          seq,
+          widgets,
+          Date.now(),
+          CONNECTION_DEVICE_ID
+        );
+        write(
+          latest.current.applyConnectionChanges,
+          board,
+          moved.patches,
+          new Map([[seq.id, moved.sequence]])
+        );
+        if (moved.finished) {
+          latest.current.addToast(
+            latest.current.t('connections.runFinished'),
+            'info'
+          );
+        }
         return;
       }
       const started = startRun(seq, widgets, Date.now(), CONNECTION_DEVICE_ID);

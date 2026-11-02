@@ -7425,6 +7425,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget.connection-next': {
+    label: "Next in a connected widget's badge menu",
+    perWidget: true,
+    panel: true,
+  },
   'widget.connection-edit': {
     label: "Edit steps in a connected widget's badge menu",
     perWidget: true,
@@ -12230,15 +12235,16 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'connections.editor.add-same-time': {
-    label: 'Also button that adds a widget to a connection step',
+    label:
+      "'+' button beside a connection step that adds something at the same time",
     panel: true,
   },
   'connections.editor.remove-action': {
-    label: 'Remove a widget from a connection step',
+    label: 'Remove a side card from a connection step',
     panel: true,
   },
   'connections.editor.wait-seconds': {
-    label: 'Seconds field on a connection pause',
+    label: 'Seconds box on a connection arrow',
     panel: true,
   },
   'connections.editor.step-menu': {
@@ -12246,13 +12252,17 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'connections.editor.also-option': {
-    label: 'A widget in the Also menu on a connection step',
+    label: "A widget in the '+' menu beside a connection step",
     panel: true,
   },
   'connections.editor.save-start': {
     label: 'Save and start button in the connection steps window',
     panel: true,
     closes: 'own',
+  },
+  'connections.editor.advance': {
+    label: 'What moves a connection on to its next step',
+    panel: true,
   },
   'connections.editor.move-up': {
     label: 'Move a connection step up',
@@ -12267,15 +12277,11 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'connections.editor.add-widget': {
-    label: 'Add widget button in the connection steps window',
-    panel: true,
-  },
-  'connections.editor.add-wait': {
-    label: 'Add a pause button in the connection steps window',
+    label: 'Add a step button in the connection window',
     panel: true,
   },
   'connections.editor.repeat': {
-    label: 'Loop menu at the end of a connection',
+    label: 'Repeat menu in the connection window',
     panel: true,
   },
   'connections.editor.repeat-count': {
@@ -12283,7 +12289,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'connections.editor.remove-follow': {
-    label: 'Remove a follow from a connection',
+    label: 'Remove a widget that plays along with a connection step',
     panel: true,
   },
   'dashboard.bg-sound-toggle': {
