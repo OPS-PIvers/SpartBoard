@@ -22,23 +22,24 @@
       "stale": false
     },
     "S1": {
-      "score": 0,
+      "score": 2,
       "source": "paul",
       "candidates": {
-        "script": 0,
+        "script": null,
         "judge": 0,
-        "paul": 0
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/random/envelope-min__empty.png",
-          "scripts/widget-grader/out/norming-1/screenshots/random/envelope-min__typical.png",
-          "scripts/widget-grader/out/norming-1/screenshots/random/envelope-min__stress.png"
+          "scripts/widget-grader/out/regrade-s1-2026-11-02/screenshots/random/envelope-min__empty.png",
+          "scripts/widget-grader/out/regrade-s1-2026-11-02/screenshots/random/envelope-min__typical.png",
+          "scripts/widget-grader/out/regrade-s1-2026-11-02/screenshots/random/envelope-min__stress.png"
         ],
-        "runId": "norming-1"
+        "runId": "regrade-s1-2026-11-02"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:27:41.665Z",
+      "note": "THe buttons are kind of secoondary content right? and they only shrink toa  certain level, of course due to tapping them....but they stay big and the names go smaaaaaal.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-11-02T21:33:28.683Z",
       "stale": false
     },
     "S2": {
