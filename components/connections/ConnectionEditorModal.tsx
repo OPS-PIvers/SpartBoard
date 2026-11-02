@@ -826,12 +826,13 @@ export const ConnectionEditorModal: React.FC<{
           <button
             type="button"
             {...tourAttr('connections.editor.add-widget')}
-            onClick={() =>
+            onClick={() => {
+              light(undefined);
               startConnectMode(board.id, null, {
                 ...draft,
                 connections: current(),
-              })
-            }
+              });
+            }}
             className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
