@@ -150,6 +150,20 @@ describe('isExpiredTombstone — >30d, null-safe (Decision 3.1)', () => {
     expect(isExpiredTombstone(ts(NOW - 1000), NOW)).toBe(false);
   });
 
+  it('waits out the grace window from the last server write, not a backdated deletedAt', () => {
+    expect(isExpiredTombstone(1, NOW, TOMBSTONE_GRACE_MS, NOW - 1000)).toBe(
+      false
+    );
+    expect(
+      isExpiredTombstone(
+        1,
+        NOW,
+        TOMBSTONE_GRACE_MS,
+        NOW - 40 * 24 * 60 * 60 * 1000
+      )
+    ).toBe(true);
+  });
+
   it('does NOT delete on a malformed (<=0) deletedAt — fail safe', () => {
     expect(isExpiredTombstone('garbage', NOW)).toBe(false);
     expect(isExpiredTombstone(0, NOW)).toBe(false);
@@ -197,6 +211,8 @@ describe('isEmptyGroup', () => {
 interface StubDoc {
   id: string;
   data: Record<string, unknown>;
+  /** Server-observed last write (ms); defaults to 0 (long ago). */
+  updateTime?: number;
   /** Subcollections keyed by name → array of child docs. */
   sub?: Record<string, StubDoc[]>;
 }
@@ -242,6 +258,7 @@ function makeStubDb(seed: {
     id: string;
     ref: Ref;
     data: () => Record<string, unknown>;
+    updateTime: { toMillis: () => number };
   }
 
   const makeRef = (doc: StubDoc, parent: StubDoc[]): Ref => ({
@@ -318,6 +335,7 @@ function makeStubDb(seed: {
           id: d.id,
           ref: makeRef(d, backing),
           data: () => d.data,
+          updateTime: { toMillis: () => d.updateTime ?? 0 },
         })),
       });
     },
@@ -434,6 +452,36 @@ describe('runGcPlcOrphans — expired tombstones (category d, Decision 3.1)', ()
       'recent-del',
     ]);
     expect(root.plcs[0].sub!.comments).toHaveLength(0);
+  });
+
+  it('keeps a backdated tombstone until 30 days after its last server write', async () => {
+    const { db, root } = makeStubDb({
+      plcs: [
+        {
+          id: 'plc-1',
+          data: {},
+          sub: {
+            comments: [
+              {
+                id: 'backdated',
+                data: { deletedAt: 1 },
+                updateTime: NOW - day,
+              },
+              {
+                id: 'backdated-old',
+                data: { deletedAt: 1 },
+                updateTime: NOW - 40 * day,
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.tombstones).toBe(1);
+    expect(root.plcs[0].sub!.comments.map((d) => d.id)).toEqual(['backdated']);
   });
 
   it('sweeps every soft-deletable subcollection name', async () => {
