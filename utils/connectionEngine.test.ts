@@ -64,13 +64,15 @@ const shareout = (): SequenceConnection => {
 };
 
 describe('draftFromPicks', () => {
-  it('turns Randomizer, Timer, Timer, Randomizer into a repeating three-step Sequence', () => {
+  it('turns Randomizer, Timer, Timer, Randomizer into next name with Shareout, then Transition, repeating', () => {
     const seq = shareout();
     expect(seq.repeat).toBe('until-done');
-    expect(seq.steps.map((s) => s.actions[0])).toEqual([
-      { widgetId: 'r', action: 'next' },
-      { widgetId: 't1', action: 'restart' },
-      { widgetId: 't2', action: 'restart' },
+    expect(seq.steps.map((s) => s.actions)).toEqual([
+      [
+        { widgetId: 'r', action: 'next' },
+        { widgetId: 't1', action: 'restart' },
+      ],
+      [{ widgetId: 't2', action: 'restart' }],
     ]);
   });
 
@@ -125,18 +127,34 @@ describe('draftFromPicks', () => {
   });
 });
 
+describe('hand actions inside a joined step', () => {
+  it('a hand Next name still starts the timer that follows it', () => {
+    const seq = shareout();
+    const widgets = [
+      shuffle(['Ana', 'Ben']),
+      timer('t1', 120),
+      timer('t2', 30),
+    ];
+    const joined = joinRunByHand(seq, widgets, 'r', 'next', 5, 'dev-a');
+    expect(joined?.sequence.run?.stepIndex).toBe(0);
+    expect(joined?.patches.r).toBeUndefined();
+    expect(joined?.patches.t1).toMatchObject({ isRunning: true });
+  });
+});
+
 describe('shareout loop', () => {
   it('runs every name through both timers, then stops after the last name', () => {
     let seq = shareout();
     let widgets = [shuffle(['Ana', 'Ben']), timer('t1', 120), timer('t2', 30)];
     let now = 1_000_000;
 
-    // Teacher presses play on Shareout: the Run joins at step 2.
+    // Teacher presses play on Shareout: the Run joins step 1 without skipping Ana.
     const startT1 = { isRunning: true, startTime: now, elapsedTime: 120 };
     widgets = apply(widgets, { t1: startT1 });
     const joined = joinRunByHand(seq, widgets, 't1', 'start', now, 'dev-a');
     if (!joined) throw new Error('did not join');
-    expect(joined.sequence.run?.stepIndex).toBe(1);
+    expect(joined.sequence.run?.stepIndex).toBe(0);
+    expect(joined.patches).toEqual({});
     seq = joined.sequence;
 
     const step = (s: SequenceConnection) => s.steps[s.run?.stepIndex ?? 0];
@@ -149,20 +167,17 @@ describe('shareout loop', () => {
     seq = r.sequence;
     widgets = apply(widgets, r.patches);
 
-    // Transition ends: next name crosses Ana off, then Shareout restarts.
+    // Transition ends: Ana is crossed off and Shareout restarts in the same moment.
     now += 30_000;
     expect(isStepFinished(step(seq), widgets, now, now)).toBe(true);
     r = advanceRun(seq, widgets, now, 'dev-a');
     expect(r.patches.r).toEqual({ doneNames: ['Ana'] });
+    expect(r.patches.t1).toMatchObject({ isRunning: true, elapsedTime: 120 });
     widgets = apply(widgets, r.patches);
     seq = r.sequence;
     expect(currentShuffleName(widgets[0].config as never)).toBe('Ben');
-    r = advanceRun(seq, widgets, now, 'dev-a');
-    expect(r.patches.t1).toMatchObject({ isRunning: true, elapsedTime: 120 });
-    seq = r.sequence;
-    widgets = apply(widgets, r.patches);
 
-    // Ben's turn and transition, then the last cross-off ends the Run.
+    // Ben's turn and transition, then the last cross-off ends the Run without restarting Shareout.
     now += 120_000;
     r = advanceRun(seq, widgets, now, 'dev-a');
     seq = r.sequence;
@@ -171,6 +186,7 @@ describe('shareout loop', () => {
     r = advanceRun(seq, widgets, now, 'dev-a');
     expect(r.finished).toBe(true);
     expect(r.patches.r).toEqual({ doneNames: ['Ana', 'Ben'] });
+    expect(r.patches.t1).toBeUndefined();
     expect(r.sequence.run).toBeNull();
   });
 

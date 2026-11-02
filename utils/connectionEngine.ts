@@ -69,14 +69,12 @@ export interface StepApplyResult {
 export const applyStep = (
   step: ConnectionStep,
   widgets: WidgetData[],
-  now: number,
-  skipWidgetId?: string
+  now: number
 ): StepApplyResult => {
   const map = byId(widgets);
   const patches: WidgetPatches = {};
   let ends = false;
   for (const a of step.actions) {
-    if (a.widgetId === skipWidgetId) continue;
     const w = map.get(a.widgetId);
     if (!w) continue;
     const def = actionDefFor(w.type, a.action);
@@ -85,7 +83,11 @@ export const applyStep = (
     const result = def.apply(config, now, a.params);
     if (!result) return { patches: {}, blocked: true, ends: false };
     patches[w.id] = { ...(patches[w.id] ?? {}), ...result.patch };
-    if (result.ends) ends = true;
+    // Once a list runs out, the rest of the step doesn't happen.
+    if (result.ends) {
+      ends = true;
+      break;
+    }
   }
   return { patches, blocked: false, ends };
 };
@@ -183,7 +185,15 @@ export const joinRunByHand = (
   const order = steps.map((_, i) => (current + 1 + i) % steps.length);
   const index = order.find((i) => matches(steps[i]));
   if (index === undefined) return null;
-  const applied = applyStep(steps[index], widgets, now, widgetId);
+  // The press counts as everything in the step up to it; only what comes after still happens.
+  const pressedAt = steps[index].actions.findIndex(
+    (a) => a.widgetId === widgetId
+  );
+  const rest = {
+    ...steps[index],
+    actions: steps[index].actions.slice(pressedAt + 1),
+  };
+  const applied = applyStep(rest, widgets, now);
   return {
     sequence: {
       ...seq,
@@ -256,7 +266,7 @@ const followPair = (
 const isPauseStep = (s: ConnectionStep) =>
   s.actions.length === 0 && (s.waitSeconds ?? 0) > 0;
 
-/** Joins back-to-back steps that wait for nothing, since they'd happen at the same moment anyway. */
+/** Joins a step into the one before it when that one waits for nothing, since they happen at the same moment. */
 export const mergeInstantSteps = (
   steps: ConnectionStep[],
   typeOf: (widgetId: string) => WidgetType | undefined
@@ -275,7 +285,6 @@ export const mergeInstantSteps = (
       !isPauseStep(s) &&
       prev.actions.length > 0 &&
       !waits(prev) &&
-      !waits(s) &&
       !s.actions.some((a) =>
         prev.actions.some((p) => p.widgetId === a.widgetId)
       );
