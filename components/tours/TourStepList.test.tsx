@@ -60,6 +60,17 @@ describe('TourStepList', () => {
     expect(items[1]).toHaveTextContent('2Pick a board.');
   });
 
+  it('keeps the line breaks the author typed', () => {
+    const broken = {
+      ...set,
+      steps: [{ ...set.steps[0], text: 'Click it.\n\nThen wait.' }],
+    } as GuidedLearningSet;
+    render(<TourStepList set={broken} />);
+    const body = screen.getByText(/Then wait/);
+    expect(body).toHaveClass('whitespace-pre-line');
+    expect(body.textContent).toBe('Click it.\n\nThen wait.');
+  });
+
   it('shows each thumbnail once and skips steps without one', () => {
     const { container } = render(<TourStepList set={set} />);
     const srcs = [...container.querySelectorAll('img')].map((i) =>

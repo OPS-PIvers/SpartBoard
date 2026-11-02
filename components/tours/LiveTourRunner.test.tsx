@@ -674,6 +674,20 @@ describe('LiveTourRunner', () => {
     warn.mockRestore();
   });
 
+  it('keeps the line breaks the author typed in the step text', async () => {
+    const set = makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]);
+    (set.steps[0] as { text?: string }).text =
+      'Click **Completed**.\n\n*If the quiz is live, end it.';
+    await start(set);
+    await frames();
+    const body = screen.getByText(/If the quiz is live/, { selector: 'p' });
+    expect(body).toHaveClass('whitespace-pre-line');
+    expect(body.textContent).toBe(
+      'Click Completed.\n\n*If the quiz is live, end it.'
+    );
+    expect(body.querySelector('strong')).toHaveTextContent('Completed');
+  });
+
   it("keeps the step's own text when its anchor is missing", async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const set = makeSet([{ anchor: 'sidebar.classes', action: 'click' }]);
