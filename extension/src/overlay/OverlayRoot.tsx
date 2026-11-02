@@ -242,7 +242,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
         )}
         {!done && (
           <p className="whitespace-pre-line text-sm text-slate-700">
-            {state.text}
+            {state.text.trim()}
           </p>
         )}
         {state.status === 'wrong-page' && (

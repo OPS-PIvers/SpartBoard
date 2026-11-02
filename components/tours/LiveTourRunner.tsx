@@ -2328,9 +2328,9 @@ export const LiveTourRunner: React.FC = () => {
               <TourMiniPlayer set={tour.set} step={step} />
             </Suspense>
           )}
-          {step.text && (
+          {step.text?.trim() && (
             <p className="whitespace-pre-line text-sm text-slate-600">
-              {renderStepText(step.text)}
+              {renderStepText(step.text.trim())}
             </p>
           )}
           {!isMissing && plain && step.question?.text.trim() && (
