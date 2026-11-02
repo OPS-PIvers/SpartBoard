@@ -26,6 +26,8 @@ import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
 const PROJECT_ID = 'spartboard-security-batch-1a';
 const SESSION = 'sb1a-session';
 const ROSTERED = 'sb1a-rostered';
+const LOCAL_ROSTER = 'sb1a-local-roster';
+const PERIODS = 'sb1a-periods';
 const TEACHER = 'teacher-sb1a';
 const ADMIN_UID = 'admin-sb1a';
 const ADMIN_EMAIL = 'admin-sb1a@orono.k12.mn.us';
@@ -117,6 +119,19 @@ beforeEach(async () => {
       status: 'active',
       code: 'SB1AR',
       rosterIds: ['roster-1'],
+      classIds: [CLASS],
+    });
+    await setDoc(doc(db, `quiz_sessions/${LOCAL_ROSTER}`), {
+      teacherUid: TEACHER,
+      status: 'active',
+      code: 'SB1AL',
+      rosterIds: ['local-roster'],
+    });
+    await setDoc(doc(db, `quiz_sessions/${PERIODS}`), {
+      teacherUid: TEACHER,
+      status: 'active',
+      code: 'SB1AP',
+      periodNames: ['Period 1', 'Period 2'],
     });
   });
 });
@@ -176,6 +191,30 @@ describe('anonymous PIN responses: one doc per roster seat', () => {
     );
   });
 
+  it('takes only a period the session offers when it lists periods', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(
+          anonDb(ANON),
+          `quiz_sessions/${PERIODS}/responses/${pinKey('Period 2', '4821')}`
+        ),
+        joinDoc(ANON, { pin: '4821', classPeriod: 'Period 2' })
+      )
+    );
+    for (const [key, extra] of [
+      [pinKey('', '4821'), { pin: '4821' }],
+      [pinKey('period 2', '4821'), { pin: '4821', classPeriod: 'period 2' }],
+      [pinKey('Period 9', '4821'), { pin: '4821', classPeriod: 'Period 9' }],
+    ] as const) {
+      await assertFails(
+        setDoc(
+          doc(anonDb(ANON_OTHER), `quiz_sessions/${PERIODS}/responses/${key}`),
+          joinDoc(ANON_OTHER, extra)
+        )
+      );
+    }
+  });
+
   it('caps the stored PIN at 10 characters', async () => {
     const long = '12345678901';
     await assertFails(
@@ -231,6 +270,18 @@ describe('rostered sessions: sign-in PINs join through the bridge', () => {
           `quiz_sessions/${ROSTERED}/responses/${pinKey('Period 1', '05')}`
         ),
         joinDoc(ANON, { pin: '05', classPeriod: 'Period 1' })
+      )
+    );
+  });
+
+  it('still takes a long PIN on a local roster with no ClassLink class', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(
+          anonDb(ANON),
+          `quiz_sessions/${LOCAL_ROSTER}/responses/${pinKey('Period 1', '123456')}`
+        ),
+        joinDoc(ANON, { pin: '123456', classPeriod: 'Period 1' })
       )
     );
   });

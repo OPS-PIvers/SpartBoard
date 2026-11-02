@@ -5012,16 +5012,20 @@ service cloud.firestore {
         }
 
         // PIN keys: one doc per roster seat, keyed by the canonical encoding of the
-        // doc's own period and PIN (encodeResponseKeySegment). A sign-in-length PIN
-        // on a rostered session joins through pinLoginV1, which rate-limits guesses.
+        // doc's own period (one the session offers) and PIN (encodeResponseKeySegment).
+        // A sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1,
+        // which rate-limits guesses.
         function keySeg(v) {
           let t = v.trim().lower().replace('[^a-z0-9]+', '_').replace('^_+|_+$', '');
           return t == '' ? 'default' : t;
         }
         function pinKeyOk(s, d) {
           let p = keySeg(d.get('pin', ''));
+          let pn = s.get('periodNames', []);
           return responseKey == 'pin-' + keySeg(d.get('classPeriod', '')) + '-' + p &&
-            (s.get('rosterIds', []).size() == 0 || p.replace('_', '').size() < 6);
+            (pn.size() == 0 || d.get('classPeriod', '') in pn) &&
+            (s.get('rosterIds', []).size() == 0 || s.get('classIds', []).size() == 0 ||
+             p.replace('_', '').size() < 6);
         }
 
         // A missing doc is readable only at the caller's own uid key, so a
