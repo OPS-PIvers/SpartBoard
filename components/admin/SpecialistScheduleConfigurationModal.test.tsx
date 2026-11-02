@@ -188,6 +188,21 @@ describe('SpecialistScheduleConfigurationModal', () => {
     ).toBeUndefined();
   });
 
+  it('lets the cycle length field be cleared without snapping back to 6', () => {
+    mockUseAdminBuildings.mockReturnValue(building('schumann'));
+    render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
+
+    const input = document.getElementById(
+      'specialist-cycle-length'
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '12' } });
+    expect(input.value).toBe('12');
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input.value).toBe('');
+    fireEvent.change(input, { target: { value: '9' } });
+    expect(input.value).toBe('9');
+  });
+
   it('renders one date-range card per configured block count in blocks mode', async () => {
     mockIsAuthBypass = false;
     mockUseAdminBuildings.mockReturnValue(building('intermediate'));
