@@ -10464,6 +10464,8 @@ export interface ConnectionAction {
   widgetId: string;
   /** Action id from config/widgetConnections.ts, e.g. 'restart', 'next'. */
   action: string;
+  /** The step's own choice for actions that take one, e.g. which Work Symbol to show. */
+  params?: Record<string, unknown>;
 }
 
 /** One numbered Step; no actions plus `waitSeconds` makes it a Wait step. */

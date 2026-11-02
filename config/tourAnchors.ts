@@ -7415,6 +7415,21 @@ export const TOUR_ANCHORS = {
     label: 'Step number badge on a connected widget',
     perWidget: true,
   },
+  'widget.connection-start': {
+    label: "Start from step 1 in a connected widget's badge menu",
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connection-stop': {
+    label: "Stop in a connected widget's badge menu",
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connection-edit': {
+    label: "Edit steps in a connected widget's badge menu",
+    perWidget: true,
+    panel: true,
+  },
   'widget.snap-layout.option': {
     label: 'Snap zone option in the widget snap layout popover',
     perField: true,
@@ -12204,6 +12219,14 @@ export const TOUR_ANCHORS = {
   },
   'connections.editor.step-action': {
     label: 'What a widget does in a connection step',
+    panel: true,
+  },
+  'connections.editor.step-choice': {
+    label: 'The symbol or materials a connection step shows',
+    panel: true,
+  },
+  'connections.editor.material-option': {
+    label: "A material row in a connection step's materials menu",
     panel: true,
   },
   'connections.editor.add-same-time': {

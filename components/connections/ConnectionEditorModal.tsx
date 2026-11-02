@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import type {
+  ConnectionAction,
   ConnectionStep,
   Dashboard,
   SequenceConnection,
@@ -27,11 +28,20 @@ import { connectionDefFor } from '@/config/widgetConnections';
 import { isConnectionLive } from '@/utils/connectionEngine';
 import { getTitle } from '@/utils/widgetHelpers';
 import { tourAttr } from '@/config/tourAnchors';
+import { StepParamPicker } from './StepParamPicker';
 
 const MAX_WAIT_SECONDS = 600;
 const MAX_REPEAT = 99;
 
 const newStepId = () => crypto.randomUUID();
+
+// An action on a widget with its step choice prefilled from what the widget shows now.
+const withDefaults = (w: WidgetData, action: string): ConnectionAction => {
+  const params = connectionDefFor(w.type)
+    ?.actions.find((a) => a.id === action)
+    ?.defaultParams?.(w.config as Record<string, unknown>);
+  return { widgetId: w.id, action, ...(params && { params }) };
+};
 
 // Board widget names, numbered when two share a title ("Timer", "Timer 2").
 const useWidgetNames = (widgets: WidgetData[]) =>
@@ -284,7 +294,7 @@ export const ConnectionEditorModal: React.FC<{
                                   ...step,
                                   actions: step.actions.map((x, j) =>
                                     j === k
-                                      ? { ...x, action: e.target.value }
+                                      ? withDefaults(w, e.target.value)
                                       : x
                                   ),
                                 })
@@ -297,6 +307,23 @@ export const ConnectionEditorModal: React.FC<{
                                 </option>
                               ))}
                             </select>
+                            <StepParamPicker
+                              widget={w}
+                              action={a.action}
+                              params={a.params}
+                              label={t('connections.editor.choiceFor', {
+                                name: names.get(w.id),
+                                defaultValue: 'Choice for {{name}}',
+                              })}
+                              onChange={(params) =>
+                                updateStep(i, {
+                                  ...step,
+                                  actions: step.actions.map((x, j) =>
+                                    j === k ? { ...x, params } : x
+                                  ),
+                                })
+                              }
+                            />
                             {step.actions.length > 1 && (
                               <button
                                 type="button"
@@ -340,10 +367,7 @@ export const ConnectionEditorModal: React.FC<{
                           if (!w || !action) return;
                           updateStep(i, {
                             ...step,
-                            actions: [
-                              ...step.actions,
-                              { widgetId: w.id, action },
-                            ],
+                            actions: [...step.actions, withDefaults(w, action)],
                           });
                         }}
                         className="self-start rounded-lg border border-dashed border-slate-300 bg-transparent px-2 py-1 text-xs text-slate-600"

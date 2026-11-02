@@ -67,7 +67,9 @@ export const ConnectModeBar: React.FC = () => {
     const byId = new Map(activeDashboard.widgets.map((w) => [w.id, w]));
     const picks: PickedWidget[] = mode.picks.flatMap((id) => {
       const w = byId.get(id);
-      return w ? [{ id, type: w.type }] : [];
+      return w
+        ? [{ id, type: w.type, config: w.config as Record<string, unknown> }]
+        : [];
     });
     if (mode.draft) {
       // Added widgets join the open draft as further steps.

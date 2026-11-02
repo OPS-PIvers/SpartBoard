@@ -4402,7 +4402,7 @@
   },
   "tourPicker": {
     "prompt": "Cliquez sur une commande pour cette étape",
-    "altHint": "Maintenez Alt pour ouvrir d'abord un menu",
+    "menuHint": "Maintenez {{key}} et cliquez pour ouvrir d'abord un menu",
     "chooseFromList": "Choisir dans la liste",
     "cancel": "Annuler",
     "search": "Rechercher des commandes",
