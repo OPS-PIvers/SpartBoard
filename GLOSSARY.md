@@ -39,3 +39,41 @@ _Avoid_: attachment
 **Attribution**:
 The Source URL or file name recorded on a Library item made by Conversion.
 _Avoid_: citation, provenance
+
+## Boards and widgets
+
+**Group**:
+Widgets joined so they move together on the board. Started from the chain (link) button on a widget's toolbar. Grouping never changes what a widget does.
+_Avoid_: link (for a Connection), bundle
+
+**Connection**:
+A teacher-made relationship between widgets on one board that makes one widget act when another does something. Started from the connect button on a widget's toolbar, never from a widget's settings.
+_Avoid_: link, nexus, trigger (for the whole relationship)
+
+**Connect mode**:
+What the board enters after the Connect button is pressed: widgets that can join glow, and each one the teacher clicks gets the next number until Done.
+_Avoid_: link mode, group mode (that is for Groups)
+
+**Sequence**:
+A Connection that runs steps in order, where each step waits for the one before it to finish and the whole list can repeat. "Next name, then Shareout timer, then Transition timer, repeat" is one Sequence.
+_Avoid_: chain, routine (Instructional Routines is a widget), automation
+
+**Step**:
+One numbered entry in a Sequence: one or more widget actions that happen at the same moment. The Sequence moves on when the step's widgets finish (a timer ends) or right away if they finish instantly (next name).
+_Avoid_: event, stage
+
+**Wait step**:
+A Step with no widget that only pauses the Sequence for a set number of seconds.
+_Avoid_: delay, timer step
+
+**Follow**:
+A Connection where one widget keeps matching another the whole time, not at a moment: Music plays while a Timer runs, a QR code shows what a Text widget says.
+_Avoid_: sync, live link, mirror
+
+**Current name**:
+In the Randomizer's shuffle list, the highlighted first name that isn't done. "Next name" marks it done and highlights the one after it; locked names are skipped.
+_Avoid_: active name, selected student
+
+**Run**:
+One pass of a Sequence from the moment a teacher starts any of its steps by hand until it stops. A Run belongs to the device it started on; other open copies of the board only show it.
+_Avoid_: session (that is a student activity), playback
