@@ -1,5 +1,11 @@
 // What each widget can do inside a Connection (docs/adr/0002). A widget type absent here can't be connected.
-import type { RandomConfig, TimeToolConfig, WidgetType } from '@/types';
+import type {
+  ChecklistConfig,
+  RandomConfig,
+  ScheduleConfig,
+  TimeToolConfig,
+  WidgetType,
+} from '@/types';
 import {
   clockStateOf,
   secondsAt,
@@ -7,6 +13,14 @@ import {
 } from '@/utils/timeToolClock';
 import { currentShuffleName } from '@/utils/randomCurrentName';
 import { VOLUME_OPTIONS } from '@/config/expectationsData';
+import {
+  checkOffCurrent,
+  checklistUsesClassRoster,
+} from '@/utils/checklistCurrent';
+import {
+  computeEffectiveTimes,
+  resolveActiveSchedule,
+} from '@/components/widgets/Schedule/utils';
 
 type Config = Record<string, unknown>;
 
@@ -20,9 +34,15 @@ export interface ConnectionActionDef {
   id: string;
   label: string;
   /** The change to make, or null when the widget has nothing to do (the Sequence stops). */
-  apply: (config: Config, now: number) => ConnectionActionResult | null;
+  apply: (
+    config: Config,
+    now: number,
+    params?: Record<string, unknown>
+  ) => ConnectionActionResult | null;
   /** Present when the step waits for this widget: true once it has finished. */
-  isFinished?: (config: Config, now: number) => boolean;
+  isFinished?: (config: Config, now: number, stepStartedAt: number) => boolean;
+  /** The step's own choice, prefilled from the widget when it's picked. */
+  defaultParams?: (config: Config) => Record<string, unknown>;
   /** The hand action, reported by the widget, that counts as doing this step. */
   hand?: ConnectionHandAction;
 }
@@ -101,6 +121,44 @@ const bump = (
   apply: (_c, now) => ({ patch: { [field]: now } }),
 });
 
+const checklistNext: ConnectionActionDef = {
+  id: 'next',
+  label: 'Check off the next item',
+  hand: 'next',
+  apply: (c, now) => {
+    const cl = c as unknown as ChecklistConfig;
+    // A class roster's order lives in the roster, so the widget checks off the next name itself.
+    if (checklistUsesClassRoster(cl)) return { patch: { nextTrigger: now } };
+    const result = checkOffCurrent(cl);
+    return result ? { patch: result.patch, ends: result.ends } : null;
+  },
+};
+
+const secondsOfDay = (t: number) => {
+  const d = new Date(t);
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+};
+
+// Done once a block that starts after the step began has started; a new day counts as done.
+const nextBlockStarted = (c: Config, now: number, startedAt: number) => {
+  if (new Date(now).toDateString() !== new Date(startedAt).toDateString()) {
+    return true;
+  }
+  const sc = c as unknown as ScheduleConfig;
+  const active = resolveActiveSchedule(
+    sc.schedules ?? [],
+    sc.items ?? [],
+    new Date(now).getDay()
+  );
+  if (!active) return false;
+  const from = secondsOfDay(startedAt);
+  const starts = computeEffectiveTimes(active.schedule.items)
+    .filter((t) => !t.isIdle && t.startSec > from)
+    .map((t) => t.startSec);
+  if (starts.length === 0) return false;
+  return secondsOfDay(now) >= Math.min(...starts);
+};
+
 export const WIDGET_CONNECTIONS: Partial<
   Record<WidgetType, WidgetConnectionDef>
 > = {
@@ -142,6 +200,49 @@ export const WIDGET_CONNECTIONS: Partial<
   sound: { defaultAction: '', actions: [], follows: ['expectations'] },
   qr: { defaultAction: '', actions: [], follows: ['text'] },
   recessGear: { defaultAction: '', actions: [], follows: ['weather'] },
+  checklist: { defaultAction: 'next', actions: [checklistNext] },
+  schedule: {
+    defaultAction: 'next-block',
+    actions: [
+      {
+        id: 'next-block',
+        label: 'Wait until the next block starts',
+        apply: () => ({ patch: {} }),
+        isFinished: nextBlockStarted,
+      },
+    ],
+  },
+  'work-symbols': {
+    defaultAction: 'show',
+    actions: [
+      {
+        id: 'show',
+        label: 'Show a symbol',
+        apply: (_c, _now, params) =>
+          typeof params?.symbolId === 'string'
+            ? { patch: { selectedSymbolId: params.symbolId } }
+            : { patch: {} },
+        defaultParams: (c) => ({ symbolId: c.selectedSymbolId ?? null }),
+      },
+    ],
+  },
+  materials: {
+    defaultAction: 'show',
+    actions: [
+      {
+        id: 'show',
+        label: 'Show materials',
+        apply: (_c, _now, params) => ({
+          patch: {
+            activeItems: Array.isArray(params?.items) ? params.items : [],
+          },
+        }),
+        defaultParams: (c) => ({
+          items: Array.isArray(c.activeItems) ? c.activeItems : [],
+        }),
+      },
+    ],
+  },
   text: { defaultAction: '', actions: [] },
   weather: { defaultAction: '', actions: [] },
 };

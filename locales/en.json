@@ -5778,6 +5778,18 @@
       },
       "stations": {
         "rotate": "Rotate stations"
+      },
+      "checklist": {
+        "next": "Check off the next item"
+      },
+      "schedule": {
+        "next-block": "Wait until the next block starts"
+      },
+      "work-symbols": {
+        "show": "Show a symbol"
+      },
+      "materials": {
+        "show": "Show materials"
       }
     },
     "editor": {
@@ -5803,7 +5815,14 @@
       "follows": "Follows",
       "followsLine": "{{follower}} follows {{leader}}",
       "removeFollow": "Remove",
-      "empty": "Nothing left in this connection. Save to remove it."
-    }
+      "empty": "Nothing left in this connection. Save to remove it.",
+      "pickSymbol": "Pick a symbol",
+      "noMaterials": "None",
+      "choiceFor": "Choice for {{name}}"
+    },
+    "nothingToStart": "The first step has nothing to do yet.",
+    "stop": "Stop",
+    "startFromTop": "Start from step 1",
+    "editSteps": "Edit steps"
   }
 }

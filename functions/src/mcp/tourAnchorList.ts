@@ -31915,6 +31915,63 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget.connection-start",
+    "label": "Start from step 1 in a connected widget's badge menu",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [
+          "widget.connection-badge"
+        ],
+        "reveal": "widget.connection-badge",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connection-stop",
+    "label": "Stop in a connected widget's badge menu",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [
+          "widget.connection-badge"
+        ],
+        "reveal": "widget.connection-badge",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connection-edit",
+    "label": "Edit steps in a connected widget's badge menu",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [
+          "widget.connection-badge"
+        ],
+        "reveal": "widget.connection-badge",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget.snap-layout.option",
     "label": "Snap zone option in the widget snap layout popover",
     "scope": "field",
@@ -55107,7 +55164,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55131,7 +55188,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55155,7 +55212,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55180,7 +55237,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55203,7 +55260,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55226,7 +55283,53 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.step-choice",
+    "label": "The symbol or materials a connection step shows",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.material-option",
+    "label": "A material row in a connection step's materials menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55249,7 +55352,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55272,7 +55375,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55295,7 +55398,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55318,7 +55421,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55341,7 +55444,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55364,7 +55467,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55387,7 +55490,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55410,7 +55513,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55433,7 +55536,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55456,7 +55559,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [
@@ -55479,7 +55582,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dashboard.connect-done"
         ],
         "opened_by": [
-          "widget.connection-badge",
+          "widget.connection-edit",
           "widget.connect-menu.connection"
         ],
         "needs": [

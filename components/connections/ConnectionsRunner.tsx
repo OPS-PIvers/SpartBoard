@@ -7,11 +7,16 @@ import type { Dashboard, SequenceConnection, WidgetConnection } from '@/types';
 import {
   advanceRun,
   isStepFinished,
+  startRun,
   joinRunByHand,
   liveSteps,
   type WidgetPatches,
 } from '@/utils/connectionEngine';
-import { CONNECTION_DEVICE_ID, onHandAction } from '@/utils/connectionSignals';
+import {
+  CONNECTION_DEVICE_ID,
+  onHandAction,
+  onRunCommand,
+} from '@/utils/connectionSignals';
 import { convertLegacyConnections } from '@/utils/legacyConnections';
 
 type ApplyChanges = DashboardContextValue['applyConnectionChanges'];
@@ -74,6 +79,49 @@ export const ConnectionsRunner: React.FC = () => {
       }
       if (updated.size > 0)
         write(latest.current.applyConnectionChanges, board, patches, updated);
+    });
+  }, [enabled]);
+
+  // Start/Stop from a step badge.
+  useEffect(() => {
+    if (!enabled) return;
+    return onRunCommand((connectionId, command) => {
+      const board = latest.current.dashboards.find((d) =>
+        (d.connections ?? []).some((c) => c.id === connectionId)
+      );
+      const seq = board?.connections?.find(
+        (c): c is SequenceConnection =>
+          c.id === connectionId && c.kind === 'sequence'
+      );
+      if (!board || !seq) return;
+      if (command === 'stop') {
+        write(
+          latest.current.applyConnectionChanges,
+          board,
+          {},
+          new Map([[seq.id, { ...seq, run: null }]])
+        );
+        return;
+      }
+      const started = startRun(
+        seq,
+        board.widgets,
+        Date.now(),
+        CONNECTION_DEVICE_ID
+      );
+      if (!started) {
+        latest.current.addToast(
+          latest.current.t('connections.nothingToStart'),
+          'info'
+        );
+        return;
+      }
+      write(
+        latest.current.applyConnectionChanges,
+        board,
+        started.patches,
+        new Map([[seq.id, started.sequence]])
+      );
     });
   }, [enabled]);
 
