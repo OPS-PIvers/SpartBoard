@@ -5,7 +5,7 @@
 //   ltiExchange (onCall)                            — SPA trades the launch code for context (+ a
 //                                                     studentRole custom token for Learner launches)
 //
-// Cookieless by design: the OIDC state/nonce live in Firestore (stores.ts), not a 3rd-party cookie.
+// The OIDC state/nonce live in Firestore (stores.ts); a partitioned cookie binds them to the login browser.
 // region is set explicitly (separate-file functions run before index.ts setGlobalOptions).
 
 import { onRequest, onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -31,7 +31,7 @@ import type { LtiTargetSessionArgs } from './nrpsStore';
 import { chooseLaunchUid } from './preLinkResponse';
 import {
   putOidcState,
-  consumeOidcState,
+  consumeOidcStateRecord,
   mintLaunchCode,
   consumeLaunchCode,
   newOpaqueId,
@@ -42,6 +42,16 @@ import {
   resolveOrgIdForDomain,
 } from '../classlinkShared';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import {
+  bindingIdFor,
+  hashBindingId,
+  bindingCookieHeader,
+  checkBinding,
+  browserFamily,
+  restartLoginPath,
+  restartPageHtml,
+} from './browserBinding';
+import type { LoginRestartParams } from './browserBinding';
 
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
   'STUDENT_PSEUDONYM_HMAC_SECRET'
@@ -103,7 +113,20 @@ export const ltiLogin = onRequest(
 
       const state = newOpaqueId(32);
       const nonce = newOpaqueId(32);
-      await putOidcState(db, state, nonce);
+      const bindingId = bindingIdFor(req.get('cookie'));
+      const loginParams: LoginRestartParams = {
+        iss: p.iss ?? null,
+        login_hint: p.login_hint,
+        target_link_uri: p.target_link_uri ?? null,
+        lti_message_hint: p.lti_message_hint ?? null,
+        client_id: p.client_id ?? null,
+        lti_deployment_id: p.lti_deployment_id ?? null,
+      };
+      await putOidcState(db, state, nonce, {
+        bindingHash: hashBindingId(bindingId),
+        loginParams: { ...loginParams },
+        topLevel: p.top === '1',
+      });
 
       const authUrl = new URL(cfg.authorizeUrl);
       const q = authUrl.searchParams;
@@ -118,6 +141,8 @@ export const ltiLogin = onRequest(
       q.set('prompt', 'none');
       if (p.lti_message_hint) q.set('lti_message_hint', p.lti_message_hint);
 
+      res.set('Cache-Control', 'no-store');
+      res.append('Set-Cookie', bindingCookieHeader(bindingId));
       res.redirect(302, authUrl.toString());
     } catch (err) {
       console.error('[ltiLogin] error', err);
@@ -148,9 +173,49 @@ export const ltiLaunch = onRequest(
         return;
       }
 
-      const nonce = await consumeOidcState(db, state);
-      if (!nonce) {
+      const stateRecord = await consumeOidcStateRecord(db, state);
+      if (!stateRecord) {
         res.status(400).send('Invalid or expired launch state.');
+        return;
+      }
+      const nonce = stateRecord.nonce;
+      res.set('Cache-Control', 'no-store');
+
+      // The browser presenting this launch must be the one that started its login.
+      const binding = checkBinding(stateRecord.bindingHash, req.get('cookie'));
+      console.log('[ltiLaunch] browser binding', {
+        binding,
+        mode: cfg.launchBinding,
+        topLevel: stateRecord.topLevel,
+        browser: browserFamily(req.get('user-agent')),
+      });
+      if (
+        cfg.launchBinding === 'enforce' &&
+        (binding === 'missing' || binding === 'mismatch')
+      ) {
+        const loginHint = stateRecord.loginParams?.['login_hint'];
+        if (stateRecord.topLevel || typeof loginHint !== 'string') {
+          res.status(401).send('Launch validation failed.');
+          return;
+        }
+        const lp = stateRecord.loginParams ?? {};
+        const str = (k: string): string | null =>
+          typeof lp[k] === 'string' ? lp[k] : null;
+        res
+          .status(200)
+          .type('html')
+          .send(
+            restartPageHtml(
+              restartLoginPath({
+                iss: str('iss'),
+                login_hint: loginHint,
+                target_link_uri: str('target_link_uri'),
+                lti_message_hint: str('lti_message_hint'),
+                client_id: str('client_id'),
+                lti_deployment_id: str('lti_deployment_id'),
+              })
+            )
+          );
         return;
       }
 
