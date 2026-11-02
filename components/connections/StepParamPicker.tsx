@@ -127,11 +127,12 @@ const MaterialsPicker: React.FC<PickerProps> = ({
           {options.map((o) => (
             <label
               key={o.id}
+              {...tourAttr('connections.editor.material-option')}
               role="menuitemcheckbox"
               aria-checked={chosen.includes(o.id)}
               className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50"
             >
-              <input
+              <input // no-tour-anchor: its row label carries the anchor
                 type="checkbox"
                 checked={chosen.includes(o.id)}
                 onChange={() => toggle(o.id)}

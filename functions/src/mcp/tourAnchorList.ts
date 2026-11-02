@@ -55316,6 +55316,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "connections.editor.material-option",
+    "label": "A material row in a connection step's materials menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "connections.editor.add-same-time",
     "label": "At the same time menu on a connection step",
     "scope": "board",

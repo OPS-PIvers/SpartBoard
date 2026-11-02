@@ -12225,6 +12225,10 @@ export const TOUR_ANCHORS = {
     label: 'The symbol or materials a connection step shows',
     panel: true,
   },
+  'connections.editor.material-option': {
+    label: "A material row in a connection step's materials menu",
+    panel: true,
+  },
   'connections.editor.add-same-time': {
     label: 'At the same time menu on a connection step',
     panel: true,

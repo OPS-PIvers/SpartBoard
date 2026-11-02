@@ -2934,6 +2934,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'connections.editor.stop': ['board.connections-editor'],
     'connections.editor.step-action': ['board.connections-editor'],
     'connections.editor.step-choice': ['board.connections-editor'],
+    'connections.editor.material-option': ['board.connections-editor'],
     'connections.editor.add-same-time': ['board.connections-editor'],
     'connections.editor.remove-action': ['board.connections-editor'],
     'connections.editor.wait-seconds': ['board.connections-editor'],
