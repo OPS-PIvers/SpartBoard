@@ -204,12 +204,21 @@ export const startRun = (
   widgets: WidgetData[],
   now: number,
   deviceId: string
-): JoinResult | null => {
+): (JoinResult & { finished: boolean }) | null => {
   const steps = liveSteps(seq, widgets);
   if (steps.length === 0) return null;
   const applied = applyStep(steps[0], widgets, now);
   if (applied.blocked) return null;
+  // Step 1 can already be the last thing to do, e.g. the Checklist's last item.
+  if (applied.ends) {
+    return {
+      sequence: { ...seq, run: null },
+      patches: applied.patches,
+      finished: true,
+    };
+  }
   return {
+    finished: false,
     sequence: {
       ...seq,
       run: { deviceId, stepIndex: 0, stepStartedAt: now, loops: 0 },

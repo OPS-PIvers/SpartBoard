@@ -1,6 +1,6 @@
 import type { ChecklistConfig } from '@/types';
 
-/** A checklist row the config alone can name: an item id, or a custom-list name. Class rosters need the roster, so they return null. */
+/** A checklist row: an item id, or a roster row's id (custom-list name or class student id). */
 export type ChecklistCurrent =
   { kind: 'item'; id: string } | { kind: 'name'; id: string };
 
@@ -20,18 +20,30 @@ const customNames = (c: ChecklistConfig): string[] => {
   return out;
 };
 
-/** True when the current row is worked out by the widget from the class roster, not from config. */
+/** True when the rows come from the class roster rather than from config. */
 export const checklistUsesClassRoster = (c: ChecklistConfig): boolean =>
   c.mode === 'roster' && (c.rosterMode ?? 'class') === 'class';
+
+/** Unsaved config key the Connections runner fills with the class roster's student ids, in row order. */
+export const CHECKLIST_ROSTER_ORDER = '__connectionRosterOrder';
+
+const rosterOrder = (c: ChecklistConfig): string[] => {
+  const order = (c as unknown as Record<string, unknown>)[
+    CHECKLIST_ROSTER_ORDER
+  ];
+  return Array.isArray(order)
+    ? order.filter((x): x is string => typeof x === 'string')
+    : [];
+};
 
 // The Checklist's current row: the first one not checked off.
 export const currentChecklistRow = (
   c: ChecklistConfig
 ): ChecklistCurrent | null => {
   if (c.mode === 'roster') {
-    if (checklistUsesClassRoster(c)) return null;
     const done = new Set(c.completedNames ?? []);
-    const name = customNames(c).find((n) => !done.has(n));
+    const rows = checklistUsesClassRoster(c) ? rosterOrder(c) : customNames(c);
+    const name = rows.find((n) => !done.has(n));
     return name ? { kind: 'name', id: name } : null;
   }
   const item = (c.items ?? []).find((i) => !i.completed);

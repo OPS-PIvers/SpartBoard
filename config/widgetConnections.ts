@@ -13,10 +13,7 @@ import {
 } from '@/utils/timeToolClock';
 import { currentShuffleName } from '@/utils/randomCurrentName';
 import { VOLUME_OPTIONS } from '@/config/expectationsData';
-import {
-  checkOffCurrent,
-  checklistUsesClassRoster,
-} from '@/utils/checklistCurrent';
+import { checkOffCurrent } from '@/utils/checklistCurrent';
 import {
   computeEffectiveTimes,
   resolveActiveSchedule,
@@ -125,11 +122,8 @@ const checklistNext: ConnectionActionDef = {
   id: 'next',
   label: 'Check off the next item',
   hand: 'next',
-  apply: (c, now) => {
-    const cl = c as unknown as ChecklistConfig;
-    // A class roster's order lives in the roster, so the widget checks off the next name itself.
-    if (checklistUsesClassRoster(cl)) return { patch: { nextTrigger: now } };
-    const result = checkOffCurrent(cl);
+  apply: (c) => {
+    const result = checkOffCurrent(c as unknown as ChecklistConfig);
     return result ? { patch: result.patch, ends: result.ends } : null;
   },
 };
@@ -152,7 +146,13 @@ const nextBlockStarted = (c: Config, now: number, startedAt: number) => {
   );
   if (!active) return false;
   const from = secondsOfDay(startedAt);
-  const starts = computeEffectiveTimes(active.schedule.items)
+  const d = new Date(now);
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // Same rows the widget shows: a one-off block only counts on its own day.
+  const items = active.schedule.items.filter(
+    (i) => !i.oneOffDate || i.oneOffDate === today
+  );
+  const starts = computeEffectiveTimes(items)
     .filter((t) => !t.isIdle && t.startSec > from)
     .map((t) => t.startSec);
   if (starts.length === 0) return false;
@@ -232,11 +232,16 @@ export const WIDGET_CONNECTIONS: Partial<
       {
         id: 'show',
         label: 'Show materials',
-        apply: (_c, _now, params) => ({
-          patch: {
-            activeItems: Array.isArray(params?.items) ? params.items : [],
-          },
-        }),
+        apply: (c, _now, params) => {
+          // Only materials the widget still offers, so a removed one can't come back.
+          const offered = new Set(
+            Array.isArray(c.selectedItems) ? (c.selectedItems as unknown[]) : []
+          );
+          const items = Array.isArray(params?.items) ? params.items : [];
+          return {
+            patch: { activeItems: items.filter((id) => offered.has(id)) },
+          };
+        },
         defaultParams: (c) => ({
           items: Array.isArray(c.activeItems) ? c.activeItems : [],
         }),

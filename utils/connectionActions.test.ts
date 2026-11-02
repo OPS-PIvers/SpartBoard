@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { SequenceConnection, WidgetData } from '@/types';
 import { actionDefFor } from '@/config/widgetConnections';
 import { draftFromPicks, isStepFinished, startRun } from './connectionEngine';
-import { checkOffCurrent, currentChecklistRow } from './checklistCurrent';
+import {
+  CHECKLIST_ROSTER_ORDER,
+  checkOffCurrent,
+  currentChecklistRow,
+} from './checklistCurrent';
 
 const w = (
   id: string,
@@ -54,11 +58,19 @@ describe('Checklist next', () => {
     });
   });
 
-  it('leaves a class roster to the widget', () => {
+  it('checks off a class roster in the order the runner supplies, and ends on the last student', () => {
     const def = actionDefFor('checklist', 'next');
-    expect(
-      def?.apply({ mode: 'roster', rosterMode: 'class', items: [] }, 7)
-    ).toEqual({ patch: { nextTrigger: 7 } });
+    const c = {
+      mode: 'roster',
+      rosterMode: 'class',
+      items: [],
+      completedNames: ['s1'],
+      [CHECKLIST_ROSTER_ORDER]: ['s1', 's2'],
+    };
+    expect(def?.apply(c, 7)).toEqual({
+      patch: { completedNames: ['s1', 's2'] },
+      ends: true,
+    });
   });
 });
 
@@ -84,6 +96,28 @@ describe('Schedule next block', () => {
     expect(done?.(config, at(10, 0), at(9, 30))).toBe(true);
   });
 
+  it("ignores a one-off block from another day that the widget doesn't show", () => {
+    const withOldOneOff = {
+      ...config,
+      schedules: [
+        {
+          ...config.schedules[0],
+          items: [
+            ...config.schedules[0].items,
+            {
+              id: 'x',
+              task: 'Assembly',
+              startTime: '09:45',
+              endTime: '09:55',
+              oneOffDate: '2026-11-01',
+            },
+          ],
+        },
+      ],
+    };
+    expect(done?.(withOldOneOff, at(9, 46), at(9, 30))).toBe(false);
+  });
+
   it('keeps waiting after the last block of the day', () => {
     expect(done?.(config, at(14, 0), at(11, 0))).toBe(false);
   });
@@ -106,7 +140,11 @@ describe('steps with their own choice', () => {
       actionDefFor('work-symbols', 'show')?.apply({}, 0, { symbolId: 'solo' })
     ).toEqual({ patch: { selectedSymbolId: 'solo' } });
     expect(
-      actionDefFor('materials', 'show')?.apply({}, 0, { items: ['laptop'] })
+      actionDefFor('materials', 'show')?.apply(
+        { selectedItems: ['laptop', 'pencil'] },
+        0,
+        { items: ['laptop', 'scissors'] }
+      )
     ).toEqual({ patch: { activeItems: ['laptop'] } });
   });
 });
@@ -140,5 +178,34 @@ describe('startRun', () => {
     });
     expect(started?.patches).toEqual({ ws: { selectedSymbolId: 'pair' } });
     expect(isStepFinished(seq.steps[0], widgets, 5, 5)).toBe(true);
+  });
+
+  it('ends straight away when step 1 is already the last thing to do', () => {
+    const widgets = [
+      w('cl', 'checklist', {
+        mode: 'manual',
+        items: [{ id: 'a', text: 'Last', completed: false }],
+      }),
+      w('t', 'time-tool', {
+        mode: 'timer',
+        duration: 5,
+        elapsedTime: 5,
+        isRunning: false,
+        startTime: null,
+      }),
+    ];
+    const seq: SequenceConnection = {
+      id: 'q',
+      kind: 'sequence',
+      repeat: 'until-done',
+      steps: [
+        { id: '1', actions: [{ widgetId: 'cl', action: 'next' }] },
+        { id: '2', actions: [{ widgetId: 't', action: 'restart' }] },
+      ],
+    };
+    const started = startRun(seq, widgets, 5, 'dev');
+    expect(started?.finished).toBe(true);
+    expect(started?.sequence.run).toBeNull();
+    expect(started?.patches.t).toBeUndefined();
   });
 });

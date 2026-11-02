@@ -89,9 +89,11 @@ const MaterialsPicker: React.FC<PickerProps> = ({
     const m = materialMap.get(id);
     return m ? [{ id, label: m.label }] : [];
   });
+  const offered = new Set(options.map((o) => o.id));
+  // Materials removed from the widget drop out, so they can't linger unseen in the step.
   const chosen = Array.isArray(params?.items)
     ? (params.items as unknown[]).filter(
-        (x): x is string => typeof x === 'string'
+        (x): x is string => typeof x === 'string' && offered.has(x)
       )
     : [];
   const summary =
@@ -130,7 +132,7 @@ const MaterialsPicker: React.FC<PickerProps> = ({
               {...tourAttr('connections.editor.material-option')}
               role="menuitemcheckbox"
               aria-checked={chosen.includes(o.id)}
-              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50"
+              className="flex min-h-11 cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50"
             >
               <input // no-tour-anchor: its row label carries the anchor
                 type="checkbox"
