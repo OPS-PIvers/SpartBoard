@@ -120,12 +120,92 @@ describe('TourAnchorPicker', () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 
-  it('lets an Alt click through so a menu can be opened first', () => {
+  it.each([
+    ['Ctrl', { ctrlKey: true }],
+    ['Cmd', { metaKey: true }],
+    ['Alt', { altKey: true }],
+  ])('lets a %s click act on the control instead of binding it', (_, mod) => {
     boardClick.mockClear();
     const { onPick } = setup();
-    fireEvent.click(screen.getByText('Tools'), { altKey: true });
-    expect(boardClick).toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Tools'), mod);
+    expect(boardClick).toHaveBeenCalledTimes(1);
+    // The app sees a plain click, so modifier-aware controls still open.
+    expect(boardClick.mock.calls[0][0]).toMatchObject({
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    });
     expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it('keeps a Ctrl-opened menu open and picks an item in it', () => {
+    const Menu = () => {
+      const [open, setOpen] = React.useState(false);
+      React.useEffect(() => {
+        if (!open) return;
+        const close = () => setOpen(false);
+        document.addEventListener('mousedown', close);
+        document.addEventListener('pointerdown', close);
+        return () => {
+          document.removeEventListener('mousedown', close);
+          document.removeEventListener('pointerdown', close);
+        };
+      }, [open]);
+      return (
+        <>
+          <button type="button" aria-label="More" onClick={() => setOpen(true)}>
+            ...
+          </button>
+          {open && (
+            <button type="button" role="menuitem" data-tour="dock.open-tools">
+              Publish
+            </button>
+          )}
+        </>
+      );
+    };
+    const onPick = vi.fn();
+    render(
+      <>
+        <Menu />
+        <TourAnchorPicker onPick={onPick} onCancel={vi.fn()} />
+      </>
+    );
+    const more = screen.getByRole('button', { name: 'More' });
+    fireEvent.pointerDown(more, { ctrlKey: true });
+    fireEvent.mouseDown(more, { ctrlKey: true });
+    fireEvent.click(more, { ctrlKey: true });
+    const item = screen.getByRole('menuitem');
+    fireEvent.pointerDown(item);
+    fireEvent.mouseDown(item);
+    fireEvent.click(item);
+    expect(screen.getByRole('menuitem')).toBeInTheDocument();
+    expect(onPick).toHaveBeenCalledWith(
+      expect.objectContaining({ anchor: 'dock.open-tools' })
+    );
+  });
+
+  it('sends a Ctrl click through the tour dim to the control under it', () => {
+    boardClick.mockClear();
+    const { onPick } = setup();
+    const layer = document.createElement('div');
+    layer.setAttribute('data-tour-ignore', '');
+    const dim = document.createElement('div');
+    dim.setAttribute('data-tour-overlay', '');
+    layer.appendChild(dim);
+    document.body.appendChild(layer);
+    document.elementsFromPoint = () => [dim, screen.getByText('Tools')];
+    fireEvent.click(dim, { ctrlKey: true });
+    expect(boardClick).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+    layer.remove();
+  });
+
+  it('shows the Ctrl hint', () => {
+    setup();
+    expect(
+      screen.getByText('Hold Ctrl and click to open a menu first')
+    ).toBeInTheDocument();
   });
 
   it('cancels on Escape and from its bar', () => {
