@@ -32,7 +32,12 @@ export const PII_WIDGET_FIELDS = [
   'customRoster', // StationsConfig — custom-mode roster name list
 ] as const;
 
-export type PiiWidgetField = (typeof PII_WIDGET_FIELDS)[number] | 'assignments';
+export type PiiWidgetField =
+  | (typeof PII_WIDGET_FIELDS)[number]
+  | 'assignments'
+  | 'savedPlans'
+  | 'teams'
+  | 'history';
 
 /** Maps widgetId → object containing only PII fields for that widget */
 export type DashboardPiiSupplement = Record<
@@ -40,10 +45,57 @@ export type DashboardPiiSupplement = Record<
   Partial<Record<PiiWidgetField, unknown>>
 >;
 
-// `assignments` is PII only in custom-list mode, where the map keys ARE the typed student names.
-function isCustomModeAssignments(config: Record<string, unknown>): boolean {
-  return config.rosterMode === 'custom' && config.assignments !== undefined;
+// Roster student ids are UUIDs (or long opaque ids); anything else is a typed or legacy display name.
+const ROSTER_ID =
+  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(?=[\w-]*\d)[\w-]{16,})$/i;
+const NAME_KEYED_TYPES = new Set(['stations', 'lunchCount', 'seating-chart']);
+// Quiz-built Scoreboard teams are one per student (`pin-<PIN>` / `uid-<uid>` ids, named after them).
+const QUIZ_TEAM_ID = /^(?:pin|uid)-/;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const hasNameKeys = (map: unknown): boolean =>
+  isRecord(map) && Object.keys(map).some((key) => !ROSTER_ID.test(key));
+
+/** Config keys of this widget that hold student names and so live only in the Drive supplement. */
+export function widgetPiiKeys(
+  type: string,
+  config: Record<string, unknown>
+): PiiWidgetField[] {
+  const keys: PiiWidgetField[] = [...PII_WIDGET_FIELDS];
+  const custom = config.rosterMode === 'custom';
+  if (
+    config.assignments !== undefined &&
+    (custom || (NAME_KEYED_TYPES.has(type) && hasNameKeys(config.assignments)))
+  )
+    keys.push('assignments');
+  if (
+    type === 'seating-chart' &&
+    Array.isArray(config.savedPlans) &&
+    config.savedPlans.some(
+      (plan: unknown) =>
+        isRecord(plan) && (custom || hasNameKeys(plan.assignments))
+    )
+  )
+    keys.push('savedPlans');
+  if (
+    type === 'scoreboard' &&
+    Array.isArray(config.teams) &&
+    config.teams.some(
+      (team: unknown) =>
+        isRecord(team) &&
+        typeof team.id === 'string' &&
+        QUIZ_TEAM_ID.test(team.id)
+    )
+  )
+    keys.push('teams', 'history');
+  return keys;
 }
+
+// Pre-hidden_words Poll builds stored hidden words as `{questionId}#{word or hash}`; they are dropped, not honoured.
+export const isLegacyHiddenWordKey = (key: unknown): boolean =>
+  typeof key === 'string' && key.includes('#') && !key.includes(':');
 
 // Empty strings/arrays are widget defaults, not PII — treating them as content made every save abort when Drive was unavailable.
 function hasPiiContent(value: unknown): boolean {
@@ -66,12 +118,16 @@ export function scrubDashboardPII(dashboard: Dashboard): Dashboard {
 export function scrubWidgetsPII(widgets: WidgetData[]): WidgetData[] {
   return widgets.map((widget) => {
     const config = { ...(widget.config as Record<string, unknown>) };
-    if (isCustomModeAssignments(config)) {
-      delete config.assignments;
-    }
-    for (const field of PII_WIDGET_FIELDS) {
+    const keys = widgetPiiKeys(widget.type, config);
+    for (const field of keys) {
       delete config[field];
     }
+    // An empty list, not a missing one: a missing list makes the Scoreboard seed Team A/B before Drive restores the teams.
+    if (keys.includes('teams')) config.teams = [];
+    if (Array.isArray(config.hiddenResponses))
+      config.hiddenResponses = config.hiddenResponses.filter(
+        (key: unknown) => !isLegacyHiddenWordKey(key)
+      );
     return { ...widget, config: config };
   });
 }
@@ -91,16 +147,11 @@ export function extractDashboardPII(
     const piiFields: Partial<Record<PiiWidgetField, unknown>> = {};
     let hasPii = false;
 
-    for (const field of PII_WIDGET_FIELDS) {
+    for (const field of widgetPiiKeys(widget.type, config)) {
       if (field in config && hasPiiContent(config[field])) {
         piiFields[field] = config[field];
         hasPii = true;
       }
-    }
-
-    if (isCustomModeAssignments(config) && hasPiiContent(config.assignments)) {
-      piiFields.assignments = config.assignments;
-      hasPii = true;
     }
 
     if (hasPii) {
@@ -154,11 +205,9 @@ export function mergeWidgetsPII(
 export function dashboardHasPII(dashboard: Dashboard): boolean {
   for (const widget of dashboard.widgets) {
     const config = widget.config as Record<string, unknown>;
-    for (const field of PII_WIDGET_FIELDS) {
+    for (const field of widgetPiiKeys(widget.type, config)) {
       if (field in config && hasPiiContent(config[field])) return true;
     }
-    if (isCustomModeAssignments(config) && hasPiiContent(config.assignments))
-      return true;
   }
   return false;
 }

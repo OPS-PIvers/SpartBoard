@@ -407,7 +407,9 @@ function hasClassTeams(config: Doc): boolean {
     config.teams.some(
       (t: unknown) =>
         isObject(t) &&
-        (Array.isArray(t.memberStudentIds) || str(t.linkedRosterGroupId))
+        (Array.isArray(t.memberStudentIds) ||
+          str(t.linkedRosterGroupId) ||
+          /^(?:pin|uid)-/.test(str(t.id)))
     )
   );
 }

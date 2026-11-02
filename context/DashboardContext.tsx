@@ -2040,9 +2040,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // would be invisible to teammates.
       if (!plcId && !isAdmin && driveService) {
         try {
-          const fileId = await driveService.exportDashboard(dashboard);
-          await driveService.makePublic(fileId, userDomain);
-          return `drive-${fileId}`;
+          // A separate scrubbed copy: the board's own backup file keeps student names and live-syncs.
+          const { driveFileId: _backupId, ...shareCopy } =
+            scrubDashboardPII(dashboard);
+          const file = await driveService.uploadFile(
+            new Blob([JSON.stringify(shareCopy, null, 2)], {
+              type: 'application/json',
+            }),
+            `${dashboard.name}.spart`,
+            'Shared Boards'
+          );
+          await driveService.makePublic(file.id, userDomain);
+          return `drive-${file.id}`;
         } catch (e) {
           console.error('Drive sharing failed, falling back to Firestore:', e);
         }

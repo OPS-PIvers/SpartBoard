@@ -308,5 +308,44 @@ describe('widgetHelpers', () => {
       // Ensure config is deeply cloned
       expect(snapshot[0].config).not.toBe(widgets[0].config);
     });
+
+    it('leaves student names out of the snapshot', () => {
+      const widgets = [
+        {
+          id: 'r',
+          type: 'random',
+          x: 0,
+          y: 0,
+          w: 2,
+          h: 2,
+          config: { mode: 'single', firstNames: 'Ada\nBo', lastResult: 'Ada' },
+        },
+        {
+          id: 's',
+          type: 'stations',
+          x: 0,
+          y: 0,
+          w: 2,
+          h: 2,
+          config: { rosterMode: 'custom', assignments: { Ada: 'st-1' } },
+        },
+        {
+          id: 'b',
+          type: 'scoreboard',
+          x: 0,
+          y: 0,
+          w: 2,
+          h: 2,
+          config: { teams: [{ id: 'pin-01', name: 'Ada Lovelace', score: 3 }] },
+        },
+      ] as unknown as WidgetData[];
+
+      const [random, stations, scoreboard] = createBoardSnapshot(widgets);
+
+      expect(random.config).toEqual({ mode: 'single' });
+      expect(stations.config).toEqual({ rosterMode: 'custom' });
+      expect(scoreboard.config).toEqual({ teams: [] });
+      expect(JSON.stringify(widgets[0].config)).toContain('Ada');
+    });
   });
 });

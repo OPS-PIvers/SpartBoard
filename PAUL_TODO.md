@@ -134,6 +134,12 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
   </details>
 
+- [ ] **PT-104 🤖 Student names left in board copies saved before batch 1F.** New saves keep them out; older copies keep them until the board is saved again. Read-only first:
+
+  > Count prod dashboards, shared_boards, starter packs and Catalyst sets that still hold quiz-built Scoreboard teams (`pin-`/`uid-` team ids), name-keyed Stations, Lunch Count or Seating Chart assignments, Poll hide keys with `#`, or any `PII_WIDGET_FIELDS` key. Report counts only; removing them needs my OK.
+
+  Drive board shares made before this fix gave the whole domain read access to that board's own backup file. Ending those grants takes the teacher's Drive or a Workspace admin; decide whether to ask IT.
+
 ## 4. Cloud and Google console
 
 - [ ] **PT-69 You: prod stays warm after the next release.** `gcloud run services describe getpseudonymsforassignmentv1 --project=spartboard --region=us-central1 --format="value(spec.template.metadata.annotations['autoscaling.knative.dev/minScale'])"` prints `1` (PR #3723). Agents get permission denied on prod Cloud Run.
