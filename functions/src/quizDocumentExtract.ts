@@ -20,6 +20,7 @@ import { parseGeminiJson } from './parseGeminiJson';
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertAiTeacherCaller } from './aiCallerGate';
 
 export const QUIZ_DOCUMENT_IMPORT_FEATURE_ID = 'quiz-document-import';
 export const QUIZ_IMPORT_VERSIONS_FEATURE_ID = 'quiz-import-versions';
@@ -1460,6 +1461,7 @@ export const extractQuizFromDocumentV1 = onCall(
     assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
+    await assertAiTeacherCaller(admin.firestore(), request.auth.token);
     const parsed = parseExtractDocumentRequest(request.data);
     return extractQuizFromDocument(
       parsed,
