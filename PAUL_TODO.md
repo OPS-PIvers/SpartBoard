@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-105.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-106.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -134,7 +134,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
   </details>
 
-- [ ] **PT-104 🤖 Student names left in board copies saved before batch 1F.** New saves keep them out; older copies keep them until the board is saved again. Read-only first:
+- [ ] **PT-105 🤖 Student names left in board copies saved before batch 1F.** New saves keep them out; older copies keep them until the board is saved again. Read-only first:
 
   > Count prod dashboards, shared_boards, starter packs and Catalyst sets that still hold quiz-built Scoreboard teams (`pin-`/`uid-` team ids), name-keyed Stations, Lunch Count or Seating Chart assignments, Poll hide keys with `#`, or any `PII_WIDGET_FIELDS` key. Report counts only; removing them needs my OK.
 
