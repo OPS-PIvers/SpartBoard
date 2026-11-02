@@ -40,8 +40,14 @@ const user = (patch: Record<string, unknown> = {}) =>
     ...patch,
   }) as never;
 
-const stubDb = (members: Record<string, Record<string, unknown>>) =>
+const stubDb = (
+  members: Record<string, Record<string, unknown>>,
+  orgs = ['orono', 'other']
+) =>
   ({
+    collection: () => ({
+      get: () => Promise.resolve({ docs: orgs.map((id) => ({ id })) }),
+    }),
     doc: (path: string) => ({
       get: () => Promise.resolve({ data: () => members[path] }),
     }),
@@ -110,6 +116,37 @@ describe('createOrgEmailChecker', () => {
     expect(await c.isStaff('gone@orono.k12.mn.us')).toBe(false);
     expect(await c.isStaff('nobody@orono.k12.mn.us')).toBe(false);
     expect(await c.isStaff('teacher@gmail.com')).toBe(false);
+  });
+
+  it('finds a staff member doc in an org whose domain is not verified for that address', async () => {
+    const c = createOrgEmailChecker(
+      stubDb({
+        'organizations/other/members/coach@partner.example': {
+          roleId: 'teacher',
+        },
+      })
+    );
+    expect(await c.isStaff('coach@partner.example')).toBe(true);
+    expect(await c.isOrgAddress('coach@partner.example')).toBe(true);
+    expect(await c.isOrgAddress('stranger@partner.example')).toBe(false);
+  });
+
+  it('retries a lookup that failed instead of caching the failure', async () => {
+    let calls = 0;
+    const flaky = {
+      collection: () => ({
+        get: () => Promise.resolve({ docs: [{ id: 'orono' }] }),
+      }),
+      doc: () => ({
+        get: () =>
+          ++calls === 1
+            ? Promise.reject(new Error('unavailable'))
+            : Promise.resolve({ data: () => ({ roleId: 'teacher' }) }),
+      }),
+    } as never;
+    const c = createOrgEmailChecker(flaky);
+    await expect(c.isStaff('teacher@orono.k12.mn.us')).rejects.toThrow();
+    expect(await c.isStaff('teacher@orono.k12.mn.us')).toBe(true);
   });
 });
 

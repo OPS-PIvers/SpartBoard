@@ -35,43 +35,64 @@ export function provenGoogleEmail(
   return email && isWellFormedEmail(email) ? email : null;
 }
 
-/** Cached lookups for one run: does an address belong to a verified org domain, and is it staff there. */
+/** Caches a lookup for one run, and forgets a failed one so the next caller retries. */
+function memo<T>(
+  cache: Map<string, Promise<T>>,
+  key: string,
+  load: () => Promise<T>
+) {
+  let hit = cache.get(key);
+  if (!hit) {
+    hit = load();
+    cache.set(key, hit);
+    hit.catch(() => cache.delete(key));
+  }
+  return hit;
+}
+
+/** Cached lookups for one run: is an address on a verified org domain, and does it hold a staff member doc in any org. */
 export function createOrgEmailChecker(db: Firestore) {
   const orgByDomain = new Map<string, Promise<string | null>>();
-  const staffByEmail = new Map<string, Promise<boolean>>();
+  const membersByEmail = new Map<
+    string,
+    Promise<admin.firestore.DocumentData[]>
+  >();
+  const orgIds = new Map<string, Promise<string[]>>();
 
-  const orgFor = (email: string): Promise<string | null> => {
+  const domainOrg = (email: string): Promise<string | null> => {
     const domain = normalizeEmailDomain(email);
     if (!domain || !isWellFormedEmail(email)) return Promise.resolve(null);
-    let hit = orgByDomain.get(domain);
-    if (!hit) {
-      hit = resolveOrgIdForDomain(db, domain);
-      orgByDomain.set(domain, hit);
-    }
-    return hit;
+    return memo(orgByDomain, domain, () => resolveOrgIdForDomain(db, domain));
   };
 
-  const isStaff = (raw: string): Promise<boolean> => {
-    const email = raw.trim().toLowerCase();
-    let hit = staffByEmail.get(email);
-    if (!hit) {
-      hit = orgFor(email).then(async (orgId) => {
-        if (!orgId) return false;
-        const member = await db
-          .doc(`organizations/${orgId}/members/${email}`)
-          .get();
-        return isStaffMemberData(member.data());
+  // Members are keyed by email in every org, including ones joined through Workspace hd or an admin invite.
+  const memberDocs = (email: string) =>
+    memo(membersByEmail, email, async () => {
+      if (!isWellFormedEmail(email)) return [];
+      const ids = await memo(orgIds, '', async () =>
+        (await db.collection('organizations').get()).docs.map((d) => d.id)
+      );
+      const snaps = await Promise.all(
+        ids.map((id) => db.doc(`organizations/${id}/members/${email}`).get())
+      );
+      return snaps.flatMap((m) => {
+        const data = m.data();
+        return data ? [data] : [];
       });
-      staffByEmail.set(email, hit);
-    }
-    return hit;
+    });
+
+  const isStaff = async (raw: string): Promise<boolean> =>
+    (await memberDocs(raw.trim().toLowerCase())).some(isStaffMemberData);
+
+  const isOrgAddress = async (raw: string): Promise<boolean> => {
+    const email = raw.trim().toLowerCase();
+    if ((await domainOrg(email)) !== null) return true;
+    return (await memberDocs(email)).some(
+      (m) => (m.status ?? 'active') !== 'inactive'
+    );
   };
 
-  return {
-    isOrgAddress: async (raw: string) =>
-      (await orgFor(raw.trim().toLowerCase())) !== null,
-    isStaff,
-  };
+  return { isOrgAddress, isStaff };
 }
 
 /** Staff addresses for these uids, read from Firebase Auth, never from client-written docs. */

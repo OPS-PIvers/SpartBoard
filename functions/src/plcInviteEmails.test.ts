@@ -50,6 +50,11 @@ vi.mock('./firebaseAdmin', () => {
         Promise.resolve({ data: () => adminMock.memberDocs.get(path) }),
     })),
     collection: vi.fn((name: string) => {
+      if (name === 'organizations') {
+        return {
+          get: () => Promise.resolve({ docs: [{ id: 'org-1' }] }),
+        };
+      }
       if (name === 'global_permissions') {
         return {
           doc: vi.fn(() => ({
