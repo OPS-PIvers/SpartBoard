@@ -2329,7 +2329,7 @@ export const LiveTourRunner: React.FC = () => {
             </Suspense>
           )}
           {step.text && (
-            <p className="text-sm text-slate-600">
+            <p className="whitespace-pre-line text-sm text-slate-600">
               {renderStepText(step.text)}
             </p>
           )}

@@ -240,7 +240,11 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
             {t(CHECK_KEYS[result])}
           </p>
         )}
-        {!done && <p className="text-sm text-slate-700">{state.text}</p>}
+        {!done && (
+          <p className="whitespace-pre-line text-sm text-slate-700">
+            {state.text}
+          </p>
+        )}
         {state.status === 'wrong-page' && (
           <p
             data-testid="web-tour-other-page"
