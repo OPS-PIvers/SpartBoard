@@ -1330,6 +1330,16 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'timer-starting-length': {
+    label: 'Timer starting length',
+    icon: Timer,
+    description: 'Teachers choose the length their new timers start at.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'music-my-songs': {
     label: 'My songs in Music',
     icon: Music,

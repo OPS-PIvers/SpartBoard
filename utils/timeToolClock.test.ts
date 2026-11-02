@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   clockStateOf,
+  normalizeTimerStartSeconds,
   secondsAt,
   startFreshClock,
   timeToolClockPatch,
@@ -8,6 +9,7 @@ import {
   type TimeToolClockEvent,
   type TimeToolClockFields,
   type TimeToolPhase,
+  withTimerStartSeconds,
 } from './timeToolClock';
 import { TIME_TOOL_MAX_DURATION_SECONDS } from '@/config/timeTool';
 
@@ -422,6 +424,35 @@ describe('switchMode', () => {
       isRunning: false,
       startTime: null,
     });
+  });
+});
+
+describe('withTimerStartSeconds', () => {
+  it('starts a new timer at the teacher length over the building default', () => {
+    expect(withTimerStartSeconds({ duration: 600, glow: true }, 120)).toEqual({
+      duration: 120,
+      elapsedTime: 120,
+      glow: true,
+    });
+    expect(withTimerStartSeconds(undefined, 90)).toEqual({
+      duration: 90,
+      elapsedTime: 90,
+    });
+  });
+
+  it('leaves the building layer alone when unset or a stopwatch', () => {
+    const building = { duration: 300 };
+    expect(withTimerStartSeconds(building, 0)).toBe(building);
+    const stopwatch = { mode: 'stopwatch', elapsedTime: 0 };
+    expect(withTimerStartSeconds(stopwatch, 120)).toBe(stopwatch);
+  });
+
+  it('clamps a stored length to the ceiling', () => {
+    expect(normalizeTimerStartSeconds(TIME_TOOL_MAX_DURATION_SECONDS + 5)).toBe(
+      TIME_TOOL_MAX_DURATION_SECONDS
+    );
+    expect(normalizeTimerStartSeconds(-3)).toBe(0);
+    expect(normalizeTimerStartSeconds('120')).toBe(0);
   });
 });
 

@@ -93,6 +93,7 @@ import {
   canAccessQuizMediaResponse,
   QUIZ_MEDIA_FEATURE_ID,
 } from '@/utils/quizMediaAccess';
+import { normalizeTimerStartSeconds } from '@/utils/timeToolClock';
 import {
   migrateSavedWidgetConfigs,
   pickAppearanceKeys,
@@ -413,6 +414,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [alignmentGuidesEnabled, setAlignmentGuidesEnabledState] =
     useState(false);
   const [spellCheckEnabled, setSpellCheckEnabledState] = useState(true);
+  const [timeToolStartSeconds, setTimeToolStartSecondsState] = useState(0);
   const [lastActiveCollectionId, setLastActiveCollectionIdState] = useState<
     string | null | undefined
   >(undefined);
@@ -2036,6 +2038,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           setAlignmentGuidesEnabledState(data.alignmentGuidesEnabled === true);
           setSpellCheckEnabledState(data.spellCheckEnabled !== false);
+          setTimeToolStartSecondsState(
+            normalizeTimerStartSeconds(data.timeToolStartSeconds)
+          );
 
           // Load Collections navigation memory
           if ('lastActiveCollectionId' in data) {
@@ -2388,9 +2393,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateUserPreference = useCallback(
     async (key: UserPreferenceKey, value: number) => {
       const persistedValue =
-        key === 'settingsDrawerWidth' ? clampSettingsDrawerWidth(value) : value;
+        key === 'settingsDrawerWidth'
+          ? clampSettingsDrawerWidth(value)
+          : normalizeTimerStartSeconds(value);
       if (key === 'settingsDrawerWidth') {
         setSettingsDrawerWidthState(persistedValue);
+      } else {
+        setTimeToolStartSecondsState(persistedValue);
       }
       if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       // A drawer drag is not a deliberate change to the target's account.
@@ -3437,6 +3446,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       spartyEnabled,
       alignmentGuidesEnabled,
       spellCheckEnabled,
+      timeToolStartSeconds,
       updateAccountPreferences,
       lastActiveCollectionId,
       lastBoardIdByCollection,
@@ -3517,6 +3527,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       spartyEnabled,
       alignmentGuidesEnabled,
       spellCheckEnabled,
+      timeToolStartSeconds,
       updateAccountPreferences,
       lastActiveCollectionId,
       lastBoardIdByCollection,

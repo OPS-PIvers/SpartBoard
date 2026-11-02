@@ -185,3 +185,19 @@ export const startFreshClock = (
   isRunning: true,
   startTime: now,
 });
+
+// Clamps a teacher's saved starting length; 0 (or anything invalid) means "use the building default".
+export const normalizeTimerStartSeconds = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.min(TIME_TOOL_MAX_DURATION_SECONDS, Math.round(value))
+    : 0;
+
+// Layers a teacher's starting length over the building default for a new Time Tool; stopwatch defaults keep zero.
+export const withTimerStartSeconds = <L extends Record<string, unknown>>(
+  layer: L | undefined,
+  seconds: number
+): L | Record<string, unknown> | undefined => {
+  const start = normalizeTimerStartSeconds(seconds);
+  if (!start || layer?.mode === 'stopwatch') return layer;
+  return { ...(layer ?? {}), duration: start, elapsedTime: start };
+};

@@ -2243,6 +2243,11 @@
       "verifySuccess": "Compatible with embedding!"
     },
     "time-tool": {
+      "startLength": "Start new timers at",
+      "startLengthHelp": "Used for new timers on all your boards.",
+      "startLengthMinutes": "Minutes",
+      "startLengthSeconds": "Seconds",
+      "startLengthClear": "Use school default",
       "mode": "Mode",
       "modeTimer": "Timer",
       "modeStopwatch": "Stopwatch",
