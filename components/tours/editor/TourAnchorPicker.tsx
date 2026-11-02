@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Z_INDEX } from '@/config/zIndex';
@@ -87,7 +87,9 @@ const passThrough = (e: MouseEvent, type = e.type) => {
     relatedTarget: e.relatedTarget,
   };
   const copy =
-    typeof PointerEvent === 'function' && e instanceof PointerEvent
+    typeof PointerEvent === 'function' &&
+    e instanceof PointerEvent &&
+    type.startsWith('pointer')
       ? new PointerEvent(type, {
           ...init,
           pointerId: e.pointerId,
@@ -138,6 +140,11 @@ export const TourAnchorPicker: React.FC<Props> = ({
   const { t } = useTranslation();
   const [hover, setHover] = useState<PickTarget | null>(null);
   const [box, setBox] = useState<Box | null>(null);
+  // Whether the current press started with the modifier, kept across listener re-subscriptions.
+  const pressRef = useRef<{ pass: boolean | null; clicked: boolean }>({
+    pass: null,
+    clicked: false,
+  });
 
   useEffect(() => {
     const ignored = (target: EventTarget | null) =>
@@ -157,31 +164,36 @@ export const TourAnchorPicker: React.FC<Props> = ({
           : found
       );
     };
-    // Whether the current press started with the modifier, so one gesture is never split.
-    let passing: boolean | null = null;
     const onSwallow = (event: Event) => {
       const e = event as MouseEvent;
       // Fast-forward's own clicks still reach the board.
       if (isScriptedClick() || ignored(e.target)) return;
       e.preventDefault();
       e.stopPropagation();
-      if (e.type === 'pointerdown') passing = passesThrough(e);
-      const pass = passing ?? passesThrough(e);
-      const ends = e.type === 'click' || e.type === 'dblclick';
-      if (ends || e.type === 'contextmenu') passing = null;
+      const press = pressRef.current;
+      if (e.type === 'pointerdown')
+        Object.assign(press, { pass: passesThrough(e), clicked: false });
+      const pass = press.pass ?? passesThrough(e);
+      if (e.type === 'click' || e.type === 'dblclick') press.pass = null;
+      if (e.type === 'pointerup' && press.clicked) press.pass = null;
+      if (!pass) {
+        if (e.type === 'click') {
+          const found = pickAt(e, slots);
+          if (found) onPick(found.pick);
+        }
+        return;
+      }
       if (e.type === 'contextmenu') {
-        // A Mac Ctrl-click fires contextmenu instead of click.
-        if (pass && isMac() && e.ctrlKey && e.button === 0)
-          passThrough(e, 'click');
+        // A Mac Ctrl-click fires contextmenu instead of click, so send the click after the release.
+        if (isMac() && e.ctrlKey && e.button === 0) press.clicked = true;
         return;
       }
-      if (pass) {
-        passThrough(e);
-        return;
-      }
-      if (e.type !== 'click') return;
-      const found = pickAt(e, slots);
-      if (found) onPick(found.pick);
+      // Cancelling pointerdown stops the browser's own mousedown and mouseup, so send them here.
+      if (e.type === 'mousedown' || e.type === 'mouseup') return;
+      passThrough(e);
+      if (e.type === 'pointerdown') passThrough(e, 'mousedown');
+      if (e.type === 'pointerup') passThrough(e, 'mouseup');
+      if (e.type === 'pointerup' && press.clicked) passThrough(e, 'click');
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;

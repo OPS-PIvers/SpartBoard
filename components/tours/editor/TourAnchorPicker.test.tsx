@@ -215,6 +215,34 @@ describe('TourAnchorPicker', () => {
     expect(onPick).toHaveBeenCalledTimes(1);
   });
 
+  it('sends mousedown and mouseup that the cancelled pointerdown suppresses', () => {
+    const seen: string[] = [];
+    setup();
+    const tools = screen.getByText('Tools');
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup'])
+      tools.addEventListener(type, (ev) =>
+        seen.push(`${ev.type}${(ev as MouseEvent).ctrlKey ? '+ctrl' : ''}`)
+      );
+    fireEvent.pointerDown(tools, { ctrlKey: true });
+    fireEvent.pointerUp(tools, { ctrlKey: true });
+    expect(seen).toEqual(['pointerdown', 'mousedown', 'pointerup', 'mouseup']);
+    expect(document.activeElement).toBe(tools);
+  });
+
+  it('turns a Mac Ctrl-click into one click after the release', () => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+    boardClick.mockClear();
+    const { onPick } = setup();
+    const tools = screen.getByText('Tools');
+    fireEvent.pointerDown(tools, { ctrlKey: true });
+    fireEvent.contextMenu(tools, { ctrlKey: true, button: 0 });
+    expect(boardClick).not.toHaveBeenCalled();
+    fireEvent.pointerUp(tools);
+    expect(boardClick).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
   it('never passes a right click through', () => {
     const onMenu = vi.fn();
     const { onPick } = setup();
