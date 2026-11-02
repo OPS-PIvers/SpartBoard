@@ -79,6 +79,7 @@ const PLACEHOLDER_LENGTH = RANDOM_FLASH_PLACEHOLDER.length;
 import { RandomGroups } from './RandomGroups';
 import { GroupSizeStepper } from './GroupSizeStepper';
 import { ShuffleList } from './ShuffleList';
+import { resolveBaseTextScale } from '@/config/widgetAppearance';
 import { timeToolClockReducer } from '@/utils/timeToolClock';
 
 import { WidgetLayout } from '../WidgetLayout';
@@ -1992,6 +1993,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       onToggleLock={handleToggleLock}
                       doneNames={doneNames}
                       onToggleDone={handleToggleDone}
+                      rowStyle={config.rowStyle}
+                      cardColor={config.cardColor}
+                      cardOpacity={config.cardOpacity}
+                      fontColor={config.fontColor}
+                      textScale={resolveBaseTextScale(widget.baseTextSize)}
                     />
                   ) : (
                     <RandomGroups

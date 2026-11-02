@@ -2407,7 +2407,10 @@
       "saveAsGroupsFailed": "Couldn't save these groups — check your Google Drive connection and try again.",
       "saveAsGroupsNeedsClassGroups": "Make groups with a class selected first.",
       "lockedGroupsEmpty": "Save a group for this class to keep it together when groups are made.",
-      "rosterGroupsOff": "Class groups are switched off for your school right now."
+      "rosterGroupsOff": "Class groups are switched off for your school right now.",
+      "rowStyle": "Name style",
+      "rowCards": "Cards",
+      "rowLines": "Lines"
     },
     "url": {
       "links": "Links",

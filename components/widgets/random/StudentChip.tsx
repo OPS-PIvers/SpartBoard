@@ -28,6 +28,12 @@ interface StudentChipProps {
   fontSize?: string;
   /** When true, chip is rendered as a translucent ghost (drag source). */
   isDragOverlay?: boolean;
+  /** Row variant only: drop the card chrome so the parent's hairlines show. */
+  lines?: boolean;
+  /** Row variant only: teacher-picked card background (rgba). */
+  cardBackground?: string;
+  /** Teacher-picked name colour. */
+  textColor?: string;
 }
 
 export const StudentChip: React.FC<StudentChipProps> = ({
@@ -41,6 +47,9 @@ export const StudentChip: React.FC<StudentChipProps> = ({
   variant = 'row',
   fontSize,
   isDragOverlay,
+  lines = false,
+  cardBackground,
+  textColor,
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -67,13 +76,22 @@ export const StudentChip: React.FC<StudentChipProps> = ({
     // sliding from its old group to its new one. The property is a no-op
     // when no transition is active.
     viewTransitionName: chipViewTransitionName(name),
+    ...(textColor && (!locked || (isRow && lines)) ? { color: textColor } : {}),
+    ...(cardBackground && !locked && !lines
+      ? { backgroundColor: cardBackground }
+      : {}),
   };
 
   // Locked state uses brand-blue tint; unlocked is plain white-on-card so the
   // group's background shows through cleanly (per Paul's GIF reference).
+  const flat = isRow && lines;
   const baseClasses = locked
-    ? 'bg-brand-blue-light/20 border border-brand-blue-primary/40 text-brand-blue-dark'
-    : 'bg-white border border-slate-200 text-slate-800';
+    ? flat
+      ? 'bg-brand-blue-light/20 text-brand-blue-dark'
+      : 'bg-brand-blue-light/20 border border-brand-blue-primary/40 text-brand-blue-dark'
+    : flat
+      ? 'text-slate-800'
+      : 'bg-white border border-slate-200 text-slate-800';
 
   const dragClasses = isDragging
     ? 'opacity-40 grayscale cursor-grabbing'
@@ -87,7 +105,7 @@ export const StudentChip: React.FC<StudentChipProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group/chip ${layoutClasses} rounded-lg shadow-xs font-semibold leading-snug overflow-hidden min-w-0 transition-colors ${baseClasses} ${
+      className={`group/chip ${layoutClasses} rounded-lg ${flat ? '' : 'shadow-xs'} font-semibold leading-snug overflow-hidden min-w-0 transition-colors ${baseClasses} ${
         isDragOverlay ? 'shadow-lg ring-2 ring-brand-blue-primary/40' : ''
       } ${dragClasses}`}
       {...listeners}
@@ -117,7 +135,7 @@ export const StudentChip: React.FC<StudentChipProps> = ({
         className={`shrink-0 rounded-full transition-colors flex items-center justify-center ${
           locked
             ? 'text-brand-blue-primary opacity-100'
-            : 'text-slate-400 opacity-60 hover:opacity-100'
+            : `${textColor ? '' : 'text-slate-400'} opacity-60 hover:opacity-100`
         }`}
         style={{
           padding: '0.15em',
@@ -152,7 +170,7 @@ export const StudentChip: React.FC<StudentChipProps> = ({
           className={`shrink-0 rounded-full transition-colors flex items-center justify-center ${
             done
               ? 'bg-emerald-500 text-white opacity-100'
-              : 'text-slate-400 opacity-60 hover:opacity-100'
+              : `${textColor ? '' : 'text-slate-400'} opacity-60 hover:opacity-100`
           }`}
           style={{
             padding: '0.15em',

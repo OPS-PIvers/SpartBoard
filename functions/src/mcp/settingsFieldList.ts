@@ -706,6 +706,25 @@ export const SETTINGS_FIELD_LIST: Readonly<
       label: 'Save as class groups',
       kind: 'custom',
     },
+    {
+      anchor: 'settings.group:random#display',
+      label: 'Display',
+    },
+    {
+      anchor: 'settings.field:random#rowStyle',
+      label: 'Name style',
+      kind: 'segmented',
+    },
+    {
+      anchor: 'settings.field:random#cardColor',
+      label: 'Card color',
+      kind: 'surfaceColor',
+    },
+    {
+      anchor: 'settings.field:random#fontColor',
+      label: 'Font color',
+      kind: 'color',
+    },
   ],
   url: [
     {
