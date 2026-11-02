@@ -9,6 +9,7 @@ import {
   type TimeToolClockEvent,
 } from '@/utils/timeToolClock';
 import { reportHandAction } from '@/utils/connectionSignals';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 
 // `isBoardActive` is false for a timer on a mounted but hidden board, which must not drive widgets on the shown board.
 export const useTimeTool = (
@@ -16,6 +17,7 @@ export const useTimeTool = (
   { isBoardActive = true }: { isBoardActive?: boolean } = {}
 ) => {
   const { updateWidget, activeDashboard } = useDashboard();
+  const connectionsOn = useConnectionsEnabled();
   const config = widget.config as TimeToolConfig;
 
   const [runningDisplayTime, setRunningDisplayTime] = useState(
@@ -209,7 +211,8 @@ export const useTimeTool = (
     playTimerAlert(config.selectedSound);
 
     // Only a timer on the shown board drives sister widgets; a hidden board's timer would otherwise act on the shown one.
-    const board = isBoardActive ? activeDashboard : null;
+    // With Connections on, those end actions became Sequences and the old fields are ignored.
+    const board = isBoardActive && !connectionsOn ? activeDashboard : null;
 
     // Auto-switch expectations voice level
     if (config.timerEndVoiceLevel != null && board) {
@@ -301,6 +304,7 @@ export const useTimeTool = (
     config.duration,
     activeDashboard,
     isBoardActive,
+    connectionsOn,
     updateWidget,
   ]);
 

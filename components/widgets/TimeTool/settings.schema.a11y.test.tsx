@@ -75,6 +75,7 @@ const renderDrawer = () =>
       updateConfig={vi.fn()}
       globalStyle={{ windowTransparency: 0.5 } as GlobalStyle}
       schema={schema}
+      canAccessFeature={(id) => id !== 'widget-connections'}
       defaults={WIDGET_DEFAULTS['time-tool'].config as Record<string, unknown>}
     />
   );

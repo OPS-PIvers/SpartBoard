@@ -42,6 +42,7 @@ import {
   resetStation,
 } from './hooks/stationsActions';
 import { tourAttr } from '@/config/tourAnchors';
+import { reportHandAction } from '@/utils/connectionSignals';
 
 const UNASSIGNED_DROP_ID = 'stations:unassigned';
 const STATION_DROP_PREFIX = 'station:';
@@ -508,7 +509,10 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               </Button>
               <Button
                 {...tourAttr('stations.rotate', widget.id, widget.type)}
-                onClick={handleRotate}
+                onClick={() => {
+                  reportHandAction(widget.id, 'next');
+                  handleRotate();
+                }}
                 variant="ghost"
                 size="sm"
                 className="shrink-0 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-brand-blue-primary"

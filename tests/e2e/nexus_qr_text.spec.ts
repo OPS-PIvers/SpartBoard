@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
+  // This is the old sync toggle, which Widget Connections hides; the mock admin would otherwise have them.
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'authBypassFeatureOverrides',
+      JSON.stringify({ 'widget-connections': false })
+    )
+  );
   // Disable animations
   await page.addStyleTag({
     content:

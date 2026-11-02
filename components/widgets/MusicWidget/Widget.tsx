@@ -18,7 +18,7 @@ import { useAuth } from '@/context/useAuth';
 import { tourAttr } from '@/config/tourAnchors';
 import { resolveActiveStation } from './mySongs';
 import { resolveSyncedTimer } from './linkedTimer';
-import { liveConnections } from '@/utils/connectionEngine';
+import { followLeaderId } from '@/utils/connectionEngine';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -138,8 +138,13 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 };
 
 const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { activeDashboard, addWidget, updateWidget, isActiveBoardReadOnly } =
-    useDashboard();
+  const {
+    activeDashboard,
+    addWidget,
+    updateWidget,
+    updateDashboard,
+    isActiveBoardReadOnly,
+  } = useDashboard();
   const { canAccessFeature, canAccessWidget } = useAuth();
   const config = widget.config as MusicConfig;
   const {
@@ -154,16 +159,13 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Nexus connection: watch Time Tool running state
   const widgets = activeDashboard?.widgets ?? [];
-  // A Connection Follow names its Timer and turns the sync on by itself.
-  const followedTimerId = canAccessFeature('widget-connections')
-    ? liveConnections(activeDashboard?.connections, widgets).find(
-        (c) => c.kind === 'follow' && c.followerId === widget.id
-      )
+  // With Connections on, a Follow names the Timer and the old toggle is ignored.
+  const connectionsOn = canAccessFeature('widget-connections');
+  const leaderId = connectionsOn
+    ? followLeaderId(activeDashboard?.connections, widgets, widget.id)
     : undefined;
-  const leaderId =
-    followedTimerId?.kind === 'follow' ? followedTimerId.leaderId : undefined;
-  const syncWithTimer = !!config.syncWithTimeTool || !!leaderId;
-  const timeToolWidget = leaderId
+  const syncWithTimer = connectionsOn ? !!leaderId : !!config.syncWithTimeTool;
+  const timeToolWidget = connectionsOn
     ? widgets.find((w) => w.id === leaderId)
     : resolveSyncedTimer(widgets, config.linkedTimerId);
   const isTimeToolRunning = (
@@ -235,7 +237,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     !!youtubeId &&
     !isSpotify &&
     !isActiveBoardReadOnly &&
-    canAccessFeature('music-timer-link') &&
+    (connectionsOn || canAccessFeature('music-timer-link')) &&
     canAccessWidget('time-tool') &&
     !(syncWithTimer && timeToolWidget);
 
@@ -246,6 +248,20 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       x: widget.x + widget.w + 20,
       y: widget.y,
     });
+    if (connectionsOn) {
+      updateDashboard({
+        connections: [
+          ...(activeDashboard?.connections ?? []),
+          {
+            id: crypto.randomUUID(),
+            kind: 'follow',
+            leaderId: timerId,
+            followerId: widget.id,
+          },
+        ],
+      });
+      return;
+    }
     // Rides the add's undo entry, so one undo removes the Timer.
     updateWidget(
       widget.id,

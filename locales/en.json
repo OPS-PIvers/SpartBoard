@@ -5759,6 +5759,25 @@
       },
       "random": {
         "next": "Next name"
+      },
+      "traffic": {
+        "red": "Turn red",
+        "yellow": "Turn yellow",
+        "green": "Turn green",
+        "off": "Turn off"
+      },
+      "expectations": {
+        "voice-0": "Voice: Silence",
+        "voice-1": "Voice: Whisper",
+        "voice-2": "Voice: Conversation",
+        "voice-3": "Voice: Presenter",
+        "voice-4": "Voice: Outside"
+      },
+      "nextUp": {
+        "next": "Next student"
+      },
+      "stations": {
+        "rotate": "Rotate stations"
       }
     },
     "editor": {
@@ -5782,7 +5801,7 @@
       "repeatCount": "A set number of times",
       "timesLabel": "Times",
       "follows": "Follows",
-      "followsLine": "{{follower}} plays while {{leader}} runs",
+      "followsLine": "{{follower}} follows {{leader}}",
       "removeFollow": "Remove",
       "empty": "Nothing left in this connection. Save to remove it."
     }
