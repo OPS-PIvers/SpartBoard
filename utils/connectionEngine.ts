@@ -220,7 +220,10 @@ const followPair = (
 };
 
 // Turns Connect-mode picks into a Sequence plus Follows; picking the first widget again makes it repeat.
-export const draftFromPicks = (picks: PickedWidget[]): ConnectionDraft => {
+export const draftFromPicks = (
+  picks: PickedWidget[],
+  { minSteps = 2 }: { minSteps?: number } = {}
+): ConnectionDraft => {
   const closesLoop =
     picks.length > 2 && picks[picks.length - 1].id === picks[0].id;
   const ordered = closesLoop ? picks.slice(0, -1) : picks;
@@ -246,7 +249,7 @@ export const draftFromPicks = (picks: PickedWidget[]): ConnectionDraft => {
       ];
     });
   const sequence: SequenceConnection | null =
-    steps.length >= 2
+    steps.length >= minSteps
       ? {
           id: newId(),
           kind: 'sequence',

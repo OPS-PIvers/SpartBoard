@@ -5739,6 +5739,52 @@
     "editedBadge": "Edited by Claude"
   },
   "connections": {
-    "runFinished": "Sequence finished"
+    "runFinished": "Sequence finished",
+    "connect": "Connect",
+    "badgeTitle": "Connected: open the steps",
+    "menuConnection": "Connection {{n}}",
+    "newConnection": "New connection",
+    "pick": "Add {{name}}",
+    "tapInOrder": "Tap widgets in the order they should go. Tap the first one again to repeat.",
+    "doneCount": "Done ({{count}})",
+    "nothingToConnect": "Those widgets have nothing to do together yet.",
+    "closeWarningStep": "This widget is step {{steps}} of a connection. Closing removes it from the steps.",
+    "closeWarning": "Closing removes this widget from its connection.",
+    "actions": {
+      "time-tool": {
+        "restart": "Start from the top",
+        "start": "Start or resume",
+        "pause": "Pause",
+        "reset": "Reset"
+      },
+      "random": {
+        "next": "Next name"
+      }
+    },
+    "editor": {
+      "title": "Connection",
+      "delete": "Delete connection",
+      "running": "Running now. Saving changes stops it.",
+      "stop": "Stop",
+      "wait": "Wait",
+      "seconds": "seconds",
+      "actionFor": "What {{name}} does",
+      "removeAction": "Remove from this step",
+      "sameTime": "At the same time",
+      "moveUp": "Move step up",
+      "moveDown": "Move step down",
+      "removeStep": "Remove step",
+      "addWidget": "Add widget",
+      "addWait": "Add wait",
+      "repeat": "Repeat",
+      "repeatUntilDone": "Until a step has nothing left to do",
+      "repeatOnce": "Don't repeat",
+      "repeatCount": "A set number of times",
+      "timesLabel": "Times",
+      "follows": "Follows",
+      "followsLine": "{{follower}} plays while {{leader}} runs",
+      "removeFollow": "Remove",
+      "empty": "Nothing left in this connection. Save to remove it."
+    }
   }
 }

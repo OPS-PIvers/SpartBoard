@@ -38,10 +38,13 @@ export const SURFACES: TourSurfaceMap = {
       'components/share/ShareStatusBanner.tsx',
       'components/layout/useClaudeBoardActivity.ts',
       'components/layout/ImportInboxNotice.tsx',
+      'components/connections/ConnectModeBar.tsx',
     ],
     inner: {
       'dashboard.group-cancel': 'widget.group-with',
       'dashboard.group-widgets': 'widget.group-with',
+      'dashboard.connect-cancel': 'widget.connect',
+      'dashboard.connect-done': 'widget.connect',
       'board-actions.zoom-slider': 'board-actions.zoom',
       'board-actions.zoom-preset': 'board-actions.zoom',
       'board-actions.zoom-panel-reset': 'board-actions.zoom',
@@ -96,9 +99,15 @@ export const SURFACES: TourSurfaceMap = {
   'board.widget': {
     label: 'Widget window chrome',
     kind: 'widget',
-    files: ['components/common/DraggableWindow.tsx'],
+    files: [
+      'components/common/DraggableWindow.tsx',
+      'components/connections/WidgetConnectionControls.tsx',
+    ],
     needs: ['widget-on-stage'],
     inner: {
+      'widget.connect-menu.connection': 'widget.connect',
+      'widget.connect-menu.new': 'widget.connect',
+      'widget.connect-pick': 'widget.connect',
       'widget.close-confirm.cancel': 'widget.close',
       'widget.close-confirm.confirm': 'widget.close',
       'widget.annotate-toolbar.eraser': 'widget.annotate',
@@ -114,6 +123,17 @@ export const SURFACES: TourSurfaceMap = {
       'widget.snap-layout.option': 'widget.snap-layout',
       'widget.snap-layout.custom-grid': 'widget.snap-layout',
     },
+  },
+  'board.connections-editor': {
+    label: 'Connection steps window',
+    kind: 'modal',
+    files: ['components/connections/ConnectionEditorModal.tsx'],
+    opensWith: 'dashboard.connect-done',
+    alsoOpensWith: [
+      'widget.connection-badge',
+      'widget.connect-menu.connection',
+    ],
+    needs: ['widget-on-stage'],
   },
   'board.settings-drawer': {
     label: 'Widget settings drawer',
