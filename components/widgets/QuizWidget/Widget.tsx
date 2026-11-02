@@ -1961,10 +1961,7 @@ const TeacherQuizWidget: React.FC<{
           'Choose a Schoology export (.imscc). Every question bank in it comes in as its own bank.',
         accept: '.imscc',
         guide: (
-          <SchoologyExportGuide
-            kind="banks"
-            canSend={canImportFromSchoology}
-          />
+          <SchoologyExportGuide kind="banks" canSend={canImportFromSchoology} />
         ),
         onFile: (file: File) => {
           closeBankImport();
