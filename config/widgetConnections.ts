@@ -6,6 +6,7 @@ import {
   timeToolClockPatch,
 } from '@/utils/timeToolClock';
 import { currentShuffleName } from '@/utils/randomCurrentName';
+import { VOLUME_OPTIONS } from '@/config/expectationsData';
 
 type Config = Record<string, unknown>;
 
@@ -82,6 +83,24 @@ const randomNext: ConnectionActionDef = {
   },
 };
 
+const setField = (
+  id: string,
+  label: string,
+  patch: Config
+): ConnectionActionDef => ({ id, label, apply: () => ({ patch }) });
+
+const bump = (
+  id: string,
+  label: string,
+  field: string,
+  hand?: ConnectionHandAction
+): ConnectionActionDef => ({
+  id,
+  label,
+  ...(hand && { hand }),
+  apply: (_c, now) => ({ patch: { [field]: now } }),
+});
+
 export const WIDGET_CONNECTIONS: Partial<
   Record<WidgetType, WidgetConnectionDef>
 > = {
@@ -96,6 +115,35 @@ export const WIDGET_CONNECTIONS: Partial<
   },
   random: { defaultAction: 'next', actions: [randomNext] },
   music: { defaultAction: '', actions: [], follows: ['time-tool'] },
+  traffic: {
+    defaultAction: 'red',
+    actions: [
+      setField('red', 'Turn red', { active: 'red' }),
+      setField('yellow', 'Turn yellow', { active: 'yellow' }),
+      setField('green', 'Turn green', { active: 'green' }),
+      setField('off', 'Turn off', { active: 'none' }),
+    ],
+    follows: ['sound'],
+  },
+  expectations: {
+    defaultAction: 'voice-0',
+    actions: VOLUME_OPTIONS.map((o) =>
+      setField(`voice-${o.id}`, `Voice: ${o.label}`, { voiceLevel: o.id })
+    ),
+  },
+  nextUp: {
+    defaultAction: 'next',
+    actions: [bump('next', 'Next student', 'externalTrigger', 'next')],
+  },
+  stations: {
+    defaultAction: 'rotate',
+    actions: [bump('rotate', 'Rotate stations', 'rotationTrigger', 'next')],
+  },
+  sound: { defaultAction: '', actions: [], follows: ['expectations'] },
+  qr: { defaultAction: '', actions: [], follows: ['text'] },
+  recessGear: { defaultAction: '', actions: [], follows: ['weather'] },
+  text: { defaultAction: '', actions: [] },
+  weather: { defaultAction: '', actions: [] },
 };
 
 export const connectionDefFor = (

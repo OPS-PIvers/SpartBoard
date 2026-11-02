@@ -13,6 +13,7 @@ import {
   TimeToolTrafficColorField,
   TimeToolVoiceLevelField,
 } from './settingsFields';
+import { hiddenWithConnections } from '@/components/settings/schema/hiddenWithConnections';
 
 const renderMode = (ctx: CustomRenderCtx) =>
   React.createElement(TimeToolModeField, { ctx });
@@ -87,7 +88,7 @@ export default defineSettings<TimeToolConfig & { startLength?: never }>({
           label: 'timerEndVoiceLevel',
           section: 'timerEndSection',
           partner: 'expectations',
-          visibleWhen: isTimerMode,
+          visibleWhen: (ctx) => isTimerMode(ctx) && hiddenWithConnections(ctx),
           // schema-gap: segmentedNullable
           control: {
             type: 'custom',
@@ -102,7 +103,7 @@ export default defineSettings<TimeToolConfig & { startLength?: never }>({
           label: 'timerEndTrafficColor',
           section: 'timerEndSection',
           partner: 'traffic',
-          visibleWhen: isTimerMode,
+          visibleWhen: (ctx) => isTimerMode(ctx) && hiddenWithConnections(ctx),
           // schema-gap: segmentedNullable
           control: {
             type: 'custom',
@@ -117,7 +118,7 @@ export default defineSettings<TimeToolConfig & { startLength?: never }>({
           label: 'timerEndTriggerRandom',
           section: 'timerEndSection',
           partner: 'random',
-          visibleWhen: isTimerMode,
+          visibleWhen: (ctx) => isTimerMode(ctx) && hiddenWithConnections(ctx),
           control: {
             type: 'toggle',
             key: 'timerEndTriggerRandom',
@@ -130,7 +131,7 @@ export default defineSettings<TimeToolConfig & { startLength?: never }>({
           label: 'timerEndTriggerStationsRotate',
           section: 'timerEndSection',
           partner: 'stations',
-          visibleWhen: isTimerMode,
+          visibleWhen: (ctx) => isTimerMode(ctx) && hiddenWithConnections(ctx),
           control: {
             type: 'toggle',
             key: 'timerEndTriggerStationsRotate',
@@ -143,7 +144,7 @@ export default defineSettings<TimeToolConfig & { startLength?: never }>({
           label: 'timerEndTriggerNextUp',
           section: 'timerEndSection',
           partner: 'nextUp',
-          visibleWhen: isTimerMode,
+          visibleWhen: (ctx) => isTimerMode(ctx) && hiddenWithConnections(ctx),
           control: {
             type: 'toggle',
             key: 'timerEndTriggerNextUp',

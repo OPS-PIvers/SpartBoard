@@ -4,6 +4,7 @@ import React, {
   useRef,
   useEffect,
   useCallback,
+  useLayoutEffect,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
@@ -171,8 +172,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     [config.doneNames]
   );
   const { canAccessFeature } = useAuth();
+  const connectionsOn = canAccessFeature('widget-connections');
+  // Read in the deferred pick callback; with Connections on, auto-start became a Sequence.
+  const connectionsOnRef = useRef(connectionsOn);
+  useLayoutEffect(() => {
+    connectionsOnRef.current = connectionsOn;
+  }, [connectionsOn]);
   const inSequence =
-    canAccessFeature('widget-connections') &&
+    connectionsOn &&
     liveConnections(
       activeDashboard?.connections,
       activeDashboard?.widgets ?? []
@@ -1150,7 +1157,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         // Read from activeDashboardRef so we always act on the current
         // dashboard state, not the stale snapshot captured at click time.
         const liveDashboard = activeDashboardRef.current;
-        if (autoStartTimer && liveDashboard && mode === 'single') {
+        if (
+          autoStartTimer &&
+          !connectionsOnRef.current &&
+          liveDashboard &&
+          mode === 'single'
+        ) {
           const timeWidget = liveDashboard.widgets.find(
             (w) => w.type === 'time-tool'
           );

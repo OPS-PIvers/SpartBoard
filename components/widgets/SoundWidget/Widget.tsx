@@ -5,6 +5,7 @@ import React, {
   useLayoutEffect,
   useCallback,
   useRef,
+  useMemo,
 } from 'react';
 import {
   AlertTriangle,
@@ -17,6 +18,7 @@ import { tourAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { followLeaderId, followerIds } from '@/utils/connectionEngine';
 import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
 import {
   WidgetData,
@@ -64,6 +66,8 @@ interface CustomWindow extends Window {
 // still hit the fast-resume path below.
 const RELEASE_AFTER_HIDDEN_MS = 2 * 60 * 1000;
 
+const EMPTY_WIDGETS: WidgetData[] = [];
+
 export const SoundWidget: React.FC<{
   widget: WidgetData;
   isActive?: boolean;
@@ -88,9 +92,9 @@ export const SoundWidget: React.FC<{
   const {
     sensitivity = 1,
     visual: savedVisual = 'thermometer',
-    autoTrafficLight,
+    autoTrafficLight: legacyAutoTrafficLight,
     trafficLightThreshold = 4,
-    syncExpectations = false,
+    syncExpectations: legacySyncExpectations = false,
     targetLevel,
     alertDelaySeconds,
     alertSoundEnabled = false,
@@ -106,6 +110,40 @@ export const SoundWidget: React.FC<{
   const floor = pro && typeof noiseFloor === 'number' ? noiseFloor : 0;
   const calibrating =
     pro && isActive && isCalibrating(widget.config as SoundConfig);
+
+  // With Connections on, Follows replace the old sync toggles: this meter Follows one Expectations, Traffic Lights Follow it.
+  const connectionsOn = canAccessFeature('widget-connections');
+  const boardWidgets = activeDashboard?.widgets ?? EMPTY_WIDGETS;
+  const followedExpectations = connectionsOn
+    ? boardWidgets.find(
+        (w) =>
+          w.id ===
+          followLeaderId(activeDashboard?.connections, boardWidgets, widget.id)
+      )
+    : undefined;
+  const syncExpectations = connectionsOn
+    ? !!followedExpectations
+    : legacySyncExpectations;
+  const trafficTargets = useMemo(() => {
+    if (connectionsOn) {
+      const ids = followerIds(
+        activeDashboard?.connections,
+        boardWidgets,
+        widget.id
+      );
+      return boardWidgets.filter(
+        (w) => w.type === 'traffic' && ids.includes(w.id)
+      );
+    }
+    const first = boardWidgets.find((w) => w.type === 'traffic');
+    return legacyAutoTrafficLight && first ? [first] : [];
+  }, [
+    connectionsOn,
+    activeDashboard?.connections,
+    boardWidgets,
+    widget.id,
+    legacyAutoTrafficLight,
+  ]);
 
   // Use ref for sensitivity to prevent audio stream restart on sensitivity changes
   const sensitivityRef = useRef(sensitivity);
@@ -123,14 +161,17 @@ export const SoundWidget: React.FC<{
     floorRef.current = floor;
   }, [effectiveSensitivity, pro, floor]);
 
-  const expectationsWidgets =
-    activeDashboard?.widgets.filter((w) => w.type === 'expectations') ?? [];
+  const expectationsWidgets = boardWidgets.filter(
+    (w) => w.type === 'expectations'
+  );
   // Prefer the Expectations widget the teacher synced, as its settings intend.
   const expectationsVoiceLevel = (
     (
+      followedExpectations ??
       expectationsWidgets.find(
         (w) => (w.config as ExpectationsConfig).syncSoundWidget
-      ) ?? expectationsWidgets[0]
+      ) ??
+      expectationsWidgets[0]
     )?.config as ExpectationsConfig | undefined
   )?.voiceLevel;
   const targetInForce = pro
@@ -143,9 +184,9 @@ export const SoundWidget: React.FC<{
     // With pro, the voice level sets the target instead of the sensitivity.
     if (pro || !syncExpectations || !activeDashboard) return;
 
-    const expectationsWidget = activeDashboard.widgets.find(
-      (w) => w.type === 'expectations'
-    );
+    const expectationsWidget =
+      followedExpectations ??
+      activeDashboard.widgets.find((w) => w.type === 'expectations');
     if (!expectationsWidget) return;
 
     const expectationsConfig = expectationsWidget.config as ExpectationsConfig;
@@ -179,6 +220,7 @@ export const SoundWidget: React.FC<{
   }, [
     pro,
     syncExpectations,
+    followedExpectations,
     activeDashboard,
     sensitivity,
     widget.id,
@@ -459,38 +501,27 @@ export const SoundWidget: React.FC<{
 
   // Nexus Connection: Auto Traffic Light
   useEffect(() => {
-    if (!autoTrafficLight || !activeDashboard) return;
-
-    // Find the first traffic light widget
-    const trafficLight = activeDashboard.widgets.find(
-      (w) => w.type === 'traffic'
-    );
-    if (!trafficLight) return;
+    if (trafficTargets.length === 0) return;
 
     const levelIndex = POSTER_LEVELS.indexOf(level);
     const thresholdIndex = trafficLightThreshold ?? 4;
 
     // Stable Delay: Only act if the level holds for 1s
     const timer = setTimeout(() => {
-      const trafficConfig = trafficLight.config as TrafficConfig;
       const desiredState = levelIndex >= thresholdIndex ? 'red' : 'green';
-
-      // Only update if state is different to avoid spamming Firestore
-      if (trafficConfig.active !== desiredState) {
-        updateWidget(trafficLight.id, {
-          config: { ...trafficConfig, active: desiredState },
-        });
+      for (const trafficLight of trafficTargets) {
+        const trafficConfig = trafficLight.config as TrafficConfig;
+        // Only update if state is different to avoid spamming Firestore
+        if (trafficConfig.active !== desiredState) {
+          updateWidget(trafficLight.id, {
+            config: { ...trafficConfig, active: desiredState },
+          });
+        }
       }
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [
-    level,
-    autoTrafficLight,
-    trafficLightThreshold,
-    activeDashboard,
-    updateWidget,
-  ]);
+  }, [level, trafficTargets, trafficLightThreshold, updateWidget]);
 
   const levelPill = (
     <span

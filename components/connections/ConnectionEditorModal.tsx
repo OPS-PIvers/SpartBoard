@@ -505,7 +505,7 @@ export const ConnectionEditorModal: React.FC<{
                     {t('connections.editor.followsLine', {
                       follower: names.get(f.followerId) ?? '',
                       leader: names.get(f.leaderId) ?? '',
-                      defaultValue: '{{follower}} plays while {{leader}} runs',
+                      defaultValue: '{{follower}} follows {{leader}}',
                     })}
                   </span>
                   <button

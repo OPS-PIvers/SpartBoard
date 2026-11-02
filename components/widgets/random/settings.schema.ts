@@ -14,6 +14,7 @@ import {
   RandomLockedGroupsField,
   RandomSaveAsClassGroupsField,
 } from './settingsFields';
+import { hiddenWithConnections } from '@/components/settings/schema/hiddenWithConnections';
 
 const mode = (ctx: FieldCtx) => ctx.config.mode ?? 'single';
 const isMode = (value: string) => (ctx: FieldCtx) => mode(ctx) === value;
@@ -119,7 +120,8 @@ export default defineSettings<RandomConfig>({
           type: 'partnerWidget',
           label: 'autoStartTimer',
           partner: 'time-tool',
-          visibleWhen: isMode('single'),
+          visibleWhen: (ctx) =>
+            isMode('single')(ctx) && hiddenWithConnections(ctx),
           control: {
             key: 'autoStartTimer',
             type: 'toggle',

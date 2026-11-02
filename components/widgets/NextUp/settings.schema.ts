@@ -3,6 +3,7 @@ import { defineSettings } from '@/components/settings/schema/defineSettings';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { NextUpConfig } from '@/types';
 import { NextUpSessionField, NextUpThemeField } from './settingsFields';
+import { hiddenWithConnections } from '@/components/settings/schema/hiddenWithConnections';
 
 const renderSession = (ctx: CustomRenderCtx) =>
   React.createElement(NextUpSessionField, { ctx });
@@ -36,6 +37,7 @@ export default defineSettings<NextUpConfig>({
       fields: [
         {
           key: 'autoStartTimer',
+          visibleWhen: hiddenWithConnections,
           type: 'partnerWidget',
           label: 'autoStartTimer',
           section: 'connections',

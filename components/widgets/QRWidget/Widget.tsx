@@ -11,6 +11,8 @@ import { WidgetLayout } from '../WidgetLayout';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { extractSyncedUrl, getSyncedTextContent } from './deriveSyncedUrl';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
+import { followLeaderId } from '@/utils/connectionEngine';
 
 export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { activeDashboard } = useDashboard();
@@ -38,9 +40,21 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Two-step memoization: cheap find runs whenever widgets array reference
   // changes, but the expensive DOMParser-based stripHtml only runs when the
   // raw text content actually changes (prevents jank during drag/resize).
+  const connectionsOn = useConnectionsEnabled();
+  const followedTextId = connectionsOn
+    ? (followLeaderId(
+        activeDashboard?.connections,
+        activeDashboard?.widgets ?? [],
+        widget.id
+      ) ?? null)
+    : undefined;
+  const isSynced = connectionsOn
+    ? !!followedTextId
+    : !!config.syncWithTextWidget;
   const textWidgetContent = useMemo(
-    () => getSyncedTextContent(config, activeDashboard?.widgets),
-    [config, activeDashboard?.widgets]
+    () =>
+      getSyncedTextContent(config, activeDashboard?.widgets, followedTextId),
+    [config, activeDashboard?.widgets, followedTextId]
   );
 
   const syncedUrl = useMemo(
@@ -78,7 +92,7 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     <WidgetLayout
       padding="p-0"
       header={
-        config.syncWithTextWidget ? (
+        isSynced ? (
           <div
             className="flex justify-end"
             style={{ padding: 'min(8px, 1.5cqmin)', paddingBottom: 0 }}

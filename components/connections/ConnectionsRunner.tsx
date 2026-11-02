@@ -12,6 +12,7 @@ import {
   type WidgetPatches,
 } from '@/utils/connectionEngine';
 import { CONNECTION_DEVICE_ID, onHandAction } from '@/utils/connectionSignals';
+import { convertLegacyConnections } from '@/utils/legacyConnections';
 
 type ApplyChanges = DashboardContextValue['applyConnectionChanges'];
 
@@ -75,6 +76,26 @@ export const ConnectionsRunner: React.FC = () => {
         write(latest.current.applyConnectionChanges, board, patches, updated);
     });
   }, [enabled]);
+
+  // Old nexus toggles become Connections, once per widget (the marker stops a repeat).
+  const converting = useRef(new Set<string>());
+  useEffect(() => {
+    if (!enabled) return;
+    for (const board of dashboards) {
+      if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) {
+        continue;
+      }
+      const result = convertLegacyConnections(board);
+      if (!result) continue;
+      const key = `${board.id}:${Object.keys(result.markers).sort().join(',')}`;
+      if (converting.current.has(key)) continue;
+      converting.current.add(key);
+      applyConnectionChanges?.(board.id, result.markers, [
+        ...(board.connections ?? []),
+        ...result.connections,
+      ]);
+    }
+  }, [enabled, dashboards, applyConnectionChanges]);
 
   const anyRun = enabled && dashboards.some(hasRun);
   const overdueSince = useRef(new Map<string, number>());
