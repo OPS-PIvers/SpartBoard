@@ -5737,5 +5737,8 @@
     "show": "Show",
     "madeBadge": "Made with Claude",
     "editedBadge": "Edited by Claude"
+  },
+  "connections": {
+    "runFinished": "Sequence finished"
   }
 }

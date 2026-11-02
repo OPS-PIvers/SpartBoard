@@ -8,6 +8,7 @@ import {
   timeToolClockPatch,
   type TimeToolClockEvent,
 } from '@/utils/timeToolClock';
+import { reportHandAction } from '@/utils/connectionSignals';
 
 // `isBoardActive` is false for a timer on a mounted but hidden board, which must not drive widgets on the shown board.
 export const useTimeTool = (
@@ -74,6 +75,7 @@ export const useTimeTool = (
     if (!patch) return;
     updateWidget(widget.id, { config: patch });
     setRunningDisplayTime(config.elapsedTime);
+    reportHandAction(widget.id, 'start');
   }, [config, updateWidget, widget.id]);
 
   // Reset, setTime and adjust spread the whole config, as they always have.
