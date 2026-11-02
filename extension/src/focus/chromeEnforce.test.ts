@@ -127,6 +127,7 @@ function fakeChrome(
     },
     webNavigation: {
       getFrame: (o: { tabId: number }) => {
+        if (o.tabId === 99) return Promise.reject(new Error('discarded'));
         const frame = frames.find(([id]) => id === o.tabId);
         return Promise.resolve(frame ? { url: frame[1] } : null);
       },
@@ -294,6 +295,8 @@ describe('createChromeEnforcer non-web pages', () => {
       { id: 2, windowId: 1, url: '', active: false, lastAccessed: 2 },
       { id: 3, windowId: 1, url: '', active: false, lastAccessed: 3 },
       { id: 4, windowId: 1, url: '', active: false, lastAccessed: 4 },
+      { id: 5, windowId: 1, url: '', active: false, lastAccessed: 5 },
+      { id: 99, windowId: 1, url: '', active: false, lastAccessed: 6 },
     ];
     const c = fakeChrome(
       tabs,
@@ -303,6 +306,7 @@ describe('createChromeEnforcer non-web pages', () => {
         [1, DATA],
         [2, 'chrome://newtab/'],
         [4, 'file:///home/kid/page.html'],
+        [5, 'chrome-error://chromewebdata/'],
       ]
     );
     current = local(session());

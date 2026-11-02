@@ -151,6 +151,7 @@ describe('statusFor', () => {
       'chrome://new-tab-page/',
       'chrome-search://local-ntp/local-ntp.html',
       'about:blank',
+      'chrome-error://chromewebdata/',
       'blob:https://www.desmos.com/uuid',
       'blob:https://spartboard.web.app/uuid',
       'filesystem:https://desmos.com/temporary/x',

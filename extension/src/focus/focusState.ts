@@ -96,8 +96,8 @@ export const badgeText = (
     ? `${minutesLeft(state, deviceNow)}m`
     : '';
 
-/** Browser schemes that only show browser or ChromeOS screens, never a web page of the student's choosing. */
-const BROWSER_SCHEMES = new Set(['chrome:', 'chrome-search:']);
+/** Browser schemes that only show browser or ChromeOS screens (and Chrome's load-error page), never a site of the student's choosing. */
+const BROWSER_SCHEMES = new Set(['chrome:', 'chrome-search:', 'chrome-error:']);
 
 /**
  * Whether Redirect or Lock blocks a top-level page: a web page off the allowlist, or any other page that can show one
