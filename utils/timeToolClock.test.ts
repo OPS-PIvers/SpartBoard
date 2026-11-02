@@ -273,6 +273,54 @@ describe('adjust', () => {
     ).toEqual({ elapsedTime: 340, duration: 340, startTime: null });
   });
 
+  it('makes the adjusted time the full length of a timer not yet started', () => {
+    const c = timer({ duration: 600, elapsedTime: 600 });
+    const patch = timeToolClockPatch(c, {
+      type: 'adjust',
+      deltaSeconds: -60,
+      fromSeconds: 600,
+      now: NOW,
+    });
+    expect(patch).toEqual({ elapsedTime: 540, duration: 540, startTime: null });
+    expect(clockStateOf({ ...c, ...patch }).phase).toBe('idle');
+  });
+
+  it('starts a finished timer over at the added time', () => {
+    const c = timer({ duration: 600, elapsedTime: 0 });
+    expect(
+      timeToolClockPatch(c, {
+        type: 'adjust',
+        deltaSeconds: 60,
+        fromSeconds: 0,
+        now: NOW,
+      })
+    ).toEqual({ elapsedTime: 60, duration: 60, startTime: null });
+  });
+
+  it('keeps the full length when a timer not yet started goes to zero', () => {
+    const c = timer({ duration: 60, elapsedTime: 60 });
+    expect(
+      timeToolClockPatch(c, {
+        type: 'adjust',
+        deltaSeconds: -60,
+        fromSeconds: 60,
+        now: NOW,
+      })
+    ).toEqual({ elapsedTime: 0, duration: 60, startTime: null });
+  });
+
+  it('keeps the full length when taking time off a paused timer', () => {
+    const c = timer({ duration: 600, elapsedTime: 300 });
+    expect(
+      timeToolClockPatch(c, {
+        type: 'adjust',
+        deltaSeconds: -60,
+        fromSeconds: 300,
+        now: NOW,
+      })
+    ).toEqual({ elapsedTime: 240, duration: 600, startTime: null });
+  });
+
   it('rebases the start stamp while running', () => {
     const c = timer({ isRunning: true, startTime: NOW - 5000 });
     expect(
