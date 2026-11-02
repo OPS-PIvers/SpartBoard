@@ -3923,7 +3923,7 @@
         "zoomIn": "Zoom in",
         "zoomOut": "Zoom out",
         "zoomFit": "Fit",
-        "darken": "Darken handwriting",
+        "contrast": "Boost contrast",
         "loading": "Loading handwriting",
         "unavailable": "Handwriting unavailable",
         "reload": "Try again",
