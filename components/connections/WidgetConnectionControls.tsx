@@ -121,7 +121,7 @@ export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
     defaultValue: 'Connected: open the steps',
   });
   const itemClass =
-    'w-full text-left px-3 py-2 hover:bg-slate-100 flex items-center gap-2';
+    'w-full min-h-11 text-left px-3 py-2 hover:bg-slate-100 flex items-center gap-2';
   return (
     <>
       <button
