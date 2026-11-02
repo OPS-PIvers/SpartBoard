@@ -5005,3 +5005,13 @@ rather than "no data") is also still open.
   - Ready: #4950.
   - Ready with minor notes: #4953. Its css-scaling journal entry still needs to be applied on `scheduled-tasks`.
 - Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-11-02
+
+- PRs reviewed: #5001 docs: nightly debugger run 113 log; #5000 fix(admin): Specialist Schedule cycle length field can be cleared while typing; #4999 fix(csv-import): report physical line numbers after multi-line quoted cells; #4998 fix(dock): dragged folder can reorder past neighbouring tools; #4997 fix(seating): plan-name cap no longer splits an emoji surrogate pair; #4978 Unifier run 134: aligned, no drift found
+- Comments processed: 2 total. 0 fixed, 0 needing a reply. Both were claude[bot] "no issues found" summaries on #4997 and #4998. No PR had inline review threads or submitted reviews.
+- Fixes pushed: none
+- Reviews posted: 6
+  - Ready: #5001, #5000, #4999, #4998, #4997, #4978.
+  - Follow-up notes: `utils/rubricCsv.ts` has a duplicate `splitLogicalRows` that likely has the #4999 line-number bug. `clipText` (#4997) has no unit test of its own.
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
