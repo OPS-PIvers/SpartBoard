@@ -10,6 +10,9 @@ const INK_GAMMA = 1.3;
 // Long edge cap so a large scan can't stall the page or exhaust canvas memory.
 const MAX_EDGE = 2400;
 
+// Cells whose brightest pixel is below this share of the page's paper level count as filled, not paper.
+const MIN_PAPER_SHARE = 0.6;
+
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 function rankFilter(
@@ -76,6 +79,47 @@ function sampler(grid: Float32Array, gw: number, gh: number, cell: number) {
   };
 }
 
+/** Fills cells not marked valid with the mean of valid neighbours, growing inward. */
+function inpaint(
+  grids: Float32Array[],
+  valid: boolean[],
+  gw: number,
+  gh: number
+): void {
+  if (!valid.some(Boolean)) return;
+  let pending = valid.some((v) => !v);
+  while (pending) {
+    pending = false;
+    const next = valid.slice();
+    for (let y = 0; y < gh; y++) {
+      for (let x = 0; x < gw; x++) {
+        const i = y * gw + x;
+        if (valid[i]) continue;
+        const sums = [0, 0, 0];
+        let n = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          const yy = y + dy;
+          if (yy < 0 || yy >= gh) continue;
+          for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx;
+            const j = yy * gw + xx;
+            if (xx < 0 || xx >= gw || !valid[j]) continue;
+            for (let c = 0; c < 3; c++) sums[c] += grids[c][j];
+            n++;
+          }
+        }
+        if (n) {
+          for (let c = 0; c < 3; c++) grids[c][i] = sums[c] / n;
+          next[i] = true;
+        } else {
+          pending = true;
+        }
+      }
+    }
+    for (let i = 0; i < valid.length; i++) valid[i] = next[i];
+  }
+}
+
 /** Whitens uneven paper and stretches ink to full contrast in place, without thickening strokes. */
 export function enhanceScanContrast(
   data: Uint8ClampedArray,
@@ -90,22 +134,33 @@ export function enhanceScanContrast(
   const gw = Math.ceil(width / cell);
   const gh = Math.ceil(height / cell);
 
-  // Paper level per channel: brightest value per cell, spread past wide strokes, then smoothed.
-  const paper: ((x: number, y: number) => number)[] = [];
-  for (let c = 0; c < 3; c++) {
-    const grid = new Float32Array(gw * gh);
-    for (let y = 0; y < height; y++) {
-      const row = ((y / cell) | 0) * gw;
-      for (let x = 0; x < width; x++) {
-        const v = data[(y * width + x) * 4 + c];
-        const i = row + ((x / cell) | 0);
-        if (v > grid[i]) grid[i] = v;
+  // Brightest value per cell and channel.
+  const grids = [0, 1, 2].map(() => new Float32Array(gw * gh));
+  for (let y = 0; y < height; y++) {
+    const row = ((y / cell) | 0) * gw;
+    for (let x = 0; x < width; x++) {
+      const p = (y * width + x) * 4;
+      const i = row + ((x / cell) | 0);
+      for (let c = 0; c < 3; c++) {
+        if (data[p + c] > grids[c][i]) grids[c][i] = data[p + c];
       }
     }
-    const spread = rankFilter(grid, gw, gh, 1, Math.max);
-    for (let i = 0; i < spread.length; i++) spread[i] = Math.max(spread[i], 1);
-    paper.push(sampler(boxBlur(boxBlur(spread, gw, gh), gw, gh), gw, gh, cell));
   }
+  // A cell far darker than the page's paper is a filled or shaded area, so its paper level comes from neighbours.
+  const cellLum = grids[0].map(
+    (r, i) => 0.299 * r + 0.587 * grids[1][i] + 0.114 * grids[2][i]
+  );
+  const sorted = Float32Array.from(cellLum).sort();
+  const pagePaper = sorted[Math.floor((sorted.length - 1) * 0.9)];
+  const valid = Array.from(cellLum, (v) => v >= pagePaper * MIN_PAPER_SHARE);
+  inpaint(grids, valid, gw, gh);
+
+  // Paper level per channel, spread past wide strokes, then smoothed.
+  const paper = grids.map((grid) => {
+    const spread = rankFilter(grid, gw, gh, 2, Math.max);
+    for (let i = 0; i < spread.length; i++) spread[i] = Math.max(spread[i], 1);
+    return sampler(boxBlur(boxBlur(spread, gw, gh), gw, gh), gw, gh, cell);
+  });
 
   const norm = new Float32Array(width * height * 3);
   const inkGrid = new Float32Array(gw * gh).fill(1);

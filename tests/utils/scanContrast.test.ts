@@ -78,4 +78,17 @@ describe('enhanceScanContrast', () => {
       expect(data.every((v) => Number.isFinite(v))).toBe(true);
     }
   });
+
+  it('keeps a wide shaded area dark instead of turning it into paper', () => {
+    const data = scan(() => 220, 1);
+    for (let y = 10; y < 50; y++) {
+      for (let x = 20; x < 100; x++) {
+        const i = (y * W + x) * 4;
+        data[i] = data[i + 1] = data[i + 2] = 90;
+      }
+    }
+    enhanceScanContrast(data, W, H);
+    expect(px(data, 60, 30)).toBeLessThan(60);
+    expect(px(data, 5, 5)).toBeGreaterThanOrEqual(250);
+  });
 });
