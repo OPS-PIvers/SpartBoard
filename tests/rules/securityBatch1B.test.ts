@@ -19,7 +19,7 @@ import {
   type RulesTestEnvironment,
   type TokenOptions,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { deleteObject, ref, uploadBytes } from 'firebase/storage';
 
 const PROJECT_ID = 'spartboard-security-batch-1b';
@@ -506,6 +506,63 @@ describe('padlet posts name their type', () => {
         status: 'pending',
         editedAt: 2,
       })
+    );
+  });
+});
+
+describe('untyped legacy posts', () => {
+  const id = `${STUDENT_UID}__legacy34`;
+  const legacyText = () => {
+    const { type: _omit, ...rest } = post(id, { status: 'approved' });
+    void _omit;
+    return rest;
+  };
+
+  it('the author can still edit the text of an untyped text post', async () => {
+    await seed(subPath(id), legacyText());
+    await assertSucceeds(
+      updateDoc(doc(asStudent().firestore(), subPath(id)), {
+        content: 'Edited text',
+        status: 'pending',
+        editedAt: 2,
+      })
+    );
+  });
+
+  it('an untyped post holding a URL cannot be edited, and text cannot become a URL', async () => {
+    await seed(subPath(id), {
+      ...legacyText(),
+      content: 'https://example.com/photo.jpg',
+    });
+    await assertFails(
+      updateDoc(doc(asStudent().firestore(), subPath(id)), {
+        content: 'https://evil.example/x.png',
+        status: 'pending',
+        editedAt: 2,
+      })
+    );
+    const tid = `${STUDENT_UID}__legacy56`;
+    const { type: _t, ...textOnly } = post(tid, { status: 'approved' });
+    void _t;
+    await seed(subPath(tid), textOnly);
+    await assertFails(
+      updateDoc(doc(asStudent().firestore(), subPath(tid)), {
+        content: 'https://evil.example/x.png',
+        status: 'pending',
+        editedAt: 2,
+      })
+    );
+  });
+
+  it('a narrowed synced admin cannot delete or read another teacher post', async () => {
+    await seed(subPath(id), legacyText());
+    const db = asStaff('narrow-uid', NARROW_ADMIN_EMAIL).firestore();
+    await assertFails(getDoc(doc(db, subPath(id))));
+    await assertFails(deleteDoc(doc(db, subPath(id))));
+    await assertSucceeds(
+      getDoc(
+        doc(asStaff('site-uid', SITE_ADMIN_EMAIL).firestore(), subPath(id))
+      )
     );
   });
 });

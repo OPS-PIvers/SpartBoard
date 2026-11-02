@@ -6495,6 +6495,14 @@ service cloud.firestore {
                   p.size() == sessionId.size() + submissionId.size() + parts[3].size() + 22);
         }
 
+        // Content edits only on text-like posts; an untyped legacy post counts as text while it holds no media or URL.
+        function awContentEditable(types) {
+          let t = existing().get('type', '');
+          return t in types ||
+                 (t == '' && !('storagePath' in existing()) &&
+                  !existing().content.matches('(?i)https?:.*') &&
+                  !incoming().content.matches('(?i)https?:.*'));
+        }
         // An upload's media is its own transit object: content names that storagePath, never an outside URL.
         function awUploadPathOk() {
           return !(incoming().get('type', 'text') in ['photo', 'file', 'video']) ||
@@ -6581,8 +6589,8 @@ service cloud.firestore {
         // lists unfiltered and would break otherwise). Merged student page: the student-link
         // audience reads approved posts while the teacher keeps the wall visible.
         allow read: if signedIn() &&
-                            (isAdmin() ||
-                             sessionId.matches(authUid() + '_.*') ||
+                            (sessionId.matches(authUid() + '_.*') ||
+                             awSiteAdmin() ||
                              (awSession().get('publiclyShared', false) == true &&
                               (!awIsPadletSession() ||
                                existing().status == 'approved')) ||
@@ -6593,7 +6601,7 @@ service cloud.firestore {
                              awBoardMemberOk(true) ||
                              (existing().status == 'approved' && awBoardMemberOk(false)));
         allow delete: if signedIn() &&
-                            (isAdmin() || sessionId.matches(authUid() + '_.*'));
+                            (sessionId.matches(authUid() + '_.*') || awSiteAdmin());
         // Students may retract their own post while the wall is open and the
         // teacher enabled deletion (Padlet-lite sessions only).
         allow delete: if signedIn() &&
@@ -6653,7 +6661,7 @@ service cloud.firestore {
                               'lat', 'lng', 'editedAt', 'status'
                             ]) &&
                             (!changed(['content']) ||
-                             existing().get('type', '') in ['text', 'word', 'link']) &&
+                             awContentEditable(['text', 'word', 'link'])) &&
                             (awSessionModerationEnabled() &&
                              changed(['content'])
                               ? incoming().status == 'pending'
@@ -6672,7 +6680,7 @@ service cloud.firestore {
                             ]) &&
                             incoming().status in ['approved', 'pending'] &&
                             (!changed(['content']) ||
-                             existing().get('type', '') in ['text', 'word']) &&
+                             awContentEditable(['text', 'word'])) &&
                             (!changed(['content', 'title', 'label']) || changed(['editedAt'])) &&
                             (!changed(['editedAt']) ||
                              (isInt('editedAt') &&
