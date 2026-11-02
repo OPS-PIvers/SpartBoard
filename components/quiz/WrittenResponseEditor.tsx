@@ -490,6 +490,7 @@ const WrittenResponseEditorInner: React.FC<
         )}
         {!disabled && (
           <button
+            // no-tour-anchor: student quiz screen; tours walk teachers
             type="button"
             aria-label="Drag to resize response area (or use up and down arrow keys)"
             title="Drag to resize"
@@ -520,6 +521,7 @@ const ToolbarButton: React.FC<{
   children: React.ReactNode;
 }> = ({ label, onClick, disabled, light = false, children }) => (
   <button
+    // no-tour-anchor: student quiz screen; tours walk teachers
     type="button"
     aria-label={label}
     title={label}

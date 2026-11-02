@@ -179,6 +179,7 @@ const Slot: React.FC<{
         </button>
       ) : (
         <button
+          // no-tour-anchor: student quiz screen; tours walk teachers
           type="button"
           onClick={(e) => {
             e.preventDefault();
@@ -201,6 +202,7 @@ const Slot: React.FC<{
       {filledLabel ? speaker : null}
       <div className="flex flex-col">
         <button
+          // no-tour-anchor: student quiz screen; tours walk teachers
           type="button"
           onClick={() => onMove('up')}
           disabled={(disabled ?? false) || upDisabled || !filledLabel}
@@ -210,6 +212,7 @@ const Slot: React.FC<{
           ▲
         </button>
         <button
+          // no-tour-anchor: student quiz screen; tours walk teachers
           type="button"
           onClick={() => onMove('down')}
           disabled={(disabled ?? false) || downDisabled || !filledLabel}
@@ -477,6 +480,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
               Word Bank
             </span>
             <button
+              // no-tour-anchor: student quiz screen; tours walk teachers
               type="button"
               onClick={reset}
               disabled={disabled}
