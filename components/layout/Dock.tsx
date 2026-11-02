@@ -10,7 +10,6 @@ import { useTranslation } from 'react-i18next';
 import { LayoutGrid, Puzzle, Users, Cast, Square } from 'lucide-react';
 import {
   DndContext,
-  closestCenter,
   MouseSensor,
   TouchSensor,
   useSensor,
@@ -18,7 +17,6 @@ import {
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
-  rectIntersection,
   CollisionDetection,
 } from '@dnd-kit/core';
 import {
@@ -80,6 +78,7 @@ import {
 } from '@/utils/imageProcessing';
 import { DockIcon } from './dock/DockIcon';
 import { DockLabel } from './dock/DockLabel';
+import { createDockCollisionDetection } from './dock/dockCollision';
 import { ToolDockItem } from './dock/ToolDockItem';
 import { FolderItem } from './dock/FolderItem';
 import { QuickAccessButton } from './dock/QuickAccessButton';
@@ -817,34 +816,14 @@ export const Dock: React.FC = () => {
     setActiveItemId(null);
   }, []);
 
-  /**
-   * Custom Collision Detection to handle Grouping vs Reordering
-   * If the center of the dragged item is significantly over a folder, we prioritize grouping.
-   */
-  const customCollisionDetection: CollisionDetection = useCallback(
-    (args) => {
-      const items = dockItems;
-
-      // 1. First, check for folder grouping (rect intersection)
-      const folderCollisions = rectIntersection(args).filter((collision) => {
-        const item = items.find(
-          (i) => i.type === 'folder' && i.folder.id === collision.id
-        );
-
-        return !!item;
-      });
-
-      if (folderCollisions.length > 0) {
-        folderCollisions.sort(
-          (a, b) => (b.data?.value ?? 0) - (a.data?.value ?? 0)
-        );
-
-        return [folderCollisions[0]];
-      }
-
-      // 2. Otherwise, fallback to standard sortable collision (closestCenter)
-      return closestCenter(args);
-    },
+  // Folder grouping wins over reordering when the drag overlaps a folder.
+  const customCollisionDetection: CollisionDetection = useMemo(
+    () =>
+      createDockCollisionDetection(
+        new Set(
+          dockItems.flatMap((i) => (i.type === 'folder' ? [i.folder.id] : []))
+        )
+      ),
     [dockItems]
   );
 
