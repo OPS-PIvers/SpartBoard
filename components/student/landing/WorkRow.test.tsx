@@ -96,12 +96,12 @@ describe('WorkRow', () => {
     expect(screen.getByText('Open')).toBeInTheDocument();
   });
 
-  it('keeps Open when the student matches no class on the session', () => {
+  it('keeps a row locked when the student matches no class on the session', () => {
     renderRow({
-      assignment: manual('closed', { periodKeys: [] }),
+      assignment: manual('open', { periodKeys: [] }),
       state: 'open',
     });
-    expect(screen.getByText('Open')).toBeInTheDocument();
-    expect(screen.queryByText('Not started yet')).toBeNull();
+    expect(screen.queryByText('Open')).toBeNull();
+    expect(screen.queryByText('Live')).toBeNull();
   });
 });

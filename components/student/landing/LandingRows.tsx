@@ -203,11 +203,8 @@ export const WorkRow: React.FC<WorkRowProps> = ({
 }) => {
   const a = row.assignment;
   const gate = a.periodGate;
-  // No matching class means the page can't tell; the assignment picks the class itself.
   const periodLocked =
-    !!gate &&
-    gate.periodKeys.length > 0 &&
-    !studentCanEnter(gate, gate.periodKeys, pseudonymUid, nowMs);
+    !!gate && !studentCanEnter(gate, gate.periodKeys, pseudonymUid, nowMs);
   const periodOpensAt = periodLocked
     ? nextScheduledOpen(gate, gate.periodKeys, nowMs)
     : null;
