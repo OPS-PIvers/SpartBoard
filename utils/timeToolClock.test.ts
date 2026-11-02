@@ -285,8 +285,8 @@ describe('adjust', () => {
     expect(clockStateOf({ ...c, ...patch }).phase).toBe('idle');
   });
 
-  it('starts a finished timer over at the added time', () => {
-    const c = timer({ duration: 600, elapsedTime: 0 });
+  it('keeps the full length when adding overtime to a finished timer', () => {
+    const c = timer({ duration: 120, elapsedTime: 0 });
     expect(
       timeToolClockPatch(c, {
         type: 'adjust',
@@ -294,7 +294,7 @@ describe('adjust', () => {
         fromSeconds: 0,
         now: NOW,
       })
-    ).toEqual({ elapsedTime: 60, duration: 60, startTime: null });
+    ).toEqual({ elapsedTime: 60, duration: 120, startTime: null });
   });
 
   it('keeps the full length when a timer not yet started goes to zero', () => {

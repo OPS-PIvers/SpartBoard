@@ -125,9 +125,8 @@ export const timeToolClockPatch = (
         TIME_TOOL_MAX_DURATION_SECONDS,
         Math.max(0, current + event.deltaSeconds)
       );
-      // A timer not yet started (or finished) takes the adjusted time as its new full length; reaching 0 keeps the old one.
-      const startsOver =
-        (state.phase === 'idle' || state.phase === 'expired') && next > 0;
+      // A timer not yet started takes the adjusted time as its new full length; reaching 0 keeps the old one.
+      const startsOver = state.phase === 'idle' && next > 0;
       const nextDuration = startsOver
         ? next
         : Math.min(
