@@ -4,7 +4,7 @@ import { actionDefFor } from '@/config/widgetConnections';
 export type RowHeading =
   | { kind: 'start' }
   | { kind: 'after-pause' }
-  | { kind: 'right-after' }
+  | { kind: 'then' }
   | { kind: 'next-block' }
   | { kind: 'ends'; widgetIds: string[] };
 
@@ -30,7 +30,7 @@ export const headingAfter = (
   if (waits.length > 0) {
     return { kind: 'ends', widgetIds: waits.map((w) => w.id) };
   }
-  return { kind: 'right-after' };
+  return { kind: 'then' };
 };
 
 /** What runs out to end a loop ("names", "items"), or null when only Stop ends it. */

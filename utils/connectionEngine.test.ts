@@ -97,6 +97,25 @@ describe('draftFromPicks', () => {
     expect(draft.sequence?.repeat).toBe('once');
   });
 
+  it('joins back-to-back steps that wait for nothing into one', () => {
+    const draft = draftFromPicks([
+      { id: 't1', type: 'time-tool' },
+      { id: 'tl', type: 'traffic' },
+      { id: 'ex', type: 'expectations' },
+    ]);
+    expect(
+      draft.sequence?.steps.map((s) => s.actions.map((a) => a.widgetId))
+    ).toEqual([['t1'], ['tl', 'ex']]);
+  });
+
+  it('keeps two instant widgets as two steps so there is still a Sequence', () => {
+    const draft = draftFromPicks([
+      { id: 'tl', type: 'traffic' },
+      { id: 'ex', type: 'expectations' },
+    ]);
+    expect(draft.sequence?.steps).toHaveLength(2);
+  });
+
   it('loops until the names run out when a Randomizer is in it', () => {
     const draft = draftFromPicks([
       { id: 't1', type: 'time-tool' },

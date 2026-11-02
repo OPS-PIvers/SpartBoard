@@ -31,7 +31,7 @@ import {
 } from '@/context/connectionsUiStore';
 import { connectionDefFor } from '@/config/widgetConnections';
 import { Z_INDEX } from '@/config/zIndex';
-import { isConnectionLive } from '@/utils/connectionEngine';
+import { isConnectionLive, mergeInstantSteps } from '@/utils/connectionEngine';
 import { sendRunCommand } from '@/utils/connectionSignals';
 import {
   headingAfter,
@@ -148,7 +148,15 @@ export const ConnectionEditorModal: React.FC<{
 }> = ({ draft, board }) => {
   const { t } = useTranslation();
   const { updateDashboard } = useDashboard();
-  const [connections, setConnections] = useState(draft.connections);
+  // Saved steps that wait for nothing back to back show as the one moment they are.
+  const [connections, setConnections] = useState(() =>
+    draft.connections.map((c) => {
+      if (c.kind !== 'sequence') return c;
+      const types = new Map(board.widgets.map((w) => [w.id, w.type]));
+      const merged = mergeInstantSteps(c.steps, (id) => types.get(id));
+      return merged.length >= 2 ? { ...c, steps: merged } : c;
+    })
+  );
   const [rowMenu, setRowMenu] = useState<{ i: number; at: DOMRect } | null>(
     null
   );
@@ -178,8 +186,11 @@ export const ConnectionEditorModal: React.FC<{
 
   const setSeq = (next: SequenceConnection) =>
     setConnections((cs) => cs.map((c) => (c.id === next.id ? next : c)));
+  const typeOf = (id: string) => widgetsById.get(id)?.type;
   const setSteps = (steps: ConnectionStep[]) => {
-    if (seq) setSeq({ ...seq, steps });
+    if (!seq) return;
+    const merged = mergeInstantSteps(steps, typeOf);
+    setSeq({ ...seq, steps: merged.length >= 2 ? merged : steps });
   };
   const updateStep = (i: number, step: ConnectionStep) => {
     if (!seq) return;
@@ -251,9 +262,9 @@ export const ConnectionEditorModal: React.FC<{
         return t('connections.editor.headAfterPause', {
           defaultValue: 'After the pause',
         });
-      case 'right-after':
-        return t('connections.editor.headRightAfter', {
-          defaultValue: 'Right after',
+      case 'then':
+        return t('connections.editor.headThen', {
+          defaultValue: 'Then',
         });
       case 'next-block':
         return t('connections.editor.headNextBlock', {
@@ -488,9 +499,12 @@ export const ConnectionEditorModal: React.FC<{
                     {i + 1}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    {rowHead(
-                      headingText(headingAfter(seq.steps[i - 1], board.widgets))
-                    )}
+                    {step.actions.length > 0 &&
+                      rowHead(
+                        headingText(
+                          headingAfter(seq.steps[i - 1], board.widgets)
+                        )
+                      )}
                     {step.actions.length === 0 ? (
                       <label className="flex items-center gap-2 text-sm text-slate-700">
                         <Clock
@@ -577,12 +591,9 @@ export const ConnectionEditorModal: React.FC<{
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                   {rowHead(
-                    headingText(
-                      headingAfter(
-                        seq.steps[seq.steps.length - 1],
-                        board.widgets
-                      )
-                    )
+                    t('connections.editor.atTheEnd', {
+                      defaultValue: 'At the end',
+                    })
                   )}
                   <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
                     <select
@@ -608,7 +619,7 @@ export const ConnectionEditorModal: React.FC<{
                       </option>
                       <option value="once">
                         {t('connections.editor.stopAtEnd', {
-                          defaultValue: 'Stop at the end',
+                          defaultValue: 'Stop',
                         })}
                       </option>
                     </select>

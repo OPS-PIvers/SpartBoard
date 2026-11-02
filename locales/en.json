@@ -5815,7 +5815,6 @@
       "stepMenu": "Step {{n}} options",
       "headStart": "Start",
       "headAfterPause": "After the pause",
-      "headRightAfter": "Right after",
       "headNextBlock": "When the next block starts",
       "headEnds": "When {{names}} ends",
       "headEndMany": "When {{names}} end",
@@ -5826,7 +5825,7 @@
       "loopUntilItems": "Loop until every item is checked",
       "loopUntilStop": "Loop until I press Stop",
       "loopCount": "Loop a set number of times",
-      "stopAtEnd": "Stop at the end",
+      "stopAtEnd": "Stop",
       "timesInAll": "times in all",
       "wholeTime": "The whole time",
       "saveStart": "Save and start",
@@ -5836,7 +5835,9 @@
         "traffic": "{{follower}} changes color with {{leader}}",
         "sound": "{{follower}} matches the {{leader}} voice level",
         "recessGear": "{{follower}} uses the weather from {{leader}}"
-      }
+      },
+      "headThen": "Then",
+      "atTheEnd": "At the end"
     },
     "nothingToStart": "The first step has nothing to do yet.",
     "stop": "Stop",

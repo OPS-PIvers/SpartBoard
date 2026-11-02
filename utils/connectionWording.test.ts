@@ -37,10 +37,10 @@ describe('headingAfter', () => {
       headingAfter(step(['t', 'restart'], ['t2', 'start']), widgets)
     ).toEqual({ kind: 'ends', widgetIds: ['t', 't2'] });
     expect(headingAfter(step(['r', 'next']), widgets)).toEqual({
-      kind: 'right-after',
+      kind: 'then',
     });
     expect(headingAfter(step(['t', 'pause']), widgets)).toEqual({
-      kind: 'right-after',
+      kind: 'then',
     });
     expect(headingAfter(step(['s', 'next-block']), widgets)).toEqual({
       kind: 'next-block',
