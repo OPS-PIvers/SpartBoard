@@ -181,12 +181,33 @@ export const ltiLaunch = onRequest(
       const nonce = stateRecord.nonce;
       res.set('Cache-Control', 'no-store');
 
+      let claims;
+      try {
+        claims = await verifyLaunchJwt(idToken, {
+          clientId: cfg.clientId,
+          expectedDeploymentId: cfg.deploymentId,
+          issuer: cfg.issuer,
+        });
+      } catch (e) {
+        console.error('[ltiLaunch] id_token validation failed', e);
+        res.status(401).send('Launch validation failed.');
+        return;
+      }
+
+      if (claims.nonce !== nonce) {
+        console.error('[ltiLaunch] nonce mismatch');
+        res.status(401).send('Launch validation failed (nonce).');
+        return;
+      }
+
       // The browser presenting this launch must be the one that started its login.
       const binding = checkBinding(stateRecord.bindingHash, req.get('cookie'));
       console.log('[ltiLaunch] browser binding', {
         binding,
         mode: cfg.launchBinding,
         topLevel: stateRecord.topLevel,
+        role: claims.role,
+        messageType: claims.messageType,
         browser: browserFamily(req.get('user-agent')),
       });
       if (
@@ -216,25 +237,6 @@ export const ltiLaunch = onRequest(
               })
             )
           );
-        return;
-      }
-
-      let claims;
-      try {
-        claims = await verifyLaunchJwt(idToken, {
-          clientId: cfg.clientId,
-          expectedDeploymentId: cfg.deploymentId,
-          issuer: cfg.issuer,
-        });
-      } catch (e) {
-        console.error('[ltiLaunch] id_token validation failed', e);
-        res.status(401).send('Launch validation failed.');
-        return;
-      }
-
-      if (claims.nonce !== nonce) {
-        console.error('[ltiLaunch] nonce mismatch');
-        res.status(401).send('Launch validation failed (nonce).');
         return;
       }
 
