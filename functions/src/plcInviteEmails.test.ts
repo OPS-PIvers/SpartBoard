@@ -28,10 +28,27 @@ const adminMock = vi.hoisted(() => ({
   plcDocs: new Map<string, Record<string, unknown>>(),
   mailSets: [] as Array<{ id: string; payload: Record<string, unknown> }>,
   mailSetFailure: null as Error | null,
+  users: new Map<string, Record<string, unknown>>(),
+  memberDocs: new Map<string, Record<string, unknown>>(),
+  orgDomains: new Map<string, string>(),
 }));
+
+vi.mock('./classlinkShared', () => ({
+  normalizeEmailDomain: (email: string) => {
+    const at = email.lastIndexOf('@');
+    return at < 0 ? null : '@' + email.slice(at + 1).toLowerCase();
+  },
+  resolveOrgIdForDomain: (_db: unknown, domain: string) =>
+    Promise.resolve(adminMock.orgDomains.get(domain) ?? null),
+}));
+vi.mock('./studentEmailIdentity', () => ({}));
 
 vi.mock('./firebaseAdmin', () => {
   const firestoreFn = vi.fn(() => ({
+    doc: vi.fn((path: string) => ({
+      get: () =>
+        Promise.resolve({ data: () => adminMock.memberDocs.get(path) }),
+    })),
     collection: vi.fn((name: string) => {
       if (name === 'global_permissions') {
         return {
@@ -78,12 +95,19 @@ vi.mock('./firebaseAdmin', () => {
     apps: [{ name: '[DEFAULT]' }],
     initializeApp: vi.fn(),
     firestore: firestoreFn,
+    auth: () => ({
+      getUser: (uid: string) => {
+        const u = adminMock.users.get(uid);
+        return u ? Promise.resolve(u) : Promise.reject(new Error('no user'));
+      },
+    }),
   };
 });
 
 // Import AFTER mocks so the module's onDocumentWritten registration lands in
 // our stub and admin.firestore() resolves to the mock above.
 import {
+  isPlcMembershipManager,
   parseInviteDoc,
   shouldSendEmail,
   buildPlcInvitationEmail,
@@ -143,6 +167,21 @@ beforeEach(() => {
   ]);
   adminMock.mailSets = [];
   adminMock.mailSetFailure = null;
+  adminMock.users = new Map([
+    [
+      'lead-uid',
+      {
+        email: 'lead@example.com',
+        emailVerified: true,
+        disabled: false,
+        providerData: [{ providerId: 'google.com' }],
+      },
+    ],
+  ]);
+  adminMock.memberDocs = new Map([
+    ['organizations/org-1/members/lead@example.com', { roleId: 'teacher' }],
+  ]);
+  adminMock.orgDomains = new Map([['@example.com', 'org-1']]);
 });
 
 // ---------------------------------------------------------------------------
@@ -420,5 +459,98 @@ describe('plcInvitationEmail trigger', () => {
       'plcInvitationEmail: failed to queue mail',
       expect.objectContaining({ inviteId: INVITE_ID })
     );
+  });
+});
+
+describe('isPlcMembershipManager', () => {
+  it('admits the lead and an active co-lead, not members or removed co-leads', () => {
+    const plc = {
+      leadUid: 'lead',
+      memberUids: ['lead', 'co', 'm', 'gone'],
+      members: {
+        co: { role: 'coLead' },
+        m: { role: 'member' },
+        gone: { role: 'coLead', status: 'removed' },
+      },
+    };
+    expect(isPlcMembershipManager(plc, 'lead')).toBe(true);
+    expect(isPlcMembershipManager(plc, 'co')).toBe(true);
+    expect(isPlcMembershipManager(plc, 'm')).toBe(false);
+    expect(isPlcMembershipManager(plc, 'gone')).toBe(false);
+    expect(isPlcMembershipManager({ leadUid: 'x' }, 'x')).toBe(false);
+    expect(isPlcMembershipManager(undefined, 'lead')).toBe(false);
+  });
+});
+
+describe('plcInvitationEmail trigger — who may send', () => {
+  const fresh = (overrides: Partial<PlcInvitationDoc> = {}) =>
+    makeEvent({
+      beforeExists: false,
+      afterExists: true,
+      afterData: pendingInvite(overrides),
+    });
+  const run = async (event: ReturnType<typeof makeEvent>) => {
+    if (!triggerHolder.handler) throw new Error('not registered');
+    await triggerHolder.handler(event);
+  };
+
+  it('sends nothing for an anonymous inviter', async () => {
+    adminMock.users.set('lead-uid', {
+      emailVerified: false,
+      disabled: false,
+      providerData: [],
+    });
+    await run(fresh());
+    expect(adminMock.mailSets).toHaveLength(0);
+  });
+
+  it('sends nothing for an unverified or password-only inviter', async () => {
+    adminMock.users.set('lead-uid', {
+      email: 'lead@example.com',
+      emailVerified: false,
+      disabled: false,
+      providerData: [{ providerId: 'password' }],
+    });
+    await run(fresh());
+    expect(adminMock.mailSets).toHaveLength(0);
+  });
+
+  it('sends nothing when the inviter has no staff member record', async () => {
+    adminMock.memberDocs.set('organizations/org-1/members/lead@example.com', {
+      roleId: 'student',
+    });
+    await run(fresh());
+    expect(adminMock.mailSets).toHaveLength(0);
+  });
+
+  it('sends nothing when the inviter does not manage the PLC', async () => {
+    adminMock.plcDocs.set('plc-1', {
+      leadUid: 'someone-else',
+      memberUids: ['someone-else', 'lead-uid'],
+    });
+    await run(fresh());
+    expect(adminMock.mailSets).toHaveLength(0);
+  });
+
+  it('sends nothing to an address outside every org domain', async () => {
+    await run(fresh({ inviteeEmailLower: 'victim@elsewhere.example' }));
+    expect(adminMock.mailSets).toHaveLength(0);
+  });
+
+  it('sends nothing to a malformed recipient', async () => {
+    await run(
+      fresh({ inviteeEmailLower: 'a@example.com, b@elsewhere.example' })
+    );
+    expect(adminMock.mailSets).toHaveLength(0);
+  });
+
+  it('lets an active co-lead invite', async () => {
+    adminMock.plcDocs.set('plc-1', {
+      leadUid: 'other',
+      memberUids: ['other', 'lead-uid'],
+      members: { 'lead-uid': { role: 'coLead' } },
+    });
+    await run(fresh());
+    expect(adminMock.mailSets).toHaveLength(1);
   });
 });

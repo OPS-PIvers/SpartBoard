@@ -24,6 +24,11 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
+import {
+  createOrgEmailChecker,
+  isWellFormedEmail,
+  provenGoogleEmail,
+} from './mailRecipients';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -208,6 +213,45 @@ export function buildPlcInvitationEmail(opts: {
   return { subject, text, html };
 }
 
+/** Mirrors firestore.rules isPlcMembershipManager: an active lead or co-lead of the PLC. */
+export function isPlcMembershipManager(
+  plcData: admin.firestore.DocumentData | undefined,
+  uid: string
+): boolean {
+  if (!plcData || !uid) return false;
+  const memberUids: unknown = plcData.memberUids;
+  if (!Array.isArray(memberUids) || !memberUids.includes(uid)) return false;
+  if (plcData.leadUid === uid) return true;
+  const members: unknown = plcData.members;
+  const entry =
+    members && typeof members === 'object'
+      ? (members as Record<string, unknown>)[uid]
+      : undefined;
+  if (!entry || typeof entry !== 'object') return false;
+  const { role, status } = entry as { role?: unknown; status?: unknown };
+  return (role === 'lead' || role === 'coLead') && status !== 'removed';
+}
+
+/** Mail goes out only when a staff lead invites a well-formed address on a verified org domain. */
+export async function inviteMayBeMailed(
+  db: admin.firestore.Firestore,
+  auth: Pick<admin.auth.Auth, 'getUser'>,
+  invite: PlcInvitationDoc,
+  plcData: admin.firestore.DocumentData | undefined
+): Promise<string | null> {
+  if (!isWellFormedEmail(invite.inviteeEmailLower)) return 'bad recipient';
+  if (!isPlcMembershipManager(plcData, invite.invitedByUid))
+    return 'inviter does not manage the PLC';
+  const inviter = await auth.getUser(invite.invitedByUid).catch(() => null);
+  const inviterEmail = provenGoogleEmail(inviter);
+  if (!inviterEmail) return 'inviter is not a verified Google account';
+  const checker = createOrgEmailChecker(db);
+  if (!(await checker.isStaff(inviterEmail))) return 'inviter is not staff';
+  if (!(await checker.isOrgAddress(invite.inviteeEmailLower)))
+    return 'recipient is not on an org domain';
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Firestore helpers
 // ---------------------------------------------------------------------------
@@ -287,6 +331,21 @@ export const plcInvitationEmail = onDocumentWritten(
       logger.warn('plcInvitationEmail: parent PLC missing — skipping', {
         inviteId,
         plcId: invite.plcId,
+      });
+      return;
+    }
+
+    const refusal = await inviteMayBeMailed(
+      db,
+      admin.auth(),
+      invite,
+      plcSnap.data()
+    );
+    if (refusal) {
+      logger.warn('plcInvitationEmail: not mailing invite', {
+        inviteId,
+        plcId: invite.plcId,
+        reason: refusal,
       });
       return;
     }
