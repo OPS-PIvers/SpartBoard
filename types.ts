@@ -10383,7 +10383,7 @@ export interface UserProfile {
   quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
   /** Show Sparty the mascot where the `sparty` feature allows; absent means shown. */
   spartyEnabled?: boolean;
-  /** Alignment guides while moving or resizing widgets, where `alignment-guides` allows; absent means off. */
+  /** Alignment guides while moving or resizing widgets; absent means off. */
   alignmentGuidesEnabled?: boolean;
   /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
   spellCheckEnabled?: boolean;
@@ -10816,8 +10816,6 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
-  /** Slides-style alignment guides and snapping while moving or resizing widgets (a per-teacher switch in Behavior). */
-  | 'alignment-guides'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
   | 'timer-starting-length'

@@ -54,7 +54,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'noise-meter-pro',
   'document-camera-pro',
   'whiteboard-pro',
-  'alignment-guides',
   'spell-check-setting',
   'timer-starting-length',
   'music-my-songs',
