@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-115.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-116.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -129,6 +129,8 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
   > Set one AI integration to a Claude model on dev, run it, then do the same on prod with me. Tell me if anything falls back to Gemini or web tour writing fails.
 - [ ] **PT-104 🤖 PLCs started by non-staff accounts** (security batch 1C, optional). New PLCs now need a staff account; older ones were not checked.
   > On prod, list PLCs whose lead has no active staff member doc (anonymous, student or unknown account). Read-only; deleting any needs my OK.
+- [ ] **PT-115 🤖 Record who started each older PLC** (security batch 2D). Only after the next main release is live on prod (running it earlier turns the fallback off before new teams get their record). Until it runs, older teams trust their earliest member as creator, so printing for a team's creator keeps working:
+  > Run `node scripts/backfill-plc-creators.mjs --project spartboard` (dry run) from the PC with the prod key, show me the count and any rows marked "differs from lead", then re-run with `--apply` after I say go.
 - [ ] **PT-106 🤖 Strip leaderboard names from old quiz sessions** (security batch 1A, #4986). After the next main release, so no open monitor still writes them:
   > Remove `name` from every `liveLeaderboard` entry on prod `quiz_sessions` docs: dry run with a count, then apply after I say go.
 - [ ] **PT-112 🤖 PLC assessments made by people who were not members** (security batch 2E, optional). Pooled results already skip them; their assessment entries stay in the PLC's list.

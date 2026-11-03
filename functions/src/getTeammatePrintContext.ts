@@ -27,6 +27,11 @@ import {
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
 } from './secrets';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isGroupLinkedToPlc, type LinkSnap } from './plcSyncJoinGuards';
+
+/** Server-only creator records (written by mirrorPlcIndex) and the backfill's done marker. */
+export const PLC_CREATORS = 'plcCreators';
+export const PLC_CREATORS_BACKFILL_PATH = 'plcCreatorsMeta/backfill';
 
 /** All three legs of the offline grant, as `refreshGoogleAccessTokenForUid` requires. */
 const OFFLINE_GRANT_SECRETS = [
@@ -229,6 +234,107 @@ export interface DelegatedPrintAuthorization {
   callerName: string;
 }
 
+const timeMs = (v: unknown): number | null =>
+  typeof v === 'number'
+    ? v
+    : v && typeof (v as { toMillis?: unknown }).toMillis === 'function'
+      ? (v as { toMillis(): number }).toMillis()
+      : null;
+
+/** Best guess at who started a PLC made before creators were recorded: the member who joined with the root's createdAt, else the earliest joiner, else memberUids[0]. */
+export function legacyCreatorUid(root: Record<string, unknown>): string | null {
+  const members = root.members;
+  if (members && typeof members === 'object') {
+    const created = timeMs(root.createdAt);
+    let best: { uid: string; at: number } | null = null;
+    for (const [uid, m] of Object.entries(members as Record<string, unknown>)) {
+      if (!m || typeof m !== 'object') continue;
+      const at = timeMs((m as { joinedAt?: unknown }).joinedAt);
+      if (at === null) continue;
+      if (created !== null && at === created) return uid;
+      if (!best || at < best.at) best = { uid, at };
+    }
+    if (best) return best.uid;
+  }
+  const first: unknown = Array.isArray(root.memberUids)
+    ? (root.memberUids as unknown[])[0]
+    : null;
+  return typeof first === 'string' && first ? first : null;
+}
+
+/** Server-set create time of a snapshot, in millis. */
+const createdAt = (snap: LinkSnap): number | undefined =>
+  snap.createTime?.toMillis();
+
+/** True when the target created the PLC, accepted an invite into this PLC instance, or sits in this quiz's group as shared into it. */
+export async function targetJoinedPlc(
+  db: admin.firestore.Firestore,
+  input: GetTeammatePrintContextInput,
+  plcSnap: LinkSnap,
+  plcQuizSnap: LinkSnap,
+  groupSnap: LinkSnap,
+  { targetInGroup }: { targetInGroup: boolean }
+): Promise<boolean> {
+  // The seat counts only when the target shared it here or the group was made for this PLC.
+  const sharedByTarget = plcQuizSnap.data()?.sharedBy === input.targetUid;
+  const madeForPlc = groupSnap.data()?.plcId === input.plcId;
+  if (
+    targetInGroup &&
+    (sharedByTarget || madeForPlc) &&
+    isGroupLinkedToPlc(input.plcId, plcSnap, plcQuizSnap, groupSnap)
+  )
+    return true;
+
+  const [creatorSnap, backfillSnap] = await Promise.all([
+    db.collection(PLC_CREATORS).doc(input.plcId).get(),
+    db.doc(PLC_CREATORS_BACKFILL_PATH).get(),
+  ]);
+  const record = creatorSnap.data();
+  const rootAt = createdAt(plcSnap);
+  // A record counts only for the root it was written for, so a re-created id can't inherit it.
+  const recordFits =
+    typeof record?.creatorUid === 'string' &&
+    rootAt !== undefined &&
+    record.rootCreateMs === rootAt;
+  if (recordFits) {
+    if (record.creatorUid === input.targetUid) return true;
+  } else if (
+    !creatorSnap.exists &&
+    !backfillSnap.exists &&
+    legacyCreatorUid(plcSnap.data() ?? {}) === input.targetUid
+  ) {
+    // Older PLCs have no record until the one-off backfill runs; until then they trust their earliest member.
+    return true;
+  }
+
+  let email: string | null = null;
+  try {
+    const user = await admin.auth().getUser(input.targetUid);
+    email = user.emailVerified && user.email ? user.email.toLowerCase() : null;
+  } catch (err) {
+    // Only a missing account means no email; anything else surfaces as an error the caller can retry.
+    if ((err as { code?: unknown }).code !== 'auth/user-not-found') throw err;
+    email = null;
+  }
+  if (!email) return false;
+  const invite = await db
+    .collection('plc_invitations')
+    .doc(`${input.plcId}_${email}`)
+    .get();
+  const inv = invite.data();
+  const acceptedAt = invite.updateTime?.toMillis();
+  // respondedAt is a key only the invitee's own accept can write; the lead's invite shape excludes it.
+  return (
+    inv?.status === 'accepted' &&
+    inv.plcId === input.plcId &&
+    inv.inviteeEmailLower === email &&
+    inv.respondedAt !== undefined &&
+    rootAt !== undefined &&
+    acceptedAt !== undefined &&
+    acceptedAt >= rootAt
+  );
+}
+
 /**
  * The plan's §4 ladder, in order, for every delegated-printing callable.
  * Membership is read server-side; the caller's word is never taken for it.
@@ -236,7 +342,9 @@ export interface DelegatedPrintAuthorization {
 export async function authorizeDelegatedPrint(
   db: admin.firestore.Firestore,
   caller: DelegatedPrintCaller | null,
-  input: GetTeammatePrintContextInput
+  input: GetTeammatePrintContextInput,
+  // Withdraw only removes the caller's own stack, so it skips the target-joined check.
+  { requireTargetJoined = true }: { requireTargetJoined?: boolean } = {}
 ): Promise<DelegatedPrintAuthorization> {
   // 1. A real, live teacher account.
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
@@ -302,19 +410,30 @@ export async function authorizeDelegatedPrint(
       'PLC quiz is not linked to a synced group.'
     );
 
-  // 6. A viewer TARGET can't be joined to the group, so must already be in it.
-  if (!canEditPlcContent(plcData, input.targetUid)) {
-    const group = await db.collection('synced_quizzes').doc(groupId).get();
-    const participants: unknown = group.data()?.participants;
-    if (
-      !isRecord(participants) ||
-      !Object.prototype.hasOwnProperty.call(participants, input.targetUid)
-    )
-      throw new HttpsError(
-        'permission-denied',
-        "That teacher is a viewer in this team, so you can't print sheets for them."
-      );
-  }
+  const groupSnap = await db.collection('synced_quizzes').doc(groupId).get();
+  const participants: unknown = groupSnap.data()?.participants;
+  const targetInGroup =
+    isRecord(participants) &&
+    Object.prototype.hasOwnProperty.call(participants, input.targetUid);
+
+  // 6. The TARGET joined this PLC themselves; a lead can list anyone in memberUids.
+  if (
+    requireTargetJoined &&
+    !(await targetJoinedPlc(db, input, plcSnap, plcQuizSnap, groupSnap, {
+      targetInGroup,
+    }))
+  )
+    throw new HttpsError(
+      'not-found',
+      'That teacher is not a member of this PLC.'
+    );
+
+  // 7. A viewer TARGET can't be joined to the group, so must already be in it.
+  if (!canEditPlcContent(plcData, input.targetUid) && !targetInGroup)
+    throw new HttpsError(
+      'permission-denied',
+      "That teacher is a viewer in this team, so you can't print sheets for them."
+    );
 
   return {
     groupId,

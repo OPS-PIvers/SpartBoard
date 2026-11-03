@@ -39,9 +39,14 @@ import { handleJoinPlcQuizSyncGroup } from './plcQuizSyncJoin';
 interface DocSnap {
   exists: boolean;
   data: () => Record<string, unknown> | undefined;
+  createTime?: { toMillis: () => number };
 }
 
+const at = (ms: number) => ({ toMillis: () => ms });
+
 interface StubState {
+  /** Server createTime millis per doc; the root defaults to 100, the header and group to 200. */
+  createTimes?: { plc?: number; header?: number; group?: number };
   plc: Record<string, unknown> | null;
   plcQuiz: Record<string, unknown> | null;
   group: Record<string, unknown> | null;
@@ -69,18 +74,21 @@ function makeDb(state: StubState) {
       return Promise.resolve({
         exists: state.plc !== null,
         data: () => state.plc ?? undefined,
+        createTime: at(state.createTimes?.plc ?? 100),
       });
     }
     if (ref.__path.includes('/quizzes/')) {
       return Promise.resolve({
         exists: state.plcQuiz !== null,
         data: () => state.plcQuiz ?? undefined,
+        createTime: at(state.createTimes?.header ?? 200),
       });
     }
     if (ref.__path.startsWith('synced_quizzes/')) {
       return Promise.resolve({
         exists: state.group !== null,
         data: () => state.group ?? undefined,
+        createTime: at(state.createTimes?.group ?? 200),
       });
     }
     throw new Error(`Unexpected ref: ${ref.__path}`);
@@ -413,6 +421,72 @@ describe('handleJoinPlcQuizSyncGroup - editor and group-link gates', () => {
       plcId: PLC_ID,
       participants: { 'victim-uid': { joinedAt: 1000 } },
     };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('rejects a group made for an earlier PLC with this id, even with a minted members entry', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'victim-uid'],
+      members: {
+        [MEMBER_UID]: { role: 'lead', status: 'active' },
+        'victim-uid': { uid: 'victim-uid', role: 'member', status: 'active' },
+      },
+    };
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.group = {
+      version: 3,
+      plcId: PLC_ID,
+      participants: { 'victim-uid': { joinedAt: 1000 } },
+    };
+    state.createTimes = { plc: 500, header: 600, group: 200 };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('rejects a header left over from an earlier PLC with this id', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID],
+      members: { [MEMBER_UID]: { role: 'lead', status: 'active' } },
+    };
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: 'victim-uid' };
+    state.group = {
+      version: 3,
+      plcId: PLC_ID,
+      participants: { 'victim-uid': { joinedAt: 1000 } },
+    };
+    state.createTimes = { plc: 500, header: 200, group: 200 };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('rejects a new header pointing at a group made for an earlier PLC with this id', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID],
+      members: { [MEMBER_UID]: { role: 'lead', status: 'active' } },
+    };
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: 'member-b' };
+    state.group = {
+      version: 3,
+      plcId: PLC_ID,
+      participants: { 'member-b': { joinedAt: 1000 } },
+    };
+    state.createTimes = { plc: 500, header: 600, group: 200 };
     const db = makeDb(state) as unknown as Parameters<
       typeof handleJoinPlcQuizSyncGroup
     >[0];
