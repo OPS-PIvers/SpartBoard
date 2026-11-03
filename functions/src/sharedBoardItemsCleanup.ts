@@ -40,7 +40,10 @@ export async function cleanupSharedBoardItems(
     .collection('shared_boards')
     .doc(shareId)
     .collection(SHARED_BOARD_ITEMS);
+  const now = (await db.collection('shared_boards').doc(shareId).get()).data();
   if (plan.all) {
+    // A share re-created at the same id (a board added back to a collection) keeps its copies.
+    if (now) return 0;
     let removed = 0;
     const writer = db.bulkWriter();
     writer.onWriteResult(() => {
@@ -50,7 +53,6 @@ export async function cleanupSharedBoardItems(
     return removed;
   }
   // A member who rejoined before this ran keeps the copies they publish again.
-  const now = (await db.collection('shared_boards').doc(shareId).get()).data();
   if (!now) return 0;
   const back = new Set(participantUids(now));
   let removed = 0;

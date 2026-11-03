@@ -134,4 +134,17 @@ describe('cleanupSharedBoardItems', () => {
     expect(n).toBe(0);
     expect(store.size).toBe(3);
   });
+
+  it('keeps the copies of a share re-created at the same id', async () => {
+    const { db, store } = fakeDb(items, share({ a: {} }));
+    const n = await cleanupSharedBoardItems(
+      db as never,
+      's1',
+      share({ a: {} }),
+      undefined
+    );
+    expect(n).toBe(0);
+    expect(store.size).toBe(3);
+    expect(db.recursiveDelete).not.toHaveBeenCalled();
+  });
 });

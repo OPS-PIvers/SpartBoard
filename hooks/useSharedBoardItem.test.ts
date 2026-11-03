@@ -230,7 +230,22 @@ describe('useSharedBoardItemPublisher', () => {
       return flush();
     });
     unmount();
+    fs.getDoc.mockResolvedValue(
+      snap({ kind: 'quiz', itemId: 'q1', ownerUid: 'host', version: 'B' })
+    );
     renderHook(() => useSharedBoardItemPublisher(args('B')), { wrapper });
+    await act(flush);
+    expect(fs.setDoc).toHaveBeenCalledTimes(2);
+  });
+
+  it('writes again on a later mount when the stored copy was removed', async () => {
+    fs.getDoc.mockResolvedValue(snap(null));
+    const first = renderHook(() => useSharedBoardItemPublisher(args('1')), {
+      wrapper,
+    });
+    await act(flush);
+    first.unmount();
+    renderHook(() => useSharedBoardItemPublisher(args('1')), { wrapper });
     await act(flush);
     expect(fs.setDoc).toHaveBeenCalledTimes(2);
   });

@@ -81,7 +81,7 @@ export function useSharedBoardItem<T>(
     : { status: 'none', item: null };
 }
 
-// Last version this tab wrote per item; a revert to an older version must write again.
+// Writes in flight per item; settled ones are forgotten, so a later mount rechecks the stored copy.
 const published = new Map<string, string>();
 
 export interface SharedBoardItemPublish<T> {
@@ -136,10 +136,13 @@ export function useSharedBoardItemPublisher<T>({
     if (!key || !shareId || !uid || !itemId || !version) return;
     if (published.get(key) === version) return;
     published.set(key, version);
-    publish(shareId, uid, itemId, version).catch((err: unknown) => {
-      if (published.get(key) === version) published.delete(key);
-      logError('useSharedBoardItemPublisher', err, { kind, itemId });
-    });
+    publish(shareId, uid, itemId, version)
+      .catch((err: unknown) => {
+        logError('useSharedBoardItemPublisher', err, { kind, itemId });
+      })
+      .finally(() => {
+        if (published.get(key) === version) published.delete(key);
+      });
   }, [key, shareId, uid, kind, itemId, version]);
 }
 
