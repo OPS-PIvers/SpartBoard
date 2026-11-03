@@ -806,17 +806,11 @@ export const createOrganizationInvites = onCall(
 
     // Authorization & existence checks happen serially (cheap reads, fail fast).
     const org = await loadOrg(db, payload.orgId);
-    const caller = await assertCallerIsOrgAdmin(
-      db,
-      payload.orgId,
-      callerEmailLower
-    );
-    // Resolved only when an invite touches a super admin, so ordinary invites add no reads.
+    await assertCallerIsOrgAdmin(db, payload.orgId, callerEmailLower);
+    // Strict check only (an org's own super_admin roleId is not site-wide); resolved lazily so ordinary invites add no reads.
     let callerSuperCheck: Promise<boolean> | undefined;
     const callerIsSuperAdmin = () =>
-      caller.roleId === 'super_admin'
-        ? Promise.resolve(true)
-        : (callerSuperCheck ??= isStrictSuperAdmin(db, callerEmailLower));
+      (callerSuperCheck ??= isStrictSuperAdmin(db, callerEmailLower));
 
     const validRoleIds = await loadRoleIds(db, payload.orgId);
     const validBuildingIds = await loadBuildingIds(db, payload.orgId);

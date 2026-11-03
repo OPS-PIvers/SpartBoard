@@ -114,12 +114,7 @@ export async function handleJoinPlcQuizSyncGroup(
       if (isDetachMarkerFor(markerSnap.data(), plcId, plcQuizId)) {
         tx.delete(markerRef);
       } else {
-        assertGroupLinkedToPlc(
-          plcId,
-          plcSnap.data(),
-          plcQuizData,
-          groupSnap.data()
-        );
+        assertGroupLinkedToPlc(plcId, plcSnap, plcQuizSnap, groupSnap);
       }
       const now = Date.now();
       participants[uid] = { joinedAt: now };

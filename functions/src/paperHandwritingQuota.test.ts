@@ -12,6 +12,8 @@ import {
   paperQuotaDay,
   preparePaperPageCharge,
   readPaperHandwritingQuota,
+  releasePaperPage,
+  reservePaperPage,
   splitPagesByQuota,
 } from './paperHandwritingQuota';
 
@@ -165,6 +167,70 @@ describe('splitPagesByQuota', () => {
     expect(
       splitPagesByQuota({ ...base, unlimited: true, remaining: Infinity }, 40)
     ).toEqual({ allowed: 40, overQuota: 0 });
+  });
+});
+
+describe('reservePaperPage and releasePaperPage', () => {
+  const reserve = (s: ReturnType<typeof setup>, limit = 2, unlimited = false) =>
+    reservePaperPage(s.fs, {
+      uid: 't1',
+      jobRef: s.fs.doc(JOB),
+      nowMs: NOW,
+      limit,
+      unlimited,
+    });
+  const release = (s: ReturnType<typeof setup>) =>
+    releasePaperPage(s.fs, {
+      uid: 't1',
+      jobRef: s.fs.doc(JOB),
+      nowMs: NOW,
+    });
+
+  it('takes a page and marks the job', async () => {
+    const s = setup({ [JOB]: { charged: false } });
+    expect(await reserve(s)).toBe('reserved');
+    expect(s.get(USAGE)?.count).toBe(1);
+    expect(s.get(JOB)).toMatchObject({ charged: true, chargedAt: NOW });
+  });
+
+  it('refuses at the limit without writing, and holds a reserved job without a second charge', async () => {
+    const s = setup({ [JOB]: { charged: false }, [USAGE]: { count: 2 } });
+    expect(await reserve(s)).toBe('over-quota');
+    expect(s.get(USAGE)?.count).toBe(2);
+    s.store.set(JOB, { charged: true, chargedAt: NOW });
+    expect(await reserve(s)).toBe('held');
+    expect(s.get(USAGE)?.count).toBe(2);
+  });
+
+  it('counts pages for an unlimited teacher without refusing', async () => {
+    const s = setup({ [JOB]: { charged: false }, [USAGE]: { count: 500 } });
+    expect(await reserve(s, 2, true)).toBe('reserved');
+    expect(s.get(USAGE)?.count).toBe(501);
+  });
+
+  it('gives a reserved page back once, on the day it was taken', async () => {
+    const s = setup({ [JOB]: { charged: false }, [USAGE]: { count: 1 } });
+    await reserve(s);
+    await release(s);
+    expect(s.get(USAGE)?.count).toBe(1);
+    expect(s.get(JOB)).toMatchObject({ charged: false });
+    await release(s);
+    expect(s.get(USAGE)?.count).toBe(1);
+  });
+
+  it('releases against the day of the reservation after midnight UTC', async () => {
+    const DAY2 = 'ai_usage/t1_paper-handwritten-responses_2026-09-26';
+    const s = setup({
+      [JOB]: { charged: true, chargedAt: NOW },
+      [USAGE]: { count: 3 },
+    });
+    await releasePaperPage(s.fs, {
+      uid: 't1',
+      jobRef: s.fs.doc(JOB),
+      nowMs: Date.parse('2026-09-26T00:05:00Z'),
+    });
+    expect(s.get(USAGE)?.count).toBe(2);
+    expect(s.has(DAY2)).toBe(false);
   });
 });
 

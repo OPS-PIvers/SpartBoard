@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import type { Timestamp } from 'firebase-admin/firestore';
 import {
   MAX_CARDS,
   MAX_TERM,
   mergeCards,
+  guardPublicShare,
   normalizeSet,
   rewriteOpenStudySessions,
   stageSetWrite,
+  type ShareGuard,
   type FlashcardSet,
 } from './flashcardStore';
 
@@ -19,6 +22,32 @@ const base: FlashcardSet = {
   createdAt: 1,
   updatedAt: 1,
 };
+
+const OWNED_TIME = { seconds: 5 } as unknown as Timestamp;
+const OWNED: ShareGuard = { exists: true, updateTime: OWNED_TIME };
+
+interface Call {
+  op: 'set' | 'update' | 'create';
+  path: unknown;
+  data: unknown;
+  extra?: unknown;
+}
+
+function recorder() {
+  const calls: Call[] = [];
+  const db = { doc: (path: string) => path } as unknown as Parameters<
+    typeof stageSetWrite
+  >[0];
+  const log =
+    (op: Call['op']) => (path: unknown, data: unknown, extra?: unknown) =>
+      calls.push({ op, path, data, extra });
+  const batch = {
+    set: log('set'),
+    update: log('update'),
+    create: log('create'),
+  } as unknown as Parameters<typeof stageSetWrite>[1];
+  return { db, batch, calls };
+}
 
 describe('normalizeSet', () => {
   it('trims, defaults languages and caps cards like the client', () => {
@@ -88,21 +117,20 @@ describe('Speak carry-through', () => {
   });
 
   it('leaves the snapshot Speak stamp to the teacher client', () => {
-    const calls: unknown[][] = [];
-    const db = { doc: (path: string) => path } as unknown as Parameters<
-      typeof stageSetWrite
-    >[0];
-    const batch = {
-      set: (...args: unknown[]) => calls.push(args),
-    } as unknown as Parameters<typeof stageSetWrite>[1];
-    stageSetWrite(db, batch, 'uid', { ...base, publicShareId: 'share' });
-    const snapshotCall = calls[1];
-    expect(snapshotCall?.[0]).toBe('public_flashcard_sets/share');
-    const { mergeFields } = snapshotCall?.[2] as { mergeFields: string[] };
-    expect(mergeFields).not.toContain('speak');
-    expect([...mergeFields].sort()).toEqual(
-      Object.keys(snapshotCall?.[1] as object).sort()
+    const { db, batch, calls } = recorder();
+    stageSetWrite(
+      db,
+      batch,
+      'uid',
+      { ...base, publicShareId: 'share' },
+      undefined,
+      undefined,
+      OWNED
     );
+    const snapshotCall = calls.find((c) => c.op === 'update');
+    expect(snapshotCall?.path).toBe('public_flashcard_sets/share');
+    expect(snapshotCall?.data).not.toHaveProperty('speak');
+    expect(snapshotCall?.extra).toEqual({ lastUpdateTime: OWNED_TIME });
   });
 
   it('drops card references from another language', () => {
@@ -122,21 +150,13 @@ describe('Speak carry-through', () => {
   });
 
   it('drops the snapshot stamp only when the term language changes', () => {
-    const calls: unknown[][] = [];
-    const db = { doc: (path: string) => path } as unknown as Parameters<
-      typeof stageSetWrite
-    >[0];
-    const batch = {
-      set: (...args: unknown[]) => calls.push(args),
-    } as unknown as Parameters<typeof stageSetWrite>[1];
+    const { db, batch, calls } = recorder();
     const shared = { ...base, termLanguage: 'fr-FR', publicShareId: 'share' };
-    stageSetWrite(db, batch, 'uid', shared, 'fr-CA');
-    stageSetWrite(db, batch, 'uid', shared, 'es-US');
-    const same = calls[1]?.[2] as { mergeFields: string[] };
-    const moved = calls[3]?.[2] as { mergeFields: string[] };
-    expect(same.mergeFields).not.toContain('speak');
-    expect(moved.mergeFields).toContain('speak');
-    expect(calls[3]?.[1]).toHaveProperty('speak');
+    stageSetWrite(db, batch, 'uid', shared, 'fr-CA', undefined, OWNED);
+    stageSetWrite(db, batch, 'uid', shared, 'es-US', undefined, OWNED);
+    const [same, moved] = calls.filter((c) => c.op === 'update');
+    expect(same.data).not.toHaveProperty('speak');
+    expect(moved.data).toHaveProperty('speak');
   });
 
   it('keeps a session stamp for the same language and clears it otherwise', async () => {
@@ -187,13 +207,7 @@ describe('Speak carry-through', () => {
   });
 
   it('writes a connector stamp to the snapshot', () => {
-    const calls: unknown[][] = [];
-    const db = { doc: (path: string) => path } as unknown as Parameters<
-      typeof stageSetWrite
-    >[0];
-    const batch = {
-      set: (...args: unknown[]) => calls.push(args),
-    } as unknown as Parameters<typeof stageSetWrite>[1];
+    const { db, batch, calls } = recorder();
     const stamp = { dialects: ['es-419'], attempts: 3 };
     stageSetWrite(
       db,
@@ -201,12 +215,48 @@ describe('Speak carry-through', () => {
       'uid',
       { ...base, termLanguage: 'es-US', publicShareId: 'share' },
       'es-US',
-      stamp
+      stamp,
+      OWNED
     );
-    expect(calls[1]?.[1]).toMatchObject({ speak: stamp });
-    expect((calls[1]?.[2] as { mergeFields: string[] }).mergeFields).toContain(
-      'speak'
-    );
+    expect(calls.find((c) => c.op === 'update')?.data).toMatchObject({
+      speak: stamp,
+    });
+  });
+
+  it('creates a missing snapshot without a delete marker and refuses an unchecked one', () => {
+    const { db, batch, calls } = recorder();
+    const shared = { ...base, termLanguage: 'fr-FR', publicShareId: 'share' };
+    stageSetWrite(db, batch, 'uid', shared, 'es-US', undefined, {
+      exists: false,
+    });
+    const created = calls.find((c) => c.op === 'create');
+    expect(created?.path).toBe('public_flashcard_sets/share');
+    expect(created?.data).toMatchObject({ teacherUid: 'uid' });
+    expect(created?.data).not.toHaveProperty('speak');
+    expect(() => stageSetWrite(db, batch, 'uid', shared)).toThrow();
+  });
+
+  it('refuses a snapshot another teacher owns and passes an absent or own one', async () => {
+    const dbFor = (data?: Record<string, unknown>) =>
+      ({
+        doc: () => ({
+          get: () =>
+            Promise.resolve({
+              exists: !!data,
+              get: (k: string) => data?.[k],
+              updateTime: OWNED_TIME,
+            }),
+        }),
+      }) as unknown as Parameters<typeof guardPublicShare>[0];
+    await expect(guardPublicShare(dbFor(), 'me', 's')).resolves.toEqual({
+      exists: false,
+    });
+    await expect(
+      guardPublicShare(dbFor({ teacherUid: 'me' }), 'me', 's')
+    ).resolves.toEqual({ exists: true, updateTime: OWNED_TIME });
+    await expect(
+      guardPublicShare(dbFor({ teacherUid: 'victim' }), 'me', 's')
+    ).rejects.toThrow(/not yours/);
   });
 
   it('re-stamps open sessions with their lock and skips one turned off', async () => {

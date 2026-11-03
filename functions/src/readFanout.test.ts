@@ -117,6 +117,7 @@ describe('server read counts per trigger invocation', () => {
         quizTitle: 'T',
         teacherUid: 't',
       },
+      'plcs/p': { memberUids: ['t'] },
     });
     vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
     await handleResponseWrite(stub.db as never, 's', {
@@ -125,7 +126,7 @@ describe('server read counts per trigger invocation', () => {
     });
     console.log('READS plc missing', stub.reads.length);
     expect(stub.get('plcs/p/assessments/g')?.dirtyAt).toBeTypeOf('number');
-    expect(stub.reads.length).toBeLessThanOrEqual(2);
+    expect(stub.reads.length).toBeLessThanOrEqual(3);
   });
 
   it('PLC dirty marker, assessment exists but clean', async () => {

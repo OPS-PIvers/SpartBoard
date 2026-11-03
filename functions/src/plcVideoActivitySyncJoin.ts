@@ -111,12 +111,7 @@ export async function handleJoinPlcVideoActivitySyncGroup(
       if (isDetachMarkerFor(markerSnap.data(), plcId, plcVideoActivityId)) {
         tx.delete(markerRef);
       } else {
-        assertGroupLinkedToPlc(
-          plcId,
-          plcSnap.data(),
-          entryData,
-          groupSnap.data()
-        );
+        assertGroupLinkedToPlc(plcId, plcSnap, entrySnap, groupSnap);
       }
       const now = Date.now();
       participants[uid] = { joinedAt: now };
