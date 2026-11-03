@@ -301,8 +301,12 @@ describe('resolveOrgForUser auto-enrollment', () => {
   const scriptDocs = (opts: {
     memberExists: boolean;
     autoEnrollDomainUsers?: boolean;
+    isAdmin?: boolean;
   }): void => {
     docGetMock.mockImplementation((path: string) => {
+      if (path === 'admins/new.teacher@orono.k12.mn.us') {
+        return Promise.resolve({ exists: opts.isAdmin === true });
+      }
       if (path === MEMBER_PATH) {
         return Promise.resolve({ exists: opts.memberExists });
       }
@@ -380,9 +384,17 @@ describe('resolveOrgForUser auto-enrollment', () => {
     expect(docCreateMock).not.toHaveBeenCalled();
   });
 
-  it('enrolls an address ClassLink does not know on a staff-only domain', async () => {
+  it("never enrolls an unknown address on a domain marked staff (the admin panel's default)", async () => {
     scriptDocs({ memberExists: false });
     domainRole.value = 'staff';
+    fetchOneRosterUsersMock.mockResolvedValue([]);
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('enrolls an address on the admin list that ClassLink does not know', async () => {
+    scriptDocs({ memberExists: false, isAdmin: true });
     fetchOneRosterUsersMock.mockResolvedValue([]);
     docCreateMock.mockResolvedValue(undefined);
     const res = await handler({ auth: verifiedAuth, data: {} });
@@ -390,9 +402,8 @@ describe('resolveOrgForUser auto-enrollment', () => {
     expect(docCreateMock).toHaveBeenCalled();
   });
 
-  it('never enrolls a ClassLink student even on a staff-only domain', async () => {
-    scriptDocs({ memberExists: false });
-    domainRole.value = 'staff';
+  it('never enrolls a ClassLink student even on the admin list', async () => {
+    scriptDocs({ memberExists: false, isAdmin: true });
     fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
     const res = await handler({ auth: verifiedAuth, data: {} });
     expect(res).toEqual({ orgId: 'orono' });

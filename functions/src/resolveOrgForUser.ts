@@ -26,8 +26,9 @@
  * registered-domain teacher signing in for the first time silently landed in
  * the free tier with ClassLink and every org surface hidden. Students share
  * the staff domain, so enrollment needs a positive staff signal: ClassLink
- * lists the address with a staff role, or the matched domain is registered
- * for staff only. Numeric-local (student-ID) emails, student-only domains and
+ * lists the address with a staff role, or it is on the SpartBoard admin list
+ * (/admins). A domain's `staff` role is the admin panel's default, so it is
+ * not a signal. Numeric-local (student-ID) emails, student-only domains and
  * any address ClassLink or a mock class lists as a student are skipped,
  * existing docs are never touched (admin roles and 'inactive' lockouts
  * survive), the email claim must be verified, and an org can opt out via
@@ -146,20 +147,18 @@ export async function lookupRosterRole(
   }
 }
 
-/** The role the org registered the matched domain for ('primary', 'student' or 'staff'); null when unset. */
-async function loadDomainRole(
+/** True when any verified doc for the matched domain registers it for students. */
+async function isStudentDomain(
   db: admin.firestore.Firestore,
   orgId: string,
   domainWithAt: string
-): Promise<string | null> {
+): Promise<boolean> {
   const snap = await db
     .collection(`organizations/${orgId}/domains`)
     .where('domain', '==', domainWithAt)
     .where('status', '==', 'verified')
-    .limit(1)
     .get();
-  const role: unknown = snap.docs[0]?.get('role');
-  return typeof role === 'string' ? role : null;
+  return snap.docs.some((d) => d.get('role') === 'student');
 }
 
 /**
@@ -186,15 +185,19 @@ async function autoEnrollMember(
   // Per-org opt-out: only read the org doc on the rare doc-missing path.
   const orgSnap = await db.doc(`organizations/${orgId}`).get();
   if (orgSnap.get('autoEnrollDomainUsers') === false) return;
-  const domainRole = await loadDomainRole(db, orgId, domainWithAt);
-  if (domainRole === 'student') return;
+  if (await isStudentDomain(db, orgId, domainWithAt)) return;
   // A student must never get a member doc; a ClassLink failure throws, so the next load retries.
   const rosterRole = await lookupRosterRole(db, orgId, email, {
     rosterOptional: process.env.GCLOUD_PROJECT === 'spartboard-dev',
   });
   if (rosterRole === 'student') return;
   // Students share the staff domain, so an address nobody vouches for as staff joins by invite instead.
-  if (rosterRole !== 'staff' && domainRole !== 'staff') return;
+  if (
+    rosterRole !== 'staff' &&
+    !(await db.doc(`admins/${email}`).get()).exists
+  ) {
+    return;
+  }
 
   try {
     await memberRef.create({
