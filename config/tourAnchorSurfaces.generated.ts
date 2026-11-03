@@ -145,6 +145,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'activity-wall.library': ['library.activity-wall'],
     'activity-wall.edit-shared': ['library.activity-wall'],
     'time-tool.start-pause': ['widgets.time-tool.face'],
+    'time-tool.launch-music': ['widgets.time-tool.face'],
     'time-tool.reset': ['widgets.time-tool.face'],
     'dice.roll': ['widgets.dice.face'],
     'random.pick': ['widgets.random.face'],

@@ -628,6 +628,11 @@ export const TOUR_ANCHORS = {
     label: 'Start or pause button in Timer/Stopwatch',
     perWidget: true,
   },
+  'time-tool.launch-music': {
+    label: 'Button on the Timer that opens a linked Music widget',
+    perWidget: true,
+    persists: true,
+  },
   'time-tool.reset': {
     label: 'Reset button in Timer/Stopwatch',
     perWidget: true,

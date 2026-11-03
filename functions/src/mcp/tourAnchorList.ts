@@ -2893,6 +2893,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "time-tool.launch-music",
+    "label": "Button on the Timer that opens a linked Music widget",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.time-tool.face",
+        "kind": "widget",
+        "widget_type": "time-tool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "time-tool.reset",
     "label": "Reset button in Timer/Stopwatch",
     "scope": "widget",
