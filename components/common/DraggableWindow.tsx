@@ -40,6 +40,7 @@ import {
   setWidgetOverride,
   subscribeWidgetOverride,
 } from './widgetRefRegistry';
+import { getBoxSelection, useIsBoxSelected } from './boxSelectionStore';
 import { setAlignmentGuides } from './alignmentGuidesStore';
 import {
   computeGuides,
@@ -302,6 +303,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       ) ??
         false)
   );
+  const isBoxSelected = useIsBoxSelected(widget.id);
   const isGroupBuildSelected = useDashboardCanvasSelector(
     (s) => s.groupBuildMode && s.selectedWidgetIds.includes(widget.id)
   );
@@ -1156,13 +1158,26 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // Collect group siblings for coordinated drag. Read the dashboard at
     // event time via the getter — this shell no longer subscribes to it.
-    const hasGroup = !!widget.groupId;
+    // A Ctrl+drag box selection moves together like a group, along with each member's own group.
+    const boxIds = getBoxSelection();
+    const isBoxDrag = boxIds.length > 1 && boxIds.includes(widget.id);
     const dashboardAtPointerDown = getCanvasState().activeDashboard;
+    const boxGroupIds = new Set(
+      isBoxDrag
+        ? (dashboardAtPointerDown?.widgets ?? [])
+            .filter((w) => boxIds.includes(w.id) && w.groupId)
+            .map((w) => w.groupId)
+        : []
+    );
+    const inBoxDrag = (w: WidgetData) =>
+      boxIds.includes(w.id) || (!!w.groupId && boxGroupIds.has(w.groupId));
+    const hasGroup = !!widget.groupId || isBoxDrag;
     if (hasGroup && dashboardAtPointerDown) {
       groupSiblingsRef.current = dashboardAtPointerDown.widgets
         .filter(
           (w) =>
-            w.groupId === widget.groupId &&
+            ((!!widget.groupId && w.groupId === widget.groupId) ||
+              (isBoxDrag && inBoxDrag(w))) &&
             w.id !== widget.id &&
             !w.minimized &&
             !w.isLocked &&
@@ -2444,6 +2459,20 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         ...style, // Merge custom styles
       }}
     >
+      {isBoxSelected && !isMaximized && (
+        <div
+          data-testid="box-selected-outline"
+          style={{
+            position: 'absolute',
+            inset: -3,
+            border: '2px solid rgb(59, 130, 246)',
+            borderRadius: 'inherit',
+            zIndex: 20,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
       {/* Group indicator dot */}
       {isInGroup && !isMaximized && (
         <div

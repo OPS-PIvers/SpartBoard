@@ -2510,7 +2510,9 @@
       "groupCount": "Group ({{count}})",
       "widgetsGrouped": "Widgets grouped",
       "ungroup": "Ungroup",
-      "groupWith": "Group with..."
+      "groupWith": "Group with...",
+      "pinCount": "Pin ({{count}})",
+      "unpinCount": "Unpin ({{count}})"
     },
     "clearEntireBoard": "Are you sure you want to clear the entire board?",
     "clearBoardTitle": "Clear Board",
