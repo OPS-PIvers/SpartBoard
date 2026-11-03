@@ -93,6 +93,7 @@ describe('useBoardMarqueeSelect', () => {
         enabled: true,
         getSelectableIds: () => ['w1'],
         onSelect,
+        onToggle: vi.fn(),
       })
     );
     act(() => {
@@ -115,15 +116,17 @@ describe('useBoardMarqueeSelect', () => {
     expect(result.current).toBeNull();
   });
 
-  it('ignores drags without Ctrl, on a widget, by touch, or when disabled', () => {
+  it('ignores presses without Ctrl, by touch, or when disabled', () => {
     const { surface, widget } = mountBoard();
     const onSelect = vi.fn();
+    const onToggle = vi.fn();
     const { rerender } = renderHook(
       ({ enabled }) =>
         useBoardMarqueeSelect({
           enabled,
           getSelectableIds: () => ['w1'],
           onSelect,
+          onToggle,
         }),
       { initialProps: { enabled: true } }
     );
@@ -137,11 +140,34 @@ describe('useBoardMarqueeSelect', () => {
         window.dispatchEvent(pointer('pointerup', { x: 150, y: 150 }));
       });
     drag(surface, { ctrl: false });
-    drag(widget, { ctrl: true });
+    drag(widget, { ctrl: false });
     drag(surface, { ctrl: true, pointerType: 'touch' });
     rerender({ enabled: false });
     drag(surface, { ctrl: true });
     expect(onSelect).not.toHaveBeenCalled();
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it('toggles a widget on Ctrl+click and keeps the press from the widget', () => {
+    const { widget } = mountBoard();
+    const onToggle = vi.fn();
+    const inner = vi.fn();
+    widget.addEventListener('pointerdown', inner);
+    renderHook(() =>
+      useBoardMarqueeSelect({
+        enabled: true,
+        getSelectableIds: () => ['w1'],
+        onSelect: vi.fn(),
+        onToggle,
+      })
+    );
+    act(() => {
+      widget.dispatchEvent(
+        pointer('pointerdown', { x: 150, y: 150, ctrl: true })
+      );
+    });
+    expect(onToggle).toHaveBeenCalledWith('w1');
+    expect(inner).not.toHaveBeenCalled();
   });
 
   it('treats a Ctrl+click without movement as no selection', () => {
@@ -152,6 +178,7 @@ describe('useBoardMarqueeSelect', () => {
         enabled: true,
         getSelectableIds: () => ['w1'],
         onSelect,
+        onToggle: vi.fn(),
       })
     );
     act(() => {

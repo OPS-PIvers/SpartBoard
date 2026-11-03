@@ -76,6 +76,13 @@ import {
 import { SettingsDrawerHost } from '@/components/settings/SettingsDrawerHost';
 import { LayoutGrid, Music } from 'lucide-react';
 import { useBoardMarqueeSelect } from './useBoardMarqueeSelect';
+import { BoxSelectionBar } from './BoxSelectionBar';
+import {
+  clearBoxSelection,
+  getBoxSelection,
+  setBoxSelection,
+  toggleBoxSelected,
+} from '@/components/common/boxSelectionStore';
 import { ToastContainer } from '@/components/common/ToastContainer';
 import {
   DEFAULT_GLOBAL_STYLE,
@@ -205,7 +212,6 @@ export const DashboardView: React.FC = () => {
     dashboards,
     addWidget,
     updateWidget,
-    updateWidgets,
     removeWidget,
     duplicateWidget,
     bringToFront,
@@ -533,38 +539,27 @@ export const DashboardView: React.FC = () => {
     const flag = IMPORT_TARGET_FEATURES[target];
     return !!flag && canAccessFeature(flag);
   };
-  // Ctrl+drag box selection reuses group-build mode; this marks a box-started one.
-  const [boxSelecting, setBoxSelecting] = React.useState(false);
-  if (boxSelecting && !groupBuildMode) setBoxSelecting(false);
+  const boxSelectOn = canAccessFeature('board-multi-select');
   const marqueeRect = useBoardMarqueeSelect({
     enabled:
-      canAccessFeature('board-multi-select') &&
+      boxSelectOn &&
       !annotationActive &&
-      !isActiveBoardReadOnly,
+      !isActiveBoardReadOnly &&
+      !groupBuildMode,
     getSelectableIds: () =>
       (activeDashboard?.widgets ?? [])
         .filter((w) => !w.minimized && !w.maximized)
         .map((w) => w.id),
     onSelect: (ids) => {
-      if (ids.length === 0) return;
-      const additive = groupBuildMode;
-      setSelectedWidgetIds((prev) =>
-        additive ? [...prev, ...ids.filter((id) => !prev.includes(id))] : ids
-      );
-      if (!groupBuildMode) {
-        setGroupBuildMode(true);
-        setBoxSelecting(true);
-      }
+      if (ids.length > 0) setBoxSelection(ids);
     },
+    onToggle: toggleBoxSelected,
   });
-  const boxSelectedWidgets = boxSelecting
-    ? (activeDashboard?.widgets ?? []).filter(
-        (w) => selectedWidgetIds.includes(w.id) && !w.isLocked
-      )
-    : [];
-  const boxSelectionAllPinned =
-    boxSelectedWidgets.length > 0 &&
-    boxSelectedWidgets.every((w) => w.isPinned);
+  // True when the current press started on empty board, so its click clears the selection.
+  const boardPressRef = React.useRef(false);
+  const activeBoardId = activeDashboard?.id;
+  // The box selection belongs to one board; drop it on a board switch.
+  React.useEffect(() => clearBoxSelection(), [activeBoardId]);
   // Latched: the host takes the parameter off the address once it opens the editor.
   const [webTourLink] = React.useState(opensWebTour);
   useWallBoardAccessCleanup(user?.uid ?? null);
@@ -1057,6 +1052,12 @@ export const DashboardView: React.FC = () => {
       if (e.key === 'Escape') {
         if (isTypingFieldActive()) {
           (document.activeElement as HTMLElement | null)?.blur();
+          return;
+        }
+
+        if (getBoxSelection().length > 0) {
+          e.preventDefault();
+          clearBoxSelection();
           return;
         }
 
@@ -1710,6 +1711,12 @@ export const DashboardView: React.FC = () => {
       onClick={(e) => {
         e.stopPropagation();
         setSelectedWidgetId(null);
+        if (boardPressRef.current) clearBoxSelection();
+      }}
+      onPointerDownCapture={(e) => {
+        boardPressRef.current = !(e.target as Element).closest(
+          '.widget, [data-testid^="group-resize-handle"]'
+        );
       }}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
@@ -1832,6 +1839,7 @@ export const DashboardView: React.FC = () => {
           />,
           document.body
         )}
+      {boxSelectOn && !groupBuildMode && <BoxSelectionBar />}
 
       {/* Group-building mode floating action bar */}
       {groupBuildMode &&
@@ -1839,9 +1847,7 @@ export const DashboardView: React.FC = () => {
           <>
             {/* Instruction banner */}
             <div className="fixed top-6 left-1/2 -translate-x-1/2 z-toast px-6 py-3 bg-blue-600/90 backdrop-blur-xl text-white rounded-full shadow-2xl font-sans text-sm font-medium pointer-events-none">
-              {boxSelecting
-                ? t('widgetWindow.group.boxSelectHint')
-                : t('widgetWindow.group.tapToAdd')}
+              {t('widgetWindow.group.tapToAdd')}
             </div>
             {/* Action bar */}
             <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-toast flex items-center gap-3 px-6 py-3 bg-white/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/50">
@@ -1855,34 +1861,6 @@ export const DashboardView: React.FC = () => {
               >
                 {t('common.cancel')}
               </button>
-              {boxSelecting && (
-                // no-tour-anchor: the bar only opens from a Ctrl+drag, which a tour cannot perform
-                <button
-                  disabled={boxSelectedWidgets.length === 0}
-                  onClick={() => {
-                    updateWidgets(
-                      boxSelectedWidgets.map((w) => ({
-                        id: w.id,
-                        changes: { isPinned: !boxSelectionAllPinned },
-                      }))
-                    );
-                    setGroupBuildMode(false);
-                    setSelectedWidgetIds([]);
-                  }}
-                  className={`px-5 py-2 text-sm font-semibold rounded-full transition-colors ${
-                    boxSelectedWidgets.length > 0
-                      ? 'bg-amber-500 text-white hover:bg-amber-600'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
-                >
-                  {t(
-                    boxSelectionAllPinned
-                      ? 'widgetWindow.group.unpinCount'
-                      : 'widgetWindow.group.pinCount',
-                    { count: boxSelectedWidgets.length }
-                  )}
-                </button>
-              )}
               <button
                 disabled={selectedWidgetIds.length < 2}
                 {...tourAttr('dashboard.group-widgets')}

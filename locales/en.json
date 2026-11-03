@@ -2509,7 +2509,6 @@
       "widgetsGrouped": "Widgets grouped",
       "ungroup": "Ungroup",
       "groupWith": "Group with...",
-      "boxSelectHint": "Click widgets to add or remove them",
       "pinCount": "Pin ({{count}})",
       "unpinCount": "Unpin ({{count}})"
     },

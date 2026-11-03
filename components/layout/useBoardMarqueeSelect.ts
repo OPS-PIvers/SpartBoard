@@ -19,7 +19,17 @@ interface BoxLike {
 const MIN_DRAG_PX = 4;
 
 const NOT_BOARD_SELECTOR =
-  '.widget, button, a, input, textarea, select, [role="dialog"], [role="menu"], [contenteditable="true"]';
+  'button, a, input, textarea, select, [role="dialog"], [role="menu"], [contenteditable="true"]';
+
+// The click that follows a box drag or Ctrl+click must not clear the selection or open a toolbar.
+const swallowNextClick = () => {
+  const swallow = (e: MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+  window.addEventListener('click', swallow, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener('click', swallow, true), 0);
+};
 
 export const boxesIntersect = (a: BoxLike, b: BoxLike): boolean =>
   a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
@@ -54,15 +64,17 @@ export const widgetsInRect = (
   });
 };
 
-/** Starts a selection box on Ctrl/Cmd + mouse drag over empty board space. */
+/** Ctrl/Cmd + drag on empty board draws a selection box; Ctrl/Cmd + click on a widget toggles it. */
 export function useBoardMarqueeSelect({
   enabled,
   getSelectableIds,
   onSelect,
+  onToggle,
 }: {
   enabled: boolean;
   getSelectableIds: () => string[];
   onSelect: (ids: string[]) => void;
+  onToggle: (id: string) => void;
 }): MarqueeRect | null {
   const [rect, setRect] = useState<MarqueeRect | null>(null);
 
@@ -74,6 +86,15 @@ export function useBoardMarqueeSelect({
     });
     onSelect(ids);
   });
+
+  const widgetAt = useEffectEvent((target: Element): string | null => {
+    for (const id of getSelectableIds()) {
+      if (widgetRefRegistry.get(id)?.contains(target)) return id;
+    }
+    return null;
+  });
+
+  const toggle = useEffectEvent((id: string) => onToggle(id));
 
   useEffect(() => {
     if (!enabled) return;
@@ -95,6 +116,7 @@ export function useBoardMarqueeSelect({
       current = null;
       setRect(null);
       detach();
+      if (finalRect) swallowNextClick();
       finish(finalRect);
     };
     const detach = () => {
@@ -107,6 +129,18 @@ export function useBoardMarqueeSelect({
       if (!(e.ctrlKey || e.metaKey)) return;
       const target = e.target instanceof Element ? e.target : null;
       if (!target?.closest('#dashboard-zoom-surface')) return;
+      if (target.closest('.widget')) {
+        const id = widgetAt(target);
+        if (!id) return;
+        e.preventDefault();
+        e.stopPropagation();
+        window.addEventListener('pointerup', swallowNextClick, {
+          capture: true,
+          once: true,
+        });
+        toggle(id);
+        return;
+      }
       if (target.closest(NOT_BOARD_SELECTOR)) return;
       // Own the gesture: the board's pan/swipe handler must not see it.
       e.preventDefault();

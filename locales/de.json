@@ -1278,7 +1278,6 @@
       "widgetsGrouped": "Widgets gruppiert",
       "ungroup": "Gruppierung aufheben",
       "groupWith": "Gruppieren mit...",
-      "boxSelectHint": "Widgets anklicken, um sie hinzuzufügen oder zu entfernen",
       "pinCount": "Fixieren ({{count}})",
       "unpinCount": "Lösen ({{count}})"
     },

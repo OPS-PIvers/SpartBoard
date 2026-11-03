@@ -1,3 +1,4 @@
+import { useBoxSelection } from '@/components/common/boxSelectionStore';
 import { type FC, memo, useMemo } from 'react';
 import type {
   Dashboard,
@@ -86,6 +87,24 @@ const GroupBoundingBoxLayer: FC<{ dashboard: Dashboard }> = ({ dashboard }) => {
         : [],
     [dashboard.widgets, selectedGroupId]
   );
+
+  const boxIds = useBoxSelection();
+  const boxGroupIds = new Set(
+    dashboard.widgets
+      .filter((w) => boxIds.includes(w.id) && w.groupId)
+      .map((w) => w.groupId)
+  );
+  const boxMembers = dashboard.widgets.filter(
+    (w) =>
+      (boxIds.includes(w.id) || (!!w.groupId && boxGroupIds.has(w.groupId))) &&
+      !w.minimized &&
+      !w.maximized &&
+      !w.isLocked &&
+      !w.isPinned
+  );
+  if (boxMembers.length > 1) {
+    return <GroupBoundingBox groupWidgets={boxMembers} zoom={zoom} />;
+  }
 
   if (!selectedGroupId || groupMembers.length === 0) return null;
   return <GroupBoundingBox groupWidgets={groupMembers} zoom={zoom} />;
