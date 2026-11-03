@@ -1043,6 +1043,12 @@ describe('TimeToolWidget', () => {
       expect(screen.queryByLabelText('Add linked music')).toBeNull();
     });
 
+    it('stays hidden on a Timer that is not on the board', () => {
+      withBoard();
+      renderWidget({ ...createWidget(), id: 'announcement-preview' });
+      expect(screen.queryByLabelText('Add linked music')).toBeNull();
+    });
+
     it('stays hidden on a read-only board', () => {
       renderWidget(withBoard({ readOnly: true }));
       expect(screen.queryByLabelText('Add linked music')).toBeNull();

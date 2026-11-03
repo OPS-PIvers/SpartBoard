@@ -467,7 +467,10 @@ export const TimeToolWidget: React.FC<{
   const hasLinkedMusic = followerIds(connections, widgets, widget.id).some(
     (id) => widgets.find((w) => w.id === id)?.type === 'music'
   );
+  // Only a Timer that sits on the board itself, not a student or announcement copy.
+  const isOnBoard = widgets.some((w) => w.id === widget.id);
   const canLaunchMusic =
+    isOnBoard &&
     canAccessFeature('widget-connections') &&
     !isActiveBoardReadOnly &&
     canAccessWidget('music') &&
