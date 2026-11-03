@@ -184,6 +184,7 @@ interface RenderOpts {
   onEnd?: () => Promise<void>;
   onClearHand?: (key: string) => Promise<void>;
   assessmentOnly?: boolean;
+  hideLiveScoreboard?: boolean;
 }
 
 function renderMonitor(opts: RenderOpts = {}) {
@@ -206,6 +207,7 @@ function renderMonitor(opts: RenderOpts = {}) {
       onUpdateConfig={opts.onUpdateConfig ?? vi.fn()}
       onClearHand={opts.onClearHand}
       assessmentOnly={opts.assessmentOnly}
+      hideLiveScoreboard={opts.hideLiveScoreboard}
     />
   );
 }
@@ -407,6 +409,17 @@ describe('QuizLiveMonitor (rebuilt)', () => {
       ).toBeInTheDocument();
     }
   );
+
+  it('a Quiz widget keeps podium and reveal on a legacy paced session but never offers scoreboard sync', () => {
+    renderMonitor({ hideLiveScoreboard: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Quiz settings' }));
+    expect(
+      screen.getByRole('switch', { name: 'Podium between questions' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('switch', { name: 'Sync to scoreboard widget' })
+    ).toBeNull();
+  });
 
   it('hides the Tab warnings toggle when the session has tab warnings disabled', () => {
     renderMonitor({

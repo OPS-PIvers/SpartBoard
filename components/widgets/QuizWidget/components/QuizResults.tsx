@@ -2689,7 +2689,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             className="ml-auto flex items-center shrink-0"
             style={{ gap: 'min(6px, 1.5cqmin)' }}
           >
-            {filteredCompleted.length > 0 && (
+            {isReview && filteredCompleted.length > 0 && (
               <button
                 type="button"
                 onClick={handleScoreboardClick}
