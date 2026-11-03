@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-94**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-95**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -19,6 +19,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Security and correctness
 
+- **AB-94 Flashcard revoke race in the connector save** (S, LOW). If a teacher revokes a public flashcard link while Claude is saving that set, the save can re-publish it: `guardPublicShare` sees no snapshot and `stageSetWrite` creates it, while the set write restores the stale `publicShareId`. Files: `functions/src/mcp/flashcardStore.ts`, `tools.ts`. Done when: a save refuses when the snapshot is missing but the set still has a `publicShareId`, and the set write is conditional on the update time `readSet` saw, with a test for a revoke landing mid-save.
 - **AB-1 Next Up entries: class check and owner binding** (M, MED). The `nextup_sessions/{id}/entries` create rule checks an active parent session and shape/size but not that the writer is in the session's class or owns the entry. Files: `firestore.rules`, `tests/rules/nextupEntries.test.ts`. Done when: emulator tests prove a student outside the class, or one writing another student's entry, is refused, and `pnpm run check:rules-size` still passes.
 - **AB-2 Live session races** (M, MED, _re-verify_). C3 PIN-uniqueness TOCTOU race, C4 the SSO assignment query cap above 30 classes (Firestore `in` limit), C5 join-code collision handling. Files: `hooks/useLiveSession.ts`, `hooks/useStudentAssignments.ts`. Done when: each one is either fixed with a test reproducing it, or shown to be already handled and dropped.
 - **AB-3 Duplicate "My First Board"** (S, _re-verify_). C1: two first-sign-in paths could each create a default board. The `defaultBoardCreatedForUidRef` the old item named no longer exists; the creation is near `context/DashboardContext.tsx:2718`. Done when: a test shows two concurrent first loads create one board, or the item is dropped as handled.
