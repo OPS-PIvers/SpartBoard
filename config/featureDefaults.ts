@@ -1,7 +1,6 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
-  Trophy,
   Camera,
   PenLine,
   BarChart,
@@ -1171,18 +1170,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'webcam',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'scoreboard-pro': {
-    label: 'Scoreboard upgrades',
-    icon: Trophy,
-    description:
-      'Undo, recent changes for each team, point buttons and a leader marker.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'scoreboard',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

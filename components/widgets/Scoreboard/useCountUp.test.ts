@@ -30,7 +30,7 @@ describe('useCountUp', () => {
   });
 
   it('holds the old number, then counts up to the new one', () => {
-    const { result, rerender } = renderHook(({ v }) => useCountUp(v, true), {
+    const { result, rerender } = renderHook(({ v }) => useCountUp(v), {
       initialProps: { v: 0 },
     });
     rerender({ v: 10 });
@@ -42,33 +42,17 @@ describe('useCountUp', () => {
     expect(result.current).toBe(10);
   });
 
-  it('shows the new number at once when off or with reduced motion', () => {
-    const { result, rerender } = renderHook(({ v }) => useCountUp(v, false), {
-      initialProps: { v: 0 },
-    });
-    rerender({ v: 7 });
-    expect(result.current).toBe(7);
-
+  it('shows the new number at once with reduced motion', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: true }));
-    const reduced = renderHook(({ v }) => useCountUp(v, true), {
+    const reduced = renderHook(({ v }) => useCountUp(v), {
       initialProps: { v: 1 },
     });
     reduced.rerender({ v: 5 });
     expect(reduced.result.current).toBe(5);
   });
 
-  it('starts from the shown number when animation turns on mid-change', () => {
-    const { result, rerender } = renderHook(({ v, on }) => useCountUp(v, on), {
-      initialProps: { v: 0, on: false },
-    });
-    rerender({ v: 4, on: false });
-    rerender({ v: 4, on: true });
-    act(() => flush(500));
-    expect(result.current).toBe(4);
-  });
-
   it('never steps backwards on an early first frame', () => {
-    const { result, rerender } = renderHook(({ v }) => useCountUp(v, true), {
+    const { result, rerender } = renderHook(({ v }) => useCountUp(v), {
       initialProps: { v: 4 },
     });
     rerender({ v: 5 });

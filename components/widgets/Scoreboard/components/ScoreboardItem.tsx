@@ -122,7 +122,6 @@ export const ScoreboardItem = React.memo(
     pointValues = DEFAULT_POINTS,
     leader = null,
     showLeader = false,
-    pro = false,
   }: {
     team: ScoreboardTeam;
     teamPosition?: number;
@@ -132,11 +131,9 @@ export const ScoreboardItem = React.memo(
     leader?: LeaderMark;
     /** Reserves the leader line on every card so scores stay level. */
     showLeader?: boolean;
-    /** Count-up score and names that wrap to two lines instead of cutting off. */
-    pro?: boolean;
   }) => {
     const { t } = useTranslation();
-    const shownScore = useCountUp(team.score, pro);
+    const shownScore = useCountUp(team.score);
     const nameLength = Math.max(team.name.length, 8);
     const fieldKey = `team-${teamPosition}`;
     const multi = pointValues.length > 1;
@@ -180,12 +177,10 @@ export const ScoreboardItem = React.memo(
           style={{ padding: 'clamp(4px, 5cqmin, 24px)' }}
         >
           <div
-            title={pro ? team.name : undefined}
-            className={`font-black uppercase text-white text-center w-full shrink-0 ${pro ? `line-clamp-2 wrap-break-word leading-tight ${team.name.length > 12 ? 'tracking-wide' : 'tracking-widest'}` : 'line-clamp-1 tracking-widest'}`}
+            title={team.name}
+            className={`font-black uppercase text-white text-center w-full shrink-0 line-clamp-2 wrap-break-word leading-tight ${team.name.length > 12 ? 'tracking-wide' : 'tracking-widest'}`}
             style={{
-              fontSize: pro
-                ? `clamp(9px, min(10cqmin, ${(170 / nameLength).toFixed(1)}cqw), 48px)`
-                : 'clamp(10px, 10cqmin, 48px)',
+              fontSize: `clamp(9px, min(10cqmin, ${(170 / nameLength).toFixed(1)}cqw), 48px)`,
               marginBottom: 'clamp(2px, 2cqmin, 12px)',
               paddingLeft: 'clamp(2px, 2cqmin, 12px)',
               paddingRight: 'clamp(2px, 2cqmin, 12px)',
@@ -193,7 +188,12 @@ export const ScoreboardItem = React.memo(
           >
             {leader && (
               <Crown
-                aria-hidden="true"
+                role="img"
+                aria-label={
+                  leader === 'tied'
+                    ? t('widgets.scoreboard.tied')
+                    : t('widgets.scoreboard.leader')
+                }
                 className="hidden [@container(max-height:139px)]:inline-block align-[-0.1em]"
                 style={{
                   width: '0.9em',
@@ -206,7 +206,7 @@ export const ScoreboardItem = React.memo(
           </div>
           {showLeader && (
             <div
-              className={`flex items-center justify-center font-bold text-white shrink-0 leading-none [@container(max-height:139px)]:sr-only ${leader ? '' : 'invisible'}`}
+              className={`flex items-center justify-center font-bold text-white shrink-0 leading-none [@container(max-height:139px)]:hidden ${leader ? '' : 'invisible'}`}
               style={{
                 fontSize: 'clamp(9px, 6cqmin, 28px)',
                 gap: 'clamp(2px, 1.5cqmin, 8px)',
@@ -360,7 +360,6 @@ export const ScoreboardItem = React.memo(
       prevProps.team.linkedGroupId === nextProps.team.linkedGroupId &&
       prevProps.leader === nextProps.leader &&
       prevProps.showLeader === nextProps.showLeader &&
-      prevProps.pro === nextProps.pro &&
       (prevProps.pointValues ?? DEFAULT_POINTS).join() ===
         (nextProps.pointValues ?? DEFAULT_POINTS).join()
     );
