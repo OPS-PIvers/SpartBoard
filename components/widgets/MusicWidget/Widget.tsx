@@ -398,6 +398,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   onClick={launchLinkedTimer}
                   size="min(18px, 14cqh)"
                   color="#ffffff"
+                  inCorner
                   className={`absolute right-1.5 bg-black/30 ${showsConnectionTab ? 'top-8' : 'top-1.5'}`}
                 />
               )}

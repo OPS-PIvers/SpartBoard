@@ -583,7 +583,8 @@ export const TimeToolWidget: React.FC<{
               onClick={launchLinkedMusic}
               size="min(18px, 14cqmin)"
               color={themeColor}
-              className={`absolute z-20 ${showsConnectionTab ? 'top-8 right-1.5' : 'top-1.5 right-8'}`}
+              inCorner
+              className={`absolute ${showsConnectionTab ? 'top-8 right-1.5' : 'top-1.5 right-1.5'}`}
             />
           )}
           {isEditing ? (
