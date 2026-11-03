@@ -74,7 +74,7 @@ function isAlreadyExists(err: unknown): boolean {
   );
 }
 
-/** Creates `assessments/{syncGroupId}` already dirty; on a lost race returns the winner. Null when the session's owner is not an active PLC member. */
+/** Creates `assessments/{syncGroupId}` already dirty (the winner on a lost race); null if the owner isn't an active member. */
 async function createAssessment(
   db: Firestore,
   plcId: string,
@@ -114,7 +114,7 @@ async function createAssessment(
   }
 }
 
-/** Returns the assessment id for the pair, creating `assessments/{syncGroupId}` (already dirty) when none is live and the session's owner is an active member; null otherwise. */
+/** Returns the assessment id for the pair, creating it dirty when none is live; null if the owner isn't an active member. */
 export async function ensureAssessment(
   db: Firestore,
   plcId: string,

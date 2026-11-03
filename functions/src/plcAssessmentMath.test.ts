@@ -197,6 +197,15 @@ describe('resolveGroupQuestions assignment keys', () => {
     incorrectAnswers: ['Duluth'],
   };
 
+  it('keeps the question text when the key doc has none', () => {
+    const { text: _text, ...textless } = key;
+    void _text;
+    const [q] = resolveGroupQuestions(null, publicQuestions, [], [textless]);
+    expect(q.text).toBe('Capital of MN?');
+    expect(q.correctAnswer).toBe('St. Paul');
+    expect(q.choices).toEqual(['Duluth', 'St. Paul', 'Rochester']);
+  });
+
   it('keys a question the synced group does not key and keeps its tags', () => {
     const [q] = resolveGroupQuestions(
       null,

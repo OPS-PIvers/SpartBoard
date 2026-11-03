@@ -375,7 +375,6 @@ describe('recomputeOnePlcAssessment', () => {
           {
             id: 'q1',
             type: 'MC',
-            text: 'Capital?',
             correctAnswer: 'St. Paul',
             incorrectAnswers: ['Duluth'],
           },
@@ -386,9 +385,10 @@ describe('recomputeOnePlcAssessment', () => {
     await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1');
     const perQuestion = stub.get('plcs/plc-1/aggregates/grp-1')!
       .perQuestion as Array<Record<string, unknown>>;
+    expect(perQuestion[0].text).toBe('Capital?');
     expect(perQuestion[0].choiceDistribution).toEqual([
-      { label: 'St. Paul', count: 1, isCorrect: true },
       { label: 'Duluth', count: 1, isCorrect: false },
+      { label: 'St. Paul', count: 1, isCorrect: true },
     ]);
   });
 

@@ -437,9 +437,15 @@ export function resolveGroupQuestions(
     const question = keyed ? questions.get(keyed.id) : undefined;
     if (keyed && question && question.correctAnswer === null) {
       if (keyed.correctAnswer === null) continue;
+      // The key doc carries no text or tags, so only its grading fields replace the public question's.
       questions.set(keyed.id, {
-        ...keyed,
-        targets: mergeTargets(keyed.targets, question.targets),
+        ...question,
+        points: keyed.points,
+        choices: question.choices.length > 0 ? question.choices : keyed.choices,
+        correctAnswer: keyed.correctAnswer,
+        alternateAnswers: keyed.alternateAnswers,
+        blankAlternates: keyed.blankAlternates,
+        allowPartialCredit: keyed.allowPartialCredit,
       });
     }
   }
