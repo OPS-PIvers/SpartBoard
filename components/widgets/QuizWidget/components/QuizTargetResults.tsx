@@ -226,9 +226,21 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
   };
 
   const exportCsv = (): void => {
+    // A name-sorted export follows the exported "Last, First" names.
+    const exportRows =
+      sort.key === 'student'
+        ? [...rows].sort((a, b) => {
+            const compared = a.exportName.localeCompare(
+              b.exportName,
+              undefined,
+              { numeric: true, sensitivity: 'base' }
+            );
+            return sort.descending ? -compared : compared;
+          })
+        : rows;
     const csv = buildTargetGridCsv(
       columns,
-      rows.map((row) => ({
+      exportRows.map((row) => ({
         name: row.exportName,
         values: new Map(
           columns.map((column) => [

@@ -31,6 +31,34 @@ import { formatTabAwayTotal } from '@/utils/tabExits';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { displayFibAnswer } from '@/utils/quizFibBlanks';
 
+const exportNameCollator = new Intl.Collator(undefined, {
+  sensitivity: 'base',
+  numeric: true,
+});
+
+/** The fallback labels `buildResultsSheetData` writes when no name resolves. */
+const isUnnamedExportStudent = (name: string): boolean =>
+  name === 'Student' || name.startsWith('Student (PIN: ');
+
+/** Sheet row order by the Student column (index 3): last name order, unnamed rows last. */
+export function compareExportRowsByStudent(a: string[], b: string[]): number {
+  const an = a[3] ?? '';
+  const bn = b[3] ?? '';
+  return (
+    Number(isUnnamedExportStudent(an)) - Number(isUnnamedExportStudent(bn)) ||
+    exportNameCollator.compare(an, bn)
+  );
+}
+
+/** Gradebook order for exports: "Last, First", or whichever name exists. */
+export function lastFirstName(
+  name: { givenName?: string; familyName?: string } | undefined
+): string {
+  const given = name?.givenName?.trim() ?? '';
+  const family = name?.familyName?.trim() ?? '';
+  return family && given ? `${family}, ${given}` : family || given;
+}
+
 /**
  * Format a points value for export. Whole numbers stay as integers;
  * fractional partial-credit values render with up to 2 decimals.
@@ -223,11 +251,8 @@ export function buildResultsSheetData<
   const staffRows = hasStaffRows(responses);
   const resolveStudent = (r: R): string => {
     if (r.staffEmail) return staffDisplayName(r) ?? r.staffEmail;
-    const sso = byStudentUid?.get(r.studentUid);
-    if (sso) {
-      const full = `${sso.givenName ?? ''} ${sso.familyName ?? ''}`.trim();
-      if (full) return full;
-    }
+    const sso = lastFirstName(byStudentUid?.get(r.studentUid));
+    if (sso) return sso;
     if (r.pin) {
       const name = resolvePinName(pinToName, r.classPeriod, r.pin);
       return name ?? `Student (PIN: ${r.pin})`;
@@ -383,9 +408,8 @@ export function buildResultsSheetData<
     ];
   });
 
-  // Stable sort by student name so the export reads naturally even when
-  // responses arrive in arbitrary join order.
-  dataRows.sort((a, b) => a[3].localeCompare(b[3]));
+  // Stable sort by last name, as gradebooks list students.
+  dataRows.sort(compareExportRowsByStudent);
 
   if (unresolvedAnonymousCount > 0) {
     logError(

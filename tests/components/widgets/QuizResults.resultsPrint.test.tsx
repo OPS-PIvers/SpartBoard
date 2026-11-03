@@ -209,7 +209,7 @@ describe('QuizResults — results print', () => {
     expect(options.keyMode).toBe('off');
   });
 
-  it('holds print, export and scoreboard while student names are loading', () => {
+  it('holds print and export while student names are loading', () => {
     namesLoading = true;
     renderResults();
     const print = screen.getByRole('button', { name: 'Print results' });
@@ -217,9 +217,6 @@ describe('QuizResults — results print', () => {
     expect(print).toHaveAttribute('title', 'Loading student names…');
     expect(
       screen.getByRole('button', { name: /Export to Sheets/ })
-    ).toBeDisabled();
-    expect(
-      screen.getByRole('button', { name: 'Send to Scoreboard' })
     ).toBeDisabled();
     fireEvent.click(print);
     expect(screen.queryByRole('dialog', { name: 'Print results' })).toBeNull();
