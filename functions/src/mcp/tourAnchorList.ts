@@ -45768,6 +45768,48 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.flag-accept",
+    "label": "Accept button on a flagged answer in Flashcards results",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.flag-dismiss",
+    "label": "Dismiss button on a flagged answer in Flashcards results",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.let-in",
     "label": "Let in now button in Flashcards Study results",
     "scope": "widget type",

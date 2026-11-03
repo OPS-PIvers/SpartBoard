@@ -10323,6 +10323,18 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'flashcards.flag-accept': {
+    label: 'Accept button on a flagged answer in Flashcards results',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.flag-dismiss': {
+    label: 'Dismiss button on a flagged answer in Flashcards results',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'flashcards.let-in': {
     label: 'Let in now button in Flashcards Study results',
     perWidgetType: true,
