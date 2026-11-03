@@ -97,7 +97,10 @@ interface SeedOptions {
 }
 
 function makeStubDb(seed: SeedOptions) {
-  const run = seed.run === undefined ? { title: 'Ecosystem poster' } : seed.run;
+  const run =
+    seed.run === undefined
+      ? { title: 'Ecosystem poster', teacherUid: TEACHER_UID }
+      : seed.run;
   const group = seed.group === undefined ? { name: 'Otters' } : seed.group;
   const uploadSeed = seed.upload === undefined ? null : seed.upload;
   const state: Bag | null = uploadSeed ? { ...uploadSeed } : null;
@@ -354,11 +357,8 @@ describe('archiveProjectUploadCore', () => {
     expect(final?.storagePath).toBeUndefined();
   });
 
-  it('mints the Drive token for the uid in the run id, not the doc field', async () => {
-    const { db } = makeStubDb({
-      run: { title: 'Poster', teacherUid: 'someone-else' },
-      upload: firebaseUpload(),
-    });
+  it('mints the Drive token for the uid in the run id', async () => {
+    const { db } = makeStubDb({ upload: firebaseUpload() });
     const deps = makeDeps(db);
 
     await archiveProjectUploadCore(deps, {
@@ -368,6 +368,24 @@ describe('archiveProjectUploadCore', () => {
     });
 
     expect(deps.getAccessToken).toHaveBeenCalledWith(TEACHER_UID);
+  });
+
+  it('refuses a run whose teacher is not the uid in its id', async () => {
+    const { db } = makeStubDb({
+      run: { title: 'Poster', teacherUid: 'someone-else' },
+      upload: firebaseUpload(),
+    });
+    const deps = makeDeps(db);
+
+    await expect(
+      archiveProjectUploadCore(deps, {
+        runId: RUN_ID,
+        groupId: GROUP_ID,
+        uploadId: UPLOAD_ID,
+      })
+    ).rejects.toThrow(/not this teacher/);
+    expect(deps.getAccessToken).not.toHaveBeenCalled();
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
   });
 
   it('streams a large file instead of buffering it', async () => {
