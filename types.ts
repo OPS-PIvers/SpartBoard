@@ -11281,6 +11281,8 @@ export interface DashboardTemplate {
   globalStyle?: Partial<GlobalStyle>;
   /** Optional background to apply (Tailwind class, hex, gradient, or URL) */
   background?: string;
+  /** The board's Connections, without Runs. */
+  connections?: WidgetConnection[];
   /** Tag labels for filtering in the template browser */
   tags: string[];
   /** Grade-level targeting — empty means applicable to all grades */
@@ -11314,6 +11316,8 @@ export interface BoardTemplateSnapshot {
   libraryOrder?: (WidgetType | InternalToolType)[];
   viewportWidth?: number;
   viewportHeight?: number;
+  /** The board's Connections, without Runs. */
+  connections?: WidgetConnection[];
   createdAt: number;
 }
 

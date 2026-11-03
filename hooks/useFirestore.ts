@@ -28,6 +28,7 @@ import { migrateDashboardWidgets } from '@/utils/migrateProportionalLayout';
 import { migrateBoardWidgets } from '@/utils/migration';
 import {
   mergeSharedBoard,
+  sharedConnections,
   type SharedBoardBaseline,
 } from '@/utils/sharedBoardMerge';
 import {
@@ -36,6 +37,7 @@ import {
   SharedBoardParticipant,
   SubstituteShareDriveGrant,
   SubstituteShareRoster,
+  WidgetConnection,
   WidgetData,
 } from '@/types';
 
@@ -264,6 +266,24 @@ const mockStore = MockDashboardStore.getInstance();
 const mockSharedStore = MockSharedStore.getInstance();
 
 /**
+ * A share's Connections, without Runs. `shareConnections` is the copy this
+ * client reads; `connections` stays for older clients' imports, which also
+ * write it back stale, so it is read only from a doc that lacks the new key.
+ */
+const shareConnectionFields = (
+  board: Pick<Dashboard, 'connections'>
+): {
+  connections?: WidgetConnection[];
+  shareConnections: WidgetConnection[];
+} => {
+  const connections = sharedConnections(board);
+  return {
+    ...(board.connections && { connections }),
+    shareConnections: connections,
+  };
+};
+
+/**
  * Normalize a /shared_boards/{shareId} doc payload into a Dashboard the
  * client can consume directly. The shared doc stores the host's display
  * name under `originalAuthorName` (the per-user link bookkeeping field
@@ -288,7 +308,11 @@ function mapSharedDocToDashboard(
       ? rawIntendedMode
       : undefined;
   const base = record as unknown as Dashboard;
-  const { linkedCollectionId: rawLinkId, ...rest } = record;
+  const {
+    linkedCollectionId: rawLinkId,
+    shareConnections: rawShareConnections,
+    ...rest
+  } = record;
   const hostUid =
     typeof record.originalAuthor === 'string' && record.originalAuthor
       ? record.originalAuthor
@@ -301,6 +325,9 @@ function mapSharedDocToDashboard(
     ...(hostUid ? { linkedShareHostUid: hostUid } : {}),
     ...(intendedMode ? { intendedMode } : {}),
     ...(typeof rawLinkId === 'string' ? { linkedCollectionId: rawLinkId } : {}),
+    ...(Array.isArray(rawShareConnections) && {
+      connections: rawShareConnections as WidgetConnection[],
+    }),
   };
 }
 
@@ -707,6 +734,7 @@ export const useFirestore = (userId: string | null) => {
 
       const payload = {
         ...data,
+        ...shareConnectionFields(data),
         sharedAt: Date.now(),
         originalAuthor: userId,
         ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
@@ -854,6 +882,7 @@ export const useFirestore = (userId: string | null) => {
         } = written;
         mockSharedStore.update(shareId, {
           ...patch,
+          ...shareConnectionFields(patch),
           updatedAt: Date.now(),
           updatedBy: userId ?? 'mock',
         });
@@ -872,7 +901,13 @@ export const useFirestore = (userId: string | null) => {
           linkedShareEnded: _lse,
           ...patch
         } = board;
-        return { ...patch, updatedAt: Date.now(), updatedBy: userId };
+        // A Run belongs to the device carrying it out, so the share never holds one.
+        return {
+          ...patch,
+          ...shareConnectionFields(board),
+          updatedAt: Date.now(),
+          updatedBy: userId,
+        };
       };
       // update (not set) preserves participants/originalAuthor/sharedAt so
       // guests and host bookkeeping survive across mirrors.

@@ -163,4 +163,55 @@ describe('SaveAsTemplateModal — Board target', () => {
     // addDoc should NOT be called in auth-bypass mode
     expect(addDocMock).not.toHaveBeenCalled();
   });
+
+  it('keeps the Board and Collection Connections, without a Run in progress', async () => {
+    const connected: Dashboard = {
+      ...someBoard,
+      connections: [
+        {
+          id: 's1',
+          kind: 'sequence',
+          steps: [{ id: 'st', actions: [{ widgetId: 'w1', action: 'x' }] }],
+          repeat: 'once',
+          run: { deviceId: 'd', stepIndex: 0, stepStartedAt: 1, loops: 0 },
+        },
+      ],
+    };
+    const { unmount } = render(
+      <SaveAsTemplateModal
+        isOpen
+        onClose={() => undefined}
+        target={{ kind: 'board', dashboard: connected }}
+      />
+    );
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. Morning Routine/i), {
+      target: { value: 'Connected' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Save New Template/i }));
+    await waitFor(() => expect(savedTemplates).toHaveLength(1));
+    const boardTpl = savedTemplates[0] as unknown as DashboardTemplate;
+    expect(boardTpl.connections).toEqual([
+      expect.objectContaining({ id: 's1', run: null }),
+    ]);
+    unmount();
+
+    render(
+      <SaveAsTemplateModal
+        isOpen
+        onClose={() => undefined}
+        target={{ kind: 'collection', collection, boards: [connected] }}
+      />
+    );
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. Morning Routine/i), {
+      target: { value: 'Connected set' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Save New Template/i }));
+    await waitFor(() => expect(savedTemplates).toHaveLength(2));
+    const collTpl = savedTemplates[1] as unknown as {
+      boardSnapshots: Dashboard[];
+    };
+    expect(collTpl.boardSnapshots[0].connections).toEqual([
+      expect.objectContaining({ id: 's1', run: null }),
+    ]);
+  });
 });

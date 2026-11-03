@@ -116,6 +116,7 @@ describe('useFirestore – mirrorSharedBoard', () => {
         settings: undefined,
         globalStyle: undefined,
         annotationObjects: [],
+        connections: [],
       } as never
     );
 
@@ -129,5 +130,81 @@ describe('useFirestore – mirrorSharedBoard', () => {
       ['clock', 0.1],
     ]);
     expect(written.updatedBy).toBe('user-1');
+  });
+});
+
+describe('useFirestore – share Connections', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (firestore.doc as unknown as ReturnType<typeof vi.fn>).mockReturnValue({});
+  });
+
+  it('reads shareConnections over the legacy field an older client rewrites', async () => {
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        exists: () => true,
+        id: 'share-1',
+        data: () => ({
+          name: 'B',
+          widgets: [],
+          connections: [
+            { id: 'stale', kind: 'follow', leaderId: 'a', followerId: 'b' },
+          ],
+          shareConnections: [
+            { id: 'live', kind: 'follow', leaderId: 'a', followerId: 'b' },
+          ],
+        }),
+      }
+    );
+    const { result } = renderHook(() => useFirestore('user-1'));
+    const snap = await result.current.loadSharedDashboard('share-1');
+    expect(snap?.connections?.map((c) => c.id)).toEqual(['live']);
+    expect(snap).not.toHaveProperty('shareConnections');
+  });
+
+  it('falls back to the legacy field on a doc without shareConnections', async () => {
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        exists: () => true,
+        id: 'share-1',
+        data: () => ({
+          name: 'B',
+          widgets: [],
+          connections: [
+            { id: 'old', kind: 'follow', leaderId: 'a', followerId: 'b' },
+          ],
+        }),
+      }
+    );
+    const { result } = renderHook(() => useFirestore('user-1'));
+    const snap = await result.current.loadSharedDashboard('share-1');
+    expect(snap?.connections?.map((c) => c.id)).toEqual(['old']);
+  });
+
+  it('writes both fields without Runs when mirroring', async () => {
+    const update = firestore.updateDoc as unknown as ReturnType<typeof vi.fn>;
+    update.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await result.current.mirrorSharedBoard('share-1', {
+      id: 'b',
+      name: 'B',
+      background: 'bg',
+      widgets: [],
+      createdAt: 1,
+      connections: [
+        {
+          id: 's1',
+          kind: 'sequence',
+          steps: [],
+          repeat: 'once',
+          run: { deviceId: 'd', stepIndex: 0, stepStartedAt: 1, loops: 0 },
+        },
+      ],
+    });
+    const patch = update.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch.shareConnections).toEqual([
+      { id: 's1', kind: 'sequence', steps: [], repeat: 'once' },
+    ]);
+    expect(patch.connections).toEqual(patch.shareConnections);
   });
 });
