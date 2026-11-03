@@ -41,7 +41,7 @@ import {
   subscribeWidgetOverride,
 } from './widgetRefRegistry';
 import { getBoxSelection, useIsBoxSelected } from './boxSelectionStore';
-import { setGroupBoxOffset } from './groupBoxOffset';
+import { setGroupDragPositions } from './groupDragPositions';
 import { setAlignmentGuides } from './alignmentGuidesStore';
 import {
   computeGuides,
@@ -1254,7 +1254,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
-        setGroupBoxOffset(0, 0);
+        setGroupDragPositions(null);
       }
       groupDragActiveRef.current = false;
     };
@@ -1396,7 +1396,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // React re-renders mid-drag (bringToFront, server sync, etc.).
         if (groupSiblingsRef.current.length > 0) {
           groupDragDeltaRef.current = { x: deltaX, y: deltaY };
-          setGroupBoxOffset(deltaX, deltaY);
+          const live = new Map([[widget.id, { x: newX, y: newY }]]);
           for (const sib of groupSiblingsRef.current) {
             const { x: sibX, y: sibY } = clampWidgetToWorld(
               sib.startX + deltaX,
@@ -1409,7 +1409,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             sib.el.style.left = `${sibX}px`;
             sib.el.style.top = `${sibY}px`;
             setWidgetOverride(sib.id, { x: sibX, y: sibY });
+            live.set(sib.id, { x: sibX, y: sibY });
           }
+          setGroupDragPositions(live);
         }
       });
     };
@@ -1498,7 +1500,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
-        setGroupBoxOffset(0, 0);
+        setGroupDragPositions(null);
       }
       groupDragActiveRef.current = false;
 
