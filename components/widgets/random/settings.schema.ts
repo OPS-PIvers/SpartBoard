@@ -55,6 +55,12 @@ export default defineSettings<RandomConfig>({
     {
       id: 'content',
       fields: [
+        {
+          key: 'rosterMode',
+          type: 'rosterPicker',
+          label: 'rosterSource',
+          visibleWhen: ownsNames,
+        },
         // schema-gap: connectedNameSource
         {
           key: 'rosterMode',
@@ -62,12 +68,6 @@ export default defineSettings<RandomConfig>({
           label: 'rosterSource',
           visibleWhen: followsStations,
           render: renderNamesFromStations,
-        },
-        {
-          key: 'rosterMode',
-          type: 'rosterPicker',
-          label: 'rosterSource',
-          visibleWhen: ownsNames,
         },
         {
           key: 'firstNames',

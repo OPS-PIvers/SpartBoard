@@ -19431,6 +19431,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.random.names-connection",
+    "label": "Edit connection button where Random Picker names come from Stations",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.random.settings",
+        "kind": "settings-drawer",
+        "widget_type": "random",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.random.send-projects",
     "label": "Send to Projects button in Random Picker settings",
     "scope": "widget",
