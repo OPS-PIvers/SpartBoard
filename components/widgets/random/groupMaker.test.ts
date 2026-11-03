@@ -363,10 +363,15 @@ describe('restriction symmetry (one-directional roster data)', () => {
     const a = student('a', 'A', []);
 
     // Force a single group so B and A are necessarily placed together,
-    // and pin the shuffle to identity order (B processed before A) so the
+    // and pin the shuffle to identity order (top draw never swaps) (B processed before A) so the
     // greedy loop reaches A — the unrestricted side — last, which is
     // exactly the ordering the one-directional check used to miss.
-    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(
+      <T extends ArrayBufferView | null>(arr: T): T => {
+        if (arr instanceof Uint32Array) arr.fill(0xffffffff);
+        return arr;
+      }
+    );
 
     const { groups, unsatisfied } = makeRestrictedGroups([b, a], 2);
 
@@ -382,7 +387,12 @@ describe('restriction symmetry (one-directional roster data)', () => {
     const b = student('b', 'B', ['a']);
     const a = student('a', 'A', []);
 
-    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(
+      <T extends ArrayBufferView | null>(arr: T): T => {
+        if (arr instanceof Uint32Array) arr.fill(0xffffffff);
+        return arr;
+      }
+    );
 
     const { groups, unsatisfied } = makeRestrictedGroupsByCount([b, a], 1);
 

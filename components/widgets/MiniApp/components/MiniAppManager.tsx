@@ -104,6 +104,8 @@ export type MiniAppSource = 'personal' | 'global';
 export interface MiniAppManagerProps {
   /** Teacher's Firebase UID — scopes the folders subcollection. */
   userId?: string;
+  /** The widget shows a connection corner tab over the header's right end. */
+  clearsConnectionTab?: boolean;
   /** Which tab is active. Parent owns this so it can persist across flips. */
   tab: LibraryTab;
   onTabChange: (tab: LibraryTab) => void;
@@ -330,6 +332,7 @@ const MiniAppArchiveRow: React.FC<{
 
 export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   userId,
+  clearsConnectionTab = false,
   tab,
   onTabChange,
   personalLibrary,
@@ -1455,6 +1458,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     <LibraryShell
       widgetLabel="Mini App"
       widgetType="miniApp"
+      clearsConnectionTab={clearsConnectionTab}
       folderView={isGlobalView ? null : view.folderView}
       folderViewMode={view.state.viewMode}
       tab={tab}

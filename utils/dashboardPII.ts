@@ -27,6 +27,7 @@ export const PII_WIDGET_FIELDS = [
   'doneNames', // RandomWidget — names marked "done" in Shuffle mode
   'jigsawHomeGroups', // RandomWidget — Jigsaw mode home groups (RandomGroup[] with names[])
   'jigsawExpertGroups', // RandomWidget — Jigsaw mode expert groups (RandomGroup[] with names[])
+  'recentGroupings', // RandomWidget — past rounds of group names for avoid recent partners
   'names', // SeatingChartWidget — custom roster name list
   'roster', // LunchCountConfig — student name array
   'customRoster', // StationsConfig — custom-mode roster name list

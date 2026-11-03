@@ -13,11 +13,17 @@ import {
   Delete,
   Plus,
   Minus,
+  Music,
 } from 'lucide-react';
 import { STANDARD_COLORS } from '@/config/colors';
 import { TIME_TOOL_MAX_DURATION_SECONDS } from '@/config/timeTool';
 import { WidgetLayout } from '../WidgetLayout';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { followerIds } from '@/utils/connectionEngine';
+import { hasConnectionTab } from '@/components/connections/connectionSummary';
+import { LaunchLinkedWidgetButton } from '@/components/connections/LaunchLinkedWidgetButton';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -401,6 +407,66 @@ const Keypad: React.FC<{
 
 // ─── Main Widget ────────────────────────────────────────────────────────────
 
+// Mounted only with Connections on, so other Timers never subscribe to the full dashboard.
+const TimerMusicLauncher: React.FC<{
+  widget: WidgetData;
+  isEditing: boolean;
+  themeColor: string;
+}> = ({ widget, isEditing, themeColor }) => {
+  const { t } = useTranslation();
+  const { activeDashboard, addWidget, updateDashboard, isActiveBoardReadOnly } =
+    useDashboard();
+  const { canAccessWidget } = useAuth();
+  const widgets = activeDashboard?.widgets ?? [];
+  const connections = activeDashboard?.connections;
+  const hasLinkedMusic = followerIds(connections, widgets, widget.id).some(
+    (id) => widgets.find((w) => w.id === id)?.type === 'music'
+  );
+  // Only a Timer that sits on the board itself, not a student or announcement copy.
+  const isOnBoard = widgets.some((w) => w.id === widget.id);
+  const canLaunchMusic =
+    isOnBoard &&
+    !isActiveBoardReadOnly &&
+    canAccessWidget('music') &&
+    !isEditing &&
+    !hasLinkedMusic;
+  if (!canLaunchMusic) return null;
+  const showsConnectionTab = hasConnectionTab(connections, widgets, widget.id);
+
+  const launchLinkedMusic = () => {
+    const musicId = crypto.randomUUID();
+    addWidget('music', {
+      id: musicId,
+      x: widget.x + widget.w + 20,
+      y: widget.y,
+    });
+    updateDashboard({
+      connections: [
+        ...(connections ?? []),
+        {
+          id: crypto.randomUUID(),
+          kind: 'follow',
+          leaderId: widget.id,
+          followerId: musicId,
+        },
+      ],
+    });
+  };
+
+  return (
+    <LaunchLinkedWidgetButton
+      icon={Music}
+      label={t('widgets.timeTool.launchMusic')}
+      anchor={tourAttr('time-tool.launch-music', widget.id, widget.type)}
+      onClick={launchLinkedMusic}
+      size="min(18px, 14cqmin)"
+      color={themeColor}
+      inCorner
+      className={`absolute ${showsConnectionTab ? 'top-8 right-1.5' : 'top-1.5 right-1.5'}`}
+    />
+  );
+};
+
 export const TimeToolWidget: React.FC<{
   widget: WidgetData;
   isActive?: boolean;
@@ -452,6 +518,9 @@ export const TimeToolWidget: React.FC<{
   } = config;
 
   const effectiveAdjustStep = Math.max(5, Math.min(60, adjustStepSeconds));
+
+  const { canAccessFeature } = useAuth();
+  const connectionsOn = canAccessFeature('widget-connections');
 
   const showAdjustControls = mode === 'timer' && !isEditing && !isNarrow;
   const isExpired = clockStateOf(config).phase === 'expired';
@@ -521,10 +590,17 @@ export const TimeToolWidget: React.FC<{
       content={
         <div
           ref={rootRef}
-          className={`h-full w-full flex flex-col items-center justify-center transition-all duration-500 ${
+          className={`relative h-full w-full flex flex-col items-center justify-center transition-all duration-500 ${
             clockStyle === 'lcd' ? 'bg-black/5' : ''
           }`}
         >
+          {connectionsOn && (
+            <TimerMusicLauncher
+              widget={widget}
+              isEditing={isEditing}
+              themeColor={themeColor}
+            />
+          )}
           {isEditing ? (
             <Keypad
               widget={widget}

@@ -72,6 +72,7 @@ export type SettingsDrawerProps = {
   adminConfig?: Record<string, unknown>;
   canAccessWidget?: (type: WidgetType) => boolean;
   toolLabel?: (type: WidgetType) => string;
+  followLeader?: WidgetData | null;
   defaults?: Record<string, unknown>;
   /** Layers behind "my default" (D28); omit to hide the Style-tab defaults footer. */
   styleDefaults?: {
@@ -116,6 +117,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
   adminConfig,
   canAccessWidget,
   toolLabel,
+  followLeader,
   defaults,
   styleDefaults,
   headingRef,
@@ -188,6 +190,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       adminConfig,
       canAccessWidget,
       toolLabel,
+      followLeader,
       t,
       surface: 'drawer' as const,
     }),
@@ -201,6 +204,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       adminConfig,
       canAccessWidget,
       toolLabel,
+      followLeader,
       t,
     ]
   );

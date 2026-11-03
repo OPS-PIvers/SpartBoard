@@ -177,7 +177,11 @@ export const WIDGET_CONNECTIONS: Partial<
       timerAction('reset', 'Reset', 'reset', false),
     ],
   },
-  random: { defaultAction: 'next', actions: [randomNext] },
+  random: {
+    defaultAction: 'next',
+    actions: [randomNext],
+    follows: ['stations'],
+  },
   music: { defaultAction: '', actions: [], follows: ['time-tool'] },
   traffic: {
     defaultAction: 'red',
@@ -206,7 +210,11 @@ export const WIDGET_CONNECTIONS: Partial<
     actions: [bump('rotate', 'Rotate', 'rotationTrigger', 'next')],
   },
   sound: { defaultAction: '', actions: [], follows: ['expectations'] },
-  qr: { defaultAction: '', actions: [], follows: ['text'] },
+  qr: {
+    defaultAction: '',
+    actions: [],
+    follows: ['text', 'activity-wall', 'miniApp'],
+  },
   recessGear: { defaultAction: '', actions: [], follows: ['weather'] },
   checklist: { defaultAction: 'next', actions: [checklistNext] },
   schedule: {
@@ -257,7 +265,10 @@ export const WIDGET_CONNECTIONS: Partial<
       },
     ],
   },
+  scoreboard: { defaultAction: '', actions: [], follows: ['random'] },
   text: { defaultAction: '', actions: [] },
+  'activity-wall': { defaultAction: '', actions: [] },
+  miniApp: { defaultAction: '', actions: [] },
   weather: { defaultAction: '', actions: [] },
 };
 

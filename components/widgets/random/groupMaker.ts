@@ -1,17 +1,10 @@
 import { Student, RandomGroup } from '@/types';
+import { shuffleArray } from '@/utils/randomHelpers';
 
 export interface GroupMakerResult {
   groups: RandomGroup[];
   /** Number of placements that couldn't honor a restriction. Zero is ideal. */
   unsatisfied: number;
-}
-
-function shuffleInPlace<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
 }
 
 // A non-finite size (corrupt config) falls back to 1 so groups are never dropped or zero in number.
@@ -53,7 +46,7 @@ export function makeRestrictedGroups(
   const size = safeSize(groupSize);
   const numGroups = Math.ceil(students.length / size);
   const buckets: Student[][] = Array.from({ length: numGroups }, () => []);
-  const shuffled = shuffleInPlace([...students]);
+  const shuffled = shuffleArray(students);
   let unsatisfied = 0;
 
   for (const student of shuffled) {
@@ -148,7 +141,7 @@ export function makeNameGroups(
 ): RandomGroup[] {
   if (names.length === 0) return [];
   const size = safeSize(groupSize);
-  const shuffled = shuffleInPlace([...names]);
+  const shuffled = shuffleArray(names);
   const groups: RandomGroup[] = [];
   for (let i = 0; i < shuffled.length; i += size) {
     groups.push({
@@ -180,7 +173,7 @@ export function makeNameGroupsByCount(
   const safeK = Number.isFinite(numGroups) ? numGroups : 1;
   const k = Math.max(1, Math.min(names.length, Math.floor(safeK)));
   const buckets: string[][] = Array.from({ length: k }, () => []);
-  const shuffled = shuffleInPlace([...names]);
+  const shuffled = shuffleArray(names);
   shuffled.forEach((name, i) => {
     buckets[i % k].push(name);
   });
@@ -215,7 +208,7 @@ export function makeRestrictedGroupsByCount(
   const safeK = Number.isFinite(numGroups) ? numGroups : 1;
   const k = Math.max(1, Math.min(students.length, Math.floor(safeK)));
   const buckets: Student[][] = Array.from({ length: k }, () => []);
-  const shuffled = shuffleInPlace([...students]);
+  const shuffled = shuffleArray(students);
   let unsatisfied = 0;
 
   for (const student of shuffled) {
@@ -333,8 +326,109 @@ export function makeGroupsWithLockedCohorts({
   }));
 
   return {
-    groups: shuffleInPlace([...locked, ...rest.groups]),
+    groups: shuffleArray([...locked, ...rest.groups]),
     unsatisfied: rest.unsatisfied,
     lockConflicts,
   };
+}
+
+/** One past round of groups for a class (or the custom list), kept for "avoid recent partners". */
+export interface RecentGrouping {
+  scope: string;
+  groups: { names: string[] }[];
+}
+
+export const RECENT_GROUPINGS_KEPT = 3;
+const AVOID_REPEAT_TRIES = 200;
+// Caps a board that cycles through many classes.
+const MAX_RECENT_GROUPINGS = 30;
+
+const pairKey = (a: string, b: string) => (a < b ? `${a}\n${b}` : `${b}\n${a}`);
+
+/** Weight of each pair that shared a group lately; the newest round counts most. */
+export function recentPairWeights(
+  history: RecentGrouping[]
+): Map<string, number> {
+  const weights = new Map<string, number>();
+  history.slice(-RECENT_GROUPINGS_KEPT).forEach((round, i, kept) => {
+    const weight = i + 1 + (RECENT_GROUPINGS_KEPT - kept.length);
+    for (const group of round.groups) {
+      const names = group.names;
+      for (let a = 0; a < names.length; a++) {
+        for (let b = a + 1; b < names.length; b++) {
+          const key = pairKey(names[a], names[b]);
+          weights.set(key, (weights.get(key) ?? 0) + weight);
+        }
+      }
+    }
+  });
+  return weights;
+}
+
+/** Sum of recent-pair weights for every pair placed together in `groups`. */
+export function repeatScore(
+  groups: { names: string[] }[],
+  weights: ReadonlyMap<string, number>
+): number {
+  let score = 0;
+  for (const group of groups) {
+    const names = group.names;
+    for (let a = 0; a < names.length; a++) {
+      for (let b = a + 1; b < names.length; b++) {
+        score += weights.get(pairKey(names[a], names[b])) ?? 0;
+      }
+    }
+  }
+  return score;
+}
+
+/**
+ * Runs `make` many times and keeps the result with the fewest recent pairs.
+ * Unmet keep-apart restrictions always rank worse than repeats.
+ */
+export function makeAvoidingRecent<T extends { groups: RandomGroup[] }>(
+  make: () => T & { unsatisfied?: number },
+  history: RecentGrouping[]
+): T {
+  const weights = recentPairWeights(history);
+  let best = make();
+  if (weights.size === 0) return best;
+  let bestUnsat = best.unsatisfied ?? 0;
+  let bestScore = repeatScore(best.groups, weights);
+  for (
+    let i = 1;
+    i < AVOID_REPEAT_TRIES && (bestScore > 0 || bestUnsat > 0);
+    i++
+  ) {
+    const next = make();
+    const unsat = next.unsatisfied ?? 0;
+    if (unsat > bestUnsat) continue;
+    const score = repeatScore(next.groups, weights);
+    if (unsat < bestUnsat || score < bestScore) {
+      best = next;
+      bestUnsat = unsat;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+/** Adds `groups` as the newest round for `scope`, keeping the last few rounds per scope. */
+export function addRecentGrouping(
+  history: RecentGrouping[] | undefined,
+  scope: string,
+  groups: RandomGroup[]
+): RecentGrouping[] {
+  const all = Array.isArray(history) ? history : [];
+  const sameScope = all.filter((h) => h.scope === scope);
+  const others = all.filter((h) => h.scope !== scope);
+  const round: RecentGrouping = {
+    scope,
+    groups: groups.map((g) => ({ names: [...g.names] })),
+  };
+  return [
+    ...others,
+    ...sameScope.slice(-(RECENT_GROUPINGS_KEPT - 1)),
+    round,
+  ].slice(-MAX_RECENT_GROUPINGS);
 }

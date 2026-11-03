@@ -22,6 +22,8 @@ import {
 import { combineRosterNames } from '@/utils/rosterNameLists';
 import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { openConnectionEditor } from '@/context/connectionsUiStore';
+import { getTitle } from '@/utils/widgetHelpers';
 import { safeSize } from './groupMaker';
 
 function useStudentCount(config: RandomConfig): number {
@@ -567,5 +569,55 @@ export const RandomSaveAsClassGroupsField: React.FC<{
     >
       {ctx.t('widgetSettings.random.saveAsGroupsAction')}
     </button>
+  );
+};
+
+/** While the Randomizer Follows a Stations widget: where its names come from, and a way to the connection. */
+export const RandomNamesFromStationsField: React.FC<{
+  ctx: CustomRenderCtx;
+}> = ({ ctx }) => {
+  const { activeDashboard } = useDashboard();
+  const leader = ctx.followLeader;
+  if (!leader || !activeDashboard) return null;
+  const follow = activeDashboard.connections?.find(
+    (c) =>
+      c.kind === 'follow' &&
+      c.followerId === ctx.widget.id &&
+      c.leaderId === leader.id
+  );
+  const title =
+    [leader.customTitle?.trim(), ctx.toolLabel?.(leader.type)].find(Boolean) ??
+    getTitle(leader);
+  return (
+    <div
+      id={ctx.id}
+      role="group"
+      aria-labelledby={ctx.labelId}
+      className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2"
+    >
+      <span className="min-w-0 text-sm text-slate-700">
+        {ctx.t('widgetSettings.random.namesFromStations', { title })}
+      </span>
+      <button
+        type="button"
+        disabled={!follow}
+        onClick={() =>
+          follow &&
+          openConnectionEditor(
+            activeDashboard.id,
+            follow,
+            activeDashboard.connections ?? []
+          )
+        }
+        className="shrink-0 rounded-lg px-2 py-1 text-sm font-semibold text-brand-blue-primary hover:bg-slate-100 disabled:opacity-40"
+        {...tourAttr(
+          'widget-settings.random.names-connection',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
+      >
+        {ctx.t('widgetSettings.random.editConnection')}
+      </button>
+    </div>
   );
 };

@@ -29,7 +29,6 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     featurePermissions: [],
     selectedBuildings: [],
-    canAccessFeature: () => true,
   }),
 }));
 

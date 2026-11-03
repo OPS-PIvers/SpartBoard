@@ -10,18 +10,17 @@ const board = (config: ScoreboardConfig): WidgetData =>
   ({ id: 'sb', type: 'scoreboard', config }) as unknown as WidgetData;
 
 describe('quiet time goal Scoreboard point', () => {
-  it('adds one point and records it in history when asked', () => {
-    const next = awardPoint({ teams }, 'a', true);
+  it('adds one point and records it in history', () => {
+    const next = awardPoint({ teams }, 'a');
     expect(next.teams?.[0].score).toBe(3);
     expect(next.history?.[0].changes).toEqual([
       { teamId: 'a', from: 2, to: 3 },
     ]);
-    expect(awardPoint({ teams }, 'a', false).history).toBeUndefined();
   });
 
   it('leaves a missing team alone', () => {
     const config = { teams };
-    expect(awardPoint(config, 'gone', true)).toBe(config);
+    expect(awardPoint(config, 'gone')).toBe(config);
   });
 
   it('finds the Scoreboard holding the team, skipping live quiz boards', () => {

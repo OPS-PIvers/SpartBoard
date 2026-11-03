@@ -12,7 +12,8 @@
  * `quiz-media-response` feature record, the session's `mediaResponseEnabled`
  * marker, the teacher's publish state (`scoreVisibility`, re-read on every
  * call so an unpublish revokes playback with no cleanup step), and ownership
- * (`response.studentUid === request.auth.uid`). Anything unresolvable denies.
+ * (`response.studentUid === request.auth.uid`, with a PIN token held to its
+ * own session). Anything unresolvable denies.
  * A whiteboard take (picture, drawing log, or its audio) also needs the
  * fail-closed `quiz-whiteboard-response` record.
  */
@@ -27,7 +28,7 @@ import {
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
-import { assertViewAsAllowed } from './viewAsGuard';
+import { assertViewAsAllowed, LEGACY_PIN_TOKEN_GRACE_MS } from './viewAsGuard';
 import { resolveServerResultsVisibility } from './quizResultsVisibilityServer';
 
 type Firestore = admin.firestore.Firestore;
@@ -223,6 +224,36 @@ export function parsePlaybackRequest(raw: unknown): PlaybackRequest {
   return { sessionId, responseKey, questionId, slot: rawSlot, part: rawPart };
 }
 
+const nonEmptyIds = (v: unknown): string[] =>
+  Array.isArray(v)
+    ? v.filter((c): c is string => typeof c === 'string' && c.length > 0)
+    : [];
+
+/** A PIN token proves one session; a pre-scope one in grace, one targeted class (as getMyQuizAttempts). */
+export function pinTokenReachesSession(
+  claims: Record<string, unknown>,
+  sessionId: string,
+  session: Record<string, unknown>,
+  now: number
+): boolean {
+  if (claims.pinLogin !== true) return true;
+  if (claims.pinSessionId !== undefined) {
+    return claims.pinSessionId === sessionId;
+  }
+  if (
+    typeof claims.auth_time !== 'number' ||
+    now >= claims.auth_time * 1000 + LEGACY_PIN_TOKEN_GRACE_MS
+  ) {
+    return false;
+  }
+  const listed = nonEmptyIds(session.classIds);
+  const sessionClasses = listed.length
+    ? listed
+    : nonEmptyIds([session.classId]);
+  const tokenClasses = nonEmptyIds(claims.classIds);
+  return sessionClasses.some((c) => tokenClasses.includes(c));
+}
+
 // ── Default dependency implementations ─────────────────────────────────────
 
 export const DRIVE_DOWNLOAD_TIMEOUT_MS = 45_000;
@@ -279,7 +310,10 @@ export function buildDefaultPlaybackDeps(): PlaybackDeps {
 // ── Core ───────────────────────────────────────────────────────────────────
 
 export async function resolveArtifactPlayback(
-  input: PlaybackRequest & { callerUid: string },
+  input: PlaybackRequest & {
+    callerUid: string;
+    callerClaims?: Record<string, unknown>;
+  },
   deps: PlaybackDeps
 ): Promise<PlaybackResult> {
   const { db } = deps;
@@ -292,6 +326,20 @@ export async function resolveArtifactPlayback(
     throw new HttpsError('not-found', 'Quiz session not found.');
   }
   const session = sessionSnap.data() ?? {};
+
+  if (
+    !pinTokenReachesSession(
+      input.callerClaims ?? {},
+      sessionId,
+      session,
+      Date.now()
+    )
+  ) {
+    throw new HttpsError(
+      'permission-denied',
+      'Join this activity with your PIN.'
+    );
+  }
 
   // The fail-closed session marker; production sessions omit it entirely.
   if (session.mediaResponseEnabled !== true) {
@@ -439,7 +487,11 @@ export const getQuizArtifactPlaybackUrl = onCall(
     }
     const parsed = parsePlaybackRequest(request.data);
     return resolveArtifactPlayback(
-      { ...parsed, callerUid: request.auth.uid },
+      {
+        ...parsed,
+        callerUid: request.auth.uid,
+        callerClaims: request.auth.token,
+      },
       buildDefaultPlaybackDeps()
     );
   }

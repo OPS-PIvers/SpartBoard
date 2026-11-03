@@ -15,9 +15,11 @@ import {
   RandomGroup,
   SharedGroup,
   ScoreboardTeam,
+  ScoreboardConfig,
   Student,
 } from '@/types';
 import { Button } from '@/components/common/Button';
+import { getRandomInt, shuffleArray } from '@/utils/randomHelpers';
 import { AbsentStudentsModal } from '@/components/common/AbsentStudentsModal';
 import { RandomClassContextButton } from './RandomClassContextButton';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
@@ -60,6 +62,9 @@ import {
   makeRestrictedGroups,
   makeRestrictedGroupsByCount,
   safeSize,
+  makeAvoidingRecent,
+  addRecentGrouping,
+  type RecentGrouping,
 } from './groupMaker';
 import {
   toggleLockedName,
@@ -85,8 +90,14 @@ import { resolveBaseTextScale } from '@/config/widgetAppearance';
 import { timeToolClockReducer } from '@/utils/timeToolClock';
 import { reportHandAction } from '@/utils/connectionSignals';
 import { currentShuffleName } from '@/utils/randomCurrentName';
-import { liveConnections } from '@/utils/connectionEngine';
+import {
+  followLeaderId,
+  followerIds,
+  liveConnections,
+} from '@/utils/connectionEngine';
+import { teamsFromGroups } from '@/components/widgets/Scoreboard/groupTeams';
 import { usesLegacyToggles } from '@/utils/legacyConnections';
+import { useNamesFromStations } from './useNamesFromStations';
 import { useAuth } from '@/context/useAuth';
 
 import { WidgetLayout } from '../WidgetLayout';
@@ -175,6 +186,10 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
   const { canAccessFeature } = useAuth();
   const connectionsOn = canAccessFeature('widget-connections');
+  useNamesFromStations(widget, connectionsOn);
+  const avoidRecentPartners =
+    canAccessFeature('random-avoid-repeats') &&
+    config.avoidRecentPartners === true;
   // Read in the deferred pick callback; a migrated widget's auto-start became a Sequence.
   const useLegacy = usesLegacyToggles(connectionsOn, widget.config);
   const useLegacyRef = useRef(useLegacy);
@@ -558,15 +573,6 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, [activeRoster, rosterMode]);
 
   const [absentModalOpen, setAbsentModalOpen] = useState(false);
-
-  const shuffle = <T,>(array: T[]): T[] => {
-    const newArr = [...array];
-    for (let i = newArr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
-    }
-    return newArr;
-  };
 
   const handleSelectPoolGroup = useCallback(
     (groupId: string | null) => {
@@ -954,6 +960,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       return;
     }
 
+    // With Connections on, the Scoreboard it fills or creates follows this Randomizer.
+    const boardWidgets = activeDashboard?.widgets ?? [];
+    if (connectionsOn && boardWidgets.some((w) => w.id === widget.id)) {
+      connectScoreboard(groups);
+      return;
+    }
+
     // 2. Map to ScoreboardTeam — inherit name AND color from sharedGroups
     // when available so a custom-colored group header in the Randomizer
     // shows up as the matching color on the Scoreboard. Falls back to the
@@ -1008,6 +1021,61 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         'success'
       );
     }
+  };
+
+  const connectScoreboard = (groups: RandomGroup[]) => {
+    const widgets = activeDashboard?.widgets ?? [];
+    const connections = activeDashboard?.connections;
+    const followers = followerIds(connections, widgets, widget.id);
+    const scoreboards = widgets.filter((w) => w.type === 'scoreboard');
+    const linked = scoreboards.find((w) => followers.includes(w.id));
+    // Never take over a Scoreboard that already follows another widget.
+    const target =
+      linked ??
+      scoreboards.find((w) => !followLeaderId(connections, widgets, w.id));
+    const teams = teamsFromGroups(
+      groups,
+      activeDashboard?.sharedGroups,
+      // A Scoreboard already following keeps its scores; a newly connected one starts fresh.
+      (linked?.config as ScoreboardConfig | undefined)?.teams ?? [],
+      (count) => t('widgetSettings.scoreboard.groupName', { count })
+    );
+    const scoreboardId = target?.id ?? crypto.randomUUID();
+    if (target) {
+      // A fresh fill starts a fresh score history, so Undo never replays old changes onto the new teams.
+      updateWidget(target.id, {
+        config: { ...target.config, teams, ...(!linked && { history: [] }) },
+      });
+    } else {
+      addWidget('scoreboard', {
+        id: scoreboardId,
+        x: widget.x + widget.w + 20,
+        y: widget.y,
+        config: { teams },
+      });
+    }
+    if (!linked) {
+      updateDashboard({
+        connections: [
+          ...(connections ?? []),
+          {
+            id: crypto.randomUUID(),
+            kind: 'follow',
+            leaderId: widget.id,
+            followerId: scoreboardId,
+          },
+        ],
+      });
+    }
+    addToast(
+      t(
+        target
+          ? 'widgets.random.scoreboardUpdated'
+          : 'widgets.random.scoreboardCreated',
+        { count: teams.length }
+      ),
+      'success'
+    );
   };
 
   // Collect this widget's prior-pick RandomGroup IDs so we can drop them
@@ -1089,7 +1157,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     const performUpdate = (
       result: string | string[] | string[][] | RandomGroup[],
       remaining?: string[],
-      nextUnassignedNames?: string[]
+      nextUnassignedNames?: string[],
+      extra?: Partial<RandomConfig>
     ) => {
       try {
         // Firestore doesn't support nested arrays (e.g., string[][]).
@@ -1145,6 +1214,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         // Optimized update: only send what changed.
         // DashboardContext now handles deep merging of config.
         const updates: Partial<RandomConfig> = {
+          ...extra,
           lastResult: syncResult as string | string[] | RandomGroup[],
         };
         if (remaining) {
@@ -1190,16 +1260,19 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
 
     if (mode === 'single') {
-      let pool =
-        remainingStudents.length > 0 ? remainingStudents : [...students];
-      pool = pool.filter((s) => students.includes(s));
-
+      let pool = remainingStudents.filter((s) => students.includes(s));
+      let candidates = pool;
       if (pool.length === 0) {
         pool = [...students];
+        // A fresh round never opens with the name that closed the last one.
+        const lastWinner =
+          typeof config.lastResult === 'string' ? config.lastResult : null;
+        const fresh = pool.filter((s) => s !== lastWinner);
+        candidates = fresh.length > 0 ? fresh : pool;
       }
 
-      const winnerIndexInPool = Math.floor(Math.random() * pool.length);
-      const winnerName = pool[winnerIndexInPool];
+      const winnerName = candidates[getRandomInt(candidates.length)];
+      const winnerIndexInPool = pool.indexOf(winnerName);
       const nextRemaining = pool.filter((_, i) => i !== winnerIndexInPool);
       const finish = () => {
         pendingFinishRef.current = null;
@@ -1486,6 +1559,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         const includeName = (name: string) => !lockedSet.has(name);
 
         let result: string[] | RandomGroup[];
+        let groupsExtra: Partial<RandomConfig> | undefined;
         if (mode === 'shuffle') {
           const existing =
             Array.isArray(displayResult) &&
@@ -1498,10 +1572,30 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // shuffle the rest.
             result = shuffleWithLocks(existing, lockedNames);
           } else {
-            result = shuffle(students);
+            result = shuffleArray(students);
           }
         } else {
           const existingGroups = groupsFromDisplay;
+          // With "avoid recent partners" on, each maker runs many times and keeps the least-repeated result.
+          const recentScope =
+            rosterMode === 'class' && activeRoster
+              ? `class:${activeRoster.id}`
+              : 'custom';
+          const storedRecent = avoidRecentPartners
+            ? (config.recentGroupings ?? []).filter(
+                (h) => h.scope === recentScope
+              )
+            : [];
+          const recentHistory: RecentGrouping[] =
+            storedRecent.length > 0 || !existingGroups
+              ? storedRecent
+              : [{ scope: recentScope, groups: existingGroups }];
+          const best = <T extends { groups: RandomGroup[] }>(
+            make: () => T & { unsatisfied?: number }
+          ): T =>
+            avoidRecentPartners
+              ? makeAvoidingRecent(make, recentHistory)
+              : make();
           const useLockPath =
             lockedSet.size > 0 &&
             Array.isArray(existingGroups) &&
@@ -1525,15 +1619,21 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
             if (useLockPath) {
               const targetCount = existingGroups.length;
-              const { groups, unsatisfied } = makeRestrictedGroupsByCount(
-                poolStudents,
-                targetCount
-              );
-              result = mergeLockedWithFresh({
-                currentGroups: existingGroups,
-                lockedNames,
-                freshGroups: groups,
+              const { groups: merged, unsatisfied } = best(() => {
+                const fresh = makeRestrictedGroupsByCount(
+                  poolStudents,
+                  targetCount
+                );
+                return {
+                  groups: mergeLockedWithFresh({
+                    currentGroups: existingGroups,
+                    lockedNames,
+                    freshGroups: fresh.groups,
+                  }),
+                  unsatisfied: fresh.unsatisfied,
+                };
               });
+              result = merged;
               if (unsatisfied > 0) {
                 addToast(
                   t('widgets.random.restrictionsUnsatisfied', {
@@ -1547,14 +1647,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               // Ids are deliberately not preserved here: the output order is
               // reshuffled (D11), so carrying slot colors across would pin the
               // locked cohort to a recognisable colour instead.
-              const { groups, unsatisfied, lockConflicts } =
+              const { groups, unsatisfied, lockConflicts } = best(() =>
                 makeGroupsWithLockedCohorts({
                   students: poolStudents,
                   lockedCohorts,
                   ...(groupCountMode
                     ? { numGroups: displayNumGroups }
                     : { groupSize }),
-                });
+                })
+              );
               result = groups;
               if (lockConflicts > 0) {
                 addToast(
@@ -1575,9 +1676,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 );
               }
             } else {
-              const { groups, unsatisfied } = groupCountMode
-                ? makeRestrictedGroupsByCount(poolStudents, displayNumGroups)
-                : makeRestrictedGroups(poolStudents, groupSize);
+              const { groups, unsatisfied } = best(() =>
+                groupCountMode
+                  ? makeRestrictedGroupsByCount(poolStudents, displayNumGroups)
+                  : makeRestrictedGroups(poolStudents, groupSize)
+              );
               result = preserveIds(groups);
               if (unsatisfied > 0) {
                 addToast(
@@ -1593,22 +1696,34 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             if (useLockPath) {
               const targetCount = existingGroups.length;
               const unlockedPool = students.filter((n) => !lockedSet.has(n));
-              const fresh = makeNameGroupsByCount(unlockedPool, targetCount);
-              result = mergeLockedWithFresh({
-                currentGroups: existingGroups,
-                lockedNames,
-                freshGroups: fresh,
-              });
+              result = best(() => ({
+                groups: mergeLockedWithFresh({
+                  currentGroups: existingGroups,
+                  lockedNames,
+                  freshGroups: makeNameGroupsByCount(unlockedPool, targetCount),
+                }),
+              })).groups;
             } else {
               result = preserveIds(
-                groupCountMode
-                  ? makeNameGroupsByCount(students, displayNumGroups)
-                  : makeNameGroups(students, groupSize)
+                best(() => ({
+                  groups: groupCountMode
+                    ? makeNameGroupsByCount(students, displayNumGroups)
+                    : makeNameGroups(students, groupSize),
+                })).groups
               );
             }
           }
           // The count makers clamp to the student count rather than emit empty
           // groups, so say so when the class can't fill the requested number.
+          if (avoidRecentPartners) {
+            groupsExtra = {
+              recentGroupings: addRecentGrouping(
+                config.recentGroupings,
+                recentScope,
+                result
+              ),
+            };
+          }
           if (
             groupCountMode &&
             !useLockPath &&
@@ -1633,7 +1748,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           setDisplayResult(result);
           endSpin();
           // Always clear legacy unassignedNames after a successful pick.
-          performUpdate(result, undefined, []);
+          performUpdate(result, undefined, [], groupsExtra);
         });
       }, 500);
     }

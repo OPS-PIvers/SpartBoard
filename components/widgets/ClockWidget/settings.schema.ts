@@ -58,8 +58,34 @@ export default defineSettings<ClockConfig>({
     {
       id: 'behavior',
       fields: [
-        { key: 'format24', type: 'toggle', label: 'format24' },
-        { key: 'showSeconds', type: 'toggle', label: 'showSeconds' },
+        {
+          key: 'format24',
+          type: 'toggle',
+          label: 'format24',
+        },
+        {
+          key: 'showSeconds',
+          type: 'toggle',
+          label: 'showSeconds',
+          disabledWhen: (ctx) => ctx.config.showTime === false,
+        },
+        {
+          key: 'showTime',
+          type: 'toggle',
+          label: 'showTime',
+          readValue: (ctx) => ctx.config.showTime !== false,
+          // The last one on stays on so the clock is never blank.
+          disabledWhen: (ctx) =>
+            ctx.config.showTime !== false && ctx.config.showDate === false,
+        },
+        {
+          key: 'showDate',
+          type: 'toggle',
+          label: 'showDate',
+          readValue: (ctx) => ctx.config.showDate !== false,
+          disabledWhen: (ctx) =>
+            ctx.config.showDate !== false && ctx.config.showTime === false,
+        },
       ],
     },
     {

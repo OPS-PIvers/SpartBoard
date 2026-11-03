@@ -43,6 +43,8 @@ import {
 } from './hooks/stationsActions';
 import { tourAttr } from '@/config/tourAnchors';
 import { reportHandAction } from '@/utils/connectionSignals';
+import { hasConnectionTab } from '@/components/connections/connectionSummary';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 
 const UNASSIGNED_DROP_ID = 'stations:unassigned';
 const STATION_DROP_PREFIX = 'station:';
@@ -53,6 +55,15 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
     useDashboard();
   const rosterGroupsEnabled = useRosterGroupsGate();
+  const connectionsOn = useConnectionsEnabled();
+  const showsConnectionTab =
+    connectionsOn &&
+    !!activeDashboard &&
+    hasConnectionTab(
+      activeDashboard.connections,
+      activeDashboard.widgets,
+      widget.id
+    );
   const config = widget.config as StationsConfig;
   const stations = useMemo(() => config.stations ?? [], [config.stations]);
   const assignments = useMemo(
@@ -433,6 +444,8 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
             style={{
               backgroundColor: hexToRgba(cardColor, cardOpacity),
               padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
+              // Keeps Reset all clear of the connection tab in the corner.
+              paddingRight: showsConnectionTab ? 52 : undefined,
               gap: 'min(10px, 2cqmin)',
             }}
           >

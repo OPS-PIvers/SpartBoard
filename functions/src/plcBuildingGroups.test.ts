@@ -542,6 +542,35 @@ describe('auto-roster identity checks', () => {
     expect(stub.get('plcs/g1')!.memberUids).not.toContain('inv');
   });
 
+  it('never adds a student-role member doc, on either path', async () => {
+    const seed = forgedSeed();
+    seed['plcs/g1'] = group({ lead: member('lead', 'lead') });
+    seed['organizations/orono/domains/d1'] = {
+      domain: '@orono.k12.mn.us',
+      status: 'verified',
+    };
+    seed['organizations/orono/members/stu@orono.k12.mn.us'] = orgMember('stu', {
+      roleId: 'student',
+    });
+    seed['organizations/orono/members/sinv@orono.k12.mn.us'] = {
+      roleId: 'student',
+      status: 'invited',
+    };
+    seed['users/stu/userProfile/profile'] = { selectedBuildings: ['middle'] };
+    seed['users/sinv/userProfile/profile'] = { selectedBuildings: ['middle'] };
+    const { stub, deps } = forgedDeps(seed);
+    for (const uid of ['stu', 'sinv']) {
+      expect(
+        await applyProfileBuildingsChange(deps, uid, [], ['middle'])
+      ).toEqual({ added: [], removed: [] });
+    }
+    await rosterBuildingGroup(deps, 'g1');
+    const uids = stub.get('plcs/g1')!.memberUids as string[];
+    expect(uids).toContain('t1');
+    expect(uids).not.toContain('stu');
+    expect(uids).not.toContain('sinv');
+  });
+
   it('createBuildingGroup rejects a lead found only as an unverified account', async () => {
     const seed = forgedSeed();
     const { deps } = forgedDeps(seed);

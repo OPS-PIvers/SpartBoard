@@ -196,8 +196,10 @@ import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
 import { mergeAnnotationObjects } from '@/utils/annotationMerge';
 import {
+  mergeSharedConnections,
   mergeSharedWidgets,
   sharedBoardBaseline,
+  sharedConnections,
   type SharedBoardBaseline,
 } from '@/utils/sharedBoardMerge';
 import {
@@ -454,6 +456,15 @@ const UNTARGETED_DASHBOARD_FIELDS: readonly MergedDashboardField[] = [
   'sharedGroups',
   'connections',
 ];
+
+// The mirror's signature: Run progress never reaches the share, so it never triggers a write there.
+const serializeForShare = (d: Dashboard): string => {
+  const connections = sharedConnections(d);
+  return serializeDashboard({
+    ...d,
+    connections: connections.length > 0 ? connections : undefined,
+  });
+};
 
 // Key-stable: a merged snapshot echo carries Firestore's key order, and a plain JSON.stringify would read it as an unsaved change and save again, forever.
 const serializeDashboard = (d: Dashboard): string =>
@@ -3853,7 +3864,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const scrubbed = withoutUseStamps(scrubDashboardPII(withoutTransient(d)));
 
       // Cheap dedupe based on the same fields the saveDashboard path uses.
-      const payload = serializeDashboard(scrubbed);
+      const payload = serializeForShare(scrubbed);
       const existing = mirrorTimersRef.current.get(shareId);
       if (lastMirroredRef.current.get(shareId) === payload) {
         // A queued write now holds stale content (e.g. ink a snapshot just
@@ -4188,12 +4199,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           const widgetsChanged =
             widgetMirrorSignature(widgets) !== widgetMirrorSignature(x.widgets);
           if (widgetsChanged) widgetHistoryRef.current.delete(dashboardId);
+          // A share doc written before it carried Connections leaves the local ones alone.
+          const connections =
+            remote.connections === undefined
+              ? x.connections
+              : mergeSharedConnections(
+                  x,
+                  remote,
+                  baseline,
+                  x.linkedShareRole === 'owner'
+                );
+          const connectionsChanged =
+            stableStringify(connections ?? []) !==
+            stableStringify(x.connections ?? []);
           const next: Dashboard = {
             ...x,
             widgets,
             background,
             globalStyle,
             settings,
+            ...(connectionsChanged && { connections }),
             // Live annotation overlay — hosts and collaborators push
             // strokes through this field so all participants see strokes
             // appear in real time. Merged per object against the last
@@ -4236,7 +4261,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // overwritten within a second.
           lastMirroredRef.current.set(
             shareId,
-            serializeDashboard(
+            serializeForShare(
               withoutUseStamps(
                 scrubDashboardPII(
                   withoutTransient({
@@ -4247,6 +4272,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     settings: remote.settings ?? x.settings,
                     annotationOverlay:
                       remote.annotationOverlay ?? next.annotationOverlay,
+                    connections: remote.connections ?? x.connections,
                   })
                 )
               )
@@ -4257,6 +4283,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             background === x.background &&
             globalStyle === x.globalStyle &&
             settings === x.settings &&
+            !connectionsChanged &&
             stableStringify(next.annotationOverlay ?? null) ===
               stableStringify(x.annotationOverlay ?? null) &&
             !x.linkedShareEnded
@@ -8184,6 +8211,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     commitTourWidgets,
     discardTourWidgets,
     setTourTransientSpawns,
+    updateDashboard,
   };
   const liveActionsRef = useRef(liveActions);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
@@ -8227,6 +8255,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         liveActionsRef.current.discardTourWidgets?.(ids),
       setTourTransientSpawns: (on) =>
         liveActionsRef.current.setTourTransientSpawns?.(on),
+      updateDashboard: (updates) =>
+        liveActionsRef.current.updateDashboard(updates),
     }),
     []
   );

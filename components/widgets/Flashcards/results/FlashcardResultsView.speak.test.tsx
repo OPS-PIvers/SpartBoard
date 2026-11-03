@@ -93,23 +93,27 @@ describe('FlashcardResultsView Speaking view gate', () => {
   it('shows the Speaking switch with the flag and a Speak stamp', () => {
     auth.canSpeak = true;
     show();
-    expect(screen.getByRole('tab', { name: 'Speaking' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Speaking' })
+    ).toBeInTheDocument();
   });
 
   it('hides it without the flag', () => {
     show();
-    expect(screen.queryByRole('tab', { name: 'Speaking' })).toBeNull();
-    expect(screen.getByText('Average mastered')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Speaking' })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: /Card results/ })
+    ).toBeInTheDocument();
   });
 
   it('hides it without a Speak stamp or a Speak language', () => {
     auth.canSpeak = true;
     state.session = session({ speak: undefined });
     const { unmount } = show();
-    expect(screen.queryByRole('tab', { name: 'Speaking' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Speaking' })).toBeNull();
     unmount();
     state.session = session({ termLanguage: 'fr-FR' });
     show();
-    expect(screen.queryByRole('tab', { name: 'Speaking' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Speaking' })).toBeNull();
   });
 });

@@ -10,10 +10,14 @@ import { Link } from 'lucide-react';
 import { WidgetLayout } from '../WidgetLayout';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
-import { extractSyncedUrl, getSyncedTextContent } from './deriveSyncedUrl';
+import {
+  extractSyncedUrl,
+  getSyncedTextContent,
+  resolveQRSource,
+} from './deriveSyncedUrl';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
-import { followLeaderId } from '@/utils/connectionEngine';
-import { usesLegacyToggles } from '@/utils/legacyConnections';
+import { useWidgetShareLink } from '@/utils/widgetShareLinks';
+import { hasConnectionTab } from '@/components/connections/connectionSummary';
 
 export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { activeDashboard } = useDashboard();
@@ -42,21 +46,30 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // changes, but the expensive DOMParser-based stripHtml only runs when the
   // raw text content actually changes (prevents jank during drag/resize).
   const connectionsOn = useConnectionsEnabled();
-  const connectionLeaderId = connectionsOn
-    ? followLeaderId(
+  const { followedTextId, linkLeaderId } = resolveQRSource(
+    connectionsOn,
+    activeDashboard?.connections,
+    activeDashboard?.widgets ?? [],
+    widget.id,
+    config
+  );
+  const leaderLink = useWidgetShareLink(linkLeaderId);
+  const isSynced =
+    !!linkLeaderId ||
+    (followedTextId !== undefined
+      ? !!followedTextId
+      : !!config.syncWithTextWidget);
+  // The connection corner tab already marks a connected QR and sits where the pill would.
+  const showsLinkedPill =
+    isSynced &&
+    !(
+      connectionsOn &&
+      hasConnectionTab(
         activeDashboard?.connections,
         activeDashboard?.widgets ?? [],
         widget.id
       )
-    : undefined;
-  // A Follow wins; otherwise the old toggle applies unless this widget was migrated.
-  const followedTextId =
-    connectionLeaderId ??
-    (usesLegacyToggles(connectionsOn, config) ? undefined : null);
-  const isSynced =
-    followedTextId !== undefined
-      ? !!followedTextId
-      : !!config.syncWithTextWidget;
+    );
   const textWidgetContent = useMemo(
     () =>
       getSyncedTextContent(config, activeDashboard?.widgets, followedTextId),
@@ -71,6 +84,7 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Use synced text content first, then widget config, then building defaults, then hardcoded.
   // Treat empty string as absent so nullish coalescing works correctly.
   const url =
+    leaderLink ??
     syncedUrl ??
     (config.url !== '' ? config.url : undefined) ??
     defaults?.defaultUrl ??
@@ -98,7 +112,7 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     <WidgetLayout
       padding="p-0"
       header={
-        isSynced ? (
+        showsLinkedPill ? (
           <div
             className="flex justify-end"
             style={{ padding: 'min(8px, 1.5cqmin)', paddingBottom: 0 }}

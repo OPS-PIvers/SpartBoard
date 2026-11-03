@@ -15,7 +15,19 @@ vi.mock('@/context/useDialog', () => ({
 }));
 vi.mock('@/hooks/useFlashcardResults', () => ({
   useFlashcardResults: () => ({
-    session: null,
+    session: {
+      id: 'a1',
+      teacherUid: 'teacher-1',
+      setId: 'set-1',
+      title: 'Spanish',
+      kind: 'study',
+      termLanguage: 'es-ES',
+      definitionLanguage: 'en-US',
+      cards: [],
+      classIds: [],
+      status: 'active',
+      createdAt: 1,
+    },
     results: [],
     loading: false,
     error: null,

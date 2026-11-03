@@ -8,7 +8,19 @@ import {
   RandomGroup,
 } from '@/types';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Plus, Trash2, Users, RefreshCw, LayoutGrid, List } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Users,
+  RefreshCw,
+  LayoutGrid,
+  List,
+  Workflow,
+} from 'lucide-react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
+import { followLeaderId, liveConnections } from '@/utils/connectionEngine';
+import { openConnectionEditor } from '@/context/connectionsUiStore';
+import { getTitle } from '@/utils/widgetHelpers';
 import { useDialog } from '@/context/useDialog';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { Button } from '@/components/common/Button';
@@ -20,7 +32,6 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useTranslation } from 'react-i18next';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { groupMakerGroups } from '@/utils/rosterGroups';
-import { useAuth } from '@/context/useAuth';
 import { appendScoreHistory } from './history';
 
 const TeamNameInput: React.FC<
@@ -73,12 +84,56 @@ export const ScoreboardSettings: React.FC<{
     activeRosterId,
   } = useDashboard();
   const { showConfirm } = useDialog();
-  const pro = useAuth().canAccessFeature('scoreboard-pro');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [useGroupNames, setUseGroupNames] = useState(false);
   const config = widget.config as ScoreboardConfig;
   const teams = Array.isArray(config.teams) ? config.teams : [];
   const layout = config.layout ?? 'cards';
+
+  // While teams follow a connected Randomizer, its groups decide which teams exist.
+  const connectionsOn = useConnectionsEnabled();
+  const leaderId = connectionsOn
+    ? followLeaderId(
+        activeDashboard?.connections,
+        activeDashboard?.widgets ?? [],
+        widget.id
+      )
+    : undefined;
+  const leaderRandomizer = leaderId
+    ? activeDashboard?.widgets.find(
+        (w) => w.id === leaderId && w.type === 'random'
+      )
+    : undefined;
+
+  const editConnection = () => {
+    if (!activeDashboard || !leaderRandomizer) return;
+    const live = liveConnections(
+      activeDashboard.connections,
+      activeDashboard.widgets
+    );
+    // The Randomizer's Sequence opens with this Follow as a side card; otherwise the Follow alone.
+    const target =
+      live.find(
+        (c) =>
+          c.kind === 'sequence' &&
+          c.steps.some((s) =>
+            s.actions.some((a) => a.widgetId === leaderRandomizer.id)
+          )
+      ) ??
+      live.find(
+        (c) =>
+          c.kind === 'follow' &&
+          c.followerId === widget.id &&
+          c.leaderId === leaderRandomizer.id
+      );
+    if (target) {
+      openConnectionEditor(
+        activeDashboard.id,
+        target,
+        activeDashboard.connections ?? []
+      );
+    }
+  };
 
   // --- Class groups (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D17/D20) ---
   const rosterGroupsEnabled = useRosterGroupsGate();
@@ -308,7 +363,7 @@ export const ScoreboardSettings: React.FC<{
       ...config,
       teams: teams.map((t) => ({ ...t, score: 0 })),
     };
-    if (pro && !config.liveQuizWidgetId) {
+    if (!config.liveQuizWidgetId) {
       nextConfig.history = appendScoreHistory(
         config.history,
         teams.map((t) => ({ teamId: t.id, from: t.score, to: 0 })),
@@ -373,38 +428,64 @@ export const ScoreboardSettings: React.FC<{
         </div>
       )}
 
-      <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex flex-col gap-3">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2 text-indigo-900">
-            <Users className="w-4 h-4" />
-            <span className="text-xs font-black uppercase tracking-wider">
-              {t('widgetSettings.scoreboard.importRandomizer')}
-            </span>
-          </div>
+      {leaderRandomizer ? (
+        <div className="flex items-center gap-3 py-3 border-y border-slate-200">
+          <Workflow
+            className="w-4 h-4 text-brand-blue-primary shrink-0"
+            aria-hidden="true"
+          />
+          <span className="flex-1 min-w-0 text-sm font-bold text-slate-700">
+            {t('widgetSettings.scoreboard.teamsFromLeader', {
+              name: getTitle(leaderRandomizer),
+            })}
+          </span>
           <Button
             size="sm"
             variant="secondary"
-            onClick={importFromRandom}
-            disabled={!randomWidget}
-            data-testid="import-groups-btn"
+            onClick={editConnection}
             {...tourAttr(
-              'widget-settings.scoreboard.import-random-groups',
+              'widget-settings.scoreboard.edit-connection',
               widget.id,
               widget.type
             )}
-            title={
-              !randomWidget
-                ? t('widgetSettings.scoreboard.addRandomizerFirst')
-                : t('widgetSettings.scoreboard.importGroups')
-            }
-            icon={<RefreshCw className="w-3 h-3" />}
           >
-            {t('widgetSettings.scoreboard.importGroups')}
+            {t('widgetSettings.scoreboard.editConnection')}
           </Button>
         </div>
-      </div>
+      ) : (
+        <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2 text-indigo-900">
+              <Users className="w-4 h-4" />
+              <span className="text-xs font-black uppercase tracking-wider">
+                {t('widgetSettings.scoreboard.importRandomizer')}
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={importFromRandom}
+              disabled={!randomWidget}
+              data-testid="import-groups-btn"
+              {...tourAttr(
+                'widget-settings.scoreboard.import-random-groups',
+                widget.id,
+                widget.type
+              )}
+              title={
+                !randomWidget
+                  ? t('widgetSettings.scoreboard.addRandomizerFirst')
+                  : t('widgetSettings.scoreboard.importGroups')
+              }
+              icon={<RefreshCw className="w-3 h-3" />}
+            >
+              {t('widgetSettings.scoreboard.importGroups')}
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {rosterGroupsEnabled && rosterGroups.length > 0 && (
+      {!leaderRandomizer && rosterGroupsEnabled && rosterGroups.length > 0 && (
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col gap-3">
           <div className="flex items-center gap-2 text-slate-700">
             <Users className="w-4 h-4" />
@@ -543,35 +624,39 @@ export const ScoreboardSettings: React.FC<{
               <div className="text-xs font-mono text-slate-400 w-8 text-right">
                 {team.score}
               </div>
-              <button
-                onClick={() => removeTeam(team.id)}
-                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                {...tourFieldAttr(
-                  'widget-settings.scoreboard.delete-team',
-                  widget.type,
-                  `team-${teamIndex + 1}`
-                )}
-                data-tour-widget={widget.id}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              {!leaderRandomizer && (
+                <button
+                  onClick={() => removeTeam(team.id)}
+                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  {...tourFieldAttr(
+                    'widget-settings.scoreboard.delete-team',
+                    widget.type,
+                    `team-${teamIndex + 1}`
+                  )}
+                  data-tour-widget={widget.id}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           ))}
         </div>
 
-        <Button
-          onClick={addTeam}
-          className="w-full py-3 border-2 border-dashed border-slate-200 text-slate-400 hover:border-brand-blue-primary hover:text-brand-blue-primary"
-          variant="ghost"
-          icon={<Plus className="w-4 h-4" />}
-          {...tourAttr(
-            'widget-settings.scoreboard.add-team',
-            widget.id,
-            widget.type
-          )}
-        >
-          {t('widgetSettings.scoreboard.addTeam')}
-        </Button>
+        {!leaderRandomizer && (
+          <Button
+            onClick={addTeam}
+            className="w-full py-3 border-2 border-dashed border-slate-200 text-slate-400 hover:border-brand-blue-primary hover:text-brand-blue-primary"
+            variant="ghost"
+            icon={<Plus className="w-4 h-4" />}
+            {...tourAttr(
+              'widget-settings.scoreboard.add-team',
+              widget.id,
+              widget.type
+            )}
+          >
+            {t('widgetSettings.scoreboard.addTeam')}
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -289,6 +289,16 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'toggle',
     },
     {
+      anchor: 'settings.toggle:clock#showTime',
+      label: 'Show Time',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:clock#showDate',
+      label: 'Show Date',
+      kind: 'toggle',
+    },
+    {
       anchor: 'settings.group:clock#display',
       label: 'Display',
     },
@@ -690,6 +700,11 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:random#numGroups',
       label: 'Number of groups',
       kind: 'custom',
+    },
+    {
+      anchor: 'settings.toggle:random#avoidRecentPartners',
+      label: 'Avoid recent partners',
+      kind: 'toggle',
     },
     {
       anchor: 'settings.field:random#numHomeGroups',

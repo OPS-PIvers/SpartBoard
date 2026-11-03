@@ -1,14 +1,9 @@
 import React from 'react';
 import { defineSettings } from '@/components/settings/schema/defineSettings';
-import type {
-  CustomRenderCtx,
-  FieldCtx,
-} from '@/components/settings/schema/types';
+import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { ScoreboardConfig } from '@/types';
 import { ScoreboardSettings } from './settingsFields';
 import { SCOREBOARD_POINT_PRESETS, scoreboardPointPresetId } from './points';
-
-const pro = (ctx: FieldCtx) => ctx.canAccessFeature('scoreboard-pro');
 
 const renderTeams = (ctx: CustomRenderCtx) =>
   React.createElement(
@@ -57,7 +52,7 @@ export default defineSettings<ScoreboardConfig>({
           type: 'toggle',
           label: 'sortByScore',
           readValue: (ctx) => ctx.config.sortByScore !== false,
-          visibleWhen: (ctx) => pro(ctx) && ctx.config.layout === 'rows',
+          visibleWhen: (ctx) => ctx.config.layout === 'rows',
         },
         {
           key: 'pointValues',
@@ -74,7 +69,6 @@ export default defineSettings<ScoreboardConfig>({
                 ?.values ?? [1]),
             ],
           }),
-          visibleWhen: pro,
         },
       ],
     },

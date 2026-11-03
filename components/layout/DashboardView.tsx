@@ -75,6 +75,14 @@ import {
 } from '@/components/settings/panSetterRegistry';
 import { SettingsDrawerHost } from '@/components/settings/SettingsDrawerHost';
 import { LayoutGrid, Music } from 'lucide-react';
+import { useBoardMarqueeSelect } from './useBoardMarqueeSelect';
+import { BoxSelectionBar } from './BoxSelectionBar';
+import {
+  clearBoxSelection,
+  getBoxSelection,
+  setBoxSelection,
+  toggleBoxSelected,
+} from '@/components/common/boxSelectionStore';
 import { ToastContainer } from '@/components/common/ToastContainer';
 import {
   DEFAULT_GLOBAL_STYLE,
@@ -531,6 +539,29 @@ export const DashboardView: React.FC = () => {
     const flag = IMPORT_TARGET_FEATURES[target];
     return !!flag && canAccessFeature(flag);
   };
+  const boxSelectOn = canAccessFeature('board-multi-select');
+  const boxSelectEnabled =
+    boxSelectOn &&
+    !annotationActive &&
+    !isActiveBoardReadOnly &&
+    !groupBuildMode;
+  const marqueeRect = useBoardMarqueeSelect({
+    enabled: boxSelectEnabled,
+    getSelectableIds: () =>
+      (activeDashboard?.widgets ?? [])
+        .filter((w) => !w.minimized && !w.maximized)
+        .map((w) => w.id),
+    onSelect: (ids) => {
+      if (ids.length > 0) setBoxSelection(ids);
+    },
+    onToggle: toggleBoxSelected,
+    hasSelection: () => getBoxSelection().length > 0,
+  });
+  // True when the current press started on empty board, so its click clears the selection.
+  const boardPressRef = React.useRef(false);
+  const activeBoardId = activeDashboard?.id;
+  // The box selection belongs to one board and one mode; drop it on a board switch or when the gesture turns off.
+  React.useEffect(() => clearBoxSelection(), [activeBoardId, boxSelectEnabled]);
   // Latched: the host takes the parameter off the address once it opens the editor.
   const [webTourLink] = React.useState(opensWebTour);
   useWallBoardAccessCleanup(user?.uid ?? null);
@@ -1023,6 +1054,12 @@ export const DashboardView: React.FC = () => {
       if (e.key === 'Escape') {
         if (isTypingFieldActive()) {
           (document.activeElement as HTMLElement | null)?.blur();
+          return;
+        }
+
+        if (getBoxSelection().length > 0) {
+          e.preventDefault();
+          clearBoxSelection();
           return;
         }
 
@@ -1676,6 +1713,12 @@ export const DashboardView: React.FC = () => {
       onClick={(e) => {
         e.stopPropagation();
         setSelectedWidgetId(null);
+        if (boardPressRef.current) clearBoxSelection();
+      }}
+      onPointerDownCapture={(e) => {
+        boardPressRef.current = !(e.target as Element).closest(
+          '.widget, [data-testid^="group-resize-handle"]'
+        );
       }}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
@@ -1703,6 +1746,7 @@ export const DashboardView: React.FC = () => {
           that color/pattern/image backgrounds still fill the viewport at
           sub-100% zoom. */}
       <div
+        data-board-background
         className={`absolute inset-0 ${backgroundClasses}`}
         style={backgroundStyles}
       >
@@ -1788,6 +1832,17 @@ export const DashboardView: React.FC = () => {
           zIndex: annotationActive ? Z_INDEX.annotationSurface : undefined,
         }}
       />
+
+      {marqueeRect &&
+        createPortal(
+          <div
+            aria-hidden="true"
+            className="fixed z-toast pointer-events-none border border-blue-500 bg-blue-500/10 rounded-sm"
+            style={marqueeRect}
+          />,
+          document.body
+        )}
+      {boxSelectOn && !groupBuildMode && <BoxSelectionBar />}
 
       {/* Group-building mode floating action bar */}
       {groupBuildMode &&

@@ -150,6 +150,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       soundEnabled: true,
       autoStartTimer: false,
       visualStyle: 'flash',
+      avoidRecentPartners: false,
     },
   },
   dice: {

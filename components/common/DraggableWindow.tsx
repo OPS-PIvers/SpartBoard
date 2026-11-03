@@ -40,6 +40,8 @@ import {
   setWidgetOverride,
   subscribeWidgetOverride,
 } from './widgetRefRegistry';
+import { getBoxSelection, useIsBoxSelected } from './boxSelectionStore';
+import { setGroupDragPositions } from './groupDragPositions';
 import { setAlignmentGuides } from './alignmentGuidesStore';
 import {
   computeGuides,
@@ -302,6 +304,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       ) ??
         false)
   );
+  const isBoxSelected = useIsBoxSelected(widget.id);
   const isGroupBuildSelected = useDashboardCanvasSelector(
     (s) => s.groupBuildMode && s.selectedWidgetIds.includes(widget.id)
   );
@@ -1156,13 +1159,26 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // Collect group siblings for coordinated drag. Read the dashboard at
     // event time via the getter — this shell no longer subscribes to it.
-    const hasGroup = !!widget.groupId;
+    // A Ctrl+drag box selection moves together like a group, along with each member's own group.
+    const boxIds = getBoxSelection();
+    const isBoxDrag = boxIds.length > 1 && boxIds.includes(widget.id);
     const dashboardAtPointerDown = getCanvasState().activeDashboard;
+    const boxGroupIds = new Set(
+      isBoxDrag
+        ? (dashboardAtPointerDown?.widgets ?? [])
+            .filter((w) => boxIds.includes(w.id) && w.groupId)
+            .map((w) => w.groupId)
+        : []
+    );
+    const inBoxDrag = (w: WidgetData) =>
+      boxIds.includes(w.id) || (!!w.groupId && boxGroupIds.has(w.groupId));
+    const hasGroup = !!widget.groupId || isBoxDrag;
     if (hasGroup && dashboardAtPointerDown) {
       groupSiblingsRef.current = dashboardAtPointerDown.widgets
         .filter(
           (w) =>
-            w.groupId === widget.groupId &&
+            ((!!widget.groupId && w.groupId === widget.groupId) ||
+              (isBoxDrag && inBoxDrag(w))) &&
             w.id !== widget.id &&
             !w.minimized &&
             !w.isLocked &&
@@ -1238,6 +1254,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
+        setGroupDragPositions(null);
       }
       groupDragActiveRef.current = false;
     };
@@ -1379,6 +1396,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // React re-renders mid-drag (bringToFront, server sync, etc.).
         if (groupSiblingsRef.current.length > 0) {
           groupDragDeltaRef.current = { x: deltaX, y: deltaY };
+          const live = new Map([[widget.id, { x: newX, y: newY }]]);
           for (const sib of groupSiblingsRef.current) {
             const { x: sibX, y: sibY } = clampWidgetToWorld(
               sib.startX + deltaX,
@@ -1391,7 +1409,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             sib.el.style.left = `${sibX}px`;
             sib.el.style.top = `${sibY}px`;
             setWidgetOverride(sib.id, { x: sibX, y: sibY });
+            live.set(sib.id, { x: sibX, y: sibY });
           }
+          setGroupDragPositions(live);
         }
       });
     };
@@ -1480,6 +1500,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
+        setGroupDragPositions(null);
       }
       groupDragActiveRef.current = false;
 
@@ -1531,7 +1552,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     handleDragStart(e);
   };
 
-  const handleResizeStart = (e: React.PointerEvent, direction: string) => {
+  const handleResizeStart = (
+    e: React.PointerEvent,
+    direction: string,
+    force = false
+  ) => {
     if (isMaximized) return;
     if (isLocked || isPinned) return;
     if (widget.groupId) return; // Grouped widgets use GroupBoundingBox for coordinated resize
@@ -1560,7 +1585,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         e.clientY <= rect.top + RESIZE_PRIORITY_INSET;
       inPriorityZone = eastOk && westOk && southOk && northOk;
     }
-    if (!inPriorityZone) {
+    if (!inPriorityZone && !force) {
       const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
       for (const el of elementsAtPoint) {
         if (el === resizeEl) continue;
@@ -2440,6 +2465,20 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         ...style, // Merge custom styles
       }}
     >
+      {isBoxSelected && !isMaximized && (
+        <div
+          data-testid="box-selected-outline"
+          style={{
+            position: 'absolute',
+            inset: -3,
+            border: '2px solid rgb(59, 130, 246)',
+            borderRadius: 'inherit',
+            zIndex: 20,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
       {/* Group indicator dot */}
       {isInGroup && !isMaximized && (
         <div
@@ -2484,7 +2523,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       <ConnectPickOverlay widget={widget} />
       <ConnectionWidgetHighlight widgetId={widget.id} />
-      {!isMaximized && <ConnectionBadge widget={widget} />}
+      {!isMaximized && !isAnnotating && (
+        <ConnectionBadge
+          widget={widget}
+          onResizeStart={(e) => handleResizeStart(e, 'ne', true)}
+        />
+      )}
 
       {/* Group-build mode selection overlay */}
       {groupBuildMode && (

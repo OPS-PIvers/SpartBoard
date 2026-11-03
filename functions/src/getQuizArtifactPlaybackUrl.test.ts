@@ -711,3 +711,62 @@ describe('getQuizArtifactPlaybackUrl: a PIN token is limited to its own session'
     ).rejects.not.toMatchObject({ code: 'permission-denied' });
   });
 });
+
+describe('resolveArtifactPlayback: a PIN token cannot replay another session', () => {
+  // s1 is the student's published class-B session; the PIN token was proven for session-a in class-a.
+  const docs = () => makeDocs({ session: { classIds: ['class-b'] } });
+  const pinA = { studentRole: true, pinLogin: true, classIds: ['class-a'] };
+  const nowSec = () => Math.floor(Date.now() / 1000);
+
+  it('SECURITY: denies a PIN token for session A on the same student’s session B', async () => {
+    await expect(
+      resolveArtifactPlayback(
+        { ...REQ, callerClaims: { ...pinA, pinSessionId: 'session-a' } },
+        makeDeps(docs())
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('SECURITY: denies a pre-scope PIN token whose class the session does not target', async () => {
+    await expect(
+      resolveArtifactPlayback(
+        { ...REQ, callerClaims: { ...pinA, auth_time: nowSec() } },
+        makeDeps(docs())
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('SECURITY: denies a pre-scope PIN token past the grace', async () => {
+    await expect(
+      resolveArtifactPlayback(
+        {
+          ...REQ,
+          callerClaims: { ...pinA, classIds: ['class-b'], auth_time: 1 },
+        },
+        makeDeps(docs())
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('still plays for the SSO token and for the PIN token’s own session', async () => {
+    const sso = { studentRole: true, sso: true, classIds: ['class-a'] };
+    await expect(
+      resolveArtifactPlayback({ ...REQ, callerClaims: sso }, makeDeps(docs()))
+    ).resolves.toMatchObject({ status: 'ready' });
+    await expect(
+      resolveArtifactPlayback(
+        { ...REQ, callerClaims: { ...pinA, pinSessionId: 's1' } },
+        makeDeps(docs())
+      )
+    ).resolves.toMatchObject({ status: 'ready' });
+    await expect(
+      resolveArtifactPlayback(
+        {
+          ...REQ,
+          callerClaims: { ...pinA, classIds: ['class-b'], auth_time: nowSec() },
+        },
+        makeDeps(docs())
+      )
+    ).resolves.toMatchObject({ status: 'ready' });
+  });
+});

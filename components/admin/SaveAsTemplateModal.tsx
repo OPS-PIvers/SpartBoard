@@ -151,6 +151,8 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
       })),
       globalStyle: cleaned.globalStyle ?? undefined,
       background: cleaned.background ?? undefined,
+      // Always written, so updating a template clears Connections the board no longer has.
+      connections: cleaned.connections ?? [],
     };
   };
 
@@ -180,6 +182,9 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
       }),
       ...(cleaned.viewportHeight !== undefined && {
         viewportHeight: cleaned.viewportHeight,
+      }),
+      ...(!!cleaned.connections?.length && {
+        connections: cleaned.connections,
       }),
       createdAt: cleaned.createdAt,
     };

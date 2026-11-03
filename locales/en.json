@@ -1243,6 +1243,8 @@
     "scoreboard": {
       "teams": "Teams",
       "importRandomizer": "Import from Randomizer",
+      "teamsFromLeader": "Teams come from {{name}}",
+      "editConnection": "Edit connection",
       "resetScores": "Reset Scores",
       "addTeam": "Add Team",
       "layout": "Layout",
@@ -2077,6 +2079,8 @@
     "clock": {
       "format24": "24H Format",
       "showSeconds": "Show Seconds",
+      "showTime": "Show Time",
+      "showDate": "Show Date",
       "clockStyle": "Display Style",
       "styles": {
         "modern": "Default",
@@ -2384,6 +2388,8 @@
       "homeGroupCount": "Number of home groups",
       "expertGroupCount": "Number of expert groups",
       "sendToStations": "Send groups to Stations",
+      "namesFromStations": "Names come from {{title}}",
+      "editConnection": "Edit connection",
       "stations": "Stations",
       "projects": "Projects",
       "addStations": "Add a Stations widget to the board first.",
@@ -2415,7 +2421,9 @@
       "rosterGroupsOff": "Class groups are switched off for your school right now.",
       "rowStyle": "Name style",
       "rowCards": "Cards",
-      "rowLines": "Lines"
+      "rowLines": "Lines",
+      "avoidRecentPartners": "Avoid recent partners",
+      "avoidRecentPartnersHelp": "Keeps students apart from the classmates they were grouped with in the last 3 rounds."
     },
     "url": {
       "links": "Links",
@@ -2504,7 +2512,9 @@
       "groupCount": "Group ({{count}})",
       "widgetsGrouped": "Widgets grouped",
       "ungroup": "Ungroup",
-      "groupWith": "Group with..."
+      "groupWith": "Group with...",
+      "pinCount": "Pin ({{count}})",
+      "unpinCount": "Unpin ({{count}})"
     },
     "clearEntireBoard": "Are you sure you want to clear the entire board?",
     "clearBoardTitle": "Clear Board",
@@ -2684,6 +2694,7 @@
       "matchTime": "Match time"
     },
     "timeTool": {
+      "launchMusic": "Add linked music",
       "mode": "Mode",
       "timer": "Timer",
       "stopwatch": "Stopwatch",
@@ -5839,9 +5850,13 @@
     "followAction": {
       "music": "Play",
       "qr": "Show the text",
+      "qr_activity-wall": "Show the link",
+      "qr_miniApp": "Show the link",
       "traffic": "Match the noise level",
       "sound": "Match the voice level",
-      "recessGear": "Use the weather"
+      "recessGear": "Use the weather",
+      "scoreboard": "Use the groups as teams",
+      "random": "Use the stations as names"
     },
     "next": "Next"
   }

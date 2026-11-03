@@ -89,7 +89,10 @@ import {
   resolvePinName,
   selectPushableResponses,
 } from '../utils/quizScoreboard';
-import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
+import {
+  resolveResponseDisplayName,
+  resolveResponseExportName,
+} from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
@@ -711,6 +714,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [rosters, resolvedPeriods]
   );
   const hasNames = Object.keys(pinToName).length > 0;
+  const resolveTargetExportName = useCallback(
+    (response: QuizResponse) =>
+      resolveResponseExportName(response, exportPinToName, byStudentUid),
+    [exportPinToName, byStudentUid]
+  );
 
   // Whether the underlying quiz contains any manual-grade question
   // types. Used to surface the "Grade Written" entry-point only when
@@ -2524,7 +2532,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               responses={filteredResponses}
               stats={targetStats}
               resolveName={resolveShownName}
-              resolveExportName={resolveTargetStudentName}
+              resolveExportName={resolveTargetExportName}
             />
           )}
           {effectiveScreen === 'students' && (
@@ -2681,22 +2689,23 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             className="ml-auto flex items-center shrink-0"
             style={{ gap: 'min(6px, 1.5cqmin)' }}
           >
-            {filteredCompleted.length > 0 && (
-              <button
-                type="button"
-                onClick={handleScoreboardClick}
-                disabled={namesLoading}
-                aria-label="Send to Scoreboard"
-                {...tourTypeAttr('quiz-results.scoreboard', 'quiz')}
-                title={
-                  namesLoading ? NAMES_LOADING_TITLE : 'Send to Scoreboard'
-                }
-                className={footerButtonClass}
-                style={footerIconButtonStyle}
-              >
-                <Trophy aria-hidden style={footerIcon} />
-              </button>
-            )}
+            {(isReview || !canAccessFeature('widget-connections')) &&
+              filteredCompleted.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleScoreboardClick}
+                  disabled={namesLoading}
+                  aria-label="Send to Scoreboard"
+                  {...tourTypeAttr('quiz-results.scoreboard', 'quiz')}
+                  title={
+                    namesLoading ? NAMES_LOADING_TITLE : 'Send to Scoreboard'
+                  }
+                  className={footerButtonClass}
+                  style={footerIconButtonStyle}
+                >
+                  <Trophy aria-hidden style={footerIcon} />
+                </button>
+              )}
             {sheetRefresh && (
               <button
                 type="button"

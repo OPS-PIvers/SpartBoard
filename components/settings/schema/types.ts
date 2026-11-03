@@ -24,6 +24,8 @@ export type FieldCtx = {
   canAccessWidget?: (type: WidgetType) => boolean;
   /** Dock-facing widget name (admin displayName override, else the TOOLS label). */
   toolLabel?: (type: WidgetType) => string;
+  /** The widget this one Follows on the board (Connections on only). */
+  followLeader?: WidgetData | null;
   t: TranslateFn;
   /** Set by the drawer only; fields pick drawer presentations (dropdowns, sliders, new presets) while the legacy panel stays frozen. */
   surface?: 'drawer';
