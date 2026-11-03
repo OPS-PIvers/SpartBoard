@@ -46,6 +46,7 @@ type LaunchKind = (typeof LAUNCHABLE_KINDS)[number];
 const MAX_ROSTERS = 20;
 const STIMULUS_QUOTES_FEATURE = 'quiz-stimulus-quotes';
 const CROSS_OUT_FEATURE = 'quiz-cross-out';
+const ANONYMOUS_JOIN_FEATURE = 'anonymous-join';
 /** A session doc is capped at ~1 MiB by Firestore; stay well inside it. */
 const MAX_PAYLOAD_BYTES = 700_000;
 
@@ -672,6 +673,11 @@ export interface SubLaunchDeps {
     hostUid: string,
     featureId: string
   ) => Promise<boolean>;
+  /** Server twin of the host's `canAccessFeature('anonymous-join') !== false`: a missing permission doc counts as allowed. */
+  hostAllowsAnonymousJoin: (
+    db: admin.firestore.Firestore,
+    hostUid: string
+  ) => Promise<boolean>;
 }
 
 /** The teacher client's own shape: six uppercase alphanumerics. */
@@ -683,21 +689,43 @@ function randomJoinCode(): string {
     .padEnd(6, '0');
 }
 
+async function verifiedHostEmail(hostUid: string): Promise<string | null> {
+  return (
+    admin
+      .auth()
+      .getUser(hostUid)
+      // An unverified email must never match admins/{email} or a beta list.
+      .then((u) => (u.emailVerified ? (u.email ?? null) : null))
+      .catch(() => null)
+  );
+}
+
 async function liveHostHasFeature(
   db: admin.firestore.Firestore,
   hostUid: string,
   featureId: string
 ): Promise<boolean> {
-  const email = await admin
-    .auth()
-    .getUser(hostUid)
-    // An unverified email must never match admins/{email} or a beta list.
-    .then((u) => (u.emailVerified ? (u.email ?? null) : null))
-    .catch(() => null);
+  const email = await verifiedHostEmail(hostUid);
   const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
   return isGlobalFeatureGranted(db, featureId, email, hostUid).catch(
     () => false
   );
+}
+
+async function liveHostAllowsAnonymousJoin(
+  db: admin.firestore.Firestore,
+  hostUid: string
+): Promise<boolean> {
+  try {
+    const snap = await db
+      .collection('global_permissions')
+      .doc(ANONYMOUS_JOIN_FEATURE)
+      .get();
+    if (!snap.exists) return true;
+  } catch {
+    return false;
+  }
+  return liveHostHasFeature(db, hostUid, ANONYMOUS_JOIN_FEATURE);
 }
 
 export const liveSubLaunchDeps: SubLaunchDeps = {
@@ -705,6 +733,7 @@ export const liveSubLaunchDeps: SubLaunchDeps = {
   newId: () => randomUUID(),
   newCode: randomJoinCode,
   hostHasFeature: liveHostHasFeature,
+  hostAllowsAnonymousJoin: liveHostAllowsAnonymousJoin,
 };
 
 interface VaLaunchArgs {
@@ -1136,6 +1165,10 @@ export async function handleLaunchSubAssignment(
     launchedBy: { uid: sub.uid, email, shareId },
     subMonitorUids: [sub.uid],
     subMonitorUntil: expiresAt,
+    // Quiz and video sessions carry the value the host's own assign stamps, so PIN joins honor the sign-in rule.
+    ...(kind === 'quiz' || kind === 'videoActivity'
+      ? { allowAnonymousJoin: await deps.hostAllowsAnonymousJoin(db, hostUid) }
+      : {}),
   };
 
   if (kind === 'flashcards') {

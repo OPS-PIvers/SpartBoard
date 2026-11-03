@@ -252,7 +252,8 @@ describe('runPaperTranscriptionJob', () => {
     expect(s.transcribe).not.toHaveBeenCalled();
     expect(s.archive).not.toHaveBeenCalled();
     expect(s.get(JOB)).toMatchObject({ status: 'superseded', charged: false });
-    expect(s.has(USAGE)).toBe(false);
+    expect(s.get(USAGE)?.count ?? 0).toBe(0);
+    expect(s.get(JOB)).toMatchObject({ charged: false });
   });
 
   it('never overwrites an answer the teacher edited', async () => {
@@ -270,7 +271,8 @@ describe('runPaperTranscriptionJob', () => {
     await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps);
     expect(s.transcribe).not.toHaveBeenCalled();
     expect(answerOf(s, 'q1')).toMatchObject({ answer: '' });
-    expect(s.has(USAGE)).toBe(false);
+    expect(s.get(USAGE)?.count ?? 0).toBe(0);
+    expect(s.get(JOB)).toMatchObject({ charged: false });
   });
 
   it('skips an answer edited while Gemini was running', async () => {
@@ -287,7 +289,8 @@ describe('runPaperTranscriptionJob', () => {
       'superseded'
     );
     expect(answerOf(s, 'q1')).toMatchObject({ answer: '' });
-    expect(s.has(USAGE)).toBe(false);
+    expect(s.get(USAGE)?.count ?? 0).toBe(0);
+    expect(s.get(JOB)).toMatchObject({ charged: false });
   });
 
   it('never transcribes for a teacher without the feature', async () => {
@@ -296,7 +299,8 @@ describe('runPaperTranscriptionJob', () => {
       'failed'
     );
     expect(s.transcribe).not.toHaveBeenCalled();
-    expect(s.has(USAGE)).toBe(false);
+    expect(s.get(USAGE)?.count ?? 0).toBe(0);
+    expect(s.get(JOB)).toMatchObject({ charged: false });
   });
 
   it('marks the page over quota, then a retry succeeds once pages are free', async () => {
@@ -337,6 +341,80 @@ describe('runPaperTranscriptionJob', () => {
     );
     expect(answerOf(s, 'q1')).toMatchObject({ paperTranscript: 'done' });
     expect(s.get(USAGE)).toMatchObject({ count: 300 });
+  });
+
+  it('SECURITY: concurrent workers cannot pass the daily page limit', async () => {
+    const JOB2 = `${JOBS}/scan2_4_1_0`;
+    const RESPONSE2 = `${SESSION}/responses/r2`;
+    const base = seed();
+    const s = setup({
+      'global_permissions/paper-handwritten-responses': {
+        enabled: true,
+        config: { dailyLimit: 1, dailyLimitEnabled: true },
+      },
+      [RESPONSE2]: {
+        studentUid: 'p2',
+        answers: [answer('q1', 'pending', 'scan2')],
+      },
+      [`${RESPONSE2}/paperPrivate/q1`]: base[PRIV('q1')],
+      [JOB2]: {
+        ...base[JOB],
+        responseKey: 'r2',
+        scanId: 'scan2',
+        boxes: [{ questionId: 'q1', storagePath: crop('q1', 'scan2') }],
+      },
+    });
+    s.store.set(`${RESPONSE2}/paperPrivate/q1`, {
+      scanId: 'scan2',
+      status: 'pending',
+      attempts: 0,
+      charged: false,
+      updatedAt: 1,
+    });
+    s.store.set(JOB2, {
+      ...(base[JOB] as Record<string, unknown>),
+      responseKey: 'r2',
+      scanId: 'scan2',
+      boxes: [{ questionId: 'q1', storagePath: crop('q1', 'scan2') }],
+    });
+    // Firestore retries a transaction whose reads changed, so commits behave as if serialized.
+    const rawDb = s.deps.db;
+    let chain: Promise<unknown> = Promise.resolve();
+    s.deps.db = {
+      ...rawDb,
+      collection: rawDb.collection.bind(rawDb),
+      doc: rawDb.doc.bind(rawDb),
+      runTransaction: (fn: never) => {
+        const run = chain.then(() => rawDb.runTransaction(fn));
+        chain = run.catch(() => undefined);
+        return run;
+      },
+    } as unknown as Firestore;
+    const outcomes = await Promise.all([
+      runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps),
+      runPaperTranscriptionJob('t1', 'scan2_4_1_0', s.deps),
+    ]);
+    expect(outcomes.sort()).toEqual(['done', 'over-quota']);
+    expect(s.transcribe).toHaveBeenCalledTimes(1);
+    expect(s.get(USAGE)).toMatchObject({ count: 1 });
+  });
+
+  it('keeps a page reserved during the call and gives it back when the call fails', async () => {
+    let usageDuringCall: unknown;
+    const holder: { current?: ReturnType<typeof setup> } = {};
+    const s = setup(
+      {},
+      {
+        transcribe: () => {
+          usageDuringCall = holder.current?.get(USAGE)?.count;
+          return Promise.reject(new Error('vertex 503'));
+        },
+      }
+    );
+    holder.current = s;
+    await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps);
+    expect(usageDuringCall).toBe(1);
+    expect(s.get(USAGE)?.count).toBe(0);
   });
 
   it('lets admins past the page limit', async () => {
@@ -404,7 +482,8 @@ describe('runPaperTranscriptionJob', () => {
       attempts: 1,
       lastError: 'vertex 503',
     });
-    expect(s.has(USAGE)).toBe(false);
+    expect(s.get(USAGE)?.count ?? 0).toBe(0);
+    expect(s.get(JOB)).toMatchObject({ charged: false });
     // The blank crop is still archived.
     expect(s.archive).toHaveBeenCalledTimes(1);
   });
@@ -469,7 +548,8 @@ describe('runPaperTranscriptionJob', () => {
       status: 'failed',
       lastError: 'The answer image is missing from Storage.',
     });
-    expect(s.has(USAGE)).toBe(false);
+    expect(s.get(USAGE)?.count ?? 0).toBe(0);
+    expect(s.get(JOB)).toMatchObject({ charged: false });
   });
 
   it('refuses a job whose session belongs to another teacher', async () => {
@@ -507,6 +587,27 @@ describe('runPaperTranscriptionJob', () => {
 });
 
 describe('requeuePaperJob', () => {
+  it('gives back the page a dead run reserved', async () => {
+    const s = setup({
+      [JOB]: {
+        ...seed()[JOB],
+        status: 'running',
+        leaseUntil: NOW - 1,
+        charged: true,
+        chargedAt: NOW,
+      },
+      [USAGE]: { count: 5 },
+    });
+    expect(
+      await requeuePaperJob(s.deps.db, 't1', 'scan1_3_1_0', {
+        now: NOW,
+        maxAttempt: 10,
+      })
+    ).toBe('requeued');
+    expect(s.get(USAGE)?.count).toBe(4);
+    expect(s.get(JOB)).toMatchObject({ charged: false, status: 'superseded' });
+  });
+
   it('collides instead of duplicating when the next attempt exists', async () => {
     const s = setup({
       [JOB]: { ...seed()[JOB], status: 'failed' },

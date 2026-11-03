@@ -22,6 +22,8 @@ import {
 import {
   preparePaperPageCharge,
   readPaperHandwritingQuota,
+  releasePaperPage,
+  reservePaperPage,
   type PaperModelTier,
 } from './paperHandwritingQuota';
 import {
@@ -453,11 +455,29 @@ export async function runPaperTranscriptionJob(
     return 'over-quota';
   }
 
+  // The page is taken before the model call; the read above only skips the work when it is plainly over.
+  const reservation = await reservePaperPage(db, {
+    uid,
+    jobRef,
+    nowMs: deps.now(),
+    limit: quota.limit,
+    unlimited: quota.unlimited,
+  });
+  if (reservation === 'over-quota') {
+    await settleWithoutTranscript(db, jobRef, job, 'over-quota', deps.now());
+    await archiveBlanks();
+    return 'over-quota';
+  }
+
   let transcript: PaperPageTranscript;
   try {
     transcript = await transcribePresentCrops(live, quota.modelTier, deps);
   } catch (error) {
     console.error('[paperTranscriptionWorker] transcribe failed', jobId, error);
+    await releasePaperPage(db, { uid, jobRef, nowMs: deps.now() }).catch(
+      (releaseError) =>
+        console.error('[paperTranscriptionWorker] release failed', releaseError)
+    );
     await settleWithoutTranscript(
       db,
       jobRef,
@@ -537,6 +557,8 @@ export async function runPaperTranscriptionJob(
     if (done.length > 0) {
       tx.update(responseRef, { answers: nextAnswers });
       charge.apply();
+    } else {
+      charge.release();
     }
     const status: PaperTranscriptionJobStatus =
       failedBoxes > 0 ? 'failed' : done.length > 0 ? 'done' : 'superseded';
@@ -606,6 +628,11 @@ export async function requeuePaperJob(
       paperTranscriptionJobId(job.scanId, seat, job.page, job.attempt + 1)
     );
     const responseRef = responseRefFor(db, job);
+    // A run that died after reserving its page leaves the charge on the old job; the new job charges again.
+    const stuckCharge =
+      job.status === 'running' && job.charged
+        ? await preparePaperPageCharge(tx, db, { uid, jobRef, nowMs: opts.now })
+        : null;
     const [next, response, privates] = await Promise.all([
       tx.get(nextRef),
       tx.get(responseRef),
@@ -647,6 +674,7 @@ export async function requeuePaperJob(
       createdAt: opts.now,
       updatedAt: opts.now,
     };
+    stuckCharge?.release();
     tx.create(nextRef, fresh);
     for (const box of live) {
       tx.set(
