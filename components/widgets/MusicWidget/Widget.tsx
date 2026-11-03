@@ -20,6 +20,7 @@ import { resolveActiveStation } from './mySongs';
 import { resolveSyncedTimer } from './linkedTimer';
 import { followLeaderId } from '@/utils/connectionEngine';
 import { usesLegacyToggles } from '@/utils/legacyConnections';
+import { hasConnectionTab } from '@/components/connections/connectionSummary';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -239,6 +240,9 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   }, [isTimeToolRunning, syncWithTimer, youtubeId, isPlayerReady]);
 
+  const showsConnectionTab =
+    connectionsOn &&
+    hasConnectionTab(activeDashboard?.connections, widgets, widget.id);
   const canLaunchTimer =
     !!youtubeId &&
     !isSpotify &&
@@ -414,7 +418,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   onClick={launchLinkedTimer}
                   size="min(18px, 14cqh)"
                   color="#ffffff"
-                  className="absolute top-1.5 right-1.5 bg-black/30"
+                  className={`absolute right-1.5 bg-black/30 ${showsConnectionTab ? 'top-8' : 'top-1.5'}`}
                 />
               )}
 
