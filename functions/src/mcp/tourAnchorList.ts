@@ -12935,9 +12935,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.scoreboard",
     "label": "Send to Scoreboard in Quiz results",
     "scope": "widget type",
-    "keys": [
-      "quiz"
-    ],
+    "key_pattern": "(quiz|review)",
+    "key_hint": "quiz or review",
     "routes": [
       {
         "surface": "quiz.results",
@@ -13017,9 +13016,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
-    "keys": [
-      "quiz"
-    ],
+    "key_pattern": "(quiz|review)",
+    "key_hint": "quiz or review",
     "routes": [
       {
         "surface": "quiz.results",
@@ -13044,9 +13042,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
-    "keys": [
-      "quiz"
-    ],
+    "key_pattern": "(quiz|review)",
+    "key_hint": "quiz or review",
     "routes": [
       {
         "surface": "quiz.results",

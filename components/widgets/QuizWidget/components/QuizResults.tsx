@@ -2696,7 +2696,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   onClick={handleScoreboardClick}
                   disabled={namesLoading}
                   aria-label="Send to Scoreboard"
-                  {...tourTypeAttr('quiz-results.scoreboard', 'quiz')}
+                  {...tourTypeAttr(
+                    'quiz-results.scoreboard',
+                    isReview ? 'review' : 'quiz'
+                  )}
                   title={
                     namesLoading ? NAMES_LOADING_TITLE : 'Send to Scoreboard'
                   }
@@ -2795,7 +2798,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 >
                   <button
                     onClick={() => handleSendToScoreboard('name')}
-                    {...tourTypeAttr('quiz-results.scoreboard-names', 'quiz')}
+                    {...tourTypeAttr(
+                      'quiz-results.scoreboard-names',
+                      isReview ? 'review' : 'quiz'
+                    )}
                     className="flex items-center w-full bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95"
                     style={{
                       gap: 'min(8px, 2cqmin)',
@@ -2813,7 +2819,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   </button>
                   <button
                     onClick={() => handleSendToScoreboard('pin')}
-                    {...tourTypeAttr('quiz-results.scoreboard-pins', 'quiz')}
+                    {...tourTypeAttr(
+                      'quiz-results.scoreboard-pins',
+                      isReview ? 'review' : 'quiz'
+                    )}
                     className="flex items-center w-full bg-slate-100 hover:bg-slate-200 text-brand-blue-dark font-bold rounded-xl transition-all active:scale-95"
                     style={{
                       gap: 'min(8px, 2cqmin)',
