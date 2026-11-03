@@ -4478,6 +4478,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.scoreboard.edit-connection': {
+    label: 'Edit connection button in Scoreboard settings',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.scoreboard.use-group-names': {
     label: 'Use group names checkbox in Scoreboard settings',
     perWidget: true,
