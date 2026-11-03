@@ -35,6 +35,9 @@ export const buildHarnessAuth = (
   user: HARNESS_USER,
   isAdmin: false,
   canAccessFeature: teacherCanAccessFeature,
+  // Mirrors AuthContext: Routine Guide also needs its preview flag.
+  canAccessWidget: (type) =>
+    type !== 'routineGuide' || teacherCanAccessFeature('routine-guide'),
   hasOrg: true,
   userTier: 'org',
   ...overrides,
