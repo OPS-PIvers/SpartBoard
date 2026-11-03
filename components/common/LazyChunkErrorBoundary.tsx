@@ -61,6 +61,11 @@ export class LazyChunkErrorBoundary extends React.Component<
   }
 
   handleRetry = () => {
+    // React.lazy caches a rejected import, so only a fresh page can refetch the chunk.
+    if (isChunkLoadError(this.state.error)) {
+      window.location.reload();
+      return;
+    }
     this.setState({ error: null, reloadInFlight: false });
   };
 

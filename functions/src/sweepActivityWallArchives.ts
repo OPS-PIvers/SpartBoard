@@ -29,6 +29,8 @@ export const STUCK_SUBMISSION_AGE_MS = 10 * 60 * 1000;
 /** Runaway guard, not an expected volume. */
 export const MAX_SUBMISSIONS_PER_RUN = 500;
 export const SUBMISSION_PAGE_SIZE = 100;
+/** Storage-cleanup retries per run; each lists Storage twice, so keep the run inside its timeout. */
+export const MAX_CLEANUP_RETRIES_PER_RUN = 200;
 /** Bucket listing page size; pages are followed until the prefix is exhausted. */
 export const STORAGE_PAGE_SIZE = 500;
 /** Runaway guard on the listing loop, not an expected volume. */
@@ -178,39 +180,49 @@ async function retryStorageCleanup(
   deps: WallSweepDeps,
   summary: WallSweepSummary
 ): Promise<void> {
-  const page = await db
-    .collectionGroup(SUBMISSIONS_COLLECTION)
-    .where('storageCleanupPending', '==', true)
-    .limit(SUBMISSION_PAGE_SIZE)
-    .get();
-  for (const docSnap of page.docs) {
-    const sessionRef = docSnap.ref.parent.parent;
-    // The collection group also matches unrelated `submissions` subtrees.
-    if (!sessionRef || sessionRef.parent.id !== SESSIONS_COLLECTION) continue;
-    summary.cleanupRetried++;
-    try {
-      // Legacy prefix is flat per session, so filter to this submission.
-      const modernObjects = await deps.listObjects(
-        `${ACTIVITY_WALL_MEDIA_ROOT}/${sessionRef.id}/${docSnap.id}/`
-      );
-      const legacyCandidates = await deps.listObjects(
-        `${LEGACY_ACTIVITY_WALL_MEDIA_ROOT}/${sessionRef.id}/`
-      );
-      const legacyObjects = legacyCandidates.filter(
-        (object) =>
-          parseMediaObjectName(object.name)?.submissionId === docSnap.id
-      );
-      for (const object of [...modernObjects, ...legacyObjects]) {
-        await deps.deleteObject(object.name);
+  let cursor: admin.firestore.QueryDocumentSnapshot | null = null;
+  while (summary.cleanupRetried < MAX_CLEANUP_RETRIES_PER_RUN) {
+    // Failed cleanups keep the flag, so walk past them rather than re-reading the same first page.
+    let query = db
+      .collectionGroup(SUBMISSIONS_COLLECTION)
+      .where('storageCleanupPending', '==', true)
+      .limit(SUBMISSION_PAGE_SIZE);
+    if (cursor) query = query.startAfter(cursor);
+    const page = await query.get();
+    if (page.empty) break;
+    cursor = page.docs[page.docs.length - 1] ?? null;
+
+    for (const docSnap of page.docs) {
+      const sessionRef = docSnap.ref.parent.parent;
+      // The collection group also matches unrelated `submissions` subtrees.
+      if (!sessionRef || sessionRef.parent.id !== SESSIONS_COLLECTION) continue;
+      summary.cleanupRetried++;
+      try {
+        // Legacy prefix is flat per session, so filter to this submission.
+        const modernObjects = await deps.listObjects(
+          `${ACTIVITY_WALL_MEDIA_ROOT}/${sessionRef.id}/${docSnap.id}/`
+        );
+        const legacyCandidates = await deps.listObjects(
+          `${LEGACY_ACTIVITY_WALL_MEDIA_ROOT}/${sessionRef.id}/`
+        );
+        const legacyObjects = legacyCandidates.filter(
+          (object) =>
+            parseMediaObjectName(object.name)?.submissionId === docSnap.id
+        );
+        for (const object of [...modernObjects, ...legacyObjects]) {
+          await deps.deleteObject(object.name);
+        }
+        await docSnap.ref.set(
+          { storageCleanupPending: admin.firestore.FieldValue.delete() },
+          { merge: true }
+        );
+        summary.cleanupCleared++;
+      } catch {
+        continue;
       }
-      await docSnap.ref.set(
-        { storageCleanupPending: admin.firestore.FieldValue.delete() },
-        { merge: true }
-      );
-      summary.cleanupCleared++;
-    } catch {
-      continue;
     }
+
+    if (page.size < SUBMISSION_PAGE_SIZE) break;
   }
 }
 

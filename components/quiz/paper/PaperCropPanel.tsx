@@ -29,6 +29,7 @@ import {
   type PaperWrittenActions,
 } from '@/utils/paperCropFetch';
 import { enhancedScanUrl } from '@/utils/scanContrast';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 // Widths relative to the panel; 1 is fit to width.
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.5, 2, 3] as const;
@@ -318,7 +319,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           >
             <Contrast aria-hidden className="h-4 w-4" />
           </button>
-          <button
+          <button /* no-tour-anchor: zoom control on the scan, like Contrast */
             type="button"
             onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
             disabled={zoomIdx === 0 || crop.kind !== 'ready'}
@@ -328,7 +329,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           >
             <ZoomOut aria-hidden className="h-4 w-4" />
           </button>
-          <button
+          <button /* no-tour-anchor: zoom control on the scan, like Contrast */
             type="button"
             onClick={() => setZoomIdx(FIT_IDX)}
             disabled={zoomIdx === FIT_IDX || crop.kind !== 'ready'}
@@ -338,7 +339,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           >
             <Maximize2 aria-hidden className="h-4 w-4" />
           </button>
-          <button
+          <button /* no-tour-anchor: zoom control on the scan, like Contrast */
             type="button"
             onClick={() =>
               setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))
@@ -372,7 +373,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               {tp('unavailable')}
             </span>
             {!crop.permanent && (
-              <button
+              <button /* no-tour-anchor: reloads the scan image */
                 type="button"
                 onClick={() => setReloadNonce((n) => n + 1)}
                 className={button}
@@ -400,7 +401,12 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
           <HardDrive aria-hidden className="h-3.5 w-3.5" />
           {tp('awaitingDrive')}
-          <button type="button" onClick={onConnectDrive} className={button}>
+          <button
+            type="button"
+            onClick={onConnectDrive}
+            {...tourTypeAttr('quiz-grading.paper-connect-drive', 'quiz')}
+            className={button}
+          >
             {tp('connectDrive')}
           </button>
         </div>
@@ -427,6 +433,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               type="button"
               disabled={busy !== null}
               onClick={() => void run('retry', () => actions.retry(ref))}
+              {...tourTypeAttr('quiz-grading.paper-retry', 'quiz')}
               className={button}
             >
               {busy === 'retry' ? (
@@ -441,6 +448,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             <button
               type="button"
               disabled={busy !== null}
+              {...tourTypeAttr('quiz-grading.paper-transcribe-blank', 'quiz')}
               onClick={() =>
                 void run('transcribe', () => actions.transcribeBlank(ref))
               }
@@ -457,6 +465,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               type="button"
               disabled={busy !== null}
               onClick={() => void applyNewScan()}
+              {...tourTypeAttr('quiz-grading.paper-use-new-scan', 'quiz')}
               className={button}
             >
               {busy === 'newScan' && (
@@ -470,6 +479,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               type="button"
               disabled={busy !== null}
               onClick={startEdit}
+              {...tourTypeAttr('quiz-grading.paper-edit-transcript', 'quiz')}
               className={button}
             >
               <Pencil aria-hidden className="h-3.5 w-3.5" />
@@ -485,6 +495,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             {tp('transcriptLabel')}
             <textarea
               value={draft}
+              {...tourTypeAttr('quiz-grading.paper-transcript', 'quiz')}
               onChange={(e) => setDraft(e.target.value)}
               rows={6}
               className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm font-normal normal-case tracking-normal text-slate-900 focus:border-brand-blue-primary focus:outline-hidden"
@@ -495,6 +506,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               type="button"
               disabled={busy !== null || !draft.trim()}
               onClick={() => void saveEdit()}
+              {...tourTypeAttr('quiz-grading.paper-save', 'quiz')}
               className="inline-flex items-center gap-1 rounded-lg bg-brand-blue-primary px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy === 'save' && (
@@ -506,6 +518,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               type="button"
               disabled={busy !== null}
               onClick={() => setEditing(false)}
+              {...tourTypeAttr('quiz-grading.paper-cancel', 'quiz')}
               className={button}
             >
               {tp('cancel')}

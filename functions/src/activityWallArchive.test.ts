@@ -790,6 +790,63 @@ describe('sweepActivityWallArchives', () => {
     expect(submissionState.storageCleanupPending).toBeUndefined();
   });
 
+  it('pages past a full page of failing cleanups to reach later flagged docs', async () => {
+    const PAGE = 100;
+    const cleared: string[] = [];
+    const mk = (i: number) => ({
+      id: `sub-${i}`,
+      ref: {
+        parent: {
+          parent: { id: SESSION_ID, parent: { id: SESSIONS_COLLECTION } },
+        },
+        set: () => {
+          cleared.push(`sub-${i}`);
+          return Promise.resolve();
+        },
+      },
+    });
+    const all = Array.from({ length: PAGE + 1 }, (_, i) => mk(i));
+    const cleanupPage = (start: number) => {
+      const docs = all.slice(start, start + PAGE);
+      return {
+        get: () =>
+          Promise.resolve({ empty: !docs.length, size: docs.length, docs }),
+      };
+    };
+    const cleanupQuery = {
+      limit: () => ({
+        ...cleanupPage(0),
+        startAfter: () => cleanupPage(PAGE),
+      }),
+    };
+    const empty = { empty: true, size: 0, docs: [] };
+    const db = {
+      collectionGroup: () => ({
+        where: (field: string) =>
+          field === 'storageCleanupPending'
+            ? cleanupQuery
+            : {
+                orderBy: () => ({
+                  limit: () => ({ get: () => Promise.resolve(empty) }),
+                }),
+              },
+      }),
+    };
+    const summary = await runSweepActivityWallArchives(db as never, {
+      archiveOne: vi.fn(() => Promise.resolve()),
+      listObjects: vi.fn((prefix: string) =>
+        prefix.includes('sub-100') || prefix.startsWith('activity_wall_photos')
+          ? Promise.resolve([])
+          : Promise.reject(new Error('storage down'))
+      ),
+      deleteObject: vi.fn(() => Promise.resolve()),
+      now: () => NOW,
+    });
+
+    expect(summary.cleanupRetried).toBe(PAGE + 1);
+    expect(cleared).toEqual(['sub-100']);
+  });
+
   it('retries a stuck failed doc and a stale syncing doc, skips a fresh one', async () => {
     function makeDocSnap(id: string, data: Bag) {
       return {
