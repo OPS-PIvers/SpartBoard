@@ -26,9 +26,14 @@ function fakeDb(items: Item[], current?: Record<string, unknown>) {
   const docs = (list: Item[]) =>
     list.map((i) => ({
       id: i.id,
+      get: (f: string) => (f === 'ownerUid' ? i.ownerUid : undefined),
       ref: { delete: vi.fn(() => Promise.resolve(store.delete(i.id))) },
     }));
   const itemsCol = {
+    get: vi.fn(() => {
+      const all = [...store.values()];
+      return Promise.resolve({ size: all.length, docs: docs(all) });
+    }),
     where: vi.fn((_f: string, _op: string, uid: string) => ({
       get: vi.fn(() => {
         const hit = [...store.values()].filter((i) => i.ownerUid === uid);
@@ -133,5 +138,18 @@ describe('cleanupSharedBoardItems', () => {
     );
     expect(n).toBe(0);
     expect(store.size).toBe(3);
+  });
+
+  it('keeps only the new members copies when a share is re-created at the same id', async () => {
+    const { db, store } = fakeDb(items, share({ a: {} }));
+    const n = await cleanupSharedBoardItems(
+      db as never,
+      's1',
+      share({ a: {}, b: {} }),
+      undefined
+    );
+    expect(n).toBe(1);
+    expect([...store.keys()].sort()).toEqual(['quiz_a_q2', 'quiz_host_q1']);
+    expect(db.recursiveDelete).not.toHaveBeenCalled();
   });
 });
