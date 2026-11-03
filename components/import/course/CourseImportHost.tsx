@@ -59,8 +59,6 @@ export const CourseImportHost: React.FC<{
     selectedBuildings,
   } = useAuth();
   const dashboard = useDashboard();
-  // The same gates the Quiz widget puts on its own Schoology import.
-  const schoology = canAccessFeature('schoology-quiz-import');
   const uid = user?.uid;
   const { driveService } = useGoogleDrive();
   const { quizzes, saveQuiz } = useQuiz(uid);
@@ -318,10 +316,6 @@ export const CourseImportHost: React.FC<{
           if (!flag || !canAccessFeature(flag)) return false;
           switch (target) {
             case 'quiz':
-              return (
-                canAccessWidget('quiz') &&
-                (schoology || canAccessFeature('quiz-imscc-import'))
-              );
             case 'questionBank':
               return canAccessWidget('quiz');
             case 'flashcards':
@@ -358,7 +352,6 @@ export const CourseImportHost: React.FC<{
     canAccessWidget,
     canAccessFeature,
     readFile,
-    schoology,
   ]);
 
   return <CourseImportScreen file={file} api={api} onClose={onClose} />;

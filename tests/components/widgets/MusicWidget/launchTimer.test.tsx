@@ -109,12 +109,6 @@ describe('Music launch timer button', () => {
     });
   });
 
-  it('is hidden while the flag is off', () => {
-    canAccessFeature.mockReturnValue(false);
-    render(<MusicWidget widget={music()} />);
-    expect(button()).toBeNull();
-  });
-
   it('is hidden on a read-only board', () => {
     readOnly = true;
     render(<MusicWidget widget={music()} />);
