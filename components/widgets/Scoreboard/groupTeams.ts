@@ -33,9 +33,9 @@ export const teamsFromGroups = (
   const claimed = new Set<string>();
   const byId = (gid: string | undefined) =>
     gid ? linked.find((team) => team.linkedGroupId === gid) : undefined;
-  // A group with a fresh id takes over the slot whose old group is gone.
+  // Otherwise a group takes the team in its slot (a hand-made team, or one whose group is gone), so no score is lost.
   const bySlot = (i: number) => {
-    const team = linked[i];
+    const team = current[i];
     return team &&
       !groupIds.has(team.linkedGroupId ?? '') &&
       !claimed.has(team.id)
@@ -50,8 +50,8 @@ export const teamsFromGroups = (
       : undefined;
     const team: ScoreboardTeam = {
       id: existing?.id ?? `group-${group.id ?? i + 1}`,
-      // The shared name as typed, so a rename in progress isn't rewritten under the cursor.
-      name: shared ? shared.name : groupName(i + 1),
+      // Untrimmed, so a rename in progress isn't rewritten under the cursor; blank reads as the default.
+      name: shared?.name.trim() ? shared.name : groupName(i + 1),
       score: existing?.score ?? 0,
       color:
         shared?.color ??

@@ -1035,14 +1035,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       groups,
       activeDashboard?.sharedGroups,
       // A Scoreboard already following keeps its scores; a newly connected one starts fresh.
-      linked && Array.isArray((linked.config as ScoreboardConfig).teams)
-        ? (linked.config as ScoreboardConfig).teams
-        : [],
+      (linked?.config as ScoreboardConfig | undefined)?.teams ?? [],
       (count) => t('widgetSettings.scoreboard.groupName', { count })
     );
     const scoreboardId = target?.id ?? crypto.randomUUID();
     if (target) {
-      updateWidget(target.id, { config: { ...target.config, teams } });
+      // A fresh fill starts a fresh score history, so Undo never replays old changes onto the new teams.
+      updateWidget(target.id, {
+        config: { ...target.config, teams, ...(!linked && { history: [] }) },
+      });
     } else {
       addWidget('scoreboard', {
         id: scoreboardId,

@@ -71,12 +71,18 @@ describe('teamsFromGroups', () => {
     expect(after[1]).toMatchObject({ id: 'group-b', score: 5 });
   });
 
-  it('replaces hand-made teams instead of reusing their scores', () => {
+  it('carries hand-made teams over by slot so no score is lost', () => {
     const manual: ScoreboardTeam[] = [
       { id: 'team-a', name: 'Team A', score: 9 },
     ];
-    const teams = teamsFromGroups(groups('a'), [], manual, name);
-    expect(teams[0]).toMatchObject({ id: 'group-a', score: 0 });
+    const teams = teamsFromGroups(groups('a', 'b'), [], manual, name);
+    expect(teams[0]).toMatchObject({
+      id: 'team-a',
+      name: 'Group 1',
+      score: 9,
+      linkedGroupId: 'a',
+    });
+    expect(teams[1]).toMatchObject({ id: 'group-b', score: 0 });
   });
 
   it('never writes undefined fields for a group without an id', () => {
@@ -91,7 +97,7 @@ describe('teamsFromGroups', () => {
     expect(sameTeams(once, twice)).toBe(true);
   });
 
-  it('keeps a shared name exactly as typed, even while blank', () => {
+  it('keeps a typed name as is and gives a blank one the default', () => {
     const teams = teamsFromGroups(
       groups('a', 'b'),
       [
@@ -101,6 +107,6 @@ describe('teamsFromGroups', () => {
       [],
       name
     );
-    expect(teams.map((team) => team.name)).toEqual(['', 'Red ']);
+    expect(teams.map((team) => team.name)).toEqual(['Group 1', 'Red ']);
   });
 });
