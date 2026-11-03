@@ -5015,3 +5015,14 @@ rather than "no data") is also still open.
   - Ready: #5001, #5000, #4999, #4998, #4997, #4978.
   - Follow-up notes: `utils/rubricCsv.ts` has a duplicate `splitLogicalRows` that likely has the #4999 line-number bug. `clipText` (#4997) has no unit test of its own.
 - Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-11-03
+
+- PRs reviewed: #5063 Scheduled tasks: board-isolation rule in new-widget skill + journal updates; #5061 docs: debugger run 114 log; #5060 fix(functions): page Activity Wall storage-cleanup retries past the first 100; #5059 fix(layout): widget load-error Retry now actually refetches the chunk; #5058 fix(random): non-finite group size no longer crashes or drops names; #5047 docs: unifier run 135 log; #5046 style(connections): route ConnectionLines brand color through --spart-primary
+- Comments processed: 2 total. 0 fixed, 0 needing a reply. Both were claude[bot] "no issues found" summaries on #5058 and #5059. No PR had inline review threads or submitted reviews.
+- Fixes pushed: none
+- Reviews posted: 7
+  - Ready: #5061, #5060, #5059, #5058, #5047, #5046.
+  - Ready with minor notes: #5063 (rolling journal branch).
+  - Follow-up notes: #5060 raises the worst-case Storage list calls per sweep from about 200 to about 1,000 while a backlog drains. #5046 should get a visual check on a board with a light custom primary colour. #5047's history row could link #5046 instead of "see PR".
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
