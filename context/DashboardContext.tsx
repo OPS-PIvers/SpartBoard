@@ -457,7 +457,6 @@ const UNTARGETED_DASHBOARD_FIELDS: readonly MergedDashboardField[] = [
   'connections',
 ];
 
-// Key-stable: a merged snapshot echo carries Firestore's key order, and a plain JSON.stringify would read it as an unsaved change and save again, forever.
 // The mirror's signature: Run progress never reaches the share, so it never triggers a write there.
 const serializeForShare = (d: Dashboard): string => {
   const connections = sharedConnections(d);
@@ -467,6 +466,7 @@ const serializeForShare = (d: Dashboard): string => {
   });
 };
 
+// Key-stable: a merged snapshot echo carries Firestore's key order, and a plain JSON.stringify would read it as an unsaved change and save again, forever.
 const serializeDashboard = (d: Dashboard): string =>
   stableStringify({
     widgets: d.widgets.filter(isSavedWidget).map((w) => {
