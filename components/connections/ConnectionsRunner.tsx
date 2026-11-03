@@ -48,12 +48,21 @@ const sameConnections = (a: WidgetConnection[], b: WidgetConnection[]) => {
 const hasRun = (d: Dashboard) =>
   (d.connections ?? []).some((c) => c.kind === 'sequence' && !!c.run);
 
+// Widgets a press or a Run just changed; the timer-start watcher leaves them to that handler.
+const recentlyHandled = new Map<string, number>();
+const HANDLED_MS = 1500;
+const markHandled = (ids: string[]) => {
+  const now = Date.now();
+  ids.forEach((id) => recentlyHandled.set(id, now));
+};
+
 const write = (
   apply: ApplyChanges | undefined,
   board: Dashboard,
   patches: WidgetPatches,
   updated: Map<string, WidgetConnection>
 ) => {
+  markHandled(Object.keys(patches));
   const connections = (board.connections ?? []).map(
     (c) => updated.get(c.id) ?? c
   );
@@ -126,6 +135,7 @@ export const ConnectionsRunner: React.FC = () => {
   useEffect(() => {
     if (!enabled) return;
     return onHandAction((widgetId, hand) => {
+      markHandled([widgetId]);
       // A copied board keeps its widget ids, so the board on screen wins.
       const active = latest.current.activeDashboard;
       const board = active?.widgets.some((w) => w.id === widgetId)
@@ -171,21 +181,23 @@ export const ConnectionsRunner: React.FC = () => {
   useEffect(() => {
     if (!enabled) return;
     const board = activeDashboard;
-    if (!board?.connections?.length) return;
-    if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) return;
+    if (!board) return;
+    // Record every Timer first, so a start seen while the watcher was idle never counts later.
     const started: string[] = [];
+    const now = Date.now();
     for (const w of board.widgets) {
       if (w.type !== 'time-tool') continue;
       const key = `${board.id}:${w.id}`;
       const running = !!(w.config as { isRunning?: boolean }).isRunning;
       const before = wasRunning.current.get(key);
       wasRunning.current.set(key, running);
-      if (before === false && running) started.push(w.id);
+      const handled = now - (recentlyHandled.get(w.id) ?? 0) < HANDLED_MS;
+      if (before === false && running && !handled) started.push(w.id);
     }
-    if (started.length === 0) return;
+    if (started.length === 0 || !board.connections?.length) return;
+    if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) return;
     const widgets = engineWidgets(board, latest.current.roster);
     if (!widgets) return;
-    const now = Date.now();
     const patches: WidgetPatches = {};
     const updated = new Map<string, WidgetConnection>();
     for (const c of board.connections) {
