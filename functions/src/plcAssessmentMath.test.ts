@@ -68,13 +68,10 @@ const syncedQuestions = {
   ],
 };
 
-// `isCorrect` is student-writable in the response doc, so fixtures set it to prove it never counts.
-type AnswerExtra = Partial<RawAnswer> & { isCorrect?: boolean };
-
 function answer(
   questionId: string,
   value: string,
-  extra: AnswerExtra = {}
+  extra: Partial<RawAnswer> = {}
 ): RawAnswer {
   return { questionId, answer: value, answeredAt: 1000, ...extra };
 }

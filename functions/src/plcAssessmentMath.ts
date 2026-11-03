@@ -76,6 +76,8 @@ export interface RawAnswer {
   questionId: string;
   answer: string;
   answeredAt?: number;
+  /** Student-writable; the PLC aggregate never reads it. */
+  isCorrect?: boolean;
   status?: 'draft' | 'submitted';
   unresponded?: unknown;
   takeIndex?: number;
