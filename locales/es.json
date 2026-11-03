@@ -2632,7 +2632,7 @@
         "zoomIn": "Acercar",
         "zoomOut": "Alejar",
         "zoomFit": "Ajustar",
-        "darken": "Oscurecer la escritura",
+        "contrast": "Aumentar el contraste",
         "loading": "Cargando escritura",
         "unavailable": "Escritura no disponible",
         "reload": "Reintentar",
@@ -4402,7 +4402,7 @@
   },
   "tourPicker": {
     "prompt": "Haz clic en un control para este paso",
-    "altHint": "Mantén Alt para abrir primero un menú",
+    "menuHint": "Mantén {{key}} y haz clic para abrir primero un menú",
     "chooseFromList": "Elegir de la lista",
     "cancel": "Cancelar",
     "search": "Buscar controles",

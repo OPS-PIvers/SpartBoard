@@ -79,6 +79,19 @@ describe('mountOverlay', () => {
     expect(shadow?.querySelector('[data-testid="tour-bar"]')).not.toBeNull();
   });
 
+  it('keeps the line breaks the author typed in the tip text', () => {
+    captureShadow();
+    handle = mountOverlay(STYLED, vi.fn());
+    act(() =>
+      handle?.render({ ...state, text: 'Click Grades.\n\nThen pick a class.' })
+    );
+    const body = [...(shadow?.querySelectorAll('p') ?? [])].find((p) =>
+      p.textContent?.includes('Then pick a class.')
+    );
+    expect(body?.classList.contains('whitespace-pre-line')).toBe(true);
+    expect(body?.textContent).toBe('Click Grades.\n\nThen pick a class.');
+  });
+
   it('has no Autopilot and keeps nothing in the site storage', () => {
     captureShadow();
     const setItem = vi.spyOn(Storage.prototype, 'setItem');

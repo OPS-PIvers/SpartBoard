@@ -285,6 +285,79 @@ describe('DashboardContext Sharing Logic', () => {
     });
   });
 
+  it.each([
+    ['carries connections with runs cleared', true],
+    ['leaves connections off when the share has none', false],
+  ])('importSharedBoard("copy") %s', async (_label, withConnections) => {
+    const sharedDashboard: Dashboard = {
+      id: 'original-id',
+      name: 'Shared Board',
+      background: 'bg-slate-900',
+      widgets: [],
+      createdAt: 1234567890,
+      ...(withConnections
+        ? {
+            connections: [
+              {
+                id: 'seq-1',
+                kind: 'sequence' as const,
+                steps: [{ id: 's1', actions: [] }],
+                repeat: 'once' as const,
+                run: {
+                  deviceId: 'host-device',
+                  stepIndex: 1,
+                  stepStartedAt: 5,
+                  loops: 0,
+                },
+              },
+              {
+                id: 'follow-1',
+                kind: 'follow' as const,
+                leaderId: 'a',
+                followerId: 'b',
+              },
+            ],
+          }
+        : {}),
+    };
+    mockLoadSharedDashboard.mockResolvedValue(sharedDashboard);
+
+    type Importer = ReturnType<typeof useDashboard>['importSharedBoard'];
+    let importer: Importer | null = null;
+
+    const Probe: React.FC = () => {
+      const { pendingShareImport, importSharedBoard } = useDashboard();
+      useEffect(() => {
+        if (pendingShareImport) importer = importSharedBoard;
+      }, [pendingShareImport, importSharedBoard]);
+      return <div>Test App</div>;
+    };
+
+    render(
+      <DashboardProvider>
+        <Probe />
+      </DashboardProvider>
+    );
+
+    await waitFor(() => expect(importer).not.toBeNull());
+    await act(async () => {
+      if (importer) await importer('copy');
+    });
+
+    const copySave = (mockSaveDashboard.mock.calls as Array<[Dashboard]>).find(
+      (c) => c[0].name === 'Shared Board (Copy)'
+    );
+    expect(copySave).toBeDefined();
+    if (withConnections) {
+      const saved = copySave?.[0].connections ?? [];
+      expect(saved).toHaveLength(2);
+      expect(saved[0]).toMatchObject({ id: 'seq-1', run: null });
+      expect(saved[1]).toMatchObject({ id: 'follow-1', kind: 'follow' });
+    } else {
+      expect(copySave?.[0]).not.toHaveProperty('connections');
+    }
+  });
+
   it('importSharedBoard("synced") tags the local board as collaborator and joins', async () => {
     const sharedDashboard: Dashboard = {
       id: 'original-id',

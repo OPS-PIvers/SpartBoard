@@ -6,6 +6,8 @@ import { useDashboard } from '@/context/useDashboard';
 import type { QRConfig, WidgetData } from '@/types';
 import { useTranslation } from 'react-i18next';
 import { deriveSyncedUrl } from './deriveSyncedUrl';
+import { followLeaderId } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 import { tourAttr } from '@/config/tourAnchors';
 
 export const QRDestinationField: React.FC<{ ctx: CustomRenderCtx }> = ({
@@ -13,10 +15,27 @@ export const QRDestinationField: React.FC<{ ctx: CustomRenderCtx }> = ({
 }) => {
   const { activeDashboard } = useDashboard();
   const config = ctx.config as QRConfig;
-  const syncedUrl = deriveSyncedUrl(config, activeDashboard?.widgets);
-  const value = config.syncWithTextWidget
-    ? (syncedUrl ?? '')
-    : (config.url ?? '');
+  const connectionsOn = ctx.canAccessFeature('widget-connections');
+  const connectionLeaderId = connectionsOn
+    ? followLeaderId(
+        activeDashboard?.connections,
+        activeDashboard?.widgets ?? [],
+        ctx.widget.id
+      )
+    : undefined;
+  const followedTextId =
+    connectionLeaderId ??
+    (usesLegacyToggles(connectionsOn, config) ? undefined : null);
+  const synced =
+    followedTextId !== undefined
+      ? !!followedTextId
+      : !!config.syncWithTextWidget;
+  const syncedUrl = deriveSyncedUrl(
+    config,
+    activeDashboard?.widgets,
+    followedTextId
+  );
+  const value = synced ? (syncedUrl ?? '') : (config.url ?? '');
 
   return (
     <input
@@ -26,7 +45,7 @@ export const QRDestinationField: React.FC<{ ctx: CustomRenderCtx }> = ({
       type="text"
       value={value}
       onChange={(event) => ctx.updateConfig({ url: event.target.value })}
-      disabled={config.syncWithTextWidget}
+      disabled={synced}
       className="w-full rounded-lg border border-slate-200 p-2 text-sm outline-hidden transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
       placeholder="https://..."
       {...tourAttr('widget-settings.qr.url', ctx.widget.id, ctx.widget.type)}
@@ -100,7 +119,8 @@ export const QRSettingsFields: React.FC<{ widget: WidgetData }> = ({
     config: config as Record<string, unknown>,
     widget,
     isAdmin: false,
-    canAccessFeature: () => true,
+    // The old toggle this panel shows only exists without Connections.
+    canAccessFeature: (id: string) => id !== 'widget-connections',
     t,
     updateConfig,
     describedBy: undefined,

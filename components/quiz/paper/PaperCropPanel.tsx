@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
@@ -28,6 +28,7 @@ import {
   type PaperCropResolver,
   type PaperWrittenActions,
 } from '@/utils/paperCropFetch';
+import { enhancedScanUrl } from '@/utils/scanContrast';
 
 // Widths relative to the panel; 1 is fit to width.
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.5, 2, 3] as const;
@@ -59,7 +60,7 @@ export interface PaperCropPanelProps {
 
 type CropState =
   | { kind: 'loading' }
-  | { kind: 'ready'; url: string }
+  | { kind: 'ready'; url: string; key: string }
   | { kind: 'error'; permanent: boolean };
 
 type Busy = 'save' | 'retry' | 'transcribe' | 'newScan' | null;
@@ -86,8 +87,11 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   const [crop, setCrop] = useState<CropState>({ kind: 'loading' });
   const [reloadNonce, setReloadNonce] = useState(0);
   const [zoomIdx, setZoomIdx] = useState<number>(DEFAULT_ZOOM_IDX);
-  const [darken, setDarken] = useState(true);
-  const darkenFilterId = `paper-darken-${useId().replace(/:/g, '')}`;
+  const [contrast, setContrast] = useState(true);
+  const [enhanced, setEnhanced] = useState<{
+    key: string;
+    url: string | null;
+  } | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState<Busy>(null);
@@ -120,7 +124,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           if (created) URL.revokeObjectURL(created);
           return;
         }
-        setCrop({ kind: 'ready', url });
+        setCrop({ kind: 'ready', url, key: cropKey });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -136,6 +140,32 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
     // cropKey carries every input that changes which image loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cropKey]);
+
+  const readyUrl = crop.kind === 'ready' ? crop.url : null;
+  const readyKey = crop.kind === 'ready' ? crop.key : null;
+  useEffect(() => {
+    if (!contrast || !readyUrl || !readyKey) return;
+    let cancelled = false;
+    let made: string | null = null;
+    void enhancedScanUrl(readyUrl).then((url) => {
+      made = url;
+      if (cancelled) {
+        if (url) URL.revokeObjectURL(url);
+        return;
+      }
+      setEnhanced({ key: readyKey, url });
+    });
+    return () => {
+      cancelled = true;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [contrast, readyUrl, readyKey]);
+  const enhancing = contrast && !!readyKey && enhanced?.key !== readyKey;
+  const shownUrl = enhancing
+    ? null
+    : contrast && enhanced?.key === readyKey && enhanced.url
+      ? enhanced.url
+      : readyUrl;
 
   const status = privateDoc?.status ?? answer.paperTranscript ?? 'pending';
   const edited = !!privateDoc?.editedAt;
@@ -274,13 +304,16 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           {/* no-tour-anchor: per-answer viewer control in Results, like the zoom buttons */}
           <button
             type="button"
-            onClick={() => setDarken((d) => !d)}
+            onClick={() => {
+              if (contrast) setEnhanced(null);
+              setContrast(!contrast);
+            }}
             disabled={crop.kind !== 'ready'}
-            aria-pressed={darken}
-            aria-label={tp('darken')}
-            title={tp('darken')}
+            aria-pressed={contrast}
+            aria-label={tp('contrast')}
+            title={tp('contrast')}
             className={`touch-target-expand relative rounded-sm p-1 hover:bg-slate-100 disabled:opacity-30 ${
-              darken ? 'bg-slate-100 text-slate-800' : 'text-slate-500'
+              contrast ? 'bg-slate-100 text-slate-800' : 'text-slate-500'
             }`}
           >
             <Contrast aria-hidden className="h-4 w-4" />
@@ -322,24 +355,8 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
         </span>
       </div>
 
-      {/* Faint pencil scans: thicken strokes, whiten the paper, then darken mid-tones. */}
-      <svg aria-hidden className="absolute h-0 w-0">
-        <filter id={darkenFilterId} colorInterpolationFilters="sRGB">
-          <feMorphology operator="erode" radius="0.6" />
-          <feComponentTransfer>
-            <feFuncR type="linear" slope="1.15" intercept="-0.07" />
-            <feFuncG type="linear" slope="1.15" intercept="-0.07" />
-            <feFuncB type="linear" slope="1.15" intercept="-0.07" />
-          </feComponentTransfer>
-          <feComponentTransfer>
-            <feFuncR type="gamma" exponent="2.2" />
-            <feFuncG type="gamma" exponent="2.2" />
-            <feFuncB type="gamma" exponent="2.2" />
-          </feComponentTransfer>
-        </filter>
-      </svg>
       <div className="max-h-[50vh] overflow-auto rounded-sm border border-slate-200 bg-slate-100 p-3">
-        {crop.kind === 'loading' && (
+        {(crop.kind === 'loading' || enhancing) && (
           <div
             role="status"
             className="flex h-32 items-center justify-center gap-2 text-xs font-semibold text-slate-500"
@@ -366,14 +383,13 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             )}
           </div>
         )}
-        {crop.kind === 'ready' && (
+        {shownUrl && (
           <img
-            src={crop.url}
+            src={shownUrl}
             alt={tp('cropAlt', { number: questionNumber })}
             style={{
               width: `${zoom * 100}%`,
               maxWidth: 'none',
-              ...(darken ? { filter: `url(#${darkenFilterId})` } : {}),
             }}
             className="mx-auto block h-auto bg-white shadow-xs"
           />

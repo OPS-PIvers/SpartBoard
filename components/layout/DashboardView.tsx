@@ -38,6 +38,8 @@ import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOver
 import { GroupReminderHost } from '@/components/groupReminders/GroupReminderHost';
 import { SchoologyReviewHost } from '@/components/widgets/QuizWidget/SchoologyReviewHost';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
+import { ConnectionsRunner } from '@/components/connections/ConnectionsRunner';
+import { ConnectModeBar } from '@/components/connections/ConnectModeBar';
 import { tourAttr } from '@/config/tourAnchors';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
 import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
@@ -1742,6 +1744,8 @@ export const DashboardView: React.FC = () => {
           </div>
         )}
 
+        <ConnectionsRunner />
+        <ConnectModeBar />
         {/* Dynamic Widget Surface — Board state (timers, drawings) is
             preserved across switches via the LRU mount window in
             MountedBoardsLayer / useMountedBoardCache. */}

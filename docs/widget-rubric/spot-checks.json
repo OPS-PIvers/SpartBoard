@@ -137,6 +137,70 @@
       ],
       "drift": ["S3"],
       "gaming": []
+    },
+    {
+      "date": "2026-11-02T19:00:18.857Z",
+      "deckId": "widget-2026-11-02T13-22-01-582Z",
+      "cards": [
+        {
+          "widgetType": "countdown",
+          "criterionId": "I1",
+          "autoBefore": null,
+          "auto": 4,
+          "paul": 4
+        },
+        {
+          "widgetType": "countdown",
+          "criterionId": "I7",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "countdown",
+          "criterionId": "R3",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "countdown",
+          "criterionId": "R4",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "graphic-organizer",
+          "criterionId": "R1",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "url",
+          "criterionId": "V2",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "url",
+          "criterionId": "V3",
+          "autoBefore": 2,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "url",
+          "criterionId": "V6",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        }
+      ],
+      "drift": [],
+      "gaming": []
     }
   ]
 }

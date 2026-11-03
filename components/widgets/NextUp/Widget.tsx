@@ -14,6 +14,8 @@ import {
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
+import { reportHandAction } from '@/utils/connectionSignals';
 import { WidgetLayout } from '../WidgetLayout';
 import { resumeAudio } from '@/utils/timeToolAudio';
 import {
@@ -39,6 +41,7 @@ import { useDialog } from '@/context/useDialog';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { tourAttr } from '@/config/tourAnchors';
 import { timeToolClockReducer } from '@/utils/timeToolClock';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 
 /** A stable reference, so a share does not re-derive the queue every render. */
 const EMPTY_QUEUE: NextUpQueueItem[] = [];
@@ -53,6 +56,8 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const { updateWidget, activeDashboard } = useDashboard();
   const { showConfirm } = useDialog();
   const { user } = useAuth();
+  const connectionsOn = useConnectionsEnabled();
+  const useLegacy = usesLegacyToggles(connectionsOn, config);
   // A sub reads the queue the teacher's client bundled into the share's names
   // file: the live one lives in the teacher's Drive, which they cannot reach.
   const inShare = useInSubShare();
@@ -241,7 +246,13 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     const nextIdx = store.getQueue().findIndex((q) => q.status === 'waiting');
 
     // Nexus: Auto-Start Timer integration (from #770)
-    if (config.autoStartTimer && activeDashboard && nextIdx !== -1) {
+    // A migrated widget's auto-start became a Sequence.
+    if (
+      config.autoStartTimer &&
+      useLegacy &&
+      activeDashboard &&
+      nextIdx !== -1
+    ) {
       const activeTimer = activeDashboard.widgets.find(
         (w) => w.type === 'time-tool'
       );
@@ -263,6 +274,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   }, [
     store,
     config.autoStartTimer,
+    useLegacy,
     activeDashboard,
     syncToDrive,
     updateWidget,
@@ -388,7 +400,10 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                 </button>
                 <button
                   {...tourAttr('next-up.next-student', widget.id, widget.type)}
-                  onClick={handleNextStudent}
+                  onClick={() => {
+                    reportHandAction(widget.id, 'next');
+                    void handleNextStudent();
+                  }}
                   disabled={loading}
                   className="bg-white/20 hover:bg-white/30 rounded-sm font-bold transition-all text-white disabled:opacity-50"
                   style={{

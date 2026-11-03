@@ -18,6 +18,8 @@ import { useAuth } from '@/context/useAuth';
 import { tourAttr } from '@/config/tourAnchors';
 import { resolveActiveStation } from './mySongs';
 import { resolveSyncedTimer } from './linkedTimer';
+import { followLeaderId } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -137,8 +139,13 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 };
 
 const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { activeDashboard, addWidget, updateWidget, isActiveBoardReadOnly } =
-    useDashboard();
+  const {
+    activeDashboard,
+    addWidget,
+    updateWidget,
+    updateDashboard,
+    isActiveBoardReadOnly,
+  } = useDashboard();
   const { canAccessFeature, canAccessWidget } = useAuth();
   const config = widget.config as MusicConfig;
   const {
@@ -153,7 +160,20 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Nexus connection: watch Time Tool running state
   const widgets = activeDashboard?.widgets ?? [];
-  const timeToolWidget = resolveSyncedTimer(widgets, config.linkedTimerId);
+  // A Follow names the Timer; otherwise the old toggle applies unless this widget was migrated.
+  const connectionsOn = canAccessFeature('widget-connections');
+  const useLegacy = usesLegacyToggles(connectionsOn, config);
+  const leaderId = connectionsOn
+    ? followLeaderId(activeDashboard?.connections, widgets, widget.id)
+    : undefined;
+  const syncWithTimer = leaderId
+    ? true
+    : useLegacy && !!config.syncWithTimeTool;
+  const timeToolWidget = leaderId
+    ? widgets.find((w) => w.id === leaderId)
+    : useLegacy
+      ? resolveSyncedTimer(widgets, config.linkedTimerId)
+      : undefined;
   const isTimeToolRunning = (
     timeToolWidget?.config as TimeToolConfig | undefined
   )?.isRunning;
@@ -210,22 +230,22 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Nexus sync: play/pause with Time Tool
   useEffect(() => {
-    if (!config.syncWithTimeTool || !youtubeId || !isPlayerReady) return;
+    if (!syncWithTimer || !youtubeId || !isPlayerReady) return;
     if (typeof playerRef.current?.playVideo !== 'function') return;
     if (isTimeToolRunning) {
       playerRef.current.playVideo();
     } else {
       playerRef.current.pauseVideo();
     }
-  }, [isTimeToolRunning, config.syncWithTimeTool, youtubeId, isPlayerReady]);
+  }, [isTimeToolRunning, syncWithTimer, youtubeId, isPlayerReady]);
 
   const canLaunchTimer =
     !!youtubeId &&
     !isSpotify &&
     !isActiveBoardReadOnly &&
-    canAccessFeature('music-timer-link') &&
+    (connectionsOn || canAccessFeature('music-timer-link')) &&
     canAccessWidget('time-tool') &&
-    !(config.syncWithTimeTool && timeToolWidget);
+    !(syncWithTimer && timeToolWidget);
 
   const launchLinkedTimer = () => {
     const timerId = crypto.randomUUID();
@@ -234,6 +254,20 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       x: widget.x + widget.w + 20,
       y: widget.y,
     });
+    if (connectionsOn) {
+      updateDashboard({
+        connections: [
+          ...(activeDashboard?.connections ?? []),
+          {
+            id: crypto.randomUUID(),
+            kind: 'follow',
+            leaderId: timerId,
+            followerId: widget.id,
+          },
+        ],
+      });
+      return;
+    }
     // Rides the add's undo entry, so one undo removes the Timer.
     updateWidget(
       widget.id,
@@ -541,7 +575,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   color={textColor === '#ffffff' ? '#ffffff' : '#6366f1'}
                 />
               ) : (
-                config.syncWithTimeTool && (
+                syncWithTimer && (
                   <Link
                     className="shrink-0"
                     style={{
@@ -655,7 +689,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       color={textColor === '#ffffff' ? '#ffffff' : '#6366f1'}
                     />
                   ) : (
-                    config.syncWithTimeTool && (
+                    syncWithTimer && (
                       <Link
                         className="shrink-0"
                         style={{

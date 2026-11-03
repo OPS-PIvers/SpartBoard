@@ -2632,7 +2632,7 @@
         "zoomIn": "Vergrößern",
         "zoomOut": "Verkleinern",
         "zoomFit": "Einpassen",
-        "darken": "Handschrift abdunkeln",
+        "contrast": "Kontrast erhöhen",
         "loading": "Handschrift wird geladen",
         "unavailable": "Handschrift nicht verfügbar",
         "reload": "Erneut versuchen",
@@ -4402,7 +4402,7 @@
   },
   "tourPicker": {
     "prompt": "Klicken Sie auf ein Bedienelement für diesen Schritt",
-    "altHint": "Alt gedrückt halten, um zuerst ein Menü zu öffnen",
+    "menuHint": "{{key}} gedrückt halten und klicken, um zuerst ein Menü zu öffnen",
     "chooseFromList": "Aus Liste wählen",
     "cancel": "Abbrechen",
     "search": "Bedienelemente suchen",

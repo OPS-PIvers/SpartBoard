@@ -2180,6 +2180,27 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-import.setup-close': {
+    label: 'Close in Set up imported work',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.setup-edit-all-settings': {
+    label: 'Edit all settings in Set up imported work',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.setup-skip': {
+    label: 'Skip for now in Set up imported work',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.setup-save': {
+    label: 'Save in Set up imported work',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
   'quiz-import.schoology-close': {
     label: 'Close in From Schoology review',
     perWidgetType: true,
@@ -4565,6 +4586,25 @@ export const TOUR_ANCHORS = {
     label: 'Traffic color picker in Time Tool settings',
     perWidget: true,
     panel: true,
+  },
+  'widget-settings.time-tool.start-minutes': {
+    label: 'Starting length minutes in Time Tool settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'widget-settings.time-tool.start-seconds': {
+    label: 'Starting length seconds in Time Tool settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'widget-settings.time-tool.start-clear': {
+    label: 'Use school default button for the timer starting length',
+    perWidget: true,
+    panel: true,
+    persists: true,
+    destructive: true,
   },
   'widget-settings.weather.show-feels-like': {
     label: 'Show feels-like toggle in Weather settings',
@@ -7351,6 +7391,49 @@ export const TOUR_ANCHORS = {
   'widget.group-with': {
     label: 'Group with button in the widget toolbar',
     perWidget: true,
+  },
+  'widget.connect': {
+    label: 'Connect button in the widget toolbar',
+    perWidget: true,
+  },
+  'widget.connect-menu.connection': {
+    label: 'A connection row in the Connect button menu',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connect-menu.new': {
+    label: 'New connection item in the Connect button menu',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connect-pick': {
+    label: 'Tap target on a widget while picking widgets to connect',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connection-badge': {
+    label: 'Step number badge on a connected widget',
+    perWidget: true,
+  },
+  'widget.connection-start': {
+    label: "Start from step 1 in a connected widget's badge menu",
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connection-stop': {
+    label: "Stop in a connected widget's badge menu",
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connection-next': {
+    label: "Next in a connected widget's badge menu",
+    perWidget: true,
+    panel: true,
+  },
+  'widget.connection-edit': {
+    label: "Edit steps in a connected widget's badge menu",
+    perWidget: true,
+    panel: true,
   },
   'widget.snap-layout.option': {
     label: 'Snap zone option in the widget snap layout popover',
@@ -12104,6 +12187,109 @@ export const TOUR_ANCHORS = {
   },
   'dashboard.group-widgets': {
     label: 'Group button on the widget group bar',
+    panel: true,
+  },
+  'dashboard.connect-cancel': {
+    label: 'Cancel button on the connect bar',
+    panel: true,
+  },
+  'dashboard.connect-done': {
+    label: 'Done button on the connect bar',
+    panel: true,
+  },
+  'connections.editor.close': {
+    label: 'Close button in the connection steps window',
+    panel: true,
+    closes: 'own',
+  },
+  'connections.editor.cancel': {
+    label: 'Cancel button in the connection steps window',
+    panel: true,
+    closes: 'own',
+  },
+  'connections.editor.save': {
+    label: 'Save button in the connection steps window',
+    panel: true,
+    closes: 'own',
+  },
+  'connections.editor.delete': {
+    label: 'Delete connection button in the connection steps window',
+    panel: true,
+    destructive: true,
+    closes: 'own',
+  },
+  'connections.editor.stop': {
+    label: 'Stop button for a running connection',
+    panel: true,
+  },
+  'connections.editor.step-action': {
+    label: 'What a widget does in a connection step',
+    panel: true,
+  },
+  'connections.editor.step-choice': {
+    label: 'The symbol or materials a connection step shows',
+    panel: true,
+  },
+  'connections.editor.material-option': {
+    label: "A material row in a connection step's materials menu",
+    panel: true,
+  },
+  'connections.editor.add-same-time': {
+    label:
+      "'+' button beside a connection step that adds something at the same time",
+    panel: true,
+  },
+  'connections.editor.remove-action': {
+    label: 'Remove a side card from a connection step',
+    panel: true,
+  },
+  'connections.editor.wait-seconds': {
+    label: 'Seconds box on a connection arrow',
+    panel: true,
+  },
+  'connections.editor.step-menu': {
+    label: 'Options menu on a connection step',
+    panel: true,
+  },
+  'connections.editor.also-option': {
+    label: "A widget in the '+' menu beside a connection step",
+    panel: true,
+  },
+  'connections.editor.save-start': {
+    label: 'Save and start button in the connection steps window',
+    panel: true,
+    closes: 'own',
+  },
+  'connections.editor.advance': {
+    label: 'What moves a connection on to its next step',
+    panel: true,
+  },
+  'connections.editor.move-up': {
+    label: 'Move a connection step up',
+    panel: true,
+  },
+  'connections.editor.move-down': {
+    label: 'Move a connection step down',
+    panel: true,
+  },
+  'connections.editor.remove-step': {
+    label: 'Remove a connection step',
+    panel: true,
+  },
+  'connections.editor.add-widget': {
+    label: 'Add a step button in the connection window',
+    panel: true,
+  },
+  'connections.editor.repeat': {
+    label: 'Repeat menu in the connection window',
+    panel: true,
+  },
+  'connections.editor.repeat-count': {
+    label: 'Number of times a connection repeats',
+    panel: true,
+  },
+  'connections.editor.remove-follow': {
+    label: 'Remove a widget that plays along with a connection step',
     panel: true,
   },
   'dashboard.bg-sound-toggle': {

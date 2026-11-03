@@ -48,6 +48,7 @@ export const SectionIntroDialog: React.FC<{
         )}
         {choose && <p className="mt-3 font-bold">{choose}</p>}
         <button
+          // no-tour-anchor: student quiz screen; tours walk teachers
           type="button"
           onClick={onClose}
           autoFocus
@@ -70,6 +71,7 @@ export const SectionBreadcrumb: React.FC<{
   const counted = progress.required < progress.total;
   return (
     <button
+      // no-tour-anchor: student quiz screen; tours walk teachers
       type="button"
       onClick={onOpen}
       className={`mb-4 inline-flex max-w-full items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold ${
@@ -135,6 +137,7 @@ export const ClearSectionAnswerButton: React.FC<{
   const { t } = useTranslation();
   return (
     <button
+      // no-tour-anchor: student quiz screen; tours walk teachers
       type="button"
       onClick={onClear}
       disabled={busy}

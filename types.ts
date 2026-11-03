@@ -2159,6 +2159,13 @@ export interface RandomConfig {
   rosterPoolGroupId?: string | null;
   /** Lock: saved class groups kept together when building groups. */
   lockedRosterGroupIds?: string[];
+  /** Shuffle mode: names as cards (default) or rows split by hairlines. */
+  rowStyle?: 'cards' | 'lines';
+  /** Shuffle mode: name card colour; unset keeps the white chip. */
+  cardColor?: string;
+  cardOpacity?: number;
+  /** Shuffle mode: name text colour; unset keeps the default slate. */
+  fontColor?: string;
 }
 
 export interface DiceConfig {
@@ -10380,6 +10387,8 @@ export interface UserProfile {
   alignmentGuidesEnabled?: boolean;
   /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
   spellCheckEnabled?: boolean;
+  /** Starting length in seconds for the teacher's new timers, where `timer-starting-length` allows; 0 or absent means the building default. */
+  timeToolStartSeconds?: number;
   /**
    * The user's dock layout (tools + folders, ordered). Synced across devices.
    * When absent, the dock is seeded from building-level admin defaults.
@@ -10450,6 +10459,53 @@ export interface SpartStickerDropPayload {
  */
 export type DashboardShareRole = 'owner' | 'collaborator' | 'viewer';
 
+/** One widget doing one thing inside a Sequence step (docs/adr/0002). */
+export interface ConnectionAction {
+  widgetId: string;
+  /** Action id from config/widgetConnections.ts, e.g. 'restart', 'next'. */
+  action: string;
+  /** The step's own choice for actions that take one, e.g. which Work Symbol to show. */
+  params?: Record<string, unknown>;
+}
+
+/** One numbered Step; no actions plus `waitSeconds` makes it a Wait step. */
+export interface ConnectionStep {
+  id: string;
+  actions: ConnectionAction[];
+  waitSeconds?: number;
+  /** What moves the Sequence on: unset waits for the step's widgets, 'now' doesn't wait, 'next' waits for the Next button. */
+  advance?: 'now' | 'next';
+}
+
+/** The live pass of a Sequence, carried out only by `deviceId`. */
+export interface ConnectionRun {
+  deviceId: string;
+  stepIndex: number;
+  /** When the current step's actions were applied. */
+  stepStartedAt: number;
+  /** Completed passes through the whole list. */
+  loops: number;
+}
+
+export interface SequenceConnection {
+  id: string;
+  kind: 'sequence';
+  steps: ConnectionStep[];
+  repeat: 'until-done' | 'once' | 'count';
+  repeatCount?: number;
+  run?: ConnectionRun | null;
+}
+
+/** `followerId` keeps matching `leaderId` the whole time. */
+export interface FollowConnection {
+  id: string;
+  kind: 'follow';
+  leaderId: string;
+  followerId: string;
+}
+
+export type WidgetConnection = SequenceConnection | FollowConnection;
+
 export interface Dashboard {
   id: string;
   name: string;
@@ -10510,6 +10566,8 @@ export interface Dashboard {
   claudeAction?: 'created' | 'edited';
   /** True until the teacher opens the board after Claude's change; drives the Boards list badge. */
   claudeUnseen?: boolean;
+  /** Teacher-made Connections between this board's widgets (docs/adr/0002). */
+  connections?: WidgetConnection[];
 }
 
 /**
@@ -10645,8 +10703,6 @@ export type GlobalFeature =
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
   | 'question-bank-ai'
-  /** Import every question bank in a Schoology collection export (.imscc) at once. */
-  | 'question-bank-imscc-import'
   | 'quiz-imscc-import'
   /** Import Schoology Tests/Quizzes, Assessments and question banks (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q14). */
   | 'schoology-quiz-import'
@@ -10777,10 +10833,13 @@ export type GlobalFeature =
   | 'alignment-guides'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
+  | 'timer-starting-length'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Timer button on the Music widget that opens a Timer linked to it. */
   | 'music-timer-link'
+  /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
+  | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */

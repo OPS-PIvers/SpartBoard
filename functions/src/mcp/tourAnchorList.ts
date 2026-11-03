@@ -616,7 +616,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "qr#url",
       "quiz#view",
       "random#autoStartTimer",
+      "random#cardColor",
       "random#firstNames",
+      "random#fontColor",
       "random#groupSize",
       "random#groupingMode",
       "random#lastNames",
@@ -628,6 +630,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "random#numHomeGroups",
       "random#remainingStudents",
       "random#rosterMode",
+      "random#rowStyle",
       "random#visualStyle",
       "recessGear#linkedWeatherWidgetId",
       "reveal-grid#cards",
@@ -693,6 +696,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "time-tool#fontFamily",
       "time-tool#mode",
       "time-tool#selectedSound",
+      "time-tool#startLength",
       "time-tool#themeColor",
       "time-tool#timerEndTrafficColor",
       "time-tool#timerEndTriggerNextUp",
@@ -865,6 +869,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "quiz#content",
       "random#behavior",
       "random#content",
+      "random#display",
       "recessGear#behavior",
       "reveal-grid#behavior",
       "reveal-grid#content",
@@ -8953,6 +8958,71 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "widget-on-stage"
         ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.setup-close",
+    "label": "Close in Set up imported work",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.quiz-import-setup",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.setup-edit-all-settings",
+    "label": "Edit all settings in Set up imported work",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.quiz-import-setup",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.setup-skip",
+    "label": "Skip for now in Set up imported work",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.quiz-import-setup",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.setup-save",
+    "label": "Save in Set up imported work",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.quiz-import-setup",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -18887,6 +18957,67 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Traffic color picker in Time Tool settings",
     "scope": "widget",
     "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.time-tool.settings",
+        "kind": "settings-drawer",
+        "widget_type": "time-tool",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.time-tool.start-minutes",
+    "label": "Starting length minutes in Time Tool settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.time-tool.settings",
+        "kind": "settings-drawer",
+        "widget_type": "time-tool",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.time-tool.start-seconds",
+    "label": "Starting length seconds in Time Tool settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.time-tool.settings",
+        "kind": "settings-drawer",
+        "widget_type": "time-tool",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.time-tool.start-clear",
+    "label": "Use school default button for the timer starting length",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.time-tool.settings",
@@ -31690,6 +31821,169 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.widget",
         "kind": "widget",
         "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connect",
+    "label": "Connect button in the widget toolbar",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connect-menu.connection",
+    "label": "A connection row in the Connect button menu",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [
+          "widget.connect"
+        ],
+        "reveal": "widget.connect",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connect-menu.new",
+    "label": "New connection item in the Connect button menu",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [
+          "widget.connect"
+        ],
+        "reveal": "widget.connect",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connect-pick",
+    "label": "Tap target on a widget while picking widgets to connect",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [
+          "widget.connect"
+        ],
+        "reveal": "widget.connect",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connection-badge",
+    "label": "Step number badge on a connected widget",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connection-start",
+    "label": "Start from step 1 in a connected widget's badge menu",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [
+          "widget.connection-badge"
+        ],
+        "reveal": "widget.connection-badge",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connection-stop",
+    "label": "Stop in a connected widget's badge menu",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [
+          "widget.connection-badge"
+        ],
+        "reveal": "widget.connection-badge",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connection-next",
+    "label": "Next in a connected widget's badge menu",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [
+          "widget.connection-badge"
+        ],
+        "reveal": "widget.connection-badge",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.connection-edit",
+    "label": "Edit steps in a connected widget's badge menu",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [
+          "widget.connection-badge"
+        ],
+        "reveal": "widget.connection-badge",
         "needs": [
           "widget-on-stage"
         ]
@@ -54839,6 +55133,550 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "widget.group-with"
         ],
         "reveal": "widget.group-with"
+      }
+    ]
+  },
+  {
+    "id": "dashboard.connect-cancel",
+    "label": "Cancel button on the connect bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": [
+          "widget.connect"
+        ],
+        "reveal": "widget.connect"
+      }
+    ]
+  },
+  {
+    "id": "dashboard.connect-done",
+    "label": "Done button on the connect bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": [
+          "widget.connect"
+        ],
+        "reveal": "widget.connect"
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.close",
+    "label": "Close button in the connection steps window",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.cancel",
+    "label": "Cancel button in the connection steps window",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.save",
+    "label": "Save button in the connection steps window",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.delete",
+    "label": "Delete connection button in the connection steps window",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.stop",
+    "label": "Stop button for a running connection",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.step-action",
+    "label": "What a widget does in a connection step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.step-choice",
+    "label": "The symbol or materials a connection step shows",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.material-option",
+    "label": "A material row in a connection step's materials menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.add-same-time",
+    "label": "'+' button beside a connection step that adds something at the same time",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.remove-action",
+    "label": "Remove a side card from a connection step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.wait-seconds",
+    "label": "Seconds box on a connection arrow",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.step-menu",
+    "label": "Options menu on a connection step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.also-option",
+    "label": "A widget in the '+' menu beside a connection step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.save-start",
+    "label": "Save and start button in the connection steps window",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.advance",
+    "label": "What moves a connection on to its next step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.move-up",
+    "label": "Move a connection step up",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.move-down",
+    "label": "Move a connection step down",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.remove-step",
+    "label": "Remove a connection step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.add-widget",
+    "label": "Add a step button in the connection window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.repeat",
+    "label": "Repeat menu in the connection window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.repeat-count",
+    "label": "Number of times a connection repeats",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "connections.editor.remove-follow",
+    "label": "Remove a widget that plays along with a connection step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.connections-editor",
+        "kind": "modal",
+        "path": [
+          "widget.connect",
+          "dashboard.connect-done"
+        ],
+        "opened_by": [
+          "widget.connection-edit",
+          "widget.connect-menu.connection"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },

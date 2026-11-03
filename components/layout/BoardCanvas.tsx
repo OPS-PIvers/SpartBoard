@@ -10,6 +10,7 @@ import type {
 } from '@/types';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
+import { ConnectionLines } from '@/components/connections/ConnectionLines';
 import { GroupBoundingBox } from '@/components/common/GroupBoundingBox';
 import { AlignmentGuidesOverlay } from '@/components/common/AlignmentGuidesOverlay';
 import { useDashboardCanvasSelector } from '@/context/dashboardCanvasStore';
@@ -185,6 +186,7 @@ export const BoardCanvas: FC<BoardCanvasProps> = memo(
             {/* Group Bounding Box — rendered when a grouped widget is selected */}
             <GroupBoundingBoxLayer dashboard={dashboard} />
             {isActive && <AlignmentGuidesOverlay />}
+            {isActive && <ConnectionLines dashboard={dashboard} />}
           </div>
         </BoardLinkedShareHostContext>
       </BoardLinkedShareContext>

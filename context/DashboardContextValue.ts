@@ -8,6 +8,7 @@ import {
   ClassRoster,
   RosterGroup,
   WidgetConfig,
+  WidgetConnection,
   GlobalStyle,
   Student,
   AddWidgetOverrides,
@@ -314,6 +315,12 @@ export interface DashboardContextValue {
     type: WidgetType,
     transform: (config: WidgetConfig) => WidgetConfig | null
   ) => Promise<void>;
+  /** A Connection Run's writes to any board: widget config patches plus the board's Connections. Absent outside the teacher app. */
+  applyConnectionChanges?: (
+    boardId: string,
+    widgetPatches: Record<string, Record<string, unknown>>,
+    connections?: WidgetConnection[]
+  ) => void;
   selectedWidgetIds: string[];
   setSelectedWidgetIds: (
     ids: string[] | ((prev: string[]) => string[])

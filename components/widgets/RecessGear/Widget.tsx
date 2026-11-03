@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDashboard } from '@/context/useDashboard';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
+import { followLeaderId } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 import {
   WidgetData,
   RecessGearConfig,
@@ -75,16 +78,25 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
   }, [adminConfig?.fetchingStrategy]);
 
   const widgets = activeDashboard?.widgets;
+  // A Followed Weather wins; otherwise the old linked-widget setting applies unless this widget was migrated.
+  const connectionsOn = useConnectionsEnabled();
+  const linkedWeatherId =
+    (connectionsOn
+      ? followLeaderId(activeDashboard?.connections, widgets ?? [], widget.id)
+      : undefined) ??
+    (usesLegacyToggles(connectionsOn, config)
+      ? config.linkedWeatherWidgetId
+      : undefined);
 
   // Find linked or first available weather widget (Fallback)
   const localWeatherWidget = useMemo(() => {
     if (!widgets) return null;
-    if (config.linkedWeatherWidgetId) {
-      const linked = widgets.find((w) => w.id === config.linkedWeatherWidgetId);
+    if (linkedWeatherId) {
+      const linked = widgets.find((w) => w.id === linkedWeatherId);
       if (linked && linked.type === 'weather') return linked;
     }
     return widgets.find((w) => w.type === 'weather') ?? null;
-  }, [widgets, config.linkedWeatherWidgetId]);
+  }, [widgets, linkedWeatherId]);
 
   const localWeatherConfig = localWeatherWidget?.config as
     WeatherConfig | undefined;

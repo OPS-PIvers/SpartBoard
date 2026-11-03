@@ -67,9 +67,13 @@ const KNOWN_COLUMNS = new Set(['name', 'email', 'role', 'building']);
  * Returned rows preserve their raw text (minus the terminator) so we can
  * echo them back in `CsvParseError.raw` for UI display.
  */
-function splitLogicalRows(source: string): string[] {
-  const rows: string[] = [];
+function splitLogicalRows(
+  source: string
+): Array<{ text: string; line: number }> {
+  const rows: Array<{ text: string; line: number }> = [];
   let current = '';
+  let line = 1;
+  let startLine = 1;
   let inQuotes = false;
   for (let i = 0; i < source.length; i++) {
     const ch = source[i];
@@ -81,13 +85,16 @@ function splitLogicalRows(source: string): string[] {
     if (!inQuotes && (ch === '\n' || ch === '\r')) {
       // Consume a paired \r\n as a single terminator.
       if (ch === '\r' && source[i + 1] === '\n') i++;
-      rows.push(current);
+      rows.push({ text: current, line: startLine });
       current = '';
+      line++;
+      startLine = line;
       continue;
     }
+    if (ch === '\n') line++;
     current += ch;
   }
-  if (current.length > 0) rows.push(current);
+  if (current.length > 0) rows.push({ text: current, line: startLine });
   return rows;
 }
 
@@ -213,7 +220,7 @@ export function parseInvitesCsv(
   }
 
   // Header row — lowercase, trim, build a column index.
-  const headerRaw = logicalRows[0];
+  const headerRaw = logicalRows[0].text;
   const headerCells = parseRow(headerRaw).map((c) => c.toLowerCase());
   const columnIndex: Record<string, number> = {};
   headerCells.forEach((name, idx) => {
@@ -240,9 +247,9 @@ export function parseInvitesCsv(
   type DataRow = { line: number; raw: string; cells: string[] };
   const dataRows: DataRow[] = [];
   for (let i = 1; i < logicalRows.length; i++) {
-    const raw = logicalRows[i];
+    const { text: raw, line } = logicalRows[i];
     if (!raw.trim()) continue;
-    dataRows.push({ line: i + 1, raw, cells: parseRow(raw) });
+    dataRows.push({ line, raw, cells: parseRow(raw) });
   }
 
   if (dataRows.length === 0) {

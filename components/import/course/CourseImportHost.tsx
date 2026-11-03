@@ -323,10 +323,7 @@ export const CourseImportHost: React.FC<{
                 (schoology || canAccessFeature('quiz-imscc-import'))
               );
             case 'questionBank':
-              return (
-                canAccessWidget('quiz') &&
-                (schoology || canAccessFeature('question-bank-imscc-import'))
-              );
+              return canAccessWidget('quiz');
             case 'flashcards':
               return canAccessWidget('flashcards');
             case 'activityWall':

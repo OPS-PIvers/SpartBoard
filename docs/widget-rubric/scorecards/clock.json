@@ -46,23 +46,23 @@
       "stale": false
     },
     "S1": {
-      "score": 0,
+      "score": 3,
       "source": "paul",
       "candidates": {
-        "script": 0,
+        "script": null,
         "judge": 0,
-        "paul": 0
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/clock/envelope-min__empty.png",
-          "scripts/widget-grader/out/norming-1/screenshots/clock/envelope-min__typical.png",
-          "scripts/widget-grader/out/norming-1/screenshots/clock/envelope-min__stress.png"
+          "scripts/widget-grader/out/regrade-s1-2026-11-02/screenshots/clock/envelope-min__empty.png",
+          "scripts/widget-grader/out/regrade-s1-2026-11-02/screenshots/clock/envelope-min__typical.png",
+          "scripts/widget-grader/out/regrade-s1-2026-11-02/screenshots/clock/envelope-min__stress.png"
         ],
-        "runId": "norming-1"
+        "runId": "regrade-s1-2026-11-02"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:26:08.276Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-11-02T21:32:23.418Z",
       "stale": false
     },
     "S2": {

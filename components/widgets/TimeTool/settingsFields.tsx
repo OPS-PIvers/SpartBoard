@@ -1,11 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { TimeToolConfig, WidgetType } from '@/types';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { resolveLabel } from '@/components/settings/renderer/resolveLabel';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { TIME_TOOL_MODES, type TimeToolMode } from '@/config/timeTool';
 import { tourAttr } from '@/config/tourAnchors';
-import { timeToolClockPatch } from '@/utils/timeToolClock';
+import {
+  normalizeTimerStartSeconds,
+  timeToolClockPatch,
+} from '@/utils/timeToolClock';
+import { useAuth } from '@/context/useAuth';
+import { getAdminBuildingConfig } from '@/utils/adminBuildingConfig';
+import { DraftNumberField } from '@/components/admin/DraftNumberField';
 
 export type CustomFieldProps = { ctx: CustomRenderCtx };
 
@@ -203,5 +209,99 @@ export const TimeToolTrafficColorField: React.FC<CustomFieldProps> = ({
         ctx.widget.type
       )}
     />
+  );
+};
+
+const START_INPUT_CLASS =
+  'w-16 px-2 py-1.5 text-sm text-center border border-slate-200 rounded-lg tabular-nums focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary';
+
+// The teacher's own starting length for new timers (profile, all boards); blank falls back to the building default.
+export const TimeToolStartLengthField: React.FC<CustomFieldProps> = ({
+  ctx,
+}) => {
+  const leaf = leafResolver(ctx);
+  const {
+    timeToolStartSeconds = 0,
+    updateUserPreference,
+    featurePermissions,
+    selectedBuildings,
+  } = useAuth();
+  // The building layer new timers actually start from, resolved like addWidget does.
+  const buildingSeconds = normalizeTimerStartSeconds(
+    getAdminBuildingConfig('time-tool', featurePermissions, selectedBuildings)
+      .duration
+  );
+  const seconds = timeToolStartSeconds || buildingSeconds || 600;
+  // Holds a 0:00 entry so the other box can finish it (0 min, then 30 s) instead of building on the old value.
+  const [zeroDraft, setZeroDraft] = useState<{ m: number; s: number } | null>(
+    null
+  );
+  const mins = zeroDraft?.m ?? Math.floor(seconds / 60);
+  const secs = zeroDraft?.s ?? seconds % 60;
+  const save = (m: number, s: number) => {
+    const total = Math.max(0, Math.trunc(m)) * 60 + Math.max(0, Math.trunc(s));
+    // A zero length would make every new timer finished; hold it until the other box adds time.
+    if (total <= 0) {
+      setZeroDraft({ m, s });
+      return;
+    }
+    setZeroDraft(null);
+    void updateUserPreference('timeToolStartSeconds', total);
+  };
+  return (
+    <div
+      id={ctx.id}
+      role="group"
+      aria-labelledby={ctx.labelId}
+      aria-describedby={ctx.describedBy}
+      className="flex flex-wrap items-center gap-2"
+    >
+      <DraftNumberField
+        {...tourAttr(
+          'widget-settings.time-tool.start-minutes',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
+        aria-label={leaf('startLengthMinutes')}
+        min="0"
+        max="999"
+        value={mins}
+        onCommit={(m) => save(Math.min(999, m), secs)}
+        className={START_INPUT_CLASS}
+      />
+      <span className="text-slate-400" aria-hidden="true">
+        :
+      </span>
+      <DraftNumberField
+        {...tourAttr(
+          'widget-settings.time-tool.start-seconds',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
+        aria-label={leaf('startLengthSeconds')}
+        min="0"
+        max="59"
+        value={secs}
+        onCommit={(s) => save(mins, Math.min(59, s))}
+        className={START_INPUT_CLASS}
+      />
+      {timeToolStartSeconds > 0 && (
+        <button
+          type="button"
+          {...tourAttr(
+            'widget-settings.time-tool.start-clear',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
+          onClick={() => {
+            setZeroDraft(null);
+            void updateUserPreference('timeToolStartSeconds', 0);
+          }}
+          className="text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark px-2 py-1 rounded-lg hover:bg-slate-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        >
+          {leaf('startLengthClear')}
+        </button>
+      )}
+    </div>
   );
 };

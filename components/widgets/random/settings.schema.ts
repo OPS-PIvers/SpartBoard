@@ -14,6 +14,7 @@ import {
   RandomLockedGroupsField,
   RandomSaveAsClassGroupsField,
 } from './settingsFields';
+import { hiddenWithConnections } from '@/components/settings/schema/hiddenWithConnections';
 
 const mode = (ctx: FieldCtx) => ctx.config.mode ?? 'single';
 const isMode = (value: string) => (ctx: FieldCtx) => mode(ctx) === value;
@@ -119,7 +120,8 @@ export default defineSettings<RandomConfig>({
           type: 'partnerWidget',
           label: 'autoStartTimer',
           partner: 'time-tool',
-          visibleWhen: isMode('single'),
+          visibleWhen: (ctx) =>
+            isMode('single')(ctx) && hiddenWithConnections(ctx),
           control: {
             key: 'autoStartTimer',
             type: 'toggle',
@@ -223,6 +225,37 @@ export default defineSettings<RandomConfig>({
           searchTerms: ['projects'],
           visibleWhen: isMode('groups'),
           render: renderSendToProjects,
+        },
+      ],
+    },
+    {
+      id: 'display',
+      fields: [
+        {
+          key: 'rowStyle',
+          type: 'segmented',
+          label: 'rowStyle',
+          visibleWhen: isMode('shuffle'),
+          readValue: (ctx) => ctx.config.rowStyle ?? 'cards',
+          options: [
+            { value: 'cards', label: 'rowCards' },
+            { value: 'lines', label: 'rowLines' },
+          ],
+        },
+        {
+          key: 'cardColor',
+          type: 'surfaceColor',
+          label: 'style.cardColor',
+          opacityKey: 'cardOpacity',
+          readValue: (ctx) => ctx.config.cardColor ?? '#ffffff',
+          visibleWhen: isMode('shuffle'),
+        },
+        {
+          key: 'fontColor',
+          type: 'color',
+          label: 'style.fontColor',
+          readValue: (ctx) => ctx.config.fontColor ?? '#1e293b',
+          visibleWhen: isMode('shuffle'),
         },
       ],
     },
