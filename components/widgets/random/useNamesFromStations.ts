@@ -32,18 +32,12 @@ const FRESH_DRAW: DrawState = {
   jigsawExpertGroups: null,
 };
 
-// Carries the current draw over to the new names: a renamed station keeps its place; a removed one drops out.
+// Carries the current draw over to the new names: a renamed station keeps its place, a removed one drops out, a new one joins.
 export const followDrawPatch = (
   config: RandomConfig,
+  rename: ReadonlyMap<string, string>,
   next: string[]
 ): Partial<DrawState> => {
-  const prev = combineRosterNames(
-    config.firstNames ?? '',
-    config.lastNames ?? ''
-  );
-  const rename = new Map<string, string>();
-  if (prev.length === next.length)
-    prev.forEach((n, i) => rename.set(n, next[i]));
   const kept = new Set(next);
   const map = (n: string): string | null => {
     const m = rename.get(n) ?? n;
@@ -71,8 +65,15 @@ export const followDrawPatch = (
       groups(r as NonNullable<RandomConfig['jigsawHomeGroups']>) ?? null;
   }
   const patch: Partial<DrawState> = { lastResult };
-  if (config.remainingStudents)
-    patch.remainingStudents = list(config.remainingStudents);
+  if (config.remainingStudents?.length) {
+    const left = list(config.remainingStudents) ?? [];
+    const known = new Set(
+      combineRosterNames(config.firstNames ?? '', config.lastNames ?? '').map(
+        (n) => rename.get(n) ?? n
+      )
+    );
+    patch.remainingStudents = [...left, ...next.filter((n) => !known.has(n))];
+  }
   if (config.doneNames) patch.doneNames = list(config.doneNames);
   if (config.lockedNames) patch.lockedNames = list(config.lockedNames);
   if (config.unassignedNames)
@@ -107,39 +108,56 @@ export const useNamesFromStations = (
   const readOnly = isActiveBoardReadOnly === true;
   const stations = followedStations(activeDashboard, widget.id, connectionsOn);
   const config = widget.config as RandomConfig;
-  const names = stations
-    ? stationNamesForRandom(
-        (stations.config as StationsConfig).stations,
-        (number) => t('widgetSettings.stations.stationNumber', { number })
-      ).join('\n')
-    : null;
+  const sorted = stations
+    ? [...((stations.config as StationsConfig).stations ?? [])].sort(
+        (a, b) => a.order - b.order
+      )
+    : [];
+  const list = stationNamesForRandom(sorted, (number) =>
+    t('widgetSettings.stations.stationNumber', { number })
+  );
+  const names = stations ? list.join('\n') : null;
   const stale =
     !!names &&
     (config.firstNames !== names ||
       (config.lastNames ?? '') !== '' ||
       config.rosterMode !== 'custom');
+  const byId = sorted.map((st, i) => [st.id, list[i]] as const);
 
-  // The names this Randomizer last took from the Stations; only those carry a draw over.
-  const synced = useRef<string | null>(null);
+  // The station names this Randomizer last took, by station id; only those carry a draw over.
+  const synced = useRef<{
+    names: string;
+    byId: ReadonlyMap<string, string>;
+  } | null>(null);
   useEffect(() => {
     if (names === null) return;
+    const current = new Map(byId);
     if (!stale) {
-      synced.current = names;
+      synced.current = { names, byId: current };
       return;
     }
     if (readOnly) return;
-    const carry =
-      synced.current !== null && synced.current === config.firstNames;
-    synced.current = names;
+    const prev = synced.current;
+    synced.current = { names, byId: current };
+    const carry = prev !== null && prev.names === config.firstNames;
+    const rename = new Map<string, string>();
+    if (prev) {
+      for (const [id, was] of prev.byId) {
+        const now = current.get(id);
+        if (now !== undefined) rename.set(was, now);
+      }
+    }
     updateWidget(widget.id, {
       config: {
-        ...(carry ? followDrawPatch(config, names.split('\n')) : FRESH_DRAW),
+        ...(carry
+          ? followDrawPatch(config, rename, names.split('\n'))
+          : FRESH_DRAW),
         firstNames: names,
         lastNames: '',
         rosterMode: 'custom',
       },
     });
-  }, [stale, readOnly, names, updateWidget, widget.id, config]);
+  }, [stale, readOnly, names, byId, updateWidget, widget.id, config]);
 
   return stations;
 };

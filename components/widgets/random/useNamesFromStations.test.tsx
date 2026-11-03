@@ -131,28 +131,51 @@ describe('followDrawPatch', () => {
   const base = (c: Partial<RandomConfig>) =>
     ({ firstNames: 'A\nB\nC', lastNames: '', ...c }) as RandomConfig;
 
+  const none = new Map<string, string>();
   it('drops a removed station and adds a new one at the end of the shuffle', () => {
     expect(
       followDrawPatch(
         base({ lastResult: ['C', 'A', 'B'], lockedNames: ['B'] }),
+        none,
         ['A', 'C', 'D', 'E']
       )
     ).toEqual({ lastResult: ['C', 'A', 'D', 'E'], lockedNames: [] });
   });
 
+  const xyz = new Map([
+    ['A', 'X'],
+    ['B', 'Y'],
+    ['C', 'Z'],
+  ]);
   it('renames names inside groups and a single pick', () => {
     expect(
       followDrawPatch(
         base({ lastResult: [{ names: ['A', 'C'] }, { names: ['B'] }] }),
+        xyz,
         ['X', 'Y', 'Z']
       ).lastResult
     ).toEqual([{ names: ['X', 'Z'] }, { names: ['Y'] }]);
     expect(
-      followDrawPatch(base({ lastResult: 'B' }), ['X', 'Y', 'Z']).lastResult
+      followDrawPatch(base({ lastResult: 'B' }), xyz, ['X', 'Y', 'Z'])
+        .lastResult
     ).toBe('Y');
     expect(
-      followDrawPatch(base({ lastResult: 'B' }), ['A', 'C']).lastResult
+      followDrawPatch(base({ lastResult: 'B' }), none, ['A', 'C']).lastResult
     ).toBeNull();
+  });
+
+  it('leaves a reordered list alone and adds a new station to the names left to pick', () => {
+    expect(
+      followDrawPatch(
+        base({ lastResult: 'A', remainingStudents: ['B', 'C'] }),
+        new Map([
+          ['A', 'A'],
+          ['B', 'B'],
+          ['C', 'C'],
+        ]),
+        ['C', 'B', 'A', 'D']
+      )
+    ).toEqual({ lastResult: 'A', remainingStudents: ['B', 'C', 'D'] });
   });
 });
 
