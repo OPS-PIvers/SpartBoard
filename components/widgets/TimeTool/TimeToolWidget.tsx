@@ -624,11 +624,14 @@ export const TimeToolWidget: React.FC<{
   const ctrlSize = isVisual
     ? `${ringSizes.center}px`
     : `max(20px, min((50cqh - ${timeFontSize} / 2) * 0.65, 20cqw, ${timeFontSize} * 0.4, ${MAX_CTRL_PX}px))`;
-  const ctrlGap = `calc(${ctrlSize} * 0.15)`;
   const adjustSize = isVisual ? `${ringSizes.corner}px` : ctrlSize;
   const cornerOffset = `${cornerInset(ringSizes.corner)}px`;
 
   const expandHitArea = isCompact;
+  // Compact buttons get 44px hit areas, so space them far enough apart that the areas never overlap.
+  const ctrlGap = expandHitArea
+    ? `max(${ctrlSize} * 0.15, 44px - ${ctrlSize})`
+    : `calc(${ctrlSize} * 0.15)`;
 
   const subtractButton = showAdjustControls ? (
     <AdjustButton
