@@ -28,6 +28,7 @@ import { migrateDashboardWidgets } from '@/utils/migrateProportionalLayout';
 import { migrateBoardWidgets } from '@/utils/migration';
 import {
   mergeSharedBoard,
+  sharedConnections,
   type SharedBoardBaseline,
 } from '@/utils/sharedBoardMerge';
 import {
@@ -707,6 +708,7 @@ export const useFirestore = (userId: string | null) => {
 
       const payload = {
         ...data,
+        ...(data.connections && { connections: sharedConnections(data) }),
         sharedAt: Date.now(),
         originalAuthor: userId,
         ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
@@ -854,6 +856,7 @@ export const useFirestore = (userId: string | null) => {
         } = written;
         mockSharedStore.update(shareId, {
           ...patch,
+          ...(patch.connections && { connections: sharedConnections(patch) }),
           updatedAt: Date.now(),
           updatedBy: userId ?? 'mock',
         });
@@ -872,7 +875,13 @@ export const useFirestore = (userId: string | null) => {
           linkedShareEnded: _lse,
           ...patch
         } = board;
-        return { ...patch, updatedAt: Date.now(), updatedBy: userId };
+        // A Run belongs to the device carrying it out, so the share never holds one.
+        return {
+          ...patch,
+          ...(patch.connections && { connections: sharedConnections(board) }),
+          updatedAt: Date.now(),
+          updatedBy: userId,
+        };
       };
       // update (not set) preserves participants/originalAuthor/sharedAt so
       // guests and host bookkeeping survive across mirrors.

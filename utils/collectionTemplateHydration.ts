@@ -4,6 +4,7 @@ import type {
   BoardTemplateSnapshot,
 } from '@/types';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
+import { importedConnections } from '@/utils/dashboardSanitize';
 
 export interface HydrateOptions {
   /** Highest existing `order` value across the recipient's dashboards. New Boards land at `existingMaxOrder + 1..N`. */
@@ -84,6 +85,7 @@ export const hydrateCollectionTemplate = (
         ...(snap.viewportHeight !== undefined && {
           viewportHeight: snap.viewportHeight,
         }),
+        ...importedConnections(snap.connections),
       };
 
       return board;

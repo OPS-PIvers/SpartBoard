@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Dashboard, WidgetData } from '@/types';
+import type { Dashboard, WidgetConnection, WidgetData } from '@/types';
 import {
   mergeSharedBoard,
+  mergeSharedConnections,
   mergeSharedWidgets,
   sharedBoardBaseline,
   type SharedBoardBaseline,
@@ -151,5 +152,124 @@ describe('two co-teachers editing at once', () => {
       expect(tab.local.widgets.map((x) => x.id)).toEqual(['a', 'clock']);
       expect(tab.local.widgets[0].xProp).toBe(0.6);
     }
+  });
+});
+
+const follow = (id: string, followerId = 'b'): WidgetConnection => ({
+  id,
+  kind: 'follow',
+  leaderId: 'a',
+  followerId,
+});
+
+const seq = (
+  id: string,
+  run: { deviceId: string; stepIndex: number } | null = null
+): WidgetConnection => ({
+  id,
+  kind: 'sequence',
+  steps: [{ id: `${id}-s`, actions: [{ widgetId: 'a', action: 'restart' }] }],
+  repeat: 'once',
+  ...(run && { run: { ...run, stepStartedAt: 1, loops: 0 } }),
+});
+
+const withConnections = (connections: WidgetConnection[]): Dashboard => ({
+  ...board([w('a'), w('b')]),
+  connections,
+});
+
+describe('mergeSharedConnections', () => {
+  it('takes the share on the first snapshot, without its Runs', () => {
+    const merged = mergeSharedConnections(
+      withConnections([]),
+      withConnections([seq('s1', { deviceId: 'host', stepIndex: 1 })]),
+      undefined
+    );
+    expect(merged.map((c) => c.id)).toEqual(['s1']);
+    expect(merged[0]).not.toHaveProperty('run');
+  });
+
+  it("takes a host's new and edited Connections when this copy has not changed", () => {
+    const base = sharedBoardBaseline(withConnections([follow('f1')]));
+    const merged = mergeSharedConnections(
+      withConnections([follow('f1')]),
+      withConnections([follow('f1', 'c'), seq('s1')]),
+      base
+    );
+    expect(merged.map((c) => c.id)).toEqual(['f1', 's1']);
+    expect(merged[0]).toMatchObject({ followerId: 'c' });
+  });
+
+  it("keeps this copy's add, edit and delete over an untouched share", () => {
+    const base = sharedBoardBaseline(
+      withConnections([follow('f1'), follow('f2')])
+    );
+    const merged = mergeSharedConnections(
+      withConnections([follow('f1', 'c'), seq('mine')]),
+      withConnections([follow('f1'), follow('f2')]),
+      base
+    );
+    expect(merged.map((c) => c.id)).toEqual(['f1', 'mine']);
+    expect(merged[0]).toMatchObject({ followerId: 'c' });
+  });
+
+  it('honours a co-teacher deleting a Connection this copy did not touch', () => {
+    const base = sharedBoardBaseline(
+      withConnections([follow('f1'), follow('f2')])
+    );
+    const merged = mergeSharedConnections(
+      withConnections([follow('f1'), follow('f2')]),
+      withConnections([follow('f2')]),
+      base
+    );
+    expect(merged.map((c) => c.id)).toEqual(['f2']);
+  });
+
+  it("keeps this device's Run on a Sequence the share also has", () => {
+    const base = sharedBoardBaseline(withConnections([seq('s1')]));
+    const merged = mergeSharedConnections(
+      withConnections([seq('s1', { deviceId: 'me', stepIndex: 2 })]),
+      withConnections([seq('s1', { deviceId: 'host', stepIndex: 0 })]),
+      base
+    );
+    expect(merged[0]).toMatchObject({
+      run: { deviceId: 'me', stepIndex: 2 },
+    });
+  });
+
+  it("a Run alone is not an edit, so a co-teacher's change still lands", () => {
+    const base = sharedBoardBaseline(withConnections([seq('s1')]));
+    const edited = {
+      ...seq('s1'),
+      repeat: 'until-done',
+    } as WidgetConnection;
+    const merged = mergeSharedConnections(
+      withConnections([seq('s1', { deviceId: 'me', stepIndex: 1 })]),
+      withConnections([edited]),
+      base
+    );
+    expect(merged[0]).toMatchObject({
+      repeat: 'until-done',
+      run: { deviceId: 'me', stepIndex: 1 },
+    });
+  });
+});
+
+describe('mergeSharedBoard connections', () => {
+  it("a collaborator with an old copy no longer wipes the host's new Connections", () => {
+    let server = withConnections([]);
+    const host = new Tab(server);
+    const colleague = new Tab(server);
+
+    host.local = { ...host.local, connections: [follow('f1')] };
+    server = host.write(server);
+    // The colleague moves a widget before the host's Connection reaches them.
+    colleague.local = {
+      ...colleague.local,
+      widgets: [w('a', { xProp: 0.5 }), w('b')],
+    };
+    server = colleague.write(server);
+
+    expect(server.connections?.map((c) => c.id)).toEqual(['f1']);
   });
 });

@@ -116,6 +116,7 @@ describe('useFirestore – mirrorSharedBoard', () => {
         settings: undefined,
         globalStyle: undefined,
         annotationObjects: [],
+        connections: [],
       } as never
     );
 
