@@ -889,7 +889,7 @@ describe('TimeToolWidget', () => {
     });
 
     it.each([['modern'], ['lcd'], ['minimal']] as const)(
-      'uses top:110% in digital clockStyle="%s"',
+      'anchors the row to the band under the time in digital clockStyle="%s"',
       (clockStyle) => {
         const widget = createWidget({
           mode: 'timer',
@@ -901,11 +901,11 @@ describe('TimeToolWidget', () => {
         const html = renderHtml(widget);
         const wrap = wrapperFor(html, 'Subtract time');
 
-        expect(wrap).toContain('top:110%');
+        expect(wrap).toContain('top:calc(50% + min(60cqh, 30cqw) / 2)');
       }
     );
 
-    it('uses top:115% when visualType="visual" (progress ring on)', () => {
+    it('puts ± in the bottom corners and play/reset under the time when the ring is on', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -914,9 +914,12 @@ describe('TimeToolWidget', () => {
         visualType: 'visual',
       });
       const html = renderHtml(widget);
-      const wrap = wrapperFor(html, 'Subtract time');
 
-      expect(wrap).toContain('top:115%');
+      expect(wrapperFor(html, 'Subtract time')).toMatch(
+        /bottom:\d+px;left:\d+px/
+      );
+      expect(wrapperFor(html, 'Add time')).toMatch(/bottom:\d+px;right:\d+px/);
+      expect(wrapperFor(html, 'Pause')).toContain('top:115%');
     });
 
     it('hides ± adjust buttons in stopwatch mode (only play/reset render)', () => {

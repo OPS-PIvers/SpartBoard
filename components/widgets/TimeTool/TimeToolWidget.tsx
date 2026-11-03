@@ -33,6 +33,37 @@ const presetLabel = (s: number) => (s >= 60 ? `${s / 60}m` : `${s}s`);
 
 const DEFAULT_ADJUST_STEP_SECONDS = 60;
 
+const CORNER_INSET_PX = 6;
+// The window's corner resize grip covers the inner 24px; keep a small button's centre clear of it.
+const cornerInset = (size: number): number =>
+  Math.max(CORNER_INSET_PX, 26 - size / 2);
+const MIN_CTRL_PX = 24;
+const MAX_CTRL_PX = 56;
+
+// Largest square that fits in a bottom corner without touching the visual ring (outer radius 101/220 of 96% of the short side).
+const ringCornerFit = (w: number, h: number): number => {
+  const clearance = (101 / 220) * 0.96 * Math.min(w, h) + 4;
+  let lo = 0;
+  let hi = Math.min(w, h) / 2;
+  for (let i = 0; i < 16; i++) {
+    const s = (lo + hi) / 2;
+    const dx = Math.max(0, w / 2 - cornerInset(s) - s);
+    const dy = Math.max(0, h / 2 - cornerInset(s) - s);
+    if (Math.hypot(dx, dy) >= clearance) lo = s;
+    else hi = s;
+  }
+  return lo;
+};
+
+const ringCtrlSizes = (w: number, h: number) => {
+  const center = Math.max(
+    MIN_CTRL_PX,
+    Math.min(0.12 * Math.min(w, h), MAX_CTRL_PX)
+  );
+  const corner = Math.max(MIN_CTRL_PX, Math.min(center, ringCornerFit(w, h)));
+  return { center: Math.round(center), corner: Math.round(corner) };
+};
+
 // ─── Adjust Button ──────────────────────────────────────────────────────────
 
 const AdjustButton: React.FC<{
@@ -72,26 +103,22 @@ const AdjustButton: React.FC<{
       onPointerCancel={handlers.onPointerCancel}
       onPointerLeave={handlers.onPointerLeave}
       onKeyDown={handlers.onKeyDown}
-      className={`flex flex-col items-center justify-center rounded-xl bg-slate-200/40 text-slate-500 transition-all select-none touch-none active:scale-95 hover:bg-slate-300/60 hover:text-slate-700 ${
+      className={`flex flex-col items-center justify-center bg-slate-200/40 text-slate-500 transition-all select-none touch-none active:scale-95 hover:bg-slate-300/60 hover:text-slate-700 ${
         expandHitArea ? 'relative touch-target-expand' : ''
       } ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
       style={{
         width: size,
         height: size,
-        padding: 'min(3px, 0.75cqmin)',
-        gap: 'min(1px, 0.25cqmin)',
+        fontSize: size,
+        borderRadius: '0.3em',
+        padding: '0.08em',
+        gap: '0.03em',
       }}
     >
-      <Icon
-        style={{
-          width: 'max(10px, min(18px, 5cqmin))',
-          height: 'max(10px, min(18px, 5cqmin))',
-        }}
-        strokeWidth={3}
-      />
+      <Icon style={{ width: '0.42em', height: '0.42em' }} strokeWidth={3} />
       <span
         className="font-black tabular-nums leading-none"
-        style={{ fontSize: 'max(7px, min(9px, 2.5cqmin))' }}
+        style={{ fontSize: 'max(7px, 0.22em)' }}
       >
         {presetLabel(step)}
       </span>
@@ -493,6 +520,10 @@ export const TimeToolWidget: React.FC<{
   const rootRef = useRef<HTMLDivElement>(null);
   const [isCompact, setIsCompact] = useState(false);
   const [isNarrow, setIsNarrow] = useState(false);
+  const [ringSizes, setRingSizes] = useState({
+    center: MIN_CTRL_PX,
+    corner: MIN_CTRL_PX,
+  });
 
   // The control row is horizontal, so only a narrow widget drops the +/- steppers.
   useEffect(() => {
@@ -502,6 +533,10 @@ export const TimeToolWidget: React.FC<{
       const { width, height } = entry.contentRect;
       setIsCompact(Math.min(width, height) < 180);
       setIsNarrow(width < 180);
+      const next = ringCtrlSizes(width, height);
+      setRingSizes((prev) =>
+        prev.center === next.center && prev.corner === next.corner ? prev : next
+      );
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -580,7 +615,94 @@ export const TimeToolWidget: React.FC<{
     mode === 'timer' && config.duration > 0 ? displayTime / config.duration : 1;
 
   const timeColor = getTimeColor();
-  const ctrlSize = isCompact ? 'max(20px, 10cqmin)' : 'min(40px, 10cqmin)';
+  const timeFontSize = isVisual
+    ? 'min(22cqmin, 12rem)'
+    : mode === 'stopwatch'
+      ? 'min(60cqh, 22cqw)'
+      : 'min(60cqh, 30cqw)';
+  // Digital: fill the band under the time; ring: play/reset inside the ring, +/- in the bottom corners.
+  const ctrlSize = isVisual
+    ? `${ringSizes.center}px`
+    : `max(20px, min((50cqh - ${timeFontSize} / 2) * 0.65, 20cqw, ${timeFontSize} * 0.4, ${MAX_CTRL_PX}px))`;
+  const ctrlGap = `calc(${ctrlSize} * 0.15)`;
+  const adjustSize = isVisual ? `${ringSizes.corner}px` : ctrlSize;
+  const cornerOffset = `${cornerInset(ringSizes.corner)}px`;
+
+  const expandHitArea = isCompact;
+
+  const subtractButton = showAdjustControls ? (
+    <AdjustButton
+      sign={-1}
+      step={effectiveAdjustStep}
+      disabled={displayTime <= 0}
+      anchor={tourAttr('time-tool.subtract-time', widget.id, widget.type)}
+      ariaLabel={t('widgets.timeTool.subtractTime')}
+      onAdjust={adjustTime}
+      size={adjustSize}
+      expandHitArea={expandHitArea}
+    />
+  ) : null;
+
+  const addButton = showAdjustControls ? (
+    <AdjustButton
+      sign={1}
+      step={effectiveAdjustStep}
+      disabled={displayTime >= TIME_TOOL_MAX_DURATION_SECONDS}
+      anchor={tourAttr('time-tool.add-time', widget.id, widget.type)}
+      ariaLabel={t('widgets.timeTool.addTime')}
+      onAdjust={adjustTime}
+      size={adjustSize}
+      expandHitArea={expandHitArea}
+    />
+  ) : null;
+
+  const startPauseButton = (
+    <button
+      {...tourAttr('time-tool.start-pause', widget.id, widget.type)}
+      onClick={isRunning ? () => handleStop() : () => void handleStart()}
+      disabled={isExpired}
+      aria-label={t(
+        isRunning ? 'widgets.timeTool.pause' : 'widgets.timeTool.play'
+      )}
+      className={`${expandHitArea ? 'relative touch-target-expand ' : ''}flex items-center justify-center transition-all select-none active:scale-95 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed ${
+        isRunning
+          ? 'bg-slate-200/60 text-slate-500'
+          : 'bg-brand-blue-primary text-white shadow-brand-blue-primary/20'
+      }`}
+      style={{
+        width: ctrlSize,
+        height: ctrlSize,
+        fontSize: ctrlSize,
+        borderRadius: '0.3em',
+      }}
+    >
+      {isRunning ? (
+        <Pause style={{ width: '50%', height: '50%' }} fill="currentColor" />
+      ) : (
+        <Play
+          style={{ width: '50%', height: '50%', marginLeft: '10%' }}
+          fill="currentColor"
+        />
+      )}
+    </button>
+  );
+
+  const resetButton = (
+    <button
+      {...tourAttr('time-tool.reset', widget.id, widget.type)}
+      onClick={handleReset}
+      className={`${expandHitArea ? 'relative touch-target-expand ' : ''}flex items-center justify-center bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-xs`}
+      style={{
+        width: ctrlSize,
+        height: ctrlSize,
+        fontSize: ctrlSize,
+        borderRadius: '0.3em',
+      }}
+      aria-label={t('widgets.timeTool.reset')}
+    >
+      <RotateCcw style={{ width: '50%', height: '50%' }} />
+    </button>
+  );
 
   // ─── Render ───────────────────────────────────────────────────────
 
@@ -648,11 +770,7 @@ export const TimeToolWidget: React.FC<{
                         : 'cursor-default'
                     }`}
                     style={{
-                      fontSize: isVisual
-                        ? 'min(22cqmin, 12rem)'
-                        : mode === 'stopwatch'
-                          ? 'min(60cqh, 22cqw)'
-                          : 'min(60cqh, 30cqw)',
+                      fontSize: timeFontSize,
                       color: timeColor,
                       textShadow: glow
                         ? `0 0 0.1em ${timeColor}, 0 0 0.25em ${timeColor}66`
@@ -704,104 +822,49 @@ export const TimeToolWidget: React.FC<{
                     )}
                   </button>
 
-                  {/* Control row - Positioned below the centerline without pushing it */}
+                  {isVisual && (
+                    <div
+                      className="absolute z-10 flex items-center justify-center"
+                      style={{ top: '115%', gap: ctrlGap }}
+                    >
+                      {startPauseButton}
+                      {resetButton}
+                    </div>
+                  )}
+                </div>
+
+                {!isVisual && (
                   <div
-                    className="absolute z-10 flex items-center justify-center"
+                    className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-center"
                     style={{
-                      top: isVisual ? '115%' : '110%',
-                      gap: isCompact ? '24px' : 'min(8px, 2cqmin)',
+                      top: `calc(50% + ${timeFontSize} / 2)`,
+                      gap: ctrlGap,
                     }}
                   >
-                    {showAdjustControls && (
-                      <AdjustButton
-                        sign={-1}
-                        step={effectiveAdjustStep}
-                        disabled={displayTime <= 0}
-                        anchor={tourAttr(
-                          'time-tool.subtract-time',
-                          widget.id,
-                          widget.type
-                        )}
-                        ariaLabel={t('widgets.timeTool.subtractTime')}
-                        onAdjust={adjustTime}
-                        size={ctrlSize}
-                        expandHitArea={isCompact}
-                      />
-                    )}
-                    <button
-                      {...tourAttr(
-                        'time-tool.start-pause',
-                        widget.id,
-                        widget.type
-                      )}
-                      onClick={
-                        isRunning
-                          ? () => handleStop()
-                          : () => void handleStart()
-                      }
-                      disabled={isExpired}
-                      aria-label={t(
-                        isRunning
-                          ? 'widgets.timeTool.pause'
-                          : 'widgets.timeTool.play'
-                      )}
-                      className={`${isCompact ? 'relative touch-target-expand ' : ''}flex items-center justify-center rounded-xl transition-all select-none active:scale-95 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed ${
-                        isRunning
-                          ? 'bg-slate-200/60 text-slate-500'
-                          : 'bg-brand-blue-primary text-white shadow-brand-blue-primary/20'
-                      }`}
-                      style={{
-                        width: ctrlSize,
-                        height: ctrlSize,
-                      }}
-                    >
-                      {isRunning ? (
-                        <Pause
-                          style={{ width: '50%', height: '50%' }}
-                          fill="currentColor"
-                        />
-                      ) : (
-                        <Play
-                          style={{
-                            width: '50%',
-                            height: '50%',
-                            marginLeft: '10%',
-                          }}
-                          fill="currentColor"
-                        />
-                      )}
-                    </button>
-                    <button
-                      {...tourAttr('time-tool.reset', widget.id, widget.type)}
-                      onClick={handleReset}
-                      className={`${isCompact ? 'relative touch-target-expand ' : ''}flex items-center justify-center rounded-xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-xs`}
-                      style={{
-                        width: ctrlSize,
-                        height: ctrlSize,
-                      }}
-                      aria-label={t('widgets.timeTool.reset')}
-                    >
-                      <RotateCcw style={{ width: '50%', height: '50%' }} />
-                    </button>
-                    {showAdjustControls && (
-                      <AdjustButton
-                        sign={1}
-                        step={effectiveAdjustStep}
-                        disabled={displayTime >= TIME_TOOL_MAX_DURATION_SECONDS}
-                        anchor={tourAttr(
-                          'time-tool.add-time',
-                          widget.id,
-                          widget.type
-                        )}
-                        ariaLabel={t('widgets.timeTool.addTime')}
-                        onAdjust={adjustTime}
-                        size={ctrlSize}
-                        expandHitArea={isCompact}
-                      />
-                    )}
+                    {subtractButton}
+                    {startPauseButton}
+                    {resetButton}
+                    {addButton}
                   </div>
-                </div>
+                )}
               </div>
+
+              {isVisual && subtractButton && (
+                <div
+                  className="absolute z-10 flex"
+                  style={{ bottom: cornerOffset, left: cornerOffset }}
+                >
+                  {subtractButton}
+                </div>
+              )}
+              {isVisual && addButton && (
+                <div
+                  className="absolute z-10 flex"
+                  style={{ bottom: cornerOffset, right: cornerOffset }}
+                >
+                  {addButton}
+                </div>
+              )}
             </>
           )}
         </div>
