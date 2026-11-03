@@ -22,16 +22,6 @@ type DrawState = Pick<
   | 'jigsawExpertGroups'
 >;
 
-const FRESH_DRAW: DrawState = {
-  lastResult: null,
-  remainingStudents: [],
-  doneNames: [],
-  lockedNames: [],
-  unassignedNames: [],
-  jigsawHomeGroups: null,
-  jigsawExpertGroups: null,
-};
-
 // Carries the current draw over to the new names: a renamed station keeps its place, a removed one drops out, a new one joins.
 export const followDrawPatch = (
   config: RandomConfig,
@@ -97,6 +87,32 @@ export const followedStations = (
   return leader?.type === 'stations' ? leader : null;
 };
 
+// Without a Drive copy of the names, the board waits this long before taking the station names.
+const NAMES_RESTORE_WAIT_MS = 4000;
+
+// Old name to new name for each station still on the board; a name two stations share is left alone.
+export const renamesById = (
+  prev: ReadonlyMap<string, string>,
+  current: ReadonlyMap<string, string>
+): Map<string, string> => {
+  const count = (m: ReadonlyMap<string, string>) => {
+    const c = new Map<string, number>();
+    for (const n of m.values()) c.set(n, (c.get(n) ?? 0) + 1);
+    return c;
+  };
+  const was = count(prev);
+  const now = count(current);
+  const rename = new Map<string, string>();
+  for (const [id, before] of prev) {
+    const after = current.get(id);
+    if (after === undefined || was.get(before) !== 1 || now.get(after) !== 1) {
+      continue;
+    }
+    rename.set(before, after);
+  }
+  return rename;
+};
+
 // Writes the followed Stations' names into the Randomizer, the same change "Send to Randomizer" makes.
 export const useNamesFromStations = (
   widget: WidgetData,
@@ -118,13 +134,16 @@ export const useNamesFromStations = (
   );
   const names = stations ? list.join('\n') : null;
   const stale =
-    !!names &&
+    names !== null &&
     (config.firstNames !== names ||
       (config.lastNames ?? '') !== '' ||
       config.rosterMode !== 'custom');
+  // A reloaded board's names arrive from Drive after the board; writing first would drop the saved draw.
+  const awaitingNames =
+    config.rosterMode === 'custom' && config.firstNames === undefined;
   const byId = sorted.map((st, i) => [st.id, list[i]] as const);
 
-  // The station names this Randomizer last took, by station id; only those carry a draw over.
+  // The station names this Randomizer last took, by station id; a renamed station carries its draw over.
   const synced = useRef<{
     names: string;
     byId: ReadonlyMap<string, string>;
@@ -137,27 +156,42 @@ export const useNamesFromStations = (
       return;
     }
     if (readOnly) return;
-    const prev = synced.current;
-    synced.current = { names, byId: current };
-    const carry = prev !== null && prev.names === config.firstNames;
-    const rename = new Map<string, string>();
-    if (prev) {
-      for (const [id, was] of prev.byId) {
-        const now = current.get(id);
-        if (now !== undefined) rename.set(was, now);
-      }
+    const write = () => {
+      const prev = synced.current;
+      synced.current = { names, byId: current };
+      const rename =
+        prev && prev.names === config.firstNames
+          ? renamesById(prev.byId, current)
+          : new Map<string, string>();
+      updateWidget(
+        widget.id,
+        {
+          config: {
+            ...followDrawPatch(config, rename, names ? names.split('\n') : []),
+            firstNames: names,
+            lastNames: '',
+            rosterMode: 'custom',
+          },
+        },
+        { skipHistory: true }
+      );
+    };
+    if (!awaitingNames) {
+      write();
+      return;
     }
-    updateWidget(widget.id, {
-      config: {
-        ...(carry
-          ? followDrawPatch(config, rename, names.split('\n'))
-          : FRESH_DRAW),
-        firstNames: names,
-        lastNames: '',
-        rosterMode: 'custom',
-      },
-    });
-  }, [stale, readOnly, names, byId, updateWidget, widget.id, config]);
+    const timer = setTimeout(write, NAMES_RESTORE_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [
+    stale,
+    readOnly,
+    awaitingNames,
+    names,
+    byId,
+    updateWidget,
+    widget.id,
+    config,
+  ]);
 
   return stations;
 };

@@ -4,7 +4,11 @@ import type { RandomConfig, WidgetData } from '@/types';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
 import { connectionsUi } from '@/context/connectionsUiStore';
-import { followDrawPatch, useNamesFromStations } from './useNamesFromStations';
+import {
+  followDrawPatch,
+  renamesById,
+  useNamesFromStations,
+} from './useNamesFromStations';
 import { RandomNamesFromStationsField } from './settingsFields';
 import randomSchema from './settings.schema';
 
@@ -57,15 +61,74 @@ describe('useNamesFromStations', () => {
     const r = random({ firstNames: 'Ann\nBo', lastNames: 'X' });
     mockBoard([stations, r]);
     renderHook(() => useNamesFromStations(r, true));
-    expect(updateWidget).toHaveBeenCalledWith('r1', {
-      config: expect.objectContaining({
-        firstNames: 'Station 1\nReading',
-        lastNames: '',
+    expect(updateWidget).toHaveBeenCalledWith(
+      'r1',
+      {
+        config: expect.objectContaining({
+          firstNames: 'Station 1\nReading',
+          lastNames: '',
+          rosterMode: 'custom',
+          lastResult: null,
+        }) as unknown,
+      },
+      { skipHistory: true }
+    );
+  });
+
+  it('waits for the names to come back from Drive before writing on a reloaded board', () => {
+    vi.useFakeTimers();
+    try {
+      const scrubbed = {
+        ...random({ rosterMode: 'custom' }),
+        config: { rosterMode: 'custom', mode: 'shuffle' },
+      } as unknown as WidgetData;
+      mockBoard([stations, scrubbed]);
+      const { rerender } = renderHook(
+        ({ w }) => useNamesFromStations(w, true),
+        { initialProps: { w: scrubbed } }
+      );
+      vi.advanceTimersByTime(1000);
+      expect(updateWidget).not.toHaveBeenCalled();
+      const restored = random({
         rosterMode: 'custom',
-        lastResult: null,
-        doneNames: [],
-      }) as unknown,
-    });
+        firstNames: 'Station 1\nReading',
+        lastResult: ['Reading', 'Station 1'],
+      });
+      mockBoard([stations, restored]);
+      rerender({ w: restored });
+      vi.advanceTimersByTime(10000);
+      expect(updateWidget).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('takes the station names after the wait when Drive has none', () => {
+    vi.useFakeTimers();
+    try {
+      const scrubbed = {
+        ...random(),
+        config: { rosterMode: 'custom' },
+      } as unknown as WidgetData;
+      mockBoard([stations, scrubbed]);
+      renderHook(() => useNamesFromStations(scrubbed, true));
+      vi.advanceTimersByTime(5000);
+      expect(updateWidget).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('clears the names when the Stations widget has no stations', () => {
+    const r = random({ firstNames: 'Ann', rosterMode: 'custom' });
+    const empty = { ...stations, config: { stations: [] } } as WidgetData;
+    mockBoard([empty, r]);
+    renderHook(() => useNamesFromStations(r, true));
+    expect(updateWidget).toHaveBeenCalledWith(
+      'r1',
+      { config: expect.objectContaining({ firstNames: '' }) as unknown },
+      { skipHistory: true }
+    );
   });
 
   it('keeps the draw when a station it already follows is renamed', () => {
@@ -92,13 +155,17 @@ describe('useNamesFromStations', () => {
     } as unknown as WidgetData;
     mockBoard([renamed, r]);
     rerender({ w: r });
-    expect(updateWidget).toHaveBeenCalledWith('r1', {
-      config: expect.objectContaining({
-        firstNames: 'Art\nReading Corner',
-        lastResult: ['Reading Corner', 'Art'],
-        doneNames: ['Reading Corner'],
-      }) as unknown,
-    });
+    expect(updateWidget).toHaveBeenCalledWith(
+      'r1',
+      {
+        config: expect.objectContaining({
+          firstNames: 'Art\nReading Corner',
+          lastResult: ['Reading Corner', 'Art'],
+          doneNames: ['Reading Corner'],
+        }) as unknown,
+      },
+      { skipHistory: true }
+    );
   });
 
   it('does nothing once the names already match', () => {
@@ -112,7 +179,7 @@ describe('useNamesFromStations', () => {
     expect(updateWidget).not.toHaveBeenCalled();
   });
 
-  it('does nothing with Connections off, without a Follow, read-only, or with no stations', () => {
+  it('does nothing with Connections off, without a Follow, or read-only', () => {
     const r = random();
     mockBoard([stations, r]);
     renderHook(() => useNamesFromStations(r, false));
@@ -120,10 +187,23 @@ describe('useNamesFromStations', () => {
     renderHook(() => useNamesFromStations(r, true));
     mockBoard([stations, r], [follow], { isActiveBoardReadOnly: true });
     renderHook(() => useNamesFromStations(r, true));
-    const empty = { ...stations, config: { stations: [] } } as WidgetData;
-    mockBoard([empty, r]);
-    renderHook(() => useNamesFromStations(r, true));
     expect(updateWidget).not.toHaveBeenCalled();
+  });
+});
+
+describe('renamesById', () => {
+  it('leaves a name two stations share alone', () => {
+    const prev = new Map([
+      ['a', 'Art'],
+      ['b', 'Art'],
+      ['c', 'Math'],
+    ]);
+    const current = new Map([
+      ['a', 'Art'],
+      ['b', 'Art S'],
+      ['c', 'Music'],
+    ]);
+    expect([...renamesById(prev, current)]).toEqual([['Math', 'Music']]);
   });
 });
 
