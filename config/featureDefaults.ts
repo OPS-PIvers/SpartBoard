@@ -34,7 +34,6 @@ import {
   Music2,
   Printer,
   RefreshCw,
-  Ruler,
   Send,
   Share2,
   Smartphone,
@@ -1301,18 +1300,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: LayoutGrid,
     description:
       'The widget library fills more of the screen so more widgets show at once.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Teachers still turn it on for themselves in Behavior; the flag only hides that switch.
-  'alignment-guides': {
-    label: 'Alignment guides',
-    icon: Ruler,
-    description:
-      'Lines show when a widget lines up with or is evenly spaced from others.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
