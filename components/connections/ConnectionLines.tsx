@@ -37,14 +37,20 @@ export const ConnectionLines: React.FC<{ dashboard: Dashboard }> = ({
       <polyline
         points={points.map((p) => `${p.x},${p.y}`).join(' ')}
         fill="none"
-        stroke="#2d3f89"
+        stroke="var(--spart-primary, #2d3f89)"
         strokeWidth={3}
         strokeDasharray="8 6"
         strokeLinejoin="round"
         opacity={0.85}
       />
       {points.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={6} fill="#2d3f89" />
+        <circle
+          key={i}
+          cx={p.x}
+          cy={p.y}
+          r={6}
+          fill="var(--spart-primary, #2d3f89)"
+        />
       ))}
     </svg>
   );

@@ -7,6 +7,7 @@ import {
   makeNameGroupsByCount,
   makeRestrictedGroups,
   makeRestrictedGroupsByCount,
+  safeSize,
 } from './groupMaker';
 
 const groupOf = (...names: string[]): RandomGroup => ({
@@ -587,5 +588,30 @@ describe('makeGroupsWithLockedCohorts (plan D10-D13)', () => {
     });
     expect(groups).toHaveLength(2);
     expect(groups.every((g) => g.names.length === 2)).toBe(true);
+  });
+});
+
+describe('non-finite group size', () => {
+  const students = ['a', 'b', 'c'].map(
+    (id) => ({ id, firstName: id, lastName: '' }) as Student
+  );
+
+  it('safeSize gives the stepper estimates a finite divisor', () => {
+    expect(safeSize(NaN)).toBe(1);
+    expect(safeSize(Infinity)).toBe(1);
+    expect(safeSize(0)).toBe(1);
+    expect(safeSize(4.7)).toBe(4);
+  });
+
+  it('makeNameGroups keeps every name when the size is NaN', () => {
+    const groups = makeNameGroups(['a', 'b', 'c'], NaN);
+    expect(groups.flatMap((g) => g.names).sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('makeRestrictedGroups places every student when the size is NaN or Infinity', () => {
+    for (const size of [NaN, Infinity]) {
+      const { groups } = makeRestrictedGroups(students, size);
+      expect(groups.flatMap((g) => g.studentIds)).toHaveLength(3);
+    }
   });
 });

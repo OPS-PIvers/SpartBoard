@@ -123,8 +123,6 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
   > Count prod quiz and video attempt records whose id doesn't match `studentUid` or whose `teacherUid` differs from the session's. Read-only; deleting needs my OK.
 - [ ] **PT-108 🤖 Activity Wall records from before the write checks** (optional, likely zero).
   > Count prod Activity Wall sessions whose owner uid is a student account, wall posts whose `id` field doesn't match their doc id, and photo, file or video posts whose `content` isn't their `storagePath`. Read-only; deleting needs my OK.
-- [ ] **PT-114 🤖 Project runs and uploads from before the write checks** (security batch 2C, optional, likely zero).
-  > On prod, count `project_runs` whose id doesn't start with `teacherUid + '_'`, and `project_uploads` Storage objects whose run doc is missing or whose path uid is an anonymous or student account. Read-only; deleting needs my OK.
 - [ ] **PT-65 🤖 Claude SDK 1.x smoke test** (F58, #4603).
   > Set one AI integration to a Claude model on dev, run it, then do the same on prod with me. Tell me if anything falls back to Gemini or web tour writing fails.
 - [ ] **PT-104 🤖 PLCs started by non-staff accounts** (security batch 1C, optional). New PLCs now need a staff account; older ones were not checked.
