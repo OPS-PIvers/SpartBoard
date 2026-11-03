@@ -376,7 +376,7 @@ describe('toSessionResultsState', () => {
   };
 
   it('maps question ids to the indexes the rules check', () => {
-    expect(toSessionResultsState(config, true)).toEqual({
+    expect(toSessionResultsState(config)).toEqual({
       hideResults: true,
       revealedQuestions: [1],
       lockedQuestions: [0],
@@ -385,9 +385,7 @@ describe('toSessionResultsState', () => {
   });
 
   it('defaults to visible and unlocked', () => {
-    expect(
-      toSessionResultsState({ questions: config.questions }, true)
-    ).toEqual({
+    expect(toSessionResultsState({ questions: config.questions })).toEqual({
       hideResults: false,
       revealedQuestions: [],
       lockedQuestions: [],
@@ -405,17 +403,8 @@ describe('syncSessionResultsState', () => {
 
   beforeEach(() => mockSetDoc.mockClear());
 
-  it('keeps hide and lock off phones for a teacher without poll-pro', async () => {
-    await syncSessionResultsState('teacher-1', 'K3F9Q', config, false);
-    expect(mockSetDoc).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ hideResults: false, lockedQuestions: [] }),
-      { merge: true }
-    );
-  });
-
-  it('syncs hide and lock with poll-pro', async () => {
-    await syncSessionResultsState('teacher-1', 'K3F9Q', config, true);
+  it('syncs hide and lock', async () => {
+    await syncSessionResultsState('teacher-1', 'K3F9Q', config);
     expect(mockSetDoc).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ hideResults: true, lockedQuestions: [0] }),
@@ -439,8 +428,8 @@ describe('startPollSession results state', () => {
       .reverse()
       .find((data) => 'revealedQuestions' in data);
 
-  it('resume keeps reveals and locks for a poll-pro teacher', async () => {
-    const next = await startPollSession(hidden, 'teacher-1', 'resume', true);
+  it('resume keeps reveals and locks', async () => {
+    const next = await startPollSession(hidden, 'teacher-1', 'resume');
     expect(next.lockedQuestionIds).toEqual(hidden.lockedQuestionIds);
     expect(written()).toMatchObject({
       hideResults: true,
@@ -450,19 +439,10 @@ describe('startPollSession results state', () => {
   });
 
   it('fresh clears reveals and locks', async () => {
-    const next = await startPollSession(hidden, 'teacher-1', 'fresh', true);
+    const next = await startPollSession(hidden, 'teacher-1', 'fresh');
     expect(next.revealedQuestionIds).toEqual([]);
     expect(next.lockedQuestionIds).toEqual([]);
     expect(written()).toMatchObject({
-      revealedQuestions: [],
-      lockedQuestions: [],
-    });
-  });
-
-  it('a teacher without poll-pro always opens a visible, unlocked session', async () => {
-    await startPollSession(hidden, 'teacher-1', 'resume');
-    expect(written()).toMatchObject({
-      hideResults: false,
       revealedQuestions: [],
       lockedQuestions: [],
     });
@@ -489,23 +469,14 @@ describe('toSessionResultsState shown answers', () => {
   };
 
   it('writes no answers until a question is shown', () => {
-    expect(toSessionResultsState(config, true).shownAnswers).toEqual([]);
+    expect(toSessionResultsState(config).shownAnswers).toEqual([]);
   });
 
   it('writes only shown questions as question:option id keys', () => {
     expect(
-      toSessionResultsState({ ...config, answerShownQuestionIds: ['q1'] }, true)
+      toSessionResultsState({ ...config, answerShownQuestionIds: ['q1'] })
         .shownAnswers
     ).toEqual(['q1:b']);
-  });
-
-  it('never writes answers without the flag', () => {
-    expect(
-      toSessionResultsState(
-        { ...config, answerShownQuestionIds: ['q1'] },
-        false
-      ).shownAnswers
-    ).toEqual([]);
   });
 
   it('keeps correct flags out of the session questions', () => {
@@ -533,25 +504,10 @@ describe('toSessionResultsState shown answers', () => {
       options: [{ id: 'a', label: '1' }],
     });
   });
-
-  it('sends a rating scale as plain options without the flag', () => {
-    const [q] = toSessionQuestions(
-      [
-        {
-          id: 'q-scale',
-          question: 'How sure?',
-          kind: 'scale',
-          options: [{ id: 'a', label: '1', votes: 0 }],
-        },
-      ],
-      false
-    );
-    expect(q.kind).toBeUndefined();
-  });
 });
 
 describe('word cloud and open response sessions', () => {
-  it('lists text questions for the rules only with the flag', async () => {
+  it('lists text questions for the rules', async () => {
     const config: PollConfig = {
       joinCode: 'K3F9Q',
       questions: [
@@ -564,19 +520,13 @@ describe('word cloud and open response sessions', () => {
         { id: 'q3', question: 'Why?', kind: 'text', options: [] },
       ],
     };
-    await startPollSession(config, 'teacher-1', 'resume', true);
+    await startPollSession(config, 'teacher-1', 'resume');
     expect(mockSetDoc).toHaveBeenLastCalledWith(
       expect.anything(),
       expect.objectContaining({
         optionCounts: [1, 0, 0],
         textQuestions: [1, 2],
       }),
-      { merge: true }
-    );
-    await startPollSession(config, 'teacher-1', 'resume', false);
-    expect(mockSetDoc).toHaveBeenLastCalledWith(
-      expect.anything(),
-      expect.objectContaining({ textQuestions: [] }),
       { merge: true }
     );
   });

@@ -92,43 +92,29 @@ export const aggregateVotes = (
 
 /** Strip vote counts — participants never need them to render their ballot. */
 export const toSessionQuestions = (
-  questions: PollQuestion[],
-  /** Without the poll-pro flag phones get plain options, matching the board. */
-  pollPro = true
+  questions: PollQuestion[]
 ): PollSessionQuestion[] =>
   questions.map((q) => ({
     id: q.id,
     question: q.question,
     options: q.options.map((o) => ({ id: o.id, label: o.label })),
-    ...(pollPro && q.kind === 'scale'
+    ...(q.kind === 'scale'
       ? {
           kind: 'scale' as const,
           scaleLow: q.scaleLow ?? '',
           scaleHigh: q.scaleHigh ?? '',
         }
       : {}),
-    ...(pollPro && (q.kind === 'words' || q.kind === 'text')
-      ? { kind: q.kind }
-      : {}),
+    ...(q.kind === 'words' || q.kind === 'text' ? { kind: q.kind } : {}),
   }));
 
 /** The session-doc mirror of the teacher's reveal and lock choices, keyed by question index. */
 export const toSessionResultsState = (
-  config: PollConfig,
-  /** Without the poll-pro flag the session always shows results and never locks. */
-  pollPro: boolean
+  config: PollConfig
 ): Pick<
   PollSessionDoc,
   'hideResults' | 'revealedQuestions' | 'lockedQuestions' | 'shownAnswers'
 > => {
-  if (!pollPro) {
-    return {
-      hideResults: false,
-      revealedQuestions: [],
-      lockedQuestions: [],
-      shownAnswers: [],
-    };
-  }
   const questions = getPollQuestions(config);
   const indexesOf = (ids: string[] | undefined): number[] => {
     const wanted = new Set(ids ?? []);
@@ -168,8 +154,7 @@ const writeSessionDoc = async (
   teacherUid: string,
   code: string,
   config: PollConfig,
-  state: { active: boolean; startedAt: number | null },
-  pollPro = false
+  state: { active: boolean; startedAt: number | null }
 ): Promise<number> => {
   const questions = getPollQuestions(config);
   const currentQuestionIndex = clampQuestionIndex(
@@ -180,16 +165,14 @@ const writeSessionDoc = async (
     id: code,
     teacherUid,
     code,
-    questions: toSessionQuestions(questions, pollPro),
+    questions: toSessionQuestions(questions),
     optionCounts: questions.map((q) => q.options.length),
-    textQuestions: pollPro
-      ? questions.flatMap((q, i) => (isTextQuestion(q) ? [i] : []))
-      : [],
+    textQuestions: questions.flatMap((q, i) => (isTextQuestion(q) ? [i] : [])),
     currentQuestionIndex,
     active: state.active,
     startedAt: state.startedAt,
     updatedAt: Date.now(),
-    ...toSessionResultsState(config, pollPro),
+    ...toSessionResultsState(config),
   };
   await setDoc(
     doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, code)),
@@ -278,9 +261,7 @@ export const retirePollSession = async (
 export const startPollSession = async (
   config: PollConfig,
   teacherUid: string,
-  mode: 'fresh' | 'resume',
-  /** The starter has the poll-pro flag, so hidden results and locks reach phones. */
-  pollPro = false
+  mode: 'fresh' | 'resume'
 ): Promise<PollConfig> => {
   const rotate = mode === 'fresh' && !!config.lastPollSessionId;
   const code =
@@ -296,13 +277,10 @@ export const startPollSession = async (
           hiddenResponses: [],
         }
       : config;
-  const currentQuestionIndex = await writeSessionDoc(
-    teacherUid,
-    code,
-    base,
-    { active: true, startedAt: Date.now() },
-    pollPro
-  );
+  const currentQuestionIndex = await writeSessionDoc(teacherUid, code, base, {
+    active: true,
+    startedAt: Date.now(),
+  });
   const previousCode = config.joinCode;
   const previousOwner = config.lastPollSessionOwnerUid ?? teacherUid;
   if (
@@ -384,13 +362,11 @@ export const setSessionQuestionIndex = async (
 export const syncSessionResultsState = async (
   teacherUid: string,
   sessionId: string,
-  config: PollConfig,
-  /** The syncing teacher has the poll-pro flag; without it phones get plain results. */
-  pollPro: boolean
+  config: PollConfig
 ): Promise<void> => {
   await setDoc(
     doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, sessionId)),
-    { ...toSessionResultsState(config, pollPro), updatedAt: Date.now() },
+    { ...toSessionResultsState(config), updatedAt: Date.now() },
     { merge: true }
   );
 };

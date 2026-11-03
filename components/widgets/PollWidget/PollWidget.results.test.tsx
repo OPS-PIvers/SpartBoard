@@ -38,7 +38,6 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 const mockUpdateWidget = vi.fn();
-let flagOn = true;
 
 const makeWidget = (config: PollConfig): WidgetData => ({
   id: 'poll-1',
@@ -77,7 +76,6 @@ const lastConfig = (): PollConfig =>
 describe('PollWidget results controls', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    flagOn = true;
     liveVotes = [];
     vi.mocked(useGlobalStyle).mockReturnValue({
       ...DEFAULT_GLOBAL_STYLE,
@@ -89,9 +87,7 @@ describe('PollWidget results controls', () => {
     vi.mocked(useActiveBoardLinkedShareId).mockReturnValue(null);
     (useAuth as Mock).mockReturnValue({
       user: { uid: 'teacher-1' },
-      canAccessFeature: vi.fn((id: string) =>
-        id === 'poll-pro' ? flagOn : true
-      ),
+      canAccessFeature: vi.fn(() => true),
     });
     mockSetDoc.mockResolvedValue(undefined);
     mockOnSnapshot.mockImplementation(
@@ -132,19 +128,6 @@ describe('PollWidget results controls', () => {
     expect(screen.getByText('3 (75%)')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Hide results/ }));
     expect(lastConfig().revealedQuestionIds).toEqual([]);
-  });
-
-  it('keeps the old always-visible results without the flag', () => {
-    flagOn = false;
-    render(
-      <PollWidget
-        widget={makeWidget({ questions: twoQuestions, hideResults: true })}
-      />
-    );
-    expect(screen.getByText('3 (75%)')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /Show results/ })
-    ).not.toBeInTheDocument();
   });
 
   it('shows the answered count and locks voting during a live session', () => {
@@ -298,15 +281,6 @@ describe('PollWidget results controls', () => {
         screen.queryByTestId('poll-scale-average')
       ).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: '2' })).toBeInTheDocument();
-    });
-
-    it('falls back to the numbered list without the flag', () => {
-      flagOn = false;
-      render(<PollWidget widget={makeWidget({ questions: scale })} />);
-      expect(
-        screen.queryByTestId('poll-scale-results')
-      ).not.toBeInTheDocument();
-      expect(screen.getByText('3 (60%)')).toBeInTheDocument();
     });
   });
 
