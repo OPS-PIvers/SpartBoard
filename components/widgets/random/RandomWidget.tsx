@@ -59,6 +59,7 @@ import {
   makeNameGroupsByCount,
   makeRestrictedGroups,
   makeRestrictedGroupsByCount,
+  safeSize,
 } from './groupMaker';
 import {
   toggleLockedName,
@@ -438,7 +439,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // values. groupSize already has its own default applied above.
   const estimatedHomeGroupCount = Math.max(
     1,
-    Math.ceil(students.length / Math.max(1, groupSize))
+    Math.ceil(students.length / safeSize(groupSize))
   );
   // Jigsaw HOME stepper drives a target home-group COUNT (parallel to the
   // EXPERT stepper). Fall back to the count implied by `groupSize` for
