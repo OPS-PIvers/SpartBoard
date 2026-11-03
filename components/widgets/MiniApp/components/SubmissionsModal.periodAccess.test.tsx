@@ -1,4 +1,4 @@
-// Per-period Mini-app sessions: the submissions view carries one chip per period plus
+// Per-period Mini-app sessions: the results view carries one chip per period plus
 // Start/Pause all, writing through to the session and its archive row (a distinct id).
 import '@testing-library/jest-dom';
 import React from 'react';
@@ -7,8 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MiniAppSession, PeriodAccess } from '@/types';
 import { SubmissionsModal } from './SubmissionsModal';
 
-const { batchUpdate, batchCommit, flag } = vi.hoisted(() => ({
-  flag: { on: false },
+const { batchUpdate, batchCommit } = vi.hoisted(() => ({
   batchUpdate: vi.fn(),
   batchCommit: vi.fn(() => Promise.resolve()),
 }));
@@ -45,7 +44,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: 'org',
     featurePermissions: [],
-    canAccessFeature: (id: string) => id === 'monitor-parity' && flag.on,
+    canAccessFeature: () => false,
   }),
 }));
 vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
@@ -79,6 +78,7 @@ const session = (over: Partial<MiniAppSession> = {}): MiniAppSession => ({
   assignmentId: 'asg-1',
   appInContent: true,
   accessMode: 'assessment',
+  resultsVersion: 2,
   periodAccess: {
     'cl-1': period({ label: 'P1' }),
     'cl-3': period({ label: 'P3', state: 'open' }),
@@ -98,7 +98,6 @@ const renderModal = (s: MiniAppSession) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  flag.on = false;
 });
 
 describe('SubmissionsModal — per-period access', () => {
@@ -146,12 +145,11 @@ describe('SubmissionsModal — per-period access', () => {
     expect(screen.queryByRole('group', { name: 'Class periods' })).toBeNull();
   });
 
-  it('shows the Quiz-style monitor only with monitor-parity on', () => {
+  it('shows the Quiz-style monitor for older submissions', () => {
     const { unmount } = renderModal(session());
     expect(screen.queryByRole('combobox', { name: 'Class' })).toBeNull();
     unmount();
-    flag.on = true;
-    renderModal(session());
+    renderModal(session({ resultsVersion: undefined }));
     expect(screen.getByRole('combobox', { name: 'Class' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Start all' })).toBeNull();
   });

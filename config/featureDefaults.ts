@@ -1144,17 +1144,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'monitor-parity': {
-    label: 'Matching assignment monitors',
-    icon: LayoutDashboard,
-    description:
-      'One class picker and the Quiz monitor layout on every assignment.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'quiz-submit-for-student': {
     label: 'Submit quiz for a student',
     icon: Send,

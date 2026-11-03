@@ -4,7 +4,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import type { FlashcardSession } from '@/types';
 import type { FlashcardResultRecord } from '@/utils/flashcardResults';
 import { FlashcardStudyResults } from './FlashcardStudyResults';
-import { FlashcardCheckReview } from './FlashcardCheckReview';
 
 const CARDS = [
   { id: 'c1', term: 'el perro', definition: 'dog' },
@@ -175,75 +174,5 @@ describe('FlashcardStudyResults Speaking view', () => {
     expect(screen.getByText('Words to check (1)')).toBeTruthy();
     expect(screen.getByText('5/5')).toBeTruthy();
     expect(screen.getByText('house')).toBeTruthy();
-  });
-});
-
-describe('FlashcardCheckReview', () => {
-  const checkSession = session({ kind: 'check', checkMode: 'write' });
-  const results: FlashcardResultRecord[] = [
-    {
-      studentUid: 'a',
-      classId: 'class-1',
-      submittedAt: 10,
-      score: 1,
-      total: 2,
-      answerLog: [
-        { cardId: 'c1', response: 'dog', correct: true },
-        { cardId: 'c2', response: 'tune', correct: false },
-      ],
-      flags: [{ cardId: 'c2', response: 'tune' }],
-    },
-    { studentUid: 'b', classId: 'class-1' },
-  ];
-
-  it('separates submitted students from in-progress ones', () => {
-    render(
-      <FlashcardCheckReview
-        session={checkSession}
-        results={results}
-        nameFor={nameFor}
-        onResetStudent={vi.fn()}
-        onResolveFlag={vi.fn().mockResolvedValue(undefined)}
-      />
-    );
-    expect(screen.getByText(/1\/2 · submitted/)).toBeTruthy();
-    expect(screen.getByText('In progress')).toBeTruthy();
-    expect(screen.getByText('Flags to review')).toBeTruthy();
-  });
-
-  it('accepts a flagged answer', () => {
-    const onResolveFlag = vi.fn().mockResolvedValue(undefined);
-    render(
-      <FlashcardCheckReview
-        session={checkSession}
-        results={results}
-        nameFor={nameFor}
-        onResetStudent={vi.fn()}
-        onResolveFlag={onResolveFlag}
-      />
-    );
-    expect(screen.getByText(/Wrote “tune” · expected “song”/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
-    expect(onResolveFlag).toHaveBeenCalledWith('a', 'c2', true);
-  });
-
-  it('resets a student from the row menu', () => {
-    const onResetStudent = vi.fn();
-    render(
-      <FlashcardCheckReview
-        session={checkSession}
-        results={[results[0]]}
-        nameFor={nameFor}
-        onResetStudent={onResetStudent}
-        onResolveFlag={vi.fn().mockResolvedValue(undefined)}
-      />
-    );
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Actions for Ada Lovelace' })
-    );
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: 'Reset this student' })
-    );
-    expect(onResetStudent).toHaveBeenCalledWith('a');
   });
 });

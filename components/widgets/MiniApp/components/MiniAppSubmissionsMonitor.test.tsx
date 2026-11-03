@@ -1,4 +1,4 @@
-// Older Mini App submissions behind monitor-parity: names, Not started / Done counts, class picker.
+// Older Mini App submissions on the Quiz monitor layout: names, Not started / Done counts, class picker.
 import '@testing-library/jest-dom';
 import React from 'react';
 import {

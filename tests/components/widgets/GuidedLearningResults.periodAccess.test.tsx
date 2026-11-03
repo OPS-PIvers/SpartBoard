@@ -1,4 +1,4 @@
-// Per-period GL sessions: the results view carries one chip per period plus Start/Pause all,
+// Per-period GL sessions: the results view carries a period bar with Start and Pause,
 // kept live from the session doc, and writes through to the session and its hub mirror.
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -114,23 +114,22 @@ beforeEach(() => {
 });
 
 describe('GuidedLearningResults — per-period access', () => {
-  it('shows a chip per period with Start and Pause all', async () => {
+  it('opens on the first period with its own Start and no Start all', async () => {
     renderResults();
     expect(
-      await screen.findByRole('button', { name: /Start P1, now Closed/ })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Pause P3, now Live/ })
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start all' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Pause all' })).toBeVisible();
+      (
+        await screen.findByRole<HTMLSelectElement>('combobox', {
+          name: 'Class',
+        })
+      ).value
+    ).toBe('cl-1');
+    expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start all' })).toBeNull();
   });
 
   it('starts one period on the session and its hub mirror', async () => {
     renderResults();
-    fireEvent.click(
-      await screen.findByRole('button', { name: /Start P1, now Closed/ })
-    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
     await waitFor(() => expect(batchCommit).toHaveBeenCalledTimes(1));
     const refs = batchUpdate.mock.calls.map((c) => c[0] as string);
     expect(refs).toEqual([
@@ -145,7 +144,7 @@ describe('GuidedLearningResults — per-period access', () => {
 
   it('follows the session live', async () => {
     renderResults();
-    await screen.findByRole('group', { name: 'Class periods' });
+    await screen.findByRole('button', { name: 'Start' });
     await waitFor(() => expect(onSnapshot).toHaveBeenCalled());
     const listener = (onSnapshot as unknown as ReturnType<typeof vi.fn>).mock
       .calls[0] as [string, (s: { data: () => unknown }) => void];
@@ -161,16 +160,14 @@ describe('GuidedLearningResults — per-period access', () => {
         }),
       })
     );
-    expect(
-      screen.getByRole('button', { name: /Pause P1, now Live/ })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
   });
 
-  it('shows no chips and opens no listener on a legacy session', async () => {
+  it('shows no period controls and opens no listener on a legacy session', async () => {
     sessionData.current = { teacherUid: 'teacher-1', classIds: ['cl-1'] };
     renderResults();
-    await screen.findByText(/No responses yet/);
-    expect(screen.queryByRole('group', { name: 'Class periods' })).toBeNull();
+    await screen.findByRole('button', { name: /Done/ });
+    expect(screen.queryByRole('button', { name: 'Start' })).toBeNull();
     expect(onSnapshot).not.toHaveBeenCalled();
   });
 });

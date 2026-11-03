@@ -1,7 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { updateDoc } from 'firebase/firestore';
+import { render, screen } from '@testing-library/react';
 import type {
   PeriodAccess,
   VideoActivityResponse,
@@ -42,8 +41,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: 'org',
     featurePermissions: [],
-    // The monitor-parity layout has its own tests.
-    canAccessFeature: (id: string) => id !== 'monitor-parity',
+    canAccessFeature: () => true,
   }),
 }));
 vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
@@ -85,18 +83,6 @@ const session = (over: Partial<VideoActivitySession> = {}) =>
     ...over,
   }) as VideoActivitySession;
 
-const response = (
-  over: Partial<VideoActivityResponse>
-): VideoActivityResponse => ({
-  studentUid: 'u1',
-  pin: '1234',
-  joinedAt: 1,
-  answers: [],
-  completedAt: null,
-  score: null,
-  ...over,
-});
-
 const renderMonitor = (
   s: VideoActivitySession,
   responses: VideoActivityResponse[] = []
@@ -113,33 +99,6 @@ const renderMonitor = (
 
 describe('VideoActivityLiveMonitor — per-period access', () => {
   beforeEach(() => vi.clearAllMocks());
-
-  it('shows a chip per period and Start/Pause all in place of Pause', () => {
-    renderMonitor(session());
-    expect(
-      screen.getByRole('button', { name: /Start P1, now Closed/ })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Pause P3, now Live/ })
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start all' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
-  });
-
-  it('lets a student waiting in a closed period in, and only them', async () => {
-    renderMonitor(session(), [
-      response({ studentUid: 'u1', pin: '1111', classId: 'cl-1' }),
-      response({ studentUid: 'u3', pin: '3333', classId: 'cl-3' }),
-    ]);
-    const buttons = screen.getAllByRole('button', { name: /^Let .* in now$/ });
-    expect(buttons).toHaveLength(1);
-    fireEvent.click(buttons[0]);
-    await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    const [ref, path] = (updateDoc as unknown as ReturnType<typeof vi.fn>).mock
-      .calls[0] as [string, { segments: string[] }];
-    expect(ref).toBe('video_activity_sessions/s1');
-    expect(path.segments).toEqual(['studentAccess', 'u1']);
-  });
 
   it('keeps the single Pause button on a legacy session', () => {
     renderMonitor(session({ periodAccess: undefined, accessMode: undefined }));
