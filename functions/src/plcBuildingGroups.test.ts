@@ -558,6 +558,91 @@ describe('auto-roster identity checks', () => {
   });
 });
 
+describe('createBuildingGroup lead binding', () => {
+  const base = {
+    orgId: ORG,
+    buildingId: 'middle',
+    name: 'OMS Staff',
+    coLeadEmails: [] as string[],
+    autoRoster: false,
+  };
+
+  // A tenant admin's invite for an address outside their verified domains, plus an Auth account with that email.
+  function outsiderSeed(): Record<string, StubData> {
+    const seed = rosterSeed();
+    seed['organizations/orono/members/victim@elsewhere.org'] = {
+      roleId: 'teacher',
+      status: 'active',
+    };
+    return seed;
+  }
+  function outsiderDeps(seed: Record<string, StubData>) {
+    const out = makeDeps(seed);
+    out.users.victim = {
+      email: 'victim@elsewhere.org',
+      emailVerified: true,
+      displayName: 'Victim',
+    };
+    return out;
+  }
+
+  it('rejects a lead or co-lead whose only tie is an email on another domain', async () => {
+    const { deps } = outsiderDeps(outsiderSeed());
+    await expect(
+      createBuildingGroup(deps, {
+        ...base,
+        leadEmail: 'victim@elsewhere.org',
+      })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    await expect(
+      createBuildingGroup(deps, {
+        ...base,
+        leadEmail: 'lead@orono.k12.mn.us',
+        coLeadEmails: ['victim@elsewhere.org'],
+      })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
+  it('rejects an unlinked account on a domain another org also verified', async () => {
+    const seed = outsiderSeed();
+    seed['organizations/orono/domains/d1'] = {
+      domain: '@elsewhere.org',
+      status: 'verified',
+    };
+    seed['organizations/acme/domains/d1'] = {
+      domain: '@elsewhere.org',
+      status: 'verified',
+    };
+    const { deps } = outsiderDeps(seed);
+    await expect(
+      createBuildingGroup(deps, { ...base, leadEmail: 'victim@elsewhere.org' })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
+  it('accepts an unlinked account on a domain only this org verified', async () => {
+    const seed = outsiderSeed();
+    seed['organizations/orono/domains/d1'] = {
+      domain: '@elsewhere.org',
+      status: 'verified',
+    };
+    const { stub, deps } = outsiderDeps(seed);
+    const { plcId } = await createBuildingGroup(deps, {
+      ...base,
+      leadEmail: 'victim@elsewhere.org',
+    });
+    expect(stub.get(`plcs/${plcId}`)!.leadUid).toBe('victim');
+  });
+
+  it('rejects a member doc linked to an account with a different email', async () => {
+    const seed = rosterSeed();
+    seed['organizations/orono/members/lead@orono.k12.mn.us'] = orgMember('t1');
+    const { deps } = makeDeps(seed);
+    await expect(
+      createBuildingGroup(deps, { ...base, leadEmail: 'lead@orono.k12.mn.us' })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+});
+
 describe('createBuildingGroup', () => {
   const payload = {
     orgId: ORG,

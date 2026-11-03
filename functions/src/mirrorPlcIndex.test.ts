@@ -22,6 +22,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
+  auth: vi.fn(),
   firestore: Object.assign(vi.fn(), {
     FieldValue: { serverTimestamp: () => ({ __serverTimestamp: true }) },
   }),
@@ -141,188 +142,166 @@ describe('discoveryOrgId — anti-forgery gate on the discovery mirror', () => {
 });
 
 // ---------------------------------------------------------------------------
-// mirrorPlcIndex handler — forgery-guard lead-email resolution
-//
-// The forgery guard verifies that the PLC's LEAD is actually a member of the
-// claimed orgId before writing it to the discovery mirror. It resolves the
-// lead's email from (a) the denormalized `memberEmails` map or (b) the
-// canonical `members` map. A regression where only (a) is checked causes
-// post-migration PLCs — which may have `members` but no `memberEmails` — to
-// have their orgId silently dropped to null in the discovery mirror, making
-// them invisible to same-org peers.
+// mirrorPlcIndex handler: the org guard reads the lead's email from Firebase
+// Auth, never from the client-written members map, and needs a staff doc.
 // ---------------------------------------------------------------------------
 
-/**
- * Minimal stub Firestore for the handler: captures `plcIndex/{id}.set()` calls
- * and answers `organizations/{orgId}/members/{email}.get()` queries.
- */
-function makeHandlerDb(opts: {
-  leadIsMember: boolean;
+interface HandlerOpts {
+  memberDocs: Record<string, Record<string, unknown>>;
   captured: { path: string; data: Record<string, unknown> }[];
-  queriedPaths?: string[];
-}) {
-  const docRef = (
-    path: string
-  ): {
-    get: () => Promise<{ exists: boolean }>;
-    set: (data: Record<string, unknown>) => Promise<void>;
-    delete: () => Promise<void>;
-  } => ({
+  queriedPaths: string[];
+  index?: Record<string, unknown>;
+}
+
+function makeHandlerDb(opts: HandlerOpts) {
+  const docRef = (path: string) => ({
     get: () => {
-      opts.queriedPaths?.push(path);
-      return Promise.resolve({ exists: opts.leadIsMember });
+      opts.queriedPaths.push(path);
+      const data = path.startsWith('plcIndex/')
+        ? opts.index
+        : opts.memberDocs[path];
+      return Promise.resolve({ exists: data !== undefined, data: () => data });
     },
-    set: (data) => {
+    set: (data: Record<string, unknown>) => {
       opts.captured.push({ path, data });
       return Promise.resolve();
     },
     delete: () => Promise.resolve(),
   });
-
   return {
     collection: (name: string) => ({
-      doc: (id: string) => {
-        const base = `${name}/${id}`;
-        return {
-          ...docRef(base),
-          collection: (sub: string) => ({
-            doc: (subId: string) => docRef(`${base}/${sub}/${subId}`),
-          }),
-        };
-      },
+      doc: (id: string) => docRef(`${name}/${id}`),
     }),
     doc: (path: string) => docRef(path),
   } as unknown as admin.firestore.Firestore;
 }
 
-/** Minimal Firestore event that drives the mirrorPlcIndex handler. */
 function makeEvent(
   plcId: string,
-  afterData: Record<string, unknown> | null
+  afterData: Record<string, unknown> | null,
+  beforeExists = false
 ): Parameters<typeof mirrorPlcIndex>[0] {
   return {
     params: { plcId },
     data: {
-      before: { exists: false, data: () => undefined },
+      before: { exists: beforeExists, data: () => undefined },
       after: {
         exists: afterData !== null,
         data: () => afterData ?? undefined,
+        createTime: { toMillis: () => 77 },
       },
     },
   } as unknown as Parameters<typeof mirrorPlcIndex>[0];
 }
 
-describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery guard', () => {
-  let captured: { path: string; data: Record<string, unknown> }[];
-  let queriedPaths: string[];
+const LEAD_EMAIL = 'lead@orono.k12.mn.us';
+const STAFF_DOC = `organizations/orono/members/${LEAD_EMAIL}`;
+
+function mockAuthUser(
+  user: { email?: string; emailVerified?: boolean } | null
+): void {
+  vi.mocked(admin.auth).mockReturnValue({
+    getUser: () =>
+      user
+        ? Promise.resolve(user)
+        : Promise.reject(
+            Object.assign(new Error('no user'), { code: 'auth/user-not-found' })
+          ),
+  } as unknown as ReturnType<typeof admin.auth>);
+}
+
+const forgedRoot = {
+  name: 'Forged PLC',
+  orgId: 'orono',
+  leadUid: 'u1',
+  memberUids: ['u1'],
+  memberEmails: { u1: LEAD_EMAIL },
+  members: {
+    u1: { uid: 'u1', email: LEAD_EMAIL, role: 'lead', status: 'active' },
+  },
+};
+
+describe('mirrorPlcIndex handler — org guard', () => {
+  let opts: HandlerOpts;
 
   beforeEach(() => {
-    captured = [];
-    queriedPaths = [];
-    // Wire the firebase-admin mock so admin.firestore() returns our stub.
-    vi.mocked(admin.firestore).mockReturnValue(
-      makeHandlerDb({
-        leadIsMember: true,
-        captured,
-        queriedPaths,
-      })
+    opts = {
+      memberDocs: { [STAFF_DOC]: { roleId: 'teacher', status: 'active' } },
+      captured: [],
+      queriedPaths: [],
+    };
+    vi.mocked(admin.firestore).mockReturnValue(makeHandlerDb(opts));
+    mockAuthUser({ email: 'Lead@Orono.k12.mn.us', emailVerified: true });
+  });
+
+  it('keeps orgId when the lead Auth email holds a staff doc', async () => {
+    await mirrorPlcIndex(makeEvent('plc-1', forgedRoot, true));
+    expect(opts.captured).toHaveLength(1);
+    expect(opts.captured[0].data.orgId).toBe('orono');
+    expect(opts.queriedPaths).toContain(STAFF_DOC);
+  });
+
+  it('drops orgId when the lead is anonymous even though the root names a real member', async () => {
+    mockAuthUser({ emailVerified: false });
+    await mirrorPlcIndex(makeEvent('plc-1', forgedRoot, true));
+    expect(opts.captured[0].data.orgId).toBeNull();
+    expect(opts.queriedPaths).not.toContain(STAFF_DOC);
+  });
+
+  it('drops orgId when the lead Auth email differs from the root', async () => {
+    mockAuthUser({ email: 'attacker@gmail.com', emailVerified: true });
+    await mirrorPlcIndex(makeEvent('plc-1', forgedRoot, true));
+    expect(opts.captured[0].data.orgId).toBeNull();
+    expect(opts.queriedPaths).toContain(
+      'organizations/orono/members/attacker@gmail.com'
     );
   });
 
-  it('preserves orgId in the mirror when the lead email comes from memberEmails (baseline)', async () => {
-    // Classic pre-migration PLC: memberEmails contains the uid→email map;
-    // no canonical members map. Baseline confirms the happy path still works.
-    const event = makeEvent('plc-1', {
-      name: 'Math PLC',
-      orgId: 'orono',
-      leadUid: 'u1',
-      memberUids: ['u1'],
-      memberEmails: { u1: 'lead@orono.k12.mn.us' },
-    });
-
-    await mirrorPlcIndex(event);
-
-    expect(captured).toHaveLength(1);
-    expect(captured[0].path).toBe('plcIndex/plc-1');
-    expect(captured[0].data.orgId).toBe('orono');
-    expect(queriedPaths).toContain(
-      'organizations/orono/members/lead@orono.k12.mn.us'
-    );
+  it('drops orgId for an unverified Auth email or a missing account', async () => {
+    mockAuthUser({ email: LEAD_EMAIL, emailVerified: false });
+    await mirrorPlcIndex(makeEvent('plc-1', forgedRoot, true));
+    mockAuthUser(null);
+    await mirrorPlcIndex(makeEvent('plc-1', forgedRoot, true));
+    expect(opts.captured.map((c) => c.data.orgId)).toEqual([null, null]);
   });
 
-  it(
-    'preserves orgId in the mirror when the lead email comes only from the ' +
-      'canonical members map (memberEmails absent — regression)',
-    async () => {
-      // Post-migration PLC: canonical `members` map holds the lead email but
-      // `memberEmails` was never populated (or was omitted on a Wave-1 create).
-      // Before the fix, the handler only read `memberEmails`, found nothing,
-      // and wrote orgId: null — making the PLC invisible in org discovery.
-      const event = makeEvent('plc-2', {
-        name: 'Science PLC',
-        orgId: 'orono',
-        leadUid: 'u1',
-        memberUids: ['u1'],
-        // No memberEmails field — only the canonical members map.
-        members: {
-          u1: {
-            uid: 'u1',
-            email: 'lead@orono.k12.mn.us',
-            displayName: 'Lead Teacher',
-            role: 'lead',
-            status: 'active',
-          },
-        },
-      });
-
-      await mirrorPlcIndex(event);
-
-      expect(captured).toHaveLength(1);
-      expect(captured[0].path).toBe('plcIndex/plc-2');
-      // orgId must be preserved — the lead IS a verified org member and the
-      // email came from the members map (the fallback path). Before the fix
-      // this would be null, silently hiding the PLC from org peers.
-      expect(captured[0].data.orgId).toBe('orono');
-      expect(queriedPaths).toContain(
-        'organizations/orono/members/lead@orono.k12.mn.us'
-      );
+  it('drops orgId when the lead member doc is a student or inactive', async () => {
+    for (const doc of [
+      { roleId: 'student', status: 'active' },
+      { roleId: 'teacher', status: 'inactive' },
+    ]) {
+      opts.memberDocs[STAFF_DOC] = doc;
+      await mirrorPlcIndex(makeEvent('plc-1', forgedRoot, true));
     }
-  );
+    expect(opts.captured.map((c) => c.data.orgId)).toEqual([null, null]);
+  });
 
-  it('still drops a forged orgId to null when the lead email resolves but the member check fails', async () => {
-    // Wire a db where the lead is NOT found in the org's members collection.
-    vi.mocked(admin.firestore).mockReturnValue(
-      makeHandlerDb({
-        leadIsMember: false,
-        captured,
-        queriedPaths,
-      })
-    );
+  it('fails the run on a transient Auth error instead of dropping orgId', async () => {
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser: () => Promise.reject(new Error('unavailable')),
+    } as unknown as ReturnType<typeof admin.auth>);
+    await expect(
+      mirrorPlcIndex(makeEvent('plc-1', forgedRoot, true))
+    ).rejects.toThrow('unavailable');
+    expect(opts.captured).toHaveLength(0);
+  });
 
-    const event = makeEvent('plc-3', {
-      name: 'Forged PLC',
-      orgId: 'wrong-org',
-      leadUid: 'u1',
-      memberUids: ['u1'],
-      members: {
-        u1: {
-          uid: 'u1',
-          email: 'lead@myschool.org',
-          role: 'lead',
-          status: 'active',
-        },
-      },
+  it('records the creator in plcCreators on create, bound to the root', async () => {
+    await mirrorPlcIndex(makeEvent('plc-1', forgedRoot));
+    expect(opts.captured[0]).toEqual({
+      path: 'plcCreators/plc-1',
+      data: { creatorUid: 'u1', rootCreateMs: 77 },
     });
+  });
 
-    await mirrorPlcIndex(event);
+  it('never records a creator from an update', async () => {
+    await mirrorPlcIndex(makeEvent('plc-1', forgedRoot, true));
+    expect(opts.captured.map((c) => c.path)).toEqual(['plcIndex/plc-1']);
+    expect(opts.captured[0].data).not.toHaveProperty('creatorUid');
+  });
 
-    expect(captured).toHaveLength(1);
-    expect(captured[0].path).toBe('plcIndex/plc-3');
-    // The lead's email resolved (from members map), but the org membership
-    // check failed → forgery guard must still null out the orgId.
-    expect(captured[0].data.orgId).toBeNull();
-    expect(queriedPaths).toContain(
-      'organizations/wrong-org/members/lead@myschool.org'
-    );
+  it('records the creator even for a root with no name', async () => {
+    await mirrorPlcIndex(makeEvent('plc-1', { leadUid: 'u1' }));
+    expect(opts.captured.map((c) => c.path)).toEqual(['plcCreators/plc-1']);
   });
 });
