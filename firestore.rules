@@ -308,7 +308,20 @@ service cloud.firestore {
     function isSubMonitor(s) {
       return signedIn() &&
              authUid() in s.get('subMonitorUids', []) &&
-             request.time.toMillis() < s.get('subMonitorUntil', 0);
+             request.time.toMillis() < s.get('subMonitorUntil', 0) &&
+             (s.get('launchedBy', null) == null || subShareLive(s.launchedBy.shareId));
+    }
+    // The teacher name a substitute share shows in /subs: absent, null or a short string.
+    function subNameOk(k) {
+      let v = incoming().get(k, '');
+      return v == null || (v is string && v.size() <= 100);
+    }
+    // A launched run stays readable only while its share is live, still names the sub, and the switch is on.
+    function subShareLive(id) {
+      let sh = get(/databases/$(database)/documents/shared_collections/$(id)).data;
+      return sh.get('expiresAt', 0) > request.time.toMillis() &&
+             request.auth.token.get('email', '').lower() in sh.get('subEmails', []) &&
+             get(/databases/$(database)/documents/admin_settings/sub_launch_as_teacher).data.get('enabled', false) == true;
     }
 
     // The monitor stamp is launchSubAssignmentV1's to write (it runs through the
@@ -1540,6 +1553,8 @@ service cloud.firestore {
           incoming().get('intendedMode', null) != 'substitute'
           || (
             incoming().get('plcId', null) == null
+            && isDistrictStaff()
+            && subNameOk('originalAuthorName')
             && isStr('buildingId')
             && incoming().buildingId.size() > 0
             && isNumber('expiresAt')
@@ -1590,7 +1605,8 @@ service cloud.firestore {
             incoming().get('subEmails', null) == existing().get('subEmails', null) &&
             incoming().get('driveGrants', null) == existing().get('driveGrants', null) &&
             incoming().get('sharedRosters', null) == existing().get('sharedRosters', null) &&
-            incoming().get('namesFileId', null) == existing().get('namesFileId', null)
+            incoming().get('namesFileId', null) == existing().get('namesFileId', null) &&
+            incoming().get('originalAuthorName', null) == existing().get('originalAuthorName', null)
           )
         ) &&
         (
@@ -1625,7 +1641,7 @@ service cloud.firestore {
       // Self-join: any signed-in teacher (not anonymous, not a student) may add ONLY their own uid to participants
       // (Synced/View-Only importers). Not allowed on substitute shares — subs
       // view via /subs without importing, so a self-join would be a phantom.
-      allow update: if signedIn() && notAnon() && !isStudentRoleUser() &&
+      allow update: if signedIn() && isDistrictStaff() &&
         existing().get('intendedMode', null) != 'substitute' &&
         // A View-Only link only ever makes a viewer; a Copy link makes no member.
         existing().get('intendedMode', null) != 'copy' &&
@@ -1762,7 +1778,9 @@ service cloud.firestore {
         && (
           incoming().intendedMode != 'substitute'
           || (
-            isStr('buildingId')
+            isDistrictStaff()
+            && subNameOk('hostDisplayName')
+            && isStr('buildingId')
             && incoming().buildingId.size() > 0
             && isNumber('expiresAt')
             && incoming().expiresAt > request.time.toMillis()
@@ -1873,7 +1891,7 @@ service cloud.firestore {
     // lives in /shared_boards; this doc holds the collection's name, board list and members.
     match /linked_collections/{linkId} {
       function lcTeacher() {
-        return signedIn() && notAnon() && !isStudentRoleUser();
+        return signedIn() && isDistrictStaff();
       }
       function lcShape() {
         return incoming().mode in ['synced', 'view-only']
