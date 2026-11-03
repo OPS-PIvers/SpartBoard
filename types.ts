@@ -10817,8 +10817,6 @@ export type GlobalFeature =
   | 'seating-chart-plans'
   /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
   | 'scoreboard-pro'
-  /** Poll: hide results until revealed, lock voting, answered count (docs/plans/shipped/POLL_PRO.md). */
-  | 'poll-pro'
   /** Sound widget target level, Too loud alert, calibration, quiet time goal and summary (pro-grade-2/NOISE_METER_PLAN.md). */
   | 'noise-meter-pro'
   /** Camera as a document camera: zoom, pan, rotate, freeze, draw, compare, resolution. */

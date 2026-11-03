@@ -29,10 +29,8 @@ interface UsePollSessionArgs {
   onConfigChange: (next: PollConfig) => void;
   /** The viewer owns the session, so the rules let it read typed answers. */
   readAnswers?: boolean;
-  /** Reset also ends a stopped session (poll-pro), so its votes can't come back. */
+  /** Reset also ends a stopped session, so its votes can't come back. */
   endSessionOnReset?: boolean;
-  /** The viewer has poll-pro, so hidden results and locks reach phones. */
-  pollPro?: boolean;
 }
 
 export interface PollResponse {
@@ -194,7 +192,6 @@ export const usePollSession = ({
   onConfigChange,
   readAnswers = false,
   endSessionOnReset = false,
-  pollPro = false,
 }: UsePollSessionArgs): UsePollSessionResult => {
   const activePollSessionId = config.activePollSessionId ?? null;
   const isLive = !!activePollSessionId;
@@ -280,15 +277,12 @@ export const usePollSession = ({
     (next: PollConfig) => {
       onConfigChange(next);
       if (resultsSessionId && teacherUid && resultsOwnerUid === teacherUid) {
-        void syncSessionResultsState(
-          teacherUid,
-          resultsSessionId,
-          next,
-          pollPro
-        ).catch((err) => logError('usePollSession.resultsState', err));
+        void syncSessionResultsState(teacherUid, resultsSessionId, next).catch(
+          (err) => logError('usePollSession.resultsState', err)
+        );
       }
     },
-    [onConfigChange, resultsSessionId, resultsOwnerUid, teacherUid, pollPro]
+    [onConfigChange, resultsSessionId, resultsOwnerUid, teacherUid]
   );
 
   const setRevealed = useCallback(
