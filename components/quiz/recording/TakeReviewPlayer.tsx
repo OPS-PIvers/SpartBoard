@@ -96,7 +96,7 @@ export const TakeReviewPlayer: React.FC<{
         }}
         onTimeUpdate={(e) => setElapsedMs(e.currentTarget.currentTime * 1000)}
       />
-      <button /* no-tour-anchor: per-take audio player */
+      <button
         type="button"
         onClick={toggle}
         aria-label={

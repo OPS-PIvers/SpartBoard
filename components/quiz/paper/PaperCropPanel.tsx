@@ -448,7 +448,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             <button
               type="button"
               disabled={busy !== null}
-              {...tourTypeAttr('quiz-grading.paper-mark-blank', 'quiz')}
+              {...tourTypeAttr('quiz-grading.paper-transcribe-blank', 'quiz')}
               onClick={() =>
                 void run('transcribe', () => actions.transcribeBlank(ref))
               }

@@ -14278,30 +14278,50 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Retry scan reading in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "persists": true,
     "keys": [
       "quiz"
     ],
     "routes": [
       {
         "surface": "board.paper-scan-panel",
-        "kind": "shared",
-        "path": []
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
   {
-    "id": "quiz-grading.paper-mark-blank",
-    "label": "Mark scan blank / transcribe in the Quiz grader",
+    "id": "quiz-grading.paper-transcribe-blank",
+    "label": "Transcribe a scan marked blank in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "persists": true,
     "keys": [
       "quiz"
     ],
     "routes": [
       {
         "surface": "board.paper-scan-panel",
-        "kind": "shared",
-        "path": []
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -14310,14 +14330,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Use new scan in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "persists": true,
     "keys": [
       "quiz"
     ],
     "routes": [
       {
         "surface": "board.paper-scan-panel",
-        "kind": "shared",
-        "path": []
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -14332,8 +14362,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.paper-scan-panel",
-        "kind": "shared",
-        "path": []
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -14348,8 +14387,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.paper-scan-panel",
-        "kind": "shared",
-        "path": []
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -14358,14 +14406,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Save transcript in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "persists": true,
     "keys": [
       "quiz"
     ],
     "routes": [
       {
         "surface": "board.paper-scan-panel",
-        "kind": "shared",
-        "path": []
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -14380,8 +14438,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.paper-scan-panel",
-        "kind": "shared",
-        "path": []
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -14390,14 +14457,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Connect Drive for the paper scan in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "persists": true,
     "keys": [
       "quiz"
     ],
     "routes": [
       {
         "surface": "board.paper-scan-panel",
-        "kind": "shared",
-        "path": []
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },

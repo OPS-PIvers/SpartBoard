@@ -3410,16 +3410,19 @@ export const TOUR_ANCHORS = {
     label: 'Retry scan reading in the Quiz grader',
     perWidgetType: true,
     panel: true,
+    persists: true,
   },
-  'quiz-grading.paper-mark-blank': {
-    label: 'Mark scan blank / transcribe in the Quiz grader',
+  'quiz-grading.paper-transcribe-blank': {
+    label: 'Transcribe a scan marked blank in the Quiz grader',
     perWidgetType: true,
     panel: true,
+    persists: true,
   },
   'quiz-grading.paper-use-new-scan': {
     label: 'Use new scan in the Quiz grader',
     perWidgetType: true,
     panel: true,
+    persists: true,
   },
   'quiz-grading.paper-edit-transcript': {
     label: 'Edit transcript in the Quiz grader',
@@ -3435,6 +3438,7 @@ export const TOUR_ANCHORS = {
     label: 'Save transcript in the Quiz grader',
     perWidgetType: true,
     panel: true,
+    persists: true,
   },
   'quiz-grading.paper-cancel': {
     label: 'Cancel transcript edit in the Quiz grader',
@@ -3445,6 +3449,7 @@ export const TOUR_ANCHORS = {
     label: 'Connect Drive for the paper scan in the Quiz grader',
     perWidgetType: true,
     panel: true,
+    persists: true,
   },
   'quiz-grading.empty-close': {
     label: 'Close button in the empty Quiz grader',
