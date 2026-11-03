@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Shuffle, RotateCcw } from 'lucide-react';
 import { WidgetData, RandomConfig } from '@/types';
 import { combineRosterNames } from '@/utils/rosterNameLists';
+import { getRandomInt } from '@/utils/randomHelpers';
 
 interface RemoteRandomControlProps {
   widget: WidgetData;
@@ -51,7 +52,11 @@ export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
         const ref = intervalRef.current;
         if (ref !== null) clearInterval(ref);
         intervalRef.current = null;
-        const finalPick = pool[Math.floor(Math.random() * pool.length)];
+        // A fresh round never opens with the name that closed the last one.
+        const fresh =
+          remaining.length > 0 ? pool : pool.filter((n) => n !== picked);
+        const candidates = fresh.length > 0 ? fresh : pool;
+        const finalPick = candidates[getRandomInt(candidates.length)];
         const newRemaining = pool.filter((n) => n !== finalPick);
         // Single write to shared state — the final result only
         updateWidget(widget.id, {
@@ -65,7 +70,7 @@ export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
         setIsPicking(false);
       }
     }, 60);
-  }, [config, isPicking, names, remaining, updateWidget, widget.id]);
+  }, [config, isPicking, names, picked, remaining, updateWidget, widget.id]);
 
   const resetPool = () => {
     updateWidget(widget.id, {

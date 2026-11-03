@@ -18,6 +18,7 @@ import {
   Student,
 } from '@/types';
 import { Button } from '@/components/common/Button';
+import { getRandomInt, shuffleArray } from '@/utils/randomHelpers';
 import { AbsentStudentsModal } from '@/components/common/AbsentStudentsModal';
 import { RandomClassContextButton } from './RandomClassContextButton';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
@@ -558,15 +559,6 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, [activeRoster, rosterMode]);
 
   const [absentModalOpen, setAbsentModalOpen] = useState(false);
-
-  const shuffle = <T,>(array: T[]): T[] => {
-    const newArr = [...array];
-    for (let i = newArr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
-    }
-    return newArr;
-  };
 
   const handleSelectPoolGroup = useCallback(
     (groupId: string | null) => {
@@ -1190,16 +1182,19 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
 
     if (mode === 'single') {
-      let pool =
-        remainingStudents.length > 0 ? remainingStudents : [...students];
-      pool = pool.filter((s) => students.includes(s));
-
+      let pool = remainingStudents.filter((s) => students.includes(s));
+      let candidates = pool;
       if (pool.length === 0) {
         pool = [...students];
+        // A fresh round never opens with the name that closed the last one.
+        const lastWinner =
+          typeof config.lastResult === 'string' ? config.lastResult : null;
+        const fresh = pool.filter((s) => s !== lastWinner);
+        candidates = fresh.length > 0 ? fresh : pool;
       }
 
-      const winnerIndexInPool = Math.floor(Math.random() * pool.length);
-      const winnerName = pool[winnerIndexInPool];
+      const winnerName = candidates[getRandomInt(candidates.length)];
+      const winnerIndexInPool = pool.indexOf(winnerName);
       const nextRemaining = pool.filter((_, i) => i !== winnerIndexInPool);
       const finish = () => {
         pendingFinishRef.current = null;
@@ -1498,7 +1493,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // shuffle the rest.
             result = shuffleWithLocks(existing, lockedNames);
           } else {
-            result = shuffle(students);
+            result = shuffleArray(students);
           }
         } else {
           const existingGroups = groupsFromDisplay;

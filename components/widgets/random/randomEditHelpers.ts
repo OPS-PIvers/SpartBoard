@@ -1,4 +1,5 @@
 import { RandomGroup } from '@/types';
+import { shuffleArray } from '@/utils/randomHelpers';
 
 export const UNASSIGNED_ZONE_ID = '__unassigned__';
 
@@ -147,17 +148,14 @@ export function shuffleWithLocks(
       unlocked.push(name);
     }
   });
-  for (let i = unlocked.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [unlocked[i], unlocked[j]] = [unlocked[j], unlocked[i]];
-  }
+  const shuffled = shuffleArray(unlocked);
   const result: string[] = [];
   let unlockedIdx = 0;
   for (let i = 0; i < current.length; i++) {
     if (lockedSlots.has(i)) {
       result.push(lockedSlots.get(i) as string);
     } else {
-      result.push(unlocked[unlockedIdx++]);
+      result.push(shuffled[unlockedIdx++]);
     }
   }
   return result;
