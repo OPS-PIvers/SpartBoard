@@ -3,6 +3,7 @@ import { WidgetData } from '@/types';
 import { widgetRefRegistry, setWidgetOverride } from './widgetRefRegistry';
 import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { Z_INDEX } from '@/config/zIndex';
+import { useGroupDragPositions } from './groupDragPositions';
 import { getWorldBounds, type Bounds } from '@/utils/zoomPanMath';
 
 interface GroupBoundingBoxProps {
@@ -89,7 +90,18 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
     };
   }, []);
 
-  const bbox = groupWidgets.length > 0 ? computeBBox(groupWidgets) : null;
+  // Follow a drag of exactly these widgets; another group's drag leaves this box alone.
+  const dragPositions = useGroupDragPositions();
+  const following =
+    !!dragPositions && groupWidgets.every((w) => dragPositions.has(w.id));
+  const bbox =
+    groupWidgets.length === 0
+      ? null
+      : computeBBox(
+          following
+            ? groupWidgets.map((w) => ({ ...w, ...dragPositions.get(w.id) }))
+            : groupWidgets
+        );
 
   const handleResizeStart = useCallback(
     (e: React.PointerEvent, corner: 'se' | 'sw' | 'ne' | 'nw') => {
