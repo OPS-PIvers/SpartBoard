@@ -14,7 +14,12 @@ import { assertAccess, MAX_SLIDE_BYTES } from './glTools';
 import { OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 import { isWebTour, isWebTourSnapshot } from './webTours';
 import { isHardTextHit, webTourTextHits } from './webTourStudentData';
-import { stepFixes, type FixRun, type StepFix } from './webTourFixes';
+import {
+  readableFixLocator,
+  stepFixes,
+  type FixRun,
+  type StepFix,
+} from './webTourFixes';
 
 // Must match components/tours/webTours.ts and functions/src/glTours.ts.
 export const WEB_TOURS = 'building_web_tours';
@@ -213,7 +218,7 @@ export function publicWebStep(step: WebStep, index: number, fix?: StepFix) {
       ? {
           suggested_fix: {
             // Never a page title: it can name the student whose page it was.
-            locator: readableClues(fix.locator, false),
+            locator: readableClues(readableFixLocator(fix), false),
             changed: changedClues(web?.locator ?? {}, fix.locator),
             source: fix.source,
             runs: fix.count,

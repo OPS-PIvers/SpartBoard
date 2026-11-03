@@ -26,6 +26,7 @@ import {
   readSet,
   rewriteOpenStudySessions,
   setsPath,
+  guardPublicShare,
   stageSetWrite,
   type FlashcardSet,
 } from './flashcardStore';
@@ -207,13 +208,17 @@ async function saveFlashcardEdit(
     { ...next, claudeEditedAt: now, [REVIEW_MARK]: now },
     now
   );
+  const share = normalized.publicShareId
+    ? await guardPublicShare(ctx.db, ctx.uid, normalized.publicShareId)
+    : undefined;
   stageSetWrite(
     ctx.db,
     batch,
     ctx.uid,
     normalized,
     existing.termLanguage,
-    stamp
+    stamp,
+    share
   );
   logActivity(ctx, batch, {
     action,

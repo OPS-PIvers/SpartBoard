@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stepFixes } from './webTourFixes';
+import { readableFixLocator, stepFixes } from './webTourFixes';
 
 const own = { role: 'link', name: 'Gradebook', css: '#nav > a.grades' };
 const step = { id: 'a', web: { locator: own } };
@@ -33,5 +33,38 @@ describe('stepFixes struggled', () => {
       run(['ab']),
     ]);
     expect(out.has('a')).toBe(false);
+  });
+});
+
+describe('readableFixLocator', () => {
+  const locator = {
+    role: 'link',
+    name: 'Gradebook',
+    attrs: { ariaLabel: 'Grades', testId: 'free text', href: '/x' },
+  };
+  const fix = (source: 'admin' | 'check' | 'teacher') => ({
+    locator,
+    source,
+    count: 2,
+    at: 1,
+  });
+
+  it('drops a teachers fix control id and link address, keeping the recorded clues', () => {
+    expect(readableFixLocator(fix('teacher'))).toEqual({
+      role: 'link',
+      name: 'Gradebook',
+      attrs: { ariaLabel: 'Grades' },
+    });
+    expect(
+      readableFixLocator({
+        ...fix('teacher'),
+        locator: { role: 'link', attrs: { testId: 't', href: '/x' } },
+      })
+    ).toEqual({ role: 'link' });
+  });
+
+  it('leaves an admin run and an admin check as they are', () => {
+    expect(readableFixLocator(fix('admin'))).toBe(locator);
+    expect(readableFixLocator(fix('check'))).toBe(locator);
   });
 });
