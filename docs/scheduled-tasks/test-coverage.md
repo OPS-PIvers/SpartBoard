@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-10-28_
+_Last audited: 2026-11-02_
 _Last action: 2026-10-19 — Claude MCP connector: added `functions/src/mcp/tools.test.ts` (34 tests); the HIGH item is resolved and moved to Completed. Prior: 2026-10-12 — `quizTools.test.ts`; 2026-10-05 — `videoTools.test.ts`; 2026-09-28 — auth gate, write-budget/revision infra._
+
+_2026-11-02: Weekly audit (Monday). `pnpm test`: 2150 files, 23087 passed, 5 skipped, 0 failures. Untested (no co-located or tests/ match): 65 `utils/` files and 103 `hooks/` files (mostly tracked clusters: gradebook/view-as, per-period session, paper sheets, PLC, quiz hooks); widget dirs with no test: BlendingBoard, CarRiderPro, MathToolInstance, MathTools, Onboarding, WorkSymbols. Every `functions/src/index.ts` export is referenced by a test under `functions/src`. 0 new issues filed (gaps fall under existing Open families)._
 
 _2026-10-28: Weekly audit (Wednesday). `pnpm test` completed in ~23 min: 2049 test files / 22002 tests passed, 5 skipped, 0 failed. Untested `utils/`/`hooks/` files are the ones already tracked below. 0 new issues._
 
