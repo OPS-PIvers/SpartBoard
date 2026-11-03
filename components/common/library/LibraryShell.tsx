@@ -121,6 +121,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   visibleTabs,
   primaryAction,
   secondaryActions,
+  clearsConnectionTab = false,
   toolbarSlot,
   filterSidebarSlot,
   folderPanelMode: folderPanelModeProp,
@@ -316,6 +317,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
               : {}),
             gap: 'min(12px, 2.5cqmin)',
             paddingInline: 'min(16px, 3.5cqmin)',
+            ...(clearsConnectionTab && { paddingRight: 40 }),
             paddingBlock: 'min(8px, 1.8cqmin)',
           }}
         >

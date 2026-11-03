@@ -5,9 +5,8 @@ import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
 import type { QRConfig, WidgetData } from '@/types';
 import { useTranslation } from 'react-i18next';
-import { deriveSyncedUrl } from './deriveSyncedUrl';
-import { followLeaderId } from '@/utils/connectionEngine';
-import { usesLegacyToggles } from '@/utils/legacyConnections';
+import { deriveSyncedUrl, resolveQRSource } from './deriveSyncedUrl';
+import { useWidgetShareLink } from '@/utils/widgetShareLinks';
 import { tourAttr } from '@/config/tourAnchors';
 
 export const QRDestinationField: React.FC<{ ctx: CustomRenderCtx }> = ({
@@ -16,25 +15,22 @@ export const QRDestinationField: React.FC<{ ctx: CustomRenderCtx }> = ({
   const { activeDashboard } = useDashboard();
   const config = ctx.config as QRConfig;
   const connectionsOn = ctx.canAccessFeature('widget-connections');
-  const connectionLeaderId = connectionsOn
-    ? followLeaderId(
-        activeDashboard?.connections,
-        activeDashboard?.widgets ?? [],
-        ctx.widget.id
-      )
-    : undefined;
-  const followedTextId =
-    connectionLeaderId ??
-    (usesLegacyToggles(connectionsOn, config) ? undefined : null);
-  const synced =
-    followedTextId !== undefined
-      ? !!followedTextId
-      : !!config.syncWithTextWidget;
-  const syncedUrl = deriveSyncedUrl(
-    config,
-    activeDashboard?.widgets,
-    followedTextId
+  const { followedTextId, linkLeaderId } = resolveQRSource(
+    connectionsOn,
+    activeDashboard?.connections,
+    activeDashboard?.widgets ?? [],
+    ctx.widget.id,
+    config
   );
+  const leaderLink = useWidgetShareLink(linkLeaderId);
+  const synced =
+    !!linkLeaderId ||
+    (followedTextId !== undefined
+      ? !!followedTextId
+      : !!config.syncWithTextWidget);
+  const syncedUrl = linkLeaderId
+    ? (leaderLink ?? config.url)
+    : deriveSyncedUrl(config, activeDashboard?.widgets, followedTextId);
   const value = synced ? (syncedUrl ?? '') : (config.url ?? '');
 
   return (

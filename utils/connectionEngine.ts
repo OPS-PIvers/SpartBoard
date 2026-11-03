@@ -1,6 +1,7 @@
 // Pure Sequence/Follow logic for widget Connections (docs/adr/0002); the runner component does the I/O.
 import type {
   ConnectionStep,
+  FollowConnection,
   SequenceConnection,
   WidgetConnection,
   WidgetData,
@@ -384,3 +385,14 @@ export const followerIds = (
   liveConnections(connections, widgets).flatMap((c) =>
     c.kind === 'follow' && c.leaderId === leaderId ? [c.followerId] : []
   );
+
+/** A new Follow from `leaderId` to `followerId`. */
+export const followConnection = (
+  leaderId: string,
+  followerId: string
+): FollowConnection => ({
+  id: newId(),
+  kind: 'follow',
+  leaderId,
+  followerId,
+});

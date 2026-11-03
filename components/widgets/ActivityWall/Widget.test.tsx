@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getWidgetShareLink } from '@/utils/widgetShareLinks';
 import { ActivityWallWidget } from './Widget';
 import type { ActivityWallLibraryEntry, WidgetData } from '@/types';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
@@ -27,7 +28,18 @@ const {
   mockReadOnly,
   mockSaveSharedWall,
   editorProps,
+  mockUpdateDashboard,
+  mockCanvas,
 } = vi.hoisted(() => ({
+  mockUpdateDashboard: vi.fn(),
+  mockCanvas: {
+    current: {
+      activeDashboard: {
+        widgets: [{ id: 'widget-1' }],
+        connections: [] as unknown[],
+      },
+    },
+  },
   mockAddWidget: vi.fn(),
   mockAddToast: vi.fn(),
   mockUpdateWidget: vi.fn(),
@@ -59,7 +71,11 @@ vi.mock('@/context/dashboardCanvasStore', () => ({
     addWidget: mockAddWidget,
     addToast: mockAddToast,
     updateWidget: mockUpdateWidget,
+    updateDashboard: mockUpdateDashboard,
   }),
+  useDashboardCanvasSelector: (sel: (s: unknown) => unknown) =>
+    sel(mockCanvas.current),
+  useDashboardCanvasStateGetter: () => () => mockCanvas.current,
   useIsActiveBoardReadOnly: () => mockReadOnly.current,
   useActiveBoardLinkedShareId: () => mockLinkedShareId.current,
   useActiveBoardLinkedShareHostUid: () => mockRecordedHost.current,
@@ -473,6 +489,33 @@ describe('ActivityWallWidget', () => {
     expect(
       screen.getByRole('tab', { name: 'Public gallery' })
     ).toBeInTheDocument();
+  });
+
+  it('adds a join QR that Follows the wall and publishes its link', async () => {
+    renderWidget();
+    await waitFor(() =>
+      expect(getWidgetShareLink('widget-1')).toContain('teacher-1_wall-1')
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Share' }));
+    const [addQr] = await screen.findAllByRole('button', {
+      name: 'Add join QR to board',
+    });
+    await userEvent.click(addQr);
+    const [type, overrides] = mockAddWidget.mock.lastCall as [
+      string,
+      { id: string; config: { url: string } },
+    ];
+    expect(type).toBe('qr');
+    expect(overrides.config.url).toContain('teacher-1_wall-1');
+    expect(mockUpdateDashboard).toHaveBeenCalledWith({
+      connections: [
+        expect.objectContaining({
+          kind: 'follow',
+          leaderId: 'widget-1',
+          followerId: overrides.id,
+        }),
+      ],
+    });
   });
 
   it('shows the empty state and opens the library when no wall is active', async () => {

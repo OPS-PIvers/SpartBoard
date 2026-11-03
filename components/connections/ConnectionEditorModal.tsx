@@ -548,6 +548,7 @@ export const ConnectionEditorModal: React.FC<{
         </span>
         <span className="min-w-0 text-sm text-slate-600">
           {t(`connections.followAction.${w.type}`, {
+            context: widgetsById.get(f.leaderId)?.type,
             defaultValue: 'Follow',
           })}
         </span>

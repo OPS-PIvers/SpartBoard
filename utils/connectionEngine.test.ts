@@ -146,6 +146,28 @@ describe('draftFromPicks', () => {
     ]);
     expect(draft.sequence?.repeat).toBe('until-done');
   });
+
+  it.each(['activity-wall', 'miniApp'] as const)(
+    'makes a QR code picked with %s a Follow of it, either order',
+    (type) => {
+      for (const picks of [
+        [
+          { id: 'a', type },
+          { id: 'q', type: 'qr' as const },
+        ],
+        [
+          { id: 'q', type: 'qr' as const },
+          { id: 'a', type },
+        ],
+      ]) {
+        const draft = draftFromPicks(picks);
+        expect(draft.sequence).toBeNull();
+        expect(draft.follows).toEqual([
+          expect.objectContaining({ leaderId: 'a', followerId: 'q' }),
+        ]);
+      }
+    }
+  );
 });
 
 describe('what moves a step on', () => {

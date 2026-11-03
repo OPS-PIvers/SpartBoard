@@ -1,4 +1,12 @@
-import { QRConfig, TextConfig, WidgetData } from '@/types';
+import type {
+  QRConfig,
+  TextConfig,
+  WidgetConnection,
+  WidgetData,
+} from '@/types';
+import { followLeaderId } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
+import { LINK_LEADER_TYPES } from '@/utils/widgetShareLinks';
 
 const stripHtml = (html: string): string => {
   if (typeof DOMParser === 'undefined') {
@@ -63,3 +71,31 @@ export const deriveSyncedUrl = (
   followedTextId?: string | null
 ): string | undefined =>
   extractSyncedUrl(getSyncedTextContent(config, widgets, followedTextId));
+
+export interface QRSource {
+  /** The Text widget to read (null for none); undefined keeps the old toggle. */
+  followedTextId: string | null | undefined;
+  /** An Activity Wall or Mini App this QR Follows for its student link. */
+  linkLeaderId?: string;
+}
+
+export const resolveQRSource = (
+  connectionsOn: boolean,
+  connections: WidgetConnection[] | undefined,
+  widgets: WidgetData[],
+  widgetId: string,
+  config: QRConfig
+): QRSource => {
+  const leaderId = connectionsOn
+    ? followLeaderId(connections, widgets, widgetId)
+    : undefined;
+  const leader = leaderId ? widgets.find((w) => w.id === leaderId) : undefined;
+  if (leader && LINK_LEADER_TYPES.has(leader.type)) {
+    return { followedTextId: null, linkLeaderId: leader.id };
+  }
+  // A Follow wins; otherwise the old toggle applies unless this widget was migrated.
+  return {
+    followedTextId:
+      leaderId ?? (usesLegacyToggles(connectionsOn, config) ? undefined : null),
+  };
+};
