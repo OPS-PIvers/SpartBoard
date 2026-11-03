@@ -14,7 +14,7 @@ import React from 'react';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { GuidedLearningSet } from '@/types';
 
 const loggedErrors: { scope: string; error: unknown }[] = [];
@@ -253,7 +253,7 @@ describe('GuidedLearningResults front-face scaling', () => {
     });
     // Sanity-check the non-empty branches actually rendered, so this test
     // can't silently degrade back to only covering the empty state.
-    expect(container.querySelector('.font-bold.text-slate-900')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Question results/ }));
     expect(container.textContent?.includes('What is 2+2?')).toBe(true);
 
     const classNames = Array.from(container.querySelectorAll('*'))

@@ -10796,8 +10796,6 @@ export type GlobalFeature =
   | 'schoology-tool-columns'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Same monitor layout across Quiz, Video Activity, Flashcards, Guided Learning and Mini App. */
-  | 'monitor-parity'
   /** Teachers turn in a quiz for a student who left without submitting. */
   | 'quiz-submit-for-student'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */

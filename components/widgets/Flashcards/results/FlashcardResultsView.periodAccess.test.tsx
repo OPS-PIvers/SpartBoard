@@ -130,23 +130,12 @@ beforeEach(() => {
 });
 
 describe('FlashcardResultsView — per-period access', () => {
-  it('shows a chip per period with Start and Pause all', () => {
-    show();
-    expect(
-      screen.getByRole('button', { name: /Start P1, now Closed/ })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Pause P3, now Live/ })
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start all' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Pause all' })).toBeVisible();
-  });
-
   it('starts a period on the session and its assignment row', async () => {
     show();
-    fireEvent.click(
-      screen.getByRole('button', { name: /Start P1, now Closed/ })
-    );
+    fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
+      target: { value: 'cl-1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Start/ }));
     await waitFor(() => expect(h.batchCommit).toHaveBeenCalledTimes(1));
     expect(h.batchUpdate.mock.calls.map((c) => c[0] as string)).toEqual([
       'flashcard_sessions/fc-1',
@@ -174,12 +163,17 @@ describe('FlashcardResultsView — per-period access', () => {
         })
       );
 
-    openMenu('working-3');
-    expect(screen.queryByRole('menuitem', { name: 'Let in now' })).toBeNull();
-    openMenu('working-3');
+    const bucket = (label: string) =>
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }));
+
+    bucket('Submitted');
     openMenu('done-1');
     expect(screen.queryByRole('menuitem', { name: 'Let in now' })).toBeNull();
     openMenu('done-1');
+    bucket('Not started');
+    openMenu('working-3');
+    expect(screen.queryByRole('menuitem', { name: 'Let in now' })).toBeNull();
+    openMenu('working-3');
 
     openMenu('waiting-1');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Let in now' }));

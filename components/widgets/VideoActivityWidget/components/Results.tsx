@@ -4,14 +4,12 @@
  */
 
 import { tourAttr } from '@/config/tourAnchors';
-import React, { useId, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { staffResultsLabel } from '@/utils/staffAudience';
 import {
-  Download,
   ExternalLink,
   FileSpreadsheet,
   AlertTriangle,
-  BarChart3,
   Clock,
   Users,
   CheckCircle2,
@@ -78,17 +76,11 @@ import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import { ltiSectionsKey } from '@/utils/ltiSectionsKey';
 import { logError } from '@/utils/logError';
 import {
-  SessionViewHeader,
-  SegmentedTabs,
-  StatTile,
   SessionBadge,
   ScorePill,
   SessionRow,
-  ActionButton,
-  OverflowMenu,
   LaunchedBySubTag,
 } from '@/components/common/sessionViews';
-import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
 import {
   isLiveVideoActivitySession,
@@ -165,8 +157,6 @@ export const Results: React.FC<ResultsProps> = ({
   const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
     useAuth();
   const tabAwayTimerOn = canAccessFeature('tab-away-timer');
-  // Quiz results layout while 'monitor-parity' is in preview.
-  const parity = canAccessFeature('monitor-parity');
   const { showConfirm } = useDialog();
   const { addToast, rosters } = useDashboard();
   // Use the multi-class variant — `session.classId` is a transitional
@@ -210,8 +200,6 @@ export const Results: React.FC<ResultsProps> = ({
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students'
   >('overview');
-  // Per-instance prefix for the ARIA tab↔panel linkage.
-  const tabPanelId = useId();
   // The short-answer question whose marking list is open.
   const [markingId, setMarkingId] = useState<string | null>(null);
 
@@ -685,40 +673,6 @@ export const Results: React.FC<ResultsProps> = ({
   });
   const showSchoologyPush = !!ltiAttachment || toolColumnMode;
 
-  // Overflow-menu items. The Sheet/Export family (Export, Open Sheet) lives
-  // here, decluttered out of the visible header per the approved design. Each
-  // item keeps the EXACT gate/handler it had as a visible header button — only
-  // the placement changes:
-  //   • Export    — shown when `!exportUrl`; handleExport; disabled while
-  //                 exporting or with zero responses.
-  //   • Open Sheet — shown when `exportUrl` is truthy; opens the sheet in a
-  //                  new tab (was an outlined <a target="_blank"> link).
-  const overflowItems: OverflowMenuItem[] = [];
-  // Google Sheets export is a Google-API feature excluded from the free tier
-  // (docs/wide-distro-plan.md Phase 3). External (no-org/free-tier) users have
-  // no Drive token (the Drive connect entry is hidden for them), so the export
-  // would only error — hide it cleanly. `isExternalUser` is false while
-  // membership resolves, so org/internal members keep the button.
-  if (!exportUrl && !isExternalUser) {
-    overflowItems.push({
-      label: 'Export',
-      icon: Download,
-      loading: exporting,
-      onClick: () => void handleExport(),
-      disabled:
-        exporting || totalStudents === 0 || outward.locked || namesLoading,
-      ...(namesLoading ? { title: 'Loading student names…' } : {}),
-    });
-  }
-  if (exportUrl) {
-    const sheetUrl = exportUrl;
-    overflowItems.push({
-      label: 'Open Sheet',
-      icon: ExternalLink,
-      onClick: () => window.open(sheetUrl, '_blank', 'noopener,noreferrer'),
-    });
-  }
-
   const showExport = !exportUrl && !isExternalUser;
   // The footer button replaces the single ⋯ menu item, so it keeps that item's anchor.
   const moreItemAnchor = tourFieldAttr(
@@ -727,91 +681,23 @@ export const Results: React.FC<ResultsProps> = ({
     'item-1'
   );
   return (
-    <div
-      className={`flex flex-col h-full font-sans ${parity ? 'bg-white text-brand-gray-dark' : ''}`}
-    >
+    <div className="flex flex-col h-full font-sans bg-white text-brand-gray-dark">
       {/* Header */}
-      {parity ? (
-        <ParityHeader
-          title={
-            activeTab === 'questions'
-              ? 'Question results'
-              : activeTab === 'students'
-                ? 'Students'
-                : session.assignmentName
-          }
-          status={session.status === 'ended' ? 'Results' : 'Live'}
-          onBack={() =>
-            activeTab === 'overview' ? onBack() : setActiveTab('overview')
-          }
-          backAnchor={tourAttr('video-activity.results-back')}
-          actions={toolColumnPush.dialog}
-        />
-      ) : (
-        <SessionViewHeader
-          onBack={onBack}
-          backAnchor={tourAttr('video-activity.results-back')}
-          status={session.status === 'ended' ? 'ended' : 'live'}
-          title={session.assignmentName}
-          subtitle={session.activityTitle}
-          actions={
-            <>
-              {/* Push grades to Google Classroom — only when this assignment was
-                attached to one or more Classroom coursework items via the add-on.
-                The admin-managed `google-classroom` gate hides it for users
-                below the doc's minTier. */}
-              {showClassroomPush && (
-                <ActionButton
-                  variant="primary"
-                  label="Push Grades"
-                  anchor={tourAttr('video-activity.results-push-classroom')}
-                  icon={GraduationCap}
-                  loading={pushingGrades}
-                  onClick={() => void handlePushGrades()}
-                  disabled={pushingGrades}
-                />
-              )}
-              {/* Push grades to Schoology — only when this assignment was launched
-                from a Schoology resource link (server sets `ltiAttachment` on the
-                first student launch). */}
-              {toolColumnPush.dialog}
-              {showSchoologyPush && (
-                <ActionButton
-                  variant="primary"
-                  label="Push to Schoology"
-                  anchor={tourAttr('video-activity.results-push-schoology')}
-                  icon={Send}
-                  loading={pushingSchoology || toolColumnPush.busy}
-                  onClick={() =>
-                    void (ltiAttachment
-                      ? handlePushSchoologyGrades()
-                      : toolColumnPush.start())
-                  }
-                  disabled={
-                    pushingSchoology || toolColumnPush.busy || completed === 0
-                  }
-                />
-              )}
-              {showMakeUp && (
-                <ActionButton
-                  variant="secondary"
-                  label="Assign make-up (self-paced)"
-                  anchor={tourAttr('video-activity.results-assign-makeup')}
-                  icon={UserPlus}
-                  onClick={handleAssignMakeUp}
-                />
-              )}
-              {overflowItems.length > 0 && (
-                <OverflowMenu
-                  items={overflowItems}
-                  tourId="video-activity.results-more-item"
-                  tourScope="video-activity"
-                />
-              )}
-            </>
-          }
-        />
-      )}
+      <ParityHeader
+        title={
+          activeTab === 'questions'
+            ? 'Question results'
+            : activeTab === 'students'
+              ? 'Students'
+              : session.assignmentName
+        }
+        status={session.status === 'ended' ? 'Results' : 'Live'}
+        onBack={() =>
+          activeTab === 'overview' ? onBack() : setActiveTab('overview')
+        }
+        backAnchor={tourAttr('video-activity.results-back')}
+        actions={toolColumnPush.dialog}
+      />
 
       {session.launchedBy && (
         <div
@@ -845,47 +731,10 @@ export const Results: React.FC<ResultsProps> = ({
         </div>
       )}
 
-      {/* Tabs */}
-      {!parity && (
-        <div
-          className="flex border-b border-slate-200"
-          style={{ padding: 'min(8px, 2cqmin) min(16px, 4cqmin)' }}
-        >
-          <SegmentedTabs
-            tourId="video-activity.results-tab"
-            tourScope="video-activity"
-            ariaLabel="Video activity results sections"
-            panelIdPrefix={tabPanelId}
-            value={activeTab}
-            onChange={setActiveTab}
-            tabs={[
-              { key: 'overview', label: 'Overview', icon: BarChart3 },
-              { key: 'questions', label: 'Questions', icon: Clock },
-              {
-                key: 'students',
-                label: 'Students',
-                icon: Users,
-                count: responses.length,
-              },
-              // No PLC tab: pooled PLC results live on the PLC dashboard.
-            ]}
-          />
-        </div>
-      )}
-
       {/* Tab content */}
       <div
-        {...(parity
-          ? {}
-          : {
-              role: 'tabpanel',
-              id: `${tabPanelId}-panel-${activeTab}`,
-              'aria-labelledby': `${tabPanelId}-tab-${activeTab}`,
-            })}
         className="flex-1 overflow-y-auto custom-scrollbar"
-        style={{
-          padding: parity ? 'min(12px, 3cqmin)' : 'min(14px, 3.5cqmin)',
-        }}
+        style={{ padding: 'min(12px, 3cqmin)' }}
       >
         {activeTab === 'overview' && toMarkCount > 0 && (
           <button
@@ -909,7 +758,7 @@ export const Results: React.FC<ResultsProps> = ({
             </span>
           </button>
         )}
-        {parity && activeTab === 'overview' && (
+        {activeTab === 'overview' && (
           <ParityOverview
             avgScore={avgScore}
             completed={completed}
@@ -932,57 +781,6 @@ export const Results: React.FC<ResultsProps> = ({
             }}
           />
         )}
-        {/* Overview tab */}
-        {!parity && activeTab === 'overview' && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              <StatTile
-                tone="blue"
-                icon={
-                  <Users
-                    style={{
-                      width: 'min(20px, 5cqmin)',
-                      height: 'min(20px, 5cqmin)',
-                    }}
-                  />
-                }
-                value={totalStudents}
-                label="Students"
-              />
-              <StatTile
-                tone="green"
-                icon={
-                  <CheckCircle2
-                    style={{
-                      width: 'min(20px, 5cqmin)',
-                      height: 'min(20px, 5cqmin)',
-                    }}
-                  />
-                }
-                value={completed}
-                label="Completed"
-              />
-              <StatTile
-                tone="violet"
-                icon={
-                  <BarChart3
-                    style={{
-                      width: 'min(20px, 5cqmin)',
-                      height: 'min(20px, 5cqmin)',
-                    }}
-                  />
-                }
-                value={avgScore === null ? '—' : `${avgScore}%`}
-                label="Avg Score"
-              />
-            </div>
-
-            {totalStudents === 0 && (
-              <ScaledEmptyState icon={Users} title="No students yet" />
-            )}
-          </div>
-        )}
-
         {/* Questions tab */}
         {activeTab === 'questions' &&
           (questions.length === 0 ? (
@@ -1420,12 +1218,9 @@ export const Results: React.FC<ResultsProps> = ({
                 })}
             </div>
           ))}
-
-        {/* PLC tab intentionally not rendered for Video Activity — see
-            tab-strip comment above for the cross-contamination reason. */}
       </div>
 
-      {parity && activeTab === 'overview' && (
+      {activeTab === 'overview' && (
         <div
           className="flex flex-wrap items-center border-t border-brand-gray-lightest shrink-0"
           style={{

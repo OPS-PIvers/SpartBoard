@@ -42,7 +42,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'embed-reload',
   'schoology-tool-columns',
   'mini-app-results',
-  'monitor-parity',
   'quiz-stimulus-quotes',
   'quiz-cross-out',
   'quiz-submit-for-student',
