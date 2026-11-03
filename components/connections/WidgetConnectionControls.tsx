@@ -127,6 +127,7 @@ const ConnectionBadgeInner: React.FC<{
         onClick={(e) => {
           e.stopPropagation();
           const d = downAt.current;
+          downAt.current = null;
           if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
           if (!summary.seqId) {
             edit();
