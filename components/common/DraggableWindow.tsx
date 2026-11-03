@@ -41,6 +41,7 @@ import {
   subscribeWidgetOverride,
 } from './widgetRefRegistry';
 import { getBoxSelection, useIsBoxSelected } from './boxSelectionStore';
+import { setGroupBoxOffset } from './groupBoxOffset';
 import { setAlignmentGuides } from './alignmentGuidesStore';
 import {
   computeGuides,
@@ -1253,6 +1254,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
+        setGroupBoxOffset(0, 0);
       }
       groupDragActiveRef.current = false;
     };
@@ -1394,6 +1396,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // React re-renders mid-drag (bringToFront, server sync, etc.).
         if (groupSiblingsRef.current.length > 0) {
           groupDragDeltaRef.current = { x: deltaX, y: deltaY };
+          setGroupBoxOffset(deltaX, deltaY);
           for (const sib of groupSiblingsRef.current) {
             const { x: sibX, y: sibY } = clampWidgetToWorld(
               sib.startX + deltaX,
@@ -1495,6 +1498,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
+        setGroupBoxOffset(0, 0);
       }
       groupDragActiveRef.current = false;
 

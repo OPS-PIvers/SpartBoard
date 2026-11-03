@@ -365,6 +365,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
 
   return (
     <div
+      data-group-bbox=""
       style={{
         position: 'absolute',
         left: bbox.left - PADDING,
