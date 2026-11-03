@@ -69,7 +69,6 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   - Note stops are silent in teacher-paced live runs (`VideoActivityLivePlayer.tsx` passes only `clip`); whether they should pause is PT-102.
   - Every synced publish writes `notes: []`; an old synced group costs one extra Drive read on its first pull (`hooks/useVideoActivity.ts`).
   - Edpuzzle pictures: copies are orphaned if the widget unmounts mid-copy; removing a picture in the editor doesn't delete its Drive file; stops past 200 aren't counted in "Left out".
-  - `AGGREGATE_SCHEMA_VERSION` wasn't bumped with the short-answer grading fix (#4961); old PLC video aggregates with a short answer refresh only when next marked dirty.
   - `sendId` now hashes `send.video`, so re-sending a page already in the inbox after the release makes a second item (TTL cleans it).
   - Per-type Import flags (#4960): AI conversion on the server checks only `universal-import`; `import-link` also hides the Embed check's "Add as a link"; tests don't render a flag-off case.
 - **AB-68 PLC aggregates for video activities** (M). From the #4961 review: they're never built. `recomputeOnePlcAssessment` reads only `quiz_sessions`/`synced_quizzes` and `status == 'completed'`, and `markPlcAssessmentDirty` watches only quiz sessions. A video kind needs `video_activity_sessions`, `synced_video_activities`, `completedAt != null`, and short answer mapped to free-response.

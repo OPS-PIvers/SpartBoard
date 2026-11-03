@@ -3,7 +3,7 @@
 
 import { notChosenIds, type ChooseSection } from './quizSectionsChosen';
 
-export const AGGREGATE_SCHEMA_VERSION = 7;
+export const AGGREGATE_SCHEMA_VERSION = 8;
 
 /** Lower bounds of the pooled score bands; mirrors `SCORE_DISTRIBUTION_BANDS` in utils/scoreColor.ts. */
 export const SCORE_BAND_MINS = [90, 80, 60, 0] as const;
@@ -76,6 +76,7 @@ export interface RawAnswer {
   questionId: string;
   answer: string;
   answeredAt?: number;
+  /** Student-writable; the PLC aggregate never reads it. */
   isCorrect?: boolean;
   status?: 'draft' | 'submitted';
   unresponded?: unknown;
@@ -402,7 +403,8 @@ function parseQuestionTargetSnapshot(
 export function resolveGroupQuestions(
   synced: SyncedQuestions | null,
   publicQuestions: unknown[],
-  questionSnapshot: unknown[] = []
+  questionSnapshot: unknown[] = [],
+  assignmentKeys: unknown[] = []
 ): GroupQuestion[] {
   const questions = new Map<string, GroupQuestion>();
   if (synced && Array.isArray(synced.questions)) {
@@ -427,6 +429,24 @@ export function resolveGroupQuestions(
     const question = questions.get(snapshot.id);
     if (question) {
       question.targets = mergeTargets(question.targets, snapshot.targets);
+    }
+  }
+  // A teacher-written assignment key stands in for a question the synced group does not key.
+  for (const raw of assignmentKeys) {
+    const keyed = parseSyncedQuestion(raw);
+    const question = keyed ? questions.get(keyed.id) : undefined;
+    if (keyed && question && question.correctAnswer === null) {
+      if (keyed.correctAnswer === null) continue;
+      // The key doc carries no text or tags, so only its grading fields replace the public question's.
+      questions.set(keyed.id, {
+        ...question,
+        points: keyed.points,
+        choices: question.choices.length > 0 ? question.choices : keyed.choices,
+        correctAnswer: keyed.correctAnswer,
+        alternateAnswers: keyed.alternateAnswers,
+        blankAlternates: keyed.blankAlternates,
+        allowPartialCredit: keyed.allowPartialCredit,
+      });
     }
   }
   return Array.from(questions.values());
@@ -779,8 +799,7 @@ export function questionScoring(question: GroupQuestion): QuestionScoring {
 /** Per option: how many students picked it, from their `|`-joined answers. */
 function multiAnswerDistribution(
   gq: GroupQuestion,
-  answerCounts: ReadonlyMap<string, number>,
-  correctAnswers: ReadonlySet<string>
+  answerCounts: ReadonlyMap<string, number>
 ): AggregateChoiceRow[] {
   const picks = new Map<string, number>();
   for (const [answer, n] of answerCounts) {
@@ -789,9 +808,7 @@ function multiAnswerDistribution(
     }
   }
   const right = new Set(
-    gq.correctAnswer !== null
-      ? multiAnswerParts(gq.correctAnswer)
-      : [...correctAnswers].flatMap(multiAnswerParts)
+    gq.correctAnswer !== null ? multiAnswerParts(gq.correctAnswer) : []
   );
   return gq.choices.map((label) => ({
     label,
@@ -830,8 +847,6 @@ interface QuestionAcc {
   pointsEarned: number;
   pointsPossible: number;
   choiceCounts: Map<string, number>;
-  /** Labels seen with a published `isCorrect: true`, for sessions without a key. */
-  correctLabels: Set<string>;
 }
 
 interface TeacherAcc {
@@ -858,7 +873,6 @@ export function computeAssessmentAggregate(
       pointsEarned: 0,
       pointsPossible: 0,
       choiceCounts: new Map(),
-      correctLabels: new Set(),
     });
   }
 
@@ -978,9 +992,8 @@ export function computeAssessmentAggregate(
         if (!q || !question) continue;
         q.answered++;
         const local = scoredGrades.get(sessionQid);
-        // A published flag is authoritative; otherwise use the local verdict.
-        const isCorrect =
-          typeof a.isCorrect === 'boolean' ? a.isCorrect : local?.isCorrect;
+        // Student-writable `isCorrect` flags are never read; only the server-side grade counts.
+        const isCorrect = local?.isCorrect;
         if (typeof isCorrect === 'boolean') {
           q.graded++;
           if (isCorrect) q.correct++;
@@ -1005,7 +1018,6 @@ export function computeAssessmentAggregate(
         }
         const label = asString(a.answer);
         q.choiceCounts.set(label, (q.choiceCounts.get(label) ?? 0) + 1);
-        if (isCorrect === true) q.correctLabels.add(label);
       }
     }
   }
@@ -1017,13 +1029,10 @@ export function computeAssessmentAggregate(
         ? gq.choices.map((label) => ({
             label,
             count: q.choiceCounts.get(label) ?? 0,
-            isCorrect:
-              gq.correctAnswer !== null
-                ? label === gq.correctAnswer
-                : q.correctLabels.has(label),
+            isCorrect: gq.correctAnswer !== null && label === gq.correctAnswer,
           }))
         : gq.type === 'MA'
-          ? multiAnswerDistribution(gq, q.choiceCounts, q.correctLabels)
+          ? multiAnswerDistribution(gq, q.choiceCounts)
           : [];
     const correctPercent = q.graded > 0 ? pct(q.credit, q.graded) : 0;
     return {
