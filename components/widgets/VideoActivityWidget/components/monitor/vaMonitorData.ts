@@ -1,4 +1,4 @@
-// Pure helpers for the Video Activity monitor (monitor-parity layout).
+// Pure helpers for the Video Activity monitor.
 
 import type { VideoActivityQuestion, VideoActivityResponse } from '@/types';
 import type { BucketKey } from '@/components/widgets/QuizWidget/components/monitor/StatusBuckets';

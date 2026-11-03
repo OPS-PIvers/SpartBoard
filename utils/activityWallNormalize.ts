@@ -358,7 +358,7 @@ export function mirrorSessionFromEntry(
     allowCommentResponses: entry.allowCommentResponses ?? false,
   };
 
-  // Only the widget knows the teacher's preview flag; other mirror writers leave the stored value alone.
+  // Only the widget's live mirror sets this; other mirror writers leave the stored value alone.
   if (options.timelineDates !== undefined)
     session.timelineDates = options.timelineDates && layout === 'timeline';
   if (entry.classId) session.classId = entry.classId;

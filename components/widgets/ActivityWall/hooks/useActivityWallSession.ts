@@ -206,7 +206,6 @@ export const useActivityWallSession = (
   uid: string | undefined,
   entry: ActivityWallLibraryEntry | null,
   saveActivity: (entry: ActivityWallLibraryEntry) => Promise<void>,
-  timelineDates?: boolean,
   /** "shareId/hostUid" of a live board share whose members may read this wall. */
   boardShareEntry?: string | null
 ): UseActivityWallSessionResult => {
@@ -215,9 +214,9 @@ export const useActivityWallSession = (
   const session = useMemo<ActivityWallSession | null>(
     () =>
       uid && entry
-        ? mirrorSessionFromEntry(entry, uid, { timelineDates })
+        ? mirrorSessionFromEntry(entry, uid, { timelineDates: true })
         : null,
-    [entry, uid, timelineDates]
+    [entry, uid]
   );
 
   const [state, setState] = useState<{

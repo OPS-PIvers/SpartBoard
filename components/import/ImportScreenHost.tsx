@@ -49,7 +49,6 @@ const CourseImportHost = lazy(() =>
 );
 
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst)$/i;
-const CARTRIDGE = /\.imscc$/i;
 
 interface ImportScreenHostProps {
   placeAt: (
@@ -180,7 +179,6 @@ const OpenImportScreen: React.FC<
   } = useDashboard();
   const canReadQuizDocuments = useQuizDocumentImportGate();
   const photo = usePhotoReference();
-  const schoology = canAccessFeature('schoology-quiz-import');
   const dropped = request.source;
   const droppedLink =
     dropped && !dropped.file && !dropped.inboxItem && dropped.url
@@ -216,8 +214,6 @@ const OpenImportScreen: React.FC<
     const name = source.file?.name ?? '';
     if (target === 'quiz' && QUIZ_DOCUMENT.test(name))
       return canReadQuizDocuments;
-    if (target === 'quiz' && CARTRIDGE.test(name))
-      return schoology || canAccessFeature('quiz-imscc-import');
     return true;
   };
 

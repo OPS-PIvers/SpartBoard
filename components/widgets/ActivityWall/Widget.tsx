@@ -293,7 +293,6 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     inShare ? undefined : user?.uid,
     activeEntry,
     saveActivity,
-    canAccessFeature('activity-wall-timeline-dates'),
     boardShareEntry
   );
   const session = inSubShare

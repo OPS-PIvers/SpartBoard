@@ -78,37 +78,35 @@ export const BehaviorSection: React.FC = () => {
           </div>
         </Card>
 
-        {canAccessFeature('alignment-guides') && (
-          <Card className="flex items-start gap-4" hoverable>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 mt-0.5">
-              <Ruler className="w-[18px] h-[18px] text-emerald-500" />
+        <Card className="flex items-start gap-4" hoverable>
+          <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 mt-0.5">
+            <Ruler className="w-[18px] h-[18px] text-emerald-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-bold text-slate-700">
+                {alignmentGuidesLabel}
+              </span>
+              <Toggle
+                size="sm"
+                label={alignmentGuidesLabel}
+                anchor={tourAttr('behavior.alignment-guides-toggle')}
+                checked={alignmentGuidesEnabled}
+                onChange={(checked) =>
+                  void updateAccountPreferences({
+                    alignmentGuidesEnabled: checked,
+                  })
+                }
+              />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-bold text-slate-700">
-                  {alignmentGuidesLabel}
-                </span>
-                <Toggle
-                  size="sm"
-                  label={alignmentGuidesLabel}
-                  anchor={tourAttr('behavior.alignment-guides-toggle')}
-                  checked={alignmentGuidesEnabled}
-                  onChange={(checked) =>
-                    void updateAccountPreferences({
-                      alignmentGuidesEnabled: checked,
-                    })
-                  }
-                />
-              </div>
-              <p className="mt-1 text-xs text-slate-500">
-                {t('sidebar.settings.alignmentGuidesHint', {
-                  defaultValue:
-                    'Lines show when a widget lines up with others or is evenly spaced.',
-                })}
-              </p>
-            </div>
-          </Card>
-        )}
+            <p className="mt-1 text-xs text-slate-500">
+              {t('sidebar.settings.alignmentGuidesHint', {
+                defaultValue:
+                  'Lines show when a widget lines up with others or is evenly spaced.',
+              })}
+            </p>
+          </div>
+        </Card>
 
         {canAccessFeature('spell-check-setting') && (
           <Card className="flex items-start gap-4" hoverable>

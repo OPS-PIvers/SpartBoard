@@ -10383,7 +10383,7 @@ export interface UserProfile {
   quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
   /** Show Sparty the mascot where the `sparty` feature allows; absent means shown. */
   spartyEnabled?: boolean;
-  /** Alignment guides while moving or resizing widgets, where `alignment-guides` allows; absent means off. */
+  /** Alignment guides while moving or resizing widgets; absent means off. */
   alignmentGuidesEnabled?: boolean;
   /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
   spellCheckEnabled?: boolean;
@@ -10703,7 +10703,6 @@ export type GlobalFeature =
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
   | 'question-bank-ai'
-  | 'quiz-imscc-import'
   /** Import Schoology Tests/Quizzes, Assessments and question banks (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q14). */
   | 'schoology-quiz-import'
   /** Paper answer sheets; only meaningful while the district switch is on. */
@@ -10787,8 +10786,6 @@ export type GlobalFeature =
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/shipped/GOOGLE_TASKS_ACTION_ITEMS.md). */
   | 'google-tasks-sync'
-  /** Move up and Move down in a library folder's menu. */
-  | 'library-folder-reorder'
   /** Simple/Detailed choice in Arts & Letters Agenda settings. */
   | 'agenda-versions'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/shipped/TEAMS_REDESIGN.md T22). */
@@ -10799,18 +10796,12 @@ export type GlobalFeature =
   | 'schoology-tool-columns'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
-  | 'quiz-monitor-declutter'
-  /** Same monitor layout across Quiz, Video Activity, Flashcards, Guided Learning and Mini App. */
-  | 'monitor-parity'
   /** Teachers turn in a quiz for a student who left without submitting. */
   | 'quiz-submit-for-student'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
-  /** Activity Wall timeline on a dated axis, with a year/date picker on posts. */
-  | 'activity-wall-timeline-dates'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
@@ -10825,17 +10816,11 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
-  /** Widget Library fills most of the screen instead of a small fixed box. */
-  | 'widget-library-large'
-  /** Slides-style alignment guides and snapping while moving or resizing widgets (a per-teacher switch in Behavior). */
-  | 'alignment-guides'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
   | 'timer-starting-length'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
-  /** Timer button on the Music widget that opens a Timer linked to it. */
-  | 'music-timer-link'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
   | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
@@ -11296,6 +11281,8 @@ export interface DashboardTemplate {
   globalStyle?: Partial<GlobalStyle>;
   /** Optional background to apply (Tailwind class, hex, gradient, or URL) */
   background?: string;
+  /** The board's Connections, without Runs. */
+  connections?: WidgetConnection[];
   /** Tag labels for filtering in the template browser */
   tags: string[];
   /** Grade-level targeting — empty means applicable to all grades */
@@ -11329,6 +11316,8 @@ export interface BoardTemplateSnapshot {
   libraryOrder?: (WidgetType | InternalToolType)[];
   viewportWidth?: number;
   viewportHeight?: number;
+  /** The board's Connections, without Runs. */
+  connections?: WidgetConnection[];
   createdAt: number;
 }
 

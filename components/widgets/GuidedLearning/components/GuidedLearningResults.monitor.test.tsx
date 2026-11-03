@@ -20,7 +20,7 @@ vi.mock('@/context/useDashboard', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     orgId: 'org-1',
-    canAccessFeature: (id: string) => id === 'monitor-parity',
+    canAccessFeature: () => false,
   }),
 }));
 
@@ -104,7 +104,7 @@ beforeEach(() => {
   sessionData = { classIds: ['class-a', 'class-b'] };
 });
 
-describe('GuidedLearningResults monitor (monitor-parity)', () => {
+describe('GuidedLearningResults monitor', () => {
   it('opens on the first class and counts its roster', async () => {
     render(
       <GuidedLearningResults set={SET} sessionId="s1" onClose={vi.fn()} />

@@ -419,7 +419,7 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('narrows buckets by period chips but keeps the leaderboard broadcast on the unfiltered set', () => {
+  it('narrows buckets by class but keeps the leaderboard broadcast on the unfiltered set', () => {
     vi.useFakeTimers();
     try {
       leaderboardBatch.update.mockClear();
@@ -431,9 +431,11 @@ describe('QuizLiveMonitor (rebuilt)', () => {
           makeResponse({ pin: '2222', classPeriod: 'P2' }),
         ],
       });
-      // Multi-period default narrows to the first period.
-      const doneCounts = screen.getAllByText('1');
-      expect(doneCounts.length).toBeGreaterThan(0);
+      // The class picker opens on All classes, then narrows to one period.
+      fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
+        target: { value: 'P1' },
+      });
+      expect(screen.getAllByText('1').length).toBeGreaterThan(0);
 
       act(() => {
         vi.advanceTimersByTime(400);

@@ -1276,6 +1276,61 @@ describe('DashboardContext Sharing Logic', () => {
       });
     });
 
+    it.each(['viewer', 'collaborator'] as const)(
+      "a %s receives the host's Connections from the share",
+      async (role) => {
+        let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+        mockSubscribeToSharedBoard.mockImplementation(
+          (_id: string, cb: (remote: Dashboard | null) => void) => {
+            subscribeCb = cb;
+            return () => undefined;
+          }
+        );
+
+        const linked: Dashboard = {
+          id: 'guest-board',
+          name: 'Guest Board',
+          background: 'bg-slate-800',
+          widgets: [],
+          createdAt: 1,
+          linkedShareId: 'share-conn',
+          linkedShareRole: role,
+        };
+        initialDashboardsSeed = [linked];
+
+        let captured: Dashboard | undefined;
+        const Probe: React.FC = () => {
+          const { dashboards } = useDashboard();
+          useEffect(() => {
+            captured = dashboards.find((d) => d.id === 'guest-board');
+          }, [dashboards]);
+          return <div />;
+        };
+
+        render(
+          <DashboardProvider>
+            <Probe />
+          </DashboardProvider>
+        );
+        await waitFor(() => expect(subscribeCb).not.toBeNull());
+
+        const remote = {
+          ...linked,
+          connections: [
+            { id: 'f1', kind: 'follow', leaderId: 'a', followerId: 'b' },
+          ],
+          updatedBy: 'other-user',
+        } as unknown as Dashboard;
+        act(() => {
+          if (subscribeCb) subscribeCb(remote);
+        });
+
+        await waitFor(() =>
+          expect(captured?.connections?.map((c) => c.id)).toEqual(['f1'])
+        );
+      }
+    );
+
     // Regression: the subscribe path took `remote.annotationOverlay` whole,
     // replacing the local objects array. Two teachers annotating the same
     // Synced board therefore destroyed each other's strokes on every mirror

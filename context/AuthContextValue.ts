@@ -247,7 +247,7 @@ export interface AuthContextType {
   quizGraderAutoAdvance: boolean;
   /** Teacher's own "Show Sparty" switch; Sparty also needs the `sparty` feature. */
   spartyEnabled: boolean;
-  /** Teacher's own alignment guides switch; also needs the `alignment-guides` feature. */
+  /** Teacher's own alignment guides switch. */
   alignmentGuidesEnabled: boolean;
   /** Teacher's own spell check switch; only turns it off where `spell-check-setting` allows. */
   spellCheckEnabled: boolean;

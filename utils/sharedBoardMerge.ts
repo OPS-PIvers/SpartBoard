@@ -1,4 +1,9 @@
-import type { Dashboard, DrawableObject, WidgetData } from '@/types';
+import type {
+  Dashboard,
+  DrawableObject,
+  WidgetConnection,
+  WidgetData,
+} from '@/types';
 import { mergeWidget } from '@/utils/dashboardSaveMerge';
 import { mergeAnnotationObjects } from '@/utils/annotationMerge';
 import { stableStringify } from '@/utils/stableStringify';
@@ -11,7 +16,19 @@ export interface SharedBoardBaseline {
   settings: Dashboard['settings'];
   globalStyle: Dashboard['globalStyle'];
   annotationObjects: DrawableObject[];
+  /** Connections without Runs: a Run belongs to the device carrying it out. */
+  connections: WidgetConnection[];
 }
+
+/** A board's Connections with Runs cleared, the form a share carries them in. */
+export const sharedConnections = (
+  d: Pick<Dashboard, 'connections'>
+): WidgetConnection[] =>
+  (d.connections ?? []).map((c) => {
+    if (c.kind !== 'sequence' || !('run' in c)) return c;
+    const { run: _run, ...rest } = c;
+    return rest;
+  });
 
 export const sharedBoardBaseline = (d: Dashboard): SharedBoardBaseline => ({
   widgets: d.widgets,
@@ -19,7 +36,60 @@ export const sharedBoardBaseline = (d: Dashboard): SharedBoardBaseline => ({
   settings: d.settings,
   globalStyle: d.globalStyle,
   annotationObjects: d.annotationOverlay?.objects ?? [],
+  connections: sharedConnections(d),
 });
+
+/**
+ * Three-way merge of a Synced board's Connections by id, like its widgets:
+ * this device's edits, adds and deletes stand, everything else takes the share.
+ * Without a base (first snapshot here) the share wins. This device's Runs stay.
+ * A host keeps its own Connections then, so a share an old client damaged heals.
+ */
+export function mergeSharedConnections(
+  local: Pick<Dashboard, 'connections'>,
+  server: Pick<Dashboard, 'connections'>,
+  base: Pick<SharedBoardBaseline, 'connections'> | undefined,
+  /** Without a base, also keep local Connections the share lacks (a host's own board). */
+  keepLocalWithoutBase = false
+): WidgetConnection[] {
+  const localDefs = sharedConnections(local);
+  const serverDefs = sharedConnections(server);
+  const merged: WidgetConnection[] = [];
+  if (!base) {
+    merged.push(...serverDefs);
+    if (keepLocalWithoutBase) {
+      const serverIds = new Set(serverDefs.map((c) => c.id));
+      merged.push(...localDefs.filter((c) => !serverIds.has(c.id)));
+    }
+  } else {
+    const localById = new Map(localDefs.map((c) => [c.id, c]));
+    const baseById = new Map(base.connections.map((c) => [c.id, c]));
+    const serverIds = new Set(serverDefs.map((c) => c.id));
+    for (const sc of serverDefs) {
+      const lc = localById.get(sc.id);
+      const bc = baseById.get(sc.id);
+      if (!lc) {
+        if (!bc) merged.push(sc); // added by a co-teacher
+        continue; // removed here
+      }
+      const changedHere = !bc || stableStringify(lc) !== stableStringify(bc);
+      merged.push(changedHere ? lc : sc);
+    }
+    for (const lc of localDefs) {
+      if (serverIds.has(lc.id)) continue;
+      if (!baseById.has(lc.id)) merged.push(lc); // added here, not on the share yet
+    }
+  }
+  // Kept as this device had it, `run: null` included, so an idle Sequence never reads as changed.
+  const runs = new Map(
+    (local.connections ?? []).flatMap((c) =>
+      c.kind === 'sequence' && 'run' in c ? [[c.id, c.run] as const] : []
+    )
+  );
+  return merged.map((c) =>
+    c.kind === 'sequence' && runs.has(c.id) ? { ...c, run: runs.get(c.id) } : c
+  );
+}
 
 const sharedConfig = (w: WidgetData): string =>
   stableStringify(scrubWidgetsPII([w])[0].config);
@@ -97,7 +167,12 @@ export function mergeSharedBoard(
   base: SharedBoardBaseline
 ): Pick<
   Dashboard,
-  'widgets' | 'background' | 'settings' | 'globalStyle' | 'annotationOverlay'
+  | 'widgets'
+  | 'background'
+  | 'settings'
+  | 'globalStyle'
+  | 'annotationOverlay'
+  | 'connections'
 > {
   const localInk = local.annotationOverlay?.objects ?? [];
   const inkChanged =
@@ -124,5 +199,6 @@ export function mergeSharedBoard(
             ),
           }
         : (server.annotationOverlay ?? local.annotationOverlay),
+    connections: mergeSharedConnections(local, server, base),
   };
 }
