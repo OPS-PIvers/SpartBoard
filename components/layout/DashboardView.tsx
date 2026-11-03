@@ -75,6 +75,7 @@ import {
 } from '@/components/settings/panSetterRegistry';
 import { SettingsDrawerHost } from '@/components/settings/SettingsDrawerHost';
 import { LayoutGrid, Music } from 'lucide-react';
+import { useBoardMarqueeSelect } from './useBoardMarqueeSelect';
 import { ToastContainer } from '@/components/common/ToastContainer';
 import {
   DEFAULT_GLOBAL_STYLE,
@@ -204,6 +205,7 @@ export const DashboardView: React.FC = () => {
     dashboards,
     addWidget,
     updateWidget,
+    updateWidgets,
     removeWidget,
     duplicateWidget,
     bringToFront,
@@ -531,6 +533,38 @@ export const DashboardView: React.FC = () => {
     const flag = IMPORT_TARGET_FEATURES[target];
     return !!flag && canAccessFeature(flag);
   };
+  // Ctrl+drag box selection reuses group-build mode; this marks a box-started one.
+  const [boxSelecting, setBoxSelecting] = React.useState(false);
+  if (boxSelecting && !groupBuildMode) setBoxSelecting(false);
+  const marqueeRect = useBoardMarqueeSelect({
+    enabled:
+      canAccessFeature('board-multi-select') &&
+      !annotationActive &&
+      !isActiveBoardReadOnly,
+    getSelectableIds: () =>
+      (activeDashboard?.widgets ?? [])
+        .filter((w) => !w.minimized && !w.maximized)
+        .map((w) => w.id),
+    onSelect: (ids) => {
+      if (ids.length === 0) return;
+      const additive = groupBuildMode;
+      setSelectedWidgetIds((prev) =>
+        additive ? [...prev, ...ids.filter((id) => !prev.includes(id))] : ids
+      );
+      if (!groupBuildMode) {
+        setGroupBuildMode(true);
+        setBoxSelecting(true);
+      }
+    },
+  });
+  const boxSelectedWidgets = boxSelecting
+    ? (activeDashboard?.widgets ?? []).filter(
+        (w) => selectedWidgetIds.includes(w.id) && !w.isLocked
+      )
+    : [];
+  const boxSelectionAllPinned =
+    boxSelectedWidgets.length > 0 &&
+    boxSelectedWidgets.every((w) => w.isPinned);
   // Latched: the host takes the parameter off the address once it opens the editor.
   const [webTourLink] = React.useState(opensWebTour);
   useWallBoardAccessCleanup(user?.uid ?? null);
@@ -1789,13 +1823,25 @@ export const DashboardView: React.FC = () => {
         }}
       />
 
+      {marqueeRect &&
+        createPortal(
+          <div
+            aria-hidden="true"
+            className="fixed z-toast pointer-events-none border border-blue-500 bg-blue-500/10 rounded-sm"
+            style={marqueeRect}
+          />,
+          document.body
+        )}
+
       {/* Group-building mode floating action bar */}
       {groupBuildMode &&
         createPortal(
           <>
             {/* Instruction banner */}
             <div className="fixed top-6 left-1/2 -translate-x-1/2 z-toast px-6 py-3 bg-blue-600/90 backdrop-blur-xl text-white rounded-full shadow-2xl font-sans text-sm font-medium pointer-events-none">
-              {t('widgetWindow.group.tapToAdd')}
+              {boxSelecting
+                ? t('widgetWindow.group.boxSelectHint')
+                : t('widgetWindow.group.tapToAdd')}
             </div>
             {/* Action bar */}
             <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-toast flex items-center gap-3 px-6 py-3 bg-white/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/50">
@@ -1809,6 +1855,34 @@ export const DashboardView: React.FC = () => {
               >
                 {t('common.cancel')}
               </button>
+              {boxSelecting && (
+                // no-tour-anchor: the bar only opens from a Ctrl+drag, which a tour cannot perform
+                <button
+                  disabled={boxSelectedWidgets.length === 0}
+                  onClick={() => {
+                    updateWidgets(
+                      boxSelectedWidgets.map((w) => ({
+                        id: w.id,
+                        changes: { isPinned: !boxSelectionAllPinned },
+                      }))
+                    );
+                    setGroupBuildMode(false);
+                    setSelectedWidgetIds([]);
+                  }}
+                  className={`px-5 py-2 text-sm font-semibold rounded-full transition-colors ${
+                    boxSelectedWidgets.length > 0
+                      ? 'bg-amber-500 text-white hover:bg-amber-600'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  {t(
+                    boxSelectionAllPinned
+                      ? 'widgetWindow.group.unpinCount'
+                      : 'widgetWindow.group.pinCount',
+                    { count: boxSelectedWidgets.length }
+                  )}
+                </button>
+              )}
               <button
                 disabled={selectedWidgetIds.length < 2}
                 {...tourAttr('dashboard.group-widgets')}

@@ -1277,7 +1277,10 @@
       "groupCount": "Agrupar ({{count}})",
       "widgetsGrouped": "Widgets agrupados",
       "ungroup": "Desagrupar",
-      "groupWith": "Agrupar con..."
+      "groupWith": "Agrupar con...",
+      "boxSelectHint": "Haz clic en los widgets para agregarlos o quitarlos",
+      "pinCount": "Fijar ({{count}})",
+      "unpinCount": "Desfijar ({{count}})"
     },
     "clearEntireBoard": "¿Estás seguro de que deseas borrar todo el tablero?",
     "clearBoardTitle": "Borrar Tablero",

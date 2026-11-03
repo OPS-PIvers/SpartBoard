@@ -1277,7 +1277,10 @@
       "groupCount": "Gruppieren ({{count}})",
       "widgetsGrouped": "Widgets gruppiert",
       "ungroup": "Gruppierung aufheben",
-      "groupWith": "Gruppieren mit..."
+      "groupWith": "Gruppieren mit...",
+      "boxSelectHint": "Widgets anklicken, um sie hinzuzufügen oder zu entfernen",
+      "pinCount": "Fixieren ({{count}})",
+      "unpinCount": "Lösen ({{count}})"
     },
     "clearEntireBoard": "Bist du sicher, dass du die gesamte Tafel löschen möchtest?",
     "clearBoardTitle": "Tafel löschen",

@@ -1277,7 +1277,10 @@
       "groupCount": "Grouper ({{count}})",
       "widgetsGrouped": "Widgets groupés",
       "ungroup": "Dégrouper",
-      "groupWith": "Grouper avec..."
+      "groupWith": "Grouper avec...",
+      "boxSelectHint": "Cliquez sur les widgets pour les ajouter ou les retirer",
+      "pinCount": "Épingler ({{count}})",
+      "unpinCount": "Désépingler ({{count}})"
     },
     "clearEntireBoard": "Êtes-vous sûr de vouloir effacer l'intégralité du tableau ?",
     "clearBoardTitle": "Effacer le Tableau",

@@ -10829,6 +10829,8 @@ export type GlobalFeature =
   | 'widget-connections'
   /** Randomizer groups setting that splits up students grouped together lately. */
   | 'random-avoid-repeats'
+  /** Ctrl+drag on the board draws a box that selects widgets to pin or group together. */
+  | 'board-multi-select'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
