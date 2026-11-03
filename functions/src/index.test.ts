@@ -3887,6 +3887,8 @@ describe('index barrel — deployed export set', () => {
     'getMyQuizAttemptsV1',
     // Review self-paced game
     'checkQuizGameAnswerV1',
+    // Bank-slot quiz draws
+    'drawQuizBankQuestionsV1',
     // Organizations
     'createOrganizationInvites',
     'claimOrganizationInvite',

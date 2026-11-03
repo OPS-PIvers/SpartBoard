@@ -34,13 +34,6 @@ import {
   type DocumentSnapshot,
   type FieldValue,
 } from 'firebase/firestore';
-import {
-  BANK_DEALS_COLLECTION,
-  balancedPeriodKey,
-  bankDealDocId,
-  isBalancedSlot,
-  planBalancedDeal,
-} from '@/utils/quizBalancedDeal';
 import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
 import {
   LIVE_LEADERBOARD_COLLECTION,
@@ -56,7 +49,6 @@ import { httpsCallable } from 'firebase/functions';
 import {
   QuizSession,
   QuizResponse,
-  QuizSessionBankSlot,
   QuizResponseAnswer,
   QuizQuestion,
   Rubric,
@@ -220,6 +212,13 @@ export function quizLedgerKey(
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Mirrors the rules: a student cannot change a turned-in attempt's answers unless the teacher unlocked it. */
+export function isAnswerLocked(
+  r: Pick<QuizResponse, 'status' | 'unlocked'>
+): boolean {
+  return r.status === 'completed' && r.unlocked !== true;
+}
 
 /**
  * Build the `servedQuestionIds` portion of an answer-write patch (M17).
@@ -2090,13 +2089,8 @@ export interface UseQuizSessionStudentResult {
    * later override removal. Safe to call every render — it's a ref write.
    */
   setServedQuestionIds: (ids: string[] | null) => void;
-  /** Persist this attempt's bank draw on the response doc (rules require `ids.length === session.totalQuestions`). */
-  persistServedDraw: (ids: string[]) => Promise<void>;
-  /** Deal balanced slots in one transaction and persist the draw; resolves to the served ids. */
-  dealBalancedDraw: (
-    publicQuestionIds: readonly string[],
-    slots: readonly QuizSessionBankSlot[]
-  ) => Promise<string[]>;
+  /** Ask the server to draw (or return) this attempt's bank-slot questions. */
+  drawBankQuestions: () => Promise<string[]>;
   warningCount: number;
   /** The student's periods on a per-period session (empty otherwise), for `studentCanEnter`. */
   periodKeys: string[];
@@ -2187,98 +2181,23 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     servedQuestionIdsRef.current = ids && ids.length > 0 ? ids : null;
   }, []);
 
-  const persistServedDraw = useCallback(
-    async (ids: string[]): Promise<void> => {
-      const sessionId = sessionIdRef.current;
-      const responseKey = responseKeyRef.current;
-      if (!sessionId || !responseKey || ids.length === 0) return;
-      servedQuestionIdsRef.current = ids;
-      await updateDoc(
-        doc(
-          db,
-          QUIZ_SESSIONS_COLLECTION,
-          sessionId,
-          RESPONSES_COLLECTION,
-          responseKey
-        ),
-        { servedQuestionIds: ids, lastWriteAt: serverTimestamp() }
-      );
-    },
-    []
-  );
-
-  // Transaction on the response and each period counter, so concurrent joins never share a turn.
-  const dealBalancedDraw = useCallback(
-    async (
-      publicQuestionIds: readonly string[],
-      slots: readonly QuizSessionBankSlot[]
-    ): Promise<string[]> => {
-      const sessionId = sessionIdRef.current;
-      const responseKey = responseKeyRef.current;
-      if (!sessionId || !responseKey) throw new Error('Not joined');
-      const responseRef = doc(
-        db,
-        QUIZ_SESSIONS_COLLECTION,
-        sessionId,
-        RESPONSES_COLLECTION,
-        responseKey
-      );
-      const ids = await runTransaction(
-        db,
-        async (tx) => {
-          const snap = await tx.get(responseRef);
-          if (!snap.exists()) throw new Error('Response missing');
-          const response = snap.data() as QuizResponse;
-          const period = balancedPeriodKey(response);
-          const balanced = slots.filter(isBalancedSlot);
-          const counterRefs = balanced.map((slot) =>
-            doc(
-              db,
-              QUIZ_SESSIONS_COLLECTION,
-              sessionId,
-              BANK_DEALS_COLLECTION,
-              bankDealDocId(slot.id, period)
-            )
-          );
-          const counterSnaps = await Promise.all(
-            counterRefs.map((ref) => tx.get(ref))
-          );
-          const counts = new Map<string, number>();
-          balanced.forEach((slot, i) => {
-            const raw: unknown = counterSnaps[i].data()?.dealt;
-            counts.set(slot.id, typeof raw === 'number' ? raw : 0);
-          });
-          const plan = planBalancedDeal(
-            publicQuestionIds,
-            slots,
-            response,
-            counts
-          );
-          if (!plan) return response.servedQuestionIds ?? [];
-          const uid = auth.currentUser?.uid;
-          if (!uid) throw new Error('Not signed in');
-          // The counter rule finds the caller's response through their seat, so the key never lands on the counter.
-          if (plan.counters.length > 0) {
-            tx.set(seatRef(sessionId, uid), { responseKey });
-          }
-          plan.counters.forEach(({ slotId, dealt }) => {
-            const i = balanced.findIndex((s) => s.id === slotId);
-            if (i >= 0) tx.set(counterRefs[i], { dealt, by: uid });
-          });
-          tx.update(responseRef, {
-            servedQuestionIds: plan.ids,
-            dealtQuestionIds: plan.history,
-            lastWriteAt: serverTimestamp(),
-          });
-          return plan.ids;
-        },
-        { maxAttempts: 10 }
-      );
-      servedQuestionIdsRef.current = ids;
-      return ids;
-    },
-    []
-  );
+  // Bank-slot draws happen on the server: the rules refuse a student-written served list.
+  const drawBankQuestions = useCallback(async (): Promise<string[]> => {
+    const sessionId = sessionIdRef.current;
+    const responseKey = responseKeyRef.current;
+    if (!sessionId || !responseKey) throw new Error('Not joined');
+    if (studentPreviewBlocksWrite()) throw new Error('View-only');
+    const res = await httpsCallable<
+      { sessionId: string; responseKey: string },
+      { servedQuestionIds: string[] }
+    >(
+      functions,
+      'drawQuizBankQuestionsV1'
+    )({ sessionId, responseKey });
+    const ids = res.data.servedQuestionIds;
+    if (ids.length > 0) servedQuestionIdsRef.current = ids;
+    return ids;
+  }, []);
 
   // Optimistic local counter state to ensure UI updates immediately.
   // warningCountRef mirrors the state so reportTabSwitch can return the
@@ -3337,6 +3256,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             patch: Record<string, unknown>;
           };
       const computeWrite = (existing: QuizResponse): WriteResult => {
+        // A turned-in attempt's answers are final (the rules refuse the write) until a teacher unlock.
+        if (isAnswerLocked(existing)) return { skip: true, snapshot: null };
         const existingAnswers = existing.answers ?? [];
 
         // isCorrect is intentionally not written by the student to prevent
@@ -3641,6 +3562,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           const snap = await tx.get(responseRef);
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
+          if (isAnswerLocked(existing)) return;
           const existingAnswers = existing.answers ?? [];
           // Symmetric to markUnresponded: a closed slot never accepts a take.
           if (isRecordingSlotClosed(existingAnswers, input.questionId)) return;
@@ -3738,6 +3660,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           const snap = await tx.get(responseRef);
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
+          if (isAnswerLocked(existing)) return;
           const existingAnswers = existing.answers ?? [];
           let changed = false;
           const updated = existingAnswers.map((a) => {
@@ -3795,6 +3718,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           const snap = await tx.get(responseRef);
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
+          if (isAnswerLocked(existing)) return;
           const existingAnswers = existing.answers ?? [];
           // Never overwrite a real response — a student who already recorded a
           // take on this question has answered it.
@@ -3843,6 +3767,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     const quizId = quizIdRef.current;
     const teacherUid = teacherUidRef.current;
     if (!sessionId || !responseKey) return;
+    // Let a just-flushed draft land first: once turned in, the rules lock the answers.
+    await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
+    await settleDraftsWithin(inFlightTxRef.current, DRAFT_SETTLE_MS);
 
     const responseRef = doc(
       db,
@@ -3923,7 +3850,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       // reads to precede all writes within a transaction.
       const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
 
-      const submittedAt = Date.now();
+      const submittedAt = getServerNow();
       // Only clear `unlocked` when the response actually carries the flag.
       // Production deploys land hosting before rules (see
       // .github/workflows/firebase-deploy.yml), so during the deploy gap
@@ -4265,8 +4192,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     recordStimulusPlay,
     reportStimulusError,
     setServedQuestionIds,
-    persistServedDraw,
-    dealBalancedDraw,
+    drawBankQuestions,
     warningCount,
     periodKeys,
     contentPending: inContent && !content,

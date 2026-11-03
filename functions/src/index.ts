@@ -177,6 +177,7 @@ export { getMyQuizAttemptsV1 } from './getMyQuizAttempts';
 
 // ── Review self-paced game (server-graded per answer; QUIZ_REVIEW_SPLIT.md D31) ─
 export { checkQuizGameAnswerV1 } from './checkQuizGameAnswer';
+export { drawQuizBankQuestionsV1 } from './quizBankDraw';
 
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {

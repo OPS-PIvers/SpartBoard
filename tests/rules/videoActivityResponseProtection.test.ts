@@ -108,7 +108,7 @@ describe('video_activity_sessions/{sid}/responses/{rid} — student update white
     await assertSucceeds(
       updateDoc(doc(asStudent(), RESPONSE_PATH), {
         answers: [{ questionId: 'q1', value: 'a' }],
-        completedAt: 2000,
+        completedAt: Date.now(),
         completedAttempts: 1,
       })
     );
