@@ -15,8 +15,6 @@ const MapPinPicker = lazy(
 
 interface SectionsEditorProps {
   layout: ActivityWallLayout;
-  /** Dated timeline preview: shows the time periods list on timeline walls. */
-  timelineDates?: boolean;
   value: WallStructure;
   onChange: (patch: WallStructure) => void;
 }
@@ -297,14 +295,13 @@ const TimePeriodsList: React.FC<{
 /** Layout-specific structure fields; wall and word cloud render nothing, timeline only its time periods. */
 export const SectionsEditor: React.FC<SectionsEditorProps> = ({
   layout,
-  timelineDates,
   value,
   onChange,
 }) => {
   const zoomId = useId();
 
   if (layout === 'timeline') {
-    return timelineDates ? (
+    return (
       <div className="space-y-5">
         <LabelledList
           legend="Groups"
@@ -319,7 +316,7 @@ export const SectionsEditor: React.FC<SectionsEditorProps> = ({
           onChange={(timePeriods) => onChange({ timePeriods })}
         />
       </div>
-    ) : null;
+    );
   }
 
   if (layout === 'columns') {

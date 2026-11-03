@@ -88,8 +88,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     config,
     teacherUid: foreignSession ? (sessionOwnerUid ?? undefined) : user?.uid,
     onConfigChange: applyConfig,
-    endSessionOnReset: canAccessFeature('poll-pro'),
-    pollPro: canAccessFeature('poll-pro'),
+    endSessionOnReset: true,
   });
 
   const options = currentQuestion?.options ?? [];
@@ -130,14 +129,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     if (!user) return;
     setShowResumePopover(false);
     try {
-      applyConfig(
-        await startPollSession(
-          config,
-          user.uid,
-          mode,
-          canAccessFeature('poll-pro')
-        )
-      );
+      applyConfig(await startPollSession(config, user.uid, mode));
     } catch (err) {
       // On a flaky phone connection the session write can fail; surface it in
       // logs rather than silently leaving the teacher thinking voting started.
@@ -265,10 +257,9 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
         )}
 
         {/* Reveal and lock — the teacher's phone always shows tallies, the board waits for Show results */}
-        {canAccessFeature('poll-pro') &&
-          (!boardShareId ||
-            !config.activePollSessionId ||
-            sessionOwnerUid === user?.uid) &&
+        {(!boardShareId ||
+          !config.activePollSessionId ||
+          sessionOwnerUid === user?.uid) &&
           (config.hideResults === true || isLive || hasCorrectAnswer) && (
             <div className="grid grid-cols-2 gap-2">
               {config.hideResults === true && (

@@ -273,7 +273,6 @@ const PeriodsEditorPreview: React.FC = () => {
     <div className="mx-auto max-w-2xl rounded-2xl bg-white p-6">
       <SectionsEditor
         layout="timeline"
-        timelineDates
         value={value}
         onChange={(patch) => setValue((prev) => ({ ...prev, ...patch }))}
       />

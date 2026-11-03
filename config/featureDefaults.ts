@@ -1,7 +1,6 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
-  CalendarRange,
   Trophy,
   Camera,
   PenLine,
@@ -464,20 +463,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Folded into schoology-quiz-import (SCHOOLOGY_QUIZ_IMPORT PR 5); retire once that one opens.
-  'quiz-imscc-import': {
-    label: 'Import quizzes from Schoology',
-    icon: FileUp,
-    description: 'Import every quiz in a Schoology export (.imscc) at once.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Import quizzes from Schoology',
-    group: 'building',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'schoology-quiz-import': {
     label: 'Send quizzes from Schoology',
     icon: FileUp,
@@ -721,18 +706,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     category: 'ai',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Move up and Move down in each library folder's menu.
-  'library-folder-reorder': {
-    label: 'Reorder library folders',
-    icon: ListOrdered,
-    description:
-      'Move up and Move down in each folder menu, in every library and PLC Assessments.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1132,17 +1105,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'quiz-monitor-declutter': {
-    label: 'Quiz live monitor cleanup',
-    icon: LayoutDashboard,
-    description: 'Simpler Quiz live monitor with Close all and footer buttons.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'monitor-parity': {
     label: 'Matching assignment monitors',
     icon: LayoutDashboard,
@@ -1184,17 +1146,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'weather',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'activity-wall-timeline-dates': {
-    label: 'Activity Wall dated timeline',
-    icon: CalendarRange,
-    description: 'Posts get a real date and sit in order on a timeline.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'activity-wall',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1247,17 +1198,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'poll-pro': {
-    label: 'Poll upgrades',
-    icon: BarChart,
-    description:
-      'Hide results until you reveal them, lock voting and see how many have answered.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'noise-meter-pro': {
     label: 'Sound: noise meter upgrades',
     icon: Gauge,
@@ -1295,17 +1235,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
-  'widget-library-large': {
-    label: 'Larger widget library',
-    icon: LayoutGrid,
-    description:
-      'The widget library fills more of the screen so more widgets show at once.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // The flag only hides the Behavior switch; teachers turn spell check off themselves.
   'spell-check-setting': {
     label: 'Spell check switch',
@@ -1335,17 +1264,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'music',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'music-timer-link': {
-    label: 'Music: linked timer',
-    icon: Timer,
-    description:
-      'A timer button on the Music widget opens a Timer that the music plays with.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
