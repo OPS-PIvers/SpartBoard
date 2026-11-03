@@ -10473,6 +10473,8 @@ export interface ConnectionStep {
   id: string;
   actions: ConnectionAction[];
   waitSeconds?: number;
+  /** What moves the Sequence on: unset waits for the step's widgets, 'now' doesn't wait, 'next' waits for the Next button. */
+  advance?: 'now' | 'next';
 }
 
 /** The live pass of a Sequence, carried out only by `deviceId`. */

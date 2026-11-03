@@ -91,6 +91,7 @@ import { useTourRunning } from '@/components/tours/tourState';
 import { getWidgetMinSize, hasExplicitMinSize } from '@/config/widgetEnvelopes';
 import {
   ConnectPickOverlay,
+  ConnectionWidgetHighlight,
   ConnectToolbarButton,
   ConnectionBadge,
   ConnectionCloseWarning,
@@ -2482,6 +2483,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       )}
 
       <ConnectPickOverlay widget={widget} />
+      <ConnectionWidgetHighlight widgetId={widget.id} />
       {!isMaximized && <ConnectionBadge widget={widget} />}
 
       {/* Group-build mode selection overlay */}

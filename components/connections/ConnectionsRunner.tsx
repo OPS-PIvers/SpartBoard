@@ -24,6 +24,7 @@ import {
   CONNECTION_DEVICE_ID,
   onHandAction,
   onRunCommand,
+  type RunCommand,
 } from '@/utils/connectionSignals';
 import { convertLegacyConnections } from '@/utils/legacyConnections';
 
@@ -32,6 +33,15 @@ type ApplyChanges = DashboardContextValue['applyConnectionChanges'];
 const TICK_MS = 250;
 // Another device takes over a Run whose step has been finished this long without moving on.
 const TAKEOVER_MS = 5000;
+
+// Runs move on their own, so they're left out of the comparison.
+const sameConnections = (a: WidgetConnection[], b: WidgetConnection[]) => {
+  const strip = (cs: WidgetConnection[]) =>
+    JSON.stringify(
+      cs.map((c) => (c.kind === 'sequence' ? { ...c, run: null } : c))
+    );
+  return strip(a) === strip(b);
+};
 
 const hasRun = (d: Dashboard) =>
   (d.connections ?? []).some((c) => c.kind === 'sequence' && !!c.run);
@@ -139,10 +149,16 @@ export const ConnectionsRunner: React.FC = () => {
     });
   }, [enabled]);
 
-  // Start/Stop from a step badge.
+  // Start, Stop and Next from a step badge.
   useEffect(() => {
     if (!enabled) return;
-    return onRunCommand((connectionId, command) => {
+    let retry: number | undefined;
+    const handle = (
+      connectionId: string,
+      command: RunCommand,
+      tries: number,
+      savedConnections?: WidgetConnection[]
+    ) => {
       const board = latest.current.dashboards.find((d) =>
         (d.connections ?? []).some((c) => c.id === connectionId)
       );
@@ -150,6 +166,19 @@ export const ConnectionsRunner: React.FC = () => {
         (c): c is SequenceConnection =>
           c.id === connectionId && c.kind === 'sequence'
       );
+      // Save and start sends the command before the saved board reaches this copy.
+      const stale =
+        !!savedConnections &&
+        !!board &&
+        !sameConnections(board.connections ?? [], savedConnections);
+      if ((!board || !seq || stale) && tries < 20) {
+        retry = window.setTimeout(
+          () => handle(connectionId, command, tries + 1, savedConnections),
+          100
+        );
+        return;
+      }
+      // After the retries, a step mismatch still starts the copy the board has.
       if (!board || !seq) return;
       if (command === 'stop') {
         write(
@@ -166,6 +195,28 @@ export const ConnectionsRunner: React.FC = () => {
           latest.current.t('connections.classNotLoaded'),
           'info'
         );
+        return;
+      }
+      if (command === 'next') {
+        if (!seq.run) return;
+        const moved = advanceRun(
+          seq,
+          widgets,
+          Date.now(),
+          CONNECTION_DEVICE_ID
+        );
+        write(
+          latest.current.applyConnectionChanges,
+          board,
+          moved.patches,
+          new Map([[seq.id, moved.sequence]])
+        );
+        if (moved.finished) {
+          latest.current.addToast(
+            latest.current.t('connections.runFinished'),
+            'info'
+          );
+        }
         return;
       }
       const started = startRun(seq, widgets, Date.now(), CONNECTION_DEVICE_ID);
@@ -188,7 +239,14 @@ export const ConnectionsRunner: React.FC = () => {
           'info'
         );
       }
-    });
+    };
+    const off = onRunCommand((id, command, savedConnections) =>
+      handle(id, command, 0, savedConnections)
+    );
+    return () => {
+      off();
+      window.clearTimeout(retry);
+    };
   }, [enabled]);
 
   // Old nexus toggles become Connections, once per widget (the marker stops a repeat).

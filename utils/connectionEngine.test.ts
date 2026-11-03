@@ -96,6 +96,33 @@ describe('draftFromPicks', () => {
     ]);
     expect(draft.sequence?.repeat).toBe('once');
   });
+
+  it('loops until the names run out when a Randomizer is in it', () => {
+    const draft = draftFromPicks([
+      { id: 't1', type: 'time-tool' },
+      { id: 'r', type: 'random', config: { mode: 'shuffle' } },
+    ]);
+    expect(draft.sequence?.repeat).toBe('until-done');
+  });
+});
+
+describe('what moves a step on', () => {
+  const t = timer('t1', 120, {
+    isRunning: true,
+    startTime: 0,
+    elapsedTime: 120,
+  });
+  const step = (advance?: 'now' | 'next') => ({
+    id: 's',
+    actions: [{ widgetId: 't1', action: 'restart' }],
+    ...(advance && { advance }),
+  });
+
+  it('waits for the timer, moves on right away, or waits for Next', () => {
+    expect(isStepFinished(step(), [t], 0, 1000)).toBe(false);
+    expect(isStepFinished(step('now'), [t], 0, 1000)).toBe(true);
+    expect(isStepFinished(step('next'), [t], 0, 999_999)).toBe(false);
+  });
 });
 
 describe('shareout loop', () => {

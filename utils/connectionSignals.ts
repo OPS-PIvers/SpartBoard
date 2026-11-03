@@ -1,5 +1,6 @@
 // Hand actions widgets report to the Connections runner; only real teacher input reports, never a Run's own writes.
 import type { ConnectionHandAction } from '@/config/widgetConnections';
+import type { WidgetConnection } from '@/types';
 
 type Listener = (widgetId: string, hand: ConnectionHandAction) => void;
 
@@ -19,16 +20,21 @@ export const onHandAction = (listener: Listener): (() => void) => {
   };
 };
 
-export type RunCommand = 'start' | 'stop';
-type CommandListener = (connectionId: string, command: RunCommand) => void;
+export type RunCommand = 'start' | 'stop' | 'next';
+type CommandListener = (
+  connectionId: string,
+  command: RunCommand,
+  savedConnections?: WidgetConnection[]
+) => void;
 const commandListeners = new Set<CommandListener>();
 
-/** Start or stop a Sequence's Run from the step badge; this device carries it out. */
+/** Start, stop or move on a Sequence's Run from the step badge; this device carries it out. */
 export const sendRunCommand = (
   connectionId: string,
-  command: RunCommand
+  command: RunCommand,
+  savedConnections?: WidgetConnection[]
 ): void => {
-  commandListeners.forEach((l) => l(connectionId, command));
+  commandListeners.forEach((l) => l(connectionId, command, savedConnections));
 };
 
 export const onRunCommand = (listener: CommandListener): (() => void) => {

@@ -5752,13 +5752,13 @@
     "closeWarning": "Closing removes this widget from its connection.",
     "actions": {
       "time-tool": {
-        "restart": "Start from the top",
-        "start": "Start or resume",
+        "restart": "Start",
+        "start": "Resume",
         "pause": "Pause",
         "reset": "Reset"
       },
       "random": {
-        "next": "Next name"
+        "next": "Pick next name"
       },
       "traffic": {
         "red": "Turn red",
@@ -5767,29 +5767,29 @@
         "off": "Turn off"
       },
       "expectations": {
-        "voice-0": "Voice: Silence",
-        "voice-1": "Voice: Whisper",
-        "voice-2": "Voice: Conversation",
-        "voice-3": "Voice: Presenter",
-        "voice-4": "Voice: Outside"
+        "voice-0": "Silence",
+        "voice-1": "Whisper",
+        "voice-2": "Conversation",
+        "voice-3": "Presenter",
+        "voice-4": "Outside"
       },
       "nextUp": {
         "next": "Next student"
       },
       "stations": {
-        "rotate": "Rotate stations"
+        "rotate": "Rotate"
       },
       "checklist": {
-        "next": "Check off the next item"
+        "next": "Check next item"
       },
       "schedule": {
-        "next-block": "Wait until the next block starts"
+        "next-block": "Wait for next block"
       },
       "work-symbols": {
-        "show": "Show a symbol"
+        "show": "Show"
       },
       "materials": {
-        "show": "Show materials"
+        "show": "Show"
       }
     },
     "editor": {
@@ -5797,33 +5797,52 @@
       "delete": "Delete connection",
       "running": "Running now. Saving changes stops it.",
       "stop": "Stop",
-      "wait": "Wait",
       "seconds": "seconds",
       "actionFor": "What {{name}} does",
-      "removeAction": "Remove from this step",
-      "sameTime": "At the same time",
-      "moveUp": "Move step up",
-      "moveDown": "Move step down",
-      "removeStep": "Remove step",
-      "addWidget": "Add widget",
-      "addWait": "Add wait",
+      "removeAction": "Remove",
       "repeat": "Repeat",
-      "repeatUntilDone": "Until a step has nothing left to do",
-      "repeatOnce": "Don't repeat",
-      "repeatCount": "A set number of times",
-      "timesLabel": "Times",
-      "follows": "Follows",
-      "followsLine": "{{follower}} follows {{leader}}",
-      "removeFollow": "Remove",
       "empty": "Nothing left in this connection. Save to remove it.",
       "pickSymbol": "Pick a symbol",
       "noMaterials": "None",
-      "choiceFor": "Choice for {{name}}"
+      "choiceFor": "Choice for {{name}}",
+      "saveStart": "Save and start",
+      "stepNumber": "Step {{n}}",
+      "stepMenu": "Step {{n}} options",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeStep": "Remove",
+      "addSide": "Add something at the same time",
+      "addStep": "Add a step",
+      "advanceEnds": "When {{names}} ends",
+      "advanceEndMany": "When {{names}} end",
+      "advanceNextBlock": "When the next block starts",
+      "advanceNow": "Right away",
+      "advanceNext": "When I press Next",
+      "advancePause": "After a few seconds",
+      "advanceFor": "What moves on from step {{n}}",
+      "repeatUntilNames": "Repeat until every name is picked",
+      "repeatUntilItems": "Repeat until every item is checked",
+      "repeatUntilStop": "Repeat until I press Stop",
+      "repeatCount": "Repeat a set number of times",
+      "repeatOnce": "Don't repeat",
+      "times": "times",
+      "timerName": "Timer {{time}}",
+      "advancePauseAfterEnds": "A few seconds after {{names}} ends",
+      "advancePauseAfterEndMany": "A few seconds after {{names}} end",
+      "advancePauseAfterBlock": "A few seconds after the next block starts"
     },
     "nothingToStart": "The first step has nothing to do yet.",
     "stop": "Stop",
     "startFromTop": "Start from step 1",
     "editSteps": "Edit steps",
-    "classNotLoaded": "Your class is still loading. Try again in a moment."
+    "classNotLoaded": "Your class is still loading. Try again in a moment.",
+    "followAction": {
+      "music": "Play",
+      "qr": "Show the text",
+      "traffic": "Match the noise level",
+      "sound": "Match the voice level",
+      "recessGear": "Use the weather"
+    },
+    "next": "Next"
   }
 }

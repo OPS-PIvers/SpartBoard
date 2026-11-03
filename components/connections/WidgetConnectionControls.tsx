@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Play, Plus, Square, Workflow } from 'lucide-react';
+import {
+  Pencil,
+  Play,
+  Plus,
+  Square,
+  Workflow,
+  SkipForward,
+} from 'lucide-react';
 import type { WidgetConnection, WidgetData } from '@/types';
 import { IconButton } from '@/components/common/IconButton';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
@@ -85,15 +92,34 @@ const useWidgetConnectionSummary = (widgetId: string) => {
   };
 };
 
-const openEditor = (boardId: string, connection: WidgetConnection) =>
+// A Sequence opens with the Follows led by its widgets, so they show as side cards.
+const openEditor = (
+  boardId: string,
+  connection: WidgetConnection,
+  all: WidgetConnection[]
+) => {
+  const stepWidgets =
+    connection.kind === 'sequence'
+      ? new Set(
+          connection.steps.flatMap((s) => s.actions.map((a) => a.widgetId))
+        )
+      : new Set<string>();
+  const related = all.filter(
+    (c) =>
+      c.kind === 'follow' &&
+      c.id !== connection.id &&
+      stepWidgets.has(c.leaderId)
+  );
+  const connections = [connection, ...related];
   connectionsUi.set({
     editor: {
       boardId,
-      connections: [connection],
-      replaces: [connection.id],
+      connections,
+      replaces: connections.map((c) => c.id),
     },
     connectMode: null,
   });
+};
 
 /** Corner badge on a connected widget: its step numbers; opens Start/Stop and Edit steps. */
 export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
@@ -114,7 +140,13 @@ export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
       getCanvasState,
       summary.seqId || summary.connectionId
     );
-    if (connection) openEditor(boardId, connection);
+    if (connection) {
+      openEditor(
+        boardId,
+        connection,
+        getCanvasState().activeDashboard?.connections ?? []
+      );
+    }
   };
   const label = t('connections.badgeTitle', {
     name: getTitle(widget),
@@ -176,6 +208,25 @@ export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
               }}
               onPointerDown={(e) => e.stopPropagation()}
             >
+              {summary.seqRunning && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  {...tourAttr(
+                    'widget.connection-next',
+                    widget.id,
+                    widget.type
+                  )}
+                  className={itemClass}
+                  onClick={() => {
+                    close();
+                    sendRunCommand(summary.seqId, 'next');
+                  }}
+                >
+                  <SkipForward className="w-4 h-4" aria-hidden="true" />
+                  {t('connections.next', { defaultValue: 'Next' })}
+                </button>
+              )}
               {summary.seqRunning ? (
                 <button
                   type="button"
@@ -237,6 +288,21 @@ const findConnection = (
   getState: ReturnType<typeof useDashboardCanvasStateGetter>,
   id: string
 ) => getState().activeDashboard?.connections?.find((c) => c.id === id);
+
+/** Outlines the widget whose card is picked in the step editor. */
+export const ConnectionWidgetHighlight: React.FC<{ widgetId: string }> = ({
+  widgetId,
+}) => {
+  const lit = useConnectionsUi((s) => s.highlightedWidgetId === widgetId);
+  if (!lit) return null;
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute -inset-1.5 rounded-[inherit] ring-4 ring-brand-blue-primary"
+      style={{ zIndex: 21 }}
+    />
+  );
+};
 
 /** Dims, numbers and highlights widgets while Connect mode is picking; it takes the tap so the widget underneath doesn't act. */
 export const ConnectPickOverlay: React.FC<{ widget: WidgetData }> = ({
@@ -381,7 +447,13 @@ export const ConnectToolbarButton: React.FC<{
                   onClick={() => {
                     setMenuAt(null);
                     const c = findConnection(getCanvasState, id);
-                    if (c) openEditor(boardId, c);
+                    if (c) {
+                      openEditor(
+                        boardId,
+                        c,
+                        getCanvasState().activeDashboard?.connections ?? []
+                      );
+                    }
                     onAction();
                   }}
                 >

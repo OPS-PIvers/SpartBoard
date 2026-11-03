@@ -69,14 +69,12 @@ export interface StepApplyResult {
 export const applyStep = (
   step: ConnectionStep,
   widgets: WidgetData[],
-  now: number,
-  skipWidgetId?: string
+  now: number
 ): StepApplyResult => {
   const map = byId(widgets);
   const patches: WidgetPatches = {};
   let ends = false;
   for (const a of step.actions) {
-    if (a.widgetId === skipWidgetId) continue;
     const w = map.get(a.widgetId);
     if (!w) continue;
     const def = actionDefFor(w.type, a.action);
@@ -85,7 +83,11 @@ export const applyStep = (
     const result = def.apply(config, now, a.params);
     if (!result) return { patches: {}, blocked: true, ends: false };
     patches[w.id] = { ...(patches[w.id] ?? {}), ...result.patch };
-    if (result.ends) ends = true;
+    // Once a list runs out, the rest of the step doesn't happen.
+    if (result.ends) {
+      ends = true;
+      break;
+    }
   }
   return { patches, blocked: false, ends };
 };
@@ -99,6 +101,8 @@ export const isStepFinished = (
   if ((step.waitSeconds ?? 0) > 0 && step.actions.length === 0) {
     return now >= stepStartedAt + (step.waitSeconds ?? 0) * 1000;
   }
+  if (step.advance === 'now') return true;
+  if (step.advance === 'next') return false;
   const map = byId(widgets);
   return step.actions.every((a) => {
     const w = map.get(a.widgetId);
@@ -183,7 +187,15 @@ export const joinRunByHand = (
   const order = steps.map((_, i) => (current + 1 + i) % steps.length);
   const index = order.find((i) => matches(steps[i]));
   if (index === undefined) return null;
-  const applied = applyStep(steps[index], widgets, now, widgetId);
+  // The press counts as everything in the step up to it; only what comes after still happens.
+  const pressedAt = steps[index].actions.findIndex(
+    (a) => a.widgetId === widgetId
+  );
+  const rest = {
+    ...steps[index],
+    actions: steps[index].actions.slice(pressedAt + 1),
+  };
+  const applied = applyStep(rest, widgets, now);
   return {
     sequence: {
       ...seq,
@@ -253,6 +265,17 @@ const followPair = (
 };
 
 // Turns Connect-mode picks into a Sequence plus Follows; picking the first widget again makes it repeat.
+// A list that can run out (names, checklist items) makes a draft loop until it does.
+const canRunOut = (steps: ConnectionStep[], picks: PickedWidget[]) => {
+  const byId = new Map(picks.map((p) => [p.id, p]));
+  return steps.some((s) =>
+    s.actions.some((a) => {
+      const p = byId.get(a.widgetId);
+      return !!p && !!actionDefFor(p.type, a.action)?.runsOut?.(p.config ?? {});
+    })
+  );
+};
+
 export const draftFromPicks = (
   picks: PickedWidget[],
   { minSteps = 2 }: { minSteps?: number } = {}
@@ -296,7 +319,7 @@ export const draftFromPicks = (
           id: newId(),
           kind: 'sequence',
           steps,
-          repeat: closesLoop ? 'until-done' : 'once',
+          repeat: closesLoop || canRunOut(steps, picks) ? 'until-done' : 'once',
         }
       : null;
   return { sequence, follows };
