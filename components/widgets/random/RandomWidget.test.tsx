@@ -1179,6 +1179,62 @@ describe('RandomWidget — groups mode by group count', () => {
   });
 });
 
+describe('RandomWidget single pick round boundary', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('does not open a fresh round with the name that closed the last one', async () => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockDashboardContext
+    );
+    render(
+      <RandomWidget
+        widget={{
+          id: 'test-id',
+          type: 'random',
+          config: {
+            firstNames: 'Alice\nBob',
+            lastNames: '',
+            rosterMode: 'custom',
+            mode: 'single',
+            visualStyle: 'flash',
+            soundEnabled: false,
+            remainingStudents: [],
+            lastResult: 'Alice',
+          },
+          x: 0,
+          y: 0,
+          w: 300,
+          h: 200,
+          z: 1,
+          flipped: false,
+        }}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+      );
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    const pick = mockUpdateWidget.mock.calls.find(
+      ([id, u]) =>
+        id === 'test-id' &&
+        (u as Partial<WidgetData>).config !== undefined &&
+        'lastResult' in ((u as Partial<WidgetData>).config as object)
+    ) as [string, Partial<WidgetData>] | undefined;
+    expect(pick?.[1].config).toMatchObject({
+      lastResult: 'Bob',
+      remainingStudents: ['Alice'],
+    });
+  });
+});
+
 describe('RandomWidget double pick while audio is suspended', () => {
   afterEach(() => {
     vi.useRealTimers();
