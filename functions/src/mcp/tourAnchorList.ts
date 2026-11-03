@@ -18608,6 +18608,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.scoreboard.edit-connection",
+    "label": "Edit connection button in Scoreboard settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.settings",
+        "kind": "settings-drawer",
+        "widget_type": "scoreboard",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.scoreboard.use-group-names",
     "label": "Use group names checkbox in Scoreboard settings",
     "scope": "widget",

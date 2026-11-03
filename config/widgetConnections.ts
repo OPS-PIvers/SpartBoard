@@ -257,6 +257,7 @@ export const WIDGET_CONNECTIONS: Partial<
       },
     ],
   },
+  scoreboard: { defaultAction: '', actions: [], follows: ['random'] },
   text: { defaultAction: '', actions: [] },
   weather: { defaultAction: '', actions: [] },
 };

@@ -226,4 +226,33 @@ describe('QuizResults, Review variant', () => {
     expect(screen.getByRole('button', { name: /push grades/i })).toBeTruthy();
     expect(screen.queryByRole('list', { name: 'Final ranking' })).toBeNull();
   });
+
+  it('offers Send to Scoreboard on Review only, never on Quiz', () => {
+    const { unmount } = render(
+      <QuizResults
+        quiz={quiz}
+        responses={responses}
+        config={config}
+        onBack={vi.fn()}
+        session={gameSession}
+        variant="review"
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: 'Send to Scoreboard' })
+    ).toBeInTheDocument();
+    unmount();
+    render(
+      <QuizResults
+        quiz={quiz}
+        responses={responses}
+        config={config}
+        onBack={vi.fn()}
+        session={{ ...gameSession, sessionMode: 'student', widgetKind: 'quiz' }}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Send to Scoreboard' })
+    ).toBeNull();
+  });
 });
