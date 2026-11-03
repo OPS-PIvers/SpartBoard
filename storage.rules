@@ -481,7 +481,6 @@ service firebase.storage {
         return pjOwnsRun() &&
           request.auth.token.get('firebase', {}).get('sign_in_provider', '') != 'anonymous' &&
           request.auth.token.get('studentRole', false) != true &&
-          firestore.exists(/databases/(default)/documents/project_runs/$(runId)) &&
           firestore.get(/databases/(default)/documents/project_runs/$(runId)).data.get('teacherUid', '') == request.auth.uid;
       }
       function pjRunAccepting() {
