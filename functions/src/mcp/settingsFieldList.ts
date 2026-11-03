@@ -702,6 +702,11 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'custom',
     },
     {
+      anchor: 'settings.toggle:random#avoidRecentPartners',
+      label: 'Avoid recent partners',
+      kind: 'toggle',
+    },
+    {
       anchor: 'settings.field:random#numHomeGroups',
       label: 'Number of home groups',
       kind: 'custom',

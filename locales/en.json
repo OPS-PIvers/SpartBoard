@@ -2417,7 +2417,9 @@
       "rosterGroupsOff": "Class groups are switched off for your school right now.",
       "rowStyle": "Name style",
       "rowCards": "Cards",
-      "rowLines": "Lines"
+      "rowLines": "Lines",
+      "avoidRecentPartners": "Avoid recent partners",
+      "avoidRecentPartnersHelp": "Keeps students apart from the classmates they were grouped with in the last 3 rounds."
     },
     "url": {
       "links": "Links",

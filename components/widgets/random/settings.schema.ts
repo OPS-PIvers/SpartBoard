@@ -171,6 +171,15 @@ export default defineSettings<RandomConfig>({
             isMode('groups')(ctx) && ctx.config.groupingMode === 'count',
           render: renderGroupCount,
         },
+        {
+          key: 'avoidRecentPartners',
+          type: 'toggle',
+          label: 'avoidRecentPartners',
+          help: 'avoidRecentPartnersHelp',
+          visibleWhen: (ctx) =>
+            isMode('groups')(ctx) &&
+            ctx.canAccessFeature('random-avoid-repeats'),
+        },
         // schema-gap: rosterDerivedSlider
         {
           key: 'numHomeGroups',

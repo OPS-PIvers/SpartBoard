@@ -1235,6 +1235,98 @@ describe('RandomWidget single pick round boundary', () => {
   });
 });
 
+describe('RandomWidget avoid recent partners', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    canAccessFeatureMock.mockImplementation(() => false);
+  });
+
+  const renderGroups = (avoidRecentPartners: boolean) =>
+    render(
+      <RandomWidget
+        widget={{
+          id: 'test-id',
+          type: 'random',
+          config: {
+            firstNames: 'A\nB\nC\nD\nE\nF',
+            lastNames: '',
+            rosterMode: 'custom',
+            mode: 'groups',
+            groupSize: 2,
+            soundEnabled: false,
+            avoidRecentPartners,
+            recentGroupings: [
+              {
+                scope: 'custom',
+                groups: [
+                  { names: ['A', 'B'] },
+                  { names: ['C', 'D'] },
+                  { names: ['E', 'F'] },
+                ],
+              },
+            ],
+          },
+          x: 0,
+          y: 0,
+          w: 300,
+          h: 200,
+          z: 1,
+          flipped: false,
+        }}
+      />
+    );
+
+  const randomize = async () => {
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+      );
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    const call = mockUpdateWidget.mock.calls.find(
+      ([id, u]) =>
+        id === 'test-id' &&
+        'lastResult' in (((u as Partial<WidgetData>).config ?? {}) as object)
+    ) as [string, Partial<WidgetData>] | undefined;
+    return call?.[1].config as RandomConfig;
+  };
+
+  const pairs = (groups: RandomGroup[]) =>
+    groups.map((g) => [...g.names].sort().join(''));
+
+  it("splits up last round's partners and remembers the new round", async () => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockDashboardContext
+    );
+    canAccessFeatureMock.mockImplementation(
+      (id) => id === 'random-avoid-repeats'
+    );
+    renderGroups(true);
+    const config = await randomize();
+    const made = config.lastResult as RandomGroup[];
+    expect(pairs(made)).not.toContain('AB');
+    expect(pairs(made)).not.toContain('CD');
+    expect(pairs(made)).not.toContain('EF');
+    expect(config.recentGroupings).toHaveLength(2);
+    expect(config.recentGroupings?.[1].groups.map((g) => g.names)).toEqual(
+      made.map((g) => g.names)
+    );
+  });
+
+  it('changes nothing without the preview flag', async () => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockDashboardContext
+    );
+    renderGroups(true);
+    const config = await randomize();
+    expect(config).not.toHaveProperty('recentGroupings');
+  });
+});
+
 describe('RandomWidget double pick while audio is suspended', () => {
   afterEach(() => {
     vi.useRealTimers();
