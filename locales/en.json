@@ -5826,7 +5826,10 @@
       "repeatCount": "Repeat a set number of times",
       "repeatOnce": "Don't repeat",
       "times": "times",
-      "timerName": "Timer {{time}}"
+      "timerName": "Timer {{time}}",
+      "advancePauseAfterEnds": "A few seconds after {{names}} ends",
+      "advancePauseAfterEndMany": "A few seconds after {{names}} end",
+      "advancePauseAfterBlock": "A few seconds after the next block starts"
     },
     "nothingToStart": "The first step has nothing to do yet.",
     "stop": "Stop",

@@ -5,7 +5,6 @@ import { useAuth } from '@/context/useAuth';
 import type { DashboardContextValue } from '@/context/DashboardContextValue';
 import type {
   ChecklistConfig,
-  ConnectionStep,
   Dashboard,
   SequenceConnection,
   WidgetConnection,
@@ -34,6 +33,15 @@ type ApplyChanges = DashboardContextValue['applyConnectionChanges'];
 const TICK_MS = 250;
 // Another device takes over a Run whose step has been finished this long without moving on.
 const TAKEOVER_MS = 5000;
+
+// Runs move on their own, so they're left out of the comparison.
+const sameConnections = (a: WidgetConnection[], b: WidgetConnection[]) => {
+  const strip = (cs: WidgetConnection[]) =>
+    JSON.stringify(
+      cs.map((c) => (c.kind === 'sequence' ? { ...c, run: null } : c))
+    );
+  return strip(a) === strip(b);
+};
 
 const hasRun = (d: Dashboard) =>
   (d.connections ?? []).some((c) => c.kind === 'sequence' && !!c.run);
@@ -149,7 +157,7 @@ export const ConnectionsRunner: React.FC = () => {
       connectionId: string,
       command: RunCommand,
       tries: number,
-      savedSteps?: ConnectionStep[]
+      savedConnections?: WidgetConnection[]
     ) => {
       const board = latest.current.dashboards.find((d) =>
         (d.connections ?? []).some((c) => c.id === connectionId)
@@ -158,14 +166,14 @@ export const ConnectionsRunner: React.FC = () => {
         (c): c is SequenceConnection =>
           c.id === connectionId && c.kind === 'sequence'
       );
-      // Save and start sends the command before the saved steps reach this board copy.
+      // Save and start sends the command before the saved board reaches this copy.
       const stale =
-        !!savedSteps &&
-        !!seq &&
-        JSON.stringify(seq.steps) !== JSON.stringify(savedSteps);
+        !!savedConnections &&
+        !!board &&
+        !sameConnections(board.connections ?? [], savedConnections);
       if ((!board || !seq || stale) && tries < 20) {
         retry = window.setTimeout(
-          () => handle(connectionId, command, tries + 1, savedSteps),
+          () => handle(connectionId, command, tries + 1, savedConnections),
           100
         );
         return;
@@ -232,8 +240,8 @@ export const ConnectionsRunner: React.FC = () => {
         );
       }
     };
-    const off = onRunCommand((id, command, savedSteps) =>
-      handle(id, command, 0, savedSteps)
+    const off = onRunCommand((id, command, savedConnections) =>
+      handle(id, command, 0, savedConnections)
     );
     return () => {
       off();

@@ -20,32 +20,43 @@ export const DEFAULT_PAUSE_SECONDS = 10;
 const isPause = (s: ConnectionStep) =>
   s.actions.length === 0 && (s.waitSeconds ?? 0) > 0;
 
+export interface EditorCards {
+  cards: EditorCard[];
+  /** A wait before step 1, kept from older Sequences; the editor has no arrow for it. */
+  leadingPause: ConnectionStep[];
+}
+
 /** Saved steps as cards; a pause step becomes the arrow setting of the card before it. */
-export const toCards = (steps: ConnectionStep[]): EditorCard[] => {
+export const toCards = (steps: ConnectionStep[]): EditorCards => {
   const cards: EditorCard[] = [];
+  const leadingPause: ConnectionStep[] = [];
   for (const s of steps) {
     const last = cards[cards.length - 1];
     if (isPause(s)) {
       if (last) {
         last.pauseSeconds = (last.pauseSeconds ?? 0) + (s.waitSeconds ?? 0);
+      } else {
+        leadingPause.push(s);
       }
       continue;
     }
     cards.push({ step: s });
   }
-  return cards;
+  return { cards, leadingPause };
 };
 
 /** Cards back to saved steps, a pause step after each card whose arrow waits a few seconds. */
 export const fromCards = (
-  cards: EditorCard[],
+  { cards, leadingPause }: EditorCards,
   newId: () => string
-): ConnectionStep[] =>
-  cards.flatMap(({ step, pauseSeconds }) =>
+): ConnectionStep[] => [
+  ...leadingPause,
+  ...cards.flatMap(({ step, pauseSeconds }) =>
     pauseSeconds
       ? [step, { id: newId(), actions: [], waitSeconds: pauseSeconds }]
       : [step]
-  );
+  ),
+];
 
 export type StepWait =
   { kind: 'ends'; widgetIds: string[] } | { kind: 'next-block' } | null;

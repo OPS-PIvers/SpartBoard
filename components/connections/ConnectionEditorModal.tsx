@@ -166,9 +166,10 @@ export const ConnectionEditorModal: React.FC<{
     (c): c is SequenceConnection => c.kind === 'sequence'
   );
   const [seq, setSeq] = useState(initialSeq);
-  const [cards, setCards] = useState<EditorCard[]>(() =>
-    toCards(initialSeq?.steps ?? [])
-  );
+  const [initial] = useState(() => toCards(initialSeq?.steps ?? []));
+  const [cards, setCards] = useState<EditorCard[]>(initial.cards);
+  const stepsOf = (cs: EditorCard[]) =>
+    fromCards({ cards: cs, leadingPause: initial.leadingPause }, newId);
   const [follows, setFollows] = useState(() =>
     draft.connections.filter((c): c is FollowConnection => c.kind === 'follow')
   );
@@ -203,7 +204,7 @@ export const ConnectionEditorModal: React.FC<{
     connectionsUi.set({ editor: null, highlightedWidgetId: null });
 
   const current = (): WidgetConnection[] => [
-    ...(seq ? [{ ...seq, steps: fromCards(cards, newId) }] : []),
+    ...(seq ? [{ ...seq, steps: stepsOf(cards) }] : []),
     ...follows,
   ];
 
@@ -243,19 +244,26 @@ export const ConnectionEditorModal: React.FC<{
   };
 
   const save = (start: boolean) => {
-    const kept = (board.connections ?? []).filter(
-      (c) => !draft.replaces.includes(c.id)
-    );
     const cleaned = current().flatMap((c) => {
       const next = cleanForSave(c, board.widgets);
       return next ? [next] : [];
     });
-    updateDashboard({ connections: [...kept, ...cleaned] });
+    // A widget plays along with one leader, so a new side card replaces its other Follow.
+    const followers = new Set(
+      cleaned.flatMap((c) => (c.kind === 'follow' ? [c.followerId] : []))
+    );
+    const kept = (board.connections ?? []).filter(
+      (c) =>
+        !draft.replaces.includes(c.id) &&
+        !(c.kind === 'follow' && followers.has(c.followerId))
+    );
+    const next = [...kept, ...cleaned];
+    updateDashboard({ connections: next });
     close();
     const saved = cleaned.find(
       (c): c is SequenceConnection => c.kind === 'sequence'
     );
-    if (start && saved) sendRunCommand(saved.id, 'start', saved.steps);
+    if (start && saved) sendRunCommand(saved.id, 'start', next);
   };
 
   const remove = () => {
@@ -310,10 +318,32 @@ export const ConnectionEditorModal: React.FC<{
         });
   };
 
-  const runsOut = loopRunsOut(
-    { steps: fromCards(cards, newId) },
-    board.widgets
-  );
+  // A pause after a Timer waits for it to end first, so the option says so.
+  const pauseLabel = (card: EditorCard) => {
+    const wait = stepWait(card.step, board.widgets);
+    if (!wait) {
+      return t('connections.editor.advancePause', {
+        defaultValue: 'After a few seconds',
+      });
+    }
+    if (wait.kind === 'next-block') {
+      return t('connections.editor.advancePauseAfterBlock', {
+        defaultValue: 'A few seconds after the next block starts',
+      });
+    }
+    const list = wait.widgetIds.map((id) => names.get(id) ?? '').join(' and ');
+    return wait.widgetIds.length > 1
+      ? t('connections.editor.advancePauseAfterEndMany', {
+          names: list,
+          defaultValue: 'A few seconds after {{names}} end',
+        })
+      : t('connections.editor.advancePauseAfterEnds', {
+          names: list,
+          defaultValue: 'A few seconds after {{names}} ends',
+        });
+  };
+
+  const runsOut = loopRunsOut({ steps: stepsOf(cards) }, board.widgets);
   const untilLabel =
     runsOut === 'names'
       ? t('connections.editor.repeatUntilNames', {
@@ -328,7 +358,7 @@ export const ConnectionEditorModal: React.FC<{
           });
 
   const savedSeq = seq
-    ? cleanForSave({ ...seq, steps: fromCards(cards, newId) }, board.widgets)
+    ? cleanForSave({ ...seq, steps: stepsOf(cards) }, board.widgets)
     : null;
 
   // One widget's line: icon, name, what it does, and its own choice if it takes one.
@@ -471,11 +501,7 @@ export const ConnectionEditorModal: React.FC<{
               defaultValue: 'When I press Next',
             })}
           </option>
-          <option value="pause">
-            {t('connections.editor.advancePause', {
-              defaultValue: 'After a few seconds',
-            })}
-          </option>
+          <option value="pause">{pauseLabel(card)}</option>
         </select>
         {choice === 'pause' && (
           <label className="flex items-center gap-1.5">

@@ -1,6 +1,6 @@
 // Hand actions widgets report to the Connections runner; only real teacher input reports, never a Run's own writes.
 import type { ConnectionHandAction } from '@/config/widgetConnections';
-import type { ConnectionStep } from '@/types';
+import type { WidgetConnection } from '@/types';
 
 type Listener = (widgetId: string, hand: ConnectionHandAction) => void;
 
@@ -24,7 +24,7 @@ export type RunCommand = 'start' | 'stop' | 'next';
 type CommandListener = (
   connectionId: string,
   command: RunCommand,
-  savedSteps?: ConnectionStep[]
+  savedConnections?: WidgetConnection[]
 ) => void;
 const commandListeners = new Set<CommandListener>();
 
@@ -32,9 +32,9 @@ const commandListeners = new Set<CommandListener>();
 export const sendRunCommand = (
   connectionId: string,
   command: RunCommand,
-  savedSteps?: ConnectionStep[]
+  savedConnections?: WidgetConnection[]
 ): void => {
-  commandListeners.forEach((l) => l(connectionId, command, savedSteps));
+  commandListeners.forEach((l) => l(connectionId, command, savedConnections));
 };
 
 export const onRunCommand = (listener: CommandListener): (() => void) => {

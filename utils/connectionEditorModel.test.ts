@@ -49,17 +49,24 @@ describe('cards', () => {
       { id: 'p', actions: [], waitSeconds: 5 },
       step('2', ['r', 'next']),
     ];
-    const cards = toCards(steps);
+    const model = toCards(steps);
+    const cards = model.cards;
     expect(cards.map((c) => [c.step.id, c.pauseSeconds])).toEqual([
       ['1', 5],
       ['2', undefined],
     ]);
     expect(advanceChoice(cards[0])).toBe('pause');
-    expect(fromCards(cards, () => 'new')).toEqual([
+    expect(fromCards(model, () => 'new')).toEqual([
       steps[0],
       { id: 'new', actions: [], waitSeconds: 5 },
       steps[2],
     ]);
+  });
+
+  it('keeps a wait before step 1 from an older Sequence', () => {
+    const lead = { id: 'p0', actions: [], waitSeconds: 8 };
+    const steps = [lead, step('1', ['t', 'restart']), step('2', ['r', 'next'])];
+    expect(fromCards(toCards(steps), () => 'new')).toEqual(steps);
   });
 
   it('switches what moves a card on', () => {

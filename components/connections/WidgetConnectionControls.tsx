@@ -92,15 +92,34 @@ const useWidgetConnectionSummary = (widgetId: string) => {
   };
 };
 
-const openEditor = (boardId: string, connection: WidgetConnection) =>
+// A Sequence opens with the Follows led by its widgets, so they show as side cards.
+const openEditor = (
+  boardId: string,
+  connection: WidgetConnection,
+  all: WidgetConnection[]
+) => {
+  const stepWidgets =
+    connection.kind === 'sequence'
+      ? new Set(
+          connection.steps.flatMap((s) => s.actions.map((a) => a.widgetId))
+        )
+      : new Set<string>();
+  const related = all.filter(
+    (c) =>
+      c.kind === 'follow' &&
+      c.id !== connection.id &&
+      stepWidgets.has(c.leaderId)
+  );
+  const connections = [connection, ...related];
   connectionsUi.set({
     editor: {
       boardId,
-      connections: [connection],
-      replaces: [connection.id],
+      connections,
+      replaces: connections.map((c) => c.id),
     },
     connectMode: null,
   });
+};
 
 /** Corner badge on a connected widget: its step numbers; opens Start/Stop and Edit steps. */
 export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
@@ -121,7 +140,13 @@ export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
       getCanvasState,
       summary.seqId || summary.connectionId
     );
-    if (connection) openEditor(boardId, connection);
+    if (connection) {
+      openEditor(
+        boardId,
+        connection,
+        getCanvasState().activeDashboard?.connections ?? []
+      );
+    }
   };
   const label = t('connections.badgeTitle', {
     name: getTitle(widget),
@@ -422,7 +447,13 @@ export const ConnectToolbarButton: React.FC<{
                   onClick={() => {
                     setMenuAt(null);
                     const c = findConnection(getCanvasState, id);
-                    if (c) openEditor(boardId, c);
+                    if (c) {
+                      openEditor(
+                        boardId,
+                        c,
+                        getCanvasState().activeDashboard?.connections ?? []
+                      );
+                    }
                     onAction();
                   }}
                 >
