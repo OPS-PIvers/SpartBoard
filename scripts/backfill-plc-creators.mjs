@@ -19,13 +19,22 @@ export function legacyCreatorUid(root) {
   if (members && typeof members === 'object') {
     const created = timeMs(root.createdAt);
     let best = null;
+    let tied = false;
     for (const [uid, m] of Object.entries(members)) {
       if (!m || typeof m !== 'object') continue;
       const at = timeMs(m.joinedAt);
       if (at === null) continue;
       if (created !== null && at === created) return uid;
-      if (!best || at < best.at) best = { uid, at };
+      if (best && at === best.at) tied = true;
+      if (!best || at < best.at) {
+        best = { uid, at };
+        tied = false;
+      }
     }
+    const lead = root.leadUid;
+    // Bulk-stamped joinedAt values tie, so the earliest can't name the creator; the lead is the better guess then.
+    if (tied && typeof lead === 'string' && lead && Object.hasOwn(members, lead))
+      return lead;
     if (best) return best.uid;
   }
   const first = Array.isArray(root?.memberUids) ? root.memberUids[0] : null;

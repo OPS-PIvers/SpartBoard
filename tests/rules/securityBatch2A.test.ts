@@ -288,19 +288,52 @@ describe('bank-slot served lists', () => {
     ...extra,
   });
 
-  it('a student cannot write a served list, legal or not', async () => {
+  // The previous app may roll its own first draw until the compat window closes (AB-98).
+  const compatOpen = Date.now() < Date.UTC(2026, 10, 10) - 60_000;
+
+  it('a student writes a first draw only inside the compat window', async () => {
     await seedQuiz({}, { bankSlots: BANK_SLOTS });
+    const write = updateDoc(
+      doc(asStudent(), responsePath),
+      answer({ servedQuestionIds: ['q1', 'b1'] })
+    );
+    await (compatOpen ? assertSucceeds(write) : assertFails(write));
+  });
+
+  it('a student cannot replace a recorded draw or write a wrong-size one', async () => {
+    await seedQuiz(
+      { servedQuestionIds: ['q1', 'b2'] },
+      { bankSlots: BANK_SLOTS }
+    );
     await assertFails(
       updateDoc(
         doc(asStudent(), responsePath),
         answer({ servedQuestionIds: ['q1', 'b1'] })
       )
     );
+    await seedQuiz({}, { bankSlots: BANK_SLOTS });
     await assertFails(
       updateDoc(
         doc(asStudent(), responsePath),
-        answer({ servedQuestionIds: ['q1', 'q1'] })
+        answer({ servedQuestionIds: ['q1'] })
       )
+    );
+  });
+
+  it('a turned-in attempt cannot gain a draw', async () => {
+    await seedQuiz(
+      {
+        status: 'completed',
+        answers: SUBMITTED,
+        completedAttempts: 1,
+        submittedAt: 5000,
+      },
+      { bankSlots: BANK_SLOTS }
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(), responsePath), {
+        servedQuestionIds: ['q1', 'b1'],
+      })
     );
   });
 

@@ -23,6 +23,34 @@ describe('legacyCreatorUid', () => {
     expect(legacyCreatorUid({ memberUids: ['x', 'y'] })).toBe('x');
     expect(legacyCreatorUid({})).toBe('');
   });
+
+  it('keeps the earliest joiner over a later lead when join times differ', () => {
+    expect(
+      legacyCreatorUid({
+        createdAt: 1,
+        leadUid: 'c',
+        members: {
+          a: { joinedAt: 30 },
+          b: { joinedAt: 20 },
+          c: { joinedAt: 40 },
+        },
+      })
+    ).toBe('b');
+  });
+
+  it('prefers the lead when the earliest join times tie', () => {
+    expect(
+      legacyCreatorUid({
+        createdAt: 1,
+        leadUid: 'c',
+        members: {
+          a: { joinedAt: 30 },
+          b: { joinedAt: 30 },
+          c: { joinedAt: 30 },
+        },
+      })
+    ).toBe('c');
+  });
 });
 
 describe('creatorRecord', () => {

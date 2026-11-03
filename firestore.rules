@@ -5238,7 +5238,14 @@ service cloud.firestore {
               (existing().get('status', '') == 'completed' && incoming().get('status', '') == 'joined'))) ||
             (sessionData().get('bankSlots', null) == null &&
              sessionData().get('assignmentId', '') != '' &&
-             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)).data))) &&
+             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)).data)) ||
+            // Until 2026-11-10 only: a tab still on the previous app rolls its own first draw (AB-98).
+            (request.time < timestamp.date(2026, 11, 10) &&
+             sessionData().get('bankSlots', null) != null &&
+             existing().get('servedQuestionIds', null) == null &&
+             existing().get('status', '') != 'completed' &&
+             isList('servedQuestionIds') &&
+             incoming().servedQuestionIds.size() == sessionData().totalQuestions)) &&
            // Stimulus telemetry maps (per-attempt play + load-failure counters). Truthfulness
            // is client-enforced diagnostics, not a security boundary - but size is: the teacher
            // monitor reads every response doc in the session, so cap the key count to stop a

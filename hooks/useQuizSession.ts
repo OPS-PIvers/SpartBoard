@@ -112,7 +112,7 @@ import {
   studentPeriodKeys,
 } from '@/utils/periodAccess';
 import { isInvalidWordRange } from '@/utils/wordLimit';
-import { getServerNow } from '@/utils/serverTime';
+import { getServerNow, retryWithFreshClock } from '@/utils/serverTime';
 import {
   attemptClockRanOut,
   clampQuizTimeLimitMinutes,
@@ -3828,71 +3828,73 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     // "submit accepted but cap not recorded" would re-open the cross-
     // launch bypass without any signal. Production rule changes against
     // this collection MUST be deployed with care.
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(responseRef);
-      if (!snap.exists()) return;
-      const existing = snap.data() as QuizResponse;
-      if (existing.status === 'completed') {
-        // Idempotent no-op: the doc was already finalized by an earlier
-        // completeQuiz call (other tab, retry, rapid double-click). We
-        // intentionally `return` instead of throwing — callers
-        // (handleSubmitAndAdvance, handleAutoSubmit, the auto-complete
-        // branch in handleAnswer) all `await onComplete()`, sometimes
-        // without a try/catch, so a thrown sentinel would surface as an
-        // unhandled rejection / wrong "submit failed" toast even though
-        // the submit actually succeeded earlier. Returning early
-        // mirrors `completeActivity` in `useVideoActivitySession`.
-        return;
-      }
-
-      // Read the ledger inside the same transaction so the increment
-      // can't double-write under concurrency. Firestore requires all
-      // reads to precede all writes within a transaction.
-      const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
-
-      const submittedAt = getServerNow();
-      // Only clear `unlocked` when the response actually carries the flag.
-      // Production deploys land hosting before rules (see
-      // .github/workflows/firebase-deploy.yml), so during the deploy gap
-      // the rules' `hasOnly([...])` allowlist may not yet include
-      // `unlocked` — and a write that includes the field would be
-      // rejected, silently failing the submit. Legacy responses (and
-      // every fresh attempt) have `unlocked === undefined`, so the field
-      // stays out of the payload until a teacher unlock actually sets it.
-      const responseUpdates: Record<string, unknown> = {
-        status: 'completed',
-        submittedAt,
-        completedAttempts: increment(1),
-      };
-      if (existing.unlocked) {
-        responseUpdates.unlocked = false;
-      }
-      if (opts?.timeUp) responseUpdates.timeUp = true;
-      tx.update(responseRef, responseUpdates);
-
-      if (ledgerRef && ledgerSnap) {
-        if (ledgerSnap.exists()) {
-          tx.update(ledgerRef, {
-            completedAttempts: increment(1),
-            lastAttemptAt: submittedAt,
-            lastSessionId: sessionId,
-          });
-        } else {
-          // First completion for this (quiz, student) pair. The cast
-          // pins the shape so a future ledger-schema drift surfaces as
-          // a TS error here rather than as a silent rule-denied write.
-          const newLedger: QuizAttemptLedger = {
-            quizId: quizId as string,
-            studentUid: studentUid as string,
-            teacherUid: teacherUid as string,
-            completedAttempts: 1,
-            lastAttemptAt: submittedAt,
-            lastSessionId: sessionId,
-          };
-          tx.set(ledgerRef, newLedger);
+    await retryWithFreshClock(studentUid, () =>
+      runTransaction(db, async (tx) => {
+        const snap = await tx.get(responseRef);
+        if (!snap.exists()) return;
+        const existing = snap.data() as QuizResponse;
+        if (existing.status === 'completed') {
+          // Idempotent no-op: the doc was already finalized by an earlier
+          // completeQuiz call (other tab, retry, rapid double-click). We
+          // intentionally `return` instead of throwing — callers
+          // (handleSubmitAndAdvance, handleAutoSubmit, the auto-complete
+          // branch in handleAnswer) all `await onComplete()`, sometimes
+          // without a try/catch, so a thrown sentinel would surface as an
+          // unhandled rejection / wrong "submit failed" toast even though
+          // the submit actually succeeded earlier. Returning early
+          // mirrors `completeActivity` in `useVideoActivitySession`.
+          return;
         }
-      }
-    });
+
+        // Read the ledger inside the same transaction so the increment
+        // can't double-write under concurrency. Firestore requires all
+        // reads to precede all writes within a transaction.
+        const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
+
+        const submittedAt = getServerNow();
+        // Only clear `unlocked` when the response actually carries the flag.
+        // Production deploys land hosting before rules (see
+        // .github/workflows/firebase-deploy.yml), so during the deploy gap
+        // the rules' `hasOnly([...])` allowlist may not yet include
+        // `unlocked` — and a write that includes the field would be
+        // rejected, silently failing the submit. Legacy responses (and
+        // every fresh attempt) have `unlocked === undefined`, so the field
+        // stays out of the payload until a teacher unlock actually sets it.
+        const responseUpdates: Record<string, unknown> = {
+          status: 'completed',
+          submittedAt,
+          completedAttempts: increment(1),
+        };
+        if (existing.unlocked) {
+          responseUpdates.unlocked = false;
+        }
+        if (opts?.timeUp) responseUpdates.timeUp = true;
+        tx.update(responseRef, responseUpdates);
+
+        if (ledgerRef && ledgerSnap) {
+          if (ledgerSnap.exists()) {
+            tx.update(ledgerRef, {
+              completedAttempts: increment(1),
+              lastAttemptAt: submittedAt,
+              lastSessionId: sessionId,
+            });
+          } else {
+            // First completion for this (quiz, student) pair. The cast
+            // pins the shape so a future ledger-schema drift surfaces as
+            // a TS error here rather than as a silent rule-denied write.
+            const newLedger: QuizAttemptLedger = {
+              quizId: quizId as string,
+              studentUid: studentUid as string,
+              teacherUid: teacherUid as string,
+              completedAttempts: 1,
+              lastAttemptAt: submittedAt,
+              lastSessionId: sessionId,
+            };
+            tx.set(ledgerRef, newLedger);
+          }
+        }
+      })
+    );
   }, []);
 
   const setHandRaised = useCallback(async (raised: boolean): Promise<void> => {

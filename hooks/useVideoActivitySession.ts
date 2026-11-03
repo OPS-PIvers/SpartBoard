@@ -81,7 +81,7 @@ import {
   studentCanEnter,
   studentPeriodKeys,
 } from '@/utils/periodAccess';
-import { getServerNow } from '@/utils/serverTime';
+import { getServerNow, retryWithFreshClock } from '@/utils/serverTime';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import { acceptsStudents } from '@/utils/sessionLifecycle';
 import {
@@ -1526,42 +1526,44 @@ export const useVideoActivitySessionStudent =
       // write is NOT best-effort. A ledger-rule failure rolls the whole
       // transaction back so we never accept a submit without recording
       // the attempt against the cross-launch cap.
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(responseRef);
-        if (!snap.exists()) return;
-        const existing = snap.data() as VideoActivityResponse;
-        if (isVaResponseCompleted(existing)) return;
+      await retryWithFreshClock(studentUid, () =>
+        runTransaction(db, async (tx) => {
+          const snap = await tx.get(responseRef);
+          if (!snap.exists()) return;
+          const existing = snap.data() as VideoActivityResponse;
+          if (isVaResponseCompleted(existing)) return;
 
-        // All reads before all writes (Firestore transaction rule).
-        const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
+          // All reads before all writes (Firestore transaction rule).
+          const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
 
-        const completedAt = getServerNow();
-        const responseUpdates = completionPatch(existing, completedAt, {
-          increment,
-        });
-        if (!responseUpdates) return;
-        tx.update(responseRef, responseUpdates);
+          const completedAt = getServerNow();
+          const responseUpdates = completionPatch(existing, completedAt, {
+            increment,
+          });
+          if (!responseUpdates) return;
+          tx.update(responseRef, responseUpdates);
 
-        if (ledgerRef && ledgerSnap) {
-          if (ledgerSnap.exists()) {
-            tx.update(ledgerRef, {
-              completedAttempts: increment(1),
-              lastAttemptAt: completedAt,
-              lastSessionId: sessionId,
-            });
-          } else {
-            const newLedger: VideoActivityAttemptLedger = {
-              activityId: activityId as string,
-              studentUid: studentUid as string,
-              teacherUid: teacherUid as string,
-              completedAttempts: 1,
-              lastAttemptAt: completedAt,
-              lastSessionId: sessionId,
-            };
-            tx.set(ledgerRef, newLedger);
+          if (ledgerRef && ledgerSnap) {
+            if (ledgerSnap.exists()) {
+              tx.update(ledgerRef, {
+                completedAttempts: increment(1),
+                lastAttemptAt: completedAt,
+                lastSessionId: sessionId,
+              });
+            } else {
+              const newLedger: VideoActivityAttemptLedger = {
+                activityId: activityId as string,
+                studentUid: studentUid as string,
+                teacherUid: teacherUid as string,
+                completedAttempts: 1,
+                lastAttemptAt: completedAt,
+                lastSessionId: sessionId,
+              };
+              tx.set(ledgerRef, newLedger);
+            }
           }
-        }
-      });
+        })
+      );
     }, [sessionId, responseDocId, session?.activityId, session?.teacherUid]);
 
     // Track the latest response value in a ref so `reportTabSwitch` can

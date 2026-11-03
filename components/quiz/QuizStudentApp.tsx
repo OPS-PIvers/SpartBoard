@@ -812,6 +812,7 @@ const QuizJoinFlow: React.FC<{
   }
   // Questions stay pending until the server's draw lands, so no attempt runs on an unsaved roll.
   const dealingKeyRef = useRef<string | null>(null);
+  const [drawStalledKey, setDrawStalledKey] = useState<string | null>(null);
   useEffect(() => {
     if (!dealPending || !drawKey || !bankSlots) return;
     if (dealingKeyRef.current === drawKey) return;
@@ -823,6 +824,7 @@ const QuizJoinFlow: React.FC<{
         .then((ids) => {
           if (cancelled) return;
           if (ids.length > 0) {
+            setDrawStalledKey(null);
             setLocalDraw({ key: drawKey, ids, persisted: true });
           } else {
             throw new Error('Empty draw');
@@ -841,6 +843,7 @@ const QuizJoinFlow: React.FC<{
             return;
           }
           if (n === 3) console.warn('[QuizStudentApp] Bank draw failing:', err);
+          if (n >= 3) setDrawStalledKey(drawKey);
           timer = setTimeout(
             () => attempt(n + 1),
             Math.min(1000 * 2 ** n, 15000)
@@ -1490,11 +1493,16 @@ const QuizJoinFlow: React.FC<{
 
       case 'loadingQuestions':
         return (
-          <div className="min-h-screen bg-brand-blue-dark flex items-center justify-center">
+          <div className="min-h-screen bg-brand-blue-dark flex flex-col items-center justify-center gap-4 p-6">
             <Loader2
               className="w-8 h-8 text-white/70 animate-spin"
               aria-label="Loading questions"
             />
+            {dealPending && drawStalledKey === drawKey && (
+              <p className="text-sm text-center text-white/80 max-w-sm">
+                Lost connection to the quiz. Please refresh.
+              </p>
+            )}
           </div>
         );
 
