@@ -61,6 +61,7 @@ vi.mock('./secrets', () => {
 });
 
 import {
+  getQuizArtifactPlaybackUrl,
   gradingKeyFor,
   MAX_PLAYBACK_BYTES,
   MAX_PLAYBACK_BYTES_BY_PART,
@@ -679,5 +680,34 @@ describe('whiteboard playback', () => {
         makeDeps(docs)
       )
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+});
+
+describe('getQuizArtifactPlaybackUrl: a PIN token is limited to its own session', () => {
+  const call = (token: Record<string, unknown>, sessionId: string) =>
+    (getQuizArtifactPlaybackUrl as unknown as (r: unknown) => Promise<unknown>)(
+      {
+        auth: { uid: STUDENT, token },
+        data: { sessionId, responseKey: 'r1', questionId: 'q1' },
+      }
+    );
+
+  it('SECURITY: refuses a PIN token naming another session', async () => {
+    await expect(
+      call({ pinLogin: true, pinSessionId: 'session-a' }, 'session-b')
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('SECURITY: refuses a PIN token with no session once past the legacy grace', async () => {
+    await expect(
+      call({ pinLogin: true, auth_time: 1 }, 'session-b')
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('lets the PIN token past the guard for its own session', async () => {
+    // Passing the guard reaches the session read, which the fake admin cannot serve.
+    await expect(
+      call({ pinLogin: true, pinSessionId: 'session-a' }, 'session-a')
+    ).rejects.not.toMatchObject({ code: 'permission-denied' });
   });
 });

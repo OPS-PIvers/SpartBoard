@@ -25,8 +25,12 @@ export interface PaperHandwritingQuota {
 
 export interface PaperPageCharge {
   alreadyCharged: boolean;
+  /** Pages counted today before this charge. */
+  used: number;
   /** Queues the counter and job writes; call after every other read in the transaction. */
   apply: () => void;
+  /** Gives back a held charge (counter down one, job unmarked); no-op when none is held. */
+  release: () => void;
 }
 
 /** UTC day, matching every other `ai_usage` counter. */
@@ -103,15 +107,20 @@ export async function preparePaperPageCharge(
   db: Firestore,
   opts: { uid: string; jobRef: DocumentReference; nowMs: number }
 ): Promise<PaperPageCharge> {
-  const usageRef = paperHandwritingUsageRef(db, opts.uid, opts.nowMs);
-  const [job, usage] = await Promise.all([
-    tx.get(opts.jobRef),
-    tx.get(usageRef),
-  ]);
+  const job = await tx.get(opts.jobRef);
   const alreadyCharged = job.data()?.charged === true;
+  // A held charge is counted on the day it was taken, even if it is given back after midnight UTC.
+  const chargedAt: unknown = job.data()?.chargedAt;
+  const usageRef = paperHandwritingUsageRef(
+    db,
+    opts.uid,
+    alreadyCharged && typeof chargedAt === 'number' ? chargedAt : opts.nowMs
+  );
+  const usage = await tx.get(usageRef);
   const used = countOf(usage.data());
   return {
     alreadyCharged,
+    used,
     apply: () => {
       if (alreadyCharged) return;
       tx.set(
@@ -125,9 +134,45 @@ export async function preparePaperPageCharge(
       );
       tx.set(
         opts.jobRef,
-        { charged: true, updatedAt: opts.nowMs },
+        { charged: true, chargedAt: opts.nowMs, updatedAt: opts.nowMs },
         { merge: true }
       );
     },
+    release: () => {
+      if (!alreadyCharged) return;
+      tx.set(usageRef, { count: Math.max(0, used - 1) }, { merge: true });
+      tx.set(opts.jobRef, { charged: false, chargedAt: null }, { merge: true });
+    },
   };
+}
+
+/** Takes the page against today's counter before the model call, so concurrent workers cannot pass the limit together. */
+export async function reservePaperPage(
+  db: Firestore,
+  opts: {
+    uid: string;
+    jobRef: DocumentReference;
+    nowMs: number;
+    limit: number;
+    unlimited: boolean;
+  }
+): Promise<'reserved' | 'held' | 'over-quota'> {
+  return db.runTransaction(async (tx: Transaction) => {
+    const charge = await preparePaperPageCharge(tx, db, opts);
+    if (charge.alreadyCharged) return 'held';
+    if (!opts.unlimited && charge.used >= opts.limit) return 'over-quota';
+    charge.apply();
+    return 'reserved';
+  });
+}
+
+/** Gives back the reserved page when the model call produced nothing. */
+export async function releasePaperPage(
+  db: Firestore,
+  opts: { uid: string; jobRef: DocumentReference; nowMs: number }
+): Promise<void> {
+  await db.runTransaction(async (tx: Transaction) => {
+    const charge = await preparePaperPageCharge(tx, db, opts);
+    charge.release();
+  });
 }
