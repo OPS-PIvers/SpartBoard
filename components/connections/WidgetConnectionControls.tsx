@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -23,56 +23,12 @@ import {
   useConnectionsUi,
 } from '@/context/connectionsUiStore';
 import { isConnectable } from '@/config/widgetConnections';
-import { liveConnections, liveSteps } from '@/utils/connectionEngine';
+import { liveConnections } from '@/utils/connectionEngine';
+import { summaryKey } from './connectionSummary';
 import { getTitle } from '@/utils/widgetHelpers';
 import { sendRunCommand } from '@/utils/connectionSignals';
 import { tourAttr } from '@/config/tourAnchors';
 import { Z_INDEX } from '@/config/zIndex';
-
-/** Step numbers this widget holds across its board's live Sequences, plus whether the current Run step is its own. */
-const summaryKey = (
-  connections: WidgetConnection[] | undefined,
-  widgets: WidgetData[],
-  widgetId: string
-): string => {
-  const numbers: number[] = [];
-  let running = false;
-  let follows = false;
-  let firstId = '';
-  let seqId = '';
-  let seqRunning = false;
-  for (const c of liveConnections(connections, widgets)) {
-    if (c.kind === 'follow') {
-      if (c.leaderId === widgetId || c.followerId === widgetId) {
-        follows = true;
-        firstId ||= c.id;
-      }
-      continue;
-    }
-    // Pause-only steps fold into an arrow in the editor, so they take no number here either.
-    let shown = 0;
-    liveSteps(c, widgets).forEach((s, i) => {
-      if (s.actions.length > 0) shown += 1;
-      if (!s.actions.some((a) => a.widgetId === widgetId)) return;
-      numbers.push(shown);
-      firstId ||= c.id;
-      if (!seqId) {
-        seqId = c.id;
-        seqRunning = !!c.run;
-      }
-      if (c.run?.stepIndex === i) running = true;
-    });
-  }
-  if (!firstId) return '';
-  return [
-    firstId,
-    numbers.join(' · '),
-    running ? '1' : '',
-    follows ? '1' : '',
-    seqId,
-    seqRunning ? '1' : '',
-  ].join('|');
-};
 
 const useWidgetConnectionSummary = (widgetId: string) => {
   const key = useDashboardCanvasSelector((s) =>
@@ -124,14 +80,18 @@ const openEditor = (
   });
 };
 
-/** Corner badge on a connected widget: its step numbers; opens Start/Stop and Edit steps. */
-const ConnectionBadgeInner: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+/** Corner tab on a connected widget: its step numbers; opens Start/Stop and Edit steps, and a drag on it resizes. */
+const ConnectionBadgeInner: React.FC<{
+  widget: WidgetData;
+  onResizeStart?: (e: React.PointerEvent) => void;
+}> = ({ widget, onResizeStart }) => {
   const { t } = useTranslation();
   const summary = useWidgetConnectionSummary(widget.id);
   const boardId = useDashboardCanvasSelector((s) => s.activeDashboard?.id);
   const inConnectMode = useConnectionsUi((s) => !!s.connectMode);
   const getCanvasState = useDashboardCanvasStateGetter();
   const [menuAt, setMenuAt] = useState<DOMRect | null>(null);
+  const downAt = useRef<{ x: number; y: number } | null>(null);
   if (!summary || !boardId || inConnectMode) return null;
   const close = () => setMenuAt(null);
   const edit = () => {
@@ -159,9 +119,15 @@ const ConnectionBadgeInner: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <button
         type="button"
         {...tourAttr('widget.connection-badge', widget.id, widget.type)}
-        onPointerDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          downAt.current = { x: e.clientX, y: e.clientY };
+          onResizeStart?.(e);
+        }}
         onClick={(e) => {
           e.stopPropagation();
+          const d = downAt.current;
+          if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
           if (!summary.seqId) {
             edit();
             return;
@@ -176,13 +142,16 @@ const ConnectionBadgeInner: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         aria-label={label}
         aria-haspopup={summary.seqId ? 'menu' : undefined}
         aria-expanded={summary.seqId ? !!menuAt : undefined}
-        className={`touch-target-expand absolute -top-3 right-7 flex items-center gap-1 rounded-full px-2 py-0.5 text-xxs font-bold shadow-md [-webkit-tap-highlight-color:transparent] ${
+        className={`absolute top-0 right-0 flex items-center gap-1 rounded-bl-xl px-2.5 py-1.5 text-xxs font-bold leading-none text-white [-webkit-tap-highlight-color:transparent] ${
           summary.running
-            ? 'bg-brand-red-primary text-white ring-2 ring-white motion-safe:animate-pulse'
-            : 'bg-brand-blue-primary text-white'
+            ? 'bg-brand-red-primary motion-safe:animate-pulse'
+            : 'bg-brand-blue-primary'
         }`}
-        // On the top edge, just clear of the top-right resize corner and the widget's own controls.
-        style={{ zIndex: Z_INDEX.widgetResize + 1 }}
+        // Follows the widget's corner radius; sits above the corner resize zone and takes over its drag.
+        style={{
+          borderTopRightRadius: 'inherit',
+          zIndex: Z_INDEX.widgetResize + 1,
+        }}
       >
         <Workflow className="w-3 h-3" aria-hidden="true" />
         {summary.numbers && <span>{summary.numbers}</span>}
@@ -514,7 +483,10 @@ const ConnectionCloseWarningInner: React.FC<{ widgetId: string }> = ({
 };
 
 // With the flag off, widgets mount none of the Connections selectors, so the canvas does no extra work.
-export const ConnectionBadge: React.FC<{ widget: WidgetData }> = (props) =>
+export const ConnectionBadge: React.FC<{
+  widget: WidgetData;
+  onResizeStart?: (e: React.PointerEvent) => void;
+}> = (props) =>
   useConnectionsEnabled() ? <ConnectionBadgeInner {...props} /> : null;
 
 export const ConnectionWidgetHighlight: React.FC<{ widgetId: string }> = (
