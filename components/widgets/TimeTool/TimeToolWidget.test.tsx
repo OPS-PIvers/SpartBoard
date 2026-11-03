@@ -916,9 +916,9 @@ describe('TimeToolWidget', () => {
       const html = renderHtml(widget);
 
       expect(wrapperFor(html, 'Subtract time')).toMatch(
-        /bottom:\d+px;left:\d+px/
+        /bottom:16px;left:\d+px/
       );
-      expect(wrapperFor(html, 'Add time')).toMatch(/bottom:\d+px;right:\d+px/);
+      expect(wrapperFor(html, 'Add time')).toMatch(/bottom:16px;right:\d+px/);
       expect(wrapperFor(html, 'Pause')).toContain('top:115%');
     });
 

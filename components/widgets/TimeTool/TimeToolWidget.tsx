@@ -33,10 +33,9 @@ const presetLabel = (s: number) => (s >= 60 ? `${s / 60}m` : `${s}s`);
 
 const DEFAULT_ADJUST_STEP_SECONDS = 60;
 
-const CORNER_INSET_PX = 6;
-// The window's corner resize grip covers the inner 24px; keep a small button's centre clear of it.
-const cornerInset = (size: number): number =>
-  Math.max(CORNER_INSET_PX, 26 - size / 2);
+const CORNER_BOTTOM_PX = 16;
+// The window's corner resize grip covers the inner 24px, so the side inset keeps the button (and its 44px hit area) clear of it.
+const cornerSideInset = (size: number): number => Math.max(26, 46 - size / 2);
 const MIN_CTRL_PX = 24;
 const MAX_CTRL_PX = 56;
 
@@ -47,8 +46,8 @@ const ringCornerFit = (w: number, h: number): number => {
   let hi = Math.min(w, h) / 2;
   for (let i = 0; i < 16; i++) {
     const s = (lo + hi) / 2;
-    const dx = Math.max(0, w / 2 - cornerInset(s) - s);
-    const dy = Math.max(0, h / 2 - cornerInset(s) - s);
+    const dx = Math.max(0, w / 2 - cornerSideInset(s) - s);
+    const dy = Math.max(0, h / 2 - CORNER_BOTTOM_PX - s);
     if (Math.hypot(dx, dy) >= clearance) lo = s;
     else hi = s;
   }
@@ -625,7 +624,7 @@ export const TimeToolWidget: React.FC<{
     ? `${ringSizes.center}px`
     : `max(20px, min((50cqh - ${timeFontSize} / 2) * 0.65, 20cqw, ${timeFontSize} * 0.4, ${MAX_CTRL_PX}px))`;
   const adjustSize = isVisual ? `${ringSizes.corner}px` : ctrlSize;
-  const cornerOffset = `${cornerInset(ringSizes.corner)}px`;
+  const cornerSide = `${cornerSideInset(ringSizes.corner)}px`;
 
   const expandHitArea = isCompact;
   // Compact buttons get 44px hit areas, so space them far enough apart that the areas never overlap.
@@ -855,7 +854,7 @@ export const TimeToolWidget: React.FC<{
               {isVisual && subtractButton && (
                 <div
                   className="absolute z-10 flex"
-                  style={{ bottom: cornerOffset, left: cornerOffset }}
+                  style={{ bottom: CORNER_BOTTOM_PX, left: cornerSide }}
                 >
                   {subtractButton}
                 </div>
@@ -863,7 +862,7 @@ export const TimeToolWidget: React.FC<{
               {isVisual && addButton && (
                 <div
                   className="absolute z-10 flex"
-                  style={{ bottom: cornerOffset, right: cornerOffset }}
+                  style={{ bottom: CORNER_BOTTOM_PX, right: cornerSide }}
                 >
                   {addButton}
                 </div>
