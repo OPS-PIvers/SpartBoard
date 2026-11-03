@@ -31,7 +31,7 @@ import {
 import { connectionDefFor } from '@/config/widgetConnections';
 import { TOOLS } from '@/config/tools';
 import { Z_INDEX } from '@/config/zIndex';
-import { isConnectionLive } from '@/utils/connectionEngine';
+import { isConnectionLive, sharesFollowSlot } from '@/utils/connectionEngine';
 import { sendRunCommand } from '@/utils/connectionSignals';
 import {
   advanceChoice,
@@ -232,9 +232,15 @@ export const ConnectionEditorModal: React.FC<{
     const main = mainOf(cards[i]);
     const kind = sideJoinKind(w, main?.type);
     if (kind === 'follow' && main) {
+      const added: FollowConnection = {
+        id: newId(),
+        kind: 'follow',
+        leaderId: main.id,
+        followerId: w.id,
+      };
       setFollows((fs) => [
-        ...fs.filter((f) => f.followerId !== w.id),
-        { id: newId(), kind: 'follow', leaderId: main.id, followerId: w.id },
+        ...fs.filter((f) => !sharesFollowSlot(f, added, board.widgets)),
+        added,
       ]);
     } else if (kind === 'action') {
       const action = connectionDefFor(w.type)?.defaultAction;
@@ -249,14 +255,17 @@ export const ConnectionEditorModal: React.FC<{
       const next = cleanForSave(c, board.widgets);
       return next ? [next] : [];
     });
-    // A widget plays along with one leader, so a new side card replaces its other Follow.
-    const followers = new Set(
-      cleaned.flatMap((c) => (c.kind === 'follow' ? [c.followerId] : []))
+    // A widget plays along with one leader per slot, so a new side card replaces its other Follow there.
+    const savedFollows = cleaned.filter(
+      (c): c is FollowConnection => c.kind === 'follow'
     );
     const kept = (board.connections ?? []).filter(
       (c) =>
         !draft.replaces.includes(c.id) &&
-        !(c.kind === 'follow' && followers.has(c.followerId))
+        !(
+          c.kind === 'follow' &&
+          savedFollows.some((f) => sharesFollowSlot(c, f, board.widgets))
+        )
     );
     const next = [...kept, ...cleaned];
     updateDashboard({ connections: next });

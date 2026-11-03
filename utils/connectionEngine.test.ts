@@ -3,9 +3,12 @@ import type { SequenceConnection, WidgetData } from '@/types';
 import {
   advanceRun,
   draftFromPicks,
+  followConnection,
+  followLeaderId,
   isStepFinished,
   joinRunByHand,
   liveConnections,
+  sharesFollowSlot,
 } from './connectionEngine';
 import { currentShuffleName } from './randomCurrentName';
 
@@ -319,5 +322,61 @@ describe('liveConnections', () => {
       liveConnections([seq], [shuffle(['Ana']), timer('t1', 5)])
     ).toHaveLength(1);
     expect(liveConnections([seq], [timer('t1', 5)])).toHaveLength(0);
+  });
+});
+
+describe('a widget Follows one leader per slot', () => {
+  const sb = widget('sb', 'scoreboard', {});
+  const rand = widget('r', 'random', {});
+  const rand2 = widget('r2', 'random', {});
+  const meter = widget('m', 'sound', {});
+  const widgets = [sb, rand, rand2, meter];
+
+  it('lets a Scoreboard follow a Randomizer and a Noise meter from one pick', () => {
+    const draft = draftFromPicks([
+      { id: 'r', type: 'random' },
+      { id: 'sb', type: 'scoreboard' },
+      { id: 'm', type: 'sound' },
+    ]);
+    expect(
+      draft.follows.map((f) =>
+        f.kind === 'follow' ? [f.leaderId, f.followerId] : null
+      )
+    ).toEqual([
+      ['r', 'sb'],
+      ['m', 'sb'],
+    ]);
+  });
+
+  it('finds the leader of the asked slot', () => {
+    const connections = [
+      followConnection('m', 'sb'),
+      followConnection('r', 'sb'),
+    ];
+    expect(followLeaderId(connections, widgets, 'sb')).toBe('m');
+    expect(followLeaderId(connections, widgets, 'sb', 'teams')).toBe('r');
+    expect(followLeaderId(connections, widgets, 'sb', 'points')).toBe('m');
+  });
+
+  it('replaces a Follow only in the same slot', () => {
+    const fromRandom = followConnection('r', 'sb');
+    expect(
+      sharesFollowSlot(fromRandom, followConnection('r2', 'sb'), widgets)
+    ).toBe(true);
+    expect(
+      sharesFollowSlot(fromRandom, followConnection('m', 'sb'), widgets)
+    ).toBe(false);
+  });
+
+  it('keeps one leader for widgets without slots', () => {
+    const traffic = widget('t', 'traffic', {});
+    const meter2 = widget('m2', 'sound', {});
+    expect(
+      sharesFollowSlot(
+        followConnection('m', 't'),
+        followConnection('m2', 't'),
+        [traffic, meter, meter2]
+      )
+    ).toBe(true);
   });
 });
