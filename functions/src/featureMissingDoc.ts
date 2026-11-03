@@ -52,7 +52,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-calculator-stimulus',
   'lunch-count-redesign',
   'weather-details',
-  'activity-wall-timeline-dates',
   'checklist-small-card',
   'seating-chart-plans',
   'scoreboard-pro',

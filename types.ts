@@ -10809,8 +10809,6 @@ export type GlobalFeature =
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
-  /** Activity Wall timeline on a dated axis, with a year/date picker on posts. */
-  | 'activity-wall-timeline-dates'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
