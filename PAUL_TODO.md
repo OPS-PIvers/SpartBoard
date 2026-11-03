@@ -7,7 +7,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
 - **Next free ID: PT-118.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
-Last audited 2026-11-01. Items removed as done: F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
+Last audited 2026-11-01. Items removed as done: PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
 ---
 
@@ -133,8 +133,6 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
   > Remove `name` from every `liveLeaderboard` entry on prod `quiz_sessions` docs: dry run with a count, then apply after I say go.
 - [ ] **PT-112 🤖 PLC assessments made by people who were not members** (security batch 2E, optional). Pooled results already skip them; their assessment entries stay in the PLC's list.
   > On prod, list `plcs/*/assessments` docs whose `createdBy` is not in that PLC's `memberUids` or whose member entry is `status: 'removed'`. Read-only; deleting any needs my OK.
-- [ ] **PT-113 🤖 Reset stale "removed" PLC member entries as soon as you can** (security batch 2E, live since release #5053 on 2026-11-03). Team results now skip a teacher whose PLC entry still says `removed`; people who rejoined before #4695 may still carry one (`scripts/backfill-plc-rejoin-entries.mjs`, dry run by default). On the PC with the prod key:
-  > Run `node scripts/backfill-plc-rejoin-entries.mjs` on prod as a dry run and show me the counts, then `--apply` after I say go.
 - [ ] **PT-116 🤖 Board share item copies left behind** (security batch 2B, optional). New share ends and member leaves now remove their copies; older ones were not swept.
   > On prod, count `shared_boards/*/items` docs whose share no longer exists or whose `ownerUid` is no longer the share's host or a participant. Read-only; deleting them needs my OK.
 - [ ] **PT-117 🤖 Sharing records made by non-staff accounts** (security batch 2B, optional, likely zero). Substitute shares and collection links now need a staff account; older records were not checked.
