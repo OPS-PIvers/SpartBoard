@@ -4,6 +4,7 @@ import React, {
   useRef,
   useEffect,
   useCallback,
+  useLayoutEffect,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
@@ -79,7 +80,13 @@ const PLACEHOLDER_LENGTH = RANDOM_FLASH_PLACEHOLDER.length;
 import { RandomGroups } from './RandomGroups';
 import { GroupSizeStepper } from './GroupSizeStepper';
 import { ShuffleList } from './ShuffleList';
+import { resolveBaseTextScale } from '@/config/widgetAppearance';
 import { timeToolClockReducer } from '@/utils/timeToolClock';
+import { reportHandAction } from '@/utils/connectionSignals';
+import { currentShuffleName } from '@/utils/randomCurrentName';
+import { liveConnections } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
+import { useAuth } from '@/context/useAuth';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -165,6 +172,25 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     () => (Array.isArray(config.doneNames) ? config.doneNames : []),
     [config.doneNames]
   );
+  const { canAccessFeature } = useAuth();
+  const connectionsOn = canAccessFeature('widget-connections');
+  // Read in the deferred pick callback; a migrated widget's auto-start became a Sequence.
+  const useLegacy = usesLegacyToggles(connectionsOn, widget.config);
+  const useLegacyRef = useRef(useLegacy);
+  useLayoutEffect(() => {
+    useLegacyRef.current = useLegacy;
+  }, [useLegacy]);
+  const inSequence =
+    connectionsOn &&
+    liveConnections(
+      activeDashboard?.connections,
+      activeDashboard?.widgets ?? []
+    ).some(
+      (c) =>
+        c.kind === 'sequence' &&
+        c.steps.some((s) => s.actions.some((a) => a.widgetId === widget.id))
+    );
+  const currentName = inSequence ? currentShuffleName(config) : null;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, {
@@ -705,14 +731,19 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleToggleDone = useCallback(
     (name: string) => {
-      const next = doneNames.includes(name)
-        ? doneNames.filter((n) => n !== name)
-        : [...doneNames, name];
+      const marking = !doneNames.includes(name);
+      const next = marking
+        ? [...doneNames, name]
+        : doneNames.filter((n) => n !== name);
       updateWidget(widget.id, {
         config: { doneNames: next },
       });
+      // Checking off the Current name by hand moves a Connection Run to its "next name" step.
+      if (marking && name === currentShuffleName(config)) {
+        reportHandAction(widget.id, 'next');
+      }
     },
-    [doneNames, updateWidget, widget.id]
+    [config, doneNames, updateWidget, widget.id]
   );
 
   // Transient flag that pulses on each rotate click so the rotate icon can
@@ -1128,7 +1159,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         // Read from activeDashboardRef so we always act on the current
         // dashboard state, not the stale snapshot captured at click time.
         const liveDashboard = activeDashboardRef.current;
-        if (autoStartTimer && liveDashboard && mode === 'single') {
+        if (
+          autoStartTimer &&
+          useLegacyRef.current &&
+          liveDashboard &&
+          mode === 'single'
+        ) {
           const timeWidget = liveDashboard.widgets.find(
             (w) => w.type === 'time-tool'
           );
@@ -1602,6 +1638,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   };
 
+  // A teacher's own pick counts as a Connection "next name"; shuffle's button reshuffles instead.
+  const handlePickByHand = () => {
+    if (mode !== 'shuffle') reportHandAction(widget.id, 'next');
+    void handlePick();
+  };
+
   const handlePickRef = useRef(handlePick);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   handlePickRef.current = handlePick;
@@ -1992,6 +2034,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       onToggleLock={handleToggleLock}
                       doneNames={doneNames}
                       onToggleDone={handleToggleDone}
+                      rowStyle={config.rowStyle}
+                      cardColor={config.cardColor}
+                      cardOpacity={config.cardOpacity}
+                      fontColor={config.fontColor}
+                      textScale={resolveBaseTextScale(widget.baseTextSize)}
+                      currentName={currentName}
                     />
                   ) : (
                     <RandomGroups
@@ -2121,7 +2169,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 size="md"
                 shape="pill"
                 {...tourAttr('random.pick', widget.id, widget.type)}
-                onClick={handlePick}
+                onClick={handlePickByHand}
                 disabled={isSpinning}
                 className="shrink-0"
                 style={{
@@ -2296,7 +2344,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 size="md"
                 shape="pill"
                 {...tourAttr('random.pick', widget.id, widget.type)}
-                onClick={handlePick}
+                onClick={handlePickByHand}
                 disabled={isSpinning}
                 className={`flex-shrink-0${mode === 'groups' && Array.isArray(displayResult) && displayResult.length > 1 ? '' : ' ml-auto'}`}
                 style={{

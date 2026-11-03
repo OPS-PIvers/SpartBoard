@@ -11,6 +11,7 @@ import {
   WidgetData,
   WidgetType,
   WidgetConfig,
+  WidgetConnection,
   Toast,
   GradeFilter,
   DockItem,
@@ -123,7 +124,10 @@ import {
   useLinkedCollectionSync,
   type BoardLinkFields,
 } from '@/hooks/useLinkedCollectionSync';
-import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
+import {
+  importedConnections,
+  sanitizeBoardSnapshot,
+} from '@/utils/dashboardSanitize';
 import {
   grantedRosters,
   resolveSubShareDriveGrants,
@@ -183,6 +187,7 @@ import {
   validatePlacement,
   sanitizeAIConfig,
 } from '@/utils/ai_security';
+import { withTimerStartSeconds } from '@/utils/timeToolClock';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
@@ -447,6 +452,7 @@ const widgetMirrorSignature = (widgets: WidgetData[]): string =>
 const UNTARGETED_DASHBOARD_FIELDS: readonly MergedDashboardField[] = [
   'globalStyle',
   'sharedGroups',
+  'connections',
 ];
 
 // Key-stable: a merged snapshot echo carries Firestore's key order, and a plain JSON.stringify would read it as an unsaved change and save again, forever.
@@ -621,6 +627,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     selectedBuildings,
     savedWidgetConfigs,
     materialsPreferences,
+    timeToolStartSeconds,
+    canAccessFeature,
     profileLoaded,
     setupCompleted,
     lastActiveCollectionId,
@@ -3709,6 +3717,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         widgets: preview.widgets ?? [],
         globalStyle: preview.globalStyle,
         settings: preview.settings,
+        ...importedConnections(preview.connections),
         isDefault: false,
         createdAt: Date.now(),
         order: maxOrder + 1,
@@ -6403,6 +6412,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [featurePermissions, selectedBuildings]
   );
 
+  // The building layer for a new widget, with the teacher's own timer starting length over it.
+  const timerStartSeconds =
+    timeToolStartSeconds && canAccessFeature('timer-starting-length')
+      ? timeToolStartSeconds
+      : 0;
+  const getNewWidgetBaseConfig = useCallback(
+    (type: WidgetType): Record<string, unknown> | undefined => {
+      const building = getAdminBuildingConfig(type);
+      return type === 'time-tool'
+        ? withTimerStartSeconds(building, timerStartSeconds)
+        : building;
+    },
+    [getAdminBuildingConfig, timerStartSeconds]
+  );
+
   // Board-level undo/redo of widget mutations, keyed by dashboard id.
   const widgetHistoryRef = useRef(new Map<string, WidgetHistoryStack>());
   const [widgetHistoryVersion, setWidgetHistoryVersion] = useState(0);
@@ -6535,7 +6559,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       overrides: AddWidgetOverrides | undefined,
       opts: { transient?: boolean; exact?: boolean } = {}
     ): string => {
-      const adminConfig = getAdminBuildingConfig(type);
+      const adminConfig = getNewWidgetBaseConfig(type);
       const newWidgetId = overrides?.id ?? crypto.randomUUID();
       locallyAddedWidgetIds.current.add(newWidgetId);
 
@@ -6644,7 +6668,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       return newWidgetId;
     },
-    [activeId, getAdminBuildingConfig, materialsPreferences, savedWidgetConfigs]
+    [activeId, getNewWidgetBaseConfig, materialsPreferences, savedWidgetConfigs]
   );
 
   const addWidget = useCallback(
@@ -6809,7 +6833,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           };
           const newWidgets = widgetsToAdd.map((item) => {
             const defaults = WIDGET_DEFAULTS[item.type] ?? {};
-            const adminConfig = getAdminBuildingConfig(item.type);
+            const adminConfig = getNewWidgetBaseConfig(item.type);
             maxZ++;
 
             // Sanitize AI-provided config and grid positions
@@ -6931,7 +6955,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [activeId, getAdminBuildingConfig, savedWidgetConfigs, recordHistory]
+    [activeId, getNewWidgetBaseConfig, savedWidgetConfigs, recordHistory]
   );
 
   const removeWidget = useCallback(
@@ -7254,6 +7278,46 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     },
     [saveDashboards, addToast]
+  );
+
+  // A Connection Run's own writes: no undo entry, and a board that isn't shown is saved straight away.
+  const applyConnectionChanges = useCallback(
+    (
+      boardId: string,
+      widgetPatches: Record<string, Record<string, unknown>>,
+      connections?: WidgetConnection[]
+    ) => {
+      const board = dashboardsRef.current.find((d) => d.id === boardId);
+      if (!board) return;
+      const isActive = boardId === activeIdRef.current;
+      if (isActive && isActiveBoardReadOnlyRef.current) return;
+      const patchBoard = (d: Dashboard): Dashboard => ({
+        ...d,
+        widgets: d.widgets.map((w) => {
+          const patch = widgetPatches[w.id];
+          if (!patch || Object.keys(patch).length === 0) return w;
+          return {
+            ...w,
+            config: { ...w.config, ...patch },
+            version: (w.version ?? 1) + 1,
+          };
+        }),
+        ...(connections && { connections }),
+      });
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
+      lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
+      lastUpdateWasSettingsOnly.current = false;
+      setDashboards((prev) =>
+        prev.map((d) => (d.id === boardId ? patchBoard(d) : d))
+      );
+      if (!isActive) {
+        saveDashboards([patchBoard(board)], [board]).catch((err: unknown) =>
+          logError('DashboardContext.applyConnectionChanges', err, { boardId })
+        );
+      }
+    },
+    [saveDashboards]
   );
 
   // --- Widget grouping ---
@@ -8266,6 +8330,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ungroupWidgets,
       updateWidgets,
       updateWidgetConfigsAcrossBoards,
+      applyConnectionChanges,
       selectedWidgetIds,
       setSelectedWidgetIds,
       groupBuildMode,
@@ -8404,6 +8469,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ungroupWidgets,
       updateWidgets,
       updateWidgetConfigsAcrossBoards,
+      applyConnectionChanges,
       selectedWidgetIds,
       setSelectedWidgetIds,
       groupBuildMode,

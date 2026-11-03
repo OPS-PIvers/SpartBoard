@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { ClipboardList, X } from 'lucide-react';
 import type { ClassRoster, QuizAssignment } from '@/types';
 import { Modal } from '@/components/common/Modal';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -129,6 +130,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
           </div>
           <button
             type="button"
+            {...tourTypeAttr('quiz-import.setup-close', 'quiz')}
             onClick={guardedClose}
             disabled={saving}
             className="text-slate-400 hover:text-slate-600 p-1 -m-1 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -145,6 +147,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
           {onEditAllSettings ? (
             <button
               type="button"
+              {...tourTypeAttr('quiz-import.setup-edit-all-settings', 'quiz')}
               onClick={handleEditAllSettings}
               disabled={saving}
               className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -159,6 +162,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
           <div className="flex items-center gap-2">
             <button
               type="button"
+              {...tourTypeAttr('quiz-import.setup-skip', 'quiz')}
               onClick={guardedClose}
               disabled={saving}
               className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -169,6 +173,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
             </button>
             <button
               type="button"
+              {...tourTypeAttr('quiz-import.setup-save', 'quiz')}
               disabled={!canSave}
               onClick={() => void handleSave()}
               className="px-4 py-1.5 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg transition-colors"

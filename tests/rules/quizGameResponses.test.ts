@@ -154,6 +154,7 @@ describe('writing during a game', () => {
       updateDoc(ref, {
         status: 'completed',
         completedAttempts: 1,
+        submittedAt: Date.now(),
         lastWriteAt: serverTimestamp(),
       })
     );

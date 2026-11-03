@@ -142,6 +142,7 @@ const DropZone: React.FC<DropZoneProps> = ({
     : `Drop zone for ${termLabel ?? 'this term'}`;
   return (
     <button
+      // no-tour-anchor: student quiz screen; tours walk teachers
       type="button"
       ref={setNodeRef}
       onClick={(e) => {
@@ -482,6 +483,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
               Word Bank
             </span>
             <button
+              // no-tour-anchor: student quiz screen; tours walk teachers
               type="button"
               onClick={reset}
               disabled={disabled}

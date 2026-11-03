@@ -8,6 +8,9 @@ import {
   timeToolClockPatch,
   type TimeToolClockEvent,
 } from '@/utils/timeToolClock';
+import { reportHandAction } from '@/utils/connectionSignals';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 
 // `isBoardActive` is false for a timer on a mounted but hidden board, which must not drive widgets on the shown board.
 export const useTimeTool = (
@@ -15,7 +18,9 @@ export const useTimeTool = (
   { isBoardActive = true }: { isBoardActive?: boolean } = {}
 ) => {
   const { updateWidget, activeDashboard } = useDashboard();
+  const connectionsOn = useConnectionsEnabled();
   const config = widget.config as TimeToolConfig;
+  const useLegacy = usesLegacyToggles(connectionsOn, config);
 
   const [runningDisplayTime, setRunningDisplayTime] = useState(
     config.elapsedTime
@@ -74,6 +79,7 @@ export const useTimeTool = (
     if (!patch) return;
     updateWidget(widget.id, { config: patch });
     setRunningDisplayTime(config.elapsedTime);
+    reportHandAction(widget.id, 'start');
   }, [config, updateWidget, widget.id]);
 
   // Reset, setTime and adjust spread the whole config, as they always have.
@@ -207,7 +213,8 @@ export const useTimeTool = (
     playTimerAlert(config.selectedSound);
 
     // Only a timer on the shown board drives sister widgets; a hidden board's timer would otherwise act on the shown one.
-    const board = isBoardActive ? activeDashboard : null;
+    // A migrated timer's end actions became Sequences, so its old fields are ignored.
+    const board = isBoardActive && useLegacy ? activeDashboard : null;
 
     // Auto-switch expectations voice level
     if (config.timerEndVoiceLevel != null && board) {
@@ -299,6 +306,7 @@ export const useTimeTool = (
     config.duration,
     activeDashboard,
     isBoardActive,
+    useLegacy,
     updateWidget,
   ]);
 

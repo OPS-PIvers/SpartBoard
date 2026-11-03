@@ -175,7 +175,7 @@ describe('Quiz preview', () => {
       await result.current.startAttemptClock();
       await result.current.reportTabSwitch();
       await result.current.saveTabExits([]);
-      await result.current.persistServedDraw(['q1']);
+      await result.current.drawBankQuestions().catch(() => undefined);
     });
     expectNoWrites();
   });

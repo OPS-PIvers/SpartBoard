@@ -114,6 +114,9 @@ export async function archiveProjectUploadCore(
     throw new HttpsError('not-found', 'Project run not found.');
   }
   const run = (runSnap.data() ?? {}) as Record<string, unknown>;
+  if (run.teacherUid !== teacherUid) {
+    throw new HttpsError('failed-precondition', "Run is not this teacher's.");
+  }
 
   const groupRef = runRef.collection(GROUPS_COLLECTION).doc(groupId);
   const groupSnap = await groupRef.get();

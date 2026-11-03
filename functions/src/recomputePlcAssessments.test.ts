@@ -23,8 +23,10 @@ import {
   parseServedLanguages,
   recomputeOnePlcAssessment,
   runRecomputePlcAssessments,
+  syncedGroupEntitled,
   teacherNamesFromPlc,
 } from './recomputePlcAssessments';
+import { activePlcMemberUids } from './plcActiveMembers';
 import { AGGREGATE_SCHEMA_VERSION } from './plcAssessmentMath';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
 
@@ -49,6 +51,7 @@ function seedPipeline(overrides: Record<string, StubData> = {}) {
   return makeStubFirestore({
     'plcs/plc-1': {
       name: 'English 9',
+      memberUids: ['tA', 'tB'],
       members: {
         tA: {
           displayName: 'Ada',
@@ -74,6 +77,7 @@ function seedPipeline(overrides: Record<string, StubData> = {}) {
     },
     'synced_quizzes/grp-1': {
       title: 'Unit 4 CFA',
+      plcId: 'plc-1',
       questions: [
         {
           id: 'q1',
@@ -174,6 +178,28 @@ describe('teacherNamesFromPlc', () => {
   });
 });
 
+describe('activePlcMemberUids and syncedGroupEntitled', () => {
+  it('drops removed and non-string uids', () => {
+    expect([
+      ...activePlcMemberUids({
+        memberUids: ['a', 'b', '', 7],
+        members: { b: { status: 'removed' }, a: { status: 'active' } },
+      }),
+    ]).toEqual(['a']);
+    expect([...activePlcMemberUids({ members: { a: {} } })]).toEqual([]);
+    expect([...activePlcMemberUids(undefined)]).toEqual([]);
+  });
+
+  it('entitles by plcId or a contributing participant only', () => {
+    expect(syncedGroupEntitled('p', { plcId: 'p' }, [])).toBe(true);
+    expect(syncedGroupEntitled('p', { plcId: 'q' }, ['u'])).toBe(false);
+    expect(
+      syncedGroupEntitled('p', { participants: { u: { joinedAt: 1 } } }, ['u'])
+    ).toBe(true);
+    expect(syncedGroupEntitled('p', undefined, ['u'])).toBe(false);
+  });
+});
+
 describe('parseCompletedResponse', () => {
   it('normalizes answers and coerces score', () => {
     const r = parseCompletedResponse({
@@ -197,7 +223,6 @@ describe('parseCompletedResponse', () => {
         questionId: 'q1',
         answer: 'x',
         answeredAt: undefined,
-        isCorrect: undefined,
         status: 'draft',
         unresponded: undefined,
         takeIndex: undefined,
@@ -335,9 +360,120 @@ describe('recomputeOnePlcAssessment', () => {
     await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1');
     const perQuestion = stub.get('plcs/plc-1/aggregates/grp-1')!
       .perQuestion as Array<Record<string, unknown>>;
+    // Student-writable isCorrect flags are ignored, so a keyless group grades nothing.
+    expect(perQuestion[0]).toMatchObject({ graded: 0, correct: 0 });
+    expect(perQuestion[0].choiceDistribution).toEqual([
+      { label: 'Duluth', count: 1, isCorrect: false },
+      { label: 'St. Paul', count: 1, isCorrect: false },
+    ]);
+  });
+
+  it('grades a keyless group from the teacher-written assignment key', async () => {
+    const stub = seedPipeline({
+      'users/tA/quiz_assignments/sess-a/key/answers': {
+        questions: [
+          {
+            id: 'q1',
+            type: 'MC',
+            correctAnswer: 'St. Paul',
+            incorrectAnswers: ['Duluth'],
+          },
+        ],
+      },
+    });
+    stub.store.delete('synced_quizzes/grp-1');
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1');
+    const perQuestion = stub.get('plcs/plc-1/aggregates/grp-1')!
+      .perQuestion as Array<Record<string, unknown>>;
+    expect(perQuestion[0].text).toBe('Capital?');
     expect(perQuestion[0].choiceDistribution).toEqual([
       { label: 'Duluth', count: 1, isCorrect: false },
       { label: 'St. Paul', count: 1, isCorrect: true },
+    ]);
+  });
+
+  it('counts a wrong answer tagged isCorrect: true as incorrect', async () => {
+    const stub = seedPipeline({
+      'quiz_sessions/sess-a/responses/r1': {
+        studentUid: 'stu-1',
+        status: 'completed',
+        score: null,
+        servedQuestionIds: ['q1'],
+        answers: [
+          {
+            questionId: 'q1',
+            answer: 'Duluth',
+            answeredAt: 1,
+            isCorrect: true,
+          },
+        ],
+      },
+    });
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1');
+    const perQuestion = stub.get('plcs/plc-1/aggregates/grp-1')!
+      .perQuestion as Array<Record<string, unknown>>;
+    expect(perQuestion[0]).toMatchObject({ graded: 2, correct: 0 });
+  });
+
+  it('skips sessions owned by a removed member or a non-member', async () => {
+    const stub = seedPipeline();
+    stub.store.set('plcs/plc-1', {
+      ...stub.get('plcs/plc-1'),
+      members: {
+        tA: { displayName: 'Ada', role: 'lead', status: 'active' },
+        tB: { displayName: 'Bea', role: 'member', status: 'removed' },
+      },
+    });
+    stub.store.set('quiz_sessions/sess-x', {
+      teacherUid: 'outsider',
+      plcId: 'plc-1',
+      syncGroupId: 'grp-1',
+      publicQuestions,
+    });
+    stub.store.set('quiz_sessions/sess-x/responses/r1', {
+      studentUid: 'stu-x',
+      status: 'completed',
+      score: 100,
+      answers: [{ questionId: 'q1', answer: 'St. Paul' }],
+    });
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1');
+    expect(stub.get('plcs/plc-1/aggregates/grp-1')).toMatchObject({
+      linkedSessionCount: 1,
+      studentCount: 1,
+      contributorUids: ['tA'],
+    });
+  });
+
+  it('treats a synced group from another PLC as keyless', async () => {
+    const stub = seedPipeline();
+    stub.store.set('synced_quizzes/grp-1', {
+      ...stub.get('synced_quizzes/grp-1'),
+      plcId: 'plc-victim',
+      participants: { victim: { joinedAt: 1 } },
+    });
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1');
+    const perQuestion = stub.get('plcs/plc-1/aggregates/grp-1')!
+      .perQuestion as Array<Record<string, unknown>>;
+    expect(perQuestion[0]).toMatchObject({ graded: 0 });
+    expect(perQuestion[0].choiceDistribution).toEqual([
+      { label: 'Duluth', count: 1, isCorrect: false },
+      { label: 'St. Paul', count: 1, isCorrect: false },
+    ]);
+  });
+
+  it('uses a synced group that lists a contributing teacher as a participant', async () => {
+    const stub = seedPipeline();
+    stub.store.set('synced_quizzes/grp-1', {
+      ...stub.get('synced_quizzes/grp-1'),
+      plcId: '',
+      participants: { tB: { joinedAt: 1 } },
+    });
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1');
+    const perQuestion = stub.get('plcs/plc-1/aggregates/grp-1')!
+      .perQuestion as Array<Record<string, unknown>>;
+    expect(perQuestion[0].choiceDistribution).toEqual([
+      { label: 'St. Paul', count: 1, isCorrect: true },
+      { label: 'Duluth', count: 1, isCorrect: false },
     ]);
   });
 

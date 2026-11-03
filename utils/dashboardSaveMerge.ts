@@ -57,6 +57,7 @@ export const DASHBOARD_FIELDS = [
   'claudeEditedAt',
   'claudeAction',
   'claudeUnseen',
+  'connections',
 ] as const;
 
 export type MergedDashboardField = (typeof DASHBOARD_FIELDS)[number];

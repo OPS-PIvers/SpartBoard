@@ -76,7 +76,12 @@ describe('time-tool settings schema', () => {
   });
 
   it('wraps every timer-end setting in a partner card under one section, hidden in stopwatch mode', () => {
-    const ctx = (mode: string) => ({ config: { mode } }) as unknown as FieldCtx;
+    const ctx = (mode: string, connections = false) =>
+      ({
+        config: { mode },
+        canAccessFeature: (id: string) =>
+          id === 'widget-connections' ? connections : true,
+      }) as unknown as FieldCtx;
     const behavior = schema.groups.find((g) => g.id === 'behavior');
     const cards = (behavior?.fields ?? []).filter(
       (f) => f.type === 'partnerWidget'
@@ -92,6 +97,7 @@ describe('time-tool settings schema', () => {
       expect(card.section).toBe('timerEndSection');
       expect(card.visibleWhen?.(ctx('timer'))).toBe(true);
       expect(card.visibleWhen?.(ctx('stopwatch'))).toBe(false);
+      expect(card.visibleWhen?.(ctx('timer', true))).toBe(false);
     }
   });
 
@@ -114,6 +120,7 @@ describe('time-tool settings schema', () => {
       ['mode', 'selectedSound'],
       [
         'adjustStepSeconds',
+        'startLength',
         'timerEndVoiceLevel',
         'timerEndTrafficColor',
         'timerEndTriggerRandom',

@@ -30,6 +30,7 @@ import {
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isRevokedMemberStatus, isStrictSuperAdmin } from './authz';
 import { normalizeEmailDomain } from './classlinkShared';
+import { isDomainVerifiedOnlyFor } from './orgDomainOwnership';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -108,15 +109,13 @@ async function assertCallerIsOrgAdmin(
   return caller;
 }
 
-// A domain admin may not mint a reset link for a super admin's account.
+// Only a strict super admin may mint a reset link for a super admin's account; an org's own super_admin roleId is not site-wide.
 async function assertCallerOutranksTarget(
   db: admin.firestore.Firestore,
-  caller: MemberRecord,
   callerEmailLower: string,
   target: MemberRecord,
   targetEmailLower: string
 ): Promise<void> {
-  if (caller.roleId === 'super_admin') return;
   const targetIsSuper =
     target.roleId === 'super_admin' ||
     (await isStrictSuperAdmin(db, targetEmailLower));
@@ -125,29 +124,6 @@ async function assertCallerOutranksTarget(
   throw new HttpsError(
     'permission-denied',
     "Only a super admin can reset a super admin's password."
-  );
-}
-
-// Only organizations/{orgId}/domains/{doc} counts: admin_settings and similar wildcards let admins write nested `domains` docs.
-function isOrgDomainPath(path: string): boolean {
-  const seg = path.split('/');
-  return seg.length === 4 && seg[0] === 'organizations' && seg[2] === 'domains';
-}
-
-// Every verified claim must be this org's: a second org claiming the domain could otherwise win a first-match lookup.
-async function isDomainVerifiedOnlyFor(
-  db: admin.firestore.Firestore,
-  domainWithAt: string,
-  orgId: string
-): Promise<boolean> {
-  const snap = await db
-    .collectionGroup('domains')
-    .where('domain', '==', domainWithAt)
-    .where('status', '==', 'verified')
-    .get();
-  const claims = snap.docs.filter((d) => isOrgDomainPath(d.ref.path));
-  return (
-    claims.length > 0 && claims.every((d) => d.ref.parent.parent?.id === orgId)
   );
 }
 
@@ -262,15 +238,9 @@ export const resetOrganizationUserPassword = onCall(
     const { orgId, email } = parsePayload(request.data);
     const db = admin.firestore();
 
-    const caller = await assertCallerIsOrgAdmin(db, orgId, callerEmailLower);
+    await assertCallerIsOrgAdmin(db, orgId, callerEmailLower);
     const target = await loadMember(db, orgId, email);
-    await assertCallerOutranksTarget(
-      db,
-      caller,
-      callerEmailLower,
-      target,
-      email
-    );
+    await assertCallerOutranksTarget(db, callerEmailLower, target, email);
     await assertTargetOnOrgDomain(db, orgId, callerEmailLower, email);
 
     // Firebase Auth's `generatePasswordResetLink` throws `auth/user-not-found`

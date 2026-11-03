@@ -71,3 +71,66 @@ export function syncServerTime(uid: string | null | undefined): void {
     syncedForUid = null;
   }
 }
+
+/** Forces a fresh offset probe for `uid`; resolves once it lands or after `timeoutMs`. */
+export function resyncServerTime(
+  uid: string | null | undefined,
+  timeoutMs = 5000
+): Promise<void> {
+  if (isAuthBypass || isViewAsTab || !uid) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    let done = false;
+    let unsub: (() => void) | undefined;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      unsub?.();
+      resolve();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    try {
+      syncedForUid = uid;
+      const ref = doc(db, 'server_time_probe', uid);
+      const localWriteAt = Date.now();
+      void setDoc(ref, { at: serverTimestamp() }).catch(() => {
+        if (syncedForUid === uid) syncedForUid = null;
+        finish();
+      });
+      unsub = onSnapshot(
+        ref,
+        { includeMetadataChanges: true },
+        (snap) => {
+          if (snap.metadata.hasPendingWrites) return;
+          const at = snap.data()?.at as { toMillis?: () => number } | undefined;
+          if (at && typeof at.toMillis === 'function') {
+            offsetMs = at.toMillis() - (localWriteAt + Date.now()) / 2;
+          }
+          finish();
+        },
+        finish
+      );
+      if (done) unsub();
+    } catch {
+      finish();
+    }
+  });
+}
+
+/** Runs `fn`; on permission-denied (e.g. a stale clock stamp) re-syncs the offset and runs it once more. */
+export async function retryWithFreshClock<T>(
+  uid: string | null | undefined,
+  fn: () => Promise<T>
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (
+      (err as { code?: unknown } | null)?.code !== 'permission-denied' ||
+      !uid
+    )
+      throw err;
+    await resyncServerTime(uid);
+    return fn();
+  }
+}

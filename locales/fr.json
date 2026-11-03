@@ -2632,7 +2632,7 @@
         "zoomIn": "Zoom avant",
         "zoomOut": "Zoom arrière",
         "zoomFit": "Ajuster",
-        "darken": "Foncer l’écriture",
+        "contrast": "Augmenter le contraste",
         "loading": "Chargement de l'écriture",
         "unavailable": "Écriture indisponible",
         "reload": "Réessayer",
@@ -4402,7 +4402,7 @@
   },
   "tourPicker": {
     "prompt": "Cliquez sur une commande pour cette étape",
-    "altHint": "Maintenez Alt pour ouvrir d'abord un menu",
+    "menuHint": "Maintenez {{key}} et cliquez pour ouvrir d'abord un menu",
     "chooseFromList": "Choisir dans la liste",
     "cancel": "Annuler",
     "search": "Rechercher des commandes",

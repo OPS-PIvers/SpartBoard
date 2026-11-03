@@ -373,6 +373,7 @@ const deps = {
   newId: () => 'new-session-id',
   newCode: () => 'AB12CD',
   hostHasFeature: () => Promise.resolve(false),
+  hostAllowsAnonymousJoin: () => Promise.resolve(true),
 };
 
 const launch = (
@@ -1706,6 +1707,101 @@ describe('glSessionPresentation welcome', () => {
     });
     expect(out).not.toHaveProperty('welcomeEnabled');
     expect(out).not.toHaveProperty('welcomeImageUrl');
+  });
+});
+
+describe('the anonymous-join stamp on a sub launch', () => {
+  const withJoin = (allowed: boolean) => ({
+    ...deps,
+    hostAllowsAnonymousJoin: vi.fn(() => Promise.resolve(allowed)),
+  });
+
+  it.each([true, false])(
+    'stamps allowAnonymousJoin=%s on a quiz session and assignment from the host',
+    async (allowed) => {
+      const { run, written } = launch({}, SUB, input(), withJoin(allowed));
+      await run();
+      expect(written[0].data.allowAnonymousJoin).toBe(allowed);
+      expect(written[1].data.allowAnonymousJoin).toBe(allowed);
+    }
+  );
+
+  it.each([true, false])(
+    'stamps allowAnonymousJoin=%s on a video activity session and assignment',
+    async (allowed) => {
+      const { run, written } = launch({}, SUB, vaInput(), withJoin(allowed));
+      await run();
+      expect(written[0].data.allowAnonymousJoin).toBe(allowed);
+      expect(written[2].data.allowAnonymousJoin).toBe(allowed);
+    }
+  );
+
+  it('SECURITY: refuses an allowAnonymousJoin the caller sends', async () => {
+    const data = input();
+    (data as { session: Record<string, unknown> }).session.allowAnonymousJoin =
+      true;
+    const { run } = launch({}, SUB, data, withJoin(false));
+    await expect(run()).rejects.toThrow();
+  });
+});
+
+describe('liveSubLaunchDeps.hostAllowsAnonymousJoin', () => {
+  const dbWith = (snap: () => Promise<{ exists: boolean }>) =>
+    ({
+      collection: () => ({ doc: () => ({ get: snap }) }),
+    }) as never;
+  const mockUser = () =>
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser: vi
+        .fn()
+        .mockResolvedValue({ email: 't@orono.k12.mn.us', emailVerified: true }),
+    } as never);
+
+  it('allows when no permission doc exists', async () => {
+    isGlobalFeatureGranted.mockClear();
+    await expect(
+      liveSubLaunchDeps.hostAllowsAnonymousJoin(
+        dbWith(() => Promise.resolve({ exists: false })),
+        HOST
+      )
+    ).resolves.toBe(true);
+    expect(isGlobalFeatureGranted).not.toHaveBeenCalled();
+  });
+
+  it('follows the host’s access when a permission doc exists', async () => {
+    mockUser();
+    isGlobalFeatureGranted.mockClear();
+    isGlobalFeatureGranted.mockResolvedValueOnce(false);
+    await expect(
+      liveSubLaunchDeps.hostAllowsAnonymousJoin(
+        dbWith(() => Promise.resolve({ exists: true })),
+        HOST
+      )
+    ).resolves.toBe(false);
+    expect(isGlobalFeatureGranted).toHaveBeenCalledWith(
+      expect.anything(),
+      'anonymous-join',
+      't@orono.k12.mn.us',
+      HOST
+    );
+  });
+
+  it('asks the sub to retry rather than closing joins when a read fails', async () => {
+    await expect(
+      liveSubLaunchDeps.hostAllowsAnonymousJoin(
+        dbWith(() => Promise.reject(new Error('unavailable'))),
+        HOST
+      )
+    ).rejects.toMatchObject({ code: 'unavailable' });
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser: vi.fn().mockRejectedValue(new Error('auth down')),
+    } as never);
+    await expect(
+      liveSubLaunchDeps.hostAllowsAnonymousJoin(
+        dbWith(() => Promise.resolve({ exists: true })),
+        HOST
+      )
+    ).rejects.toMatchObject({ code: 'unavailable' });
   });
 });
 

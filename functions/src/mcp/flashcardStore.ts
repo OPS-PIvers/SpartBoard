@@ -1,7 +1,8 @@
 // Server mirror of hooks/useFlashcardSets.ts saveSet: normalise, write, refresh share, rewrite open Study sessions.
 import type * as admin from '../firebaseAdmin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, type Timestamp } from 'firebase-admin/firestore';
 import { randomUUID } from 'node:crypto';
+import { ToolError } from './activity';
 
 type Firestore = admin.firestore.Firestore;
 type WriteBatch = admin.firestore.WriteBatch;
@@ -106,18 +107,6 @@ export function mergeCards(
   });
 }
 
-// Every snapshot field but `speak`: the Speak stamp is the teacher client's call (F21), so a server write keeps it.
-const SNAPSHOT_FIELDS = [
-  'teacherUid',
-  'setId',
-  'title',
-  'description',
-  'termLanguage',
-  'definitionLanguage',
-  'cards',
-  'updatedAt',
-];
-
 export async function readSet(
   db: Firestore,
   uid: string,
@@ -128,14 +117,34 @@ export async function readSet(
   return { ...(snap.data() as FlashcardSet), id: snap.id };
 }
 
-/** Adds the set (and its public snapshot when shared) to the batch; a changed language drops the snapshot's Speak stamp, and `speakStamp` replaces it. */
+/** What the public snapshot looked like when the save read it; the write fails if that has since changed. */
+export type ShareGuard =
+  { exists: false } | { exists: true; updateTime: Timestamp };
+
+/** Reads a set's public snapshot and refuses when it belongs to another teacher. */
+export async function guardPublicShare(
+  db: Firestore,
+  uid: string,
+  shareId: string
+): Promise<ShareGuard> {
+  const snap = await db.doc(`public_flashcard_sets/${shareId}`).get();
+  if (!snap.exists) return { exists: false };
+  if (snap.get('teacherUid') !== uid)
+    throw new ToolError(
+      'This set points at a shared page that is not yours. Re-share the set in SpartBoard, then try again.'
+    );
+  return { exists: true, updateTime: snap.updateTime as Timestamp };
+}
+
+/** Adds the set (and its public snapshot when shared, guarded by `share`) to the batch; a changed language drops the snapshot's Speak stamp, and `speakStamp` replaces it. */
 export function stageSetWrite(
   db: Firestore,
   batch: WriteBatch,
   uid: string,
   set: FlashcardSet,
   previousTermLanguage?: string,
-  speakStamp?: Record<string, unknown>
+  speakStamp?: Record<string, unknown>,
+  share?: ShareGuard
 ): void {
   const dropStamp =
     !speakStamp &&
@@ -143,28 +152,27 @@ export function stageSetWrite(
     primaryLanguage(previousTermLanguage) !== primaryLanguage(set.termLanguage);
   batch.set(db.doc(`${setsPath(uid)}/${set.id}`), set);
   if (set.publicShareId) {
+    if (!share) throw new ToolError('The shared page was not checked.');
+    const ref = db.doc(`public_flashcard_sets/${set.publicShareId}`);
     // Mirrors toPublicSnapshot in hooks/useFlashcardSets.ts.
-    batch.set(
-      db.doc(`public_flashcard_sets/${set.publicShareId}`),
-      {
-        teacherUid: uid,
-        setId: set.id,
-        title: set.title,
-        description: set.description ?? '',
-        termLanguage: set.termLanguage,
-        definitionLanguage: set.definitionLanguage,
-        cards: set.cards,
-        updatedAt: set.updatedAt,
-        ...(speakStamp ? { speak: speakStamp } : {}),
-        ...(dropStamp ? { speak: FieldValue.delete() } : {}),
-      },
-      {
-        mergeFields:
-          dropStamp || speakStamp
-            ? [...SNAPSHOT_FIELDS, 'speak']
-            : SNAPSHOT_FIELDS,
-      }
-    );
+    const fields = {
+      teacherUid: uid,
+      setId: set.id,
+      title: set.title,
+      description: set.description ?? '',
+      termLanguage: set.termLanguage,
+      definitionLanguage: set.definitionLanguage,
+      cards: set.cards,
+      updatedAt: set.updatedAt,
+      ...(speakStamp ? { speak: speakStamp } : {}),
+    };
+    if (share.exists)
+      batch.update(
+        ref,
+        { ...fields, ...(dropStamp ? { speak: FieldValue.delete() } : {}) },
+        { lastUpdateTime: share.updateTime }
+      );
+    else batch.create(ref, fields);
   }
 }
 

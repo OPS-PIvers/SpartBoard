@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   clockStateOf,
+  normalizeTimerStartSeconds,
   secondsAt,
   startFreshClock,
   timeToolClockPatch,
@@ -8,6 +9,7 @@ import {
   type TimeToolClockEvent,
   type TimeToolClockFields,
   type TimeToolPhase,
+  withTimerStartSeconds,
 } from './timeToolClock';
 import { TIME_TOOL_MAX_DURATION_SECONDS } from '@/config/timeTool';
 
@@ -273,6 +275,54 @@ describe('adjust', () => {
     ).toEqual({ elapsedTime: 340, duration: 340, startTime: null });
   });
 
+  it('makes the adjusted time the full length of a timer not yet started', () => {
+    const c = timer({ duration: 600, elapsedTime: 600 });
+    const patch = timeToolClockPatch(c, {
+      type: 'adjust',
+      deltaSeconds: -60,
+      fromSeconds: 600,
+      now: NOW,
+    });
+    expect(patch).toEqual({ elapsedTime: 540, duration: 540, startTime: null });
+    expect(clockStateOf({ ...c, ...patch }).phase).toBe('idle');
+  });
+
+  it('keeps the full length when adding overtime to a finished timer', () => {
+    const c = timer({ duration: 120, elapsedTime: 0 });
+    expect(
+      timeToolClockPatch(c, {
+        type: 'adjust',
+        deltaSeconds: 60,
+        fromSeconds: 0,
+        now: NOW,
+      })
+    ).toEqual({ elapsedTime: 60, duration: 120, startTime: null });
+  });
+
+  it('keeps the full length when a timer not yet started goes to zero', () => {
+    const c = timer({ duration: 60, elapsedTime: 60 });
+    expect(
+      timeToolClockPatch(c, {
+        type: 'adjust',
+        deltaSeconds: -60,
+        fromSeconds: 60,
+        now: NOW,
+      })
+    ).toEqual({ elapsedTime: 0, duration: 60, startTime: null });
+  });
+
+  it('keeps the full length when taking time off a paused timer', () => {
+    const c = timer({ duration: 600, elapsedTime: 300 });
+    expect(
+      timeToolClockPatch(c, {
+        type: 'adjust',
+        deltaSeconds: -60,
+        fromSeconds: 300,
+        now: NOW,
+      })
+    ).toEqual({ elapsedTime: 240, duration: 600, startTime: null });
+  });
+
   it('rebases the start stamp while running', () => {
     const c = timer({ isRunning: true, startTime: NOW - 5000 });
     expect(
@@ -374,6 +424,35 @@ describe('switchMode', () => {
       isRunning: false,
       startTime: null,
     });
+  });
+});
+
+describe('withTimerStartSeconds', () => {
+  it('starts a new timer at the teacher length over the building default', () => {
+    expect(withTimerStartSeconds({ duration: 600, glow: true }, 120)).toEqual({
+      duration: 120,
+      elapsedTime: 120,
+      glow: true,
+    });
+    expect(withTimerStartSeconds(undefined, 90)).toEqual({
+      duration: 90,
+      elapsedTime: 90,
+    });
+  });
+
+  it('leaves the building layer alone when unset or a stopwatch', () => {
+    const building = { duration: 300 };
+    expect(withTimerStartSeconds(building, 0)).toBe(building);
+    const stopwatch = { mode: 'stopwatch', elapsedTime: 0 };
+    expect(withTimerStartSeconds(stopwatch, 120)).toBe(stopwatch);
+  });
+
+  it('clamps a stored length to the ceiling', () => {
+    expect(normalizeTimerStartSeconds(TIME_TOOL_MAX_DURATION_SECONDS + 5)).toBe(
+      TIME_TOOL_MAX_DURATION_SECONDS
+    );
+    expect(normalizeTimerStartSeconds(-3)).toBe(0);
+    expect(normalizeTimerStartSeconds('120')).toBe(0);
   });
 });
 

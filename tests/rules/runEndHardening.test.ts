@@ -165,7 +165,7 @@ describe('quiz responses after the run ends', () => {
     await assertFails(
       updateDoc(quizResponse(asAnon()), {
         status: 'completed',
-        submittedAt: 5,
+        submittedAt: Date.now(),
         completedAttempts: increment(1),
       })
     );
@@ -216,13 +216,13 @@ describe('quiz response status moves', () => {
     await assertFails(
       updateDoc(quizResponse(asAnon()), {
         status: 'completed',
-        submittedAt: 5,
+        submittedAt: Date.now(),
       })
     );
     await assertSucceeds(
       updateDoc(quizResponse(asAnon()), {
         status: 'completed',
-        submittedAt: 5,
+        submittedAt: Date.now(),
         completedAttempts: increment(1),
       })
     );
@@ -422,7 +422,7 @@ describe('video activity responses after the run ends', () => {
     await seedVaResponse();
     await assertSucceeds(
       updateDoc(vaResponse(asAnon()), {
-        completedAt: 10,
+        completedAt: Date.now(),
         completedAttempts: increment(1),
       })
     );
@@ -442,10 +442,12 @@ describe('video activity completion moves', () => {
   it('finishes with exactly one more attempt', async () => {
     await seedVa();
     await seedVaResponse();
-    await assertFails(updateDoc(vaResponse(asAnon()), { completedAt: 10 }));
+    await assertFails(
+      updateDoc(vaResponse(asAnon()), { completedAt: Date.now() })
+    );
     await assertSucceeds(
       updateDoc(vaResponse(asAnon()), {
-        completedAt: 10,
+        completedAt: Date.now(),
         completedAttempts: increment(1),
       })
     );

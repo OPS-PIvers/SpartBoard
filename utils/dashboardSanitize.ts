@@ -1,5 +1,21 @@
-import type { Dashboard } from '@/types';
+import type { Dashboard, WidgetConnection } from '@/types';
 import { scrubDashboardPII } from '@/utils/dashboardPII';
+
+/** Connections with any Sequence Run in progress cleared. */
+export const stripConnectionRuns = (
+  connections: WidgetConnection[]
+): WidgetConnection[] =>
+  connections.map((c) =>
+    c.kind === 'sequence' && c.run ? { ...c, run: null } : c
+  );
+
+/** `{ connections }` (runs cleared) when a share snapshot has any, else `{}` so the board is unchanged. */
+export const importedConnections = (
+  connections: unknown
+): { connections?: WidgetConnection[] } =>
+  Array.isArray(connections) && connections.length > 0
+    ? { connections: stripConnectionRuns(connections as WidgetConnection[]) }
+    : {};
 
 /**
  * Strip host-specific fields from a Dashboard before snapshotting into
@@ -38,6 +54,7 @@ import { scrubDashboardPII } from '@/utils/dashboardPII';
  * - `viewportWidth` / `viewportHeight` — layout hints for proportional
  *   widget scaling on load. Recipient benefits from seeing the original
  *   composition's intended viewport.
+ * - `connections`, minus any Sequence Run in progress.
  * - `globalStyle`, `settings`, `libraryOrder`, `widgets`, `background`,
  *   `name`, `id`, `createdAt`, `order` — the Board's design itself.
  */
@@ -61,6 +78,10 @@ export const sanitizeBoardSnapshot = (board: Dashboard): Dashboard => {
     claudeUnseen: _claudeUnseen,
     ...rest
   } = board;
+  // A copy keeps its Connections but never a Run in progress.
+  if (rest.connections) {
+    rest.connections = stripConnectionRuns(rest.connections);
+  }
   return rest;
 };
 

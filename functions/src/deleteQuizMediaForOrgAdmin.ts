@@ -41,6 +41,10 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isRevokedMemberStatus, isSiteWideAdmin } from './authz';
 import './functionsInit';
 import { withQuizSessionContent } from './quizSessionContent';
+import {
+  isEmailOnDomains,
+  loadExclusiveOrgDomains,
+} from './orgDomainOwnership';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 type Firestore = admin.firestore.Firestore;
@@ -521,16 +525,20 @@ export async function assertOrgMediaAdmin(
   }
 }
 
-/** uid → email for every member of the org that has signed in at least once. */
+/** uid → email for every signed-in member on a domain verified for this org alone; an invited teacher from another tenant stays out. */
 export async function loadOrgTeacherUids(
   db: Firestore,
   orgId: string
 ): Promise<Map<string, string>> {
-  const snap = await db.collection(`organizations/${orgId}/members`).get();
+  const [snap, domains] = await Promise.all([
+    db.collection(`organizations/${orgId}/members`).get(),
+    loadExclusiveOrgDomains(db, orgId),
+  ]);
   const map = new Map<string, string>();
   for (const doc of snap.docs) {
     const uid = asString(doc.get('uid'));
-    if (uid) map.set(uid, asString(doc.get('email')) || doc.id);
+    const email = asString(doc.get('email')) || doc.id;
+    if (uid && isEmailOnDomains(email, domains)) map.set(uid, email);
   }
   return map;
 }

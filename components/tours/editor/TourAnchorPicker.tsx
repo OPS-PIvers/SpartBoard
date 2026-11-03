@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Z_INDEX } from '@/config/zIndex';
 import { chromeSurface } from '@/components/common/lightChrome';
-import { isScriptedClick } from '@/components/tours/autopilot';
+import { asScriptedClick, isScriptedClick } from '@/components/tours/autopilot';
 import type { TourSlots } from '@/components/tours/tourSession';
 import { secondaryBtn } from '@/components/tours/tourButtons';
 import {
@@ -43,6 +43,67 @@ const PAD = 3;
 
 const SEE_THROUGH = '[data-tour-overlay]';
 const LAYER = '[role="dialog"], [aria-modal="true"]';
+const FOCUSABLE =
+  'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+const isMac = (): boolean =>
+  typeof navigator !== 'undefined' &&
+  /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+// Ctrl (Cmd on a Mac) clicks act on the board instead of binding; Alt is kept from the older hint.
+const passesThrough = (e: MouseEvent) => e.ctrlKey || e.metaKey || e.altKey;
+
+// The real control under the pointer, looking through the tour's dim layer.
+const elementBelow = (e: MouseEvent): Element | null => {
+  const stack =
+    typeof document.elementsFromPoint === 'function'
+      ? document.elementsFromPoint(e.clientX, e.clientY)
+      : [];
+  const below = stack.find((el) => !el.closest(SEE_THROUGH));
+  if (below) return below.closest('[data-tour-ignore]') ? null : below;
+  return e.target instanceof Element && !e.target.closest(SEE_THROUGH)
+    ? e.target
+    : null;
+};
+
+// Re-sends the click without its modifier, so the app opens its menu as for a plain click.
+const passThrough = (e: MouseEvent, type = e.type) => {
+  const el = elementBelow(e);
+  // A link would navigate away from the editor.
+  if (!el || el.closest('a[href]')) return;
+  const init: PointerEventInit = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    view: e.view,
+    detail: e.detail,
+    screenX: e.screenX,
+    screenY: e.screenY,
+    clientX: e.clientX,
+    clientY: e.clientY,
+    button: e.button,
+    buttons: e.buttons,
+    shiftKey: e.shiftKey,
+    relatedTarget: e.relatedTarget,
+  };
+  const copy =
+    typeof PointerEvent === 'function' &&
+    e instanceof PointerEvent &&
+    type.startsWith('pointer')
+      ? new PointerEvent(type, {
+          ...init,
+          pointerId: e.pointerId,
+          pointerType: e.pointerType,
+          isPrimary: e.isPrimary,
+          width: e.width,
+          height: e.height,
+          pressure: e.pressure,
+        })
+      : new MouseEvent(type, init);
+  if (type === 'mousedown')
+    el.closest<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
+  asScriptedClick(() => el.dispatchEvent(copy));
+};
 
 // The tour's dim layer sits over the board, so look through it at what is underneath.
 const pickAt = (e: MouseEvent, slots: TourSlots | undefined) => {
@@ -79,6 +140,11 @@ export const TourAnchorPicker: React.FC<Props> = ({
   const { t } = useTranslation();
   const [hover, setHover] = useState<PickTarget | null>(null);
   const [box, setBox] = useState<Box | null>(null);
+  // Whether the current press started with the modifier, kept across listener re-subscriptions.
+  const pressRef = useRef<{ pass: boolean | null; clicked: boolean }>({
+    pass: null,
+    clicked: false,
+  });
 
   useEffect(() => {
     const ignored = (target: EventTarget | null) =>
@@ -98,15 +164,36 @@ export const TourAnchorPicker: React.FC<Props> = ({
           : found
       );
     };
-    const onSwallow = (e: Event) => {
-      // Fast-forward's own clicks still reach the board, and Alt clicks through to open a menu.
-      if (isScriptedClick() || ignored(e.target) || (e as MouseEvent).altKey)
-        return;
+    const onSwallow = (event: Event) => {
+      const e = event as MouseEvent;
+      // Fast-forward's own clicks still reach the board.
+      if (isScriptedClick() || ignored(e.target)) return;
       e.preventDefault();
       e.stopPropagation();
-      if (e.type !== 'click') return;
-      const found = pickAt(e as MouseEvent, slots);
-      if (found) onPick(found.pick);
+      const press = pressRef.current;
+      if (e.type === 'pointerdown')
+        Object.assign(press, { pass: passesThrough(e), clicked: false });
+      const pass = press.pass ?? passesThrough(e);
+      if (e.type === 'click' || e.type === 'dblclick') press.pass = null;
+      if (e.type === 'pointerup' && press.clicked) press.pass = null;
+      if (!pass) {
+        if (e.type === 'click') {
+          const found = pickAt(e, slots);
+          if (found) onPick(found.pick);
+        }
+        return;
+      }
+      if (e.type === 'contextmenu') {
+        // A Mac Ctrl-click fires contextmenu instead of click, so send the click after the release.
+        if (isMac() && e.ctrlKey && e.button === 0) press.clicked = true;
+        return;
+      }
+      // Cancelling pointerdown stops the browser's own mousedown and mouseup, so send them here.
+      if (e.type === 'mousedown' || e.type === 'mouseup') return;
+      passThrough(e);
+      if (e.type === 'pointerdown') passThrough(e, 'mousedown');
+      if (e.type === 'pointerup') passThrough(e, 'mouseup');
+      if (e.type === 'pointerup' && press.clicked) passThrough(e, 'click');
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
@@ -195,7 +282,7 @@ export const TourAnchorPicker: React.FC<Props> = ({
             {t('tourPicker.prompt')}
           </span>
           <span className="whitespace-nowrap text-xs text-slate-500">
-            {t('tourPicker.altHint')}
+            {t('tourPicker.menuHint', { key: isMac() ? '⌘' : 'Ctrl' })}
           </span>
         </span>
         {onChooseFromList && (

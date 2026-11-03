@@ -23,10 +23,17 @@ const stripHtml = (html: string): string => {
  */
 export const getSyncedTextContent = (
   config: QRConfig,
-  widgets: WidgetData[] | undefined
+  widgets: WidgetData[] | undefined,
+  // With Connections on: the Text widget this QR Follows (null for none); undefined keeps the old toggle.
+  followedTextId?: string | null
 ): string | undefined => {
-  if (!config.syncWithTextWidget) return undefined;
-  const textWidget = widgets?.find((w) => w.type === 'text');
+  if (followedTextId === null) return undefined;
+  if (followedTextId === undefined && !config.syncWithTextWidget) {
+    return undefined;
+  }
+  const textWidget = widgets?.find((w) =>
+    followedTextId ? w.id === followedTextId : w.type === 'text'
+  );
   return (textWidget?.config as TextConfig | undefined)?.content;
 };
 
@@ -52,6 +59,7 @@ export const extractSyncedUrl = (
  */
 export const deriveSyncedUrl = (
   config: QRConfig,
-  widgets: WidgetData[] | undefined
+  widgets: WidgetData[] | undefined,
+  followedTextId?: string | null
 ): string | undefined =>
-  extractSyncedUrl(getSyncedTextContent(config, widgets));
+  extractSyncedUrl(getSyncedTextContent(config, widgets, followedTextId));

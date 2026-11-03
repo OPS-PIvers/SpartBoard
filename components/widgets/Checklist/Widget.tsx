@@ -13,6 +13,8 @@ import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { tourAttr } from '@/config/tourAnchors';
 import { useIsActiveBoardReadOnly } from '@/context/dashboardCanvasStore';
 import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
+import { liveConnections } from '@/utils/connectionEngine';
+import { reportHandAction } from '@/utils/connectionSignals';
 
 export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -20,7 +22,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget, rosters, activeRosterId, activeDashboard } =
     useDashboard();
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
-  const smallCard = useAuth().canAccessFeature('checklist-small-card');
+  const { canAccessFeature } = useAuth();
+  const smallCard = canAccessFeature('checklist-small-card');
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as ChecklistConfig;
   const {
@@ -97,12 +100,30 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     rosterGroupsEnabled,
   ]);
 
+  // In a Connection Sequence, the first unchecked row is the current one, highlighted and checked off by "next".
+  const inSequence =
+    canAccessFeature('widget-connections') &&
+    liveConnections(
+      activeDashboard?.connections,
+      activeDashboard?.widgets ?? []
+    ).some(
+      (c) =>
+        c.kind === 'sequence' &&
+        c.steps.some((st) => st.actions.some((a) => a.widgetId === widget.id))
+    );
+  const firstOpenId =
+    mode === 'manual'
+      ? items.find((i) => !i.completed)?.id
+      : students.find((st) => !completedNames.includes(st.id))?.id;
+  const currentId = inSequence ? (firstOpenId ?? null) : null;
+
   const latestState = useRef({
     items,
     completedNames,
     config,
     widgetId: widget.id,
     mode,
+    currentId,
   });
 
   // Update ref synchronously during useLayoutEffect to avoid stale state issues in callbacks
@@ -113,13 +134,16 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
       config,
       widgetId: widget.id,
       mode,
+      currentId,
     };
-  }, [items, completedNames, config, widget.id, mode]);
+  }, [items, completedNames, config, widget.id, mode, currentId]);
 
   const toggleItem = useCallback(
     (idOrName: string) => {
-      const { items, completedNames, config, widgetId, mode } =
+      const { items, completedNames, config, widgetId, mode, currentId } =
         latestState.current;
+      // Checking off the current row by hand moves a Connection Run to its "next" step.
+      if (idOrName === currentId) reportHandAction(widgetId, 'next');
       if (mode === 'manual') {
         const newItems = items.map((item) =>
           item.id === idOrName ? { ...item, completed: !item.completed } : item
@@ -292,6 +316,12 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                   <div
                     key={item.id}
                     role="listitem"
+                    aria-current={item.id === currentId ? 'step' : undefined}
+                    className={
+                      item.id === currentId
+                        ? 'rounded-xl ring-[3px] ring-brand-red-primary'
+                        : undefined
+                    }
                     style={{
                       flex: 1,
                       minHeight: rowMinHeight,
@@ -319,6 +349,12 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                   <div
                     key={student.id}
                     role="listitem"
+                    aria-current={student.id === currentId ? 'step' : undefined}
+                    className={
+                      student.id === currentId
+                        ? 'rounded-xl ring-[3px] ring-brand-red-primary'
+                        : undefined
+                    }
                     style={{
                       flex: 1,
                       minHeight: rowMinHeight,

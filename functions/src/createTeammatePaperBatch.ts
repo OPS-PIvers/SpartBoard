@@ -792,7 +792,9 @@ export async function handleWithdrawTeammatePaperBatch(
   raw: unknown
 ): Promise<{ deleted: true }> {
   const input = parseWithdrawTeammatePaperBatchInput(raw);
-  const { targetName } = await authorizeDelegatedPrint(db, caller, input);
+  const { targetName } = await authorizeDelegatedPrint(db, caller, input, {
+    requireTargetJoined: false,
+  });
   const actor = caller as DelegatedPrintCaller;
 
   const batchRef = db

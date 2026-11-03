@@ -8,6 +8,7 @@ import type {
   LinkedCollectionSection,
   SharedBoardIntendedMode,
 } from '@/types';
+import { importedConnections } from '@/utils/dashboardSanitize';
 
 /** Recipient landing route for a Synced / View-Only collection link. */
 export const LINKED_COLLECTION_SHARE_PREFIX = '/share/collection/';
@@ -130,6 +131,7 @@ export const linkedBoardFromShare = (
   widgets: snap.widgets ?? [],
   globalStyle: snap.globalStyle,
   settings: snap.settings,
+  ...importedConnections(snap.connections),
   isDefault: false,
   createdAt: Date.now(),
   order: opts.order,

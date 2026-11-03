@@ -38,10 +38,13 @@ export const SURFACES: TourSurfaceMap = {
       'components/share/ShareStatusBanner.tsx',
       'components/layout/useClaudeBoardActivity.ts',
       'components/layout/ImportInboxNotice.tsx',
+      'components/connections/ConnectModeBar.tsx',
     ],
     inner: {
       'dashboard.group-cancel': 'widget.group-with',
       'dashboard.group-widgets': 'widget.group-with',
+      'dashboard.connect-cancel': 'widget.connect',
+      'dashboard.connect-done': 'widget.connect',
       'board-actions.zoom-slider': 'board-actions.zoom',
       'board-actions.zoom-preset': 'board-actions.zoom',
       'board-actions.zoom-panel-reset': 'board-actions.zoom',
@@ -96,9 +99,19 @@ export const SURFACES: TourSurfaceMap = {
   'board.widget': {
     label: 'Widget window chrome',
     kind: 'widget',
-    files: ['components/common/DraggableWindow.tsx'],
+    files: [
+      'components/common/DraggableWindow.tsx',
+      'components/connections/WidgetConnectionControls.tsx',
+    ],
     needs: ['widget-on-stage'],
     inner: {
+      'widget.connect-menu.connection': 'widget.connect',
+      'widget.connect-menu.new': 'widget.connect',
+      'widget.connect-pick': 'widget.connect',
+      'widget.connection-start': 'widget.connection-badge',
+      'widget.connection-stop': 'widget.connection-badge',
+      'widget.connection-next': 'widget.connection-badge',
+      'widget.connection-edit': 'widget.connection-badge',
       'widget.close-confirm.cancel': 'widget.close',
       'widget.close-confirm.confirm': 'widget.close',
       'widget.annotate-toolbar.eraser': 'widget.annotate',
@@ -114,6 +127,17 @@ export const SURFACES: TourSurfaceMap = {
       'widget.snap-layout.option': 'widget.snap-layout',
       'widget.snap-layout.custom-grid': 'widget.snap-layout',
     },
+  },
+  'board.connections-editor': {
+    label: 'Connection steps window',
+    kind: 'modal',
+    files: [
+      'components/connections/ConnectionEditorModal.tsx',
+      'components/connections/StepParamPicker.tsx',
+    ],
+    opensWith: 'dashboard.connect-done',
+    alsoOpensWith: ['widget.connection-edit', 'widget.connect-menu.connection'],
+    needs: ['widget-on-stage'],
   },
   'board.settings-drawer': {
     label: 'Widget settings drawer',
@@ -172,6 +196,12 @@ export const SURFACES: TourSurfaceMap = {
     label: "Colleague's item on a shared board",
     kind: 'shared',
     files: ['components/sharedBoard/SharedBoardItemGate.tsx'],
+  },
+  // Opens after importing a shared quiz assignment, so it has no single opener.
+  'board.quiz-import-setup': {
+    label: 'Set up imported assignment dialog',
+    kind: 'shared',
+    files: ['components/quiz/QuizAssignmentImportSetupModal.tsx'],
   },
   // Mounted by the quiz grader, the student's take review and student results.
   'board.whiteboard-replay': {

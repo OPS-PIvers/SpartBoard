@@ -2243,6 +2243,11 @@
       "verifySuccess": "Compatible with embedding!"
     },
     "time-tool": {
+      "startLength": "Start new timers at",
+      "startLengthHelp": "Used for new timers on all your boards.",
+      "startLengthMinutes": "Minutes",
+      "startLengthSeconds": "Seconds",
+      "startLengthClear": "Use school default",
       "mode": "Mode",
       "modeTimer": "Timer",
       "modeStopwatch": "Stopwatch",
@@ -2407,7 +2412,10 @@
       "saveAsGroupsFailed": "Couldn't save these groups — check your Google Drive connection and try again.",
       "saveAsGroupsNeedsClassGroups": "Make groups with a class selected first.",
       "lockedGroupsEmpty": "Save a group for this class to keep it together when groups are made.",
-      "rosterGroupsOff": "Class groups are switched off for your school right now."
+      "rosterGroupsOff": "Class groups are switched off for your school right now.",
+      "rowStyle": "Name style",
+      "rowCards": "Cards",
+      "rowLines": "Lines"
     },
     "url": {
       "links": "Links",
@@ -3915,7 +3923,7 @@
         "zoomIn": "Zoom in",
         "zoomOut": "Zoom out",
         "zoomFit": "Fit",
-        "darken": "Darken handwriting",
+        "contrast": "Boost contrast",
         "loading": "Loading handwriting",
         "unavailable": "Handwriting unavailable",
         "reload": "Try again",
@@ -5593,7 +5601,7 @@
   },
   "tourPicker": {
     "prompt": "Click a control for this step",
-    "altHint": "Hold Alt to open a menu first",
+    "menuHint": "Hold {{key}} and click to open a menu first",
     "chooseFromList": "Choose from list",
     "cancel": "Cancel",
     "search": "Search controls",
@@ -5729,5 +5737,112 @@
     "show": "Show",
     "madeBadge": "Made with Claude",
     "editedBadge": "Edited by Claude"
+  },
+  "connections": {
+    "runFinished": "Sequence finished",
+    "connect": "Connect",
+    "badgeTitle": "Connected: open the steps",
+    "menuConnection": "Connection {{n}}",
+    "newConnection": "New connection",
+    "pick": "Add {{name}}",
+    "tapInOrder": "Tap widgets in the order they should go. Tap the first one again to repeat.",
+    "doneCount": "Done ({{count}})",
+    "nothingToConnect": "Those widgets have nothing to do together yet.",
+    "closeWarningStep": "This widget is step {{steps}} of a connection. Closing removes it from the steps.",
+    "closeWarning": "Closing removes this widget from its connection.",
+    "actions": {
+      "time-tool": {
+        "restart": "Start",
+        "start": "Resume",
+        "pause": "Pause",
+        "reset": "Reset"
+      },
+      "random": {
+        "next": "Pick next name"
+      },
+      "traffic": {
+        "red": "Turn red",
+        "yellow": "Turn yellow",
+        "green": "Turn green",
+        "off": "Turn off"
+      },
+      "expectations": {
+        "voice-0": "Silence",
+        "voice-1": "Whisper",
+        "voice-2": "Conversation",
+        "voice-3": "Presenter",
+        "voice-4": "Outside"
+      },
+      "nextUp": {
+        "next": "Next student"
+      },
+      "stations": {
+        "rotate": "Rotate"
+      },
+      "checklist": {
+        "next": "Check next item"
+      },
+      "schedule": {
+        "next-block": "Wait for next block"
+      },
+      "work-symbols": {
+        "show": "Show"
+      },
+      "materials": {
+        "show": "Show"
+      }
+    },
+    "editor": {
+      "title": "Connection",
+      "delete": "Delete connection",
+      "running": "Running now. Saving changes stops it.",
+      "stop": "Stop",
+      "seconds": "seconds",
+      "actionFor": "What {{name}} does",
+      "removeAction": "Remove",
+      "repeat": "Repeat",
+      "empty": "Nothing left in this connection. Save to remove it.",
+      "pickSymbol": "Pick a symbol",
+      "noMaterials": "None",
+      "choiceFor": "Choice for {{name}}",
+      "saveStart": "Save and start",
+      "stepNumber": "Step {{n}}",
+      "stepMenu": "Step {{n}} options",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeStep": "Remove",
+      "addSide": "Add something at the same time",
+      "addStep": "Add a step",
+      "advanceEnds": "When {{names}} ends",
+      "advanceEndMany": "When {{names}} end",
+      "advanceNextBlock": "When the next block starts",
+      "advanceNow": "Right away",
+      "advanceNext": "When I press Next",
+      "advancePause": "After a few seconds",
+      "advanceFor": "What moves on from step {{n}}",
+      "repeatUntilNames": "Repeat until every name is picked",
+      "repeatUntilItems": "Repeat until every item is checked",
+      "repeatUntilStop": "Repeat until I press Stop",
+      "repeatCount": "Repeat a set number of times",
+      "repeatOnce": "Don't repeat",
+      "times": "times",
+      "timerName": "Timer {{time}}",
+      "advancePauseAfterEnds": "A few seconds after {{names}} ends",
+      "advancePauseAfterEndMany": "A few seconds after {{names}} end",
+      "advancePauseAfterBlock": "A few seconds after the next block starts"
+    },
+    "nothingToStart": "The first step has nothing to do yet.",
+    "stop": "Stop",
+    "startFromTop": "Start from step 1",
+    "editSteps": "Edit steps",
+    "classNotLoaded": "Your class is still loading. Try again in a moment.",
+    "followAction": {
+      "music": "Play",
+      "qr": "Show the text",
+      "traffic": "Match the noise level",
+      "sound": "Match the voice level",
+      "recessGear": "Use the weather"
+    },
+    "next": "Next"
   }
 }

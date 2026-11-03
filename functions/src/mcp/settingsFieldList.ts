@@ -343,6 +343,11 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'number',
     },
     {
+      anchor: 'settings.field:time-tool#startLength',
+      label: 'Start new timers at',
+      kind: 'custom',
+    },
+    {
       anchor: 'settings.field:time-tool#timerEndVoiceLevel',
       label: 'Switch to Voice Level when finished',
       kind: 'custom',
@@ -705,6 +710,25 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:random#lastResult',
       label: 'Save as class groups',
       kind: 'custom',
+    },
+    {
+      anchor: 'settings.group:random#display',
+      label: 'Display',
+    },
+    {
+      anchor: 'settings.field:random#rowStyle',
+      label: 'Name style',
+      kind: 'segmented',
+    },
+    {
+      anchor: 'settings.field:random#cardColor',
+      label: 'Card color',
+      kind: 'surfaceColor',
+    },
+    {
+      anchor: 'settings.field:random#fontColor',
+      label: 'Font color',
+      kind: 'color',
     },
   ],
   url: [

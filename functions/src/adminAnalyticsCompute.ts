@@ -30,6 +30,10 @@ import {
   writeActivityDays,
 } from './adminAnalyticsHistory';
 import { OPEN_SOURCES } from './adminActiveStudents';
+import {
+  isEmailOnDomains,
+  loadExclusiveOrgDomains,
+} from './orgDomainOwnership';
 import { chunk as chunksOf } from './shared';
 import {
   type WidgetUsage,
@@ -231,9 +235,15 @@ export async function computeAnalyticsForOrg(
     }
   >();
   const uidByEmail = new Map<string, string>();
-  const identifiers: admin.auth.UserIdentifier[] = members.map((m) =>
-    m.uid ? { uid: m.uid } : { email: m.email }
-  );
+  // An unlinked member doc only resolves by email on a domain verified for this org alone, so a planted foreign address reports nothing.
+  const exclusiveDomains = await loadExclusiveOrgDomains(db, orgId);
+  const identifiers: admin.auth.UserIdentifier[] = [];
+  for (const m of members) {
+    if (m.uid) identifiers.push({ uid: m.uid });
+    else if (isEmailOnDomains(m.email, exclusiveDomains)) {
+      identifiers.push({ email: m.email });
+    }
+  }
   const chunks: admin.auth.UserIdentifier[][] = [];
   for (let i = 0; i < identifiers.length; i += 100) {
     chunks.push(identifiers.slice(i, i + 100));
@@ -264,7 +274,9 @@ export async function computeAnalyticsForOrg(
     })
   );
   for (const m of members) {
-    if (!m.uid) m.uid = uidByEmail.get(m.email) ?? null;
+    if (!m.uid && isEmailOnDomains(m.email, exclusiveDomains)) {
+      m.uid = uidByEmail.get(m.email) ?? null;
+    }
   }
 
   // Build uid → member lookup so downstream dashboard/AI filters can scope to
@@ -665,30 +677,12 @@ export async function computeAnalyticsForOrg(
     .sort(([, a], [, b]) => b - a)
     .slice(0, 25)
     .map(([uid]) => uid);
+  // Labels come from the org roster or Auth, never the client-writable users/{uid}.email.
   const topUserEmails: Record<string, string> = {};
-
-  const uidChunks: string[][] = [];
-  for (let i = 0; i < topUserUids.length; i += 10) {
-    uidChunks.push(topUserUids.slice(i, i + 10));
+  for (const uid of topUserUids) {
+    const email = memberByUid.get(uid)?.email;
+    if (email) topUserEmails[uid] = email;
   }
-
-  await Promise.all(
-    uidChunks.map(async (uidChunk) => {
-      if (uidChunk.length === 0) return;
-      const usersSnapshot = await db
-        .collection('users')
-        .where(admin.firestore.FieldPath.documentId(), 'in', uidChunk)
-        .select('email')
-        .get();
-
-      usersSnapshot.docs.forEach((doc) => {
-        const userData = doc.data();
-        if (typeof userData.email === 'string' && userData.email.length > 0) {
-          topUserEmails[doc.id] = userData.email;
-        }
-      });
-    })
-  );
   const unresolvedTopUserUids = topUserUids.filter(
     (uid) => !topUserEmails[uid]
   );

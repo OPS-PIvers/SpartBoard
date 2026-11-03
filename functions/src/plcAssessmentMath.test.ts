@@ -188,6 +188,57 @@ describe('selectRepresentativeAnswers', () => {
   });
 });
 
+describe('resolveGroupQuestions assignment keys', () => {
+  const key = {
+    id: 'q1',
+    type: 'MC',
+    text: 'Capital of MN?',
+    correctAnswer: 'St. Paul',
+    incorrectAnswers: ['Duluth'],
+  };
+
+  it('keeps the question text when the key doc has none', () => {
+    const { text: _text, ...textless } = key;
+    void _text;
+    const [q] = resolveGroupQuestions(null, publicQuestions, [], [textless]);
+    expect(q.text).toBe('Capital of MN?');
+    expect(q.correctAnswer).toBe('St. Paul');
+    expect(q.choices).toEqual(['Duluth', 'St. Paul', 'Rochester']);
+  });
+
+  it('keys a question the synced group does not key and keeps its tags', () => {
+    const [q] = resolveGroupQuestions(
+      null,
+      [{ ...publicQuestions[0], targets: [sourceTarget] }],
+      [],
+      [key]
+    );
+    expect(q.correctAnswer).toBe('St. Paul');
+    expect(q.targets.map((t) => t.id)).toEqual(['target-sources']);
+  });
+
+  it('never overrides a key the synced group already has', () => {
+    const [q] = resolveGroupQuestions(
+      syncedQuestions,
+      publicQuestions,
+      [],
+      [{ ...key, correctAnswer: 'Duluth' }]
+    );
+    expect(q.correctAnswer).toBe('St. Paul');
+  });
+
+  it('ignores keys for ids the group does not have', () => {
+    const qs = resolveGroupQuestions(
+      null,
+      publicQuestions,
+      [],
+      [{ ...key, id: 'zzz' }]
+    );
+    expect(qs.map((q) => q.id)).toEqual(['q1', 'q2', 'q3']);
+    expect(qs.every((q) => q.correctAnswer === null)).toBe(true);
+  });
+});
+
 describe('computeAssessmentAggregate', () => {
   const groupQuestions: GroupQuestion[] = resolveGroupQuestions(
     syncedQuestions,
@@ -370,7 +421,7 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.perQuestion[2]).toMatchObject({ graded: 1, correct: 0 });
   });
 
-  it('withholds a score when no answer key is known but keeps published flags', () => {
+  it('withholds a score when no answer key is known and ignores answer flags', () => {
     const keyless = resolveGroupQuestions(null, publicQuestions);
     const agg = compute(
       [
@@ -385,8 +436,8 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.teamAveragePercent).toBe(40);
     expect(agg.perQuestion[0]).toMatchObject({
       answered: 2,
-      graded: 1,
-      correct: 1,
+      graded: 0,
+      correct: 0,
     });
   });
 
@@ -407,7 +458,7 @@ describe('computeAssessmentAggregate', () => {
     expect(json).not.toContain('anon');
   });
 
-  it('infers MC correctness from published flags when no key is known', () => {
+  it('does not infer MC correctness from answer flags when no key is known', () => {
     const keyless = resolveGroupQuestions(null, publicQuestions);
     const agg = compute(
       [
@@ -420,7 +471,22 @@ describe('computeAssessmentAggregate', () => {
     );
     expect(agg.perQuestion[0].choiceDistribution).toEqual([
       { label: 'Duluth', count: 1, isCorrect: false },
+      { label: 'St. Paul', count: 1, isCorrect: false },
+      { label: 'Rochester', count: 0, isCorrect: false },
+    ]);
+  });
+
+  it('counts a wrong answer tagged isCorrect: true as incorrect', () => {
+    const agg = compute([
+      session('s-a', 'teacherA', [
+        response([answer('q1', 'Duluth', { isCorrect: true })]),
+        response([answer('q1', 'St. Paul', { isCorrect: false })]),
+      ]),
+    ]);
+    expect(agg.perQuestion[0]).toMatchObject({ graded: 2, correct: 1 });
+    expect(agg.perQuestion[0].choiceDistribution).toEqual([
       { label: 'St. Paul', count: 1, isCorrect: true },
+      { label: 'Duluth', count: 1, isCorrect: false },
       { label: 'Rochester', count: 0, isCorrect: false },
     ]);
   });
@@ -684,7 +750,7 @@ describe('computeAssessmentAggregate', () => {
       });
     });
 
-    it('falls back to the published flag when no manual grade is stored', () => {
+    it('ignores the answer flag when no manual grade is stored', () => {
       const agg = compute(
         [
           session(
@@ -700,10 +766,10 @@ describe('computeAssessmentAggregate', () => {
         rubricQuestions
       );
       expect(agg.perQuestion[1]).toMatchObject({
-        graded: 2,
-        pointsEarned: 4,
-        pointsPossible: 8,
-        correctPercent: 50,
+        graded: 0,
+        pointsEarned: 0,
+        pointsPossible: 0,
+        correctPercent: 0,
       });
     });
 
@@ -1034,11 +1100,23 @@ describe('standard-level rollup', () => {
   };
 
   it('parses parentId/parentLabel and unions benchmarks into the parent row', () => {
-    const qs = resolveGroupQuestions(null, [
-      { id: 'q1', text: 'Q1', type: 'MC', targets: [benchmark] },
-      { id: 'q2', text: 'Q2', type: 'MC', targets: [parent] },
-      { id: 'q3', text: 'Q3', type: 'MC', targets: [benchmark, parent] },
-    ]);
+    const keys = ['q1', 'q2', 'q3'].map((id) => ({
+      id,
+      type: 'MC',
+      text: id,
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+    }));
+    const qs = resolveGroupQuestions(
+      null,
+      [
+        { id: 'q1', text: 'Q1', type: 'MC', targets: [benchmark] },
+        { id: 'q2', text: 'Q2', type: 'MC', targets: [parent] },
+        { id: 'q3', text: 'Q3', type: 'MC', targets: [benchmark, parent] },
+      ],
+      [],
+      keys
+    );
     expect(qs[0].targets[0]).toMatchObject({
       parentId: benchmark.parentId,
       parentLabel: benchmark.parentLabel,

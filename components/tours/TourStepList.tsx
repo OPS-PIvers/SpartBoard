@@ -37,8 +37,8 @@ export const TourStepList: React.FC<{ set: GuidedLearningSet }> = ({ set }) => {
                   </p>
                 )}
                 {step.text?.trim() && (
-                  <p className="text-sm text-slate-700">
-                    {renderStepText(step.text)}
+                  <p className="whitespace-pre-line text-sm text-slate-700">
+                    {renderStepText(step.text.trim())}
                   </p>
                 )}
                 {shown && (

@@ -119,9 +119,9 @@ const CASES: Case[] = [
   },
   {
     name: 'project_runs',
-    path: 'project_runs/s1',
+    path: `project_runs/${TEACHER_UID}_p1`,
     session: {
-      id: 's1',
+      id: `${TEACHER_UID}_p1`,
       teacherUid: TEACHER_UID,
       projectId: 'p1',
       status: 'active',

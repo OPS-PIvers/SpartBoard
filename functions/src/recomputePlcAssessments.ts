@@ -14,6 +14,7 @@ import {
   type SessionInput,
 } from './plcAssessmentMath';
 import { withQuizSessionContent } from './quizSessionContent';
+import { activePlcMemberUids } from './plcActiveMembers';
 import { sessionClassPredicate } from './sessionClassFilter';
 
 type Firestore = admin.firestore.Firestore;
@@ -33,7 +34,6 @@ function parseAnswer(raw: unknown): RawAnswer | null {
     questionId,
     answer: asString(r.answer),
     answeredAt: typeof r.answeredAt === 'number' ? r.answeredAt : undefined,
-    isCorrect: typeof r.isCorrect === 'boolean' ? r.isCorrect : undefined,
     status: r.status === 'draft' ? 'draft' : undefined,
     unresponded: r.unresponded ?? undefined,
     takeIndex: typeof r.takeIndex === 'number' ? r.takeIndex : undefined,
@@ -135,6 +135,22 @@ export function teacherNamesFromPlc(
   return names;
 }
 
+/** True when the synced group was made for this PLC or one of its contributing teachers participates. */
+export function syncedGroupEntitled(
+  plcId: string,
+  group: Record<string, unknown> | undefined,
+  contributorUids: Iterable<string>
+): boolean {
+  if (!group) return false;
+  if (group.plcId === plcId) return true;
+  const participants = group.participants;
+  if (typeof participants !== 'object' || participants === null) return false;
+  for (const uid of contributorUids) {
+    if (Object.prototype.hasOwnProperty.call(participants, uid)) return true;
+  }
+  return false;
+}
+
 /** `{ [questionId]: { [locale]: string[] } }` from the teacher-owned assignment doc. */
 export function parseLocalizedFibAnswers(
   raw: unknown
@@ -225,13 +241,17 @@ export async function recomputeOnePlcAssessment(
     plcRef.get(),
   ]);
   const teacherNames = teacherNamesFromPlc(plcSnap.data());
+  const activeMembers = activePlcMemberUids(plcSnap.data());
 
   const sessions: SessionInput[] = [];
+  const assignmentKeys: unknown[] = [];
   for (const sessionDoc of sessionsSnap.docs) {
+    // A session whose owner is not an active member of this PLC never counts.
+    if (!activeMembers.has(asString(sessionDoc.data().teacherUid))) continue;
     const s = await withQuizSessionContent(sessionDoc.ref, sessionDoc.data());
     const teacherUid = asString(s.teacherUid);
     const assignmentId = asString(s.assignmentId) || sessionDoc.id;
-    const [responsesSnap, assignmentSnap] = await Promise.all([
+    const [responsesSnap, assignmentSnap, keySnap] = await Promise.all([
       sessionDoc.ref
         .collection('responses')
         .where('status', '==', 'completed')
@@ -244,7 +264,21 @@ export async function recomputeOnePlcAssessment(
             .doc(assignmentId)
             .get()
         : Promise.resolve(null),
+      teacherUid
+        ? db
+            .collection('users')
+            .doc(teacherUid)
+            .collection('quiz_assignments')
+            .doc(assignmentId)
+            .collection('key')
+            .doc('answers')
+            .get()
+        : Promise.resolve(null),
     ]);
+    const keyQuestions: unknown = keySnap?.data()?.questions;
+    if (Array.isArray(keyQuestions)) {
+      assignmentKeys.push(...(keyQuestions as unknown[]));
+    }
     const assignmentData: Record<string, unknown> | undefined =
       assignmentSnap?.data();
     const keepClass = sessionClassPredicate(s);
@@ -274,9 +308,17 @@ export async function recomputeOnePlcAssessment(
   }
 
   const groupQuestions = resolveGroupQuestions(
-    syncedSnap.exists ? (syncedSnap.data() ?? null) : null,
+    syncedSnap.exists &&
+      syncedGroupEntitled(
+        plcId,
+        syncedSnap.data(),
+        sessions.map((session) => session.teacherUid)
+      )
+      ? (syncedSnap.data() ?? null)
+      : null,
     sessions.flatMap((session) => session.publicQuestions),
-    sessions.flatMap((session) => session.questionSnapshot ?? [])
+    sessions.flatMap((session) => session.questionSnapshot ?? []),
+    assignmentKeys
   );
   const kind = assessment.kind === 'video-activity' ? 'video-activity' : 'quiz';
   const payload = computeAssessmentAggregate({

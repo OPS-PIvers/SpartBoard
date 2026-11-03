@@ -35,9 +35,14 @@ import { handleJoinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin'
 interface DocSnap {
   exists: boolean;
   data: () => Record<string, unknown> | undefined;
+  createTime?: { toMillis: () => number };
 }
 
+const at = (ms: number) => ({ toMillis: () => ms });
+
 interface StubState {
+  /** Server createTime millis per doc; the root defaults to 100, the header and group to 200. */
+  createTimes?: { plc?: number; header?: number; group?: number };
   plc: Record<string, unknown> | null;
   entry: Record<string, unknown> | null;
   group: Record<string, unknown> | null;
@@ -68,18 +73,21 @@ function makeDb(state: StubState) {
       return Promise.resolve({
         exists: state.plc !== null,
         data: () => state.plc ?? undefined,
+        createTime: at(state.createTimes?.plc ?? 100),
       });
     }
     if (ref.__path.includes('/video_activities/')) {
       return Promise.resolve({
         exists: state.entry !== null,
         data: () => state.entry ?? undefined,
+        createTime: at(state.createTimes?.header ?? 200),
       });
     }
     if (ref.__path.startsWith('synced_video_activities/')) {
       return Promise.resolve({
         exists: state.group !== null,
         data: () => state.group ?? undefined,
+        createTime: at(state.createTimes?.group ?? 200),
       });
     }
     throw new Error(`Unexpected ref: ${ref.__path}`);

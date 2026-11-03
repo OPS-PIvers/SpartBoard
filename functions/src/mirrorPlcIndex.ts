@@ -19,6 +19,7 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
+import { isStaffMemberData } from './districtStaff';
 
 export interface PlcIndexMirror {
   name: string;
@@ -82,6 +83,18 @@ export function discoveryOrgId(
   return claimedOrgId !== null && leadIsClaimedOrgMember ? claimedOrgId : null;
 }
 
+/** The lead's verified email from Firebase Auth; the root doc's member emails are client-written. */
+async function verifiedAuthEmail(uid: string): Promise<string | null> {
+  try {
+    const user = await admin.auth().getUser(uid);
+    return user.emailVerified && user.email ? user.email.toLowerCase() : null;
+  } catch (err) {
+    // Only a missing account means no email; anything else fails the run rather than dropping the org.
+    if ((err as { code?: unknown }).code === 'auth/user-not-found') return null;
+    throw err;
+  }
+}
+
 export const mirrorPlcIndex = onDocumentWritten(
   {
     document: 'plcs/{plcId}',
@@ -100,6 +113,20 @@ export const mirrorPlcIndex = onDocumentWritten(
 
     const db = admin.firestore();
     const indexRef = db.collection('plcIndex').doc(plcId);
+
+    // The create write's leadUid is rules-pinned to its author; recorded first in server-only plcCreators, bound to this root.
+    if (!change.before.exists && change.after.exists) {
+      const leadUid: unknown = change.after.data()?.leadUid;
+      if (typeof leadUid === 'string' && leadUid) {
+        await db
+          .collection('plcCreators')
+          .doc(plcId)
+          .set({
+            creatorUid: leadUid,
+            rootCreateMs: change.after.createTime?.toMillis() ?? null,
+          });
+      }
+    }
 
     // Root deleted, or unusable (no name) → drop any stale mirror.
     const rootData = change.after.exists ? (change.after.data() ?? {}) : null;
@@ -124,32 +151,12 @@ export const mirrorPlcIndex = onDocumentWritten(
     if (mirror.orgId) {
       const leadUid =
         typeof rootData.leadUid === 'string' ? rootData.leadUid : null;
-      const memberEmails = (rootData.memberEmails ?? {}) as Record<
-        string,
-        unknown
-      >;
-      const rawLeadEmail = leadUid ? memberEmails[leadUid] : null;
-      // Fall back to the canonical `members` map when the denormalized
-      // `memberEmails` mirror is absent (e.g. a Wave-1 PLC that was never
-      // back-filled). Both fields carry the same email for active members;
-      // `members[uid].email` is the on-disk source of truth post-migration.
-      const rawLeadEmailFromMap =
-        leadUid && rootData.members && typeof rootData.members === 'object'
-          ? (rootData.members as Record<string, Record<string, unknown>>)[
-              leadUid
-            ]?.email
-          : undefined;
-      const leadEmail =
-        typeof rawLeadEmail === 'string'
-          ? rawLeadEmail.toLowerCase()
-          : typeof rawLeadEmailFromMap === 'string'
-            ? rawLeadEmailFromMap.toLowerCase()
-            : null;
+      const leadEmail = leadUid ? await verifiedAuthEmail(leadUid) : null;
       if (leadEmail) {
         const memberSnap = await db
           .doc(`organizations/${mirror.orgId}/members/${leadEmail}`)
           .get();
-        leadIsOrgMember = memberSnap.exists;
+        leadIsOrgMember = isStaffMemberData(memberSnap.data());
       }
       if (!leadIsOrgMember) {
         logger.warn(

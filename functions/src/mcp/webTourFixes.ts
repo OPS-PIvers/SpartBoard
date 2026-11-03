@@ -72,6 +72,17 @@ export interface StepFix {
   at: number;
 }
 
+/** The locator Claude may read: a teachers' fix drops its control id and link address, free text a teacher wrote; the changed list still names them. */
+export function readableFixLocator(fix: StepFix): Obj {
+  if (fix.source !== 'teacher') return fix.locator;
+  const { attrs, ...rest } = fix.locator;
+  if (!isObj(attrs)) return fix.locator;
+  const kept = Object.fromEntries(
+    Object.entries(attrs).filter(([k]) => k !== 'testId' && k !== 'href')
+  );
+  return Object.keys(kept).length ? { ...rest, attrs: kept } : rest;
+}
+
 interface FixGroup {
   locator: Obj;
   count: number;
@@ -128,7 +139,10 @@ export function stepFixes(
       const key = fixKey(locator);
       const g = byKey.get(key) ?? { locator, count: 0, admin: false, at: 0 };
       g.count++;
-      if (run.admin === true) g.admin = true;
+      if (run.admin === true) {
+        g.admin = true;
+        g.locator = locator;
+      }
       g.at = Math.max(
         g.at,
         typeof run.startedAt === 'number' ? run.startedAt : 0

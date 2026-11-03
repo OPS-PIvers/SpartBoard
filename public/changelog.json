@@ -1,6 +1,23 @@
 {
   "entries": [
     {
+      "version": "2026.11.03.1",
+      "date": "2026-11-03",
+      "title": "Import question banks from Schoology",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "You can bring every question bank from a Schoology course export into your Quiz question banks in one step. Pick From Schoology when you import a question bank."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.10.29.1",
       "date": "2026-10-29",
       "title": "PLC Home page, synced sharing and class period controls",
@@ -2588,6 +2605,12 @@
     }
   ],
   "widgetNotes": [
+    {
+      "id": "random-name-style-2026-11-03",
+      "widget": "random",
+      "date": "2026-11-03",
+      "text": "In Shuffle, names can show as cards or as plain lines, and you can pick the card color and text color in Settings."
+    },
     {
       "id": "poll-pro-2026-10-25",
       "widget": "poll",

@@ -11,7 +11,7 @@ vi.mock('@/context/useDashboard');
 
 // The widget reads both roster-groups gates. Default them OFF so these suites
 // exercise the pre-feature behaviour; the group tests opt in explicitly.
-const canAccessFeatureMock = vi.fn(() => false);
+const canAccessFeatureMock = vi.fn<(id: string) => boolean>(() => false);
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ canAccessFeature: canAccessFeatureMock }),
 }));
@@ -785,7 +785,9 @@ describe('RandomWidget — class groups', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    canAccessFeatureMock.mockReturnValue(true);
+    canAccessFeatureMock.mockImplementation(
+      (id: string) => id !== 'widget-connections'
+    );
     rosterGroupsRolloutMock.mockReturnValue({ enabled: true });
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       ...mockDashboardContext,

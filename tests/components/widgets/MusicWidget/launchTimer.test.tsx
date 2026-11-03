@@ -15,6 +15,7 @@ vi.mock('@/context/useAuth', () => ({
 
 const addWidget = vi.fn<(type: string, overrides: { id: string }) => void>();
 const updateWidget = vi.fn();
+const updateDashboard = vi.fn();
 let boardWidgets: WidgetData[] = [];
 let readOnly = false;
 let stationUrl = 'https://www.youtube.com/watch?v=jfKfPfyJRdk';
@@ -23,6 +24,7 @@ vi.mock('@/context/useDashboard', () => ({
     activeDashboard: { widgets: boardWidgets },
     addWidget,
     updateWidget,
+    updateDashboard,
     isActiveBoardReadOnly: readOnly,
   }),
 }));
@@ -67,7 +69,7 @@ const timer = (id: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  canAccessFeature.mockReturnValue(true);
+  canAccessFeature.mockImplementation((id) => id !== 'widget-connections');
   boardWidgets = [];
   readOnly = false;
   stationUrl = 'https://www.youtube.com/watch?v=jfKfPfyJRdk';
@@ -88,6 +90,23 @@ describe('Music launch timer button', () => {
       { config: { syncWithTimeTool: true, linkedTimerId: overrides.id } },
       { skipHistory: true }
     );
+  });
+
+  it('with Connections on, makes the new Timer the one Music Follows', () => {
+    canAccessFeature.mockImplementation((id) => id === 'widget-connections');
+    render(<MusicWidget widget={music()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add a linked timer' }));
+    const [, overrides] = addWidget.mock.calls[0];
+    expect(updateWidget).not.toHaveBeenCalled();
+    expect(updateDashboard).toHaveBeenCalledWith({
+      connections: [
+        expect.objectContaining({
+          kind: 'follow',
+          leaderId: overrides.id,
+          followerId: 'm1',
+        }),
+      ],
+    });
   });
 
   it('is hidden while the flag is off', () => {
