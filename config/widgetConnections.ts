@@ -270,12 +270,13 @@ export const WIDGET_CONNECTIONS: Partial<
   scoreboard: {
     defaultAction: '',
     actions: [],
-    follows: ['random', 'sound'],
-    followSlots: { random: 'teams', sound: 'points' },
+    follows: ['random', 'review', 'sound'],
+    followSlots: { random: 'teams', review: 'teams', sound: 'points' },
   },
   text: { defaultAction: '', actions: [] },
   'activity-wall': { defaultAction: '', actions: [] },
   miniApp: { defaultAction: '', actions: [] },
+  review: { defaultAction: '', actions: [] },
   weather: { defaultAction: '', actions: [] },
 };
 

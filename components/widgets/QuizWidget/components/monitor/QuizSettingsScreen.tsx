@@ -1,12 +1,20 @@
 import React from 'react';
+import { Workflow } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { QuizSession, QuizConfig } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
+
+export interface LiveScoreboardLink {
+  name: string;
+  onEdit: () => void;
+}
 
 interface QuizSettingsScreenProps {
   session: QuizSession;
   config: QuizConfig;
   hideLiveScoreboard: boolean;
+  /** A connected Scoreboard replaces the sync switch; scores go there while the game runs. */
+  liveScoreboardLink?: LiveScoreboardLink;
   /** Hides the podium and board-reveal rows (Quiz after the Review split). */
   assessmentOnly?: boolean;
   hasNames: boolean;
@@ -75,6 +83,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
   session,
   config,
   hideLiveScoreboard,
+  liveScoreboardLink,
   assessmentOnly = false,
   hasNames,
   onUpdateSession,
@@ -130,25 +139,69 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
     )}
     {!hideLiveScoreboard && (
       <>
-        <SettingRow
-          label="Sync to scoreboard widget"
-          anchor={tourTypeAttr('quiz-monitor.settings-scoreboard-sync', 'quiz')}
-          on={config.liveScoreboardEnabled ?? false}
-          onToggle={() =>
-            onUpdateConfig(
-              config.liveScoreboardEnabled
-                ? { liveScoreboardEnabled: false }
-                : {
-                    liveScoreboardEnabled: true,
-                    liveScoreboardMode:
-                      config.liveScoreboardMode ?? (hasNames ? 'name' : 'pin'),
-                    liveScoreboardScoring:
-                      config.liveScoreboardScoring ?? 'per-question',
-                  }
-            )
-          }
-        />
-        {(config.liveScoreboardEnabled ?? false) && (
+        {liveScoreboardLink ? (
+          <div
+            className="flex items-center bg-white border border-brand-gray-lighter rounded-lg"
+            style={{
+              padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
+              gap: 'min(8px, 2cqmin)',
+            }}
+          >
+            <Workflow
+              aria-hidden="true"
+              className="shrink-0 text-brand-blue-primary"
+              style={{
+                width: 'min(16px, 5cqmin)',
+                height: 'min(16px, 5cqmin)',
+              }}
+            />
+            <p
+              className="flex-1 min-w-0 font-sans font-semibold text-brand-gray-dark"
+              style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+            >
+              Scores go to {liveScoreboardLink.name}
+            </p>
+            <button
+              type="button"
+              onClick={liveScoreboardLink.onEdit}
+              {...tourTypeAttr(
+                'quiz-monitor.settings-scoreboard-edit-connection',
+                'quiz'
+              )}
+              className="relative touch-target-expand shrink-0 rounded-md border border-brand-gray-lighter bg-white font-sans font-semibold text-brand-blue-primary hover:bg-brand-gray-lightest"
+              style={{
+                fontSize: 'min(11px, 3.8cqmin)',
+                padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+              }}
+            >
+              Edit connection
+            </button>
+          </div>
+        ) : (
+          <SettingRow
+            label="Sync to scoreboard widget"
+            anchor={tourTypeAttr(
+              'quiz-monitor.settings-scoreboard-sync',
+              'quiz'
+            )}
+            on={config.liveScoreboardEnabled ?? false}
+            onToggle={() =>
+              onUpdateConfig(
+                config.liveScoreboardEnabled
+                  ? { liveScoreboardEnabled: false }
+                  : {
+                      liveScoreboardEnabled: true,
+                      liveScoreboardMode:
+                        config.liveScoreboardMode ??
+                        (hasNames ? 'name' : 'pin'),
+                      liveScoreboardScoring:
+                        config.liveScoreboardScoring ?? 'per-question',
+                    }
+              )
+            }
+          />
+        )}
+        {((config.liveScoreboardEnabled ?? false) || !!liveScoreboardLink) && (
           <div
             className="flex flex-wrap items-center"
             style={{

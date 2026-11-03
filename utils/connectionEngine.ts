@@ -433,3 +433,27 @@ export const followConnection = (
   leaderId,
   followerId,
 });
+
+/** The Scoreboard that Follows a Review widget, with that Follow; a Quiz never leads one. */
+export const followingScoreboard = (
+  connections: WidgetConnection[] | undefined,
+  widgets: WidgetData[],
+  reviewId: string
+): { connection: WidgetConnection; scoreboard: WidgetData } | undefined => {
+  const review = widgets.find((w) => w.id === reviewId);
+  if (review?.type !== 'review') return undefined;
+  for (const c of liveConnections(connections, widgets)) {
+    if (c.kind !== 'follow' || c.leaderId !== reviewId) continue;
+    const scoreboard = widgets.find(
+      (w) => w.id === c.followerId && w.type === 'scoreboard'
+    );
+    // The Review must hold the Scoreboard's teams slot, not share it with a Randomizer.
+    if (
+      scoreboard &&
+      followLeaderId(connections, widgets, scoreboard.id, 'teams') === reviewId
+    ) {
+      return { connection: c, scoreboard };
+    }
+  }
+  return undefined;
+};

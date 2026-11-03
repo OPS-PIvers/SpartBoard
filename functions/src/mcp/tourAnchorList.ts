@@ -16580,6 +16580,30 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.settings-scoreboard-edit-connection",
+    "label": "Edit connection button for the connected Scoreboard in the Review monitor settings",
+    "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor.settings",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-settings"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.period-start",
     "label": "Start button for the picked class in the Quiz monitor",
     "scope": "widget type",

@@ -5856,6 +5856,7 @@
       "sound": "Match the voice level",
       "recessGear": "Use the weather",
       "scoreboard": "Use the groups as teams",
+      "scoreboard_review": "Show live scores",
       "scoreboard_sound": "Add points for quiet time",
       "random": "Use the stations as names"
     },

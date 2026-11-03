@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useLayoutEffect,
 } from 'react';
 import {
   WidgetData,
@@ -27,6 +28,11 @@ import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { withPaperBoxSizes } from '@/utils/paperWritten';
 import { useDashboard } from '@/context/useDashboard';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
+import { followingScoreboard, followLeaderId } from '@/utils/connectionEngine';
+import { hasConnectionTab } from '@/components/connections/connectionSummary';
+import { openConnectionEditor } from '@/context/connectionsUiStore';
+import { getTitle } from '@/utils/widgetHelpers';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareQuizWidget } from './SubShareWidget';
 import { SharedBoardQuizView } from './SharedBoardQuizView';
@@ -162,6 +168,7 @@ import {
 import {
   buildPinToNameMap,
   buildScoreboardTeams,
+  liveScoreboardTarget,
   getEarnedPoints,
   getMaxAnsweredPoints,
   isGamificationActive,
@@ -561,6 +568,7 @@ const TeacherQuizWidget: React.FC<{
 
   const {
     session: liveSession,
+    loading: liveSessionLoading,
     responses,
     advanceQuestion,
     endQuizSession,
@@ -1382,9 +1390,68 @@ const TeacherQuizWidget: React.FC<{
   // D9: a Quiz-kind session has no scoreboard sync, reveal or podium.
   const liveAssessmentOnly =
     !!liveSession && getAssignmentWidgetKind(liveSession) === 'quiz';
+  // A Scoreboard that Follows this Review gets its live scores, and the connection turns sync on.
+  const connectionsOn = useConnectionsEnabled();
+  const scoreboardFollow =
+    isReview && connectionsOn && activeDashboard
+      ? followingScoreboard(
+          activeDashboard.connections,
+          activeDashboard.widgets,
+          widget.id
+        )
+      : undefined;
+  const connectedScoreboardId = scoreboardFollow?.scoreboard.id;
+  const hasConnectionTabHere =
+    isReview &&
+    connectionsOn &&
+    !!activeDashboard &&
+    hasConnectionTab(
+      activeDashboard.connections,
+      activeDashboard.widgets,
+      widget.id
+    );
+  const connectedScoreboardRef = useRef(connectedScoreboardId);
+  // Scoreboards whose teams another widget leads; an unconnected sync leaves them alone.
+  const takenScoreboardIds = new Set<string>();
+  if (connectionsOn && activeDashboard) {
+    for (const w of activeDashboard.widgets) {
+      if (w.type !== 'scoreboard') continue;
+      const leader = followLeaderId(
+        activeDashboard.connections,
+        activeDashboard.widgets,
+        w.id,
+        'teams'
+      );
+      if (leader && leader !== widget.id) takenScoreboardIds.add(w.id);
+    }
+  }
+  const takenScoreboardIdsRef = useRef(takenScoreboardIds);
+  useLayoutEffect(() => {
+    connectedScoreboardRef.current = connectedScoreboardId;
+    takenScoreboardIdsRef.current = takenScoreboardIds;
+  });
+  // The Scoreboard the last sync wrote to, so a switched target syncs at once.
+  const lastSyncTargetRef = useRef<string | undefined>(undefined);
+  const liveScoreboardLink = scoreboardFollow
+    ? {
+        name: getTitle(scoreboardFollow.scoreboard),
+        onEdit: () => {
+          if (!activeDashboard) return;
+          openConnectionEditor(
+            activeDashboard.id,
+            scoreboardFollow.connection,
+            activeDashboard.connections ?? []
+          );
+        },
+      }
+    : undefined;
+
   const scoreboardSyncOn =
     !quizDropsScoreboard &&
-    (config.liveScoreboardEnabled ?? false) &&
+    ((config.liveScoreboardEnabled ?? false) ||
+      (!!connectedScoreboardId &&
+        !!liveSession &&
+        liveSession.status !== 'ended')) &&
     !liveAssessmentOnly;
 
   // ─── Live Scoreboard Sync ──────────────────────────────────────────────────
@@ -1465,8 +1532,10 @@ const TeacherQuizWidget: React.FC<{
       .sort()
       .join('|');
 
-    // Allow first-run when the scoreboard was just enabled (prev is empty)
-    const isFirstRun = prevResponsesJsonRef.current === '';
+    // Allow first-run when the scoreboard was just enabled (prev is empty) or the connection moved
+    const targetMoved = lastSyncTargetRef.current !== connectedScoreboardId;
+    lastSyncTargetRef.current = connectedScoreboardId;
+    const isFirstRun = prevResponsesJsonRef.current === '' || targetMoved;
     if (!isFirstRun && fingerprint === prevResponsesJsonRef.current) return;
     prevResponsesJsonRef.current = fingerprint;
 
@@ -1480,12 +1549,16 @@ const TeacherQuizWidget: React.FC<{
         const currentConfig = configRef.current;
         const scoringMode =
           currentConfig.liveScoreboardScoring ?? 'per-question';
-        const displayMode = currentConfig.liveScoreboardMode ?? 'pin';
         const pinToName = buildPinToNameMap(
           rosters,
           currentConfig.periodNames ??
             (currentConfig.periodName ? [currentConfig.periodName] : [])
         );
+        const connectedId = connectedScoreboardRef.current;
+        // A connection never set the mode, so it starts where the settings select shows it.
+        const displayMode =
+          currentConfig.liveScoreboardMode ??
+          (connectedId && Object.keys(pinToName).length > 0 ? 'name' : 'pin');
 
         // Include ALL responses — joined students appear at 0 score, in-progress
         // get a running score, completed get their final score.
@@ -1563,10 +1636,28 @@ const TeacherQuizWidget: React.FC<{
 
         // Find or create scoreboard widget
         const widgets = widgetsRef.current;
-        const existingId = currentConfig.liveScoreboardWidgetId;
-        const existingScoreboard = existingId
-          ? widgets?.find((w) => w.id === existingId)
-          : widgets?.find((w) => w.type === 'scoreboard');
+        const existingScoreboard = liveScoreboardTarget(
+          widgets,
+          connectedId,
+          currentConfig.liveScoreboardWidgetId,
+          takenScoreboardIdsRef.current
+        );
+
+        // A Scoreboard this Review left (connection moved) drops its LIVE badge.
+        for (const w of widgets ?? []) {
+          if (
+            connectionsOn &&
+            w.type === 'scoreboard' &&
+            w.id !== existingScoreboard?.id &&
+            (w.config as ScoreboardConfig).liveQuizWidgetId === widget.id
+          ) {
+            updateWidget(
+              w.id,
+              { config: { ...w.config, liveQuizWidgetId: undefined } },
+              { skipHistory: true }
+            );
+          }
+        }
 
         if (existingScoreboard) {
           // Manual score history no longer matches quiz-built teams.
@@ -1622,6 +1713,8 @@ const TeacherQuizWidget: React.FC<{
     config.liveScoreboardScoring,
     config.liveScoreboardMode,
     config.liveScoreboardWidgetId,
+    connectedScoreboardId,
+    connectionsOn,
     config.periodNames,
     config.periodName,
     responses,
@@ -1638,7 +1731,7 @@ const TeacherQuizWidget: React.FC<{
   // liveScoreboardEnabled preference — we just drop the "LIVE" badge on the
   // scoreboard widget while the quiz isn't accepting answers.
   useEffect(() => {
-    if (!config.liveScoreboardEnabled) return;
+    if (!config.liveScoreboardEnabled && !connectedScoreboardId) return;
     // A Quiz widget left with sync on from before stops it; its Scoreboard keeps the scores.
     const quizStopsSync = quizDropsScoreboard;
     if (!quizStopsSync && !liveSession) return;
@@ -1646,7 +1739,8 @@ const TeacherQuizWidget: React.FC<{
     const isPaused = liveSession?.status === 'paused';
     if (!isEnded && !isPaused) return;
 
-    const scoreboardId = configRef.current.liveScoreboardWidgetId;
+    const scoreboardId =
+      connectedScoreboardId ?? configRef.current.liveScoreboardWidgetId;
     if (scoreboardId) {
       const widgets = widgetsRef.current;
       const scoreboard = widgets?.find((w) => w.id === scoreboardId);
@@ -1667,21 +1761,26 @@ const TeacherQuizWidget: React.FC<{
         { config: { ...configRef.current, liveScoreboardEnabled: false } },
         { skipHistory: true }
       );
-    } else if (isEnded) {
+    } else if (isEnded && config.liveScoreboardEnabled) {
       handleUpdateQuizConfig({ liveScoreboardEnabled: false });
     }
   }, [
     quizDropsScoreboard,
     liveSession,
     config.liveScoreboardEnabled,
+    connectedScoreboardId,
     handleUpdateQuizConfig,
     updateWidget,
     widget.id,
   ]);
 
-  // A Quiz widget never keeps a Scoreboard LIVE, even if sync was switched off mid-session.
+  // A Quiz widget never keeps a Scoreboard LIVE, nor does a Review whose sync is off or disconnected.
   const quizHoldsLiveScoreboard =
-    quizDropsScoreboard &&
+    (quizDropsScoreboard ||
+      (isReview &&
+        connectionsOn &&
+        !liveSessionLoading &&
+        !scoreboardSyncOn)) &&
     !!activeDashboard?.widgets.some(
       (w) =>
         w.type === 'scoreboard' &&
@@ -2334,6 +2433,7 @@ const TeacherQuizWidget: React.FC<{
         rosters={rosters}
         assessmentOnly={liveAssessmentOnly}
         hideLiveScoreboard={quizDropsScoreboard}
+        liveScoreboardLink={liveScoreboardLink}
         onUpdateConfig={handleUpdateQuizConfig}
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
@@ -2386,6 +2486,7 @@ const TeacherQuizWidget: React.FC<{
       {reviewLaunch.modal}
       <QuizManager
         variant={variant}
+        clearsConnectionTab={hasConnectionTabHere}
         assignOnOpen={local?.assignOnOpen}
         onAssignOpened={local?.onAssignOpened}
         onStartReview={

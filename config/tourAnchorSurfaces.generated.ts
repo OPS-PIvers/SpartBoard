@@ -839,6 +839,9 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-monitor.settings-podium': ['quiz.monitor.settings'],
     'quiz-monitor.settings-answer-reveal': ['quiz.monitor.settings'],
     'quiz-monitor.settings-scoreboard-sync': ['quiz.monitor.settings'],
+    'quiz-monitor.settings-scoreboard-edit-connection': [
+      'quiz.monitor.settings',
+    ],
     'quiz-monitor.period-start': [
       'library.mini-app.submissions',
       'quiz.monitor',
