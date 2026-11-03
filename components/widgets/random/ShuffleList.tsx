@@ -268,7 +268,10 @@ export const ShuffleList: React.FC<ShuffleListProps> = ({
         gridAutoFlow: 'column',
         columnGap: 'clamp(8px, 2.5cqmin, 18px)',
         rowGap: lines ? 0 : 'clamp(5px, 1.5cqmin, 12px)',
-        padding: lines ? '0 min(8px, 2cqmin)' : 'clamp(2px, 1cqmin, 6px) 0',
+        // At least 3px on every edge so the grid's overflow clip keeps a row's whole ring.
+        padding: lines
+          ? '3px max(3px, min(8px, 2cqmin))'
+          : 'clamp(3px, 1cqmin, 6px) 3px',
         ...(lines ? { backgroundColor: cardBackground ?? '#ffffff' } : {}),
       }}
     >
