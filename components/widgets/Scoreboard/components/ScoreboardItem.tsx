@@ -188,7 +188,12 @@ export const ScoreboardItem = React.memo(
           >
             {leader && (
               <Crown
-                aria-hidden="true"
+                role="img"
+                aria-label={
+                  leader === 'tied'
+                    ? t('widgets.scoreboard.tied')
+                    : t('widgets.scoreboard.leader')
+                }
                 className="hidden [@container(max-height:139px)]:inline-block align-[-0.1em]"
                 style={{
                   width: '0.9em',
@@ -201,7 +206,7 @@ export const ScoreboardItem = React.memo(
           </div>
           {showLeader && (
             <div
-              className={`flex items-center justify-center font-bold text-white shrink-0 leading-none [@container(max-height:139px)]:sr-only ${leader ? '' : 'invisible'}`}
+              className={`flex items-center justify-center font-bold text-white shrink-0 leading-none [@container(max-height:139px)]:hidden ${leader ? '' : 'invisible'}`}
               style={{
                 fontSize: 'clamp(9px, 6cqmin, 28px)',
                 gap: 'clamp(2px, 1.5cqmin, 8px)',
