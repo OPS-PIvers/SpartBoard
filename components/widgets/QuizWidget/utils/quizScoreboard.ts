@@ -643,14 +643,17 @@ export function toBroadcastLeaderboard(
   );
 }
 
-/** Where live scores go: the connected Scoreboard, else the remembered one, else the first on the board. */
+/** Where live scores go: the connected Scoreboard, else the remembered one, else the first free one on the board. */
 export const liveScoreboardTarget = <W extends { id: string; type: string }>(
   widgets: readonly W[] | undefined,
   connectedId: string | undefined,
-  rememberedId: string | undefined
+  rememberedId: string | undefined,
+  /** Scoreboards another widget leads through a connection; never taken over. */
+  takenIds?: ReadonlySet<string>
 ): W | undefined => {
-  const id = connectedId ?? rememberedId;
-  return id
-    ? widgets?.find((w) => w.id === id)
-    : widgets?.find((w) => w.type === 'scoreboard');
+  if (connectedId) return widgets?.find((w) => w.id === connectedId);
+  const free = (w: W) => !takenIds?.has(w.id);
+  return rememberedId
+    ? widgets?.find((w) => w.id === rememberedId && free(w))
+    : widgets?.find((w) => w.type === 'scoreboard' && free(w));
 };

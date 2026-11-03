@@ -1200,4 +1200,13 @@ describe('liveScoreboardTarget', () => {
     expect(liveScoreboardTarget(widgets, undefined, undefined)?.id).toBe('a');
     expect(liveScoreboardTarget(widgets, undefined, 'gone')).toBeUndefined();
   });
+  it('never takes over a Scoreboard another widget leads', () => {
+    const taken = new Set(['a']);
+    expect(liveScoreboardTarget(widgets, undefined, undefined, taken)?.id).toBe(
+      'b'
+    );
+    expect(
+      liveScoreboardTarget(widgets, undefined, 'a', taken)
+    ).toBeUndefined();
+  });
 });
