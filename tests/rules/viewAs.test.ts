@@ -24,6 +24,7 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { getBytes, ref, uploadBytes } from 'firebase/storage';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-view-as-rules-test';
 const TEACHER_UID = 'jane-uid';
@@ -237,6 +238,8 @@ describe('top-level collections keyed on the caller uid', () => {
         originalAuthor: TEACHER_UID,
         participants: {},
       });
+      // Joining a board share takes a staff account.
+      await seedDistrictStaff(ctx.firestore(), [TEACHER_EMAIL]);
     });
   });
   const join = (ctx: ReturnType<typeof asViewAs>) =>
