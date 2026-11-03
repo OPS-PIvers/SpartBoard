@@ -4996,7 +4996,8 @@ service cloud.firestore {
           let to = d.get('status', '');
           let done = e.get('completedAttempts', 0);
           return (to == 'in-progress' && (from != 'completed' || e.get('unlocked', false) == true)) ||
-                 (to == 'completed' && from != 'completed' && d.get('completedAttempts', 0) == done + 1) ||
+                 (to == 'completed' && from != 'completed' && d.get('completedAttempts', 0) == done + 1 &&
+                  nearServerNow(d.get('submittedAt', null)) && d.get('unlocked', false) == false) ||
                  (to == 'joined' && from == 'completed' && d.get('answers', []).size() == 0 &&
                   (limit == null || (done < limit && limit > 1)));
         }
@@ -5064,6 +5065,9 @@ service cloud.firestore {
           (incoming().get('attemptStartedAt', null) == null ||
            incoming().attemptStartedAt == request.time) &&
           incoming().get('timeUp', null) == null &&
+          // A join starts a fresh attempt: nothing turned in, no submit time.
+          incoming().get('status', '') != 'completed' &&
+          incoming().get('submittedAt', null) == null &&
           // Students cannot forge a score on creation
           incoming().score == null &&
           // Students cannot forge prior completions
@@ -5177,11 +5181,8 @@ service cloud.firestore {
             (incoming().get('submittedAt', null) == null ?
              (incoming().get('status', '') == 'joined' || existing().get('unlocked', false) == true) :
              nearServerNow(incoming().submittedAt))) &&
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'dealtQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld']) &&
+           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld']) &&
            tabExitsOk() &&
-           // Balanced bank slots: the versions this student has been dealt, capped at the pool limit.
-           (!changed(['dealtQuestionIds']) ||
-            (isList('dealtQuestionIds') && incoming().dealtQuestionIds.size() <= 150)) &&
            // Stop checkpoints: a part count, and a held flag that is true or cleared.
            (!changed(['partsDone']) || incoming().get('partsDone', 0) is int) &&
            (!changed(['partHeld']) || incoming().get('partHeld', null) in [true, null]) &&
@@ -5212,7 +5213,8 @@ service cloud.firestore {
            // Bank-slot draws are written only by drawQuizBankQuestionsV1; a student clears one only for a retake.
            (!changed(['servedQuestionIds']) ||
             (incoming().get('servedQuestionIds', null) == null &&
-             (sessionData().get('bankSlots', null) == null || incoming().get('status', '') == 'joined')) ||
+             (sessionData().get('bankSlots', null) == null ||
+              (existing().get('status', '') == 'completed' && incoming().get('status', '') == 'joined'))) ||
             (sessionData().get('bankSlots', null) == null &&
              sessionData().get('assignmentId', '') != '' &&
              servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)).data))) &&
@@ -5366,20 +5368,10 @@ service cloud.firestore {
         allow read: if signedIn() && authUid() == uid;
         allow create, update: if seatWriteOk('quiz_sessions', sessionId, uid);
       }
-      // Balanced bank slots: one turn counter per slot and class period. Only a
-      // student seated (`seats/{uid}`) on their own response here advances it, by one.
-      // `by` is the uid, never the response key: PIN keys must not be readable here.
+      // Balanced-slot counters; only drawQuizBankQuestionsV1 advances them.
       match /bank_deals/{dealId} {
-        function dealOk(prev) {
-          return sessionData().get('bankSlots', null) != null &&
-            incoming().keys().hasOnly(['dealt', 'by']) &&
-            incoming().dealt == prev + 1 &&
-            incoming().get('by', '') == authUid() &&
-            getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/seats/$(authUid())).data.responseKey)).data.get('studentUid', '') == authUid();
-        }
         allow read: if signedIn();
-        allow create: if signedIn() && dealOk(0);
-        allow update: if signedIn() && dealOk(existing().get('dealt', 0));
+        allow create, update: if false;
         allow delete: if signedIn() && (authUid() == sessionTeacherUid() || isAdmin());
       }
 

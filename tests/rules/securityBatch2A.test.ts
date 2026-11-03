@@ -379,3 +379,101 @@ describe('video activity completedAt', () => {
     );
   });
 });
+
+describe('review follow-ups', () => {
+  const completing = (extra: Record<string, unknown> = {}) => ({
+    status: 'completed',
+    answers: SUBMITTED,
+    completedAttempts: increment(1),
+    ...extra,
+  });
+
+  it('a student cannot clear the draw to re-roll while still joined', async () => {
+    await seedQuiz(
+      { status: 'joined', servedQuestionIds: ['q1', 'b2'] },
+      { bankSlots: BANK_SLOTS }
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(), responsePath), { servedQuestionIds: null })
+    );
+  });
+
+  it('a turning-in write must carry the current submit time', async () => {
+    await seedQuiz({ answers: SUBMITTED });
+    await assertFails(updateDoc(doc(asStudent(), responsePath), completing()));
+  });
+
+  it('a retake that kept the old submit time cannot turn in without a new one', async () => {
+    await seedQuiz({
+      status: 'joined',
+      answers: [],
+      completedAttempts: 1,
+      submittedAt: Date.now() - 60 * 60_000,
+    });
+    await assertFails(updateDoc(doc(asStudent(), responsePath), completing()));
+    await assertSucceeds(
+      updateDoc(
+        doc(asStudent(), responsePath),
+        completing({ submittedAt: Date.now() })
+      )
+    );
+  });
+
+  it('turning in an unlocked attempt must clear the unlock', async () => {
+    await seedQuiz({
+      status: 'in-progress',
+      unlocked: true,
+      completedAttempts: 1,
+    });
+    await assertFails(
+      updateDoc(
+        doc(asStudent(), responsePath),
+        completing({ submittedAt: Date.now() })
+      )
+    );
+    await assertSucceeds(
+      updateDoc(
+        doc(asStudent(), responsePath),
+        completing({ submittedAt: Date.now(), unlocked: false })
+      )
+    );
+  });
+
+  it('a join cannot carry a submit time or a turned-in status', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `quiz_sessions/${SESSION_ID}`), {
+        teacherUid: TEACHER_UID,
+        status: 'active',
+        code: 'BATCH2A',
+        classId: CLASS_ID,
+        classIds: [CLASS_ID],
+        totalQuestions: 2,
+      });
+    });
+    const base = {
+      studentUid: STUDENT_UID,
+      joinedAt: 1000,
+      score: null,
+      answers: [],
+      status: 'joined',
+      completedAttempts: 0,
+      preSyncVersion: 0,
+    };
+    await assertFails(
+      setDoc(doc(asStudent(), responsePath), {
+        ...base,
+        submittedAt: Date.now() - 60 * 60_000,
+      })
+    );
+    await assertFails(
+      setDoc(doc(asStudent(), responsePath), {
+        ...base,
+        status: 'completed',
+        answers: SUBMITTED,
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(asStudent(), responsePath), { ...base, submittedAt: null })
+    );
+  });
+});

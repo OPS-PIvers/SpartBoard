@@ -830,7 +830,7 @@ const QuizJoinFlow: React.FC<{
         })
         .catch((err: unknown) => {
           if (cancelled) return;
-          if (n < 3) {
+          if (n < 5 && !studentPreviewBlocksWrite()) {
             timer = setTimeout(() => attempt(n + 1), 1000 * 2 ** n);
             return;
           }

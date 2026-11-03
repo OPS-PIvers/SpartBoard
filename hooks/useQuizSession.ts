@@ -3767,6 +3767,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     const quizId = quizIdRef.current;
     const teacherUid = teacherUidRef.current;
     if (!sessionId || !responseKey) return;
+    // Let a just-flushed draft land first: once turned in, the rules lock the answers.
+    await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
+    await settleDraftsWithin(inFlightTxRef.current, DRAFT_SETTLE_MS);
 
     const responseRef = doc(
       db,
