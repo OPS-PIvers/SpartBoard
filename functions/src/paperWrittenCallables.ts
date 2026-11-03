@@ -343,7 +343,7 @@ export async function handleGetPaperWrittenCrop(
     const path = paperCropStoragePath(
       teacherUid,
       newer.scanId,
-      seatOf(response, answer),
+      typeof priv?.seat === 'number' ? priv.seat : seatOf(response, answer),
       target.questionId
     );
     return (await cropFromStorage(deps, path)) ?? missing;
@@ -351,22 +351,20 @@ export async function handleGetPaperWrittenCrop(
 
   const artifact = handwritingArtifactOf(answer);
   if (!artifact) return { status: 'not-available', reason: 'no-crop' };
-  if (!isTeacher) {
-    // Students can edit their answers, so rebuild the path from server-written fields.
-    const priv = (
-      await privateRefOf(responseRef, target.questionId).get()
-    ).data();
-    const seat: unknown =
-      typeof priv?.seat === 'number' ? priv.seat : response.paperSeat;
-    if (
-      typeof priv?.scanId !== 'string' ||
-      typeof seat !== 'number' ||
-      artifact.id !== `hw_${priv.scanId}_${target.questionId}` ||
-      artifact.storagePath !==
-        paperCropStoragePath(teacherUid, priv.scanId, seat, target.questionId)
-    ) {
-      return { status: 'not-available', reason: 'no-crop' };
-    }
+  // Students can edit their answers, so the path is rebuilt from server-written fields for teachers too.
+  const priv = (
+    await privateRefOf(responseRef, target.questionId).get()
+  ).data();
+  const seat: unknown =
+    typeof priv?.seat === 'number' ? priv.seat : response.paperSeat;
+  if (
+    typeof priv?.scanId !== 'string' ||
+    typeof seat !== 'number' ||
+    artifact.id !== `hw_${priv.scanId}_${target.questionId}` ||
+    artifact.storagePath !==
+      paperCropStoragePath(teacherUid, priv.scanId, seat, target.questionId)
+  ) {
+    return { status: 'not-available', reason: 'no-crop' };
   }
   return cropForArtifact(deps, teacherUid, response, artifact);
 }

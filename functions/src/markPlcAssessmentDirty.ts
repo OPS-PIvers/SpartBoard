@@ -3,6 +3,7 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
+import { activePlcMemberUids } from './plcActiveMembers';
 import { recomputeOnePlcAssessment } from './recomputePlcAssessments';
 
 type Firestore = admin.firestore.Firestore;
@@ -73,14 +74,16 @@ function isAlreadyExists(err: unknown): boolean {
   );
 }
 
-/** Creates `assessments/{syncGroupId}` already dirty; on a lost race returns the winner. */
+/** Creates `assessments/{syncGroupId}` already dirty (the winner on a lost race); null if the owner isn't an active member. */
 async function createAssessment(
   db: Firestore,
   plcId: string,
   syncGroupId: string,
   session: LinkedSession,
   now: number
-): Promise<{ id: string; created: boolean; needsDirty: boolean }> {
+): Promise<{ id: string; created: boolean; needsDirty: boolean } | null> {
+  const plcSnap = await db.collection('plcs').doc(plcId).get();
+  if (!activePlcMemberUids(plcSnap.data()).has(session.teacherUid)) return null;
   const ref = db
     .collection('plcs')
     .doc(plcId)
@@ -111,24 +114,18 @@ async function createAssessment(
   }
 }
 
-/** Returns the assessment id for the pair, creating `assessments/{syncGroupId}` (already dirty) when none is live. */
+/** Returns the assessment id for the pair, creating it dirty when none is live; null if the owner isn't an active member. */
 export async function ensureAssessment(
   db: Firestore,
   plcId: string,
   syncGroupId: string,
   session: LinkedSession,
   now: number = Date.now()
-): Promise<{ id: string; created: boolean }> {
+): Promise<{ id: string; created: boolean } | null> {
   const existing = await findLiveAssessment(db, plcId, syncGroupId);
   if (existing) return { id: existing.id, created: false };
-  const { id, created } = await createAssessment(
-    db,
-    plcId,
-    syncGroupId,
-    session,
-    now
-  );
-  return { id, created };
+  const made = await createAssessment(db, plcId, syncGroupId, session, now);
+  return made && { id: made.id, created: made.created };
 }
 
 async function setDirtyAt(
@@ -152,13 +149,14 @@ export async function markDirty(
   syncGroupId: string,
   session: LinkedSession,
   now: number = Date.now()
-): Promise<string> {
+): Promise<string | null> {
   const existing = await findLiveAssessment(db, plcId, syncGroupId);
   if (existing) {
     if (existing.dirtyAt == null) await setDirtyAt(db, plcId, existing.id, now);
     return existing.id;
   }
   const made = await createAssessment(db, plcId, syncGroupId, session, now);
+  if (!made) return null;
   if (made.needsDirty) await setDirtyAt(db, plcId, made.id, now);
   return made.id;
 }

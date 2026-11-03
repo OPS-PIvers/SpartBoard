@@ -400,6 +400,7 @@ export function tourHealth(
   publishedAt: number
 ) {
   const current = runs.filter((r) => r.v === publishedAt);
+  const known = new Set(publishedSteps.map((s) => s.id));
   const exits = new Map<number, number>();
   const missed = new Map<string, number>();
   for (const run of current) {
@@ -407,7 +408,8 @@ export function tourHealth(
       exits.set(run.exit as number, (exits.get(run.exit as number) ?? 0) + 1);
     if (Array.isArray(run.misses))
       for (const id of new Set(run.misses))
-        if (typeof id === 'string') missed.set(id, (missed.get(id) ?? 0) + 1);
+        if (typeof id === 'string' && known.has(id))
+          missed.set(id, (missed.get(id) ?? 0) + 1);
   }
   const top = [...exits].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
   const leftFrom = top ? publishedSteps[top[0]]?.id : undefined;

@@ -395,6 +395,59 @@ describe('getPaperWrittenCropV1', () => {
     ).resolves.toEqual({ status: 'not-available', reason: 'no-crop' });
   });
 
+  it.each([
+    ['another seat', { storagePath: 'paper_written_crops/t1/scan1/4/q1.webp' }],
+    ['another scan', { storagePath: 'paper_written_crops/t1/scan9/3/q1.webp' }],
+    [
+      'another question',
+      { storagePath: 'paper_written_crops/t1/scan1/3/q2.webp' },
+    ],
+    ['a different artifact id', { id: 'hw_scan9_q1' }],
+  ])(
+    "SECURITY: shows the teacher no crop when a student's answer names %s",
+    async (_label, forged) => {
+      const store = seed();
+      const res = store[RESPONSE] as { answers: StubData[] };
+      store[RESPONSE] = {
+        ...store[RESPONSE],
+        answers: res.answers.map((a) =>
+          a.questionId === 'q1'
+            ? {
+                ...a,
+                artifacts: [
+                  {
+                    id: 'hw_scan1_q1',
+                    kind: 'handwriting',
+                    storagePath: crop('q1'),
+                    ...forged,
+                  },
+                ],
+              }
+            : a
+        ),
+      };
+      const { deps } = makeDeps(store, {
+        ...objects,
+        'paper_written_crops/t1/scan1/4/q1.webp': { bytes: 'other' },
+        'paper_written_crops/t1/scan9/3/q1.webp': { bytes: 'other' },
+        'paper_written_crops/t1/scan1/3/q2.webp': { bytes: 'other' },
+      });
+      await expect(
+        handleGetPaperWrittenCrop(deps, TEACHER, target)
+      ).resolves.toEqual({ status: 'not-available', reason: 'no-crop' });
+      expect(deps.readObject).not.toHaveBeenCalled();
+    }
+  );
+
+  it('shows the teacher no crop when the private record names no scan', async () => {
+    const store = seed();
+    delete store[PRIV('q1')];
+    const { deps } = makeDeps(store, objects);
+    await expect(
+      handleGetPaperWrittenCrop(deps, TEACHER, target)
+    ).resolves.toEqual({ status: 'not-available', reason: 'no-crop' });
+  });
+
   it('denies another student', async () => {
     const { deps } = makeDeps(seed(), objects);
     await expectCode(

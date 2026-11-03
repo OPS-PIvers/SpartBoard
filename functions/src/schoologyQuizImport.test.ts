@@ -29,6 +29,7 @@ import {
   inboxItemId,
   parseInboxPayload,
   receiveQuiz,
+  trustedSignInUid,
   type Importer,
   type ImporterDeps,
   type InboxStore,
@@ -133,6 +134,47 @@ describe('checkImporter', () => {
       )
     ).toBe(403);
     expect(await status(checkImporter('t', deps({ clientId: '' })))).toBe(503);
+  });
+});
+
+describe('trustedSignInUid', () => {
+  const EMAIL = 'teacher@orono.k12.mn.us';
+  const google = { providerId: 'google.com', email: EMAIL };
+  const user = (over: object = {}) => ({
+    uid: 'uid-1',
+    emailVerified: true,
+    disabled: false,
+    providerData: [google],
+    ...over,
+  });
+
+  it('returns the uid of a verified Google account for the address', () => {
+    expect(trustedSignInUid(user(), 'Teacher@orono.k12.mn.us')).toBe('uid-1');
+  });
+
+  it('answers no account for a password-only account claiming the address', () => {
+    expect(
+      trustedSignInUid(
+        user({ providerData: [{ providerId: 'password', email: EMAIL }] }),
+        EMAIL
+      )
+    ).toBeNull();
+  });
+
+  it('answers no account for an unverified or disabled account', () => {
+    expect(trustedSignInUid(user({ emailVerified: false }), EMAIL)).toBeNull();
+    expect(trustedSignInUid(user({ disabled: true }), EMAIL)).toBeNull();
+  });
+
+  it('answers no account when the linked Google sign-in is another address', () => {
+    expect(
+      trustedSignInUid(
+        user({
+          providerData: [{ providerId: 'google.com', email: 'x@gmail.com' }],
+        }),
+        EMAIL
+      )
+    ).toBeNull();
   });
 });
 

@@ -95,6 +95,7 @@ function fakeDb(seed: Record<string, Data> = {}) {
     id: path.split('/').pop(),
     ref: { path },
     exists: docs.has(path),
+    updateTime: { seconds: 1 },
     data: () => docs.get(path),
     get: (k: string) => docs.get(path)?.[k],
   });
@@ -149,6 +150,12 @@ function fakeDb(seed: Record<string, Data> = {}) {
       const staged: [Data, Data][] = [];
       return {
         set: (ref: Data, data: Data) => staged.push([ref, data]),
+        create: (ref: Data, data: Data) => staged.push([ref, data]),
+        update: (ref: Data, data: Data) =>
+          staged.push([
+            ref,
+            { ...(docs.get(ref.path as string) ?? {}), ...data },
+          ]),
         commit: () => {
           staged.forEach(([r, d]) => docs.set(r.path as string, d));
           return Promise.resolve();
@@ -1093,6 +1100,63 @@ describe('restore_revision', () => {
       revision_id: 'r1',
     });
     expect(res.error).toMatch(/no longer exists/);
+  });
+
+  it('refuses to write a public snapshot that another teacher owns', async () => {
+    const fx = fakeDb();
+    const call = await connect(fx.db);
+    const made = await call('create_flashcard_set', {
+      title: 'Mine',
+      cards: [card(1)],
+    });
+    const id = made.set_id as string;
+    fx.docs.set('public_flashcard_sets/victim-share', {
+      teacherUid: 'victim',
+      title: 'Victim set',
+      cards: [],
+    });
+    fx.docs.set(setPath(id), {
+      ...(fx.docs.get(setPath(id)) as Data),
+      publicShareId: 'victim-share',
+    });
+    const res = await call('update_flashcard_set', {
+      set_id: id,
+      title: 'Takeover',
+    });
+    expect(res.error).toMatch(/not yours/);
+    expect(fx.docs.get('public_flashcard_sets/victim-share')).toMatchObject({
+      teacherUid: 'victim',
+      title: 'Victim set',
+    });
+    expect(fx.docs.get(setPath(id))).toMatchObject({ title: 'Mine' });
+  });
+
+  it('updates the public snapshot of a set the teacher shared', async () => {
+    const fx = fakeDb();
+    const call = await connect(fx.db);
+    const made = await call('create_flashcard_set', {
+      title: 'Mine',
+      cards: [card(1)],
+    });
+    const id = made.set_id as string;
+    fx.docs.set('public_flashcard_sets/my-share', {
+      teacherUid: 'u1',
+      setId: id,
+      title: 'Mine',
+    });
+    fx.docs.set(setPath(id), {
+      ...(fx.docs.get(setPath(id)) as Data),
+      publicShareId: 'my-share',
+    });
+    const res = await call('update_flashcard_set', {
+      set_id: id,
+      title: 'Renamed',
+    });
+    expect(res.error).toBeUndefined();
+    expect(fx.docs.get('public_flashcard_sets/my-share')).toMatchObject({
+      teacherUid: 'u1',
+      title: 'Renamed',
+    });
   });
 
   it('restores an old flashcard set, keeps the live share link and snapshots the current one', async () => {
