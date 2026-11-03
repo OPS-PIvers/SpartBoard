@@ -1296,17 +1296,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
-  'widget-library-large': {
-    label: 'Larger widget library',
-    icon: LayoutGrid,
-    description:
-      'The widget library fills more of the screen so more widgets show at once.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Teachers still turn it on for themselves in Behavior; the flag only hides that switch.
   'alignment-guides': {
     label: 'Alignment guides',

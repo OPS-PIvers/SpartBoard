@@ -10827,8 +10827,6 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
-  /** Widget Library fills most of the screen instead of a small fixed box. */
-  | 'widget-library-large'
   /** Slides-style alignment guides and snapping while moving or resizing widgets (a per-teacher switch in Behavior). */
   | 'alignment-guides'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */

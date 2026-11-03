@@ -17,7 +17,6 @@ import { WidgetLibrary } from '@/components/layout/dock/WidgetLibrary';
 import { DEFAULT_GLOBAL_STYLE, type DockPosition } from '@/types';
 
 function renderLibrary(props: {
-  large?: boolean;
   dockPosition?: DockPosition;
   triggerRef?: React.RefObject<HTMLElement | null>;
 }) {
@@ -43,12 +42,6 @@ function renderLibrary(props: {
 afterEach(cleanup);
 
 describe('WidgetLibrary size', () => {
-  it('keeps the small fixed box when the flag is off', () => {
-    const { root, overlay } = renderLibrary({});
-    expect(root.className).toContain('max-w-2xl');
-    expect(overlay.className).not.toMatch(/\bp[blr]-3[26]\b/);
-  });
-
   it.each([
     ['bottom', 'pb-32'],
     ['left', 'pl-36'],
@@ -56,9 +49,8 @@ describe('WidgetLibrary size', () => {
   ] as const)(
     'fills the screen and leaves a %s dock uncovered',
     (dockPosition, clearance) => {
-      const { root, overlay } = renderLibrary({ large: true, dockPosition });
+      const { root, overlay } = renderLibrary({ dockPosition });
       expect(root.className).toContain('max-w-7xl');
-      expect(root.className).not.toContain('max-w-2xl');
       expect(overlay.className.split(/\s+/)).toContain(clearance);
     }
   );
@@ -69,7 +61,6 @@ describe('WidgetLibrary size', () => {
       ({ left: 24, right: 230, top: 100, bottom: 600 }) as DOMRect;
     document.body.appendChild(dock);
     const { overlay } = renderLibrary({
-      large: true,
       dockPosition: 'left',
       triggerRef: { current: dock },
     });
@@ -84,7 +75,6 @@ describe('WidgetLibrary size', () => {
     dock.getBoundingClientRect = () => ({ top }) as DOMRect;
     document.body.appendChild(dock);
     const { overlay } = renderLibrary({
-      large: true,
       dockPosition: 'bottom',
       triggerRef: { current: dock },
     });
