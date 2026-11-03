@@ -209,6 +209,14 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/quiz/whiteboard/WhiteboardReplayView.tsx'],
   },
+  // Mounted by the quiz grader for answers scanned from paper.
+  'board.paper-scan-panel': {
+    label: 'Paper scan panel in the Quiz grader',
+    kind: 'modal',
+    opensWith: 'quiz-grading.open:quiz',
+    needs: ['student-data'],
+    files: ['components/quiz/paper/PaperCropPanel.tsx'],
+  },
   'board.tours': {
     label: 'Live tour runner',
     kind: 'shared',

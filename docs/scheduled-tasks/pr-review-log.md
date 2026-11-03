@@ -4983,14 +4983,46 @@ rather than "no data") is also still open.
     - The PR body says version 0.1.18, but the manifest is 0.1.19.
 - Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
 
-## 2026-11-01
+## 2026-10-30
 
-- PRs reviewed: #4971 css-scaling: scale residual widget margins/padding with cqmin; #4967 Unifier run 133: aligned, no drift found
-- Comments processed: 1 total. 0 fixed, 0 needing a reply.
-  - Neither PR had inline review threads.
-  - The one comment was a `claude[bot]` "no issues found" summary on #4971.
+- PRs reviewed: #4884 docs(debugger): run 112 log; #4883 fix(mcp): match the client's weak-entry parsing in web tour suggested fixes; #4882 fix(admin): let the Schoology category weight be cleared and retyped; #4881 fix(library): clear folder drag state when the dragged row loses its handlers; #4880 fix(random): stop pick timers when the widget unmounts mid-spin; #4879 Widget loop: record #4743 as accepted; #4878 Release 2026.10.30; #4877 docs(unifier): run 131 log; #4876 Weather details: fix review issues; #4873 Add PLC rejoin entry backfill script (F54)
+- Comments processed: 7 total. 0 fixed, 0 needing a reply.
+  - Three inline threads (two on #4876, one on #4873) were already resolved, with author fixes in 653f3f97 and 3e7f34f4.
+  - The rest were `claude[bot]` summaries on #4878, #4883 and #4876. None asked for changes.
+- Fixes pushed: none
+- Reviews posted: 10
+  - Ready: #4884, #4883, #4882, #4881, #4880, #4879, #4877, #4876, #4873.
+  - Ready with minor notes: #4878. The Import plan and the ADR edit need Paul's read.
+  - Optional notes: #4881 has a theoretical case where its cleanup could null another row's drag. #4883 could add a `weakStepId`/`parseWeak` parity assertion. #4884 has a table row missing its closing pipe.
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-10-31
+
+- PRs reviewed: #4953 css-scaling: scale EmbedWidget zoom-reset button padding with vmin; #4950 Unifier run 132: aligned, log update
+- Comments processed: 0 total. 0 fixed, 0 needing a reply. Neither PR had review threads, reviews or issue comments.
 - Fixes pushed: none
 - Reviews posted: 2
-  - Ready: #4967.
-  - Ready with minor notes: #4971. Its journal entry says PollWidget is clean, but `mb-1` is still on the option-row header (`components/widgets/PollWidget/Widget.tsx:454`).
-- Notes: GitHub access went through MCP (the `gh` token is invalid). The log goes to the session branch through a PR into `dev-paul`, not to `scheduled-tasks`. No code fixes were made, so I ran no local type-check, lint or tests.
+  - Ready: #4950.
+  - Ready with minor notes: #4953. Its css-scaling journal entry still needs to be applied on `scheduled-tasks`.
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-11-02
+
+- PRs reviewed: #5001 docs: nightly debugger run 113 log; #5000 fix(admin): Specialist Schedule cycle length field can be cleared while typing; #4999 fix(csv-import): report physical line numbers after multi-line quoted cells; #4998 fix(dock): dragged folder can reorder past neighbouring tools; #4997 fix(seating): plan-name cap no longer splits an emoji surrogate pair; #4978 Unifier run 134: aligned, no drift found
+- Comments processed: 2 total. 0 fixed, 0 needing a reply. Both were claude[bot] "no issues found" summaries on #4997 and #4998. No PR had inline review threads or submitted reviews.
+- Fixes pushed: none
+- Reviews posted: 6
+  - Ready: #5001, #5000, #4999, #4998, #4997, #4978.
+  - Follow-up notes: `utils/rubricCsv.ts` has a duplicate `splitLogicalRows` that likely has the #4999 line-number bug. `clipText` (#4997) has no unit test of its own.
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-11-03
+
+- PRs reviewed: #5063 Scheduled tasks: board-isolation rule in new-widget skill + journal updates; #5061 docs: debugger run 114 log; #5060 fix(functions): page Activity Wall storage-cleanup retries past the first 100; #5059 fix(layout): widget load-error Retry now actually refetches the chunk; #5058 fix(random): non-finite group size no longer crashes or drops names; #5047 docs: unifier run 135 log; #5046 style(connections): route ConnectionLines brand color through --spart-primary
+- Comments processed: 2 total. 0 fixed, 0 needing a reply. Both were claude[bot] "no issues found" summaries on #5058 and #5059. No PR had inline review threads or submitted reviews.
+- Fixes pushed: none
+- Reviews posted: 7
+  - Ready: #5061, #5060, #5059, #5058, #5047, #5046.
+  - Ready with minor notes: #5063 (rolling journal branch).
+  - Follow-up notes: #5060 raises the worst-case Storage list calls per sweep from about 200 to about 1,000 while a backlog drains. #5046 should get a visual check on a board with a light custom primary colour. #5047's history row could link #5046 instead of "see PR".
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.

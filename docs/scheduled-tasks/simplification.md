@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-10-28_
+_Last audited: 2026-11-02_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-11-02: Weekly audit (Monday). `Object.assign({}, defaults` in `DashboardContext.tsx`: 0. `as WidgetConfig`: 11 non-test sites; `as unknown as`: 206 non-test sites (down from 211 total last cycle, no new cluster). Hooks above 5 state/ref calls led by `useQuizSession` 25, `useMeetingRecorder` 23, `useVideoActivitySession` 22, `useWhiteboardRecording` 21, `useLinkedCollectionSync` 21, `useAudioRecording` 21 — all already tracked. Nested-ternary and passthrough scans not re-run. 0 new issues._
 
 _2026-10-28: Weekly audit (Wednesday). `Object.assign({}` no longer appears in `context/DashboardContext.tsx` (0 hits); `as WidgetConfig`/`as unknown as` total 211 non-test sites across `components/`, `context/`, `hooks/`, `utils/`, in line with the tracked clusters. No new clusters investigated this run. 0 new issues._
 

@@ -31,7 +31,7 @@ export const ReadAloudButton: React.FC<{
   const { t } = useTranslation();
   const active = status !== 'idle';
   return (
-    <button
+    <button /* no-tour-anchor: student read-aloud control */
       type="button"
       aria-label={active ? t('quizReadAloud.stop', 'Stop') : label}
       aria-pressed={status === 'playing'}

@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-10-21_
-_Last action: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap resolved: `generateWithAI`'s `specificFeatureId` branch now enforces `enabled`/`accessLevel`/`betaUsers` server-side, mirroring the existing global `gemini-functions` check, so a disabled/admin-only/beta-restricted feature (e.g. `embed-mini-app`) can no longer be reached by calling the Cloud Function directly. Moved to Completed._
+_Last audited: 2026-11-02_
+_Last action: 2026-10-30 — MEDIUM `transcribeVideoWithGemini` kill-switch gap verified already fixed in code; moved to Completed (journal only). Prior: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap resolved: `generateWithAI`'s `specificFeatureId` branch now enforces `enabled`/`accessLevel`/`betaUsers` server-side, mirroring the existing global `gemini-functions` check, so a disabled/admin-only/beta-restricted feature (e.g. `embed-mini-app`) can no longer be reached by calling the Cloud Function directly. Moved to Completed._
 
 ---
 
@@ -25,6 +25,10 @@ _Last action: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap re
 | `transcription`            | `transcribeVideoWithGemini` | utils/ai.ts `transcribeVideoWithGemini`             | per-function rate limit                    | ✓                  | ✓                  | feature perm checked                                                                           |
 | `guided-learning`          | `generateGuidedLearning`    | GuidedLearning/components/GuidedLearningAIGenerator | None — admin-exempt by design (documented) | ✓                  | ✓                  | `isAdmin` check in Widget.tsx (not perm)                                                       |
 | `video-activity-recommend` | `generateWithAI`            | utils/ai.ts `recommendVideoForActivity`             | global only                                | ✓                  | ✓                  | ✗ **AIData interface gap (see LOW item)**                                                      |
+
+_2026-11-02: Weekly audit (Monday), light pass. All AI calls route through `generateAi` (`aiRouter.ts`) with integrations registered in `aiIntegrations.ts`; the only hard-coded model string there is `web-tour-writing` (`claude-sonnet-5-5`), admin-selectable. Tracked Open items not re-verified individually; no new findings. 0 new issues._
+
+_2026-10-30: Friday weekly audit (E2), light pass. Model ids are centralized in `functions/src/aiModels.ts`/`aiModelConfig.ts` (Gemini defaults `gemini-3.7-flash` advanced, `gemini-3.5-flash-lite` standard; Claude ids `claude-*-5-x`); no hard-coded model strings elsewhere in `functions/src`. 18 integrations in `functions/src/aiIntegrations.ts` with server and client registries kept in parity by test. Every callable still reads the `gemini-functions` permission doc. No client AI response is hand-parsed outside JSON mode. 0 new issues._
 
 _2026-10-21: Wednesday weekly audit (E2), light pass. Model strings in `functions/src`: Gemini ids limited to `gemini-3.5-flash-lite`/`3.7-flash`/`3.8-flash`/`2.5-*` and Claude `sonnet-5-5`/`opus-5-5`/`haiku-5-5`, all resolved through the router; `gemini-1.`/`gemini-2.0-` are only in the `RETIRED_MODEL_ID_PREFIXES` guard (`shared.ts:50`). Generation-type table and AI-opportunity items not re-audited. 0 new issues._
 
@@ -50,13 +54,6 @@ _Nothing currently in progress._
 - **Detail:** The admin UI can only create/edit permission docs for the `GlobalFeature` union, and only seeds `config.dailyLimit` for the five `GEMINI_FEATURES` (`gemini-functions`, `smart-poll`, `embed-mini-app`, `video-activity-audio-transcription`, `ai-file-context`). The server, however, rate-limits against `global_permissions/quiz`, `/ocr`, `/blooms-ai`, `/dashboard-layout`, `/instructional-routine`, `/widget-builder`, `/widget-explainer`, `/video-activity-recommend` — none of which are `GlobalFeature` ids and none of which any component, script, or seed writes (verified: only `components/admin/Analytics/aiFeatureLabels.ts` mentions them, and that is a display-label map). Because `specPermDoc.exists` is false, the per-feature branch is a no-op for all eight: only the global 20/day cap applies and admins have no lever to throttle a runaway feature. This also makes the Completed claim for `dashboard-layout` ("now applies per-feature rate limiting via the `global_permissions/dashboard-layout` doc") inaccurate — the admin-facing toggle for that feature is `magic-layout` (`Dock.tsx:761` gates on `magic-layout`), a **different doc id** the server never reads.
 - **Updated:** 2026-09-28 — `GEMINI_FEATURES` moved from `GlobalPermissionsManager.tsx` to `components/admin/access/useGlobalPermissionsEditor.ts:21-28` (Admin Access reorg, PR #3476); same 5 ids, plus a new unrelated 6th (`PAPER_HANDWRITTEN_FEATURE`, for the handwritten-paper-answers feature, not an AI-generation type). Finding and fix unchanged.
 - **Fix:** Either (a) add these ids to `GlobalFeature` + `GEMINI_FEATURES` + `GLOBAL_FEATURES` so admins get real per-feature toggles and caps (which also unblocks the fix above), or (b) at minimum rename the server's `dashboard-layout` id to `magic-layout` so the existing toggle governs it, and document that the other seven are usage-tracking suffixes with no configurable cap.
-
-### MEDIUM `transcribeVideoWithGemini` ignores the global `gemini-functions` kill switch and doesn't require admin server-side
-
-- **Detected:** 2026-08-24
-- **File:** `functions/src/aiGeneration.ts:1762-1836`, `:1852-1863`
-- **Detail:** The function gates on `global_permissions/video-activity-audio-transcription` (`enabled` + `accessLevel`) and reads `global_permissions/gemini-functions` **only** to pull `config.dailyLimit`/`dailyLimitEnabled` (`:1852-1863`). It never checks `globalPerm.enabled` or `globalPerm.accessLevel`, so flipping the global AI kill switch off does not stop Gemini audio transcription — the most expensive and most ToS-sensitive AI path in the app (its own docblock at `:1758-1760` flags the YouTube ToS risk). Separately, the docblock calls it "Admin-only fallback" and the client requires `isAdmin === true && canAccessFeature('video-activity-audio-transcription')` (`components/widgets/VideoActivityWidget/Widget.tsx:196`), but the server admits any non-admin whenever the perm's `accessLevel` is `'all'` — and `config/featureDefaults.ts:131-135` defaults that feature to `accessLevel: 'public', enabled: true`.
-- **Fix:** Add the same `globalPerm.enabled` / `accessLevel` checks used by `generateWithAI` (`:445-469`) before the transcription perm check, and either enforce `isAdmin` server-side to match the docblock and the UI, or drop the `isAdmin` requirement from `Widget.tsx:196` so the two agree.
 
 ### LOW Client `AIGenerationType` union diverges from the server `AIData['type']` union in both directions
 
@@ -171,6 +168,14 @@ The following widgets have structured config schemas well-suited for AI content 
 ---
 
 ## Completed
+
+### MEDIUM `transcribeVideoWithGemini` ignores the global `gemini-functions` kill switch and doesn't require admin server-side
+
+- **Detected:** 2026-08-24
+- **File:** `functions/src/aiGeneration.ts:1762-1836`, `:1852-1863`
+- **Detail:** The function gates on `global_permissions/video-activity-audio-transcription` (`enabled` + `accessLevel`) and reads `global_permissions/gemini-functions` **only** to pull `config.dailyLimit`/`dailyLimitEnabled` (`:1852-1863`). It never checks `globalPerm.enabled` or `globalPerm.accessLevel`, so flipping the global AI kill switch off does not stop Gemini audio transcription — the most expensive and most ToS-sensitive AI path in the app (its own docblock at `:1758-1760` flags the YouTube ToS risk). Separately, the docblock calls it "Admin-only fallback" and the client requires `isAdmin === true && canAccessFeature('video-activity-audio-transcription')` (`components/widgets/VideoActivityWidget/Widget.tsx:196`), but the server admits any non-admin whenever the perm's `accessLevel` is `'all'` — and `config/featureDefaults.ts:131-135` defaults that feature to `accessLevel: 'public', enabled: true`.
+- **Fix:** Add the same `globalPerm.enabled` / `accessLevel` checks used by `generateWithAI` (`:445-469`) before the transcription perm check, and either enforce `isAdmin` server-side to match the docblock and the UI, or drop the `isAdmin` requirement from `Widget.tsx:196` so the two agree.
+- **Resolved 2026-10-30:** `transcribeVideoWithGemini` now reads `global_permissions/gemini-functions` and rejects when `enabled === false` (`functions/src/aiGeneration.ts` ~1980), and enforces `accessLevel` `admin`/`beta` server-side via `resolveCallerIsAdmin`/`isVerifiedBetaMember`. Moved to Completed.
 
 ### MEDIUM MiniApp editor's "Draft with AI" gates on `gemini-functions`, not the `embed-mini-app` permission the server bills it against
 
