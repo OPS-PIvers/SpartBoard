@@ -13,6 +13,7 @@ import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { extractSyncedUrl, getSyncedTextContent } from './deriveSyncedUrl';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { followLeaderId } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 
 export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { activeDashboard } = useDashboard();
@@ -41,16 +42,21 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // changes, but the expensive DOMParser-based stripHtml only runs when the
   // raw text content actually changes (prevents jank during drag/resize).
   const connectionsOn = useConnectionsEnabled();
-  const followedTextId = connectionsOn
-    ? (followLeaderId(
+  const connectionLeaderId = connectionsOn
+    ? followLeaderId(
         activeDashboard?.connections,
         activeDashboard?.widgets ?? [],
         widget.id
-      ) ?? null)
+      )
     : undefined;
-  const isSynced = connectionsOn
-    ? !!followedTextId
-    : !!config.syncWithTextWidget;
+  // A Follow wins; otherwise the old toggle applies unless this widget was migrated.
+  const followedTextId =
+    connectionLeaderId ??
+    (usesLegacyToggles(connectionsOn, config) ? undefined : null);
+  const isSynced =
+    followedTextId !== undefined
+      ? !!followedTextId
+      : !!config.syncWithTextWidget;
   const textWidgetContent = useMemo(
     () =>
       getSyncedTextContent(config, activeDashboard?.widgets, followedTextId),

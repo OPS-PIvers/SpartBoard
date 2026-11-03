@@ -3,7 +3,9 @@ import type { Dashboard, SequenceConnection, WidgetData } from '@/types';
 import { advanceRun, joinRunByHand } from './connectionEngine';
 import {
   convertLegacyConnections,
+  isLegacyMigrated,
   LEGACY_CONNECTIONS_MARKER,
+  usesLegacyToggles,
 } from './legacyConnections';
 
 const w = (
@@ -167,5 +169,16 @@ describe('convertLegacyConnections', () => {
     expect(atEnd.patches.l).toEqual({ active: 'red' });
     const done = advanceRun(atEnd.sequence, widgets, now + 5300, 'd');
     expect(done.finished).toBe(true);
+  });
+});
+
+describe('usesLegacyToggles', () => {
+  it('applies the old toggles without the flag or until the widget is migrated', () => {
+    const marked = { [LEGACY_CONNECTIONS_MARKER]: true };
+    expect(isLegacyMigrated(marked)).toBe(true);
+    expect(isLegacyMigrated({})).toBe(false);
+    expect(usesLegacyToggles(false, marked)).toBe(true);
+    expect(usesLegacyToggles(true, {})).toBe(true);
+    expect(usesLegacyToggles(true, marked)).toBe(false);
   });
 });

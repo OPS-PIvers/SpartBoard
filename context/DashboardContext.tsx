@@ -124,7 +124,10 @@ import {
   useLinkedCollectionSync,
   type BoardLinkFields,
 } from '@/hooks/useLinkedCollectionSync';
-import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
+import {
+  importedConnections,
+  sanitizeBoardSnapshot,
+} from '@/utils/dashboardSanitize';
 import {
   grantedRosters,
   resolveSubShareDriveGrants,
@@ -3714,6 +3717,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         widgets: preview.widgets ?? [],
         globalStyle: preview.globalStyle,
         settings: preview.settings,
+        ...importedConnections(preview.connections),
         isDefault: false,
         createdAt: Date.now(),
         order: maxOrder + 1,
@@ -7291,7 +7295,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         ...d,
         widgets: d.widgets.map((w) => {
           const patch = widgetPatches[w.id];
-          if (!patch) return w;
+          if (!patch || Object.keys(patch).length === 0) return w;
           return {
             ...w,
             config: { ...w.config, ...patch },

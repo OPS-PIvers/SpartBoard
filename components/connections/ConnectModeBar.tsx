@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
@@ -10,7 +10,13 @@ import {
 import { draftFromPicks, type PickedWidget } from '@/utils/connectionEngine';
 import type { SequenceConnection, WidgetConnection } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
-import { ConnectionEditorModal } from './ConnectionEditorModal';
+import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
+// The step editor loads only when a teacher opens it.
+const ConnectionEditorModal = lazy(() =>
+  import('./ConnectionEditorModal').then((m) => ({
+    default: m.ConnectionEditorModal,
+  }))
+);
 
 // Appends new picks to a draft's Sequence, or starts one.
 const mergeDraft = (
@@ -148,7 +154,11 @@ export const ConnectModeBar: React.FC = () => {
           document.body
         )}
       {editor && activeDashboard && editor.boardId === activeDashboard.id && (
-        <ConnectionEditorModal draft={editor} board={activeDashboard} />
+        <LazyChunkErrorBoundary>
+          <Suspense fallback={null}>
+            <ConnectionEditorModal draft={editor} board={activeDashboard} />
+          </Suspense>
+        </LazyChunkErrorBoundary>
       )}
     </>
   );

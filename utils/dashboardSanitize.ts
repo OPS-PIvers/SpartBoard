@@ -1,5 +1,21 @@
-import type { Dashboard } from '@/types';
+import type { Dashboard, WidgetConnection } from '@/types';
 import { scrubDashboardPII } from '@/utils/dashboardPII';
+
+/** Connections with any Sequence Run in progress cleared. */
+export const stripConnectionRuns = (
+  connections: WidgetConnection[]
+): WidgetConnection[] =>
+  connections.map((c) =>
+    c.kind === 'sequence' && c.run ? { ...c, run: null } : c
+  );
+
+/** `{ connections }` (runs cleared) when a share snapshot has any, else `{}` so the board is unchanged. */
+export const importedConnections = (
+  connections: unknown
+): { connections?: WidgetConnection[] } =>
+  Array.isArray(connections) && connections.length > 0
+    ? { connections: stripConnectionRuns(connections as WidgetConnection[]) }
+    : {};
 
 /**
  * Strip host-specific fields from a Dashboard before snapshotting into
@@ -64,9 +80,7 @@ export const sanitizeBoardSnapshot = (board: Dashboard): Dashboard => {
   } = board;
   // A copy keeps its Connections but never a Run in progress.
   if (rest.connections) {
-    rest.connections = rest.connections.map((c) =>
-      c.kind === 'sequence' && c.run ? { ...c, run: null } : c
-    );
+    rest.connections = stripConnectionRuns(rest.connections);
   }
   return rest;
 };

@@ -7,6 +7,7 @@ import type { QRConfig, WidgetData } from '@/types';
 import { useTranslation } from 'react-i18next';
 import { deriveSyncedUrl } from './deriveSyncedUrl';
 import { followLeaderId } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 import { tourAttr } from '@/config/tourAnchors';
 
 export const QRDestinationField: React.FC<{ ctx: CustomRenderCtx }> = ({
@@ -15,14 +16,20 @@ export const QRDestinationField: React.FC<{ ctx: CustomRenderCtx }> = ({
   const { activeDashboard } = useDashboard();
   const config = ctx.config as QRConfig;
   const connectionsOn = ctx.canAccessFeature('widget-connections');
-  const followedTextId = connectionsOn
-    ? (followLeaderId(
+  const connectionLeaderId = connectionsOn
+    ? followLeaderId(
         activeDashboard?.connections,
         activeDashboard?.widgets ?? [],
         ctx.widget.id
-      ) ?? null)
+      )
     : undefined;
-  const synced = connectionsOn ? !!followedTextId : !!config.syncWithTextWidget;
+  const followedTextId =
+    connectionLeaderId ??
+    (usesLegacyToggles(connectionsOn, config) ? undefined : null);
+  const synced =
+    followedTextId !== undefined
+      ? !!followedTextId
+      : !!config.syncWithTextWidget;
   const syncedUrl = deriveSyncedUrl(
     config,
     activeDashboard?.widgets,

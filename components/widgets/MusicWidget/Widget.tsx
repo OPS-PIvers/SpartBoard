@@ -19,6 +19,7 @@ import { tourAttr } from '@/config/tourAnchors';
 import { resolveActiveStation } from './mySongs';
 import { resolveSyncedTimer } from './linkedTimer';
 import { followLeaderId } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -159,15 +160,20 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Nexus connection: watch Time Tool running state
   const widgets = activeDashboard?.widgets ?? [];
-  // With Connections on, a Follow names the Timer and the old toggle is ignored.
+  // A Follow names the Timer; otherwise the old toggle applies unless this widget was migrated.
   const connectionsOn = canAccessFeature('widget-connections');
+  const useLegacy = usesLegacyToggles(connectionsOn, config);
   const leaderId = connectionsOn
     ? followLeaderId(activeDashboard?.connections, widgets, widget.id)
     : undefined;
-  const syncWithTimer = connectionsOn ? !!leaderId : !!config.syncWithTimeTool;
-  const timeToolWidget = connectionsOn
+  const syncWithTimer = leaderId
+    ? true
+    : useLegacy && !!config.syncWithTimeTool;
+  const timeToolWidget = leaderId
     ? widgets.find((w) => w.id === leaderId)
-    : resolveSyncedTimer(widgets, config.linkedTimerId);
+    : useLegacy
+      ? resolveSyncedTimer(widgets, config.linkedTimerId)
+      : undefined;
   const isTimeToolRunning = (
     timeToolWidget?.config as TimeToolConfig | undefined
   )?.isRunning;

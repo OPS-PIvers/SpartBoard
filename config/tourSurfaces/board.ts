@@ -110,6 +110,7 @@ export const SURFACES: TourSurfaceMap = {
       'widget.connect-pick': 'widget.connect',
       'widget.connection-start': 'widget.connection-badge',
       'widget.connection-stop': 'widget.connection-badge',
+      'widget.connection-next': 'widget.connection-badge',
       'widget.connection-edit': 'widget.connection-badge',
       'widget.close-confirm.cancel': 'widget.close',
       'widget.close-confirm.confirm': 'widget.close',

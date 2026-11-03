@@ -47,6 +47,7 @@ import {
 } from '@/utils/connectionEditorModel';
 import { tourAttr } from '@/config/tourAnchors';
 import { StepParamPicker } from './StepParamPicker';
+import { DraftNumberField } from '@/components/admin/DraftNumberField';
 
 const MAX_PAUSE_SECONDS = 600;
 const MAX_REPEAT = 99;
@@ -263,7 +264,7 @@ export const ConnectionEditorModal: React.FC<{
     const saved = cleaned.find(
       (c): c is SequenceConnection => c.kind === 'sequence'
     );
-    if (start && saved) sendRunCommand(saved.id, 'start', next);
+    if (start && saved) sendRunCommand(board.id, saved.id, 'start', next);
   };
 
   const remove = () => {
@@ -505,18 +506,20 @@ export const ConnectionEditorModal: React.FC<{
         </select>
         {choice === 'pause' && (
           <label className="flex items-center gap-1.5">
-            <input
-              type="number"
+            <DraftNumberField
               min={1}
               max={MAX_PAUSE_SECONDS}
               value={card.pauseSeconds ?? 10}
               {...tourAttr('connections.editor.wait-seconds')}
-              onChange={(e) =>
+              normalize={(n) =>
+                Math.min(MAX_PAUSE_SECONDS, Math.max(1, Math.round(n)))
+              }
+              onCommit={(n) =>
                 setCard(i, {
                   ...card,
                   pauseSeconds: Math.min(
                     MAX_PAUSE_SECONDS,
-                    Math.max(1, Number(e.target.value) || 1)
+                    Math.max(1, Math.round(n))
                   ),
                 })
               }
@@ -807,6 +810,10 @@ export const ConnectionEditorModal: React.FC<{
                 setSeq({
                   ...seq,
                   repeat: e.target.value as SequenceConnection['repeat'],
+                  // Save the 2 the box shows, so the Run repeats as many times as it says.
+                  ...(e.target.value === 'count' && {
+                    repeatCount: seq.repeatCount ?? 2,
+                  }),
                 })
               }
               className={control}
@@ -825,18 +832,20 @@ export const ConnectionEditorModal: React.FC<{
             </select>
             {seq.repeat === 'count' && (
               <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="number"
+                <DraftNumberField
                   min={1}
                   max={MAX_REPEAT}
                   value={seq.repeatCount ?? 2}
                   {...tourAttr('connections.editor.repeat-count')}
-                  onChange={(e) =>
+                  normalize={(n) =>
+                    Math.min(MAX_REPEAT, Math.max(1, Math.round(n)))
+                  }
+                  onCommit={(n) =>
                     setSeq({
                       ...seq,
                       repeatCount: Math.min(
                         MAX_REPEAT,
-                        Math.max(1, Number(e.target.value) || 1)
+                        Math.max(1, Math.round(n))
                       ),
                     })
                   }

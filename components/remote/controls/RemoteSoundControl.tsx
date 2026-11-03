@@ -3,6 +3,7 @@ import { WidgetData, SoundConfig, WidgetConnection } from '@/types';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { followerIds } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 import { useAuth } from '@/context/useAuth';
 import { NOISE_METER_PRO } from '@/components/widgets/SoundWidget/noiseTarget';
 
@@ -37,25 +38,35 @@ export const RemoteSoundControl: React.FC<RemoteSoundControlProps> = ({
   const setVisual = (visual: SoundConfig['visual']) =>
     updateWidget(widget.id, { config: { ...config, visual } });
 
-  // With Connections on, the button adds or removes "Traffic Light follows Sound" for the board's first Traffic Light.
+  // With Connections on, the button adds or removes "Traffic Light follows Sound"; an unmigrated widget also honours its old toggle.
   const connectionsOn = useConnectionsEnabled();
+  const useLegacy = usesLegacyToggles(connectionsOn, config);
   const dashboard = useContext(DashboardContext);
   const board = dashboard?.activeDashboard;
   const traffic = board?.widgets.find((w) => w.type === 'traffic');
-  const trafficOn = connectionsOn
-    ? !!traffic &&
-      followerIds(board?.connections, board?.widgets ?? [], widget.id).includes(
-        traffic.id
-      )
-    : !!config.autoTrafficLight;
+  const followOn =
+    connectionsOn &&
+    !!traffic &&
+    followerIds(board?.connections, board?.widgets ?? [], widget.id).includes(
+      traffic.id
+    );
+  const legacyOn = useLegacy && !!config.autoTrafficLight;
+  const trafficOn = followOn || legacyOn;
 
   const toggleTrafficLight = () => {
-    if (!connectionsOn) {
+    // Without a Follow to edit, or turning an unmigrated widget on, the old toggle is the switch.
+    if (!connectionsOn || (useLegacy && !trafficOn)) {
       updateWidget(widget.id, {
         config: { ...config, autoTrafficLight: !config.autoTrafficLight },
       });
       return;
     }
+    if (legacyOn) {
+      updateWidget(widget.id, {
+        config: { ...config, autoTrafficLight: false },
+      });
+    }
+    if (!followOn && trafficOn) return;
     if (!board || !traffic) return;
     const isPair = (c: WidgetConnection) =>
       c.kind === 'follow' &&
