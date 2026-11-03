@@ -218,12 +218,12 @@ describe('video_activity_sessions responses: lifecycle patches', () => {
     await seedResponse({});
     const patch = completionPatch(
       { completedAt: null, completedAttempts: 0 },
-      2000,
+      Date.now(),
       ops
     ) as Record<string, unknown>;
     await assertSucceeds(updateDoc(doc(asSsoStudent(), RESPONSE_PATH), patch));
     await assertFails(
-      updateDoc(doc(asSsoStudent(), RESPONSE_PATH), { completedAt: 3000 })
+      updateDoc(doc(asSsoStudent(), RESPONSE_PATH), { completedAt: Date.now() })
     );
   });
 
@@ -232,7 +232,7 @@ describe('video_activity_sessions responses: lifecycle patches', () => {
     await seedResponse({ unlocked: true });
     const patch = completionPatch(
       { completedAt: null, unlocked: true, completedAttempts: 0 },
-      2000,
+      Date.now(),
       ops
     ) as Record<string, unknown>;
     await assertSucceeds(updateDoc(doc(asSsoStudent(), RESPONSE_PATH), patch));

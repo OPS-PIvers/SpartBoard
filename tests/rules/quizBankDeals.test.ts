@@ -3,6 +3,7 @@
 //     only a seated student advances, by one, on a session with bank slots; teacher deletes
 //   - the counter's `by` is the caller's uid, never the (PIN-bearing) response key
 //   - responses: `dealtQuestionIds` is a capped list on the student surface, never set at create
+//   - the served list itself is server-written (drawQuizBankQuestionsV1), so a deal carrying it fails
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -211,7 +212,6 @@ describe('quiz_sessions/{id}/bank_deals/{dealId}', () => {
         tx.set(doc(db, seatPath), { responseKey: PIN_KEY });
         tx.set(doc(db, dealPath), { dealt: 1, by: STUDENT_UID });
         tx.update(doc(db, responsePath), {
-          servedQuestionIds: ['f1', 'va'],
           dealtQuestionIds: ['va'],
           lastWriteAt: serverTimestamp(),
         });
@@ -226,10 +226,10 @@ describe('quiz_sessions/{id}/bank_deals/{dealId}', () => {
     await assertSucceeds(deleteDoc(doc(asTeacher(), dealPath)));
   });
 
-  it('the deal transaction writes the counter and the response together', async () => {
+  it('a student deal that writes its own served list is refused', async () => {
     await seed({ bankSlots: true, dealt: 1 });
     const db = asStudent();
-    await assertSucceeds(
+    await assertFails(
       runTransaction(db, async (tx) => {
         const counter = await tx.get(doc(db, dealPath));
         await tx.get(doc(db, responsePath));

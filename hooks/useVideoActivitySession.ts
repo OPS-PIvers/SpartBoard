@@ -1535,7 +1535,7 @@ export const useVideoActivitySessionStudent =
         // All reads before all writes (Firestore transaction rule).
         const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
 
-        const completedAt = Date.now();
+        const completedAt = getServerNow();
         const responseUpdates = completionPatch(existing, completedAt, {
           increment,
         });

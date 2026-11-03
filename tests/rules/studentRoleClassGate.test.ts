@@ -369,7 +369,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
         ...baseResp('9999'),
         answers: [{ q: 0, a: 'B' }],
         status: 'in-progress',
-        submittedAt: 3000,
+        submittedAt: Date.now(),
       })
     );
   });
@@ -538,7 +538,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
         score: null,
         answers: [{ questionId: 'q1', value: 'B' }],
         status: 'in-progress',
-        submittedAt: 3000,
+        submittedAt: Date.now(),
         tabSwitchWarnings: 0,
         completedAttempts: 0,
       })
@@ -608,7 +608,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
     await assertSucceeds(
       setDoc(doc(asStudentA(), respPath(SESSION_A)), {
         ...baseResp('9999'),
-        completedAt: 3000,
+        completedAt: Date.now(),
         completedAttempts: 1,
         answers: [{ q: 0, a: 'A' }],
       })
@@ -830,7 +830,7 @@ describe('guided_learning_sessions/responses — student-role gate', () => {
       setDoc(doc(asStudentA(), respPath(SESSION_A)), {
         ...baseResp(),
         answers: [{ q: 0, a: 'B' }],
-        completedAt: 3000,
+        completedAt: Date.now(),
       })
     );
   });
@@ -1483,7 +1483,7 @@ describe('quiz_sessions — end-to-end lifecycle', () => {
         ...baseStudentResp(STUDENT_A_UID, '1234'),
         answers: [{ questionId: 'q1', answer: 'A' }],
         status: 'in-progress',
-        submittedAt: 2000,
+        submittedAt: Date.now(),
       })
     );
   });

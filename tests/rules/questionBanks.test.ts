@@ -5,8 +5,8 @@
 //     version +1, list closed
 //   - /plcs/{plcId}/question_banks/{id}: member reads, non-viewer creates,
 //     sharer or lead edits/deletes, identity immutable
-//   - student servedQuestionIds on a bank-slot session: size must equal
-//     totalQuestions
+//   - student servedQuestionIds on a bank-slot session: never student-written
+//     (drawQuizBankQuestionsV1 records the draw)
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -347,9 +347,9 @@ describe('student servedQuestionIds on a bank-slot session', () => {
     });
   };
 
-  it('accepts a draw whose size equals totalQuestions', async () => {
+  it('rejects a student-written draw even at the full size', async () => {
     await seedSession(true);
-    await assertSucceeds(
+    await assertFails(
       updateDoc(
         doc(asStudent(), responsePath),
         answerWrite({ servedQuestionIds: ['f1', 'b2', 'b3'] })

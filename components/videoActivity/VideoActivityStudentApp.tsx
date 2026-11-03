@@ -79,6 +79,7 @@ import {
 } from '@/utils/tabWarningThreshold';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
 import { useServerNow } from '@/hooks/useServerNow';
+import { syncServerTime } from '@/utils/serverTime';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { isAnonymousJoinBlocked } from '@/utils/anonymousJoin';
 import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
@@ -328,6 +329,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
   }, []);
+  // completedAt is stamped from the server-offset clock; the rules refuse a skewed one.
+  useEffect(() => {
+    syncServerTime(authedUid);
+  }, [authedUid]);
 
   // Per-period gate, re-checked as the clock passes a window edge.
   const perPeriod = hasPeriodAccess(session) && session.status !== 'ended';
