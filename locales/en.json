@@ -1243,6 +1243,8 @@
     "scoreboard": {
       "teams": "Teams",
       "importRandomizer": "Import from Randomizer",
+      "teamsFromLeader": "Teams come from {{name}}",
+      "editConnection": "Edit connection",
       "resetScores": "Reset Scores",
       "addTeam": "Add Team",
       "layout": "Layout",
@@ -5846,7 +5848,8 @@
       "qr": "Show the text",
       "traffic": "Match the noise level",
       "sound": "Match the voice level",
-      "recessGear": "Use the weather"
+      "recessGear": "Use the weather",
+      "scoreboard": "Use the groups as teams"
     },
     "next": "Next"
   }

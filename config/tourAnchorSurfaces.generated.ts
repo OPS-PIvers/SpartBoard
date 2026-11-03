@@ -968,6 +968,9 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.scoreboard.import-random-groups': [
       'widgets.scoreboard.settings',
     ],
+    'widget-settings.scoreboard.edit-connection': [
+      'widgets.scoreboard.settings',
+    ],
     'widget-settings.scoreboard.use-group-names': [
       'widgets.scoreboard.settings',
     ],

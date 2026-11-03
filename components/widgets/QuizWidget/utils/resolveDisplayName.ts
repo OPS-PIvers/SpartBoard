@@ -29,6 +29,7 @@ import {
 } from '@/hooks/useAssignmentPseudonyms';
 import { resolvePinName } from './quizScoreboard';
 import { staffResultsLabel } from '@/utils/staffAudience';
+import { lastFirstName } from '@/utils/assignmentExportShared';
 
 /** Fallback rendered when no name source resolves. */
 export const UNKNOWN_STUDENT_LABEL = 'Student';
@@ -63,6 +64,19 @@ export function resolveResponseDisplayName(
   }
 
   return UNKNOWN_STUDENT_LABEL;
+}
+
+/** Like `resolveResponseDisplayName`, but "Last, First" for exports; `exportPinToName` comes from `buildPinToExportNameMap`. */
+export function resolveResponseExportName(
+  response: QuizResponse,
+  exportPinToName: Record<string, string>,
+  byStudentUid: Map<string, StudentName> | undefined
+): string {
+  const staffName = staffResultsLabel(response);
+  if (staffName) return staffName;
+  const ssoName = lastFirstName(byStudentUid?.get(response.studentUid));
+  if (ssoName) return ssoName;
+  return resolveResponseDisplayName(response, exportPinToName, undefined);
 }
 
 /**

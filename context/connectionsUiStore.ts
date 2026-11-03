@@ -90,3 +90,32 @@ export const cancelConnectMode = (): void => {
   const draft = state.connectMode?.draft;
   connectionsUi.set({ connectMode: null, editor: draft ?? null });
 };
+
+// A Sequence opens with the Follows led by its widgets, so they show as side cards.
+export const openConnectionEditor = (
+  boardId: string,
+  connection: WidgetConnection,
+  all: WidgetConnection[]
+): void => {
+  const stepWidgets =
+    connection.kind === 'sequence'
+      ? new Set(
+          connection.steps.flatMap((s) => s.actions.map((a) => a.widgetId))
+        )
+      : new Set<string>();
+  const related = all.filter(
+    (c) =>
+      c.kind === 'follow' &&
+      c.id !== connection.id &&
+      stepWidgets.has(c.leaderId)
+  );
+  const connections = [connection, ...related];
+  connectionsUi.set({
+    editor: {
+      boardId,
+      connections,
+      replaces: connections.map((c) => c.id),
+    },
+    connectMode: null,
+  });
+};

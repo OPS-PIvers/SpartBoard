@@ -1379,8 +1379,9 @@ const TeacherQuizWidget: React.FC<{
   // D9: a Quiz-kind session has no scoreboard sync, reveal or podium.
   const liveAssessmentOnly =
     !!liveSession && getAssignmentWidgetKind(liveSession) === 'quiz';
+  // Only Review syncs to a Scoreboard; a Quiz widget never does, whatever its session.
   const scoreboardSyncOn =
-    (config.liveScoreboardEnabled ?? false) && !liveAssessmentOnly;
+    isReview && (config.liveScoreboardEnabled ?? false) && !liveAssessmentOnly;
 
   // ─── Live Scoreboard Sync ──────────────────────────────────────────────────
   const liveScoreboardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -1633,30 +1634,70 @@ const TeacherQuizWidget: React.FC<{
   // liveScoreboardEnabled preference — we just drop the "LIVE" badge on the
   // scoreboard widget while the quiz isn't accepting answers.
   useEffect(() => {
-    if (!config.liveScoreboardEnabled || !liveSession) return;
-    const isEnded = liveSession.status === 'ended';
-    const isPaused = liveSession.status === 'paused';
+    if (!config.liveScoreboardEnabled) return;
+    // A Quiz widget left with sync on from before stops it; its Scoreboard keeps the scores.
+    const quizStopsSync = !isReview;
+    if (!quizStopsSync && !liveSession) return;
+    const isEnded = quizStopsSync || liveSession?.status === 'ended';
+    const isPaused = liveSession?.status === 'paused';
     if (!isEnded && !isPaused) return;
 
     const scoreboardId = configRef.current.liveScoreboardWidgetId;
     if (scoreboardId) {
       const widgets = widgetsRef.current;
       const scoreboard = widgets?.find((w) => w.id === scoreboardId);
-      if (scoreboard) {
-        updateWidget(scoreboardId, {
-          config: { ...scoreboard.config, liveQuizWidgetId: undefined },
-        });
+      if (
+        scoreboard &&
+        (scoreboard.config as ScoreboardConfig).liveQuizWidgetId === widget.id
+      ) {
+        updateWidget(
+          scoreboardId,
+          { config: { ...scoreboard.config, liveQuizWidgetId: undefined } },
+          { skipHistory: quizStopsSync }
+        );
       }
     }
-    if (isEnded) {
+    if (quizStopsSync) {
+      updateWidget(
+        widget.id,
+        { config: { ...configRef.current, liveScoreboardEnabled: false } },
+        { skipHistory: true }
+      );
+    } else if (isEnded) {
       handleUpdateQuizConfig({ liveScoreboardEnabled: false });
     }
   }, [
+    isReview,
     liveSession,
     config.liveScoreboardEnabled,
     handleUpdateQuizConfig,
     updateWidget,
+    widget.id,
   ]);
+
+  // A Quiz widget never keeps a Scoreboard LIVE, even if sync was switched off mid-session.
+  const quizHoldsLiveScoreboard =
+    !isReview &&
+    !!activeDashboard?.widgets.some(
+      (w) =>
+        w.type === 'scoreboard' &&
+        (w.config as ScoreboardConfig).liveQuizWidgetId === widget.id
+    );
+  useEffect(() => {
+    if (!quizHoldsLiveScoreboard) return;
+    for (const w of widgetsRef.current ?? []) {
+      if (
+        w.type === 'scoreboard' &&
+        (w.config as ScoreboardConfig).liveQuizWidgetId === widget.id
+      ) {
+        updateWidget(
+          w.id,
+          { config: { ...w.config, liveQuizWidgetId: undefined } },
+          { skipHistory: true }
+        );
+      }
+    }
+  }, [quizHoldsLiveScoreboard, updateWidget, widget.id]);
 
   // ─── Auto-reveal answers for student feedback ─────────────────────────────
   // When showResultToStudent is enabled, auto-reveal answers for questions
@@ -2288,6 +2329,7 @@ const TeacherQuizWidget: React.FC<{
         config={config}
         rosters={rosters}
         assessmentOnly={liveAssessmentOnly}
+        hideLiveScoreboard={!isReview}
         onUpdateConfig={handleUpdateQuizConfig}
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}

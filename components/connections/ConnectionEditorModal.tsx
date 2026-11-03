@@ -419,7 +419,7 @@ export const ConnectionEditorModal: React.FC<{
     onRemove: () => void,
     removeTour: ReturnType<typeof tourAttr>
   ) => (
-    <div key={key} className="flex items-center gap-2">
+    <div key={key} className="flex min-w-0 items-center gap-2">
       <span
         aria-hidden="true"
         className="w-4 shrink-0 text-center text-base font-bold text-slate-400"
@@ -428,13 +428,16 @@ export const ConnectionEditorModal: React.FC<{
       </span>
       <div
         onPointerDown={() => light(widgetId)}
-        className={`flex min-h-14 items-center gap-2.5 rounded-xl border bg-white px-3 py-2.5 ${
+        className={`flex min-h-14 min-w-0 items-center gap-2.5 rounded-xl border bg-white px-3 py-2.5 ${
           litWidgetId === widgetId
             ? 'border-brand-blue-primary ring-2 ring-brand-blue-primary/20'
             : 'border-slate-200'
         }`}
       >
-        {content}
+        {/* Wraps a long label under the name instead of running past the dialog edge. */}
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
+          {content}
+        </span>
         <button
           type="button"
           {...removeTour}
@@ -543,7 +546,7 @@ export const ConnectionEditorModal: React.FC<{
         <span className="whitespace-nowrap font-semibold text-slate-800">
           {names.get(w.id)}
         </span>
-        <span className="whitespace-nowrap text-sm text-slate-600">
+        <span className="min-w-0 text-sm text-slate-600">
           {t(`connections.followAction.${w.type}`, {
             defaultValue: 'Follow',
           })}
@@ -757,7 +760,10 @@ export const ConnectionEditorModal: React.FC<{
                         }
                         // The "+" sits at the end of the last side card's row.
                         return sides.map((side, k) => (
-                          <div key={k} className="flex items-center gap-2">
+                          <div
+                            key={k}
+                            className="flex min-w-0 items-center gap-2"
+                          >
                             {side}
                             {k === sides.length - 1 && addSideButton(i)}
                           </div>
