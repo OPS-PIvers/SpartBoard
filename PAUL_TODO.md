@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-112.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-113.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -129,6 +129,8 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
   > On prod, list PLCs whose lead has no active staff member doc (anonymous, student or unknown account). Read-only; deleting any needs my OK.
 - [ ] **PT-106 🤖 Strip leaderboard names from old quiz sessions** (security batch 1A, #4986). After the next main release, so no open monitor still writes them:
   > Remove `name` from every `liveLeaderboard` entry on prod `quiz_sessions` docs: dry run with a count, then apply after I say go.
+- [ ] **PT-112 🤖 PLC assessments made by people who were not members** (security batch 2E, optional). Pooled results already skip them; their assessment entries stay in the PLC's list.
+  > On prod, list `plcs/*/assessments` docs whose `createdBy` is not in that PLC's `memberUids` or whose member entry is `status: 'removed'`. Read-only; deleting any needs my OK.
 - [ ] **PT-66 You: password reset domains** (F56, #4585). Admin Settings > Organization > Domains on prod: the Orono domains show Verified.
 - [ ] **PT-67 You: ClassLink PIN lists** (F57, #4738). ClassLink students got 6-digit PINs in the 10-27 sync. If teachers weren't told, they need new PIN lists.
 - [ ] **PT-68 You: delete branches** (F65). 154 branches from earlier delete lines still exist (checked 2026-11-01; none has an open PR). Agents can't delete branches from cloud sessions. From a local checkout, run the command below, or ask an agent for a fresh list first.

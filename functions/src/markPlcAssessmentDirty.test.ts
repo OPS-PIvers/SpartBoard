@@ -82,7 +82,10 @@ let stub: ReturnType<typeof makeStubFirestore>;
 beforeEach(() => {
   vi.spyOn(Date, 'now').mockReturnValue(NOW);
   recompute.mockClear();
-  stub = makeStubFirestore({ 'quiz_sessions/sess-a': linkedSession });
+  stub = makeStubFirestore({
+    'quiz_sessions/sess-a': linkedSession,
+    'plcs/plc-1': { memberUids: ['tA'], members: { tA: { status: 'active' } } },
+  });
   vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
 });
 
@@ -156,6 +159,28 @@ describe('ensureAssessment', () => {
     expect(stub.has('plcs/plc-1/assessments/grp-1')).toBe(false);
   });
 
+  it('creates nothing for a removed member or an outsider', async () => {
+    stub.store.set('plcs/plc-1', {
+      memberUids: ['tA'],
+      members: { tA: { status: 'removed' } },
+    });
+    expect(
+      await ensureAssessment(
+        stub.db as unknown as Db,
+        'plc-1',
+        'grp-1',
+        session
+      )
+    ).toBeNull();
+    expect(
+      await ensureAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1', {
+        ...session,
+        teacherUid: 'outsider',
+      })
+    ).toBeNull();
+    expect(stub.has('plcs/plc-1/assessments/grp-1')).toBe(false);
+  });
+
   it('swallows ALREADY_EXISTS from a concurrent create', async () => {
     stub.hooks.beforeWrite = (op, path) => {
       if (op === 'create') {
@@ -195,6 +220,19 @@ describe('markDirty', () => {
     );
     expect(stub.writes.length).toBe(before);
     expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW);
+  });
+
+  it('does not create an assessment for a session whose owner left the PLC', async () => {
+    stub.store.set('plcs/plc-1', { memberUids: [], members: {} });
+    const id = await markDirty(
+      stub.db as unknown as Db,
+      'plc-1',
+      'grp-1',
+      session,
+      NOW
+    );
+    expect(id).toBeNull();
+    expect(stub.has('plcs/plc-1/assessments/grp-1')).toBe(false);
   });
 
   it('creates the assessment when missing', async () => {
@@ -369,6 +407,7 @@ describe('markPlcAssessmentDirtyOnSession', () => {
       syncGroupId: 'grp-1',
       dirtyAt: null,
     });
+    stub.store.set('plcs/plc-2', { memberUids: ['tA'] });
     await onSession(
       sessionEvent(linkedSession, { ...linkedSession, plcId: 'plc-2' })
     );
