@@ -176,12 +176,12 @@ const ConnectionBadgeInner: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         aria-label={label}
         aria-haspopup={summary.seqId ? 'menu' : undefined}
         aria-expanded={summary.seqId ? !!menuAt : undefined}
-        className={`touch-target-expand absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full px-2 py-0.5 text-xxs font-bold shadow-md [-webkit-tap-highlight-color:transparent] ${
+        className={`touch-target-expand absolute -top-3 right-7 flex items-center gap-1 rounded-full px-2 py-0.5 text-xxs font-bold shadow-md [-webkit-tap-highlight-color:transparent] ${
           summary.running
             ? 'bg-brand-red-primary text-white ring-2 ring-white motion-safe:animate-pulse'
             : 'bg-brand-blue-primary text-white'
         }`}
-        // Inside the top-right corner, above the corner resize zone it sits on.
+        // On the top edge, just clear of the top-right resize corner and the widget's own controls.
         style={{ zIndex: Z_INDEX.widgetResize + 1 }}
       >
         <Workflow className="w-3 h-3" aria-hidden="true" />
@@ -202,7 +202,10 @@ const ConnectionBadgeInner: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               role="menu"
               className="fixed min-w-48 rounded-xl bg-white shadow-xl border border-slate-200 py-1 text-sm text-slate-700"
               style={{
-                right: Math.max(8, window.innerWidth - menuAt.right),
+                right: Math.min(
+                  Math.max(8, window.innerWidth - menuAt.right),
+                  window.innerWidth - MENU_MIN_WIDTH - 8
+                ),
                 top: menuAt.bottom + 6,
                 zIndex: Z_INDEX.toolMenu + 1,
               }}
@@ -283,6 +286,8 @@ const ConnectionBadgeInner: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     </>
   );
 };
+
+const MENU_MIN_WIDTH = 192; // min-w-48
 
 const findConnection = (
   getState: ReturnType<typeof useDashboardCanvasStateGetter>,

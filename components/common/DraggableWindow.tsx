@@ -2484,7 +2484,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       <ConnectPickOverlay widget={widget} />
       <ConnectionWidgetHighlight widgetId={widget.id} />
-      {!isMaximized && <ConnectionBadge widget={widget} />}
+      {!isMaximized && !isAnnotating && <ConnectionBadge widget={widget} />}
 
       {/* Group-build mode selection overlay */}
       {groupBuildMode && (
