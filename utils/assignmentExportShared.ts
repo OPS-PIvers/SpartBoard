@@ -36,6 +36,20 @@ const exportNameCollator = new Intl.Collator(undefined, {
   numeric: true,
 });
 
+/** The fallback labels `buildResultsSheetData` writes when no name resolves. */
+const isUnnamedExportStudent = (name: string): boolean =>
+  name === 'Student' || name.startsWith('Student (PIN: ');
+
+/** Sheet row order by the Student column (index 3): last name order, unnamed rows last. */
+export function compareExportRowsByStudent(a: string[], b: string[]): number {
+  const an = a[3] ?? '';
+  const bn = b[3] ?? '';
+  return (
+    Number(isUnnamedExportStudent(an)) - Number(isUnnamedExportStudent(bn)) ||
+    exportNameCollator.compare(an, bn)
+  );
+}
+
 /** Gradebook order for exports: "Last, First", or whichever name exists. */
 export function lastFirstName(
   name: { givenName?: string; familyName?: string } | undefined
@@ -235,21 +249,16 @@ export function buildResultsSheetData<
   let unresolvedAnonymousCount = 0;
   // Staff-audience rows add an Email column; student exports keep their columns.
   const staffRows = hasStaffRows(responses);
-  // Rows with no real name sort after every named row.
-  const unnamedRows = new WeakSet<string[]>();
-  const resolveStudent = (r: R): { name: string; named: boolean } => {
-    if (r.staffEmail)
-      return { name: staffDisplayName(r) ?? r.staffEmail, named: true };
+  const resolveStudent = (r: R): string => {
+    if (r.staffEmail) return staffDisplayName(r) ?? r.staffEmail;
     const sso = lastFirstName(byStudentUid?.get(r.studentUid));
-    if (sso) return { name: sso, named: true };
+    if (sso) return sso;
     if (r.pin) {
       const name = resolvePinName(pinToName, r.classPeriod, r.pin);
-      return name
-        ? { name, named: true }
-        : { name: `Student (PIN: ${r.pin})`, named: false };
+      return name ?? `Student (PIN: ${r.pin})`;
     }
     unresolvedAnonymousCount++;
-    return { name: 'Student', named: false };
+    return 'Student';
   };
 
   // Per-row, because an excused question leaves only that student's total.
@@ -379,12 +388,11 @@ export function buildResultsSheetData<
       r.status === 'completed' && rowMax > 0
         ? `${Math.round((earnedPoints / rowMax) * 100)}%${awaitingGrade ? ' (provisional)' : ''}`
         : '';
-    const student = resolveStudent(r);
-    const row = [
+    return [
       timestamp,
       teacherName,
       r.classPeriod ?? '',
-      student.name,
+      resolveStudent(r),
       ...(staffRows ? [r.staffEmail ?? ''] : []),
       r.pin ?? '',
       ...(options?.attemptColumn ? [options.attemptColumn.cell(r)] : []),
@@ -398,16 +406,10 @@ export function buildResultsSheetData<
       ...answerCols,
       ...(options?.extraColumn ? [options.extraColumn.cell(r)] : []),
     ];
-    if (!student.named) unnamedRows.add(row);
-    return row;
   });
 
   // Stable sort by last name, as gradebooks list students.
-  dataRows.sort(
-    (a, b) =>
-      Number(unnamedRows.has(a)) - Number(unnamedRows.has(b)) ||
-      exportNameCollator.compare(a[3], b[3])
-  );
+  dataRows.sort(compareExportRowsByStudent);
 
   if (unresolvedAnonymousCount > 0) {
     logError(

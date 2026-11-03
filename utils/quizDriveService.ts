@@ -23,6 +23,7 @@ import { APP_NAME } from '@/config/constants';
 import { authError } from './driveAuthErrors';
 import {
   buildResultsSheetData as buildResultsSheetDataShared,
+  compareExportRowsByStudent,
   formatQuizAnswerText,
   headersHaveAnswerColumns,
 } from '@/utils/assignmentExportShared';
@@ -792,8 +793,8 @@ export class QuizDriveService {
 
     // Combine and re-sort by Student column (index 3) so the union has
     // the same ordering invariant as a fresh export.
-    const allRows = [...preservedPeerRows, ...dataRows].sort((a, b) =>
-      (a[3] ?? '').localeCompare(b[3] ?? '')
+    const allRows = [...preservedPeerRows, ...dataRows].sort(
+      compareExportRowsByStudent
     );
 
     return this.clearAndRewritePlcSheet(sheetUrl, headers, allRows);
