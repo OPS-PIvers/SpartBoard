@@ -726,18 +726,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Move up and Move down in each library folder's menu.
-  'library-folder-reorder': {
-    label: 'Reorder library folders',
-    icon: ListOrdered,
-    description:
-      'Move up and Move down in each folder menu, in every library and PLC Assessments.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Arts & Letters Agenda: teachers pick Simple or Detailed, from the boxes admins build.
   'agenda-versions': {
     label: 'Agenda Simple and Detailed',

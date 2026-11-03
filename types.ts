@@ -10787,8 +10787,6 @@ export type GlobalFeature =
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/shipped/GOOGLE_TASKS_ACTION_ITEMS.md). */
   | 'google-tasks-sync'
-  /** Move up and Move down in a library folder's menu. */
-  | 'library-folder-reorder'
   /** Simple/Detailed choice in Arts & Letters Agenda settings. */
   | 'agenda-versions'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/shipped/TEAMS_REDESIGN.md T22). */

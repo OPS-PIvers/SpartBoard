@@ -1,5 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { AuthContext } from '@/context/AuthContextValue';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LibraryFolder } from '@/types';
 import type { HasFolderId } from './folderFilters';
 import {
@@ -253,25 +252,22 @@ export function useFolderLibraryView<TItem>(
     return map;
   }, [enabled, items, getId, itemFolderId]);
 
-  // Reorderable folders keep the teacher's order in the list too.
-  const manualFolderOrder =
-    useContext(AuthContext)?.canAccessFeature('library-folder-reorder') ===
-    true;
-  const sort = manualFolderOrder ? MANUAL_FOLDER_SORT : view.state.sort;
-  const canReorderRows = manualFolderOrder && reorderSiblings != null;
+  // Folder rows keep the teacher's order, whatever the item sort.
+  const canReorderRows = reorderSiblings != null;
   const folderView = useMemo<LibraryFolderViewModel | null>(() => {
     if (!enabled) return null;
     const showRows = location.kind === 'folder' && !searchActive;
     const folderRows = showRows
-      ? sortFolders(index.childrenOf.get(openFolderId) ?? [], sort).map(
-          (folder) => ({
-            folder,
-            label: formatFolderTotals(
-              totals.get(folder.id) ?? { folders: 0, items: 0 },
-              itemNoun
-            ),
-          })
-        )
+      ? sortFolders(
+          index.childrenOf.get(openFolderId) ?? [],
+          MANUAL_FOLDER_SORT
+        ).map((folder) => ({
+          folder,
+          label: formatFolderTotals(
+            totals.get(folder.id) ?? { folders: 0, items: 0 },
+            itemNoun
+          ),
+        }))
       : [];
     const pathByItemId = new Map<string, string>();
     if (location.kind !== 'folder' || searchActive) {
@@ -361,7 +357,6 @@ export function useFolderLibraryView<TItem>(
     searchActive,
     index,
     openFolderId,
-    sort,
     totals,
     itemNoun,
     visibleItems,
