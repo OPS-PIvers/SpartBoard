@@ -70,6 +70,8 @@ export interface YourWidgetConfig {
 }
 ```
 
+Config keys are per-board by default and need no registration. Add a key to `APPEARANCE_CONFIG_KEYS` (`utils/widgetConfigPersistence.ts`) only if it is purely visual and holds no lesson content or student data; see CLAUDE.md "Board isolation".
+
 ### c) WidgetConfig union
 
 ```ts
