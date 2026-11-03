@@ -68,8 +68,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
   save,
   classLock,
 }) => {
-  const { user, featurePermissions, selectedBuildings, canAccessFeature } =
-    useAuth();
+  const { user, featurePermissions, selectedBuildings } = useAuth();
   const { saveActivity } = useActivityWallLibrary(user?.uid);
   const titleId = useId();
   const promptId = useId();
@@ -237,9 +236,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       return;
     }
 
-    const timelineDates =
-      draft.layout === 'timeline' &&
-      canAccessFeature('activity-wall-timeline-dates');
+    const timelineDates = draft.layout === 'timeline';
     const timePeriods = cleanTimePeriods(draft.timePeriods);
     const periodError = timelineDates
       ? timePeriods.map(timePeriodError).find(Boolean)
@@ -416,7 +413,6 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
 
           <SectionsEditor
             layout={layout}
-            timelineDates={canAccessFeature('activity-wall-timeline-dates')}
             value={structure}
             onChange={(next) => patch(next)}
           />

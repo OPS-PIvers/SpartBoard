@@ -1,7 +1,6 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
-  CalendarRange,
   Trophy,
   Camera,
   PenLine,
@@ -1171,17 +1170,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'weather',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'activity-wall-timeline-dates': {
-    label: 'Activity Wall dated timeline',
-    icon: CalendarRange,
-    description: 'Posts get a real date and sit in order on a timeline.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'activity-wall',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
