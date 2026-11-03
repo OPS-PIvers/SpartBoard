@@ -810,7 +810,7 @@ const QuizJoinFlow: React.FC<{
       drawIds = chosen.ids;
     }
   }
-  // Retries ride out a cold start; after that the student still sees a roll, unsaved.
+  // Questions stay pending until the server's draw lands, so no attempt runs on an unsaved roll.
   const dealingKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!dealPending || !drawKey || !bankSlots) return;
@@ -830,17 +830,21 @@ const QuizJoinFlow: React.FC<{
         })
         .catch((err: unknown) => {
           if (cancelled) return;
-          if (n < 5 && !studentPreviewBlocksWrite()) {
-            timer = setTimeout(() => attempt(n + 1), 1000 * 2 ** n);
+          // A preview can't save a draw, so it shows a roll; a real attempt waits for the server's.
+          if (studentPreviewBlocksWrite()) {
+            const chosen = chooseServedDraw(
+              undefined,
+              publicQuestionIds,
+              bankSlots
+            );
+            setLocalDraw({ key: drawKey, ids: chosen.ids });
             return;
           }
-          console.warn('[QuizStudentApp] Bank draw failed, rolling:', err);
-          const chosen = chooseServedDraw(
-            undefined,
-            publicQuestionIds,
-            bankSlots
+          if (n === 3) console.warn('[QuizStudentApp] Bank draw failing:', err);
+          timer = setTimeout(
+            () => attempt(n + 1),
+            Math.min(1000 * 2 ** n, 15000)
           );
-          setLocalDraw({ key: drawKey, ids: chosen.ids });
         });
     };
     attempt(0);
