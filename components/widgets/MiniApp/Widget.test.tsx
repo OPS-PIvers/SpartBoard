@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MiniAppWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
@@ -257,7 +263,11 @@ describe('MiniAppWidget — QR Share with Connections', () => {
       selectedWidgetId: 'widget-1',
       isActiveBoardReadOnly: false,
       updateDashboard: vi.fn(),
-      activeDashboard: { widgets: [widget, ...extraWidgets], connections },
+      activeDashboard: {
+        id: 'board-1',
+        widgets: [widget, ...extraWidgets],
+        connections,
+      },
     };
     vi.mocked(useDashboard).mockReturnValue(
       dash as unknown as ReturnType<typeof useDashboard>
@@ -298,6 +308,28 @@ describe('MiniAppWidget — QR Share with Connections', () => {
         }),
       ],
     });
+  });
+
+  it('leaves connections alone when the app closes while sharing', async () => {
+    let resolveSession: (id: string) => void = () => undefined;
+    const dash = setUp([]);
+    cleanup();
+    vi.mocked(useMiniAppSessionTeacher).mockReturnValue({
+      ...vi.mocked(useMiniAppSessionTeacher)(),
+      createSession: vi.fn(
+        () => new Promise<string>((r) => (resolveSession = r))
+      ),
+    });
+    const { unmount } = render(
+      <div data-widget-id="widget-1">
+        <MiniAppWidget widget={widget} />
+      </div>
+    );
+    fireEvent.click(screen.getByTitle(/Share via QR/));
+    unmount();
+    resolveSession('session-9');
+    await waitFor(() => expect(dash.addWidget).toHaveBeenCalled());
+    expect(dash.updateDashboard).not.toHaveBeenCalled();
   });
 
   it('gives a connected QR the new link instead of adding another', async () => {

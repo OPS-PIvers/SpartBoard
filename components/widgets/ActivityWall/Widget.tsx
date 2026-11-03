@@ -705,9 +705,10 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     <div
       className="flex items-center justify-between border-b border-white/15 bg-slate-900/70 backdrop-blur-xs"
       style={{
-        padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+        paddingBlock: 'min(8px, 2cqmin)',
+        paddingLeft: 'min(10px, 2.5cqmin)',
         // Keeps the last control clear of the connection corner tab.
-        ...(connectionsOn && hasTab && { paddingRight: 40 }),
+        paddingRight: connectionsOn && hasTab ? 40 : 'min(10px, 2.5cqmin)',
         gap: 'min(8px, 2cqmin)',
       }}
     >

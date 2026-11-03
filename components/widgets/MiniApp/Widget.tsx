@@ -971,9 +971,16 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   // flow is inherently a "students view on iPads" use case.
   const [isCreatingQrShare, setIsCreatingQrShare] = useState(false);
   const latestBoardRef = useRef(activeDashboard);
+  const mountedRef = useRef(true);
   useLayoutEffect(() => {
     latestBoardRef.current = activeDashboard;
   });
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const handleCreateQrShare = useCallback(async () => {
     if (!user) {
@@ -983,6 +990,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     if (!activeApp) return;
     if (isCreatingQrShare) return;
     setIsCreatingQrShare(true);
+    const startBoardId = latestBoardRef.current?.id;
     try {
       const sessionId = await createSession(activeApp, user.uid, '', {
         mode: 'view-only',
@@ -1010,8 +1018,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       const widgets = latestBoard?.widgets ?? [];
       const connections = latestBoard?.connections;
       // With Connections, a QR that Follows this app gets the new link instead of adding another.
+      // Only while this app's board is still the one on screen, so another board's connections are never replaced.
       const linked =
         canAccessFeature('widget-connections') &&
+        mountedRef.current &&
+        !!startBoardId &&
+        latestBoard?.id === startBoardId &&
         widgets.some((w) => w.id === widget.id);
       const linkedQrs = linked
         ? followerIds(connections, widgets, widget.id).filter(
