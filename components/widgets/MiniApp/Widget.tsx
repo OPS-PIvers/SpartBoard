@@ -1,5 +1,11 @@
 import { copyText } from '@/utils/copyText';
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useLayoutEffect,
+} from 'react';
 import {
   DEFAULT_MINI_APP_RESULTS,
   loadMiniAppKey,
@@ -964,6 +970,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   // regardless of the widget's admin-configured assignmentMode — the QR
   // flow is inherently a "students view on iPads" use case.
   const [isCreatingQrShare, setIsCreatingQrShare] = useState(false);
+  const latestBoardRef = useRef(activeDashboard);
+  useLayoutEffect(() => {
+    latestBoardRef.current = activeDashboard;
+  });
 
   const handleCreateQrShare = useCallback(async () => {
     if (!user) {
@@ -995,8 +1005,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         );
       }
       const url = `${window.location.origin}/miniapp/${sessionId}`;
-      const widgets = activeDashboard?.widgets ?? [];
-      const connections = activeDashboard?.connections;
+      // Read after the awaits, so a connection made meanwhile isn't dropped.
+      const latestBoard = latestBoardRef.current;
+      const widgets = latestBoard?.widgets ?? [];
+      const connections = latestBoard?.connections;
       // With Connections, a QR that Follows this app gets the new link instead of adding another.
       const linked =
         canAccessFeature('widget-connections') &&
@@ -1035,7 +1047,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     createAssignment,
     addWidget,
     addToast,
-    activeDashboard,
     canAccessFeature,
     updateDashboard,
     updateWidget,

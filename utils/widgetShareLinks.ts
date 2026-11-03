@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { WidgetType } from '@/types';
 
 // The student link each on-board widget shows now, kept in memory so a following QR stays current without writes.
-const links = new Map<string, string>();
+// Keyed by widget id, then by publisher, so a copy of the widget (student view, announcement) can't clear the board's link.
+const links = new Map<string, Map<symbol, string>>();
 const listeners = new Map<string, Set<() => void>>();
 
 /** Widget types a QR code can follow for their student link. */
@@ -11,22 +12,36 @@ export const LINK_LEADER_TYPES: ReadonlySet<WidgetType> = new Set<WidgetType>([
   'miniApp',
 ]);
 
-export const publishWidgetShareLink = (
-  widgetId: string,
-  url: string | undefined
-): void => {
-  if (url) {
-    if (links.get(widgetId) === url) return;
-    links.set(widgetId, url);
-  } else {
-    if (!links.has(widgetId)) return;
-    links.delete(widgetId);
-  }
-  listeners.get(widgetId)?.forEach((fn) => fn());
+export const getWidgetShareLink = (widgetId: string): string | undefined => {
+  const byPublisher = links.get(widgetId);
+  if (!byPublisher) return undefined;
+  let latest: string | undefined;
+  for (const url of byPublisher.values()) latest = url;
+  return latest;
 };
 
-export const getWidgetShareLink = (widgetId: string): string | undefined =>
-  links.get(widgetId);
+export const publishWidgetShareLink = (
+  widgetId: string,
+  publisher: symbol,
+  url: string | undefined
+): void => {
+  const before = getWidgetShareLink(widgetId);
+  let byPublisher = links.get(widgetId);
+  if (url) {
+    if (!byPublisher) {
+      byPublisher = new Map();
+      links.set(widgetId, byPublisher);
+    }
+    byPublisher.delete(publisher);
+    byPublisher.set(publisher, url);
+  } else if (byPublisher) {
+    byPublisher.delete(publisher);
+    if (byPublisher.size === 0) links.delete(widgetId);
+  }
+  if (getWidgetShareLink(widgetId) !== before) {
+    listeners.get(widgetId)?.forEach((fn) => fn());
+  }
+};
 
 const subscribe = (widgetId: string, fn: () => void) => {
   let set = listeners.get(widgetId);
@@ -52,7 +67,7 @@ export const useWidgetShareLink = (
     [widgetId]
   );
   const get = useCallback(
-    () => (widgetId ? links.get(widgetId) : none()),
+    () => (widgetId ? getWidgetShareLink(widgetId) : none()),
     [widgetId]
   );
   return useSyncExternalStore(sub, get);
@@ -63,11 +78,9 @@ export const usePublishWidgetShareLink = (
   widgetId: string,
   url: string | undefined
 ): void => {
+  const [publisher] = useState(() => Symbol(widgetId));
   useEffect(() => {
-    publishWidgetShareLink(widgetId, url);
-  }, [widgetId, url]);
-  useEffect(
-    () => () => publishWidgetShareLink(widgetId, undefined),
-    [widgetId]
-  );
+    publishWidgetShareLink(widgetId, publisher, url);
+    return () => publishWidgetShareLink(widgetId, publisher, undefined);
+  }, [widgetId, publisher, url]);
 };

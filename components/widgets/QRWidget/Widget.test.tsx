@@ -428,6 +428,7 @@ describe('QRSettings', () => {
         followerId: 'test-widget-id',
       };
       const qr = createMockWidget({ url: 'https://spawned.example' });
+      const wallPublisher = Symbol('wall');
 
       beforeEach(() => {
         mockActiveDashboard.widgets = [wall as WidgetData, qr, textWidget];
@@ -436,18 +437,28 @@ describe('QRSettings', () => {
         ];
       });
       afterEach(() => {
-        publishWidgetShareLink('wall-1', undefined);
+        publishWidgetShareLink('wall-1', wallPublisher, undefined);
         delete (mockActiveDashboard as { connections?: unknown[] }).connections;
       });
 
       it("shows the wall's current link and updates when it changes", () => {
-        publishWidgetShareLink('wall-1', 'https://wall.example/a');
+        publishWidgetShareLink(
+          'wall-1',
+          wallPublisher,
+          'https://wall.example/a'
+        );
         renderWithConnections(qr);
         expect(urlOf()).toContain(encodeURIComponent('https://wall.example/a'));
         // The connection tab marks it instead of the pill.
         expect(screen.queryByText('Linked')).not.toBeInTheDocument();
 
-        act(() => publishWidgetShareLink('wall-1', 'https://wall.example/b'));
+        act(() =>
+          publishWidgetShareLink(
+            'wall-1',
+            wallPublisher,
+            'https://wall.example/b'
+          )
+        );
         expect(urlOf()).toContain(encodeURIComponent('https://wall.example/b'));
       });
 
@@ -459,7 +470,11 @@ describe('QRSettings', () => {
       });
 
       it('ignores the connection while Connections is off', () => {
-        publishWidgetShareLink('wall-1', 'https://wall.example/a');
+        publishWidgetShareLink(
+          'wall-1',
+          wallPublisher,
+          'https://wall.example/a'
+        );
         render(<QRWidget widget={qr} />);
         expect(urlOf()).toContain(
           encodeURIComponent('https://spawned.example')
