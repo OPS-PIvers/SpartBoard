@@ -880,8 +880,12 @@ describe('createOrganizationInvites — super_admin role guard', () => {
 
   function stubDb(opts: {
     callerRole: string;
+    // Caller's operator-org roleId; null = no operator membership.
+    operatorRole?: string | null;
     existing?: Record<string, Record<string, unknown>>;
   }) {
+    const operatorRole =
+      opts.operatorRole === undefined ? opts.callerRole : opts.operatorRole;
     const txSet = vi.fn();
     const memberGet = (email: string) => {
       if (email === CALLER) {
@@ -922,9 +926,8 @@ describe('createOrganizationInvites — super_admin role guard', () => {
             path === 'admin_settings/user_roles'
               ? { exists: true, get: () => [] }
               : {
-                  exists: true,
-                  get: () =>
-                    path.endsWith(CALLER) ? opts.callerRole : undefined,
+                  exists: path.endsWith(CALLER) && operatorRole !== null,
+                  get: () => (path.endsWith(CALLER) ? operatorRole : undefined),
                 }
           ),
       }),
@@ -941,14 +944,14 @@ describe('createOrganizationInvites — super_admin role guard', () => {
     return { txSet };
   }
 
-  const invite = (email: string, roleId: string) =>
+  const invite = (email: string, roleId: string, orgId = 'orono') =>
     handler({
       auth: {
         uid: 'admin-uid',
         token: { email: CALLER, email_verified: true },
       },
       data: {
-        orgId: 'orono',
+        orgId,
         invitations: [{ email, roleId, buildingIds: [] }],
       },
     }) as Promise<{ invitations: unknown[]; errors: { reason: string }[] }>;
@@ -977,6 +980,36 @@ describe('createOrganizationInvites — super_admin role guard', () => {
   it('domain admin can still invite a teacher', async () => {
     const { txSet } = stubDb({ callerRole: 'domain_admin' });
     const res = await invite('new@orono.k12.mn.us', 'teacher');
+    expect(res.errors).toHaveLength(0);
+    expect(res.invitations).toHaveLength(1);
+    expect(txSet).toHaveBeenCalled();
+  });
+
+  it("another org's super_admin cannot invite a super_admin", async () => {
+    const { txSet } = stubDb({ callerRole: 'super_admin', operatorRole: null });
+    const res = await invite('new@district-b.org', 'super_admin', 'district-b');
+    expect(res.invitations).toHaveLength(0);
+    expect(res.errors[0].reason).toMatch(/super admin/i);
+    expect(txSet).not.toHaveBeenCalled();
+  });
+
+  it("another org's super_admin cannot re-invite an existing super_admin", async () => {
+    const { txSet } = stubDb({
+      callerRole: 'super_admin',
+      operatorRole: null,
+      existing: {
+        'boss@district-b.org': { roleId: 'super_admin', status: 'invited' },
+      },
+    });
+    const res = await invite('boss@district-b.org', 'teacher', 'district-b');
+    expect(res.invitations).toHaveLength(0);
+    expect(res.errors[0].reason).toMatch(/super admin/i);
+    expect(txSet).not.toHaveBeenCalled();
+  });
+
+  it("another org's super_admin can still invite a teacher", async () => {
+    const { txSet } = stubDb({ callerRole: 'super_admin', operatorRole: null });
+    const res = await invite('new@district-b.org', 'teacher', 'district-b');
     expect(res.errors).toHaveLength(0);
     expect(res.invitations).toHaveLength(1);
     expect(txSet).toHaveBeenCalled();

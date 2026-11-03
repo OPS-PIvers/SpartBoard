@@ -107,6 +107,16 @@ beforeAll(async () => {
 
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
+    // The live share the run was launched from, and the switch that allows it.
+    await setDoc(doc(db, 'shared_collections/share-1'), {
+      hostUid: TEACHER_UID,
+      intendedMode: 'substitute',
+      expiresAt: FUTURE,
+      subEmails: ['sub-uid-1@orono.k12.mn.us'],
+    });
+    await setDoc(doc(db, 'admin_settings/sub_launch_as_teacher'), {
+      enabled: true,
+    });
     for (const id of SESSIONS) {
       const base = {
         id,

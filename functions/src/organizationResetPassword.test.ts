@@ -410,6 +410,52 @@ describe('resetOrganizationUserPassword — role check on the target', () => {
     await expect(call()).resolves.toMatchObject({ sent: false });
   });
 
+  it("another org's super_admin cannot reset a super admin on its own domain", async () => {
+    firestoreMock.mockReturnValue(
+      buildFirestoreStub({
+        emailEnabled: false,
+        callerEmail: 'admin@district-b.org',
+        callerRole: 'super_admin',
+        callerOperatorRole: null,
+        targetRole: 'domain_admin',
+        legacySuperAdmins: ['boss@district-b.org'],
+        verifiedDomains: { '@district-b.org': 'district-b' },
+      })
+    );
+    await expect(
+      handler({
+        auth: {
+          uid: 'uid1',
+          token: { email: 'admin@district-b.org', email_verified: true },
+        },
+        data: { orgId: 'district-b', email: 'boss@district-b.org' },
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(generatePasswordResetLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("another org's super_admin can still reset a teacher on its own domain", async () => {
+    firestoreMock.mockReturnValue(
+      buildFirestoreStub({
+        emailEnabled: false,
+        callerEmail: 'admin@district-b.org',
+        callerRole: 'super_admin',
+        callerOperatorRole: null,
+        targetRole: 'teacher',
+        verifiedDomains: { '@district-b.org': 'district-b' },
+      })
+    );
+    await expect(
+      handler({
+        auth: {
+          uid: 'uid1',
+          token: { email: 'admin@district-b.org', email_verified: true },
+        },
+        data: { orgId: 'district-b', email: 'teacher@district-b.org' },
+      })
+    ).resolves.toMatchObject({ sent: false });
+  });
+
   it('domain admin can still reset a domain_admin member', async () => {
     firestoreMock.mockReturnValue(
       buildFirestoreStub({

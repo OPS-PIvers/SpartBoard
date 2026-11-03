@@ -44,6 +44,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   commitRosterPinIndexV1: 'write',
   createBuildingGroupV1: 'write',
   deletePlcRecordingAudioV1: 'write',
+  drawQuizBankQuestionsV1: 'write',
   deleteQuizMediaForOrgAdmin: 'write',
   detachPlcSyncLinkage: 'write',
   exchangeGoogleAuthCode: 'write',

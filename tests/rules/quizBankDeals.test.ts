@@ -1,8 +1,7 @@
 // Firestore rules for balanced bank slots (docs/plans/shipped/QUIZ_IMPORT_VERSIONS.md V18-V19):
-//   - quiz_sessions/{id}/bank_deals/{dealId}: any signed-in read; a counter that
-//     only a seated student advances, by one, on a session with bank slots; teacher deletes
-//   - the counter's `by` is the caller's uid, never the (PIN-bearing) response key
-//   - responses: `dealtQuestionIds` is a capped list on the student surface, never set at create
+//   - quiz_sessions/{id}/bank_deals/{dealId}: any signed-in read; only
+//     drawQuizBankQuestionsV1 advances a counter; the teacher deletes
+//   - responses: `dealtQuestionIds` and the served list are server-written
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -22,7 +21,6 @@ import {
   deleteDoc,
   doc,
   runTransaction,
-  serverTimestamp,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-bank-deals';
@@ -138,83 +136,24 @@ describe('quiz_sessions/{id}/bank_deals/{dealId}', () => {
     );
   });
 
-  it('a student creates the counter at 1 and advances it by exactly one', async () => {
-    await seed({ bankSlots: true });
-    await assertFails(
-      setDoc(doc(asStudent(), dealPath), { dealt: 2, by: STUDENT_UID })
-    );
-    await assertSucceeds(
-      setDoc(doc(asStudent(), dealPath), { dealt: 1, by: STUDENT_UID })
-    );
-    await assertSucceeds(
-      updateDoc(doc(asStudent(), dealPath), { dealt: 2, by: STUDENT_UID })
-    );
-    await assertFails(
-      updateDoc(doc(asStudent(), dealPath), { dealt: 4, by: STUDENT_UID })
-    );
-    await assertFails(
-      updateDoc(doc(asStudent(), dealPath), { dealt: 0, by: STUDENT_UID })
-    );
+  it('no client advances a counter; only the draw function does', async () => {
+    await seed({ bankSlots: true, dealt: 1 });
     await assertFails(
       updateDoc(doc(asStudent(), dealPath), { dealt: 2, by: STUDENT_UID })
     );
-  });
-
-  it('rejects extra keys and counters on a session without bank slots', async () => {
-    await seed({ bankSlots: true });
     await assertFails(
-      setDoc(doc(asStudent(), dealPath), {
-        dealt: 1,
-        by: STUDENT_UID,
-        seats: { x: 1 },
-      })
+      updateDoc(doc(asTeacher(), dealPath), { dealt: 2, by: TEACHER_UID })
     );
-    await seed({ bankSlots: false });
+    await seed({ bankSlots: true });
     await assertFails(
       setDoc(doc(asStudent(), dealPath), { dealt: 1, by: STUDENT_UID })
     );
-  });
-
-  it('refuses callers without their own response in the session', async () => {
-    await seed({ bankSlots: true });
-    const stranger = testEnv
-      .authenticatedContext('stranger-uid', { email: 'x@example.com' })
-      .firestore();
-    await assertFails(setDoc(doc(stranger, dealPath), { dealt: 1 }));
-    await assertFails(
-      setDoc(doc(stranger, dealPath), { dealt: 1, by: STUDENT_UID })
-    );
-    await assertFails(
-      setDoc(doc(stranger, dealPath), { dealt: 1, by: 'stranger-uid' })
-    );
-    await assertFails(setDoc(doc(asStudent(), dealPath), { dealt: 1 }));
-  });
-
-  it('never stores the response key: `by` must be the caller uid', async () => {
-    await seed({ bankSlots: true });
-    await assertFails(
-      setDoc(doc(asStudent(), dealPath), { dealt: 1, by: PIN_KEY })
-    );
-    await assertSucceeds(
-      setDoc(doc(asStudent(), dealPath), { dealt: 1, by: STUDENT_UID })
-    );
-  });
-
-  it('refuses a student with no seat unless the seat lands in the same write', async () => {
-    await seed({ bankSlots: true, seated: false });
     const db = asStudent();
-    await assertFails(setDoc(doc(db, dealPath), { dealt: 1, by: STUDENT_UID }));
-    await assertSucceeds(
+    await assertFails(
       runTransaction(db, async (tx) => {
         await tx.get(doc(db, dealPath));
-        await tx.get(doc(db, responsePath));
         tx.set(doc(db, seatPath), { responseKey: PIN_KEY });
         tx.set(doc(db, dealPath), { dealt: 1, by: STUDENT_UID });
-        tx.update(doc(db, responsePath), {
-          servedQuestionIds: ['f1', 'va'],
-          dealtQuestionIds: ['va'],
-          lastWriteAt: serverTimestamp(),
-        });
       })
     );
   });
@@ -224,24 +163,6 @@ describe('quiz_sessions/{id}/bank_deals/{dealId}', () => {
     await assertFails(deleteDoc(doc(asStudent(), dealPath)));
     await assertFails(deleteDoc(doc(asTeacher(OTHER_TEACHER_UID), dealPath)));
     await assertSucceeds(deleteDoc(doc(asTeacher(), dealPath)));
-  });
-
-  it('the deal transaction writes the counter and the response together', async () => {
-    await seed({ bankSlots: true, dealt: 1 });
-    const db = asStudent();
-    await assertSucceeds(
-      runTransaction(db, async (tx) => {
-        const counter = await tx.get(doc(db, dealPath));
-        await tx.get(doc(db, responsePath));
-        const dealt = (counter.data()?.dealt as number | undefined) ?? 0;
-        tx.set(doc(db, dealPath), { dealt: dealt + 1, by: STUDENT_UID });
-        tx.update(doc(db, responsePath), {
-          servedQuestionIds: ['f1', 'vb'],
-          dealtQuestionIds: ['vb'],
-          lastWriteAt: serverTimestamp(),
-        });
-      })
-    );
   });
 });
 
@@ -266,9 +187,9 @@ describe('responses dealtQuestionIds', () => {
     await assertSucceeds(setDoc(doc(db, fresh), base));
   });
 
-  it('accepts a list within the cap', async () => {
+  it('is server-written: a student cannot set it', async () => {
     await seed({ bankSlots: true });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asStudent(), responsePath), {
         dealtQuestionIds: ['va', 'vb'],
       })

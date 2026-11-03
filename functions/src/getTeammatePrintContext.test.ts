@@ -6,12 +6,13 @@
 // five checks has to fail on its own — and the D5 PII boundary, because a
 // student's PIN is a join credential and the roster JSON this reads carries it.
 
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(),
+  auth: vi.fn(),
 }));
 
 vi.mock('firebase-functions/v2/https', () => {
@@ -33,6 +34,7 @@ vi.mock('./classlinkShared', async (importOriginal) => ({
   ALLOWED_ORIGINS: [],
 }));
 
+import * as admin from './firebaseAdmin';
 import {
   handleGetTeammatePrintContext,
   type DelegatedPrintCaller,
@@ -62,8 +64,12 @@ const caller: DelegatedPrintCaller = {
 
 interface State {
   docs: Record<string, Doc>;
+  /** Server create/update millis per doc path; every doc defaults to 100. */
+  times?: Record<string, { create?: number; update?: number }>;
   collections: Record<string, { id: string; data: Doc }[]>;
 }
+
+const at = (ms: number) => ({ toMillis: () => ms });
 
 function makeDb(state: State): Db {
   const collectionRef = (path: string): Record<string, unknown> => {
@@ -90,6 +96,8 @@ function makeDb(state: State): Db {
       Promise.resolve({
         exists: state.docs[path] !== undefined,
         data: () => state.docs[path],
+        createTime: at(state.times?.[path]?.create ?? 100),
+        updateTime: at(state.times?.[path]?.update ?? 100),
       }),
     collection: (sub: string) => collectionRef(`${path}/${sub}`),
   });
@@ -111,6 +119,8 @@ function baseState(overrides: Partial<State> = {}): State {
     docs: {
       'admin_settings/paper_answer_sheets': { enabled: true },
       'admin_settings/plc_delegated_printing': { enabled: true },
+      // The target started this PLC, which counts as joining it themselves.
+      [`plcCreators/${PLC_ID}`]: { creatorUid: TARGET_UID, rootCreateMs: 100 },
       [`plcs/${PLC_ID}`]: {
         members: {
           [CALLER_UID]: member('member', 'Helper Teacher'),
@@ -368,6 +378,186 @@ describe('authorization ladder', () => {
     const result = await run(state);
     expect(result.targetName).toBe('your teammate');
     expect(result.hasCopy).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The target must have joined the PLC themselves; a bare memberUids listing is not enough.
+// ---------------------------------------------------------------------------
+
+describe('target membership evidence', () => {
+  const TARGET_EMAIL = 'away@orono.k12.mn.us';
+  const INVITE = `plc_invitations/${PLC_ID}_${TARGET_EMAIL}`;
+  const acceptedInvite = {
+    plcId: PLC_ID,
+    inviteeEmailLower: TARGET_EMAIL,
+    status: 'accepted',
+    respondedAt: 150,
+  };
+
+  /** A target the lead listed without their consent: no creator record, invite or group seat. */
+  function forgedState(): State {
+    const state = stateWithCopy();
+    state.docs[`plcCreators/${PLC_ID}`] = {
+      creatorUid: CALLER_UID,
+      rootCreateMs: 100,
+    };
+    return state;
+  }
+
+  beforeEach(() => {
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser: () =>
+        Promise.resolve({ email: 'Away@Orono.k12.mn.us', emailVerified: true }),
+    } as unknown as ReturnType<typeof admin.auth>);
+  });
+
+  /** An older PLC whose index has no creator recorded yet. */
+  function legacyState(targetJoinedAt: number): State {
+    const state = stateWithCopy();
+    delete state.docs[`plcCreators/${PLC_ID}`];
+    state.docs[`plcs/${PLC_ID}`] = {
+      createdAt: 10,
+      members: {
+        [CALLER_UID]: { ...member('lead', 'Helper Teacher'), joinedAt: 20 },
+        [TARGET_UID]: {
+          ...member('member', 'Away Teacher'),
+          joinedAt: targetJoinedAt,
+        },
+      },
+      memberUids: [CALLER_UID, TARGET_UID],
+    };
+    return state;
+  }
+
+  it('accepts the creator of an older PLC with no recorded creator', async () => {
+    expect((await run(legacyState(10))).hasCopy).toBe(true);
+  });
+
+  it('refuses a later joiner of an older PLC with no recorded creator', async () => {
+    expect(await codeOf(run(legacyState(30)))).toBe('not-found');
+  });
+
+  it('uses no fallback once the backfill has run', async () => {
+    const state = legacyState(10);
+    state.docs['plcCreatorsMeta/backfill'] = { doneAt: 1 };
+    expect(await codeOf(run(state))).toBe('not-found');
+  });
+
+  it('ignores a creator record written for an earlier PLC with this id', async () => {
+    const state = legacyState(10);
+    state.docs[`plcCreators/${PLC_ID}`] = {
+      creatorUid: TARGET_UID,
+      rootCreateMs: 50,
+    };
+    expect(await codeOf(run(state))).toBe('not-found');
+  });
+
+  it('surfaces a transient Auth error instead of calling the target a non-member', async () => {
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser: () => Promise.reject(new Error('unavailable')),
+    } as unknown as ReturnType<typeof admin.auth>);
+    expect(await codeOf(run(forgedState()))).toBe('no-code');
+  });
+
+  it('refuses a target the lead listed without their consent', async () => {
+    expect(await codeOf(run(forgedState()))).toBe('not-found');
+  });
+
+  it('refuses a minted members entry with an admin-looking addedBy', async () => {
+    const state = forgedState();
+    const plc = state.docs[`plcs/${PLC_ID}`] as {
+      members: Record<string, Doc>;
+    };
+    plc.members[TARGET_UID] = { ...member('lead', 'Away'), addedBy: 'admin' };
+    expect(await codeOf(run(state))).toBe('not-found');
+  });
+
+  it('accepts a target who accepted an invite into this PLC', async () => {
+    const state = forgedState();
+    state.docs[INVITE] = acceptedInvite;
+    state.times = { [INVITE]: { update: 150 } };
+    expect((await run(state)).hasCopy).toBe(true);
+  });
+
+  it('refuses an invite the lead marked accepted without the invitee', async () => {
+    const state = forgedState();
+    state.docs[INVITE] = {
+      plcId: PLC_ID,
+      inviteeEmailLower: TARGET_EMAIL,
+      status: 'accepted',
+    };
+    expect(await codeOf(run(state))).toBe('not-found');
+  });
+
+  it('refuses an invite accepted into an earlier PLC with this id', async () => {
+    const state = forgedState();
+    state.docs[INVITE] = acceptedInvite;
+    state.times = {
+      [`plcs/${PLC_ID}`]: { create: 500 },
+      [INVITE]: { update: 150 },
+    };
+    expect(await codeOf(run(state))).toBe('not-found');
+  });
+
+  it('refuses an invite when the target has no verified Auth email', async () => {
+    const state = forgedState();
+    state.docs[INVITE] = acceptedInvite;
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser: () =>
+        Promise.resolve({ email: TARGET_EMAIL, emailVerified: false }),
+    } as unknown as ReturnType<typeof admin.auth>);
+    expect(await codeOf(run(state))).toBe('not-found');
+  });
+
+  it('accepts a target already in a group created for this PLC', async () => {
+    const state = forgedState();
+    state.docs[`synced_quizzes/${GROUP_ID}`] = {
+      ...state.docs[`synced_quizzes/${GROUP_ID}`],
+      plcId: PLC_ID,
+      participants: { [TARGET_UID]: { joinedAt: 1 } },
+    };
+    expect((await run(state)).hasCopy).toBe(true);
+  });
+
+  it('refuses a seat in a group someone else shared here from another PLC', async () => {
+    const state = forgedState();
+    state.docs[`plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`] = {
+      syncGroupId: GROUP_ID,
+      sharedBy: CALLER_UID,
+    };
+    state.docs[`synced_quizzes/${GROUP_ID}`] = {
+      ...state.docs[`synced_quizzes/${GROUP_ID}`],
+      plcId: 'shared-earlier-plc',
+      participants: {
+        [CALLER_UID]: { joinedAt: 1 },
+        [TARGET_UID]: { joinedAt: 1 },
+      },
+    };
+    expect(await codeOf(run(state))).toBe('not-found');
+  });
+
+  it('accepts a target who shared this quiz into the PLC', async () => {
+    const state = forgedState();
+    state.docs[`plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`] = {
+      syncGroupId: GROUP_ID,
+      sharedBy: TARGET_UID,
+    };
+    state.docs[`synced_quizzes/${GROUP_ID}`] = {
+      ...state.docs[`synced_quizzes/${GROUP_ID}`],
+      participants: { [TARGET_UID]: { joinedAt: 1 } },
+    };
+    expect((await run(state)).hasCopy).toBe(true);
+  });
+
+  it('refuses a target whose group seat came from another PLC', async () => {
+    const state = forgedState();
+    state.docs[`synced_quizzes/${GROUP_ID}`] = {
+      ...state.docs[`synced_quizzes/${GROUP_ID}`],
+      plcId: 'their-real-plc',
+      participants: { [TARGET_UID]: { joinedAt: 1 } },
+    };
+    expect(await codeOf(run(state))).toBe('not-found');
   });
 });
 

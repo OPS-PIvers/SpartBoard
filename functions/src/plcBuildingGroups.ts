@@ -324,7 +324,32 @@ async function assertBuildingInOrg(
   }
 }
 
-/** Resolve an email to a signed-in account: the org member doc's uid first, then a verified Auth account. */
+// Only organizations/{orgId}/domains/{doc} counts; admins can write nested `domains` docs elsewhere.
+function isOrgDomainPath(path: string): boolean {
+  const seg = path.split('/');
+  return seg.length === 4 && seg[0] === 'organizations' && seg[2] === 'domains';
+}
+
+/** True when the email's domain is verified for `orgId` and for no other org. */
+async function isDomainVerifiedOnlyFor(
+  db: Firestore,
+  orgId: string,
+  emailLower: string
+): Promise<boolean> {
+  const domain = normalizeEmailDomain(emailLower);
+  if (!domain) return false;
+  const snap = await db
+    .collectionGroup('domains')
+    .where('domain', '==', domain)
+    .where('status', '==', 'verified')
+    .get();
+  const claims = snap.docs.filter((d) => isOrgDomainPath(d.ref.path));
+  return (
+    claims.length > 0 && claims.every((d) => d.ref.parent.parent?.id === orgId)
+  );
+}
+
+/** Resolve an email to an account bound to the org: its member doc's linked uid, or a verified account on a domain only this org owns. */
 export async function resolveAccount(
   deps: BuildingGroupDeps,
   orgId: string,
@@ -335,22 +360,25 @@ export async function resolveAccount(
     .get();
   const memberUid: unknown = memberSnap.exists ? memberSnap.get('uid') : null;
   const memberName: unknown = memberSnap.exists ? memberSnap.get('name') : null;
+  const fallbackName = typeof memberName === 'string' ? memberName : '';
   if (typeof memberUid === 'string' && memberUid) {
     const user = await deps.getUser(memberUid);
+    if (!user || user.email?.trim().toLowerCase() !== emailLower) return null;
     return {
       uid: memberUid,
       email: emailLower,
-      displayName:
-        user?.displayName ?? (typeof memberName === 'string' ? memberName : ''),
+      displayName: user.displayName ?? fallbackName,
     };
+  }
+  if (!(await isDomainVerifiedOnlyFor(deps.db, orgId, emailLower))) {
+    return null;
   }
   const user = await deps.getUserByEmail(emailLower);
   if (user?.emailVerified !== true) return null;
   return {
     uid: user.uid,
     email: emailLower,
-    displayName:
-      user.displayName ?? (typeof memberName === 'string' ? memberName : ''),
+    displayName: user.displayName ?? fallbackName,
   };
 }
 
