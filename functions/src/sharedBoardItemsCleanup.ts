@@ -41,13 +41,20 @@ export async function cleanupSharedBoardItems(
     .doc(shareId)
     .collection(SHARED_BOARD_ITEMS);
   if (plan.all) {
-    const snap = await items.get();
-    if (snap.empty) return 0;
-    await db.recursiveDelete(items);
-    return snap.size;
+    let removed = 0;
+    const writer = db.bulkWriter();
+    writer.onWriteResult(() => {
+      removed++;
+    });
+    await db.recursiveDelete(items, writer);
+    return removed;
   }
+  // A member who rejoined before this ran keeps the copies they publish again.
+  const now = (await db.collection('shared_boards').doc(shareId).get()).data();
+  if (!now) return 0;
+  const back = new Set(participantUids(now));
   let removed = 0;
-  for (const uid of plan.ownerUids) {
+  for (const uid of plan.ownerUids.filter((u) => !back.has(u))) {
     const snap = await items.where('ownerUid', '==', uid).get();
     await Promise.all(snap.docs.map((d) => d.ref.delete()));
     removed += snap.size;
@@ -56,7 +63,7 @@ export async function cleanupSharedBoardItems(
 }
 
 export const sharedBoardItemsCleanup = onDocumentWritten(
-  { document: 'shared_boards/{shareId}', maxInstances: 10 },
+  { document: 'shared_boards/{shareId}', maxInstances: 10, retry: true },
   async (event) => {
     const before = event.data?.before?.data();
     const after = event.data?.after?.data();

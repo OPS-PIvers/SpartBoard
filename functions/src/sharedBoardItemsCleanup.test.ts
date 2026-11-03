@@ -21,7 +21,7 @@ import {
 
 type Item = { id: string; ownerUid: string };
 
-function fakeDb(items: Item[]) {
+function fakeDb(items: Item[], current?: Record<string, unknown>) {
   const store = new Map(items.map((i) => [i.id, i]));
   const docs = (list: Item[]) =>
     list.map((i) => ({
@@ -29,14 +29,6 @@ function fakeDb(items: Item[]) {
       ref: { delete: vi.fn(() => Promise.resolve(store.delete(i.id))) },
     }));
   const itemsCol = {
-    get: vi.fn(() => {
-      const all = [...store.values()];
-      return Promise.resolve({
-        empty: all.length === 0,
-        size: all.length,
-        docs: docs(all),
-      });
-    }),
     where: vi.fn((_f: string, _op: string, uid: string) => ({
       get: vi.fn(() => {
         const hit = [...store.values()].filter((i) => i.ownerUid === uid);
@@ -44,11 +36,22 @@ function fakeDb(items: Item[]) {
       }),
     })),
   };
+  let onResult: () => void = () => undefined;
+  const writer = {
+    onWriteResult: vi.fn((cb: () => void) => {
+      onResult = cb;
+    }),
+  };
   const db = {
     collection: vi.fn(() => ({
-      doc: vi.fn(() => ({ collection: vi.fn(() => itemsCol) })),
+      doc: vi.fn(() => ({
+        collection: vi.fn(() => itemsCol),
+        get: vi.fn(() => Promise.resolve({ data: () => current })),
+      })),
     })),
+    bulkWriter: vi.fn(() => writer),
     recursiveDelete: vi.fn(() => {
+      store.forEach(() => onResult());
       store.clear();
       return Promise.resolve();
     }),
@@ -108,7 +111,7 @@ describe('cleanupSharedBoardItems', () => {
   });
 
   it('removes only the leaving member copies', async () => {
-    const { db, store } = fakeDb(items);
+    const { db, store } = fakeDb(items, share({ b: {} }));
     const n = await cleanupSharedBoardItems(
       db as never,
       's1',
@@ -118,5 +121,17 @@ describe('cleanupSharedBoardItems', () => {
     expect(n).toBe(1);
     expect([...store.keys()].sort()).toEqual(['notebook_b_n1', 'quiz_host_q1']);
     expect(db.recursiveDelete).not.toHaveBeenCalled();
+  });
+
+  it('keeps the copies of a member who rejoined before cleanup ran', async () => {
+    const { db, store } = fakeDb(items, share({ a: {}, b: {} }));
+    const n = await cleanupSharedBoardItems(
+      db as never,
+      's1',
+      share({ a: {}, b: {} }),
+      share({ b: {} })
+    );
+    expect(n).toBe(0);
+    expect(store.size).toBe(3);
   });
 });

@@ -65,9 +65,14 @@ const asHost = () =>
     .authenticatedContext(HOST_UID, { email: HOST_EMAIL, email_verified: true })
     .firestore();
 
+// Collaborators are staff too: a Synced edit needs a staff account.
+const COLLAB_EMAIL = 'collab@orono.k12.mn.us';
 const asCollab = () =>
   testEnv
-    .authenticatedContext(COLLAB_UID, { email: 'collab@example.com' })
+    .authenticatedContext(COLLAB_UID, {
+      email: COLLAB_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 
 const asViewer = () =>
@@ -184,6 +189,7 @@ beforeEach(async () => {
     await seedDistrictStaff(ctx.firestore(), [
       ORONO_EMAIL,
       HOST_EMAIL,
+      COLLAB_EMAIL,
       STAFF_STRANGER_EMAIL,
     ]);
   });

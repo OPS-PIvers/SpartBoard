@@ -290,6 +290,38 @@ describe('collection links and board self-join need a staff account', () => {
     );
   });
 
+  it('a student who already joined a board loses collaborator edits and item copies', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(
+        doc(ctx.firestore(), 'shared_boards/board'),
+        join(STUDENT_UID)
+      );
+      await setDoc(doc(ctx.firestore(), `users/${STUDENT_UID}/quizzes/q1`), {
+        title: 'Mine',
+      });
+    });
+    const db = asStudentGoogle();
+    await assertFails(
+      updateDoc(doc(db, 'shared_boards/board'), { name: 'Defaced' })
+    );
+    await assertFails(
+      setDoc(doc(db, `shared_boards/board/items/quiz_${STUDENT_UID}_q1`), {
+        kind: 'quiz',
+        itemId: 'q1',
+        ownerUid: STUDENT_UID,
+        title: 'Mine',
+        version: '1',
+        publishedAt: 1,
+        payload: {},
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, 'shared_boards/board'), {
+        [`participants.${STUDENT_UID}`]: deleteField(),
+      })
+    );
+  });
+
   it('a staff teacher reads and joins the link and the board, then edits', async () => {
     const db = asSub();
     await assertSucceeds(getDoc(doc(db, 'linked_collections/link')));
@@ -310,6 +342,9 @@ describe('collection links and board self-join need a staff account', () => {
         name: 'Unit 3 review',
         updatedBy: SUB_UID,
       })
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, 'shared_boards/board'), { name: 'Day 1 review' })
     );
   });
 });

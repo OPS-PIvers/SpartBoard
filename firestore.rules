@@ -1627,7 +1627,7 @@ service cloud.firestore {
       // collaborator can't retarget/strip another's share).
       allow update: if signedIn() &&
         authUid() in existing().get('participants', {}) &&
-        existing().participants[authUid()].get('role', '') == 'collaborator' &&
+        existing().participants[authUid()].get('role', '') == 'collaborator' && isDistrictStaff() &&
         // Substitute shares carry Drive grants the host's sweep revokes; no collaborator edits.
         existing().get('intendedMode', null) != 'substitute' &&
         incoming().get('participants', {}) == existing().get('participants', {}) &&
@@ -1687,7 +1687,7 @@ service cloud.firestore {
         function sbItemWriteOk() {
           let sb = sbItemShare();
           let d = incoming();
-          return notAnon() && !isStudentRoleUser() && d.ownerUid == authUid()
+          return isDistrictStaff() && d.ownerUid == authUid()
             && (sb.originalAuthor == authUid()
                 || sb.get('participants', {}).get(authUid(), {}).get('role', '') == 'collaborator')
             && d.keys().hasOnly(['kind', 'itemId', 'ownerUid', 'title', 'version', 'publishedAt', 'payload'])
