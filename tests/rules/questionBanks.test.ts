@@ -5,8 +5,8 @@
 //     version +1, list closed
 //   - /plcs/{plcId}/question_banks/{id}: member reads, non-viewer creates,
 //     sharer or lead edits/deletes, identity immutable
-//   - student servedQuestionIds on a bank-slot session: size must equal
-//     totalQuestions
+//   - student servedQuestionIds on a bank-slot session: never student-written
+//     (drawQuizBankQuestionsV1 records the draw)
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -347,14 +347,16 @@ describe('student servedQuestionIds on a bank-slot session', () => {
     });
   };
 
-  it('accepts a draw whose size equals totalQuestions', async () => {
+  // A previous-app tab may write its own first draw until 2026-11-10 (AB-98).
+  const compatOpen = Date.now() < Date.UTC(2026, 10, 10) - 60_000;
+
+  it('rejects a student-written draw even at the full size once the compat window closes', async () => {
     await seedSession(true);
-    await assertSucceeds(
-      updateDoc(
-        doc(asStudent(), responsePath),
-        answerWrite({ servedQuestionIds: ['f1', 'b2', 'b3'] })
-      )
+    const write = updateDoc(
+      doc(asStudent(), responsePath),
+      answerWrite({ servedQuestionIds: ['f1', 'b2', 'b3'] })
     );
+    await (compatOpen ? assertSucceeds(write) : assertFails(write));
   });
 
   it('rejects a shorter draw and a draw on a session without slots', async () => {

@@ -121,6 +121,7 @@ function makeDb(state: State): { db: Db; writes: Writes } {
       Promise.resolve({
         exists: state.docs[path] !== undefined,
         data: () => state.docs[path],
+        createTime: { toMillis: () => 100 },
       }),
     set: (data: Doc) => {
       writes.sets.push({ path, data });
@@ -203,6 +204,8 @@ function baseState(over: Partial<State> = {}): State {
     docs: {
       'admin_settings/paper_answer_sheets': { enabled: true },
       'admin_settings/plc_delegated_printing': { enabled: true },
+      // The target started this PLC, which counts as joining it themselves.
+      [`plcCreators/${PLC_ID}`]: { creatorUid: TARGET_UID, rootCreateMs: 100 },
       [`plcs/${PLC_ID}`]: {
         members: {
           [CALLER_UID]: member('member', 'Helper Teacher'),
@@ -836,6 +839,19 @@ describe('withdrawTeammatePaperBatchV1 (D22)', () => {
     expect(writes.deletes).toEqual([
       `users/${TARGET_UID}/paper_batches/${BATCH_ID}`,
     ]);
+  });
+
+  it('withdraws a stack even when the target fails the joined check', async () => {
+    const state = withdrawState({
+      quizId: THEIR_QUIZ_ID,
+      printedByUid: CALLER_UID,
+    });
+    state.docs[`plcCreators/${PLC_ID}`] = {
+      creatorUid: CALLER_UID,
+      rootCreateMs: 100,
+    };
+    const { go } = run(state);
+    await expect(go()).resolves.toEqual({ deleted: true });
   });
 
   it('refuses a stack someone else printed', async () => {

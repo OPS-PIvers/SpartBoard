@@ -106,12 +106,7 @@ export async function handleJoinPlcAssignmentSyncGroup(
     );
     if (!alreadyJoined) {
       assertPlcContentEditor(plcSnap.data(), uid);
-      assertGroupLinkedToPlc(
-        plcId,
-        plcSnap.data(),
-        templateData,
-        groupSnap.data()
-      );
+      assertGroupLinkedToPlc(plcId, plcSnap, templateSnap, groupSnap);
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {

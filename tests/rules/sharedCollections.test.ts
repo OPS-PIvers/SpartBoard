@@ -55,7 +55,8 @@ const SHARE_ID = 'col-share-rules-test';
 const BOARD_ID = 'board-snap-1';
 
 const HOST_UID = 'host-uid-sc';
-const HOST_EMAIL = 'host@example.com';
+// The host is district staff: only staff may publish a substitute share.
+const HOST_EMAIL = 'host@orono.k12.mn.us';
 
 const ORONO_UID = 'orono-teacher-uid';
 const ORONO_EMAIL = 'teacher@orono.k12.mn.us';
@@ -79,7 +80,9 @@ let testEnv: RulesTestEnvironment;
 const asUnauth = () => testEnv.unauthenticatedContext().firestore();
 
 const asHost = () =>
-  testEnv.authenticatedContext(HOST_UID, { email: HOST_EMAIL }).firestore();
+  testEnv
+    .authenticatedContext(HOST_UID, { email: HOST_EMAIL, email_verified: true })
+    .firestore();
 
 // Real Orono staff sign in via Google, which always sets email_verified: true.
 const asOronoTeacher = () =>
@@ -233,6 +236,7 @@ beforeEach(async () => {
     });
     await seedDistrictStaff(ctx.firestore(), [
       ORONO_EMAIL,
+      HOST_EMAIL,
       UNNAMED_SUB_EMAIL,
       'sub@orono.k12.mn.us',
       'ohssub@orono.k12.mn.us',

@@ -24,6 +24,10 @@ import type {
 } from '@/types';
 
 vi.mock('firebase/firestore');
+const drawCallable = vi.hoisted(() => vi.fn());
+vi.mock('firebase/functions', () => ({
+  httpsCallable: vi.fn(() => drawCallable),
+}));
 // The join-code -> session lookup has its own coverage against the emulator
 // (tests/rules/quizJoinCodeLookup.test.ts). Here it stays a thin shim over the
 // mocked getDocs so these cases keep driving session SELECTION, which is what
@@ -1298,7 +1302,7 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     );
   });
 
-  it('persistServedDraw writes the draw and refreshes lastWriteAt on the joined response', async () => {
+  it('drawBankQuestions asks the server for the draw instead of writing it', async () => {
     (
       firestore.getDocs as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValueOnce({
@@ -1315,18 +1319,26 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
       typeof vi.fn
     >;
     updateDocMock.mockResolvedValueOnce(undefined);
+    drawCallable.mockResolvedValueOnce({
+      data: { servedQuestionIds: ['f1', 'p2'] },
+    });
 
     const { result } = renderHook(() => useQuizSessionStudent());
+    let ids: string[] = [];
     await act(async () => {
       await result.current.joinQuizSession('ABC123', '1234');
-      await result.current.persistServedDraw(['f1', 'p2']);
+      ids = await result.current.drawBankQuestions();
     });
-    const draw = updateDocMock.mock.calls.find(
-      (c) => (c[1] as { servedQuestionIds?: unknown }).servedQuestionIds
-    );
-    expect(draw?.[1]).toMatchObject({ servedQuestionIds: ['f1', 'p2'] });
-    expect(draw?.[1]).toHaveProperty('lastWriteAt');
-    expect(firestore.serverTimestamp).toHaveBeenCalled();
+    expect(ids).toEqual(['f1', 'p2']);
+    expect(drawCallable).toHaveBeenCalledWith({
+      sessionId: 's1',
+      responseKey: expect.any(String),
+    });
+    expect(
+      updateDocMock.mock.calls.some(
+        (c) => (c[1] as { servedQuestionIds?: unknown }).servedQuestionIds
+      )
+    ).toBe(false);
   });
 
   // Regression: PR #1441. Same shape as the legacy-key permission-denied

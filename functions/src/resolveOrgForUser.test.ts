@@ -13,10 +13,35 @@ const docMock = vi.fn((path: string) => ({
   create: (data: unknown) => docCreateMock(path, data) as Promise<unknown>,
 }));
 
+// Collection queries: mock-class membership and the matched domain doc.
+const mockClassHit = { value: false };
+const domainRole: { value: string | undefined } = { value: 'primary' };
+const collectionMock = vi.fn((path: string) => {
+  const query = {
+    where: () => query,
+    limit: () => query,
+    get: () =>
+      Promise.resolve(
+        path.endsWith('/testClasses')
+          ? { empty: !mockClassHit.value }
+          : {
+              empty: false,
+              docs: [
+                {
+                  get: (f: string) =>
+                    f === 'role' ? domainRole.value : undefined,
+                },
+              ],
+            }
+      ),
+  };
+  return query;
+});
+
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
-  firestore: () => ({ doc: docMock }),
+  firestore: () => ({ doc: docMock, collection: collectionMock }),
 }));
 
 vi.mock('firebase-functions/v2/https', () => {
@@ -43,13 +68,16 @@ vi.mock('./classlinkShared', () => ({
   },
   resolveOrgIdForDomain: (...args: unknown[]): Promise<string | null> =>
     resolveOrgIdForDomainMock(...args) as Promise<string | null>,
+  isSafeEmailForOneRosterFilter: (email: string) => !email.includes("'"),
 }));
 
-// Students share the staff domain; auto-enroll asks ClassLink and the mock classes first.
-const isKnownStudentEmailMock = vi.fn();
-vi.mock('./districtStaff', () => ({
-  isKnownStudentEmail: (...args: unknown[]): Promise<boolean> =>
-    isKnownStudentEmailMock(...args) as Promise<boolean>,
+// Students share the staff domain; auto-enroll needs ClassLink (or a staff-only domain) to vouch for staff.
+const fetchOneRosterUsersMock = vi.fn();
+vi.mock('./studentEmailIdentity', () => ({
+  fetchOneRosterUsersByEmail: (...args: unknown[]): Promise<unknown> =>
+    fetchOneRosterUsersMock(...args) as Promise<unknown>,
+  isOneRosterStaff: (u: { role?: string }) => u.role === 'teacher',
+  isOneRosterStudent: (u: { role?: string }) => u.role === 'student',
 }));
 vi.mock('./secrets', () => {
   const secret = (v: string) => ({ value: () => v });
@@ -264,15 +292,21 @@ describe('resolveOrgForUser auto-enrollment', () => {
     docCreateMock.mockReset();
     docMock.mockClear();
     resolveOrgIdForDomainMock.mockResolvedValue('orono');
-    isKnownStudentEmailMock.mockReset();
-    isKnownStudentEmailMock.mockResolvedValue(false);
+    fetchOneRosterUsersMock.mockReset();
+    fetchOneRosterUsersMock.mockResolvedValue([{ role: 'teacher' }]);
+    mockClassHit.value = false;
+    domainRole.value = 'primary';
   });
 
   const scriptDocs = (opts: {
     memberExists: boolean;
     autoEnrollDomainUsers?: boolean;
+    isAdmin?: boolean;
   }): void => {
     docGetMock.mockImplementation((path: string) => {
+      if (path === 'admins/new.teacher@orono.k12.mn.us') {
+        return Promise.resolve({ exists: opts.isAdmin === true });
+      }
       if (path === MEMBER_PATH) {
         return Promise.resolve({ exists: opts.memberExists });
       }
@@ -307,28 +341,78 @@ describe('resolveOrgForUser auto-enrollment', () => {
     });
   });
 
-  it('never enrolls a ClassLink or mock-class student, but still resolves', async () => {
+  it('never enrolls a ClassLink student, but still resolves', async () => {
     scriptDocs({ memberExists: false });
-    isKnownStudentEmailMock.mockResolvedValue(true);
+    fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
     const res = await handler({ auth: verifiedAuth, data: {} });
     expect(res).toEqual({ orgId: 'orono' });
-    expect(isKnownStudentEmailMock).toHaveBeenCalledWith(
-      expect.anything(),
-      'orono',
+    expect(fetchOneRosterUsersMock).toHaveBeenCalledWith(
       'new.teacher@orono.k12.mn.us',
       {
         classlinkClientId: 'cl-id',
         classlinkClientSecret: 'cl-secret',
         tenantUrl: 'https://tenant.example',
       },
-      { rosterOptional: false }
+      8000
     );
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('never enrolls a mock-class student ClassLink does not list as staff', async () => {
+    scriptDocs({ memberExists: false });
+    mockClassHit.value = true;
+    fetchOneRosterUsersMock.mockResolvedValue([]);
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('never enrolls an address ClassLink does not know on a shared domain', async () => {
+    scriptDocs({ memberExists: false });
+    fetchOneRosterUsersMock.mockResolvedValue([]);
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('never enrolls anyone on a domain registered for students', async () => {
+    scriptDocs({ memberExists: false });
+    domainRole.value = 'student';
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(fetchOneRosterUsersMock).not.toHaveBeenCalled();
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("never enrolls an unknown address on a domain marked staff (the admin panel's default)", async () => {
+    scriptDocs({ memberExists: false });
+    domainRole.value = 'staff';
+    fetchOneRosterUsersMock.mockResolvedValue([]);
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('enrolls an address on the admin list that ClassLink does not know', async () => {
+    scriptDocs({ memberExists: false, isAdmin: true });
+    fetchOneRosterUsersMock.mockResolvedValue([]);
+    docCreateMock.mockResolvedValue(undefined);
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).toHaveBeenCalled();
+  });
+
+  it('never enrolls a ClassLink student even on the admin list', async () => {
+    scriptDocs({ memberExists: false, isAdmin: true });
+    fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
     expect(docCreateMock).not.toHaveBeenCalled();
   });
 
   it('skips enrollment when ClassLink cannot answer, so the next load retries', async () => {
     scriptDocs({ memberExists: false });
-    isKnownStudentEmailMock.mockRejectedValue(new Error('roster down'));
+    fetchOneRosterUsersMock.mockRejectedValue(new Error('roster down'));
     const res = await handler({ auth: verifiedAuth, data: {} });
     expect(res).toEqual({ orgId: 'orono', enrollFailed: true });
     expect(docCreateMock).not.toHaveBeenCalled();

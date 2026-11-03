@@ -60,21 +60,42 @@ const hasKey = (obj: unknown, key: unknown): boolean =>
   key.length > 0 &&
   Object.prototype.hasOwnProperty.call(obj, key);
 
-/**
- * Throws `permission-denied` unless the synced group really was shared into
- * this PLC: the header's `sharedBy` (rules-pinned to its writer) is a
- * participant, or the group was created for this PLC (immutable `plcId`) and an
- * active keyed PLC member still participates (so a recreated PLC id gains nothing).
- */
-export function assertGroupLinkedToPlc(
+/** The slice of a Firestore snapshot the link check reads; `createTime` is server-set. */
+export interface LinkSnap {
+  data(): Record<string, unknown> | undefined;
+  createTime?: { toMillis(): number };
+}
+
+/** True when `snap` was created at or after the current PLC root, so it can't be left over from a dissolved PLC that reused the id. */
+function createdSinceRoot(plc: LinkSnap, snap: LinkSnap): boolean {
+  const rootAt = plc.createTime?.toMillis();
+  const at = snap.createTime?.toMillis();
+  return rootAt !== undefined && at !== undefined && at >= rootAt;
+}
+
+/** True when this PLC's header names a participant, or the group was made for this PLC with an active keyed member in it; both must postdate the root. */
+export function isGroupLinkedToPlc(
   plcId: string,
-  plcData: Record<string, unknown> | undefined,
-  header: Record<string, unknown> | undefined,
-  group: Record<string, unknown> | undefined
-): void {
-  const participants = group?.participants;
-  if (hasKey(participants, header?.sharedBy)) return;
-  // Leads can rewrite memberUids freely; only consented `members` entries count.
+  plc: LinkSnap,
+  header: LinkSnap,
+  group: LinkSnap
+): boolean {
+  const plcData = plc.data();
+  const headerData = header.data();
+  const groupData = group.data();
+  const participants = groupData?.participants;
+  // A group stamped with this id but older than the root belongs to an earlier PLC.
+  if (groupData?.plcId === plcId && !createdSinceRoot(plc, group)) return false;
+  if (
+    hasKey(participants, headerData?.sharedBy) &&
+    createdSinceRoot(plc, header)
+  ) {
+    return true;
+  }
+  if (groupData?.plcId !== plcId || !createdSinceRoot(plc, group)) {
+    return false;
+  }
+  // Leads can rewrite memberUids freely; only `members` entries count.
   const members = plcData?.members;
   const memberUids = isRecord(members)
     ? Object.keys(members).filter((m) => {
@@ -84,12 +105,17 @@ export function assertGroupLinkedToPlc(
     : Array.isArray(plcData?.memberUids)
       ? (plcData?.memberUids as unknown[])
       : [];
-  if (
-    group?.plcId === plcId &&
-    memberUids.some((m) => hasKey(participants, m))
-  ) {
-    return;
-  }
+  return memberUids.some((m) => hasKey(participants, m));
+}
+
+/** Throws `permission-denied` unless {@link isGroupLinkedToPlc}. */
+export function assertGroupLinkedToPlc(
+  plcId: string,
+  plc: LinkSnap,
+  header: LinkSnap,
+  group: LinkSnap
+): void {
+  if (isGroupLinkedToPlc(plcId, plc, header, group)) return;
   throw new HttpsError(
     'permission-denied',
     'This synced group is not shared with this PLC.'

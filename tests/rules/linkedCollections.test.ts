@@ -24,6 +24,7 @@ import {
   where,
   getDocs,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-linked-collections';
 const SYNCED_ID = 'link-synced';
@@ -42,9 +43,21 @@ const RULES_PATH = fileURLToPath(
 
 let testEnv: RulesTestEnvironment;
 
+// Teachers are district staff: a verified Orono address with an active member doc.
+const STAFF_UIDS = [
+  HOST_UID,
+  COLLAB_UID,
+  VIEWER_UID,
+  STRANGER_UID,
+  'collab2-uid',
+];
 const as = (uid: string, claims: Record<string, unknown> = {}) =>
   testEnv
-    .authenticatedContext(uid, { email: `${uid}@example.com`, ...claims })
+    .authenticatedContext(uid, {
+      email: `${uid}@orono.k12.mn.us`,
+      email_verified: true,
+      ...claims,
+    })
     .firestore();
 const asHost = () => as(HOST_UID);
 const asCollab = () => as(COLLAB_UID);
@@ -118,6 +131,10 @@ beforeEach(async () => {
     );
     await setDoc(ref(db, ENDED_ID), linkDoc({ ended: true }));
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { email: ADMIN_EMAIL });
+    await seedDistrictStaff(
+      db,
+      STAFF_UIDS.map((uid) => `${uid}@orono.k12.mn.us`)
+    );
   });
 });
 

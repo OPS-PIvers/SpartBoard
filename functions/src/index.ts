@@ -106,6 +106,8 @@ export {
 } from './glBuildingIndex';
 // Published live-tour snapshots: set deletes and the one-time publish of existing tours.
 export { glTourSnapshots } from './glTours';
+// Board share item copies: removed when the share ends or a member leaves.
+export { sharedBoardItemsCleanup } from './sharedBoardItemsCleanup';
 // Web tour drafts: a deleted draft removes its published snapshot and pictures.
 export { webTourCleanup } from './webTours';
 export { tourAnchorApi } from './tourAnchorApi';
@@ -177,6 +179,7 @@ export { getMyQuizAttemptsV1 } from './getMyQuizAttempts';
 
 // ── Review self-paced game (server-graded per answer; QUIZ_REVIEW_SPLIT.md D31) ─
 export { checkQuizGameAnswerV1 } from './checkQuizGameAnswer';
+export { drawQuizBankQuestionsV1 } from './quizBankDraw';
 
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {

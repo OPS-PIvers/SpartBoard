@@ -355,7 +355,7 @@ describe('answer writes on a per-period video activity', () => {
 
   it('refuses finishing while closed', async () => {
     await withPeriod({ state: 'closed' });
-    await assertFails(updateDoc(resp(), { completedAt: 5 }));
+    await assertFails(updateDoc(resp(), { completedAt: Date.now() }));
     await assertFails(updateDoc(resp(), { completedAttempts: increment(1) }));
   });
 
@@ -364,7 +364,7 @@ describe('answer writes on a per-period video activity', () => {
     await assertSucceeds(
       updateDoc(resp(), {
         answers: [answer],
-        completedAt: 5,
+        completedAt: Date.now(),
         completedAttempts: increment(1),
       })
     );
