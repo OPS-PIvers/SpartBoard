@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-103**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-104**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -117,6 +117,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Build hygiene
 
+- **AB-103 Wall-clock budget in the board wireframe test** (S). `functions/src/mcp/boardWireframe.test.ts:230` ("stays fast when every widget covers the whole board") asserts the render takes under 1000 ms; on 2026-11-03 it failed #5070's CI at 1000.33 ms on a loaded runner and passed on re-run. Replace the timing check with something load-independent (count the overlap work, or a much looser bound kept only as a hang guard). Done when: the test can't fail from runner speed alone and still catches a quadratic blow-up.
 - **AB-33 Unused-locals strictness** (L). `tsconfig.json:38-39` has `noUnusedLocals`/`noUnusedParameters` false. Flip them and clear TS6133/TS6196 in per-directory batches.
 - **AB-34 CI lint memory** (M). F11: split the root and functions type-aware ESLint passes so the `NODE_OPTIONS` 5120 MB override can go, or document why it stays.
 - **AB-35 Functions `types.ts` alias** (S). F18: give `functions/tsconfig.json` an alias to the root `types.ts`, or close the item with the reason (ClassLinkUser duplication is already solved by `functions/src/classlinkShared.ts`).
