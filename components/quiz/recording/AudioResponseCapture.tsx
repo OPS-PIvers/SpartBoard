@@ -589,7 +589,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
                 : t('quizMediaResponse.capture.notSubmittedPending')}
             </p>
             {archiveFailed && onRetryUpload && (
-              <button
+              <button /* no-tour-anchor: student recording screen */
                 ref={retryBtnRef}
                 type="button"
                 onClick={() => void handleRetryUpload()}
@@ -608,7 +608,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
 
         <div className="mt-5 flex flex-wrap gap-3">
           {phase === 'armed' && !takeBudgetReached && (
-            <button
+            <button /* no-tour-anchor: student recording screen */
               type="button"
               onClick={() => void recorder.start()}
               className={`${primaryBtn} bg-brand-red-primary text-white outline-brand-red-primary hover:bg-brand-red-dark`}
@@ -625,7 +625,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
           )}
 
           {phase === 'recording' && (
-            <button
+            <button /* no-tour-anchor: student recording screen */
               type="button"
               onClick={recorder.stop}
               className={`${primaryBtn} ${
@@ -643,7 +643,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
 
           {phase === 'reviewing' && (
             <>
-              <button
+              <button /* no-tour-anchor: student recording screen */
                 type="button"
                 onClick={() => void handleCommit()}
                 disabled={commitState === 'committing'}

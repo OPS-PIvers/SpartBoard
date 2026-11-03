@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-10-23_
+_Last audited: 2026-10-30_
 _Last action: 2026-09-23 — MEDIUM `FeaturePermissionsManager.tsx` grid/list card-body duplication resolved: extracted a shared `WidgetPermissionCardBody` component (`variant: 'grid' | 'list'`) consumed by both view modes, shrinking the file from 1,078 to 738 lines. Moved to Completed._
 
 _2026-10-16: Friday weekly audit (C1), light pass. Non-test files >1000 lines: 80. Largest: `context/DashboardContext.tsx` 7770 lines (existing items), `QuizStudentApp.tsx` 6450, `QuizResults.tsx` 4544, `QuizWidget/Widget.tsx` 4309, `useQuizSession.ts` 3966, `useQuizAssignments.ts` 3733, `DraggableWindow.tsx` 3579, `AuthContext.tsx` 3428. `functions/src/index.ts` is now 360 lines (functions split across modules); no `firebase-functions/v1` imports remain in `functions/src` and no `functionsV1` use, so the v1/v2 and `index.ts`-size items below are stale. `getAdminBuildingConfig` now delegates to `utils/adminBuildingConfig.ts`. No imports with 3+ levels of `../` in components/context/hooks/utils. 0 new issues; existing Open items not individually re-diffed._
@@ -20,6 +20,16 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW `utils/geminiModelDeprecation.ts` now has no production consumer
+
+- **Detected:** 2026-10-30
+- **File:** utils/geminiModelDeprecation.ts
+- **Detail:** `isDeprecatedGeminiModelId` was last imported by `components/admin/GlobalPermissionsManager.tsx` (see the single-consumer list); that import is gone and only `tests/utils/geminiModelDeprecation*.test.ts` reference it. The model check now lives server-side in `functions/src/shared.ts`, so the client mirror and its parity test are dead weight.
+- **Fix:** Delete `utils/geminiModelDeprecation.ts` and its two tests, or re-wire it into the Admin AI tab if a client-side warning is still wanted.
+
+
+_2026-10-30: Friday weekly audit (C1), light pass. Non-test files >500 lines: 297. Largest: `context/DashboardContext.tsx` 8527 lines (was 7770 on 10-16; existing HIGH item), `QuizStudentApp.tsx` 6675, `QuizResults.tsx` 4827, `QuizWidget/Widget.tsx` 4527, `useQuizSession.ts` 4210, `useQuizAssignments.ts` 3869, `DraggableWindow.tsx` 3724, `AuthContext.tsx` 3538. No imports with 3+ levels of `../`. No `functionsV1` in `functions/src/index.ts`. Single-consumer utils: list unchanged apart from the new item below. 1 new issue._
 
 _2026-10-23: Friday weekly audit (C1), light pass. Non-test files >1000 lines: 83. Largest: `context/DashboardContext.tsx` 8513 lines (+743 since 7770 on 2026-10-16; existing HIGH/MEDIUM items still stand), `AuthContext.tsx` 3506, `functions/src/index.ts` 376 lines, no `firebase-functions/v1` imports. 0 imports with 3+ levels of `../`. 0 new issues._
 
