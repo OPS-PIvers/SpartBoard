@@ -128,7 +128,12 @@ const ConnectionBadgeInner: React.FC<{
           e.stopPropagation();
           const d = downAt.current;
           downAt.current = null;
-          if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
+          if (
+            e.detail > 0 &&
+            d &&
+            Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4
+          )
+            return;
           if (!summary.seqId) {
             edit();
             return;
