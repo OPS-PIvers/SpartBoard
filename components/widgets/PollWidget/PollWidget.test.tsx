@@ -1695,27 +1695,6 @@ describe('PollSettings', () => {
       screen.getByRole('button', { name: 'Load Exit ticket' })
     ).toBeDisabled();
   });
-
-  it('hides the question type menu without the flag', () => {
-    mockCanAccessFeature.mockImplementation((id: string) => id !== 'poll-pro');
-    render(
-      <PollSettings
-        widget={{
-          id: 'poll-1',
-          type: 'poll',
-          w: 2,
-          h: 2,
-          x: 0,
-          y: 0,
-          z: 1,
-          flipped: false,
-          config: { question: 'Pick one', options: [] },
-        }}
-      />
-    );
-    expect(screen.queryByLabelText(/question type/i)).not.toBeInTheDocument();
-    mockCanAccessFeature.mockImplementation(() => true);
-  });
 });
 
 /**

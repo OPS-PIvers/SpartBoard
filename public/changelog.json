@@ -2615,7 +2615,6 @@
       "id": "poll-pro-2026-10-25",
       "widget": "poll",
       "date": "2026-10-25",
-      "feature": "poll-pro",
       "text": "Hide results until you reveal them, lock voting, show the correct answer, and ask rating scale, word cloud and open response questions. Settings show every question's results, export them, and save a poll to use again."
     },
     {
