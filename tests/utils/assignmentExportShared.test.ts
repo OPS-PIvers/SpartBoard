@@ -168,7 +168,7 @@ describe('buildResultsSheetData', () => {
     );
     // Student column at index 3; rows are sorted by name so verify both
     const names = dataRows.map((row) => row[3]);
-    expect(names).toContain('Alex Lee');
+    expect(names).toContain('Lee, Alex');
     expect(names).toContain('Maya');
   });
 
@@ -197,6 +197,36 @@ describe('buildResultsSheetData', () => {
     );
     expect(dataRows[0][3]).toBe('Aiden');
     expect(dataRows[1][3]).toBe('Zara');
+  });
+
+  it('exports ClassLink names as "Last, First" sorted by last name, unnamed rows last', () => {
+    const names = new Map([
+      ['u1', { givenName: 'Zoe', familyName: 'Adams' }],
+      ['u2', { givenName: 'Amy', familyName: 'Smithson' }],
+      ['u3', { givenName: 'Bob', familyName: 'Smith' }],
+      ['u4', { givenName: 'Cher', familyName: '' }],
+    ]);
+    const { dataRows } = buildResultsSheetData(
+      [
+        r({ studentUid: 'anon', pin: undefined }),
+        r({ studentUid: 'u2', pin: undefined }),
+        r({ studentUid: 'u3', pin: undefined }),
+        r({ studentUid: 'pinless', pin: '07' }),
+        r({ studentUid: 'u4', pin: undefined }),
+        r({ studentUid: 'u1', pin: undefined }),
+      ],
+      [q()],
+      ALWAYS_FULL,
+      { byStudentUid: names }
+    );
+    expect(dataRows.map((row) => row[3])).toEqual([
+      'Adams, Zoe',
+      'Cher',
+      'Smith, Bob',
+      'Smithson, Amy',
+      'Student',
+      'Student (PIN: 07)',
+    ]);
   });
 
   // Regression: Firestore arrayUnion races / Drive-sync double-writes can

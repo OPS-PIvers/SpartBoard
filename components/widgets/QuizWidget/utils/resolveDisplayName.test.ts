@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { findDuplicateResponseIds, responseTeamId } from './resolveDisplayName';
-import { buildPinToNameMap } from './quizScoreboard';
+import {
+  findDuplicateResponseIds,
+  resolveResponseExportName,
+  responseTeamId,
+} from './resolveDisplayName';
+import { buildPinToExportNameMap, buildPinToNameMap } from './quizScoreboard';
 import type { QuizResponse, ClassRoster } from '@/types';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
 
@@ -92,5 +96,40 @@ describe('findDuplicateResponseIds', () => {
       undefined
     );
     expect(dup.size).toBe(0);
+  });
+});
+
+describe('resolveResponseExportName', () => {
+  const roster = {
+    id: 'r1',
+    name: 'Period 1',
+    students: [{ id: 's1', firstName: 'Maya', lastName: 'Ortiz', pin: '02' }],
+  } as unknown as ClassRoster;
+  const exportMap = buildPinToExportNameMap([roster], ['Period 1']);
+
+  it('puts ClassLink and roster names in "Last, First" order', () => {
+    const names = byUid({ uidA: { givenName: 'Kya', familyName: 'Newell' } });
+    expect(resolveResponseExportName(sso('uidA'), exportMap, names)).toBe(
+      'Newell, Kya'
+    );
+    expect(
+      resolveResponseExportName(pinResp('02', 'Period 1'), exportMap, names)
+    ).toBe('Ortiz, Maya');
+  });
+
+  it('keeps staff labels and the generic fallbacks', () => {
+    expect(
+      resolveResponseExportName(
+        resp({ staffEmail: 'pat@x.org', staffName: 'Pat Doe' }),
+        exportMap,
+        undefined
+      )
+    ).toContain('Pat Doe');
+    expect(resolveResponseExportName(pinResp('99'), exportMap, undefined)).toBe(
+      'PIN 99'
+    );
+    expect(resolveResponseExportName(sso('nobody'), exportMap, undefined)).toBe(
+      'Student'
+    );
   });
 });

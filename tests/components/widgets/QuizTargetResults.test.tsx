@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import type { QuestionTargetTag, QuizQuestion, QuizResponse } from '@/types';
@@ -74,5 +74,46 @@ describe('QuizTargetResults', () => {
     const sortedRows = within(table).getAllByRole('row').slice(1);
     expect(within(sortedRows[0]).getByText('Ada Lovelace')).toBeInTheDocument();
     expect(within(sortedRows[0]).getByText('100%')).toBeInTheDocument();
+  });
+
+  it('exports "Last, First" names sorted by last name', async () => {
+    const responses = [response('ada', 'A'), response('grace', 'B')];
+    const stats = computeTargetStats([question], responses, {
+      proficient: 80,
+      approaching: 60,
+    });
+    const blobs: Blob[] = [];
+    const create = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation((blob) => {
+        blobs.push(blob as Blob);
+        return 'blob:x';
+      });
+    const revoke = vi
+      .spyOn(URL, 'revokeObjectURL')
+      .mockImplementation(() => undefined);
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+    render(
+      <QuizTargetResults
+        quizTitle="Evidence Quiz"
+        responses={responses}
+        stats={stats}
+        resolveName={(item) =>
+          item.studentUid === 'ada' ? 'Ada Lovelace' : 'Grace Hopper'
+        }
+        resolveExportName={(item) =>
+          item.studentUid === 'ada' ? 'Lovelace, Ada' : 'Hopper, Grace'
+        }
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Export CSV/ }));
+    const lines = (await blobs[0].text()).split(/\r?\n/);
+    expect(lines[1]).toContain('Hopper, Grace');
+    expect(lines[2]).toContain('Lovelace, Ada');
+    create.mockRestore();
+    revoke.mockRestore();
+    click.mockRestore();
   });
 });
