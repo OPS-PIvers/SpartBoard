@@ -113,9 +113,7 @@ interface WidgetLibraryProps {
   onClose: () => void;
   globalStyle: GlobalStyle;
   triggerRef?: React.RefObject<HTMLElement | null>;
-  /** Fills most of the screen instead of the fixed 672x560 box (`widget-library-large`). */
-  large?: boolean;
-  /** Side the dock sits on, so the large library leaves it uncovered. */
+  /** Side the dock sits on, so the library leaves it uncovered. */
   dockPosition?: DockPosition;
   libraryOrder: (WidgetType | InternalToolType)[];
   onReorderLibrary: (tools: (WidgetType | InternalToolType)[]) => void;
@@ -275,7 +273,6 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       onClose,
       globalStyle,
       triggerRef,
-      large = false,
       dockPosition = 'bottom',
       libraryOrder,
       onReorderLibrary,
@@ -332,11 +329,11 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       triggerRef ? [triggerRef] : []
     );
 
-    // Measured dock footprint, so long side-dock labels never sit under the large library.
+    // Measured dock footprint, so long side-dock labels never sit under the library.
     const [dockClearancePx, setDockClearancePx] = useState<number | null>(null);
     useEffect(() => {
       const dock = triggerRef?.current;
-      if (!large || !dock) return;
+      if (!dock) return;
       const measure = () => {
         const r = dock.getBoundingClientRect();
         const edge =
@@ -361,7 +358,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
         window.removeEventListener('resize', measure);
         dock.removeEventListener('transitionend', onTransitionEnd);
       };
-    }, [large, dockPosition, triggerRef]);
+    }, [dockPosition, triggerRef]);
 
     // Portalled outside any `.widget`/Modal ancestor — stop Escape reaching DashboardView's global handler.
     useEffect(() => {
@@ -603,12 +600,8 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
           : 'No built-in widgets available for your selected buildings'
         : 'All built-in widgets are in your dock';
 
-    const toolGrid = large
-      ? 'grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-3'
-      : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4';
-    const smallGrid = large
-      ? 'grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-3'
-      : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3';
+    const toolGrid =
+      'grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-3';
     const dockClearance =
       dockPosition === 'left'
         ? 'pl-36'
@@ -618,11 +611,9 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
 
     return createPortal(
       <div
-        className={`fixed inset-0 z-modal flex items-center justify-center p-4 animate-in fade-in duration-200 pointer-events-none ${
-          large ? dockClearance : ''
-        }`}
+        className={`fixed inset-0 z-modal flex items-center justify-center p-4 animate-in fade-in duration-200 pointer-events-none ${dockClearance}`}
         style={
-          large && dockClearancePx !== null
+          dockClearancePx !== null
             ? {
                 [dockPosition === 'left'
                   ? 'paddingLeft'
@@ -638,11 +629,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
           globalStyle={globalStyle}
           transparency={0.98}
           {...tourAttr('library.root')}
-          className={`w-full overflow-hidden flex flex-col p-0 shadow-2xl animate-in zoom-in-95 duration-300 select-none pointer-events-auto ${
-            large
-              ? 'max-w-7xl h-full max-h-224'
-              : 'max-w-2xl h-[560px] max-h-[75vh]'
-          }`}
+          className={`w-full overflow-hidden flex flex-col p-0 shadow-2xl animate-in zoom-in-95 duration-300 select-none pointer-events-auto max-w-7xl h-full max-h-224`}
         >
           <div className="bg-white/50 px-6 py-4 border-b border-white/30 flex justify-between items-center shrink-0 backdrop-blur-xl">
             <div className="flex items-center gap-4">
@@ -750,11 +737,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               </select>
             </div>
           </div>
-          <div
-            className={`flex-1 overflow-y-auto custom-scrollbar ${
-              large ? 'px-6 py-4 space-y-5' : 'p-6 space-y-6'
-            }`}
-          >
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4 space-y-5">
             {savedMatches.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -763,7 +746,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                     My Saved Widgets
                   </p>
                 </div>
-                <div className={smallGrid}>
+                <div className={toolGrid}>
                   {savedMatches.map((sw) => {
                     const Icon = getCustomWidgetIcon(sw.icon) ?? Puzzle;
                     return (
@@ -860,7 +843,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                     Custom Widgets
                   </p>
                 </div>
-                <div className={smallGrid}>
+                <div className={toolGrid}>
                   {customMatches.map((w) => {
                     const Icon = getCustomWidgetIcon(w.icon);
                     return (
@@ -1024,13 +1007,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               </div>
             )}
           </div>
-          <div
-            className={`bg-slate-50/50 px-6 py-3 border-t border-white/30 backdrop-blur-xl ${
-              large
-                ? 'flex flex-col sm:flex-row items-center sm:justify-between gap-3 text-center sm:text-left'
-                : 'text-center space-y-3'
-            }`}
-          >
+          <div className="bg-slate-50/50 px-6 py-3 border-t border-white/30 backdrop-blur-xl flex flex-col sm:flex-row items-center sm:justify-between gap-3 text-center sm:text-left">
             <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
               {shownTools.length > 0 || shownOtherGradeTools.length > 0
                 ? isEditMode
@@ -1046,9 +1023,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
             <button
               onClick={handleResetDock}
               {...tourAttr('library.reset-dock')}
-              className={`${
-                large ? 'w-full sm:w-auto shrink-0' : 'w-full max-w-xs mx-auto'
-              } py-2 px-4 bg-white/50 border border-slate-200 text-slate-500 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-white hover:text-brand-red-primary hover:border-brand-red-light transition-all shadow-xs`}
+              className={`w-full sm:w-auto shrink-0 py-2 px-4 bg-white/50 border border-slate-200 text-slate-500 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-white hover:text-brand-red-primary hover:border-brand-red-light transition-all shadow-xs`}
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Reset Dock to Defaults
