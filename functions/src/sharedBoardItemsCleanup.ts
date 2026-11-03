@@ -41,9 +41,16 @@ export async function cleanupSharedBoardItems(
     .doc(shareId)
     .collection(SHARED_BOARD_ITEMS);
   const now = (await db.collection('shared_boards').doc(shareId).get()).data();
+  if (plan.all && now) {
+    // Re-created at the same id: keep only copies owned by the new share's members.
+    const keep = new Set(participantUids(now));
+    if (typeof now.originalAuthor === 'string') keep.add(now.originalAuthor);
+    const snap = await items.get();
+    const gone = snap.docs.filter((d) => !keep.has(String(d.get('ownerUid'))));
+    await Promise.all(gone.map((d) => d.ref.delete()));
+    return gone.length;
+  }
   if (plan.all) {
-    // A share re-created at the same id (a board added back to a collection) keeps its copies.
-    if (now) return 0;
     let removed = 0;
     const writer = db.bulkWriter();
     writer.onWriteResult(() => {
