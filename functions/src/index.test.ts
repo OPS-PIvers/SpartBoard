@@ -49,6 +49,8 @@ const mockFirestoreState = {
   studentSections: [] as { id: string; orgId: string; updatedAt: number }[],
   // Quiz `responses` docs: [sessionsCollection, studentUid, joinedAt].
   studentResponses: [] as [string, string, number][],
+  // Verified `organizations/{orgId}/domains` docs: [orgId, '@domain'].
+  verifiedDomains: [] as [string, string][],
 };
 
 const toDocSnapshot = (doc: MockDocInput) => ({
@@ -227,6 +229,22 @@ const mockFirestore = {
       };
     }
 
+    if (name.startsWith('organizations/') && name.endsWith('/domains')) {
+      const orgId = name.split('/')[1];
+      return {
+        where: () => ({
+          get: () =>
+            Promise.resolve({
+              docs: mockFirestoreState.verifiedDomains
+                .filter(([org]) => org === orgId)
+                .map(([, domain]) => ({
+                  get: (f: string) => (f === 'domain' ? domain : undefined),
+                })),
+            }),
+        }),
+      };
+    }
+
     // Members collection for org-scoped analytics. Each `mockFirestoreState.users`
     // entry represents a member of the org with `id` as their uid, `email` as
     // their member email, and `buildings` as their admin-assigned buildingIds.
@@ -269,7 +287,16 @@ const mockFirestore = {
                 const idSet = new Set(ids);
                 const matchedDocs = mockFirestoreState.users
                   .filter((doc) => idSet.has(doc.id))
-                  .map((doc) => toDocSnapshot(doc));
+                  .map((doc) =>
+                    toDocSnapshot(
+                      doc.data.profileEmail
+                        ? {
+                            ...doc,
+                            data: { ...doc.data, email: doc.data.profileEmail },
+                          }
+                        : doc
+                    )
+                  );
                 return Promise.resolve({ docs: matchedDocs });
               }),
             })),
@@ -347,6 +374,27 @@ const mockFirestore = {
     };
   }),
   collectionGroup: vi.fn((name: string) => {
+    // Only analytics tests seed domains; other suites keep the default stub.
+    if (name === 'domains' && mockFirestoreState.verifiedDomains.length > 0) {
+      return {
+        where: (_f: string, _op: string, domain: string) => ({
+          where: () => ({
+            get: () =>
+              Promise.resolve({
+                docs: mockFirestoreState.verifiedDomains
+                  .filter(([, d]) => d === domain)
+                  .map(([org]) => ({
+                    ref: {
+                      path: `organizations/${org}/domains/d`,
+                      parent: { parent: { id: org } },
+                    },
+                  })),
+              }),
+          }),
+        }),
+      };
+    }
+
     if (name === 'dashboards') {
       return {
         select: vi.fn(() => ({
@@ -1035,6 +1083,7 @@ describe('checkUrlCompatibility', () => {
 describe('adminAnalytics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFirestoreState.verifiedDomains = [['orono', '@district.org']];
     mockFirestoreState.admins = new Set<string>(['admin@school.org']);
     mockFirestoreState.users = [];
     mockFirestoreState.dashboards = [];
@@ -1542,6 +1591,7 @@ describe('adminAnalytics', () => {
       {
         id: 'uid_b',
         data: {
+          email: '',
           lastLogin: Date.now(),
           buildings: [],
         },
@@ -1565,6 +1615,63 @@ describe('adminAnalytics', () => {
       count: 3,
       email: 'Unknown (uid_b)',
     });
+  });
+
+  it('labels topUsers from the org roster, never the user profile email', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid_a',
+        data: {
+          email: 'heavy@district.org',
+          profileEmail: 'colleague@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid_a_2026-03-30', data: { count: 9 } },
+    ];
+
+    const capturedData = await computeAnalyticsForOrg('orono');
+
+    expect(capturedData.api.topUsers[0]).toEqual({
+      uid: 'uid_a',
+      count: 9,
+      email: 'heavy@district.org',
+    });
+  });
+
+  it('reports no usage for an unlinked member on a domain this org does not own', async () => {
+    const now = Date.now();
+    mockFirestoreState.users = [
+      {
+        id: 'uid_foreign',
+        data: {
+          email: 'teacher@victim.org',
+          lastLogin: now,
+          buildings: [],
+          unlinked: true,
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [
+      {
+        id: 'dash-foreign',
+        ownerUid: 'uid_foreign',
+        data: { updatedAt: now, widgets: [{ type: 'clock' }] },
+      },
+    ];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid_foreign_2026-09-30', data: { count: 4 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.users.total).toBe(1);
+    expect(result.users.registered).toBe(0);
+    expect(result.users.withDashboards).toBe(0);
+    expect(result.api.totalCalls).toBe(0);
   });
 
   it('returns usersByType with correct count and resolved emails', async () => {
@@ -2321,6 +2428,7 @@ describe('adminAnalytics', () => {
 describe('recomputeAdminAnalytics (scheduled)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFirestoreState.verifiedDomains = [];
     mockFirestoreState.admins = new Set<string>();
     mockFirestoreState.users = [];
     mockFirestoreState.dashboards = [];

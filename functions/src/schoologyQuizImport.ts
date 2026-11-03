@@ -429,6 +429,26 @@ export async function receiveQuiz(
   };
 }
 
+/** The account's uid only when a Google sign-in proved it owns the address; anyone can register an unverified password account. */
+export function trustedSignInUid(
+  user: {
+    uid: string;
+    emailVerified?: boolean;
+    disabled?: boolean;
+    providerData?: ReadonlyArray<{ providerId?: string; email?: string }>;
+  },
+  email: string
+): string | null {
+  if (user.disabled === true || user.emailVerified !== true) return null;
+  const want = email.trim().toLowerCase();
+  const google = (user.providerData ?? []).some(
+    (p) =>
+      p?.providerId === 'google.com' &&
+      (p.email ?? '').trim().toLowerCase() === want
+  );
+  return google ? user.uid : null;
+}
+
 const inboxRef = (db: Firestore, uid: string) =>
   db.collection('users').doc(uid).collection(INBOX_COLLECTION);
 
@@ -438,7 +458,10 @@ function defaultDeps(db: Firestore): ImporterDeps {
     tokenInfo: fetchTokenInfo,
     uidForEmail: async (email) => {
       try {
-        return (await admin.auth().getUserByEmail(email)).uid;
+        return trustedSignInUid(
+          await admin.auth().getUserByEmail(email),
+          email
+        );
       } catch {
         return null;
       }

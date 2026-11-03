@@ -24,17 +24,28 @@
  * active teacher. Historically member docs only came from the 2026-04-19
  * backfill (scripts/backfill-org-members.js) or invite acceptance, so a
  * registered-domain teacher signing in for the first time silently landed in
- * the free tier with ClassLink and every org surface hidden. Guards mirror the
- * backfill: numeric-local (student-ID) emails are skipped, so is any address
- * ClassLink or a mock class lists as a student, existing docs are never
- * touched (admin roles and 'inactive' lockouts survive), the email claim must
- * be verified, and an org can opt out via `autoEnrollDomainUsers: false`
- * on its org doc. Enrollment failures are logged but never fail resolution.
+ * the free tier with ClassLink and every org surface hidden. Students share
+ * the staff domain, so enrollment needs a positive staff signal: ClassLink
+ * lists the address with a staff role, or the matched domain is registered
+ * for staff only. Numeric-local (student-ID) emails, student-only domains and
+ * any address ClassLink or a mock class lists as a student are skipped,
+ * existing docs are never touched (admin roles and 'inactive' lockouts
+ * survive), the email claim must be verified, and an org can opt out via
+ * `autoEnrollDomainUsers: false` on its org doc. Anyone else joins by invite.
+ * Enrollment failures are logged but never fail resolution.
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
-import { normalizeEmailDomain, resolveOrgIdForDomain } from './classlinkShared';
-import { isKnownStudentEmail } from './districtStaff';
+import {
+  isSafeEmailForOneRosterFilter,
+  normalizeEmailDomain,
+  resolveOrgIdForDomain,
+} from './classlinkShared';
+import {
+  fetchOneRosterUsersByEmail,
+  isOneRosterStaff,
+  isOneRosterStudent,
+} from './studentEmailIdentity';
 import {
   CLASSLINK_CLIENT_ID,
   CLASSLINK_CLIENT_SECRET,
@@ -93,6 +104,64 @@ export function isAutoEnrollableEmail(email: string): boolean {
   return local.length > 0 && !/^\d+$/.test(local);
 }
 
+export type RosterRole = 'staff' | 'student' | 'unknown';
+
+/** ClassLink's answer for an address, staff winning over a mock-class entry; throws when ClassLink can't answer unless rosterOptional. */
+export async function lookupRosterRole(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  emailLower: string,
+  opts: { rosterOptional: boolean }
+): Promise<RosterRole> {
+  const mock = await db
+    .collection(`organizations/${orgId}/testClasses`)
+    .where('memberEmails', 'array-contains', emailLower)
+    .limit(1)
+    .get();
+  const fallback: RosterRole = mock.empty ? 'unknown' : 'student';
+  // ClassLink can't be asked about an address with a quote.
+  if (!isSafeEmailForOneRosterFilter(emailLower)) return fallback;
+  try {
+    const secrets = {
+      classlinkClientId: CLASSLINK_CLIENT_ID.value(),
+      classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
+      tenantUrl: CLASSLINK_TENANT_URL.value(),
+    };
+    if (
+      !secrets.classlinkClientId ||
+      !secrets.classlinkClientSecret ||
+      !secrets.tenantUrl
+    ) {
+      throw new Error('ClassLink is not configured.');
+    }
+    // Under this callable's 15 s limit.
+    const users = await fetchOneRosterUsersByEmail(emailLower, secrets, 8000);
+    if (users.some(isOneRosterStaff)) return 'staff';
+    if (users.some(isOneRosterStudent)) return 'student';
+    return fallback;
+  } catch (err) {
+    // The dev project has placeholder ClassLink secrets and only mock-class students.
+    if (!mock.empty || opts.rosterOptional) return fallback;
+    throw err;
+  }
+}
+
+/** The role the org registered the matched domain for ('primary', 'student' or 'staff'); null when unset. */
+async function loadDomainRole(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  domainWithAt: string
+): Promise<string | null> {
+  const snap = await db
+    .collection(`organizations/${orgId}/domains`)
+    .where('domain', '==', domainWithAt)
+    .where('status', '==', 'verified')
+    .limit(1)
+    .get();
+  const role: unknown = snap.docs[0]?.get('role');
+  return typeof role === 'string' ? role : null;
+}
+
 /**
  * Upserts nothing — strictly CREATES the caller's member doc when absent.
  * Existing docs (any role, any status) are left untouched so this can never
@@ -102,6 +171,7 @@ export function isAutoEnrollableEmail(email: string): boolean {
 async function autoEnrollMember(
   db: admin.firestore.Firestore,
   orgId: string,
+  domainWithAt: string,
   uid: string,
   token: { email?: string; email_verified?: boolean; name?: string }
 ): Promise<void> {
@@ -116,20 +186,15 @@ async function autoEnrollMember(
   // Per-org opt-out: only read the org doc on the rare doc-missing path.
   const orgSnap = await db.doc(`organizations/${orgId}`).get();
   if (orgSnap.get('autoEnrollDomainUsers') === false) return;
+  const domainRole = await loadDomainRole(db, orgId, domainWithAt);
+  if (domainRole === 'student') return;
   // A student must never get a member doc; a ClassLink failure throws, so the next load retries.
-  // spartboard-dev has placeholder ClassLink secrets and only mock-class students.
-  const isStudent = await isKnownStudentEmail(
-    db,
-    orgId,
-    email,
-    {
-      classlinkClientId: CLASSLINK_CLIENT_ID.value(),
-      classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
-      tenantUrl: CLASSLINK_TENANT_URL.value(),
-    },
-    { rosterOptional: process.env.GCLOUD_PROJECT === 'spartboard-dev' }
-  );
-  if (isStudent) return;
+  const rosterRole = await lookupRosterRole(db, orgId, email, {
+    rosterOptional: process.env.GCLOUD_PROJECT === 'spartboard-dev',
+  });
+  if (rosterRole === 'student') return;
+  // Students share the staff domain, so an address nobody vouches for as staff joins by invite instead.
+  if (rosterRole !== 'staff' && domainRole !== 'staff') return;
 
   try {
     await memberRef.create({
@@ -202,7 +267,7 @@ export const resolveOrgForUser = onCall(
         try {
           // View as never provisions the target (ADMIN_VIEW_AS.md D6).
           if (!viewAs)
-            await autoEnrollMember(db, orgId, request.auth.uid, token);
+            await autoEnrollMember(db, orgId, domain, request.auth.uid, token);
         } catch (err) {
           console.error(
             `[resolveOrgForUser] auto-enroll failed for org ${orgId}:`,
