@@ -3406,6 +3406,46 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-grading.paper-retry': {
+    label: 'Retry scan reading in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.paper-mark-blank': {
+    label: 'Mark scan blank / transcribe in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.paper-use-new-scan': {
+    label: 'Use new scan in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.paper-edit-transcript': {
+    label: 'Edit transcript in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.paper-transcript': {
+    label: 'Transcript textarea in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.paper-save': {
+    label: 'Save transcript in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.paper-cancel': {
+    label: 'Cancel transcript edit in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.paper-connect-drive': {
+    label: 'Connect Drive for the paper scan in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.empty-close': {
     label: 'Close button in the empty Quiz grader',
     perWidgetType: true,
