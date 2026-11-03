@@ -15,7 +15,7 @@ function shuffleInPlace<T>(arr: T[]): T[] {
 }
 
 // A non-finite size (corrupt config) falls back to 1 so groups are never dropped or zero in number.
-const safeSize = (groupSize: number): number =>
+export const safeSize = (groupSize: number): number =>
   Number.isFinite(groupSize) ? Math.max(1, Math.floor(groupSize)) : 1;
 
 // Checks both directions — restriction data read from Firestore isn't guaranteed to be symmetric.

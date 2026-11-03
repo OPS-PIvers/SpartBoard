@@ -7,6 +7,7 @@ import {
   makeNameGroupsByCount,
   makeRestrictedGroups,
   makeRestrictedGroupsByCount,
+  safeSize,
 } from './groupMaker';
 
 const groupOf = (...names: string[]): RandomGroup => ({
@@ -594,6 +595,13 @@ describe('non-finite group size', () => {
   const students = ['a', 'b', 'c'].map(
     (id) => ({ id, firstName: id, lastName: '' }) as Student
   );
+
+  it('safeSize gives the stepper estimates a finite divisor', () => {
+    expect(safeSize(NaN)).toBe(1);
+    expect(safeSize(Infinity)).toBe(1);
+    expect(safeSize(0)).toBe(1);
+    expect(safeSize(4.7)).toBe(4);
+  });
 
   it('makeNameGroups keeps every name when the size is NaN', () => {
     const groups = makeNameGroups(['a', 'b', 'c'], NaN);
