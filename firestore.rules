@@ -7249,6 +7249,7 @@ service cloud.firestore {
                   && notAnon()
                   && pjRunListScoped();
       allow create: if pjTeacher()
+                    && runId.matches(authUid() + '_.+')
                     && incoming().teacherUid == authUid()
                     && incoming().id == runId
                     && isList('classIds')
@@ -7363,6 +7364,10 @@ service cloud.firestore {
         match /uploads/{uploadId} {
           allow read: if pjIsRunTeacher() || pjGroupMember();
           allow create: if signedIn()
+                        && incoming().keys().hasOnly([
+                             'id', 'fileName', 'contentType', 'sizeBytes', 'uploadedByUid',
+                             'uploadedAt', 'storagePath', 'archiveStatus', 'stepId'
+                           ])
                         && incoming().uploadedByUid == authUid()
                         && incoming().id == uploadId
                         && incoming().archiveStatus == 'firebase'
@@ -7379,7 +7384,9 @@ service cloud.firestore {
           // The archive trigger writes as admin and bypasses rules, so no
           // client ever needs to move an upload's archive state along.
           allow update: if pjIsRunTeacher();
-          allow delete: if pjIsRunTeacher() || pjGroupMember();
+          // A closed run freezes what each group handed in; only the teacher deletes then.
+          allow delete: if pjIsRunTeacher()
+                        || (pjGroupMember() && pjRun().acceptingUpdates == true);
         }
       }
 
