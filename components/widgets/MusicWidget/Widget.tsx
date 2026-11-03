@@ -21,6 +21,7 @@ import { resolveSyncedTimer } from './linkedTimer';
 import { followLeaderId } from '@/utils/connectionEngine';
 import { usesLegacyToggles } from '@/utils/legacyConnections';
 import { hasConnectionTab } from '@/components/connections/connectionSummary';
+import { LaunchLinkedWidgetButton } from '@/components/connections/LaunchLinkedWidgetButton';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -84,34 +85,6 @@ const PlayButton: React.FC<PlayButtonProps> = ({
   );
 };
 
-// Opens a Timer beside this Music widget and links the two.
-const LaunchTimerButton: React.FC<{
-  widget: WidgetData;
-  onClick: () => void;
-  size: string;
-  color: string;
-  className?: string;
-}> = ({ widget, onClick, size, color, className = 'relative' }) => {
-  const { t } = useTranslation();
-  const label = t('widgets.music.launchTimer');
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      title={label}
-      aria-label={label}
-      {...tourAttr('music.launch-timer', widget.id, widget.type)}
-      className={`touch-target-expand shrink-0 flex items-center justify-center rounded-lg transition-opacity opacity-70 hover:opacity-100 focus-visible:opacity-100 ${className}`}
-      style={{ color, padding: `calc(${size} / 6)` }}
-    >
-      <Timer style={{ width: size, height: size }} />
-    </button>
-  );
-};
-
 // ---------------------------------------------------------------------------
 // MusicWidget — front face
 // ---------------------------------------------------------------------------
@@ -148,6 +121,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     isActiveBoardReadOnly,
   } = useDashboard();
   const { canAccessFeature, canAccessWidget } = useAuth();
+  const { t } = useTranslation();
   const config = widget.config as MusicConfig;
   const {
     bgColor = '#ffffff',
@@ -413,8 +387,14 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </div>
 
               {canLaunchTimer && (
-                <LaunchTimerButton
-                  widget={widget}
+                <LaunchLinkedWidgetButton
+                  icon={Timer}
+                  label={t('widgets.music.launchTimer')}
+                  anchor={tourAttr(
+                    'music.launch-timer',
+                    widget.id,
+                    widget.type
+                  )}
                   onClick={launchLinkedTimer}
                   size="min(18px, 14cqh)"
                   color="#ffffff"
@@ -571,8 +551,14 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
               {/* Sync icon */}
               {canLaunchTimer ? (
-                <LaunchTimerButton
-                  widget={widget}
+                <LaunchLinkedWidgetButton
+                  icon={Timer}
+                  label={t('widgets.music.launchTimer')}
+                  anchor={tourAttr(
+                    'music.launch-timer',
+                    widget.id,
+                    widget.type
+                  )}
                   onClick={launchLinkedTimer}
                   size="min(16px, 13cqh)"
                   color={textColor === '#ffffff' ? '#ffffff' : '#6366f1'}
@@ -685,8 +671,14 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     </h3>
                   </div>
                   {canLaunchTimer ? (
-                    <LaunchTimerButton
-                      widget={widget}
+                    <LaunchLinkedWidgetButton
+                      icon={Timer}
+                      label={t('widgets.music.launchTimer')}
+                      anchor={tourAttr(
+                        'music.launch-timer',
+                        widget.id,
+                        widget.type
+                      )}
                       onClick={launchLinkedTimer}
                       size="min(20px, 20cqh, 6cqw)"
                       color={textColor === '#ffffff' ? '#ffffff' : '#6366f1'}

@@ -2686,6 +2686,7 @@
       "matchTime": "Match time"
     },
     "timeTool": {
+      "launchMusic": "Add linked music",
       "mode": "Mode",
       "timer": "Timer",
       "stopwatch": "Stopwatch",
