@@ -118,7 +118,6 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Build hygiene
 
-- **AB-103 Wall-clock budget in the board wireframe test** (S). `functions/src/mcp/boardWireframe.test.ts:230` ("stays fast when every widget covers the whole board") asserts the render takes under 1000 ms; on 2026-11-03 it failed #5070's CI at 1000.33 ms on a loaded runner and passed on re-run. Replace the timing check with something load-independent (count the overlap work, or a much looser bound kept only as a hang guard). Done when: the test can't fail from runner speed alone and still catches a quadratic blow-up.
 - **AB-33 Unused-locals strictness** (L). `tsconfig.json:38-39` has `noUnusedLocals`/`noUnusedParameters` false. Flip them and clear TS6133/TS6196 in per-directory batches.
 - **AB-34 CI lint memory** (M). F11: split the root and functions type-aware ESLint passes so the `NODE_OPTIONS` 5120 MB override can go, or document why it stays.
 - **AB-35 Functions `types.ts` alias** (S). F18: give `functions/tsconfig.json` an alias to the root `types.ts`, or close the item with the reason (ClassLinkUser duplication is already solved by `functions/src/classlinkShared.ts`).
