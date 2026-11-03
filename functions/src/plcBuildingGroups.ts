@@ -10,6 +10,7 @@ import {
   canonicalizeBuildingIdsServer,
 } from './buildingIds';
 import { normalizeEmailDomain } from './classlinkShared';
+import { isStaffMemberData } from './districtStaff';
 import { ADMIN_ROLE_IDS } from './organizationInvites';
 import { assertViewAsAllowed } from './viewAsGuard';
 
@@ -250,7 +251,7 @@ async function isOrgVerifiedDomain(
   return !snap.empty;
 }
 
-/** Verified `emailLower` is a claimed org member (active, or an invite on a verified org domain) not linked to another uid. */
+/** Verified `emailLower` is a claimed staff org member (active, or an invite on a verified org domain) not linked to another uid. */
 export async function isActiveOrgMember(
   db: Firestore,
   orgId: string,
@@ -261,7 +262,7 @@ export async function isActiveOrgMember(
   const snap = await db
     .doc(`organizations/${orgId}/members/${emailLower}`)
     .get();
-  if (!snap.exists) return false;
+  if (!snap.exists || !isStaffMemberData(snap.data())) return false;
   const memberUid: unknown = snap.get('uid');
   if (memberUid !== undefined && memberUid !== uid) return false;
   const status: unknown = snap.get('status');
