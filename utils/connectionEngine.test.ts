@@ -89,6 +89,48 @@ describe('draftFromPicks', () => {
     ]);
   });
 
+  it('makes Stations then Randomizer, picked alone, a Follow', () => {
+    for (const picks of [
+      [
+        { id: 's', type: 'stations' as const },
+        { id: 'r', type: 'random' as const },
+      ],
+      [
+        { id: 'r', type: 'random' as const },
+        { id: 's', type: 'stations' as const },
+      ],
+    ]) {
+      const draft = draftFromPicks(picks);
+      expect(draft.sequence).toBeNull();
+      expect(draft.follows).toEqual([
+        expect.objectContaining({ leaderId: 's', followerId: 'r' }),
+      ]);
+    }
+  });
+
+  it('keeps Stations and Randomizer as steps after a Timer', () => {
+    const draft = draftFromPicks([
+      { id: 't', type: 'time-tool' },
+      { id: 's', type: 'stations' },
+      { id: 'r', type: 'random' },
+    ]);
+    expect(draft.follows).toEqual([]);
+    expect(
+      draft.sequence?.steps.map((step) => step.actions[0].widgetId)
+    ).toEqual(['t', 's', 'r']);
+  });
+
+  it('still makes Noise meter then Traffic Light a Follow inside a longer pick', () => {
+    const draft = draftFromPicks([
+      { id: 't', type: 'time-tool' },
+      { id: 'n', type: 'sound' },
+      { id: 'l', type: 'traffic' },
+    ]);
+    expect(draft.follows).toEqual([
+      expect.objectContaining({ leaderId: 'n', followerId: 'l' }),
+    ]);
+  });
+
   it('does not repeat when the first widget is not picked again', () => {
     const draft = draftFromPicks([
       { id: 't1', type: 'time-tool' },

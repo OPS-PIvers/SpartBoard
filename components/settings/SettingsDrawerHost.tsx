@@ -19,6 +19,7 @@ import { getTitle } from '@/utils/widgetHelpers';
 import { getAdminBuildingConfig } from '@/utils/adminBuildingConfig';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { normalizeFlipped } from '@/utils/migration';
+import { followLeaderId } from '@/utils/connectionEngine';
 import type { WidgetData, WidgetType } from '@/types';
 import { SettingsDrawer } from './SettingsDrawer';
 import { LegacySettingsSlot } from './legacy/LegacySettingsSlot';
@@ -188,6 +189,13 @@ export const SettingsDrawerHost: React.FC = () => {
         null)
       : null
   );
+  const connectionsOn = canAccessFeature('widget-connections');
+  const followLeader = useDashboardCanvasSelector((s) => {
+    const board = s.activeDashboard;
+    if (!connectionsOn || !activeWidgetId || !board) return null;
+    const id = followLeaderId(board.connections, board.widgets, activeWidgetId);
+    return id ? (board.widgets.find((w) => w.id === id) ?? null) : null;
+  });
   const otherFlipped = useDashboardCanvasSelector(
     (s) =>
       s.activeDashboard?.widgets.find(
@@ -488,6 +496,7 @@ export const SettingsDrawerHost: React.FC = () => {
         adminConfig={adminConfig}
         canAccessWidget={canAccessWidget}
         toolLabel={toolLabel}
+        followLeader={followLeader}
         styleDefaults={styleDefaults}
         headingRef={headingRef}
       />

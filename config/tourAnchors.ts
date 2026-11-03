@@ -4703,6 +4703,12 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.random.names-connection': {
+    label:
+      'Edit connection button where Random Picker names come from Stations',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.random.send-projects': {
     label: 'Send to Projects button in Random Picker settings',
     perWidget: true,

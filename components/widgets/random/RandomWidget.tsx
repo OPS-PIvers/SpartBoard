@@ -97,6 +97,7 @@ import {
 } from '@/utils/connectionEngine';
 import { teamsFromGroups } from '@/components/widgets/Scoreboard/groupTeams';
 import { usesLegacyToggles } from '@/utils/legacyConnections';
+import { useNamesFromStations } from './useNamesFromStations';
 import { useAuth } from '@/context/useAuth';
 
 import { WidgetLayout } from '../WidgetLayout';
@@ -185,6 +186,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
   const { canAccessFeature } = useAuth();
   const connectionsOn = canAccessFeature('widget-connections');
+  useNamesFromStations(widget, connectionsOn);
   const avoidRecentPartners =
     canAccessFeature('random-avoid-repeats') &&
     config.avoidRecentPartners === true;

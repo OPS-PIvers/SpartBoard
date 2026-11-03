@@ -15,6 +15,7 @@ import { WIDGET_PALETTE } from '@/config/colors';
 import { StationEditor } from './components/StationEditor';
 import { SavedPresetsPanel } from './components/SavedPresetsPanel';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { stationNamesForRandom } from './nexus';
 
 const DEFAULT_STATION_COLORS = WIDGET_PALETTE;
 
@@ -420,10 +421,8 @@ export const StationsSendToRandomField: React.FC<{
       addToast(t('addStationFirst'), 'info');
       return;
     }
-    const titles = stations.map((station) =>
-      station.title.trim()
-        ? station.title.trim()
-        : t('stationNumber', { number: station.order + 1 })
+    const titles = stationNamesForRandom(stations, (number) =>
+      t('stationNumber', { number })
     );
     const randomConfig = randomizerWidget.config as RandomConfig;
     const willOverwriteCustom =

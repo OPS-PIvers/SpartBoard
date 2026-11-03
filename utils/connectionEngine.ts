@@ -284,10 +284,15 @@ export interface ConnectionDraft {
   follows: WidgetConnection[];
 }
 
+const isStep = (p: PickedWidget) => !!connectionDefFor(p.type)?.defaultAction;
+
 const followPair = (
   a: PickedWidget,
-  b: PickedWidget
+  b: PickedWidget,
+  pickCount: number
 ): { leaderId: string; followerId: string } | null => {
+  // Two step widgets (Stations, Randomizer) Follow only when picked alone; in a longer pick they stay steps.
+  if (pickCount > 2 && isStep(a) && isStep(b)) return null;
   if (connectionDefFor(b.type)?.follows?.includes(a.type)) {
     return { leaderId: a.id, followerId: b.id };
   }
@@ -319,7 +324,7 @@ export const draftFromPicks = (
   const follows: WidgetConnection[] = [];
   const followerIds = new Set<string>();
   for (let i = 1; i < picks.length; i++) {
-    const pair = followPair(picks[i - 1], picks[i]);
+    const pair = followPair(picks[i - 1], picks[i], picks.length);
     if (pair && !followerIds.has(pair.followerId)) {
       followerIds.add(pair.followerId);
       follows.push({ id: newId(), kind: 'follow', ...pair });

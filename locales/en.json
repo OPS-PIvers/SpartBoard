@@ -2388,6 +2388,8 @@
       "homeGroupCount": "Number of home groups",
       "expertGroupCount": "Number of expert groups",
       "sendToStations": "Send groups to Stations",
+      "namesFromStations": "Names come from {{title}}",
+      "editConnection": "Edit connection",
       "stations": "Stations",
       "projects": "Projects",
       "addStations": "Add a Stations widget to the board first.",
@@ -5851,7 +5853,8 @@
       "traffic": "Match the noise level",
       "sound": "Match the voice level",
       "recessGear": "Use the weather",
-      "scoreboard": "Use the groups as teams"
+      "scoreboard": "Use the groups as teams",
+      "random": "Use the stations as names"
     },
     "next": "Next"
   }
