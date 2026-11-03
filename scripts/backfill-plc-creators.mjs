@@ -28,7 +28,7 @@ export function legacyCreatorUid(root) {
     }
     const lead = root.leadUid;
     // Bulk-stamped joinedAt values can't tell members apart; the lead is the better guess then.
-    if (typeof lead === 'string' && lead && lead in members)
+    if (typeof lead === 'string' && lead && Object.hasOwn(members, lead))
       return lead;
     if (best) return best.uid;
   }

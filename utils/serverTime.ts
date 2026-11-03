@@ -93,7 +93,10 @@ export function resyncServerTime(
       syncedForUid = uid;
       const ref = doc(db, 'server_time_probe', uid);
       const localWriteAt = Date.now();
-      void setDoc(ref, { at: serverTimestamp() }).catch(finish);
+      void setDoc(ref, { at: serverTimestamp() }).catch(() => {
+        if (syncedForUid === uid) syncedForUid = null;
+        finish();
+      });
       unsub = onSnapshot(
         ref,
         { includeMetadataChanges: true },

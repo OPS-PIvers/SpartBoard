@@ -824,6 +824,7 @@ const QuizJoinFlow: React.FC<{
         .then((ids) => {
           if (cancelled) return;
           if (ids.length > 0) {
+            setDrawStalledKey(null);
             setLocalDraw({ key: drawKey, ids, persisted: true });
           } else {
             throw new Error('Empty draw');
@@ -842,14 +843,7 @@ const QuizJoinFlow: React.FC<{
             return;
           }
           if (n === 3) console.warn('[QuizStudentApp] Bank draw failing:', err);
-          const code = (err as { code?: unknown } | null)?.code;
-          const fatal =
-            typeof code === 'string' &&
-            /permission-denied|failed-precondition|not-found|invalid-argument|unauthenticated/.test(
-              code
-            );
-          if (n >= 3 || fatal) setDrawStalledKey(drawKey);
-          if (fatal) return;
+          if (n >= 3) setDrawStalledKey(drawKey);
           timer = setTimeout(
             () => attempt(n + 1),
             Math.min(1000 * 2 ** n, 15000)
