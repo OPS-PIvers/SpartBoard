@@ -2077,6 +2077,8 @@
     "clock": {
       "format24": "24H Format",
       "showSeconds": "Show Seconds",
+      "showTime": "Show Time",
+      "showDate": "Show Date",
       "clockStyle": "Display Style",
       "styles": {
         "modern": "Default",
