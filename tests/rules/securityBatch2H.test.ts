@@ -88,10 +88,27 @@ const tourDraft = {
     ],
   },
 };
-const widgetsOnlyTour = {
+const emptiedTour = {
   ...tourDraft,
-  id: 'widgets',
-  tourSetup: { widgets: ['clock'] },
+  id: 'emptied',
+  tourSetup: { widgets: ['quiz'] },
+  steps: [
+    { id: 's1', tour: { start: { open: { content: { data: { a: 1 } } } } } },
+  ],
+};
+const flaggedTour = {
+  id: 'flagged',
+  title: 'T',
+  steps: [],
+  imageUrls: [],
+  hasLiveTour: true,
+};
+const modeTour = {
+  id: 'mode',
+  title: 'T',
+  steps: [],
+  imageUrls: [],
+  mode: 'tour',
 };
 
 beforeAll(async () => {
@@ -118,7 +135,9 @@ beforeEach(async () => {
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { addedAt: 1 });
     await setDoc(doc(db, `${SETS}/lesson`), lesson);
     await setDoc(doc(db, `${SETS}/tour`), tourDraft);
-    await setDoc(doc(db, `${SETS}/widgets`), widgetsOnlyTour);
+    await setDoc(doc(db, `${SETS}/emptied`), emptiedTour);
+    await setDoc(doc(db, `${SETS}/flagged`), flaggedTour);
+    await setDoc(doc(db, `${SETS}/mode`), modeTour);
   });
 });
 
@@ -127,14 +146,16 @@ describe('tour draft sample copies', () => {
     for (const db of [asTeacher(), asAdmin()]) {
       await assertSucceeds(getDoc(doc(db, `${SETS}/lesson`)));
       await assertSucceeds(getDoc(doc(db, `${SETS}/tour`)));
-      await assertSucceeds(getDoc(doc(db, `${SETS}/widgets`)));
+      for (const id of ['emptied', 'flagged', 'mode'])
+        await assertSucceeds(getDoc(doc(db, `${SETS}/${id}`)));
       await assertSucceeds(getDocs(collection(db, SETS)));
     }
   });
 
   it('denies anonymous and student-role sessions a draft with samples, and any list', async () => {
     for (const db of [asAnonStudent(), asStudentRole()]) {
-      await assertFails(getDoc(doc(db, `${SETS}/tour`)));
+      for (const id of ['tour', 'emptied', 'flagged', 'mode'])
+        await assertFails(getDoc(doc(db, `${SETS}/${id}`)));
       await assertFails(getDocs(collection(db, SETS)));
     }
   });
@@ -142,7 +163,6 @@ describe('tour draft sample copies', () => {
   it('still lets a signed-in session read a set without samples, or one that is missing', async () => {
     for (const db of [asAnonStudent(), asStudentRole()]) {
       await assertSucceeds(getDoc(doc(db, `${SETS}/lesson`)));
-      await assertSucceeds(getDoc(doc(db, `${SETS}/widgets`)));
       await assertSucceeds(getDoc(doc(db, `${SETS}/missing`)));
     }
   });

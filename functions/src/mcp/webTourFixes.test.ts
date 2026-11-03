@@ -68,3 +68,24 @@ describe('readableFixLocator', () => {
     expect(readableFixLocator(fix('check'))).toBe(locator);
   });
 });
+
+describe('stepFixes admin group', () => {
+  it('takes the admin run locator over a teacher run that hashes the same', () => {
+    const fixed = (css: string, admin: boolean, testId: string) => ({
+      v: 5,
+      surface: 'web',
+      startedAt: 1,
+      misses: ['a'],
+      weak: [],
+      admin,
+      fixes: { a: { css, attrs: { testId } } },
+    });
+    const out = stepFixes({ steps: [step] }, { at: 5, steps: [step] }, [
+      fixed('#x', false, 'teacher text'),
+      fixed('#x', true, 'admin-id'),
+    ]);
+    expect(out.get('a')?.locator).toMatchObject({
+      attrs: { testId: 'admin-id' },
+    });
+  });
+});

@@ -139,7 +139,10 @@ export function stepFixes(
       const key = fixKey(locator);
       const g = byKey.get(key) ?? { locator, count: 0, admin: false, at: 0 };
       g.count++;
-      if (run.admin === true) g.admin = true;
+      if (run.admin === true) {
+        g.admin = true;
+        g.locator = locator;
+      }
       g.at = Math.max(
         g.at,
         typeof run.startedAt === 'number' ? run.startedAt : 0
