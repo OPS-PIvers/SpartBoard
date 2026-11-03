@@ -8211,6 +8211,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     commitTourWidgets,
     discardTourWidgets,
     setTourTransientSpawns,
+    updateDashboard,
   };
   const liveActionsRef = useRef(liveActions);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
@@ -8254,6 +8255,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         liveActionsRef.current.discardTourWidgets?.(ids),
       setTourTransientSpawns: (on) =>
         liveActionsRef.current.setTourTransientSpawns?.(on),
+      updateDashboard: (updates) =>
+        liveActionsRef.current.updateDashboard(updates),
     }),
     []
   );

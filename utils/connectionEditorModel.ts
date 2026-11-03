@@ -6,6 +6,15 @@ import type {
 } from '@/types';
 import { actionDefFor, connectionDefFor } from '@/config/widgetConnections';
 import { getTitle } from '@/utils/widgetHelpers';
+import { TOOLS } from '@/config/tools';
+
+// getTitle falls back to the raw type id ("Activity-wall"); the Dock's label reads better.
+const editorTitle = (w: WidgetData): string => {
+  const title = getTitle(w);
+  const raw = w.type.charAt(0).toUpperCase() + w.type.slice(1);
+  if (w.customTitle || title !== raw) return title;
+  return TOOLS.find((tool) => tool.type === w.type)?.label ?? title;
+};
 
 /** One numbered card in the editor: a step, plus the pause its arrow adds after it. */
 export interface EditorCard {
@@ -136,7 +145,7 @@ export const widgetNames = (
     (w.config as TimeToolConfig).mode === 'timer' &&
     typeof (w.config as TimeToolConfig).duration === 'number'
       ? timerName(clock((w.config as TimeToolConfig).duration))
-      : getTitle(w);
+      : editorTitle(w);
   const counts = new Map<string, number>();
   for (const w of widgets) counts.set(base(w), (counts.get(base(w)) ?? 0) + 1);
   const seen = new Map<string, number>();

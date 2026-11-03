@@ -36,9 +36,14 @@ import {
 } from '@/context/boardLinkedShare';
 import {
   useDashboardActions,
+  useDashboardCanvasSelector,
+  useDashboardCanvasStateGetter,
   useGlobalStyle,
   useIsActiveBoardReadOnly,
 } from '@/context/dashboardCanvasStore';
+import { followConnection } from '@/utils/connectionEngine';
+import { hasConnectionTab } from '@/components/connections/connectionSummary';
+import { usePublishWidgetShareLink } from '@/utils/widgetShareLinks';
 import {
   useLinkedShareHost,
   useLinkedShareMemberName,
@@ -113,8 +118,21 @@ const layoutSketch = (entry: ActivityWallLibraryEntry): React.ReactNode =>
 export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addWidget, addToast } = useDashboardActions();
+  const { updateWidget, addWidget, addToast, updateDashboard } =
+    useDashboardActions();
+  const getCanvasState = useDashboardCanvasStateGetter();
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
+  // Only the wall on the board itself, not a student or announcement copy.
+  const isOnBoard = useDashboardCanvasSelector(
+    (s) => !!s.activeDashboard?.widgets.some((w) => w.id === widget.id)
+  );
+  const hasTab = useDashboardCanvasSelector((s) =>
+    hasConnectionTab(
+      s.activeDashboard?.connections,
+      s.activeDashboard?.widgets ?? [],
+      widget.id
+    )
+  );
   const { user, canAccessFeature, featurePermissions, selectedBuildings } =
     useAuth();
   const { showConfirm } = useDialog();
@@ -489,15 +507,40 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     }
   }, [addToast, studentUrl]);
 
+  // A QR code that Follows this wall keeps showing its current student link.
+  const connectionsOn = canAccessFeature('widget-connections') && isOnBoard;
+  usePublishWidgetShareLink(
+    widget.id,
+    connectionsOn && studentUrl ? studentUrl : undefined
+  );
+
   const spawnQrWidget = useCallback(() => {
     if (!studentUrl) return;
+    const qrId = crypto.randomUUID();
     addWidget('qr', {
+      id: qrId,
       w: 200,
       h: 250,
       config: { url: studentUrl, showUrl: false },
     });
+    if (connectionsOn) {
+      updateDashboard({
+        connections: [
+          ...(getCanvasState().activeDashboard?.connections ?? []),
+          followConnection(widget.id, qrId),
+        ],
+      });
+    }
     addToast('QR sticker added to board.', 'success');
-  }, [addToast, addWidget, studentUrl]);
+  }, [
+    addToast,
+    addWidget,
+    connectionsOn,
+    getCanvasState,
+    studentUrl,
+    updateDashboard,
+    widget.id,
+  ]);
 
   const duplicateWall = useCallback(
     async (entry: ActivityWallLibraryEntry) => {
@@ -662,7 +705,10 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     <div
       className="flex items-center justify-between border-b border-white/15 bg-slate-900/70 backdrop-blur-xs"
       style={{
-        padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+        paddingBlock: 'min(8px, 2cqmin)',
+        paddingLeft: 'min(10px, 2.5cqmin)',
+        // Keeps the last control clear of the connection corner tab.
+        paddingRight: connectionsOn && hasTab ? 40 : 'min(10px, 2.5cqmin)',
         gap: 'min(8px, 2cqmin)',
       }}
     >

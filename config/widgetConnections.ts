@@ -210,7 +210,11 @@ export const WIDGET_CONNECTIONS: Partial<
     actions: [bump('rotate', 'Rotate', 'rotationTrigger', 'next')],
   },
   sound: { defaultAction: '', actions: [], follows: ['expectations'] },
-  qr: { defaultAction: '', actions: [], follows: ['text'] },
+  qr: {
+    defaultAction: '',
+    actions: [],
+    follows: ['text', 'activity-wall', 'miniApp'],
+  },
   recessGear: { defaultAction: '', actions: [], follows: ['weather'] },
   checklist: { defaultAction: 'next', actions: [checklistNext] },
   schedule: {
@@ -263,6 +267,8 @@ export const WIDGET_CONNECTIONS: Partial<
   },
   scoreboard: { defaultAction: '', actions: [], follows: ['random'] },
   text: { defaultAction: '', actions: [] },
+  'activity-wall': { defaultAction: '', actions: [] },
+  miniApp: { defaultAction: '', actions: [] },
   weather: { defaultAction: '', actions: [] },
 };
 

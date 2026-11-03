@@ -5850,6 +5850,8 @@
     "followAction": {
       "music": "Play",
       "qr": "Show the text",
+      "qr_activity-wall": "Show the link",
+      "qr_miniApp": "Show the link",
       "traffic": "Match the noise level",
       "sound": "Match the voice level",
       "recessGear": "Use the weather",

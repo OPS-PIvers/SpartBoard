@@ -1,4 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MiniAppWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
@@ -242,5 +248,105 @@ describe('MiniAppWidget — on the teacher’s own board', () => {
 
     expect(screen.getByTitle('Back to library')).toBeInTheDocument();
     expect(screen.getByTitle('Assign (copy student link)')).toBeInTheDocument();
+  });
+});
+
+describe('MiniAppWidget — QR Share with Connections', () => {
+  beforeEach(mockHooks);
+
+  const setUp = (connections: unknown[], extraWidgets: unknown[] = []) => {
+    const dash = {
+      updateWidget: vi.fn(),
+      addToast: vi.fn(),
+      rosters: [],
+      addWidget: vi.fn(),
+      selectedWidgetId: 'widget-1',
+      isActiveBoardReadOnly: false,
+      updateDashboard: vi.fn(),
+      activeDashboard: {
+        id: 'board-1',
+        widgets: [widget, ...extraWidgets],
+        connections,
+      },
+    };
+    vi.mocked(useDashboard).mockReturnValue(
+      dash as unknown as ReturnType<typeof useDashboard>
+    );
+    vi.mocked(useAuth).mockReturnValue({
+      user: { uid: 'teacher-1' },
+      getAssignmentMode: () => 'submissions',
+      canAccessFeature: (id: string) => id === 'widget-connections',
+    } as unknown as ReturnType<typeof useAuth>);
+    vi.mocked(useMiniAppSessionTeacher).mockReturnValue({
+      ...vi.mocked(useMiniAppSessionTeacher)(),
+      createSession: vi.fn().mockResolvedValue('session-9'),
+    });
+    render(
+      <div data-widget-id="widget-1">
+        <MiniAppWidget widget={widget} />
+      </div>
+    );
+    return dash;
+  };
+
+  it('adds a QR that Follows the app', async () => {
+    const dash = setUp([]);
+    fireEvent.click(screen.getByTitle(/Share via QR/));
+    await waitFor(() => expect(dash.addWidget).toHaveBeenCalled());
+    const [type, overrides] = dash.addWidget.mock.lastCall as [
+      string,
+      { id: string; config: { url: string } },
+    ];
+    expect(type).toBe('qr');
+    expect(overrides.config.url).toContain('/miniapp/session-9');
+    expect(dash.updateDashboard).toHaveBeenCalledWith({
+      connections: [
+        expect.objectContaining({
+          kind: 'follow',
+          leaderId: 'widget-1',
+          followerId: overrides.id,
+        }),
+      ],
+    });
+  });
+
+  it('leaves connections alone when the app closes while sharing', async () => {
+    let resolveSession: (id: string) => void = () => undefined;
+    const dash = setUp([]);
+    cleanup();
+    vi.mocked(useMiniAppSessionTeacher).mockReturnValue({
+      ...vi.mocked(useMiniAppSessionTeacher)(),
+      createSession: vi.fn(
+        () => new Promise<string>((r) => (resolveSession = r))
+      ),
+    });
+    const { unmount } = render(
+      <div data-widget-id="widget-1">
+        <MiniAppWidget widget={widget} />
+      </div>
+    );
+    fireEvent.click(screen.getByTitle(/Share via QR/));
+    unmount();
+    resolveSession('session-9');
+    await waitFor(() => expect(dash.addWidget).toHaveBeenCalled());
+    expect(dash.updateDashboard).not.toHaveBeenCalled();
+  });
+
+  it('gives a connected QR the new link instead of adding another', async () => {
+    const qr = { id: 'qr-1', type: 'qr', config: { url: 'old' } };
+    const dash = setUp(
+      [{ id: 'c1', kind: 'follow', leaderId: 'widget-1', followerId: 'qr-1' }],
+      [qr]
+    );
+    fireEvent.click(screen.getByTitle(/Share via QR/));
+    await waitFor(() =>
+      expect(dash.updateWidget).toHaveBeenCalledWith('qr-1', {
+        config: {
+          url: expect.stringContaining('/miniapp/session-9') as unknown,
+        },
+      })
+    );
+    expect(dash.addWidget).not.toHaveBeenCalled();
+    expect(dash.updateDashboard).not.toHaveBeenCalled();
   });
 });
