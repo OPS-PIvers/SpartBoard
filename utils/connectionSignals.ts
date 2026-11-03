@@ -22,6 +22,7 @@ export const onHandAction = (listener: Listener): (() => void) => {
 
 export type RunCommand = 'start' | 'stop' | 'next';
 type CommandListener = (
+  boardId: string,
   connectionId: string,
   command: RunCommand,
   savedConnections?: WidgetConnection[]
@@ -30,11 +31,14 @@ const commandListeners = new Set<CommandListener>();
 
 /** Start, stop or move on a Sequence's Run from the step badge; this device carries it out. */
 export const sendRunCommand = (
+  boardId: string,
   connectionId: string,
   command: RunCommand,
   savedConnections?: WidgetConnection[]
 ): void => {
-  commandListeners.forEach((l) => l(connectionId, command, savedConnections));
+  commandListeners.forEach((l) =>
+    l(boardId, connectionId, command, savedConnections)
+  );
 };
 
 export const onRunCommand = (listener: CommandListener): (() => void) => {

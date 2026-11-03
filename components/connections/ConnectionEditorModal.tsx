@@ -263,7 +263,7 @@ export const ConnectionEditorModal: React.FC<{
     const saved = cleaned.find(
       (c): c is SequenceConnection => c.kind === 'sequence'
     );
-    if (start && saved) sendRunCommand(saved.id, 'start', next);
+    if (start && saved) sendRunCommand(board.id, saved.id, 'start', next);
   };
 
   const remove = () => {

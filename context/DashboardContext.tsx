@@ -7291,7 +7291,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         ...d,
         widgets: d.widgets.map((w) => {
           const patch = widgetPatches[w.id];
-          if (!patch) return w;
+          if (!patch || Object.keys(patch).length === 0) return w;
           return {
             ...w,
             config: { ...w.config, ...patch },

@@ -184,6 +184,26 @@ describe('shareout loop', () => {
     expect(isStepFinished(seq.steps[1], widgets, 0, 10_000_000)).toBe(false);
   });
 
+  it('ends the Run when a hand press runs the rest of its step out of names', () => {
+    const seq: SequenceConnection = {
+      ...shareout(),
+      steps: [
+        {
+          id: 's1',
+          actions: [
+            { widgetId: 't1', action: 'restart' },
+            { widgetId: 'r', action: 'next' },
+          ],
+        },
+      ],
+      run: null,
+    };
+    const widgets = [shuffle(['Ana'], []), timer('t1', 120)];
+    const joined = joinRunByHand(seq, widgets, 't1', 'start', 5, 'dev-a');
+    expect(joined?.patches.r).toEqual({ doneNames: ['Ana'] });
+    expect(joined?.sequence.run).toBeNull();
+  });
+
   it('stops before a step whose widget has nothing to do', () => {
     const seq: SequenceConnection = {
       ...shareout(),

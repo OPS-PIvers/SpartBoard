@@ -49,9 +49,12 @@ const summaryKey = (
       }
       continue;
     }
+    // Pause-only steps fold into an arrow in the editor, so they take no number here either.
+    let shown = 0;
     liveSteps(c, widgets).forEach((s, i) => {
+      if (s.actions.length > 0) shown += 1;
       if (!s.actions.some((a) => a.widgetId === widgetId)) return;
-      numbers.push(i + 1);
+      numbers.push(shown);
       firstId ||= c.id;
       if (!seqId) {
         seqId = c.id;
@@ -122,17 +125,14 @@ const openEditor = (
 };
 
 /** Corner badge on a connected widget: its step numbers; opens Start/Stop and Edit steps. */
-export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => {
+const ConnectionBadgeInner: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t } = useTranslation();
-  const enabled = useConnectionsEnabled();
   const summary = useWidgetConnectionSummary(widget.id);
   const boardId = useDashboardCanvasSelector((s) => s.activeDashboard?.id);
   const inConnectMode = useConnectionsUi((s) => !!s.connectMode);
   const getCanvasState = useDashboardCanvasStateGetter();
   const [menuAt, setMenuAt] = useState<DOMRect | null>(null);
-  if (!enabled || !summary || !boardId || inConnectMode) return null;
+  if (!summary || !boardId || inConnectMode) return null;
   const close = () => setMenuAt(null);
   const edit = () => {
     close();
@@ -220,7 +220,7 @@ export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
                   className={itemClass}
                   onClick={() => {
                     close();
-                    sendRunCommand(summary.seqId, 'next');
+                    sendRunCommand(boardId, summary.seqId, 'next');
                   }}
                 >
                   <SkipForward className="w-4 h-4" aria-hidden="true" />
@@ -239,7 +239,7 @@ export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
                   className={itemClass}
                   onClick={() => {
                     close();
-                    sendRunCommand(summary.seqId, 'stop');
+                    sendRunCommand(boardId, summary.seqId, 'stop');
                   }}
                 >
                   <Square className="w-4 h-4" aria-hidden="true" />
@@ -257,7 +257,7 @@ export const ConnectionBadge: React.FC<{ widget: WidgetData }> = ({
                   className={itemClass}
                   onClick={() => {
                     close();
-                    sendRunCommand(summary.seqId, 'start');
+                    sendRunCommand(boardId, summary.seqId, 'start');
                   }}
                 >
                   <Play className="w-4 h-4" aria-hidden="true" />
@@ -290,7 +290,7 @@ const findConnection = (
 ) => getState().activeDashboard?.connections?.find((c) => c.id === id);
 
 /** Outlines the widget whose card is picked in the step editor. */
-export const ConnectionWidgetHighlight: React.FC<{ widgetId: string }> = ({
+const ConnectionWidgetHighlightInner: React.FC<{ widgetId: string }> = ({
   widgetId,
 }) => {
   const lit = useConnectionsUi((s) => s.highlightedWidgetId === widgetId);
@@ -305,7 +305,7 @@ export const ConnectionWidgetHighlight: React.FC<{ widgetId: string }> = ({
 };
 
 /** Dims, numbers and highlights widgets while Connect mode is picking; it takes the tap so the widget underneath doesn't act. */
-export const ConnectPickOverlay: React.FC<{ widget: WidgetData }> = ({
+const ConnectPickOverlayInner: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { t } = useTranslation();
@@ -362,12 +362,11 @@ export const ConnectPickOverlay: React.FC<{ widget: WidgetData }> = ({
 };
 
 /** Connect button on the widget toolbar; lists this widget's Connections when it already has some. */
-export const ConnectToolbarButton: React.FC<{
+const ConnectToolbarButtonInner: React.FC<{
   widget: WidgetData;
   onAction: () => void;
 }> = ({ widget, onAction }) => {
   const { t } = useTranslation();
-  const enabled = useConnectionsEnabled();
   const boardId = useDashboardCanvasSelector((s) => s.activeDashboard?.id);
   const mine = useDashboardCanvasSelector((s) =>
     liveConnections(
@@ -386,7 +385,7 @@ export const ConnectToolbarButton: React.FC<{
   );
   const getCanvasState = useDashboardCanvasStateGetter();
   const [menuAt, setMenuAt] = useState<DOMRect | null>(null);
-  if (!enabled || !boardId || !isConnectable(widget.type)) return null;
+  if (!boardId || !isConnectable(widget.type)) return null;
   const ids = mine ? mine.split(',') : [];
 
   const startNew = () => {
@@ -488,13 +487,12 @@ export const ConnectToolbarButton: React.FC<{
 };
 
 /** Extra line in the close-widget confirm when the widget is part of a Connection. */
-export const ConnectionCloseWarning: React.FC<{ widgetId: string }> = ({
+const ConnectionCloseWarningInner: React.FC<{ widgetId: string }> = ({
   widgetId,
 }) => {
   const { t } = useTranslation();
-  const enabled = useConnectionsEnabled();
   const summary = useWidgetConnectionSummary(widgetId);
-  if (!enabled || !summary) return null;
+  if (!summary) return null;
   return (
     <p className="-mt-2 mb-4 text-xs text-slate-200">
       {summary.numbers
@@ -509,3 +507,28 @@ export const ConnectionCloseWarning: React.FC<{ widgetId: string }> = ({
     </p>
   );
 };
+
+// With the flag off, widgets mount none of the Connections selectors, so the canvas does no extra work.
+export const ConnectionBadge: React.FC<{ widget: WidgetData }> = (props) =>
+  useConnectionsEnabled() ? <ConnectionBadgeInner {...props} /> : null;
+
+export const ConnectionWidgetHighlight: React.FC<{ widgetId: string }> = (
+  props
+) =>
+  useConnectionsEnabled() ? (
+    <ConnectionWidgetHighlightInner {...props} />
+  ) : null;
+
+export const ConnectPickOverlay: React.FC<{ widget: WidgetData }> = (props) =>
+  useConnectionsEnabled() ? <ConnectPickOverlayInner {...props} /> : null;
+
+export const ConnectToolbarButton: React.FC<{
+  widget: WidgetData;
+  onAction: () => void;
+}> = (props) =>
+  useConnectionsEnabled() ? <ConnectToolbarButtonInner {...props} /> : null;
+
+export const ConnectionCloseWarning: React.FC<{ widgetId: string }> = (
+  props
+) =>
+  useConnectionsEnabled() ? <ConnectionCloseWarningInner {...props} /> : null;

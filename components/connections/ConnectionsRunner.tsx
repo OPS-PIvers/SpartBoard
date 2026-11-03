@@ -33,6 +33,8 @@ type ApplyChanges = DashboardContextValue['applyConnectionChanges'];
 const TICK_MS = 250;
 // Another device takes over a Run whose step has been finished this long without moving on.
 const TAKEOVER_MS = 5000;
+// A Run this page finds already finished and this old was left behind by a closed page, so it stops instead of going on.
+const STALE_RUN_MS = 10 * 60 * 1000;
 
 // Runs move on their own, so they're left out of the comparison.
 const sameConnections = (a: WidgetConnection[], b: WidgetConnection[]) => {
@@ -89,6 +91,7 @@ export const ConnectionsRunner: React.FC = () => {
   const { t } = useTranslation();
   const {
     dashboards,
+    activeDashboard,
     applyConnectionChanges,
     addToast,
     rosters,
@@ -102,6 +105,7 @@ export const ConnectionsRunner: React.FC = () => {
 
   const latest = useRef({
     dashboards,
+    activeDashboard,
     applyConnectionChanges,
     addToast,
     t,
@@ -110,6 +114,7 @@ export const ConnectionsRunner: React.FC = () => {
   useLayoutEffect(() => {
     latest.current = {
       dashboards,
+      activeDashboard,
       applyConnectionChanges,
       addToast,
       t,
@@ -121,9 +126,13 @@ export const ConnectionsRunner: React.FC = () => {
   useEffect(() => {
     if (!enabled) return;
     return onHandAction((widgetId, hand) => {
-      const board = latest.current.dashboards.find((d) =>
-        d.widgets.some((w) => w.id === widgetId)
-      );
+      // A copied board keeps its widget ids, so the board on screen wins.
+      const active = latest.current.activeDashboard;
+      const board = active?.widgets.some((w) => w.id === widgetId)
+        ? active
+        : latest.current.dashboards.find((d) =>
+            d.widgets.some((w) => w.id === widgetId)
+          );
       if (!board) return;
       const widgets = engineWidgets(board, latest.current.roster);
       if (!widgets) return;
@@ -154,14 +163,13 @@ export const ConnectionsRunner: React.FC = () => {
     if (!enabled) return;
     let retry: number | undefined;
     const handle = (
+      boardId: string,
       connectionId: string,
       command: RunCommand,
       tries: number,
       savedConnections?: WidgetConnection[]
     ) => {
-      const board = latest.current.dashboards.find((d) =>
-        (d.connections ?? []).some((c) => c.id === connectionId)
-      );
+      const board = latest.current.dashboards.find((d) => d.id === boardId);
       const seq = board?.connections?.find(
         (c): c is SequenceConnection =>
           c.id === connectionId && c.kind === 'sequence'
@@ -173,7 +181,8 @@ export const ConnectionsRunner: React.FC = () => {
         !sameConnections(board.connections ?? [], savedConnections);
       if ((!board || !seq || stale) && tries < 20) {
         retry = window.setTimeout(
-          () => handle(connectionId, command, tries + 1, savedConnections),
+          () =>
+            handle(boardId, connectionId, command, tries + 1, savedConnections),
           100
         );
         return;
@@ -240,8 +249,8 @@ export const ConnectionsRunner: React.FC = () => {
         );
       }
     };
-    const off = onRunCommand((id, command, savedConnections) =>
-      handle(id, command, 0, savedConnections)
+    const off = onRunCommand((boardId, id, command, savedConnections) =>
+      handle(boardId, id, command, 0, savedConnections)
     );
     return () => {
       off();
@@ -270,8 +279,10 @@ export const ConnectionsRunner: React.FC = () => {
   }, [enabled, dashboards, applyConnectionChanges]);
 
   const anyRun = enabled && dashboards.some(hasRun);
+  // Keyed by board too: a copied board keeps its Connection ids.
   const overdueSince = useRef(new Map<string, number>());
   const advancedAt = useRef(new Map<string, number>());
+  const seenSteps = useRef(new Set<string>());
 
   useEffect(() => {
     if (!anyRun) return;
@@ -287,25 +298,38 @@ export const ConnectionsRunner: React.FC = () => {
         if (!widgets) continue;
         for (const c of board.connections ?? []) {
           if (c.kind !== 'sequence' || !c.run) continue;
+          const key = `${board.id}:${c.id}`;
           // The last write may not have reached this board copy yet.
-          if (now - (advancedAt.current.get(c.id) ?? 0) < TICK_MS * 2) continue;
+          if (now - (advancedAt.current.get(key) ?? 0) < TICK_MS * 2) continue;
           const seq: SequenceConnection = c;
           const run = c.run;
+          const stepKey = `${key}:${run.stepIndex}:${run.stepStartedAt}`;
+          const firstLook = !seenSteps.current.has(stepKey);
+          seenSteps.current.add(stepKey);
           const steps = liveSteps(seq, board.widgets);
           const step = steps[run.stepIndex];
           const done =
             !step || isStepFinished(step, widgets, run.stepStartedAt, now);
           if (!done) {
-            overdueSince.current.delete(c.id);
+            overdueSince.current.delete(key);
+            continue;
+          }
+          if (
+            firstLook &&
+            run.deviceId !== CONNECTION_DEVICE_ID &&
+            now - run.stepStartedAt > STALE_RUN_MS
+          ) {
+            advancedAt.current.set(key, now);
+            updated.set(c.id, { ...seq, run: null });
             continue;
           }
           if (run.deviceId !== CONNECTION_DEVICE_ID) {
-            const since = overdueSince.current.get(c.id) ?? now;
-            overdueSince.current.set(c.id, since);
+            const since = overdueSince.current.get(key) ?? now;
+            overdueSince.current.set(key, since);
             if (now - since < TAKEOVER_MS) continue;
           }
-          overdueSince.current.delete(c.id);
-          advancedAt.current.set(c.id, now);
+          overdueSince.current.delete(key);
+          advancedAt.current.set(key, now);
           const r = advanceRun(seq, widgets, now, CONNECTION_DEVICE_ID);
           updated.set(c.id, r.sequence);
           Object.assign(patches, r.patches);

@@ -31961,7 +31961,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.widget",
         "kind": "widget",
-        "path": [],
+        "path": [
+          "widget.connection-badge"
+        ],
+        "reveal": "widget.connection-badge",
         "needs": [
           "widget-on-stage"
         ]
