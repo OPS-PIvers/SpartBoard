@@ -65,7 +65,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'spell-check-setting',
   'timer-starting-length',
   'music-my-songs',
-  'music-timer-link',
   'widget-connections',
   'focus-sessions',
   'staff-audience',
