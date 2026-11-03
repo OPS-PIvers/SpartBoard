@@ -92,6 +92,7 @@ describe('useBoardMarqueeSelect', () => {
       useBoardMarqueeSelect({
         enabled: true,
         getSelectableIds: () => ['w1'],
+        hasSelection: () => true,
         onSelect,
         onToggle: vi.fn(),
       })
@@ -125,6 +126,7 @@ describe('useBoardMarqueeSelect', () => {
         useBoardMarqueeSelect({
           enabled,
           getSelectableIds: () => ['w1'],
+          hasSelection: () => true,
           onSelect,
           onToggle,
         }),
@@ -157,6 +159,7 @@ describe('useBoardMarqueeSelect', () => {
       useBoardMarqueeSelect({
         enabled: true,
         getSelectableIds: () => ['w1'],
+        hasSelection: () => true,
         onSelect: vi.fn(),
         onToggle,
       })
@@ -170,6 +173,52 @@ describe('useBoardMarqueeSelect', () => {
     expect(inner).not.toHaveBeenCalled();
   });
 
+  it('leaves Ctrl+clicks to the widget while nothing is selected', () => {
+    const { widget } = mountBoard();
+    const onToggle = vi.fn();
+    const inner = vi.fn();
+    widget.addEventListener('pointerdown', inner);
+    renderHook(() =>
+      useBoardMarqueeSelect({
+        enabled: true,
+        getSelectableIds: () => ['w1'],
+        hasSelection: () => false,
+        onSelect: vi.fn(),
+        onToggle,
+      })
+    );
+    act(() => {
+      widget.dispatchEvent(
+        pointer('pointerdown', { x: 150, y: 150, ctrl: true })
+      );
+    });
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(inner).toHaveBeenCalled();
+  });
+
+  it('starts a box on the background layer outside a zoomed-out surface', () => {
+    mountBoard();
+    const bg = document.createElement('div');
+    bg.setAttribute('data-board-background', '');
+    document.body.appendChild(bg);
+    const onSelect = vi.fn();
+    renderHook(() =>
+      useBoardMarqueeSelect({
+        enabled: true,
+        getSelectableIds: () => ['w1'],
+        hasSelection: () => false,
+        onSelect,
+        onToggle: vi.fn(),
+      })
+    );
+    act(() => {
+      bg.dispatchEvent(pointer('pointerdown', { x: 50, y: 50, ctrl: true }));
+      window.dispatchEvent(pointer('pointermove', { x: 150, y: 150 }));
+      window.dispatchEvent(pointer('pointerup', { x: 150, y: 150 }));
+    });
+    expect(onSelect).toHaveBeenCalledWith(['w1']);
+  });
+
   it('treats a Ctrl+click without movement as no selection', () => {
     const { surface } = mountBoard();
     const onSelect = vi.fn();
@@ -177,6 +226,7 @@ describe('useBoardMarqueeSelect', () => {
       useBoardMarqueeSelect({
         enabled: true,
         getSelectableIds: () => ['w1'],
+        hasSelection: () => true,
         onSelect,
         onToggle: vi.fn(),
       })

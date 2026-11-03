@@ -540,12 +540,13 @@ export const DashboardView: React.FC = () => {
     return !!flag && canAccessFeature(flag);
   };
   const boxSelectOn = canAccessFeature('board-multi-select');
+  const boxSelectEnabled =
+    boxSelectOn &&
+    !annotationActive &&
+    !isActiveBoardReadOnly &&
+    !groupBuildMode;
   const marqueeRect = useBoardMarqueeSelect({
-    enabled:
-      boxSelectOn &&
-      !annotationActive &&
-      !isActiveBoardReadOnly &&
-      !groupBuildMode,
+    enabled: boxSelectEnabled,
     getSelectableIds: () =>
       (activeDashboard?.widgets ?? [])
         .filter((w) => !w.minimized && !w.maximized)
@@ -554,12 +555,13 @@ export const DashboardView: React.FC = () => {
       if (ids.length > 0) setBoxSelection(ids);
     },
     onToggle: toggleBoxSelected,
+    hasSelection: () => getBoxSelection().length > 0,
   });
   // True when the current press started on empty board, so its click clears the selection.
   const boardPressRef = React.useRef(false);
   const activeBoardId = activeDashboard?.id;
-  // The box selection belongs to one board; drop it on a board switch.
-  React.useEffect(() => clearBoxSelection(), [activeBoardId]);
+  // The box selection belongs to one board and one mode; drop it on a board switch or when the gesture turns off.
+  React.useEffect(() => clearBoxSelection(), [activeBoardId, boxSelectEnabled]);
   // Latched: the host takes the parameter off the address once it opens the editor.
   const [webTourLink] = React.useState(opensWebTour);
   useWallBoardAccessCleanup(user?.uid ?? null);
@@ -1744,6 +1746,7 @@ export const DashboardView: React.FC = () => {
           that color/pattern/image backgrounds still fill the viewport at
           sub-100% zoom. */}
       <div
+        data-board-background
         className={`absolute inset-0 ${backgroundClasses}`}
         style={backgroundStyles}
       >

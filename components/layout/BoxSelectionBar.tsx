@@ -21,6 +21,9 @@ export const BoxSelectionBar: React.FC = () => {
   if (selected.length === 0) return null;
 
   const pinnable = selected.filter((w) => !w.isLocked);
+  const groupable = selected.filter(
+    (w) => !w.isPinned && !w.isLocked && !w.minimized
+  );
   const allPinned = pinnable.length > 0 && pinnable.every((w) => w.isPinned);
 
   const pinAll = () => {
@@ -30,7 +33,7 @@ export const BoxSelectionBar: React.FC = () => {
     clearBoxSelection();
   };
   const groupAll = () => {
-    groupWidgets(selected.map((w) => w.id));
+    groupWidgets(groupable.map((w) => w.id));
     clearBoxSelection();
     addToast(t('widgetWindow.group.widgetsGrouped'));
   };
@@ -43,7 +46,7 @@ export const BoxSelectionBar: React.FC = () => {
       {/* no-tour-anchor: the bar only opens after a Ctrl+drag, which a tour cannot perform */}
       <button
         onClick={clearBoxSelection}
-        className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
+        className="min-h-11 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
       >
         {t('common.cancel')}
       </button>
@@ -51,7 +54,7 @@ export const BoxSelectionBar: React.FC = () => {
       <button
         disabled={pinnable.length === 0}
         onClick={pinAll}
-        className={`px-5 py-2 text-sm font-semibold rounded-full transition-colors ${
+        className={`min-h-11 px-5 py-2 text-sm font-semibold rounded-full transition-colors ${
           pinnable.length > 0
             ? 'bg-amber-500 text-white hover:bg-amber-600'
             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -66,15 +69,15 @@ export const BoxSelectionBar: React.FC = () => {
       </button>
       {/* no-tour-anchor: the bar only opens after a Ctrl+drag, which a tour cannot perform */}
       <button
-        disabled={selected.length < 2}
+        disabled={groupable.length < 2}
         onClick={groupAll}
-        className={`px-5 py-2 text-sm font-semibold rounded-full transition-colors ${
-          selected.length >= 2
+        className={`min-h-11 px-5 py-2 text-sm font-semibold rounded-full transition-colors ${
+          groupable.length >= 2
             ? 'bg-blue-600 text-white hover:bg-blue-700'
             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
         }`}
       >
-        {t('widgetWindow.group.groupCount', { count: selected.length })}
+        {t('widgetWindow.group.groupCount', { count: groupable.length })}
       </button>
     </div>,
     document.body

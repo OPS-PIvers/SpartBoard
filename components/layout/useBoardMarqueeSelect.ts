@@ -64,17 +64,19 @@ export const widgetsInRect = (
   });
 };
 
-/** Ctrl/Cmd + drag on empty board draws a selection box; Ctrl/Cmd + click on a widget toggles it. */
+/** Ctrl/Cmd + drag on empty board draws a selection box; Ctrl/Cmd + click toggles a widget while one exists. */
 export function useBoardMarqueeSelect({
   enabled,
   getSelectableIds,
   onSelect,
   onToggle,
+  hasSelection,
 }: {
   enabled: boolean;
   getSelectableIds: () => string[];
   onSelect: (ids: string[]) => void;
   onToggle: (id: string) => void;
+  hasSelection: () => boolean;
 }): MarqueeRect | null {
   const [rect, setRect] = useState<MarqueeRect | null>(null);
 
@@ -95,6 +97,7 @@ export function useBoardMarqueeSelect({
   });
 
   const toggle = useEffectEvent((id: string) => onToggle(id));
+  const selectionExists = useEffectEvent(() => hasSelection());
 
   useEffect(() => {
     if (!enabled) return;
@@ -128,8 +131,11 @@ export function useBoardMarqueeSelect({
       if (start || e.button !== 0 || e.pointerType !== 'mouse') return;
       if (!(e.ctrlKey || e.metaKey)) return;
       const target = e.target instanceof Element ? e.target : null;
-      if (!target?.closest('#dashboard-zoom-surface')) return;
+      if (!target?.closest('#dashboard-zoom-surface, [data-board-background]'))
+        return;
       if (target.closest('.widget')) {
+        // Widgets own their Ctrl+clicks (seat picks, links) unless a box selection is being edited.
+        if (!selectionExists() || target.closest(NOT_BOARD_SELECTOR)) return;
         const id = widgetAt(target);
         if (!id) return;
         e.preventDefault();
