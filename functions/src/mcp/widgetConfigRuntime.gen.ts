@@ -362,6 +362,7 @@ var WIDGET_DEFAULTS = {
       soundEnabled: true,
       autoStartTimer: false,
       visualStyle: 'flash',
+      avoidRecentPartners: false,
     },
   },
   dice: {

@@ -61,6 +61,9 @@ import {
   makeRestrictedGroups,
   makeRestrictedGroupsByCount,
   safeSize,
+  makeAvoidingRecent,
+  addRecentGrouping,
+  type RecentGrouping,
 } from './groupMaker';
 import {
   toggleLockedName,
@@ -176,6 +179,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
   const { canAccessFeature } = useAuth();
   const connectionsOn = canAccessFeature('widget-connections');
+  const avoidRecentPartners =
+    canAccessFeature('random-avoid-repeats') &&
+    config.avoidRecentPartners === true;
   // Read in the deferred pick callback; a migrated widget's auto-start became a Sequence.
   const useLegacy = usesLegacyToggles(connectionsOn, widget.config);
   const useLegacyRef = useRef(useLegacy);
@@ -1081,7 +1087,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     const performUpdate = (
       result: string | string[] | string[][] | RandomGroup[],
       remaining?: string[],
-      nextUnassignedNames?: string[]
+      nextUnassignedNames?: string[],
+      extra?: Partial<RandomConfig>
     ) => {
       try {
         // Firestore doesn't support nested arrays (e.g., string[][]).
@@ -1137,6 +1144,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         // Optimized update: only send what changed.
         // DashboardContext now handles deep merging of config.
         const updates: Partial<RandomConfig> = {
+          ...extra,
           lastResult: syncResult as string | string[] | RandomGroup[],
         };
         if (remaining) {
@@ -1481,6 +1489,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         const includeName = (name: string) => !lockedSet.has(name);
 
         let result: string[] | RandomGroup[];
+        let groupsExtra: Partial<RandomConfig> | undefined;
         if (mode === 'shuffle') {
           const existing =
             Array.isArray(displayResult) &&
@@ -1497,6 +1506,26 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
         } else {
           const existingGroups = groupsFromDisplay;
+          // With "avoid recent partners" on, each maker runs many times and keeps the least-repeated result.
+          const recentScope =
+            rosterMode === 'class' && activeRoster
+              ? `class:${activeRoster.id}`
+              : 'custom';
+          const storedRecent = avoidRecentPartners
+            ? (config.recentGroupings ?? []).filter(
+                (h) => h.scope === recentScope
+              )
+            : [];
+          const recentHistory: RecentGrouping[] =
+            storedRecent.length > 0 || !existingGroups
+              ? storedRecent
+              : [{ scope: recentScope, groups: existingGroups }];
+          const best = <T extends { groups: RandomGroup[] }>(
+            make: () => T & { unsatisfied?: number }
+          ): T =>
+            avoidRecentPartners
+              ? makeAvoidingRecent(make, recentHistory)
+              : make();
           const useLockPath =
             lockedSet.size > 0 &&
             Array.isArray(existingGroups) &&
@@ -1520,15 +1549,21 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
             if (useLockPath) {
               const targetCount = existingGroups.length;
-              const { groups, unsatisfied } = makeRestrictedGroupsByCount(
-                poolStudents,
-                targetCount
-              );
-              result = mergeLockedWithFresh({
-                currentGroups: existingGroups,
-                lockedNames,
-                freshGroups: groups,
+              const { groups: merged, unsatisfied } = best(() => {
+                const fresh = makeRestrictedGroupsByCount(
+                  poolStudents,
+                  targetCount
+                );
+                return {
+                  groups: mergeLockedWithFresh({
+                    currentGroups: existingGroups,
+                    lockedNames,
+                    freshGroups: fresh.groups,
+                  }),
+                  unsatisfied: fresh.unsatisfied,
+                };
               });
+              result = merged;
               if (unsatisfied > 0) {
                 addToast(
                   t('widgets.random.restrictionsUnsatisfied', {
@@ -1542,14 +1577,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               // Ids are deliberately not preserved here: the output order is
               // reshuffled (D11), so carrying slot colors across would pin the
               // locked cohort to a recognisable colour instead.
-              const { groups, unsatisfied, lockConflicts } =
+              const { groups, unsatisfied, lockConflicts } = best(() =>
                 makeGroupsWithLockedCohorts({
                   students: poolStudents,
                   lockedCohorts,
                   ...(groupCountMode
                     ? { numGroups: displayNumGroups }
                     : { groupSize }),
-                });
+                })
+              );
               result = groups;
               if (lockConflicts > 0) {
                 addToast(
@@ -1570,9 +1606,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 );
               }
             } else {
-              const { groups, unsatisfied } = groupCountMode
-                ? makeRestrictedGroupsByCount(poolStudents, displayNumGroups)
-                : makeRestrictedGroups(poolStudents, groupSize);
+              const { groups, unsatisfied } = best(() =>
+                groupCountMode
+                  ? makeRestrictedGroupsByCount(poolStudents, displayNumGroups)
+                  : makeRestrictedGroups(poolStudents, groupSize)
+              );
               result = preserveIds(groups);
               if (unsatisfied > 0) {
                 addToast(
@@ -1588,22 +1626,34 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             if (useLockPath) {
               const targetCount = existingGroups.length;
               const unlockedPool = students.filter((n) => !lockedSet.has(n));
-              const fresh = makeNameGroupsByCount(unlockedPool, targetCount);
-              result = mergeLockedWithFresh({
-                currentGroups: existingGroups,
-                lockedNames,
-                freshGroups: fresh,
-              });
+              result = best(() => ({
+                groups: mergeLockedWithFresh({
+                  currentGroups: existingGroups,
+                  lockedNames,
+                  freshGroups: makeNameGroupsByCount(unlockedPool, targetCount),
+                }),
+              })).groups;
             } else {
               result = preserveIds(
-                groupCountMode
-                  ? makeNameGroupsByCount(students, displayNumGroups)
-                  : makeNameGroups(students, groupSize)
+                best(() => ({
+                  groups: groupCountMode
+                    ? makeNameGroupsByCount(students, displayNumGroups)
+                    : makeNameGroups(students, groupSize),
+                })).groups
               );
             }
           }
           // The count makers clamp to the student count rather than emit empty
           // groups, so say so when the class can't fill the requested number.
+          if (avoidRecentPartners) {
+            groupsExtra = {
+              recentGroupings: addRecentGrouping(
+                config.recentGroupings,
+                recentScope,
+                result
+              ),
+            };
+          }
           if (
             groupCountMode &&
             !useLockPath &&
@@ -1628,7 +1678,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           setDisplayResult(result);
           endSpin();
           // Always clear legacy unassignedNames after a successful pick.
-          performUpdate(result, undefined, []);
+          performUpdate(result, undefined, [], groupsExtra);
         });
       }, 500);
     }
