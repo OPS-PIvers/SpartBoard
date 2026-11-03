@@ -141,7 +141,8 @@ export const useNamesFromStations = (
   // A reloaded board's names arrive from Drive after the board; writing first would drop the saved draw.
   const awaitingNames =
     config.rosterMode === 'custom' && config.firstNames === undefined;
-  const byId = sorted.map((st, i) => [st.id, list[i]] as const);
+  // A string, so the effect (and its restore wait) only re-runs when a station changes.
+  const byIdKey = JSON.stringify(sorted.map((st, i) => [st.id, list[i]]));
 
   // The station names this Randomizer last took, by station id; a renamed station carries its draw over.
   const synced = useRef<{
@@ -150,7 +151,7 @@ export const useNamesFromStations = (
   } | null>(null);
   useEffect(() => {
     if (names === null) return;
-    const current = new Map(byId);
+    const current = new Map(JSON.parse(byIdKey) as [string, string][]);
     if (!stale) {
       synced.current = { names, byId: current };
       return;
@@ -187,7 +188,7 @@ export const useNamesFromStations = (
     readOnly,
     awaitingNames,
     names,
-    byId,
+    byIdKey,
     updateWidget,
     widget.id,
     config,
