@@ -84,11 +84,11 @@ describe('planAnchorRequests', () => {
       },
     ];
     const { steps, requests } = planAnchorRequests(
-      [fallbackStep('a', 'Show date')],
+      [fallbackStep('a', 'Show weekday')],
       prior,
       new Map()
     );
-    const fp = requestFingerprint('switch', 'Show date', null);
+    const fp = requestFingerprint('switch', 'Show weekday', null);
     expect(steps[0].tour).toMatchObject({ unmapped: fp });
     expect(requests.map((r) => r.fingerprint)).toEqual([fp]);
   });
