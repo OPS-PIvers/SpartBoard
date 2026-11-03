@@ -243,7 +243,6 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     !!youtubeId &&
     !isSpotify &&
     !isActiveBoardReadOnly &&
-    (connectionsOn || canAccessFeature('music-timer-link')) &&
     canAccessWidget('time-tool') &&
     !(syncWithTimer && timeToolWidget);
 

@@ -10829,8 +10829,6 @@ export type GlobalFeature =
   | 'timer-starting-length'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
-  /** Timer button on the Music widget that opens a Timer linked to it. */
-  | 'music-timer-link'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
   | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */

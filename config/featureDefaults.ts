@@ -1304,17 +1304,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'music-timer-link': {
-    label: 'Music: linked timer',
-    icon: Timer,
-    description:
-      'A timer button on the Music widget opens a Timer that the music plays with.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Widget Connections (docs/adr/0002). Admin-only until Paul has run it in class.
   'widget-connections': {
     label: 'Widget connections',
