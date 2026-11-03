@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-119.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-120.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -135,7 +135,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
   > On prod, count `shared_boards/*/items` docs whose share no longer exists or whose `ownerUid` is no longer the share's host or a participant. Read-only; deleting them needs my OK.
 - [ ] **PT-117 🤖 Sharing records made by non-staff accounts** (security batch 2B, optional, likely zero). Substitute shares and collection links now need a staff account; older records were not checked.
   > On prod, list substitute `shared_boards` and `shared_collections` whose host has no active staff member doc, and `linked_collections` or `shared_boards` participants with no staff member doc. Read-only; removing any needs my OK.
-- [ ] **PT-118 🤖 Students in building groups** (optional, likely zero). The auto-roster now skips student-role accounts; ones it added earlier stay until swept:
+- [ ] **PT-119 🤖 Students in building groups** (optional, likely zero). The auto-roster now skips student-role accounts; ones it added earlier stay until swept. Only after the main release with this fix is live on prod and after PT-2's `--apply`, so no new student members appear after the sweep:
   > Run `node scripts/remove-student-building-group-members.mjs --project spartboard` (dry run) from the PC with the prod key, show me who it lists, then re-run with `--apply` after I say go.
 - [ ] **PT-66 You: password reset domains** (F56, #4585). Admin Settings > Organization > Domains on prod: the Orono domains show Verified.
 - [ ] **PT-67 You: ClassLink PIN lists** (F57, #4738). ClassLink students got 6-digit PINs in the 10-27 sync. If teachers weren't told, they need new PIN lists.
