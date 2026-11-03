@@ -26,7 +26,7 @@ export const ReadAloudControls: React.FC<{
 
   return (
     <>
-      <button
+      <button /* no-tour-anchor: student read-aloud control */
         type="button"
         onClick={active ? controller.stop : controller.readQuestion}
         aria-pressed={whole === 'playing'}
@@ -51,7 +51,7 @@ export const ReadAloudControls: React.FC<{
           ? t('quizReadAloud.stop', 'Stop')
           : t('quizReadAloud.readQuestion', 'Read question')}
       </button>
-      <button
+      <button /* no-tour-anchor: student read-aloud control */
         type="button"
         onClick={controller.cycleRate}
         aria-label={t('quizReadAloud.speed', {
@@ -66,7 +66,7 @@ export const ReadAloudControls: React.FC<{
         <span id="quiz-read-aloud-auto-label">
           {t('quizReadAloud.autoRead', 'Auto-read')}
         </span>
-        <button
+        <button /* no-tour-anchor: student read-aloud control */
           type="button"
           role="switch"
           aria-checked={controller.auto}
