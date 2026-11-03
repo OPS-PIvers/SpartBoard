@@ -589,3 +589,21 @@ describe('makeGroupsWithLockedCohorts (plan D10-D13)', () => {
     expect(groups.every((g) => g.names.length === 2)).toBe(true);
   });
 });
+
+describe('non-finite group size', () => {
+  const students = ['a', 'b', 'c'].map(
+    (id) => ({ id, firstName: id, lastName: '' }) as Student
+  );
+
+  it('makeNameGroups keeps every name when the size is NaN', () => {
+    const groups = makeNameGroups(['a', 'b', 'c'], NaN);
+    expect(groups.flatMap((g) => g.names).sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('makeRestrictedGroups places every student when the size is NaN or Infinity', () => {
+    for (const size of [NaN, Infinity]) {
+      const { groups } = makeRestrictedGroups(students, size);
+      expect(groups.flatMap((g) => g.studentIds)).toHaveLength(3);
+    }
+  });
+});
