@@ -22,6 +22,7 @@ import {
 import { combineRosterNames } from '@/utils/rosterNameLists';
 import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { safeSize } from './groupMaker';
 
 function useStudentCount(config: RandomConfig): number {
   const { rosters, activeRosterId } = useDashboard();
@@ -46,7 +47,7 @@ export const RandomGroupCountField: React.FC<{
   // Groups mode defaults to 3 per group, jigsaw to 4 — mirror RandomWidget so
   // the panel and the on-widget stepper never disagree.
   const groupSize = config.groupSize ?? (kind === 'groups' ? 3 : 4);
-  const estimatedHome = Math.max(2, Math.ceil(count / Math.max(1, groupSize)));
+  const estimatedHome = Math.max(2, Math.ceil(count / safeSize(groupSize)));
   const home = Math.max(2, config.numHomeGroups ?? estimatedHome);
   const value =
     kind === 'home'

@@ -14,6 +14,10 @@ function shuffleInPlace<T>(arr: T[]): T[] {
   return arr;
 }
 
+// A non-finite size (corrupt config) falls back to 1 so groups are never dropped or zero in number.
+export const safeSize = (groupSize: number): number =>
+  Number.isFinite(groupSize) ? Math.max(1, Math.floor(groupSize)) : 1;
+
 // Checks both directions — restriction data read from Firestore isn't guaranteed to be symmetric.
 // `restricted` is built once per student by the caller, not once per bucket.
 function conflictsWithBucket(
@@ -46,7 +50,7 @@ export function makeRestrictedGroups(
   groupSize: number
 ): GroupMakerResult {
   if (students.length === 0) return { groups: [], unsatisfied: 0 };
-  const size = Math.max(1, Math.floor(groupSize));
+  const size = safeSize(groupSize);
   const numGroups = Math.ceil(students.length / size);
   const buckets: Student[][] = Array.from({ length: numGroups }, () => []);
   const shuffled = shuffleInPlace([...students]);
@@ -143,7 +147,7 @@ export function makeNameGroups(
   groupSize: number
 ): RandomGroup[] {
   if (names.length === 0) return [];
-  const size = Math.max(1, Math.floor(groupSize));
+  const size = safeSize(groupSize);
   const shuffled = shuffleInPlace([...names]);
   const groups: RandomGroup[] = [];
   for (let i = 0; i < shuffled.length; i += size) {
