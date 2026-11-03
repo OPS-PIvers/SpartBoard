@@ -4001,6 +4001,7 @@ describe('index barrel — deployed export set', () => {
     'glBuildingIndexMirror',
     'glTourSnapshots',
     'webTourCleanup',
+    'sharedBoardItemsCleanup',
     'tourAnchorApi',
     'tourAnchorBatchTrigger',
     'tourAnchorSweep',

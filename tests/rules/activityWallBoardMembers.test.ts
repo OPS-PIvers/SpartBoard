@@ -192,7 +192,7 @@ beforeEach(async () => {
   await testEnv.withSecurityRulesDisabled((ctx) =>
     seedDistrictStaff(
       ctx.firestore(),
-      [HOST_UID, COLLAB_UID, VIEWER_UID, OUTSIDER_UID].map(
+      [HOST_UID, COLLAB_UID, VIEWER_UID, OUTSIDER_UID, 'new-teacher'].map(
         (uid) => `${uid}@orono.k12.mn.us`
       )
     )

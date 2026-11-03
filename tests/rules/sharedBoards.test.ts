@@ -58,14 +58,21 @@ const RULES_PATH = fileURLToPath(
 
 let testEnv: RulesTestEnvironment;
 
+// The host is district staff: only staff may publish a substitute share.
+const HOST_EMAIL = 'host@orono.k12.mn.us';
 const asHost = () =>
   testEnv
-    .authenticatedContext(HOST_UID, { email: 'host@example.com' })
+    .authenticatedContext(HOST_UID, { email: HOST_EMAIL, email_verified: true })
     .firestore();
 
+// Collaborators are staff too: a Synced edit needs a staff account.
+const COLLAB_EMAIL = 'collab@orono.k12.mn.us';
 const asCollab = () =>
   testEnv
-    .authenticatedContext(COLLAB_UID, { email: 'collab@example.com' })
+    .authenticatedContext(COLLAB_UID, {
+      email: COLLAB_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 
 const asViewer = () =>
@@ -76,6 +83,16 @@ const asViewer = () =>
 const asStranger = () =>
   testEnv
     .authenticatedContext(STRANGER_UID, { email: 'stranger@example.com' })
+    .firestore();
+
+// The same stranger signed in as a staff teacher, the only kind who may self-join.
+const STAFF_STRANGER_EMAIL = 'stranger@orono.k12.mn.us';
+const asStaffStranger = () =>
+  testEnv
+    .authenticatedContext(STRANGER_UID, {
+      email: STAFF_STRANGER_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 
 // Real Orono staff sign in via Google, which always sets email_verified: true.
@@ -169,7 +186,12 @@ beforeEach(async () => {
     await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
       email: ADMIN_EMAIL,
     });
-    await seedDistrictStaff(ctx.firestore(), [ORONO_EMAIL]);
+    await seedDistrictStaff(ctx.firestore(), [
+      ORONO_EMAIL,
+      HOST_EMAIL,
+      COLLAB_EMAIL,
+      STAFF_STRANGER_EMAIL,
+    ]);
   });
 });
 
@@ -397,7 +419,7 @@ describe('shared_boards — viewer (read-only)', () => {
 describe('shared_boards — self-join', () => {
   it('stranger can append themselves to participants (Synced join)', async () => {
     await assertSucceeds(
-      updateDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`), {
+      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: {
           role: 'collaborator',
           joinedAt: 2000,
@@ -408,7 +430,7 @@ describe('shared_boards — self-join', () => {
 
   it('stranger can append themselves as viewer (View-Only join)', async () => {
     await assertSucceeds(
-      updateDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`), {
+      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: {
           role: 'viewer',
           joinedAt: 2000,
@@ -424,7 +446,7 @@ describe('shared_boards — self-join', () => {
       });
     });
     await assertFails(
-      updateDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`), {
+      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: {
           role: 'collaborator',
           joinedAt: 2000,
@@ -432,7 +454,7 @@ describe('shared_boards — self-join', () => {
       })
     );
     await assertSucceeds(
-      updateDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`), {
+      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: { role: 'viewer', joinedAt: 2000 },
       })
     );
@@ -445,7 +467,7 @@ describe('shared_boards — self-join', () => {
       });
     });
     await assertFails(
-      updateDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`), {
+      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: {
           role: 'collaborator',
           joinedAt: 2000,
@@ -458,7 +480,7 @@ describe('shared_boards — self-join', () => {
     // The diff().affectedKeys().hasOnly([uid]) clause prevents a caller
     // from sneaking unrelated participants into the same write.
     await assertFails(
-      updateDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`), {
+      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: {
           role: 'collaborator',
           joinedAt: 2000,
@@ -475,7 +497,7 @@ describe('shared_boards — self-join', () => {
     // The diff().affectedKeys().hasOnly(['participants']) clause keeps
     // the join write to a single field — no smuggling content edits.
     await assertFails(
-      updateDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`), {
+      updateDoc(doc(asStaffStranger(), `shared_boards/${SHARE_ID}`), {
         [`participants.${STRANGER_UID}`]: {
           role: 'collaborator',
           joinedAt: 2000,
