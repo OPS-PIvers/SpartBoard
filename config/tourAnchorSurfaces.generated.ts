@@ -1045,6 +1045,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.random.clear-names': ['widgets.random.settings'],
     'widget-settings.random.save-as-groups': ['widgets.random.settings'],
     'widget-settings.random.send-stations': ['widgets.random.settings'],
+    'widget-settings.random.names-connection': ['widgets.random.settings'],
     'widget-settings.random.send-projects': ['widgets.random.settings'],
     'annotate.pen-color': ['board.shared-shells'],
     'roster-editor.name': ['board.roster-editor'],

@@ -126,4 +126,9 @@ describe('sideJoinKind', () => {
     expect(sideJoinKind(widgets[5], 'random')).toBeNull();
     expect(sideJoinKind(widgets[6], 'random')).toBe('action');
   });
+
+  it('adds a Randomizer beside a Stations step as its own step, not a Follow', () => {
+    expect(sideJoinKind(widgets[2], 'stations')).toBe('action');
+    expect(sideJoinKind(widgets[6], 'sound')).toBe('follow');
+  });
 });

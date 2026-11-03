@@ -177,7 +177,11 @@ export const WIDGET_CONNECTIONS: Partial<
       timerAction('reset', 'Reset', 'reset', false),
     ],
   },
-  random: { defaultAction: 'next', actions: [randomNext] },
+  random: {
+    defaultAction: 'next',
+    actions: [randomNext],
+    follows: ['stations'],
+  },
   music: { defaultAction: '', actions: [], follows: ['time-tool'] },
   traffic: {
     defaultAction: 'red',

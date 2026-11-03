@@ -157,6 +157,14 @@ export const sideJoinKind = (
 ): 'follow' | 'action' | null => {
   const def = connectionDefFor(widget.type);
   if (!def) return null;
-  if (mainType && def.follows?.includes(mainType)) return 'follow';
+  // Beside a step widget, a widget with its own step (Randomizer by Stations) joins as a step.
+  const mainIsStep = !!(mainType && connectionDefFor(mainType)?.defaultAction);
+  if (
+    mainType &&
+    def.follows?.includes(mainType) &&
+    !(def.defaultAction && mainIsStep)
+  ) {
+    return 'follow';
+  }
   return def.actions.length > 0 ? 'action' : null;
 };

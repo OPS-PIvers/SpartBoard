@@ -58,3 +58,12 @@ export const buildStationsFromRandomGroups = (
   });
   return { stations, assignments };
 };
+
+/** Station names in order, as the Randomizer gets them; an untitled station gets its numbered fallback. */
+export const stationNamesForRandom = (
+  stations: readonly Station[] | undefined,
+  fallback: (number: number) => string
+): string[] =>
+  [...(stations ?? [])]
+    .sort((a, b) => a.order - b.order)
+    .map((s) => s.title.trim() || fallback(s.order + 1));

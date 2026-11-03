@@ -58,6 +58,8 @@ describe('consolidated field-level widget settings migration', () => {
         // Pool picker: Checklist has no class chip to hang the group submenu
         // off, so the selector lives in the drawer (roster-groups plan D22).
         'rosterPoolGroupId',
+        // Randomizer names from a connected Stations: a read-only row with Edit connection.
+        'rosterMode',
         'selectedSoundIds',
         'showFeelsLike',
         'syncSoundWidget',
