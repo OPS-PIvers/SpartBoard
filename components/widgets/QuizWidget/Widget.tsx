@@ -1667,6 +1667,28 @@ const TeacherQuizWidget: React.FC<{
     widget.id,
   ]);
 
+  // A Quiz widget never keeps a Scoreboard LIVE, even if sync was switched off mid-session.
+  const quizHoldsLiveScoreboard =
+    !isReview &&
+    !!activeDashboard?.widgets.some(
+      (w) =>
+        w.type === 'scoreboard' &&
+        (w.config as ScoreboardConfig).liveQuizWidgetId === widget.id
+    );
+  useEffect(() => {
+    if (!quizHoldsLiveScoreboard) return;
+    for (const w of widgetsRef.current ?? []) {
+      if (
+        w.type === 'scoreboard' &&
+        (w.config as ScoreboardConfig).liveQuizWidgetId === widget.id
+      ) {
+        updateWidget(w.id, {
+          config: { ...w.config, liveQuizWidgetId: undefined },
+        });
+      }
+    }
+  }, [quizHoldsLiveScoreboard, updateWidget, widget.id]);
+
   // ─── Auto-reveal answers for student feedback ─────────────────────────────
   // When showResultToStudent is enabled, auto-reveal answers for questions
   // that have already been advanced past. This ensures students see feedback
