@@ -653,7 +653,8 @@ export const liveScoreboardTarget = <W extends { id: string; type: string }>(
 ): W | undefined => {
   if (connectedId) return widgets?.find((w) => w.id === connectedId);
   const free = (w: W) => !takenIds?.has(w.id);
-  return rememberedId
-    ? widgets?.find((w) => w.id === rememberedId && free(w))
+  // A remembered Scoreboard another widget now leads gives way to the first free one.
+  return rememberedId && !takenIds?.has(rememberedId)
+    ? widgets?.find((w) => w.id === rememberedId)
     : widgets?.find((w) => w.type === 'scoreboard' && free(w));
 };

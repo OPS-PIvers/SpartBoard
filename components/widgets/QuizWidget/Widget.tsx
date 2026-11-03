@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useLayoutEffect,
 } from 'react';
 import {
   WidgetData,
@@ -567,6 +568,7 @@ const TeacherQuizWidget: React.FC<{
 
   const {
     session: liveSession,
+    loading: liveSessionLoading,
     responses,
     advanceQuestion,
     endQuizSession,
@@ -1409,8 +1411,6 @@ const TeacherQuizWidget: React.FC<{
       widget.id
     );
   const connectedScoreboardRef = useRef(connectedScoreboardId);
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in effects
-  connectedScoreboardRef.current = connectedScoreboardId;
   // Scoreboards whose teams another widget leads; an unconnected sync leaves them alone.
   const takenScoreboardIds = new Set<string>();
   if (connectionsOn && activeDashboard) {
@@ -1426,8 +1426,12 @@ const TeacherQuizWidget: React.FC<{
     }
   }
   const takenScoreboardIdsRef = useRef(takenScoreboardIds);
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in effects
-  takenScoreboardIdsRef.current = takenScoreboardIds;
+  useLayoutEffect(() => {
+    connectedScoreboardRef.current = connectedScoreboardId;
+    takenScoreboardIdsRef.current = takenScoreboardIds;
+  });
+  // The Scoreboard the last sync wrote to, so a switched target syncs at once.
+  const lastSyncTargetRef = useRef<string | undefined>(undefined);
   const liveScoreboardLink = scoreboardFollow
     ? {
         name: getTitle(scoreboardFollow.scoreboard),
@@ -1528,8 +1532,10 @@ const TeacherQuizWidget: React.FC<{
       .sort()
       .join('|');
 
-    // Allow first-run when the scoreboard was just enabled (prev is empty)
-    const isFirstRun = prevResponsesJsonRef.current === '';
+    // Allow first-run when the scoreboard was just enabled (prev is empty) or the connection moved
+    const targetMoved = lastSyncTargetRef.current !== connectedScoreboardId;
+    lastSyncTargetRef.current = connectedScoreboardId;
+    const isFirstRun = prevResponsesJsonRef.current === '' || targetMoved;
     if (!isFirstRun && fingerprint === prevResponsesJsonRef.current) return;
     prevResponsesJsonRef.current = fingerprint;
 
@@ -1637,6 +1643,22 @@ const TeacherQuizWidget: React.FC<{
           takenScoreboardIdsRef.current
         );
 
+        // A Scoreboard this Review left (connection moved) drops its LIVE badge.
+        for (const w of widgets ?? []) {
+          if (
+            connectionsOn &&
+            w.type === 'scoreboard' &&
+            w.id !== existingScoreboard?.id &&
+            (w.config as ScoreboardConfig).liveQuizWidgetId === widget.id
+          ) {
+            updateWidget(
+              w.id,
+              { config: { ...w.config, liveQuizWidgetId: undefined } },
+              { skipHistory: true }
+            );
+          }
+        }
+
         if (existingScoreboard) {
           // Manual score history no longer matches quiz-built teams.
           const staleHistory = (existingScoreboard.config as ScoreboardConfig)
@@ -1692,6 +1714,7 @@ const TeacherQuizWidget: React.FC<{
     config.liveScoreboardMode,
     config.liveScoreboardWidgetId,
     connectedScoreboardId,
+    connectionsOn,
     config.periodNames,
     config.periodName,
     responses,
@@ -1753,7 +1776,11 @@ const TeacherQuizWidget: React.FC<{
 
   // A Quiz widget never keeps a Scoreboard LIVE, nor does a Review whose sync is off or disconnected.
   const quizHoldsLiveScoreboard =
-    (quizDropsScoreboard || (isReview && connectionsOn && !scoreboardSyncOn)) &&
+    (quizDropsScoreboard ||
+      (isReview &&
+        connectionsOn &&
+        !liveSessionLoading &&
+        !scoreboardSyncOn)) &&
     !!activeDashboard?.widgets.some(
       (w) =>
         w.type === 'scoreboard' &&

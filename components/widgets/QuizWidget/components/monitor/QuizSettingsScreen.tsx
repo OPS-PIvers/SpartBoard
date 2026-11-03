@@ -168,7 +168,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
                 'quiz-monitor.settings-scoreboard-edit-connection',
                 'quiz'
               )}
-              className="shrink-0 rounded-md border border-brand-gray-lighter bg-white font-sans font-semibold text-brand-blue-primary hover:bg-brand-gray-lightest"
+              className="relative touch-target-expand shrink-0 rounded-md border border-brand-gray-lighter bg-white font-sans font-semibold text-brand-blue-primary hover:bg-brand-gray-lightest"
               style={{
                 fontSize: 'min(11px, 3.8cqmin)',
                 padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
