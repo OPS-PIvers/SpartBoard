@@ -29,6 +29,8 @@ export const STUCK_SUBMISSION_AGE_MS = 10 * 60 * 1000;
 /** Runaway guard, not an expected volume. */
 export const MAX_SUBMISSIONS_PER_RUN = 500;
 export const SUBMISSION_PAGE_SIZE = 100;
+/** Storage-cleanup retries per run; each lists Storage twice, so keep the run inside its timeout. */
+export const MAX_CLEANUP_RETRIES_PER_RUN = 200;
 /** Bucket listing page size; pages are followed until the prefix is exhausted. */
 export const STORAGE_PAGE_SIZE = 500;
 /** Runaway guard on the listing loop, not an expected volume. */
@@ -179,7 +181,7 @@ async function retryStorageCleanup(
   summary: WallSweepSummary
 ): Promise<void> {
   let cursor: admin.firestore.QueryDocumentSnapshot | null = null;
-  while (summary.cleanupRetried < MAX_SUBMISSIONS_PER_RUN) {
+  while (summary.cleanupRetried < MAX_CLEANUP_RETRIES_PER_RUN) {
     // Failed cleanups keep the flag, so walk past them rather than re-reading the same first page.
     let query = db
       .collectionGroup(SUBMISSIONS_COLLECTION)
