@@ -24,7 +24,21 @@ describe('legacyCreatorUid', () => {
     expect(legacyCreatorUid({})).toBe('');
   });
 
-  it('prefers the lead when no joinedAt matches createdAt', () => {
+  it('keeps the earliest joiner over a later lead when join times differ', () => {
+    expect(
+      legacyCreatorUid({
+        createdAt: 1,
+        leadUid: 'c',
+        members: {
+          a: { joinedAt: 30 },
+          b: { joinedAt: 20 },
+          c: { joinedAt: 40 },
+        },
+      })
+    ).toBe('b');
+  });
+
+  it('prefers the lead when the earliest join times tie', () => {
     expect(
       legacyCreatorUid({
         createdAt: 1,
