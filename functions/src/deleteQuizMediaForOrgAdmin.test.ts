@@ -194,11 +194,43 @@ function createFakeDb() {
       },
     });
 
+  // Every doc whose parent collection id is `name`, at any depth.
+  const collectionGroup = (name: string) => {
+    const build = (filters: [string, unknown][]) => ({
+      where: (field: string, _op: string, value: unknown) =>
+        build([...filters, [field, value]]),
+      get: () =>
+        Promise.resolve({
+          docs: [...docs.entries()]
+            .filter(([key, data]) => {
+              const seg = key.split('/');
+              return (
+                seg.length % 2 === 0 &&
+                seg[seg.length - 2] === name &&
+                filters.every(([f, v]) => data[f] === v)
+              );
+            })
+            .map(([key]) => {
+              const seg = key.split('/');
+              return {
+                ...snapshot(key),
+                ref: {
+                  path: key,
+                  parent: { parent: { id: seg[seg.length - 3] } },
+                },
+              };
+            }),
+        }),
+    });
+    return build([]);
+  };
+
   return {
     docs,
     set: (path: string, data: Doc) => docs.set(path, data),
     doc,
     collection,
+    collectionGroup,
     runTransaction,
   };
 }
@@ -212,6 +244,10 @@ const asFirestore = (db: FakeStore) =>
 const ORG = 'orono';
 
 function seedOrg(db: FakeStore): void {
+  db.set(`organizations/${ORG}/domains/x`, {
+    domain: '@x.org',
+    status: 'verified',
+  });
   db.set(`organizations/${ORG}/members/admin@x.org`, {
     email: 'admin@x.org',
     roleId: 'domain_admin',
@@ -451,11 +487,43 @@ describe('listOrgQuizMedia', () => {
     );
     expect(rows.every((r) => r.sessionId === 's1')).toBe(true);
   });
+
+  it("never lists an invited teacher from another tenant's domain", async () => {
+    db.set(`organizations/${ORG}/members/guest@victim.org`, {
+      email: 'guest@victim.org',
+      roleId: 'teacher',
+      uid: 'teacher-uid',
+    });
+    db.set(`organizations/${ORG}/members/teacher@x.org`, {});
+    const { rows, teachers } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    );
+    expect(rows).toEqual([]);
+    expect(teachers.map((t) => t.email)).toEqual(['admin@x.org']);
+  });
+
+  it('lists nothing on a domain another org also verified', async () => {
+    db.set('organizations/other/domains/x', {
+      domain: '@x.org',
+      status: 'verified',
+    });
+    const { rows, teachers } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    );
+    expect(rows).toEqual([]);
+    expect(teachers).toEqual([]);
+  });
 });
 
 describe('listOrgQuizMedia scan caps', () => {
   it('stops querying later teacher chunks once the response cap is hit', async () => {
     const db = createFakeDb();
+    db.set(`organizations/${ORG}/domains/x`, {
+      domain: '@x.org',
+      status: 'verified',
+    });
     for (let i = 0; i < 12; i++) {
       db.set(`organizations/${ORG}/members/t${i}@x.org`, {
         email: `t${i}@x.org`,
@@ -543,6 +611,25 @@ describe('deleteOrgQuizMediaSets', () => {
     db = createFakeDb();
     seedOrg(db);
     seedResponse(db);
+  });
+
+  it("never deletes media of an invited teacher from another tenant's domain", async () => {
+    db.set(`organizations/${ORG}/members/teacher@x.org`, {
+      email: 'teacher@victim.org',
+      roleId: 'teacher',
+      uid: 'teacher-uid',
+    });
+    const deps = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [{ sessionId: 's1', responseKey: 'r1', questionId: 'q1' }],
+        deletedBy: 'admin-uid',
+      },
+      deps
+    );
+    expect(results.every((r) => r.status !== 'deleted')).toBe(true);
+    expect(deps.deleteDriveFile).not.toHaveBeenCalled();
   });
 
   it('deletes every take of the question, not just the latest', async () => {
