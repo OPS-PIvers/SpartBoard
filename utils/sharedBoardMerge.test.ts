@@ -189,6 +189,17 @@ describe('mergeSharedConnections', () => {
     expect(merged[0]).not.toHaveProperty('run');
   });
 
+  it("a host's first snapshot keeps its own Connections a damaged share lacks", () => {
+    const local = withConnections([follow('f1'), seq('s1')]);
+    const server = withConnections([follow('f1')]);
+    expect(
+      mergeSharedConnections(local, server, undefined, true).map((c) => c.id)
+    ).toEqual(['f1', 's1']);
+    expect(
+      mergeSharedConnections(local, server, undefined).map((c) => c.id)
+    ).toEqual(['f1']);
+  });
+
   it("takes a host's new and edited Connections when this copy has not changed", () => {
     const base = sharedBoardBaseline(withConnections([follow('f1')]));
     const merged = mergeSharedConnections(

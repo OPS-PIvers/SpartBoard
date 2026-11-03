@@ -43,17 +43,24 @@ export const sharedBoardBaseline = (d: Dashboard): SharedBoardBaseline => ({
  * Three-way merge of a Synced board's Connections by id, like its widgets:
  * this device's edits, adds and deletes stand, everything else takes the share.
  * Without a base (first snapshot here) the share wins. This device's Runs stay.
+ * A host keeps its own Connections then, so a share an old client damaged heals.
  */
 export function mergeSharedConnections(
   local: Pick<Dashboard, 'connections'>,
   server: Pick<Dashboard, 'connections'>,
-  base: Pick<SharedBoardBaseline, 'connections'> | undefined
+  base: Pick<SharedBoardBaseline, 'connections'> | undefined,
+  /** Without a base, also keep local Connections the share lacks (a host's own board). */
+  keepLocalWithoutBase = false
 ): WidgetConnection[] {
   const localDefs = sharedConnections(local);
   const serverDefs = sharedConnections(server);
   const merged: WidgetConnection[] = [];
   if (!base) {
     merged.push(...serverDefs);
+    if (keepLocalWithoutBase) {
+      const serverIds = new Set(serverDefs.map((c) => c.id));
+      merged.push(...localDefs.filter((c) => !serverIds.has(c.id)));
+    }
   } else {
     const localById = new Map(localDefs.map((c) => [c.id, c]));
     const baseById = new Map(base.connections.map((c) => [c.id, c]));

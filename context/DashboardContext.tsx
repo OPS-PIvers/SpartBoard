@@ -4203,7 +4203,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           const connections =
             remote.connections === undefined
               ? x.connections
-              : mergeSharedConnections(x, remote, baseline);
+              : mergeSharedConnections(
+                  x,
+                  remote,
+                  baseline,
+                  x.linkedShareRole === 'owner'
+                );
           const connectionsChanged =
             stableStringify(connections ?? []) !==
             stableStringify(x.connections ?? []);
