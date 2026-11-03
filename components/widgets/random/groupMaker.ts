@@ -1,17 +1,10 @@
 import { Student, RandomGroup } from '@/types';
+import { shuffleArray } from '@/utils/randomHelpers';
 
 export interface GroupMakerResult {
   groups: RandomGroup[];
   /** Number of placements that couldn't honor a restriction. Zero is ideal. */
   unsatisfied: number;
-}
-
-function shuffleInPlace<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
 }
 
 // A non-finite size (corrupt config) falls back to 1 so groups are never dropped or zero in number.
@@ -53,7 +46,7 @@ export function makeRestrictedGroups(
   const size = safeSize(groupSize);
   const numGroups = Math.ceil(students.length / size);
   const buckets: Student[][] = Array.from({ length: numGroups }, () => []);
-  const shuffled = shuffleInPlace([...students]);
+  const shuffled = shuffleArray(students);
   let unsatisfied = 0;
 
   for (const student of shuffled) {
@@ -148,7 +141,7 @@ export function makeNameGroups(
 ): RandomGroup[] {
   if (names.length === 0) return [];
   const size = safeSize(groupSize);
-  const shuffled = shuffleInPlace([...names]);
+  const shuffled = shuffleArray(names);
   const groups: RandomGroup[] = [];
   for (let i = 0; i < shuffled.length; i += size) {
     groups.push({
@@ -180,7 +173,7 @@ export function makeNameGroupsByCount(
   const safeK = Number.isFinite(numGroups) ? numGroups : 1;
   const k = Math.max(1, Math.min(names.length, Math.floor(safeK)));
   const buckets: string[][] = Array.from({ length: k }, () => []);
-  const shuffled = shuffleInPlace([...names]);
+  const shuffled = shuffleArray(names);
   shuffled.forEach((name, i) => {
     buckets[i % k].push(name);
   });
@@ -215,7 +208,7 @@ export function makeRestrictedGroupsByCount(
   const safeK = Number.isFinite(numGroups) ? numGroups : 1;
   const k = Math.max(1, Math.min(students.length, Math.floor(safeK)));
   const buckets: Student[][] = Array.from({ length: k }, () => []);
-  const shuffled = shuffleInPlace([...students]);
+  const shuffled = shuffleArray(students);
   let unsatisfied = 0;
 
   for (const student of shuffled) {
@@ -333,7 +326,7 @@ export function makeGroupsWithLockedCohorts({
   }));
 
   return {
-    groups: shuffleInPlace([...locked, ...rest.groups]),
+    groups: shuffleArray([...locked, ...rest.groups]),
     unsatisfied: rest.unsatisfied,
     lockConflicts,
   };
