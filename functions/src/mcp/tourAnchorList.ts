@@ -2895,6 +2895,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "time-tool.launch-music",
     "label": "Button on the Timer that opens a linked Music widget",
     "scope": "widget",
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.time-tool.face",

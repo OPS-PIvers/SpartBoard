@@ -631,6 +631,7 @@ export const TOUR_ANCHORS = {
   'time-tool.launch-music': {
     label: 'Button on the Timer that opens a linked Music widget',
     perWidget: true,
+    persists: true,
   },
   'time-tool.reset': {
     label: 'Reset button in Timer/Stopwatch',
