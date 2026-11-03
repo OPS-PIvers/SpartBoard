@@ -741,7 +741,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "clock#format24",
       "clock#glow",
+      "clock#showDate",
       "clock#showSeconds",
+      "clock#showTime",
       "countdown#countToday",
       "countdown#includeWeekends",
       "drawing#shapeFill",

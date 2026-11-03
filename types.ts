@@ -2013,6 +2013,8 @@ export interface UrlWidgetConfig {
 export interface ClockConfig {
   format24: boolean;
   showSeconds: boolean;
+  showTime?: boolean;
+  showDate?: boolean;
   themeColor?: string;
   fontFamily?: string;
   clockStyle?: string;

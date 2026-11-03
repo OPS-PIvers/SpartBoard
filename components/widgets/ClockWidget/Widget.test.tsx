@@ -8,6 +8,7 @@ import {
   ClockWidget,
   getClockTimeFontSize,
   fitClockText,
+  fitDateOnly,
   CLOCK_DATE_FONT_SIZE,
 } from './Widget';
 
@@ -365,10 +366,68 @@ describe('ClockWidget', () => {
     expect(wide.stacked).toBe(false);
   });
 
-  it('drops the date before it gets unreadably small', () => {
-    const tiny = fitClockText(150, 100, 5, 14);
-    expect(tiny.date).toBeNull();
-    expect(tiny.time * 5).toBeCloseTo(135);
+  it('keeps the date at its smallest readable size by shrinking the time', () => {
+    const small = fitClockText(150, 100, 5, 14);
+    expect(small.date).toBe(9);
+    expect(small.time * 5).toBeCloseTo(135);
+    const short = fitClockText(150, 40, 5, 14);
+    expect(short.date).toBe(9);
+    expect(short.time).toBeCloseTo((40 * 0.86 - 9 * 1.25) / 1.04);
+  });
+
+  it('drops the date rather than squeeze the time below it on a very short card', () => {
+    const flat = fitClockText(300, 14, 5, 14);
+    expect(flat.date).toBeNull();
+    expect(flat.time).toBeGreaterThan(0);
+  });
+
+  it('drops the date only when even the smallest size will not fit across', () => {
+    const narrow = fitClockText(100, 100, 5, 20);
+    expect(narrow.date).toBeNull();
+    expect(narrow.time * 5).toBeCloseTo(90);
+  });
+
+  it('gives the time the whole card when the date is off', () => {
+    const off = fitClockText(400, 250, 3, 12, undefined, {
+      show: false,
+      scale: 1,
+    });
+    expect(off.date).toBeNull();
+    expect(off.time * 3).toBeCloseTo(360);
+  });
+
+  it('scales the date with the window text size', () => {
+    const base = fitClockText(400, 400, 3, 12);
+    const large = fitClockText(400, 400, 3, 12, undefined, {
+      show: true,
+      scale: 1.25,
+    });
+    expect(large.date).toBeGreaterThan(base.date ?? 0);
+  });
+
+  it('fits a date-only clock to one line on wide cards and two on tall ones', () => {
+    const wide = fitDateOnly(600, 150, 10, { weekdayEm: 5, dayEm: 4 });
+    expect(wide.stacked).toBe(false);
+    expect(wide.size).toBeCloseTo(((600 * 0.9) / 10) * 0.85);
+    const tall = fitDateOnly(400, 400, 10, { weekdayEm: 5, dayEm: 4 });
+    expect(tall.stacked).toBe(true);
+    expect(tall.size).toBeGreaterThan(wide.size);
+    const xl = fitDateOnly(600, 150, 10, { weekdayEm: 5, dayEm: 4 }, 1.25);
+    expect(xl.size).toBeCloseTo((600 * 0.9) / 10);
+    const sm = fitDateOnly(600, 150, 10, { weekdayEm: 5, dayEm: 4 }, 0.875);
+    expect(sm.size).toBeLessThan(wide.size);
+  });
+
+  it('hides the date when Show Date is off', () => {
+    renderWidget(createWidget({ showDate: false }));
+    expect(screen.queryByTestId('clock-date')).toBeNull();
+    expect(screen.getByTestId('clock-time-container')).toBeInTheDocument();
+  });
+
+  it('shows only the date when Show Time is off', () => {
+    renderWidget(createWidget({ showTime: false }));
+    expect(screen.queryByTestId('clock-time-container')).toBeNull();
+    expect(screen.getByTestId('clock-date')).toBeInTheDocument();
   });
 
   it('date label uses cqmin units for font scaling (not cqh/cqw)', () => {
