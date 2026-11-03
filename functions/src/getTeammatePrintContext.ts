@@ -241,7 +241,7 @@ const timeMs = (v: unknown): number | null =>
       ? (v as { toMillis(): number }).toMillis()
       : null;
 
-/** Best guess at who started a PLC made before creators were recorded: the member who joined with the root's createdAt, else the earliest joiner, else memberUids[0]. */
+/** Best guess at who started a PLC made before creators were recorded: the member who joined with the root's createdAt, else the lead, else the earliest joiner, else memberUids[0]. */
 export function legacyCreatorUid(root: Record<string, unknown>): string | null {
   const members = root.members;
   if (members && typeof members === 'object') {
@@ -254,6 +254,9 @@ export function legacyCreatorUid(root: Record<string, unknown>): string | null {
       if (created !== null && at === created) return uid;
       if (!best || at < best.at) best = { uid, at };
     }
+    const lead = root.leadUid;
+    // Bulk-stamped joinedAt values can't tell members apart; the lead is the better guess then.
+    if (typeof lead === 'string' && lead && lead in members) return lead;
     if (best) return best.uid;
   }
   const first: unknown = Array.isArray(root.memberUids)

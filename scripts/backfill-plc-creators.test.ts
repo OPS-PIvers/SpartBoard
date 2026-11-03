@@ -23,6 +23,20 @@ describe('legacyCreatorUid', () => {
     expect(legacyCreatorUid({ memberUids: ['x', 'y'] })).toBe('x');
     expect(legacyCreatorUid({})).toBe('');
   });
+
+  it('prefers the lead when no joinedAt matches createdAt', () => {
+    expect(
+      legacyCreatorUid({
+        createdAt: 1,
+        leadUid: 'c',
+        members: {
+          a: { joinedAt: 30 },
+          b: { joinedAt: 30 },
+          c: { joinedAt: 30 },
+        },
+      })
+    ).toBe('c');
+  });
 });
 
 describe('creatorRecord', () => {
