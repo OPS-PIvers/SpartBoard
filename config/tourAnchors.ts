@@ -10354,11 +10354,6 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
-  'flashcards.results-class-filter': {
-    label: 'Class filter button in Flashcards results',
-    perField: true,
-    panel: true,
-  },
   'flashcards.scores-cancel': {
     label: 'Cancel button in the Flashcards publish scores dialog',
     perWidgetType: true,
@@ -11284,14 +11279,6 @@ export const TOUR_ANCHORS = {
   'gl-player.scrubber': { label: 'Watch scrubber in the player' },
   'gl-results.back': { label: 'Back button in the results header' },
   'gl-results.export': { label: 'Export button in the results header' },
-  'gl-results.period-start-all': {
-    label: 'Start all periods button in results',
-    persists: true,
-  },
-  'gl-results.period-pause-all': {
-    label: 'Pause all periods button in results',
-    persists: true,
-  },
   'gl-results.class-picker': { label: 'Class picker select in results' },
   'gl-results.period-start': {
     label: 'Start class button in results',
@@ -14181,14 +14168,6 @@ export const TOUR_ANCHORS = {
     label: 'Resume button on a live video question',
     persists: true,
   },
-  'video-activity.monitor-start-all': {
-    label: 'Start all button in the video activity monitor',
-    persists: true,
-  },
-  'video-activity.monitor-pause-all': {
-    label: 'Pause all button in the video activity monitor',
-    persists: true,
-  },
   'video-activity.monitor-pause-toggle': {
     label: 'Pause or Resume button in the video activity monitor',
     persists: true,
@@ -14272,18 +14251,6 @@ export const TOUR_ANCHORS = {
     label:
       'Student work or Study resource switch in the Flashcards assign dialog',
     perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.period-start-all': {
-    label: 'Start all periods button in Flashcards results',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
-  'flashcards.period-pause-all': {
-    label: 'Pause all periods button in Flashcards results',
-    perWidgetType: true,
-    persists: true,
     panel: true,
   },
   'flashcards.results-back': {

@@ -182,7 +182,7 @@ const renderMonitor = (
 const bucket = (label: string) =>
   screen.getByRole('button', { name: new RegExp(label) });
 
-describe('VideoActivityLiveMonitor — monitor-parity layout', () => {
+describe('VideoActivityLiveMonitor — Quiz monitor layout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     keyState.loading = false;

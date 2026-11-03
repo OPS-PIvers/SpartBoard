@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { GuidedLearningResponse, GuidedLearningSet } from '@/types';
 
 const getDocMock = vi.fn();
@@ -66,6 +66,11 @@ const set = {
 const session = (data: Record<string, unknown>) =>
   getDocMock.mockResolvedValue({ data: () => data });
 
+const openBucket = async (label: string) =>
+  fireEvent.click(
+    await screen.findByRole('button', { name: new RegExp(label) })
+  );
+
 beforeEach(() => {
   getDocMock.mockReset();
   subscribeToResponses.mockClear();
@@ -79,8 +84,7 @@ describe('GuidedLearningResults engagement gating', () => {
     render(
       <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
     );
-    expect(await screen.findByText(/No responses yet/)).toBeInTheDocument();
-    await Promise.resolve();
+    await openBucket('Question results');
     expect(screen.queryByText('ENGAGEMENT')).not.toBeInTheDocument();
   });
 
@@ -89,8 +93,9 @@ describe('GuidedLearningResults engagement gating', () => {
     render(
       <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
     );
-    expect(await screen.findByText('ENGAGEMENT')).toBeInTheDocument();
-    expect(screen.getByText('CSV')).toBeInTheDocument();
+    expect(await screen.findByText('Download CSV')).toBeInTheDocument();
+    await openBucket('Question results');
+    expect(screen.getByText('ENGAGEMENT')).toBeInTheDocument();
   });
 
   it('keeps the old notice for view-only sessions without Player v2', async () => {
@@ -157,7 +162,9 @@ describe('GuidedLearningResults — who started the run', () => {
       <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
     );
 
-    expect(await screen.findByText(/No responses yet/)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /Done/ })
+    ).toBeInTheDocument();
     expect(screen.queryByTestId('launched-by-sub')).not.toBeInTheDocument();
   });
 });
@@ -178,11 +185,11 @@ describe('GuidedLearningResults — saved but not submitted', () => {
     render(
       <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
     );
-    const inProgress = await screen.findByText('In progress');
-    expect(inProgress.parentElement).toHaveTextContent('PIN: 11');
-    expect(screen.getByText('Completed').parentElement).toHaveTextContent(
-      'PIN: 22'
-    );
+    await openBucket('In progress');
+    expect(screen.getByText('PIN: 11')).toBeInTheDocument();
+    expect(screen.queryByText('PIN: 22')).not.toBeInTheDocument();
+    await openBucket('Done');
+    expect(screen.getByText('PIN: 22')).toBeInTheDocument();
   });
 });
 
@@ -204,7 +211,7 @@ describe('GuidedLearningResults — per-student results', () => {
     const { unmount } = render(
       <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
     );
-    await screen.findByText('Completed');
+    await openBucket('Done');
     expect(screen.queryByText('Hidden')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Results options for PIN: 22' })
@@ -215,6 +222,7 @@ describe('GuidedLearningResults — per-student results', () => {
     render(
       <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
     );
+    await openBucket('Done');
     expect(await screen.findByText('Hidden')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Results options for PIN: 22' })
@@ -246,6 +254,7 @@ describe('GuidedLearningResults student progress', () => {
     render(
       <GuidedLearningResults set={stepsSet} sessionId="s1" onClose={vi.fn()} />
     );
+    await openBucket('In progress');
     expect(await screen.findByText('Slide 7 of 12')).toBeInTheDocument();
   });
 
@@ -254,6 +263,7 @@ describe('GuidedLearningResults student progress', () => {
     render(
       <GuidedLearningResults set={stepsSet} sessionId="s1" onClose={vi.fn()} />
     );
+    await openBucket('In progress');
     expect(await screen.findByText('Slide 7 of 12')).toBeInTheDocument();
     expect(screen.queryByText('Not tracked')).not.toBeInTheDocument();
   });
@@ -267,7 +277,9 @@ describe('GuidedLearningResults student progress', () => {
     render(
       <GuidedLearningResults set={stepsSet} sessionId="s1" onClose={vi.fn()} />
     );
+    await openBucket('In progress');
+    expect(await screen.findByText('Slide 7 of 12')).toBeInTheDocument();
+    await openBucket('Done');
     expect(await screen.findByText('Not tracked')).toBeInTheDocument();
-    expect(screen.getByText('Slide 7 of 12')).toBeInTheDocument();
   });
 });

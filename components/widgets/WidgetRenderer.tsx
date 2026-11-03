@@ -367,9 +367,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
         widget.type === 'classes' || accountDisableCloseConfirmation
       }
       globalStyle={globalStyle}
-      alignmentGuides={
-        alignmentGuidesEnabled && canAccessFeature('alignment-guides')
-      }
+      alignmentGuides={alignmentGuidesEnabled}
       headerActions={
         !isActiveBoardReadOnly &&
         (isLive || canAccessFeature('live-session')) && (

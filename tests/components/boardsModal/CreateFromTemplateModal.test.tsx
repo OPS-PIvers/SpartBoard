@@ -140,6 +140,24 @@ describe('CreateFromTemplateModal', () => {
     expect(createNewDashboard.mock.calls[0][0]).toBe('Board T');
   });
 
+  it("carries a Board template's Connections onto the new board", async () => {
+    const connected = {
+      ...boardTemplate,
+      connections: [
+        { id: 'f1', kind: 'follow', leaderId: 'a', followerId: 'b' },
+      ],
+    };
+    render(<CreateFromTemplateModal isOpen onClose={() => undefined} />);
+    onSnapshotCallback({ docs: [{ id: 'bt1', data: () => connected }] });
+    await waitFor(() => screen.getByText('Board T'));
+    fireEvent.click(screen.getByText('Board T'));
+
+    await waitFor(() => expect(createNewDashboard).toHaveBeenCalledTimes(1));
+    expect(createNewDashboard.mock.calls[0][1]).toMatchObject({
+      connections: [{ id: 'f1', kind: 'follow' }],
+    });
+  });
+
   it('rolls back the Collection when every Board creation fails', async () => {
     createNewDashboard.mockRejectedValue(new Error('boom'));
     const onClose = vi.fn();

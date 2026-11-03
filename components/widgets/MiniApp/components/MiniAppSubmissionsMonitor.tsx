@@ -1,4 +1,4 @@
-// Older Mini App submissions laid out like the Quiz monitor, behind `monitor-parity`.
+// Older Mini App submissions laid out like the Quiz monitor.
 import React, { useState } from 'react';
 import { ArrowLeft, ChevronRight, Inbox, Loader2 } from 'lucide-react';
 import type { MiniAppSession } from '@/types';

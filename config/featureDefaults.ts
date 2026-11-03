@@ -32,7 +32,6 @@ import {
   Music2,
   Printer,
   RefreshCw,
-  Ruler,
   Send,
   Share2,
   Smartphone,
@@ -1105,17 +1104,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'monitor-parity': {
-    label: 'Matching assignment monitors',
-    icon: LayoutDashboard,
-    description:
-      'One class picker and the Quiz monitor layout on every assignment.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'quiz-submit-for-student': {
     label: 'Submit quiz for a student',
     icon: Send,
@@ -1222,18 +1210,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: false,
     missingDocPublic: false,
     failClosedForAdmins: true,
-  },
-  // Teachers still turn it on for themselves in Behavior; the flag only hides that switch.
-  'alignment-guides': {
-    label: 'Alignment guides',
-    icon: Ruler,
-    description:
-      'Lines show when a widget lines up with or is evenly spaced from others.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
   },
   // The flag only hides the Behavior switch; teachers turn spell check off themselves.
   'spell-check-setting': {

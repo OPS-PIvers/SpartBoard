@@ -70,6 +70,9 @@ interface FlashcardMonitorProps {
 
 type Screen = 'home' | 'cards' | 'speaking';
 
+const flagAcceptTourId = 'flashcards.flag-accept' as const;
+const flagDismissTourId = 'flashcards.flag-dismiss' as const;
+
 const text = {
   name: { fontSize: 'min(13px, 4.5cqmin)' },
   sub: { fontSize: 'min(11px, 3.8cqmin)' },
@@ -411,8 +414,8 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
           >
             {(
               [
-                ['Accept', true, 'flashcards.flag-accept'],
-                ['Dismiss', false, 'flashcards.flag-dismiss'],
+                ['Accept', true, flagAcceptTourId],
+                ['Dismiss', false, flagDismissTourId],
               ] as const
             ).map(([label, accept, anchorId]) => (
               <button

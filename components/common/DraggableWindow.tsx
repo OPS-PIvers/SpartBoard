@@ -1531,7 +1531,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     handleDragStart(e);
   };
 
-  const handleResizeStart = (e: React.PointerEvent, direction: string) => {
+  const handleResizeStart = (
+    e: React.PointerEvent,
+    direction: string,
+    force = false
+  ) => {
     if (isMaximized) return;
     if (isLocked || isPinned) return;
     if (widget.groupId) return; // Grouped widgets use GroupBoundingBox for coordinated resize
@@ -1560,7 +1564,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         e.clientY <= rect.top + RESIZE_PRIORITY_INSET;
       inPriorityZone = eastOk && westOk && southOk && northOk;
     }
-    if (!inPriorityZone) {
+    if (!inPriorityZone && !force) {
       const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
       for (const el of elementsAtPoint) {
         if (el === resizeEl) continue;
@@ -2484,7 +2488,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       <ConnectPickOverlay widget={widget} />
       <ConnectionWidgetHighlight widgetId={widget.id} />
-      {!isMaximized && <ConnectionBadge widget={widget} />}
+      {!isMaximized && !isAnnotating && (
+        <ConnectionBadge
+          widget={widget}
+          onResizeStart={(e) => handleResizeStart(e, 'ne', true)}
+        />
+      )}
 
       {/* Group-build mode selection overlay */}
       {groupBuildMode && (
