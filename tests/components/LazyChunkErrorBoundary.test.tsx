@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
@@ -94,5 +95,29 @@ describe('LazyChunkErrorBoundary', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     expect(screen.getByText('recovered')).toBeInTheDocument();
+  });
+
+  it('Retry reloads the page for a chunk error, since React.lazy caches its rejection', async () => {
+    window.sessionStorage.setItem('spartboard:chunk-reload-attempted', '1');
+    let attempts = 0;
+    const Flaky = lazy(() => {
+      attempts += 1;
+      return attempts === 1
+        ? Promise.reject(buildChunkError())
+        : Promise.resolve({ default: () => <p>loaded</p> });
+    });
+
+    render(
+      <LazyChunkErrorBoundary>
+        <Suspense fallback={<p>loading</p>}>
+          <Flaky />
+        </Suspense>
+      </LazyChunkErrorBoundary>
+    );
+
+    const retry = await screen.findByRole('button', { name: 'Retry' });
+    fireEvent.click(retry);
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
   });
 });
