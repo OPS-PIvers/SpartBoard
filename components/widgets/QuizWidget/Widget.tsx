@@ -331,6 +331,9 @@ const TeacherQuizWidget: React.FC<{
     canImportDocuments && canAccessFeature('quiz-import-versions');
   const config = widget.config as QuizConfig;
   const isReview = variant === 'review';
+  // With Connections on, only Review syncs to a Scoreboard; a Quiz widget never does.
+  const quizDropsScoreboard =
+    !isReview && canAccessFeature('widget-connections');
   // The assign stepper is Assessment Mode only and saves last-used rules (plan D12).
   const assessmentAssign = !isReview;
   const kindTag = { widgetKind: variant };
@@ -1379,9 +1382,10 @@ const TeacherQuizWidget: React.FC<{
   // D9: a Quiz-kind session has no scoreboard sync, reveal or podium.
   const liveAssessmentOnly =
     !!liveSession && getAssignmentWidgetKind(liveSession) === 'quiz';
-  // Only Review syncs to a Scoreboard; a Quiz widget never does, whatever its session.
   const scoreboardSyncOn =
-    isReview && (config.liveScoreboardEnabled ?? false) && !liveAssessmentOnly;
+    !quizDropsScoreboard &&
+    (config.liveScoreboardEnabled ?? false) &&
+    !liveAssessmentOnly;
 
   // ─── Live Scoreboard Sync ──────────────────────────────────────────────────
   const liveScoreboardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -1636,7 +1640,7 @@ const TeacherQuizWidget: React.FC<{
   useEffect(() => {
     if (!config.liveScoreboardEnabled) return;
     // A Quiz widget left with sync on from before stops it; its Scoreboard keeps the scores.
-    const quizStopsSync = !isReview;
+    const quizStopsSync = quizDropsScoreboard;
     if (!quizStopsSync && !liveSession) return;
     const isEnded = quizStopsSync || liveSession?.status === 'ended';
     const isPaused = liveSession?.status === 'paused';
@@ -1667,7 +1671,7 @@ const TeacherQuizWidget: React.FC<{
       handleUpdateQuizConfig({ liveScoreboardEnabled: false });
     }
   }, [
-    isReview,
+    quizDropsScoreboard,
     liveSession,
     config.liveScoreboardEnabled,
     handleUpdateQuizConfig,
@@ -1677,7 +1681,7 @@ const TeacherQuizWidget: React.FC<{
 
   // A Quiz widget never keeps a Scoreboard LIVE, even if sync was switched off mid-session.
   const quizHoldsLiveScoreboard =
-    !isReview &&
+    quizDropsScoreboard &&
     !!activeDashboard?.widgets.some(
       (w) =>
         w.type === 'scoreboard' &&
@@ -2329,7 +2333,7 @@ const TeacherQuizWidget: React.FC<{
         config={config}
         rosters={rosters}
         assessmentOnly={liveAssessmentOnly}
-        hideLiveScoreboard={!isReview}
+        hideLiveScoreboard={quizDropsScoreboard}
         onUpdateConfig={handleUpdateQuizConfig}
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
