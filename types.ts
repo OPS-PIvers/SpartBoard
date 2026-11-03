@@ -10798,8 +10798,6 @@ export type GlobalFeature =
   | 'schoology-tool-columns'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
-  | 'quiz-monitor-declutter'
   /** Same monitor layout across Quiz, Video Activity, Flashcards, Guided Learning and Mini App. */
   | 'monitor-parity'
   /** Teachers turn in a quiz for a student who left without submitting. */
