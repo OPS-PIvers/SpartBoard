@@ -89,7 +89,10 @@ import {
   resolvePinName,
   selectPushableResponses,
 } from '../utils/quizScoreboard';
-import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
+import {
+  resolveResponseDisplayName,
+  resolveResponseExportName,
+} from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
@@ -711,6 +714,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [rosters, resolvedPeriods]
   );
   const hasNames = Object.keys(pinToName).length > 0;
+  const resolveTargetExportName = useCallback(
+    (response: QuizResponse) =>
+      resolveResponseExportName(response, exportPinToName, byStudentUid),
+    [exportPinToName, byStudentUid]
+  );
 
   // Whether the underlying quiz contains any manual-grade question
   // types. Used to surface the "Grade Written" entry-point only when
@@ -2524,7 +2532,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               responses={filteredResponses}
               stats={targetStats}
               resolveName={resolveShownName}
-              resolveExportName={resolveTargetStudentName}
+              resolveExportName={resolveTargetExportName}
             />
           )}
           {effectiveScreen === 'students' && (
