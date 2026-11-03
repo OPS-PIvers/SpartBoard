@@ -123,7 +123,7 @@ export const RecordingConsentNotice: React.FC<{
         </dl>
       )}
 
-      <button
+      <button /* no-tour-anchor: student recording consent */
         type="button"
         onClick={onAcknowledge}
         disabled={busy}
@@ -151,7 +151,7 @@ export const RecordingNoticeReminder = React.forwardRef<
 >(({ onOpen, disabled = false, light = true }, ref) => {
   const { t } = useTranslation();
   return (
-    <button
+    <button /* no-tour-anchor: student recording consent */
       ref={ref}
       type="button"
       onClick={onOpen}

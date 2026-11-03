@@ -63,7 +63,7 @@ export const SubmitBlockedNotice: React.FC<{
       <ul className="mt-4 space-y-2">
         {questions.map((q) => (
           <li key={q.id}>
-            <button
+            <button /* no-tour-anchor: student submit screen */
               type="button"
               onClick={() => onJump(q.index)}
               aria-label={t('quizMediaResponse.capture.submitBlockedJump', {

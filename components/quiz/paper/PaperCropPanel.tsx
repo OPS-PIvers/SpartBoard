@@ -318,7 +318,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           >
             <Contrast aria-hidden className="h-4 w-4" />
           </button>
-          <button
+          <button /* no-tour-anchor: per-answer paper scan viewer in Results */
             type="button"
             onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
             disabled={zoomIdx === 0 || crop.kind !== 'ready'}
@@ -328,7 +328,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           >
             <ZoomOut aria-hidden className="h-4 w-4" />
           </button>
-          <button
+          <button /* no-tour-anchor: per-answer paper scan viewer in Results */
             type="button"
             onClick={() => setZoomIdx(FIT_IDX)}
             disabled={zoomIdx === FIT_IDX || crop.kind !== 'ready'}
@@ -338,7 +338,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           >
             <Maximize2 aria-hidden className="h-4 w-4" />
           </button>
-          <button
+          <button /* no-tour-anchor: per-answer paper scan viewer in Results */
             type="button"
             onClick={() =>
               setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))
@@ -372,7 +372,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               {tp('unavailable')}
             </span>
             {!crop.permanent && (
-              <button
+              <button /* no-tour-anchor: per-answer paper scan viewer in Results */
                 type="button"
                 onClick={() => setReloadNonce((n) => n + 1)}
                 className={button}
@@ -400,7 +400,13 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
           <HardDrive aria-hidden className="h-3.5 w-3.5" />
           {tp('awaitingDrive')}
-          <button type="button" onClick={onConnectDrive} className={button}>
+          <button
+            type="button"
+            /* no-tour-anchor: per-answer paper scan viewer in Results */ onClick={
+              onConnectDrive
+            }
+            className={button}
+          >
             {tp('connectDrive')}
           </button>
         </div>
@@ -423,7 +429,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
       {actions && !editing && (
         <div className="flex flex-wrap items-center gap-2">
           {(status === 'failed' || status === 'over-quota') && (
-            <button
+            <button /* no-tour-anchor: per-answer paper scan viewer in Results */
               type="button"
               disabled={busy !== null}
               onClick={() => void run('retry', () => actions.retry(ref))}
@@ -438,7 +444,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             </button>
           )}
           {status === 'blank' && (
-            <button
+            <button /* no-tour-anchor: per-answer paper scan viewer in Results */
               type="button"
               disabled={busy !== null}
               onClick={() =>
@@ -453,7 +459,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             </button>
           )}
           {newerScan && (
-            <button
+            <button /* no-tour-anchor: per-answer paper scan viewer in Results */
               type="button"
               disabled={busy !== null}
               onClick={() => void applyNewScan()}
@@ -466,7 +472,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             </button>
           )}
           {status !== 'blank' && (
-            <button
+            <button /* no-tour-anchor: per-answer paper scan viewer in Results */
               type="button"
               disabled={busy !== null}
               onClick={startEdit}
@@ -483,7 +489,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
         <div className="flex flex-col gap-2">
           <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
             {tp('transcriptLabel')}
-            <textarea
+            <textarea /* no-tour-anchor: per-answer paper scan viewer in Results */
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={6}
@@ -491,7 +497,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             />
           </label>
           <div className="flex items-center gap-2">
-            <button
+            <button /* no-tour-anchor: per-answer paper scan viewer in Results */
               type="button"
               disabled={busy !== null || !draft.trim()}
               onClick={() => void saveEdit()}
@@ -502,7 +508,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               )}
               {tp('save')}
             </button>
-            <button
+            <button /* no-tour-anchor: per-answer paper scan viewer in Results */
               type="button"
               disabled={busy !== null}
               onClick={() => setEditing(false)}
