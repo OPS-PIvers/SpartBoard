@@ -13,7 +13,7 @@ export const getClockTimeFontSize = (showSeconds: boolean): string =>
   showSeconds ? 'min(140px, 40cqmin, 16cqw)' : 'min(160px, 50cqmin, 23cqw)';
 
 export const CLOCK_DATE_FONT_SIZE = 'min(16px, 12cqmin)';
-export const CLOCK_DATE_ONLY_FONT_SIZE = 'min(10cqw, 30cqh)';
+export const CLOCK_DATE_ONLY_FONT_SIZE = '14cqmin';
 
 const PROBE_PX = 100;
 const DATE_RATIO = 0.17;
@@ -70,9 +70,9 @@ export const fitClockText = (
     if (dateSize >= MIN_DATE_PX)
       return { time: withDate, date: dateSize, stacked: lines > 1 };
     // Time fills the width: keep the date at its smallest readable size and shrink the time to make room.
-    const floor = Math.min(MIN_DATE_PX, w / dateEm);
+    const floor = MIN_DATE_PX;
     const time = Math.min(w / em, (h - floor * 1.25) / (lines * 1.04));
-    if (floor < MIN_DATE_PX * 0.75 || time < floor) return timeOnly;
+    if (w / dateEm < MIN_DATE_PX || time < floor) return timeOnly;
     return { time, date: floor, stacked: lines > 1 };
   };
   const row = fitLines(timeEm, 1);

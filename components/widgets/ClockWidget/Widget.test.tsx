@@ -382,6 +382,8 @@ describe('ClockWidget', () => {
   });
 
   it('drops the date only when even the smallest size will not fit across', () => {
+    const tight = fitClockText(100, 100, 5, 11);
+    expect(tight.date).toBeNull();
     const narrow = fitClockText(100, 100, 5, 20);
     expect(narrow.date).toBeNull();
     expect(narrow.time * 5).toBeCloseTo(90);

@@ -62,7 +62,6 @@ export default defineSettings<ClockConfig>({
           key: 'format24',
           type: 'toggle',
           label: 'format24',
-          disabledWhen: (ctx) => ctx.config.showTime === false,
         },
         {
           key: 'showSeconds',
