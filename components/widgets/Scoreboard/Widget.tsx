@@ -10,8 +10,19 @@ import { useTranslation } from 'react-i18next';
 import {
   useGlobalStyle,
   useDashboardActions,
+  useDashboardCanvasSelector,
 } from '@/context/dashboardCanvasStore';
-import { WidgetData, ScoreboardConfig, ScoreboardTeam } from '@/types';
+import {
+  WidgetData,
+  ScoreboardConfig,
+  ScoreboardTeam,
+  RandomConfig,
+  RandomGroup,
+} from '@/types';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
+import { followLeaderId } from '@/utils/connectionEngine';
+import { hasConnectionTab } from '@/components/connections/connectionSummary';
+import { randomizerGroups, sameTeams, teamsFromGroups } from './groupTeams';
 import { History, Trophy, Undo2 } from 'lucide-react';
 import { tourAttr } from '@/config/tourAnchors';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -72,6 +83,59 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
       });
     }
   }, [config, widget.id, updateWidget]);
+
+  // Teams follow a connected Randomizer's groups; the key changes only when the groups or their names do.
+  const connectionsOn = useConnectionsEnabled();
+  const leaderGroupsKey = useDashboardCanvasSelector((s) => {
+    const board = s.activeDashboard;
+    if (!connectionsOn || !board) return '';
+    const leaderId = followLeaderId(
+      board.connections,
+      board.widgets,
+      widget.id
+    );
+    const leader = leaderId
+      ? board.widgets.find((w) => w.id === leaderId && w.type === 'random')
+      : undefined;
+    const groups = randomizerGroups(leader?.config as RandomConfig | undefined);
+    if (!groups) return '';
+    const ids = new Set(groups.map((g) => g.id));
+    return JSON.stringify({
+      groups: groups.map((g) => (g.id ? { id: g.id } : {})),
+      shared: (board.sharedGroups ?? []).filter((sg) => ids.has(sg.id)),
+    });
+  });
+  const showsConnectionTab = useDashboardCanvasSelector(
+    (s) =>
+      connectionsOn &&
+      !!s.activeDashboard &&
+      hasConnectionTab(
+        s.activeDashboard.connections,
+        s.activeDashboard.widgets,
+        widget.id
+      )
+  );
+  useEffect(() => {
+    if (!leaderGroupsKey || config.liveQuizWidgetId) return;
+    const { groups, shared } = JSON.parse(leaderGroupsKey) as {
+      groups: RandomGroup[];
+      shared: NonNullable<Parameters<typeof teamsFromGroups>[1]>;
+    };
+    const current = Array.isArray(config.teams) ? config.teams : [];
+    const next = teamsFromGroups(groups, shared, current, (count) =>
+      t('widgetSettings.scoreboard.groupName', { count })
+    );
+    if (!sameTeams(next, current)) {
+      updateWidget(widget.id, { config: { teams: next } });
+    }
+  }, [
+    leaderGroupsKey,
+    config.teams,
+    config.liveQuizWidgetId,
+    updateWidget,
+    widget.id,
+    t,
+  ]);
 
   const teams = Array.isArray(config.teams) ? config.teams : DEFAULT_TEAMS;
   const layout = config.layout ?? 'cards';
@@ -292,6 +356,8 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
               style={{
                 gap: 'min(16px, 3.5cqmin)',
                 padding: 'min(16px, 3.5cqmin)',
+                // Keeps the top-right team clear of the connection tab.
+                ...(showsConnectionTab && { paddingTop: 28 }),
               }}
             >
               {teams.map((team, index) => (
@@ -313,6 +379,7 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
               style={{
                 gap: 'min(4px, 1cqmin)',
                 padding: 'min(8px, 2cqmin)',
+                ...(showsConnectionTab && { paddingTop: 28 }),
               }}
             >
               {sortedTeams.map((team, index) => (

@@ -9,7 +9,7 @@ import {
   Workflow,
   SkipForward,
 } from 'lucide-react';
-import type { WidgetConnection, WidgetData } from '@/types';
+import type { WidgetData } from '@/types';
 import { IconButton } from '@/components/common/IconButton';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import {
@@ -18,6 +18,7 @@ import {
 } from '@/context/dashboardCanvasStore';
 import {
   connectionsUi,
+  openConnectionEditor as openEditor,
   pickInConnectMode,
   startConnectMode,
   useConnectionsUi,
@@ -49,35 +50,6 @@ const useWidgetConnectionSummary = (widgetId: string) => {
     seqId,
     seqRunning: seqRunning === '1',
   };
-};
-
-// A Sequence opens with the Follows led by its widgets, so they show as side cards.
-const openEditor = (
-  boardId: string,
-  connection: WidgetConnection,
-  all: WidgetConnection[]
-) => {
-  const stepWidgets =
-    connection.kind === 'sequence'
-      ? new Set(
-          connection.steps.flatMap((s) => s.actions.map((a) => a.widgetId))
-        )
-      : new Set<string>();
-  const related = all.filter(
-    (c) =>
-      c.kind === 'follow' &&
-      c.id !== connection.id &&
-      stepWidgets.has(c.leaderId)
-  );
-  const connections = [connection, ...related];
-  connectionsUi.set({
-    editor: {
-      boardId,
-      connections,
-      replaces: connections.map((c) => c.id),
-    },
-    connectMode: null,
-  });
 };
 
 /** Corner tab on a connected widget: its step numbers; opens Start/Stop and Edit steps, and a drag on it resizes. */
