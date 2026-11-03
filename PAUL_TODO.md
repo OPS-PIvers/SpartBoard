@@ -135,6 +135,8 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
   > On prod, count `shared_boards/*/items` docs whose share no longer exists or whose `ownerUid` is no longer the share's host or a participant. Read-only; deleting them needs my OK.
 - [ ] **PT-117 🤖 Sharing records made by non-staff accounts** (security batch 2B, optional, likely zero). Substitute shares and collection links now need a staff account; older records were not checked.
   > On prod, list substitute `shared_boards` and `shared_collections` whose host has no active staff member doc, and `linked_collections` or `shared_boards` participants with no staff member doc. Read-only; removing any needs my OK.
+- [ ] **PT-118 🤖 Students in building groups** (optional, likely zero). The auto-roster now skips student-role accounts; ones it added earlier stay until swept:
+  > Run `node scripts/remove-student-building-group-members.mjs --project spartboard` (dry run) from the PC with the prod key, show me who it lists, then re-run with `--apply` after I say go.
 - [ ] **PT-66 You: password reset domains** (F56, #4585). Admin Settings > Organization > Domains on prod: the Orono domains show Verified.
 - [ ] **PT-67 You: ClassLink PIN lists** (F57, #4738). ClassLink students got 6-digit PINs in the 10-27 sync. If teachers weren't told, they need new PIN lists.
 - [ ] **PT-68 You: delete branches** (F65). 154 branches from earlier delete lines still exist (checked 2026-11-01; none has an open PR). Agents can't delete branches from cloud sessions. From a local checkout, run the command below, or ask an agent for a fresh list first.
