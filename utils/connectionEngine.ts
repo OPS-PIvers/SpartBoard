@@ -10,6 +10,7 @@ import type {
 import {
   actionDefFor,
   connectionDefFor,
+  followSlotOf,
   type ConnectionHandAction,
 } from '@/config/widgetConnections';
 
@@ -324,9 +325,15 @@ export const draftFromPicks = (
   const ordered = closesLoop ? picks.slice(0, -1) : picks;
   const follows: WidgetConnection[] = [];
   const followerIds = new Set<string>();
+  const slots = new Set<string>();
   for (let i = 1; i < picks.length; i++) {
-    const pair = followPair(picks[i - 1], picks[i], picks.length);
-    if (pair && !followerIds.has(pair.followerId)) {
+    const [a, b] = [picks[i - 1], picks[i]];
+    const pair = followPair(a, b, picks.length);
+    if (!pair) continue;
+    const [leader, follower] = pair.leaderId === a.id ? [a, b] : [b, a];
+    const slot = `${follower.id}|${followSlotOf(follower.type, leader.type)}`;
+    if (!slots.has(slot)) {
+      slots.add(slot);
       followerIds.add(pair.followerId);
       follows.push({ id: newId(), kind: 'follow', ...pair });
     }
@@ -364,16 +371,46 @@ export const draftFromPicks = (
   return { sequence, follows };
 };
 
-/** The widget `followerId` Follows on this board, if any. */
+/** The widget `followerId` Follows on this board, if any; `slot` limits it to that Follow slot. */
 export const followLeaderId = (
   connections: WidgetConnection[] | undefined,
   widgets: WidgetData[],
-  followerId: string
+  followerId: string,
+  slot?: string
 ): string | undefined => {
+  const map = slot === undefined ? undefined : byId(widgets);
+  const followerType = map?.get(followerId)?.type;
   for (const c of liveConnections(connections, widgets)) {
-    if (c.kind === 'follow' && c.followerId === followerId) return c.leaderId;
+    if (c.kind !== 'follow' || c.followerId !== followerId) continue;
+    const leaderType = map?.get(c.leaderId)?.type;
+    if (
+      !map ||
+      (followerType &&
+        leaderType &&
+        followSlotOf(followerType, leaderType) === slot)
+    ) {
+      return c.leaderId;
+    }
   }
   return undefined;
+};
+
+/** True when both Follows take the same slot on one widget, so the newer one replaces the other. */
+export const sharesFollowSlot = (
+  a: FollowConnection,
+  b: FollowConnection,
+  widgets: WidgetData[]
+): boolean => {
+  if (a.followerId !== b.followerId) return false;
+  const map = byId(widgets);
+  const follower = map.get(a.followerId);
+  const leaderA = map.get(a.leaderId);
+  const leaderB = map.get(b.leaderId);
+  if (!follower || !leaderA || !leaderB) return true;
+  return (
+    followSlotOf(follower.type, leaderA.type) ===
+    followSlotOf(follower.type, leaderB.type)
+  );
 };
 
 /** Widgets that Follow `leaderId` on this board. */

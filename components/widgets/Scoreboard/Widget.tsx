@@ -92,7 +92,8 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
     const leaderId = followLeaderId(
       board.connections,
       board.widgets,
-      widget.id
+      widget.id,
+      'teams'
     );
     const leader = leaderId
       ? board.widgets.find((w) => w.id === leaderId && w.type === 'random')
