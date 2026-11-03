@@ -1377,7 +1377,10 @@ service cloud.firestore {
     }
 
     match /building_guided_learning/{setId} {
-      allow read: if signedIn();
+      function staff() { return signedIn() && notAnon() && !isStudentRoleUser(); }
+      // A tour draft keeps sample copies (answer keys included) in tourSetup and its steps' saved boards: staff only.
+      allow get: if signedIn() && (resource == null || staff() || (existing().get('tourSetup', null) == null && existing().get('hasLiveTour', false) != true && existing().get('mode', '') != 'tour'));
+      allow list: if staff();
       allow write: if isAdmin();
       // A live tour's notes for Claude and its last editor playtest (LIVE_TOUR_CONSISTENT_START.md C9, C10): admins only.
       match /review/{docId} {
