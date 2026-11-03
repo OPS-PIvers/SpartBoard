@@ -530,9 +530,6 @@ const TeacherQuizWidget: React.FC<{
   const pendingHandoff = useImportHandoff(widget.id);
   const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
   const [bankCartridge, setBankCartridge] = useState<File | null>(null);
-  // The quiz .imscc flag folds into schoology-quiz-import and retires once it opens.
-  const canImportQuizCartridge =
-    canImportFromSchoology || canAccessFeature('quiz-imscc-import');
   const [quizCartridge, setQuizCartridge] = useState<File | null>(null);
   // Quizzes a Schoology import (.imscc or the extension) already saved, so a retry only re-runs the folder move.
   const savedCartridgeQuizzes = useRef(new Map<string, string>());
@@ -2020,27 +2017,25 @@ const TeacherQuizWidget: React.FC<{
         await saveQuiz(data);
       },
     });
-    const quizAdapter = canImportQuizCartridge
-      ? {
-          ...adapter,
-          bulkSource: {
-            title: 'From Schoology',
-            description:
-              'Choose a Schoology export (.imscc). Every quiz and test in it comes in as its own quiz.',
-            accept: '.imscc',
-            guide: (
-              <SchoologyExportGuide
-                kind="quizzes"
-                canSend={canImportFromSchoology}
-              />
-            ),
-            onFile: (file: File) => {
-              if (importHandoff) takeImportHandoff(widget.id);
-              setQuizCartridge(file);
-            },
-          },
-        }
-      : adapter;
+    const quizAdapter = {
+      ...adapter,
+      bulkSource: {
+        title: 'From Schoology',
+        description:
+          'Choose a Schoology export (.imscc). Every quiz and test in it comes in as its own quiz.',
+        accept: '.imscc',
+        guide: (
+          <SchoologyExportGuide
+            kind="quizzes"
+            canSend={canImportFromSchoology}
+          />
+        ),
+        onFile: (file: File) => {
+          if (importHandoff) takeImportHandoff(widget.id);
+          setQuizCartridge(file);
+        },
+      },
+    };
     return (
       <ImportWizard
         key={importHandoff?.id ?? 'quiz-import'}

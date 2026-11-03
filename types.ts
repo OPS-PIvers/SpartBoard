@@ -10703,7 +10703,6 @@ export type GlobalFeature =
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
   | 'question-bank-ai'
-  | 'quiz-imscc-import'
   /** Import Schoology Tests/Quizzes, Assessments and question banks (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q14). */
   | 'schoology-quiz-import'
   /** Paper answer sheets; only meaningful while the district switch is on. */
