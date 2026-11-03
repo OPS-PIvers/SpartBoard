@@ -10806,8 +10806,6 @@ export type GlobalFeature =
   | 'checklist-small-card'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
   | 'seating-chart-plans'
-  /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
-  | 'scoreboard-pro'
   /** Sound widget target level, Too loud alert, calibration, quiet time goal and summary (pro-grade-2/NOISE_METER_PLAN.md). */
   | 'noise-meter-pro'
   /** Camera as a document camera: zoom, pan, rotate, freeze, draw, compare, resolution. */
@@ -11281,6 +11279,8 @@ export interface DashboardTemplate {
   globalStyle?: Partial<GlobalStyle>;
   /** Optional background to apply (Tailwind class, hex, gradient, or URL) */
   background?: string;
+  /** The board's Connections, without Runs. */
+  connections?: WidgetConnection[];
   /** Tag labels for filtering in the template browser */
   tags: string[];
   /** Grade-level targeting — empty means applicable to all grades */
@@ -11314,6 +11314,8 @@ export interface BoardTemplateSnapshot {
   libraryOrder?: (WidgetType | InternalToolType)[];
   viewportWidth?: number;
   viewportHeight?: number;
+  /** The board's Connections, without Runs. */
+  connections?: WidgetConnection[];
   createdAt: number;
 }
 

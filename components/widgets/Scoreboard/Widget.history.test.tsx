@@ -13,12 +13,6 @@ import {
 } from '@/types';
 
 vi.mock('@/context/dashboardCanvasStore');
-const access = { pro: true };
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({
-    canAccessFeature: (id: string) => id === 'scoreboard-pro' && access.pro,
-  }),
-}));
 
 const updateWidget = vi.fn();
 
@@ -42,10 +36,9 @@ const teams = [
 const lastConfig = (): ScoreboardConfig =>
   (updateWidget.mock.calls.at(-1)?.[1] as { config: ScoreboardConfig }).config;
 
-describe('ScoreboardWidget undo and history (scoreboard-pro)', () => {
+describe('ScoreboardWidget undo, history and point buttons', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    access.pro = true;
     vi.mocked(useGlobalStyle).mockReturnValue(DEFAULT_GLOBAL_STYLE);
     vi.mocked(useDashboardActions).mockReturnValue({
       updateWidget,
@@ -122,14 +115,6 @@ describe('ScoreboardWidget undo and history (scoreboard-pro)', () => {
         widget={makeWidget({ teams, liveQuizWidgetId: 'quiz-1' })}
       />
     );
-    expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
-    fireEvent.click(screen.getAllByLabelText('Increase score')[0]);
-    expect(lastConfig().history).toBeUndefined();
-  });
-
-  it('adds nothing when the flag is off', () => {
-    access.pro = false;
-    render(<ScoreboardWidget widget={makeWidget({ teams })} />);
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull();
     fireEvent.click(screen.getAllByLabelText('Increase score')[0]);
     expect(lastConfig().history).toBeUndefined();

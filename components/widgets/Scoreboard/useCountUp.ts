@@ -11,8 +11,8 @@ const prefersReducedMotion = () => {
 };
 
 /** Counts the shown number toward `value` over a short ease-out; instant with reduced motion. */
-export const useCountUp = (value: number, enabled: boolean): number => {
-  const animate = enabled && !prefersReducedMotion();
+export const useCountUp = (value: number): number => {
+  const animate = !prefersReducedMotion();
   const [display, setDisplay] = useState(value);
   const displayRef = useRef(value);
 

@@ -9,14 +9,12 @@ import {
 const team = (id: string, score: number) => ({ id, name: id, score });
 
 describe('scoreboard points', () => {
-  it('uses a preset only when the flag is on and the saved values match one', () => {
-    expect(scoreboardPointValues({ pointValues: [1, 5, 10] }, true)).toEqual([
+  it('uses a preset only when the saved values match one', () => {
+    expect(scoreboardPointValues({ pointValues: [1, 5, 10] })).toEqual([
       1, 5, 10,
     ]);
-    expect(scoreboardPointValues({ pointValues: [1, 5, 10] }, false)).toEqual([
-      1,
-    ]);
-    expect(scoreboardPointValues({ pointValues: [7, 8] }, true)).toEqual([1]);
+    expect(scoreboardPointValues({})).toEqual([1]);
+    expect(scoreboardPointValues({ pointValues: [7, 8] })).toEqual([1]);
     expect(scoreboardPointPresetId({ pointValues: [5, 10, 25] })).toBe(
       '5-10-25'
     );

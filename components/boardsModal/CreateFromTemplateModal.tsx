@@ -17,6 +17,7 @@ import {
 } from '@/types';
 import { logError } from '@/utils/logError';
 import { migrateBoardWidgets } from '@/utils/migration';
+import { importedConnections } from '@/utils/dashboardSanitize';
 import { mockTemplateStore } from '@/hooks/useTemplateStore';
 
 interface Props {
@@ -102,6 +103,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
           ...(tpl.globalStyle !== undefined && {
             globalStyle: { ...DEFAULT_GLOBAL_STYLE, ...tpl.globalStyle },
           }),
+          ...importedConnections(tpl.connections),
         } as Dashboard;
         await createNewDashboard(tpl.name, dashboard);
         onClose();
