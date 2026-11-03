@@ -3109,8 +3109,6 @@ export const TOUR_ANCHORS = {
   'quiz-results.scoreboard': {
     label: 'Send to Scoreboard in Quiz results',
     perWidgetType: true,
-    keyPattern: '(quiz|review)',
-    keyHint: 'quiz or review',
   },
   'quiz-results.sheet-refresh': {
     label: 'Refresh linked sheet in Quiz results',
@@ -3125,16 +3123,12 @@ export const TOUR_ANCHORS = {
   'quiz-results.scoreboard-names': {
     label: 'Student Names option in the Scoreboard prompt in Quiz results',
     perWidgetType: true,
-    keyPattern: '(quiz|review)',
-    keyHint: 'quiz or review',
     persists: true,
     panel: true,
   },
   'quiz-results.scoreboard-pins': {
     label: 'PINs Only option in the Scoreboard prompt in Quiz results',
     perWidgetType: true,
-    keyPattern: '(quiz|review)',
-    keyHint: 'quiz or review',
     persists: true,
     panel: true,
   },
