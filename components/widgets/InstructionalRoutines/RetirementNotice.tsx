@@ -11,16 +11,34 @@ export const RETIREMENT_OPEN_LABEL = 'Open Routine Guide';
 export const RETIREMENT_DISMISS_LABEL = 'Not now';
 
 // Shown each time the widget mounts; dismissing hides it until the board reloads.
-export const RetirementNotice: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => {
-  const { addWidget, isActiveBoardReadOnly } = useDashboard();
-  const { canAccessWidget } = useAuth();
+export const RetirementNotice: React.FC<{
+  widget: WidgetData;
+  isStudentView?: boolean;
+}> = ({ widget, isStudentView = false }) => {
+  const { addWidget, bringToFront, activeDashboard, isActiveBoardReadOnly } =
+    useDashboard();
+  const { user, canAccessWidget } = useAuth();
   const [dismissed, setDismissed] = useState(false);
 
-  if (dismissed || isActiveBoardReadOnly || !canAccessWidget('routineGuide')) {
+  if (
+    dismissed ||
+    isStudentView ||
+    !user ||
+    widget.id.startsWith('announcement') ||
+    isActiveBoardReadOnly ||
+    !canAccessWidget('routineGuide')
+  ) {
     return null;
   }
+
+  const openRoutineGuide = () => {
+    const existing = activeDashboard?.widgets.find(
+      (w) => w.type === 'routineGuide'
+    );
+    if (existing) bringToFront(existing.id);
+    else addWidget('routineGuide');
+    setDismissed(true);
+  };
 
   const textScale = resolveBaseTextScale(widget.baseTextSize);
   const titleId = `routines-retirement-title-${widget.id}`;
@@ -62,7 +80,7 @@ export const RetirementNotice: React.FC<{ widget: WidgetData }> = ({
           <button
             type="button"
             onClick={() => setDismissed(true)}
-            className="rounded-lg font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+            className="relative touch-target-expand rounded-lg font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
             style={{ padding: '0.6em 1em', fontSize: '0.9em' }}
           >
             {RETIREMENT_DISMISS_LABEL}
@@ -70,11 +88,8 @@ export const RetirementNotice: React.FC<{ widget: WidgetData }> = ({
           {/* no-tour-anchor: temporary retirement notice, removed with the widget */}
           <button
             type="button"
-            onClick={() => {
-              addWidget('routineGuide');
-              setDismissed(true);
-            }}
-            className="rounded-lg font-semibold text-white bg-brand-blue-primary hover:bg-brand-blue-dark transition-colors"
+            onClick={openRoutineGuide}
+            className="relative touch-target-expand rounded-lg font-semibold text-white bg-brand-blue-primary hover:bg-brand-blue-dark transition-colors"
             style={{ padding: '0.6em 1em', fontSize: '0.9em' }}
           >
             {RETIREMENT_OPEN_LABEL}

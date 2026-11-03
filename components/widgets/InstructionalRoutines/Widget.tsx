@@ -741,11 +741,12 @@ const InstructionalRoutinesBody: React.FC<{ widget: WidgetData }> = ({
   );
 };
 
-export const InstructionalRoutinesWidget: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => (
+export const InstructionalRoutinesWidget: React.FC<{
+  widget: WidgetData;
+  isStudentView?: boolean;
+}> = ({ widget, isStudentView }) => (
   <div className="relative h-full w-full">
     <InstructionalRoutinesBody widget={widget} />
-    <RetirementNotice widget={widget} />
+    <RetirementNotice widget={widget} isStudentView={isStudentView} />
   </div>
 );
