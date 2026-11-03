@@ -149,6 +149,7 @@ const PII_KEYS = new Set([
   'doneNames',
   'jigsawHomeGroups',
   'jigsawExpertGroups',
+  'recentGroupings',
   'names',
   'roster',
   'customRoster',

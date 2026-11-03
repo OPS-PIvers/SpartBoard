@@ -754,6 +754,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "numberLine#showArrows",
       "qr#showUrl",
       "random#autoStartTimer",
+      "random#avoidRecentPartners",
       "random#soundEnabled",
       "recessGear#useFeelsLike",
       "reveal-grid#isMemoryMode",
