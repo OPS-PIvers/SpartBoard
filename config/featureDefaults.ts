@@ -1133,17 +1133,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'quiz-monitor-declutter': {
-    label: 'Quiz live monitor cleanup',
-    icon: LayoutDashboard,
-    description: 'Simpler Quiz live monitor with Close all and footer buttons.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'monitor-parity': {
     label: 'Matching assignment monitors',
     icon: LayoutDashboard,
