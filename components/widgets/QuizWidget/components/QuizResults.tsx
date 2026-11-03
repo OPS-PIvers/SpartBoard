@@ -2689,22 +2689,23 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             className="ml-auto flex items-center shrink-0"
             style={{ gap: 'min(6px, 1.5cqmin)' }}
           >
-            {isReview && filteredCompleted.length > 0 && (
-              <button
-                type="button"
-                onClick={handleScoreboardClick}
-                disabled={namesLoading}
-                aria-label="Send to Scoreboard"
-                {...tourTypeAttr('quiz-results.scoreboard', 'quiz')}
-                title={
-                  namesLoading ? NAMES_LOADING_TITLE : 'Send to Scoreboard'
-                }
-                className={footerButtonClass}
-                style={footerIconButtonStyle}
-              >
-                <Trophy aria-hidden style={footerIcon} />
-              </button>
-            )}
+            {(isReview || !canAccessFeature('widget-connections')) &&
+              filteredCompleted.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleScoreboardClick}
+                  disabled={namesLoading}
+                  aria-label="Send to Scoreboard"
+                  {...tourTypeAttr('quiz-results.scoreboard', 'quiz')}
+                  title={
+                    namesLoading ? NAMES_LOADING_TITLE : 'Send to Scoreboard'
+                  }
+                  className={footerButtonClass}
+                  style={footerIconButtonStyle}
+                >
+                  <Trophy aria-hidden style={footerIcon} />
+                </button>
+              )}
             {sheetRefresh && (
               <button
                 type="button"

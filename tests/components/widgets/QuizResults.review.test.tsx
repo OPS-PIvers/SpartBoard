@@ -13,6 +13,7 @@ vi.mock('@/context/useDashboard', () => ({
     rosters: [],
   }),
 }));
+const mockFlags = vi.hoisted(() => ({ connections: true }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessQuizMediaResponse: () => false,
@@ -23,7 +24,9 @@ vi.mock('@/context/useAuth', () => ({
     // The grade-push button is additionally gated on the admin-managed
     // `google-classroom` feature doc; default-allow in this suite.
     canAccessFeature: (id: string) =>
-      id !== 'gradebook' && id !== 'quiz-attempt-history',
+      id !== 'gradebook' &&
+      id !== 'quiz-attempt-history' &&
+      (id !== 'widget-connections' || mockFlags.connections),
   }),
 }));
 // Auto-confirm the "Push grades?" dialog so the handler proceeds.
@@ -254,5 +257,29 @@ describe('QuizResults, Review variant', () => {
     expect(
       screen.queryByRole('button', { name: 'Send to Scoreboard' })
     ).toBeNull();
+  });
+
+  it('keeps Send to Scoreboard on Quiz while Connections is off', () => {
+    mockFlags.connections = false;
+    try {
+      render(
+        <QuizResults
+          quiz={quiz}
+          responses={responses}
+          config={config}
+          onBack={vi.fn()}
+          session={{
+            ...gameSession,
+            sessionMode: 'student',
+            widgetKind: 'quiz',
+          }}
+        />
+      );
+      expect(
+        screen.getByRole('button', { name: 'Send to Scoreboard' })
+      ).toBeInTheDocument();
+    } finally {
+      mockFlags.connections = true;
+    }
   });
 });
