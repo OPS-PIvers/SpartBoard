@@ -17,6 +17,7 @@ describe('randomizerGroups', () => {
     expect(randomizerGroups(cfg(null))).toBeNull();
     expect(randomizerGroups(undefined)).toBeNull();
     expect(randomizerGroups(cfg(groups('a', 'b')))).toHaveLength(2);
+    expect(randomizerGroups(cfg([{ names: ['Ana'] }]))).toBeNull();
   });
 });
 
@@ -88,5 +89,18 @@ describe('teamsFromGroups', () => {
     const once = teamsFromGroups(groups('a', 'b'), [], [], name);
     const twice = teamsFromGroups(groups('a', 'b'), [], once, name);
     expect(sameTeams(once, twice)).toBe(true);
+  });
+
+  it('keeps a shared name exactly as typed, even while blank', () => {
+    const teams = teamsFromGroups(
+      groups('a', 'b'),
+      [
+        { id: 'a', name: '' },
+        { id: 'b', name: 'Red ' },
+      ],
+      [],
+      name
+    );
+    expect(teams.map((team) => team.name)).toEqual(['', 'Red ']);
   });
 });

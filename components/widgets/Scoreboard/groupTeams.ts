@@ -16,7 +16,9 @@ export const randomizerGroups = (
   if (typeof first !== 'object' || first === null || !('names' in first)) {
     return null;
   }
-  return result as RandomGroup[];
+  const groups = result as RandomGroup[];
+  // Teams are matched to groups by id, so groups without ids can't be followed.
+  return groups.every((g) => !!g.id) ? groups : null;
 };
 
 /** One team per group, in group order; a team keeps its id and score when its group slot survives a regroup. */
@@ -46,10 +48,10 @@ export const teamsFromGroups = (
     const shared = group.id
       ? sharedGroups?.find((sg) => sg.id === group.id)
       : undefined;
-    const sharedName = shared?.name.trim();
     const team: ScoreboardTeam = {
       id: existing?.id ?? `group-${group.id ?? i + 1}`,
-      name: sharedName && sharedName.length > 0 ? sharedName : groupName(i + 1),
+      // The shared name as typed, so a rename in progress isn't rewritten under the cursor.
+      name: shared ? shared.name : groupName(i + 1),
       score: existing?.score ?? 0,
       color:
         shared?.color ??

@@ -15,6 +15,7 @@ import {
   RandomGroup,
   SharedGroup,
   ScoreboardTeam,
+  ScoreboardConfig,
   Student,
 } from '@/types';
 import { Button } from '@/components/common/Button';
@@ -1033,7 +1034,10 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     const teams = teamsFromGroups(
       groups,
       activeDashboard?.sharedGroups,
-      [],
+      // A Scoreboard already following keeps its scores; a newly connected one starts fresh.
+      linked && Array.isArray((linked.config as ScoreboardConfig).teams)
+        ? (linked.config as ScoreboardConfig).teams
+        : [],
       (count) => t('widgetSettings.scoreboard.groupName', { count })
     );
     const scoreboardId = target?.id ?? crypto.randomUUID();

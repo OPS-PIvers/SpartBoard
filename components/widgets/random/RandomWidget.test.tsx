@@ -462,6 +462,139 @@ describe('RandomWidget', () => {
     );
   });
 
+  describe('Send to Scoreboard with Connections on', () => {
+    const groupsWidget: WidgetData = {
+      id: 'rnd',
+      type: 'random',
+      config: {
+        firstNames: 'Alice\nBob',
+        mode: 'groups',
+        lastResult: [
+          { id: 'g1', names: ['Alice', 'Bob'] },
+          { id: 'g2', names: ['Charlie', 'Dave'] },
+        ],
+      },
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: false,
+    };
+    const scoreboard = (
+      id: string,
+      teams: {
+        id: string;
+        name: string;
+        score: number;
+        linkedGroupId?: string;
+      }[]
+    ) =>
+      ({
+        ...groupsWidget,
+        id,
+        type: 'scoreboard',
+        config: { teams },
+      }) as unknown as WidgetData;
+    const renderOn = (widgets: WidgetData[], connections: unknown[] = []) => {
+      canAccessFeatureMock.mockImplementation(
+        (id: string) => id === 'widget-connections'
+      );
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...mockDashboardContext,
+        activeDashboard: {
+          widgets: [groupsWidget, ...widgets],
+          sharedGroups: [],
+          connections,
+        },
+      });
+      render(<RandomWidget widget={groupsWidget} />);
+      fireEvent.click(
+        screen.getByRole('button', { name: /Send to Scoreboard/i })
+      );
+    };
+    afterEach(() => canAccessFeatureMock.mockImplementation(() => false));
+
+    it('creates a Scoreboard and connects it', () => {
+      renderOn([]);
+      const [, overrides] = mockAddWidget.mock.calls[0] as [
+        string,
+        { id: string },
+      ];
+      expect(mockUpdateDashboard).toHaveBeenCalledWith({
+        connections: [
+          expect.objectContaining({
+            kind: 'follow',
+            leaderId: 'rnd',
+            followerId: overrides.id,
+          }),
+        ],
+      });
+    });
+
+    it('fills and connects an existing Scoreboard', () => {
+      renderOn([scoreboard('sb', [{ id: 'team-a', name: 'A', score: 4 }])]);
+      expect(mockAddWidget).not.toHaveBeenCalled();
+      expect(mockUpdateWidget).toHaveBeenCalledWith('sb', {
+        config: expect.objectContaining({
+          teams: [
+            expect.objectContaining({ linkedGroupId: 'g1', score: 0 }),
+            expect.objectContaining({ linkedGroupId: 'g2', score: 0 }),
+          ],
+        }) as unknown,
+      });
+      expect(mockUpdateDashboard).toHaveBeenCalledWith({
+        connections: [
+          expect.objectContaining({ leaderId: 'rnd', followerId: 'sb' }),
+        ],
+      });
+    });
+
+    it('keeps scores and adds no second connection when already connected', () => {
+      const follow = {
+        id: 'f1',
+        kind: 'follow',
+        leaderId: 'rnd',
+        followerId: 'sb',
+      };
+      renderOn(
+        [
+          scoreboard('sb', [
+            { id: 'group-g1', name: 'Group 1', score: 3, linkedGroupId: 'g1' },
+          ]),
+        ],
+        [follow]
+      );
+      expect(mockUpdateDashboard).not.toHaveBeenCalledWith(
+        expect.objectContaining({ connections: expect.anything() as unknown })
+      );
+      expect(mockUpdateWidget).toHaveBeenCalledWith('sb', {
+        config: expect.objectContaining({
+          teams: [
+            expect.objectContaining({ id: 'group-g1', score: 3 }),
+            expect.objectContaining({ linkedGroupId: 'g2', score: 0 }),
+          ],
+        }) as unknown,
+      });
+    });
+
+    it('never takes over a Scoreboard that follows another Randomizer', () => {
+      const other = { ...groupsWidget, id: 'rnd2' };
+      renderOn(
+        [other, scoreboard('sb', [])],
+        [{ id: 'f1', kind: 'follow', leaderId: 'rnd2', followerId: 'sb' }]
+      );
+      expect(mockUpdateWidget).not.toHaveBeenCalledWith(
+        'sb',
+        expect.anything()
+      );
+      expect(mockAddWidget).toHaveBeenCalledWith(
+        'scoreboard',
+        expect.anything()
+      );
+    });
+  });
+
   describe('stale-closure regression: soundEnabled read from ref mid-spin', () => {
     // Regression test for the stale-closure bug where setInterval callbacks in
     // handlePick (a click handler) captured `soundEnabled` from the closure at

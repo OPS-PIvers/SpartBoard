@@ -485,7 +485,7 @@ export const ScoreboardSettings: React.FC<{
         </div>
       )}
 
-      {rosterGroupsEnabled && rosterGroups.length > 0 && (
+      {!leaderRandomizer && rosterGroupsEnabled && rosterGroups.length > 0 && (
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col gap-3">
           <div className="flex items-center gap-2 text-slate-700">
             <Users className="w-4 h-4" />

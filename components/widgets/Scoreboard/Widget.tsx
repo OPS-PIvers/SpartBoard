@@ -126,7 +126,12 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
       t('widgetSettings.scoreboard.groupName', { count })
     );
     if (!sameTeams(next, current)) {
-      updateWidget(widget.id, { config: { teams: next } });
+      // Not an undo step: Undo would only restore stale teams that this sync puts back.
+      updateWidget(
+        widget.id,
+        { config: { teams: next } },
+        { skipHistory: true }
+      );
     }
   }, [
     leaderGroupsKey,
