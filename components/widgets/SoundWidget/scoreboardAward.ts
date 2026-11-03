@@ -19,11 +19,10 @@ export const findTeamScoreboard = (
     );
   });
 
-/** Adds one point to a team, recording it in the Scoreboard's history when that feature is on. */
+/** Adds one point to a team and records it in the Scoreboard's history. */
 export const awardPoint = (
   config: ScoreboardConfig,
-  teamId: string,
-  withHistory: boolean
+  teamId: string
 ): ScoreboardConfig => {
   const teams = Array.isArray(config.teams) ? config.teams : [];
   const before = teams.find((t) => t.id === teamId);
@@ -34,10 +33,8 @@ export const awardPoint = (
       t.id === teamId ? { ...t, score: t.score + 1 } : t
     ),
   };
-  if (withHistory) {
-    next.history = appendScoreHistory(config.history, [
-      { teamId, from: before.score, to: before.score + 1 },
-    ]);
-  }
+  next.history = appendScoreHistory(config.history, [
+    { teamId, from: before.score, to: before.score + 1 },
+  ]);
   return next;
 };

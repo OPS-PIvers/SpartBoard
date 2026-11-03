@@ -77,7 +77,6 @@ export const SoundWidget: React.FC<{
   const { t } = useTranslation();
   const { canAccessFeature } = useAuth();
   const pro = canAccessFeature(NOISE_METER_PRO);
-  const scoreboardPro = canAccessFeature('scoreboard-pro');
   const [volume, setVolume] = useState(0);
   const [history, setHistory] = useState<number[]>(new Array(50).fill(0));
   const [micReady, setMicReady] = useState(false);
@@ -474,8 +473,7 @@ export const SoundWidget: React.FC<{
       updateWidget(scoreboard.id, {
         config: awardPoint(
           scoreboard.config as ScoreboardConfig,
-          quietGoalTeamId,
-          scoreboardPro
+          quietGoalTeamId
         ),
       });
     }

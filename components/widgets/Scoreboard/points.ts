@@ -15,10 +15,9 @@ const DEFAULT_POINT_VALUES: readonly number[] = [1];
 
 /** The saved point buttons when they are one of the presets, else a single 1. */
 export const scoreboardPointValues = (
-  config: ScoreboardConfig,
-  enabled: boolean
+  config: ScoreboardConfig
 ): readonly number[] => {
-  if (!enabled || !Array.isArray(config.pointValues)) {
+  if (!Array.isArray(config.pointValues)) {
     return DEFAULT_POINT_VALUES;
   }
   const key = config.pointValues.join('-');

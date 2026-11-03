@@ -47,7 +47,6 @@ export const ScoreboardRowItem = React.memo(
     position,
     pointValues = DEFAULT_POINTS,
     leader = null,
-    pro = false,
   }: {
     team: ScoreboardTeam;
     rank: number;
@@ -57,11 +56,9 @@ export const ScoreboardRowItem = React.memo(
     position?: number;
     pointValues?: readonly number[];
     leader?: LeaderMark;
-    /** Count-up score and names that wrap to two lines instead of cutting off. */
-    pro?: boolean;
   }) => {
     const { t } = useTranslation();
-    const shownScore = useCountUp(team.score, pro);
+    const shownScore = useCountUp(team.score);
     const fieldKey = `team-${position ?? rank}`;
     const multi = pointValues.length > 1;
     const amountButtonClass = `bg-white ${getText(normalizeScoreboardColor(team.color))} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition-all font-black tabular-nums leading-none`;
@@ -99,7 +96,7 @@ export const ScoreboardRowItem = React.memo(
 
         {/* Name */}
         <span
-          className={`flex-1 font-bold text-white min-w-0 ${pro ? 'line-clamp-2 wrap-break-word leading-tight' : 'truncate'}`}
+          className={`flex-1 font-bold text-white min-w-0 line-clamp-2 wrap-break-word leading-tight`}
           style={{ fontSize: 'min(13px, 4cqmin)' }}
         >
           {team.name}
@@ -244,7 +241,6 @@ export const ScoreboardRowItem = React.memo(
       prevProps.team.color === nextProps.team.color &&
       prevProps.team.linkedGroupId === nextProps.team.linkedGroupId &&
       prevProps.position === nextProps.position &&
-      prevProps.pro === nextProps.pro &&
       prevProps.leader === nextProps.leader &&
       (prevProps.pointValues ?? DEFAULT_POINTS).join() ===
         (nextProps.pointValues ?? DEFAULT_POINTS).join()

@@ -10815,8 +10815,6 @@ export type GlobalFeature =
   | 'checklist-small-card'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
   | 'seating-chart-plans'
-  /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
-  | 'scoreboard-pro'
   /** Poll: hide results until revealed, lock voting, answered count (docs/plans/shipped/POLL_PRO.md). */
   | 'poll-pro'
   /** Sound widget target level, Too loud alert, calibration, quiet time goal and summary (pro-grade-2/NOISE_METER_PLAN.md). */
