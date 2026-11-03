@@ -75,6 +75,7 @@ import {
   useDashboardCanvasStateGetter,
 } from '@/context/dashboardCanvasStore';
 import { GlassCard } from './GlassCard';
+import { WINDOW_RADIUS_PX } from '@/utils/windowRadius';
 import { WidgetHostContext } from './WidgetHostContext';
 import {
   markSettingsClosedByGesture,
@@ -159,26 +160,48 @@ interface DraggableWindowProps {
   alignmentGuides?: boolean;
 }
 
-const ResizeHandleIcon = ({
+// Handle box is 36px with the widget corner 24px in; the arc stays concentric with the frame corner.
+const RESIZE_ARC_CORNER = 24;
+const RESIZE_ARC_MIN_RADIUS = 12;
+const RESIZE_ARC_INSET = 3.5;
+
+const resizeArcPath = (cornerRadiusPx: number): string => {
+  const outer = Math.max(cornerRadiusPx, RESIZE_ARC_MIN_RADIUS);
+  const r = outer - RESIZE_ARC_INSET;
+  const center = RESIZE_ARC_CORNER - outer;
+  const point = (deg: number) => {
+    const t = (deg * Math.PI) / 180;
+    return `${(center + r * Math.cos(t)).toFixed(2)} ${(center + r * Math.sin(t)).toFixed(2)}`;
+  };
+  return `M ${point(12)} A ${r} ${r} 0 0 1 ${point(78)}`;
+};
+
+const ResizeHandleArc = ({
+  cornerRadiusPx,
   className,
   style,
 }: {
+  cornerRadiusPx: number;
   className?: string;
   style?: React.CSSProperties;
 }) => (
   <svg
-    width="10"
-    height="10"
-    viewBox="0 0 10 10"
+    width="36"
+    height="36"
+    viewBox="0 0 36 36"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     className={className}
     style={style}
     aria-hidden="true"
+    data-testid="resize-handle-arc"
   >
-    <path d="M8 2L2 8" stroke="currentColor" strokeLinecap="round" />
-    <path d="M8 5.5L5.5 8" stroke="currentColor" strokeLinecap="round" />
-    <path d="M8 9L9 8" stroke="currentColor" strokeLinecap="round" />
+    <path
+      d={resizeArcPath(cornerRadiusPx)}
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
@@ -1898,6 +1921,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   // Force 100% opacity when spotlighted so it stands out against the dimming overlay
   // This prevents the "dimmed text" issue reported by users.
+  const resizeCornerRadiusPx = parseFloat(
+    WINDOW_RADIUS_PX[globalStyle.windowBorderRadius] ?? WINDOW_RADIUS_PX['2xl']
+  );
   const transparency = isSpotlighted
     ? 1
     : (widget.transparency ?? globalStyle.windowTransparency);
@@ -2839,7 +2865,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           Rendered as siblings of `drag-surface` so they aren't clipped by its
           `overflow: hidden`, allowing each handle to extend ~12px outside the
           widget bounds for a 36×36 effective hit zone (12 outside + 24 inside).
-          The visible SE corner icon stays anchored at the inner corner.
+          The visible SE arc follows the frame corner radius.
           Hidden when maximized or annotating to mirror the outer drag strips
           and avoid intercepting annotation strokes near the corners. */}
       {!isLocked && !isPinned && !isMaximized && !isAnnotating && (
@@ -2882,7 +2908,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           />
           <div
             onPointerDown={(e) => handleResizeStart(e, 'se')}
-            className="resize-handle cursor-se-resize z-widget-resize"
+            className="resize-handle group/resize cursor-se-resize z-widget-resize"
             style={{
               position: 'absolute',
               bottom: -12,
@@ -2892,20 +2918,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               touchAction: 'none',
             }}
           >
-            <div
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                bottom: 13.5,
-                right: 13.5,
-                pointerEvents: 'none',
-              }}
-            >
-              <ResizeHandleIcon
-                className="text-slate-400"
-                style={{ opacity: isSelected ? 1 : transparency }}
-              />
-            </div>
+            <ResizeHandleArc
+              cornerRadiusPx={resizeCornerRadiusPx}
+              className={`pointer-events-none absolute inset-0 transition-colors ${
+                isResizing
+                  ? 'text-brand-blue-primary'
+                  : 'text-slate-400 group-hover/resize:text-brand-blue-primary'
+              }`}
+              style={{ opacity: isSelected || isResizing ? 1 : transparency }}
+            />
           </div>
         </>
       )}
