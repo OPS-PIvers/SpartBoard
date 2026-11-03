@@ -28,7 +28,7 @@ import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { withPaperBoxSizes } from '@/utils/paperWritten';
 import { useDashboard } from '@/context/useDashboard';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
-import { followingScoreboard, liveConnections } from '@/utils/connectionEngine';
+import { followingScoreboard, followLeaderId } from '@/utils/connectionEngine';
 import { hasConnectionTab } from '@/components/connections/connectionSummary';
 import { openConnectionEditor } from '@/context/connectionsUiStore';
 import { getTitle } from '@/utils/widgetHelpers';
@@ -1411,16 +1411,18 @@ const TeacherQuizWidget: React.FC<{
   const connectedScoreboardRef = useRef(connectedScoreboardId);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in effects
   connectedScoreboardRef.current = connectedScoreboardId;
-  // Scoreboards that follow another widget; an unconnected sync leaves them alone.
+  // Scoreboards whose teams another widget leads; an unconnected sync leaves them alone.
   const takenScoreboardIds = new Set<string>();
   if (connectionsOn && activeDashboard) {
-    for (const c of liveConnections(
-      activeDashboard.connections,
-      activeDashboard.widgets
-    )) {
-      if (c.kind === 'follow' && c.leaderId !== widget.id) {
-        takenScoreboardIds.add(c.followerId);
-      }
+    for (const w of activeDashboard.widgets) {
+      if (w.type !== 'scoreboard') continue;
+      const leader = followLeaderId(
+        activeDashboard.connections,
+        activeDashboard.widgets,
+        w.id,
+        'teams'
+      );
+      if (leader && leader !== widget.id) takenScoreboardIds.add(w.id);
     }
   }
   const takenScoreboardIdsRef = useRef(takenScoreboardIds);

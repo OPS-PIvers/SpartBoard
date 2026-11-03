@@ -2606,6 +2606,12 @@
   ],
   "widgetNotes": [
     {
+      "id": "clock-show-time-date-2026-11-03",
+      "widget": "clock",
+      "date": "2026-11-03",
+      "text": "You can turn the time or the date off in Settings, and the date now stays on when seconds are showing."
+    },
+    {
       "id": "random-name-style-2026-11-03",
       "widget": "random",
       "date": "2026-11-03",

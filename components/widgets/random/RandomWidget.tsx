@@ -1029,10 +1029,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     const followers = followerIds(connections, widgets, widget.id);
     const scoreboards = widgets.filter((w) => w.type === 'scoreboard');
     const linked = scoreboards.find((w) => followers.includes(w.id));
-    // Never take over a Scoreboard that already follows another widget.
+    // Never take over a Scoreboard whose teams already follow another widget.
     const target =
       linked ??
-      scoreboards.find((w) => !followLeaderId(connections, widgets, w.id));
+      scoreboards.find(
+        (w) => !followLeaderId(connections, widgets, w.id, 'teams')
+      );
     const teams = teamsFromGroups(
       groups,
       activeDashboard?.sharedGroups,

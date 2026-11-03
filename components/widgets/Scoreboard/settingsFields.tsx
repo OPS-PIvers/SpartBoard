@@ -96,7 +96,8 @@ export const ScoreboardSettings: React.FC<{
     ? followLeaderId(
         activeDashboard?.connections,
         activeDashboard?.widgets ?? [],
-        widget.id
+        widget.id,
+        'teams'
       )
     : undefined;
   const leaderRandomizer = leaderId
