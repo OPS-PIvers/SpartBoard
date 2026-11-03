@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { followLeaderId, followerIds } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
 import {
   WidgetData,
@@ -111,8 +112,9 @@ export const SoundWidget: React.FC<{
   const calibrating =
     pro && isActive && isCalibrating(widget.config as SoundConfig);
 
-  // With Connections on, Follows replace the old sync toggles: this meter Follows one Expectations, Traffic Lights Follow it.
+  // Follows win: this meter Follows one Expectations, Traffic Lights Follow it; the old toggles apply unless this widget was migrated.
   const connectionsOn = canAccessFeature('widget-connections');
+  const useLegacy = usesLegacyToggles(connectionsOn, widget.config);
   const boardWidgets = activeDashboard?.widgets ?? EMPTY_WIDGETS;
   const followedExpectations = connectionsOn
     ? boardWidgets.find(
@@ -121,24 +123,24 @@ export const SoundWidget: React.FC<{
           followLeaderId(activeDashboard?.connections, boardWidgets, widget.id)
       )
     : undefined;
-  const syncExpectations = connectionsOn
-    ? !!followedExpectations
-    : legacySyncExpectations;
+  const syncExpectations = followedExpectations
+    ? true
+    : useLegacy && legacySyncExpectations;
   const trafficTargets = useMemo(() => {
-    if (connectionsOn) {
-      const ids = followerIds(
-        activeDashboard?.connections,
-        boardWidgets,
-        widget.id
-      );
-      return boardWidgets.filter(
-        (w) => w.type === 'traffic' && ids.includes(w.id)
-      );
+    const ids = connectionsOn
+      ? followerIds(activeDashboard?.connections, boardWidgets, widget.id)
+      : [];
+    const targets = boardWidgets.filter(
+      (w) => w.type === 'traffic' && ids.includes(w.id)
+    );
+    if (useLegacy && legacyAutoTrafficLight) {
+      const first = boardWidgets.find((w) => w.type === 'traffic');
+      if (first && !targets.includes(first)) targets.push(first);
     }
-    const first = boardWidgets.find((w) => w.type === 'traffic');
-    return legacyAutoTrafficLight && first ? [first] : [];
+    return targets;
   }, [
     connectionsOn,
+    useLegacy,
     activeDashboard?.connections,
     boardWidgets,
     widget.id,

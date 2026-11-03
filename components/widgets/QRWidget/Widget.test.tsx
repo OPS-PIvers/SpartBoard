@@ -1,3 +1,4 @@
+import type { ContextType } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { QRWidget } from './Widget';
@@ -6,6 +7,7 @@ import { WidgetData, QRConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
 
 // Mock the context using the standard pattern
 vi.mock('@/context/useDashboard', () => ({
@@ -376,5 +378,44 @@ describe('QRSettings', () => {
     const input = screen.getByRole('textbox');
     expect(input).toBeDisabled();
     expect(input).toHaveValue(syncedText);
+  });
+  describe('with Connections on', () => {
+    const textWidget = {
+      id: 'text-widget-1',
+      type: 'text',
+      config: { content: 'https://from-text.example' },
+    } as WidgetData;
+    const urlOf = () => screen.getByAltText('QR Code').getAttribute('src');
+    const renderWithConnections = (widget: WidgetData) =>
+      render(
+        <AuthContext.Provider
+          value={
+            {
+              canAccessFeature: (id: string) => id === 'widget-connections',
+            } as unknown as ContextType<typeof AuthContext>
+          }
+        >
+          <QRWidget widget={widget} />
+        </AuthContext.Provider>
+      );
+
+    it('still follows Text through the old toggle on an unmigrated widget', () => {
+      mockActiveDashboard.widgets = [textWidget];
+      renderWithConnections(createMockWidget({ syncWithTextWidget: true }));
+      expect(urlOf()).toContain(
+        encodeURIComponent('https://from-text.example')
+      );
+    });
+
+    it('ignores the old toggle once the widget is migrated', () => {
+      mockActiveDashboard.widgets = [textWidget];
+      renderWithConnections(
+        createMockWidget({
+          syncWithTextWidget: true,
+          legacyConnectionsMigrated: true,
+        } as Partial<QRConfig>)
+      );
+      expect(urlOf()).toContain(encodeURIComponent('https://example.com'));
+    });
   });
 });

@@ -41,6 +41,7 @@ import { useDialog } from '@/context/useDialog';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { tourAttr } from '@/config/tourAnchors';
 import { timeToolClockReducer } from '@/utils/timeToolClock';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 
 /** A stable reference, so a share does not re-derive the queue every render. */
 const EMPTY_QUEUE: NextUpQueueItem[] = [];
@@ -56,6 +57,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const { showConfirm } = useDialog();
   const { user } = useAuth();
   const connectionsOn = useConnectionsEnabled();
+  const useLegacy = usesLegacyToggles(connectionsOn, config);
   // A sub reads the queue the teacher's client bundled into the share's names
   // file: the live one lives in the teacher's Drive, which they cannot reach.
   const inShare = useInSubShare();
@@ -244,10 +246,10 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     const nextIdx = store.getQueue().findIndex((q) => q.status === 'waiting');
 
     // Nexus: Auto-Start Timer integration (from #770)
-    // With Connections on, auto-start became a Sequence.
+    // A migrated widget's auto-start became a Sequence.
     if (
       config.autoStartTimer &&
-      !connectionsOn &&
+      useLegacy &&
       activeDashboard &&
       nextIdx !== -1
     ) {
@@ -272,7 +274,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   }, [
     store,
     config.autoStartTimer,
-    connectionsOn,
+    useLegacy,
     activeDashboard,
     syncToDrive,
     updateWidget,

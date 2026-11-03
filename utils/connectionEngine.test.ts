@@ -204,6 +204,34 @@ describe('shareout loop', () => {
     expect(joined?.sequence.run).toBeNull();
   });
 
+  it('runs a repeating pass where nothing waits only once', () => {
+    const seq: SequenceConnection = {
+      ...shareout(),
+      repeat: 'until-done',
+      steps: [
+        { id: 'a', actions: [{ widgetId: 'l', action: 'red' }] },
+        { id: 'b', actions: [{ widgetId: 'l', action: 'green' }] },
+      ],
+      run: { deviceId: 'd', stepIndex: 1, stepStartedAt: 0, loops: 0 },
+    };
+    const r = advanceRun(seq, [widget('l', 'traffic', {})], 1, 'd');
+    expect(r.finished).toBe(true);
+    expect(r.sequence.run).toBeNull();
+  });
+
+  it('keeps the Run on its step when the step timer resumes', () => {
+    const seq: SequenceConnection = {
+      ...shareout(),
+      run: { deviceId: 'd', stepIndex: 1, stepStartedAt: 0, loops: 0 },
+    };
+    const widgets = [
+      shuffle(['Ana', 'Ben']),
+      timer('t1', 120, { isRunning: true, startTime: 10, elapsedTime: 60 }),
+      timer('t2', 30),
+    ];
+    expect(joinRunByHand(seq, widgets, 't1', 'start', 20, 'd')).toBeNull();
+  });
+
   it('stops before a step whose widget has nothing to do', () => {
     const seq: SequenceConnection = {
       ...shareout(),

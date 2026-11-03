@@ -10,6 +10,7 @@ import {
 import { draftFromPicks, type PickedWidget } from '@/utils/connectionEngine';
 import type { SequenceConnection, WidgetConnection } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
+import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 // The step editor loads only when a teacher opens it.
 const ConnectionEditorModal = lazy(() =>
   import('./ConnectionEditorModal').then((m) => ({
@@ -153,9 +154,11 @@ export const ConnectModeBar: React.FC = () => {
           document.body
         )}
       {editor && activeDashboard && editor.boardId === activeDashboard.id && (
-        <Suspense fallback={null}>
-          <ConnectionEditorModal draft={editor} board={activeDashboard} />
-        </Suspense>
+        <LazyChunkErrorBoundary>
+          <Suspense fallback={null}>
+            <ConnectionEditorModal draft={editor} board={activeDashboard} />
+          </Suspense>
+        </LazyChunkErrorBoundary>
       )}
     </>
   );

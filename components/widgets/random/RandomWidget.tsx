@@ -85,6 +85,7 @@ import { timeToolClockReducer } from '@/utils/timeToolClock';
 import { reportHandAction } from '@/utils/connectionSignals';
 import { currentShuffleName } from '@/utils/randomCurrentName';
 import { liveConnections } from '@/utils/connectionEngine';
+import { usesLegacyToggles } from '@/utils/legacyConnections';
 import { useAuth } from '@/context/useAuth';
 
 import { WidgetLayout } from '../WidgetLayout';
@@ -173,11 +174,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
   const { canAccessFeature } = useAuth();
   const connectionsOn = canAccessFeature('widget-connections');
-  // Read in the deferred pick callback; with Connections on, auto-start became a Sequence.
-  const connectionsOnRef = useRef(connectionsOn);
+  // Read in the deferred pick callback; a migrated widget's auto-start became a Sequence.
+  const useLegacy = usesLegacyToggles(connectionsOn, widget.config);
+  const useLegacyRef = useRef(useLegacy);
   useLayoutEffect(() => {
-    connectionsOnRef.current = connectionsOn;
-  }, [connectionsOn]);
+    useLegacyRef.current = useLegacy;
+  }, [useLegacy]);
   const inSequence =
     connectionsOn &&
     liveConnections(
@@ -1159,7 +1161,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         const liveDashboard = activeDashboardRef.current;
         if (
           autoStartTimer &&
-          !connectionsOnRef.current &&
+          useLegacyRef.current &&
           liveDashboard &&
           mode === 'single'
         ) {

@@ -114,6 +114,18 @@ export const isStepFinished = (
   });
 };
 
+// A step that holds the Run: a pause, the Next button, or a widget it waits on.
+const stepWaits = (step: ConnectionStep, widgets: WidgetData[]): boolean => {
+  if (step.actions.length === 0) return (step.waitSeconds ?? 0) > 0;
+  if (step.advance === 'next') return true;
+  if (step.advance === 'now') return false;
+  const map = byId(widgets);
+  return step.actions.some((a) => {
+    const w = map.get(a.widgetId);
+    return !!(w && actionDefFor(w.type, a.action)?.isFinished);
+  });
+};
+
 export interface AdvanceResult {
   sequence: SequenceConnection;
   patches: WidgetPatches;
@@ -141,6 +153,8 @@ export const advanceRun = (
   if (next >= steps.length) {
     loops += 1;
     if (seq.repeat === 'once') return stop();
+    // A pass where nothing waits would loop twice a second, so it runs once.
+    if (!steps.some((s) => stepWaits(s, widgets))) return stop();
     if (seq.repeat === 'count' && loops >= Math.max(1, seq.repeatCount ?? 1)) {
       return stop();
     }
@@ -162,6 +176,8 @@ export const advanceRun = (
 export interface JoinResult {
   sequence: SequenceConnection;
   patches: WidgetPatches;
+  /** Set when the press ran a list out and the Run ended. */
+  finished?: boolean;
 }
 
 // A hand action on a step's widget starts a Run there (or moves the Run to it); null when it isn't a step.
@@ -183,6 +199,15 @@ export const joinRunByHand = (
         actionDefFor(widget.type, a.action)?.hand === hand
     );
   const current = seq.run?.stepIndex ?? -1;
+  // Resuming the step the Run is on (e.g. Resume on its paused timer) keeps the Run where it is.
+  if (
+    seq.run &&
+    steps[current] &&
+    matches(steps[current]) &&
+    !isStepFinished(steps[current], widgets, seq.run.stepStartedAt, now)
+  ) {
+    return null;
+  }
   // Prefer the step after the current one, so a widget used twice moves forward.
   const order = steps.map((_, i) => (current + 1 + i) % steps.length);
   const index = order.find((i) => matches(steps[i]));
@@ -198,7 +223,11 @@ export const joinRunByHand = (
   const applied = applyStep(rest, widgets, now);
   // The rest of the step ran a list out, so the Run ends here like it does on Start and advance.
   if (applied.ends) {
-    return { sequence: { ...seq, run: null }, patches: applied.patches };
+    return {
+      sequence: { ...seq, run: null },
+      patches: applied.patches,
+      finished: true,
+    };
   }
   return {
     sequence: {

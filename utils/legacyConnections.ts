@@ -28,8 +28,19 @@ export interface LegacyConversion {
 
 const newId = () => crypto.randomUUID();
 
-const isMarked = (w: WidgetData) =>
-  (w.config as Record<string, unknown>)[LEGACY_CONNECTIONS_MARKER] === true;
+/** True once a widget's old toggles have become Connections. */
+export const isLegacyMigrated = (config: object | undefined): boolean =>
+  (config as Record<string, unknown> | undefined)?.[
+    LEGACY_CONNECTIONS_MARKER
+  ] === true;
+
+/** Old toggles still apply without the flag, or while the widget is not migrated. */
+export const usesLegacyToggles = (
+  connectionsOn: boolean,
+  config: object | undefined
+): boolean => !connectionsOn || !isLegacyMigrated(config);
+
+const isMarked = (w: WidgetData) => isLegacyMigrated(w.config);
 
 const sequence = (
   steps: ConnectionAction[][],

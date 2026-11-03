@@ -139,6 +139,7 @@ export const ConnectionsRunner: React.FC = () => {
       const now = Date.now();
       const patches: WidgetPatches = {};
       const updated = new Map<string, WidgetConnection>();
+      let finished = false;
       for (const c of board.connections ?? []) {
         if (c.kind !== 'sequence') continue;
         const joined = joinRunByHand(
@@ -152,11 +153,62 @@ export const ConnectionsRunner: React.FC = () => {
         if (!joined) continue;
         updated.set(c.id, joined.sequence);
         Object.assign(patches, joined.patches);
+        if (joined.finished) finished = true;
       }
       if (updated.size > 0)
         write(latest.current.applyConnectionChanges, board, patches, updated);
+      if (finished) {
+        latest.current.addToast(
+          latest.current.t('connections.runFinished'),
+          'info'
+        );
+      }
     });
   }, [enabled]);
+
+  // A Timer started from the phone remote, a routine or a linked widget joins the Run like a hand press.
+  const wasRunning = useRef(new Map<string, boolean>());
+  useEffect(() => {
+    if (!enabled) return;
+    const board = activeDashboard;
+    if (!board?.connections?.length) return;
+    if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) return;
+    const started: string[] = [];
+    for (const w of board.widgets) {
+      if (w.type !== 'time-tool') continue;
+      const key = `${board.id}:${w.id}`;
+      const running = !!(w.config as { isRunning?: boolean }).isRunning;
+      const before = wasRunning.current.get(key);
+      wasRunning.current.set(key, running);
+      if (before === false && running) started.push(w.id);
+    }
+    if (started.length === 0) return;
+    const widgets = engineWidgets(board, latest.current.roster);
+    if (!widgets) return;
+    const now = Date.now();
+    const patches: WidgetPatches = {};
+    const updated = new Map<string, WidgetConnection>();
+    for (const c of board.connections) {
+      if (c.kind !== 'sequence') continue;
+      let seq: SequenceConnection = c;
+      for (const id of started) {
+        const joined = joinRunByHand(
+          seq,
+          widgets,
+          id,
+          'start',
+          now,
+          CONNECTION_DEVICE_ID
+        );
+        if (!joined) continue;
+        seq = joined.sequence;
+        updated.set(c.id, seq);
+        Object.assign(patches, joined.patches);
+      }
+    }
+    if (updated.size > 0)
+      write(latest.current.applyConnectionChanges, board, patches, updated);
+  }, [enabled, activeDashboard]);
 
   // Start, Stop and Next from a step badge.
   useEffect(() => {
@@ -283,6 +335,7 @@ export const ConnectionsRunner: React.FC = () => {
   const overdueSince = useRef(new Map<string, number>());
   const advancedAt = useRef(new Map<string, number>());
   const seenSteps = useRef(new Set<string>());
+  const staleSteps = useRef(new Set<string>());
 
   useEffect(() => {
     if (!anyRun) return;
@@ -290,6 +343,10 @@ export const ConnectionsRunner: React.FC = () => {
       const now = Date.now();
       for (const board of latest.current.dashboards) {
         if (!hasRun(board)) continue;
+        // A view-only board can't save a Run's writes, so it doesn't carry one out.
+        if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) {
+          continue;
+        }
         const patches: WidgetPatches = {};
         const updated = new Map<string, WidgetConnection>();
         let finishedAny = false;
@@ -319,9 +376,7 @@ export const ConnectionsRunner: React.FC = () => {
             run.deviceId !== CONNECTION_DEVICE_ID &&
             now - run.stepStartedAt > STALE_RUN_MS
           ) {
-            advancedAt.current.set(key, now);
-            updated.set(c.id, { ...seq, run: null });
-            continue;
+            staleSteps.current.add(stepKey);
           }
           if (run.deviceId !== CONNECTION_DEVICE_ID) {
             const since = overdueSince.current.get(key) ?? now;
@@ -330,6 +385,11 @@ export const ConnectionsRunner: React.FC = () => {
           }
           overdueSince.current.delete(key);
           advancedAt.current.set(key, now);
+          // Still unmoved after the grace: its page is gone, so stop rather than start the next step.
+          if (staleSteps.current.has(stepKey)) {
+            updated.set(c.id, { ...seq, run: null });
+            continue;
+          }
           const r = advanceRun(seq, widgets, now, CONNECTION_DEVICE_ID);
           updated.set(c.id, r.sequence);
           Object.assign(patches, r.patches);
