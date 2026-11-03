@@ -387,11 +387,21 @@ export async function runPaperTranscriptionJob(
     return exists ? 'not-claimed' : 'missing';
   }
 
+  // A reclaimed run that died holding its page gives it back on any exit before the model call.
+  const releaseHeld = async () => {
+    if (!job.charged) return;
+    await releasePaperPage(db, { uid, jobRef, nowMs: deps.now() }).catch(
+      (releaseError) =>
+        console.error('[paperTranscriptionWorker] release failed', releaseError)
+    );
+  };
+
   const sessionSnap = await db
     .collection('quiz_sessions')
     .doc(job.sessionId)
     .get();
   if (sessionSnap.data()?.teacherUid !== uid) {
+    await releaseHeld();
     await settleWithoutTranscript(
       db,
       jobRef,
@@ -425,6 +435,7 @@ export async function runPaperTranscriptionJob(
   );
   const archiveBlanks = () => archiveBoxes(deps, job, jobId, blanks, answers);
   if (live.length === 0) {
+    await releaseHeld();
     const status = blanks.length > 0 ? 'done' : 'superseded';
     await jobRef.update({ status, updatedAt: deps.now() });
     await archiveBlanks();
@@ -432,6 +443,7 @@ export async function runPaperTranscriptionJob(
   }
 
   if (!(await deps.featureGranted(uid))) {
+    await releaseHeld();
     await settleWithoutTranscript(
       db,
       jobRef,
@@ -449,7 +461,9 @@ export async function runPaperTranscriptionJob(
     isAdmin: await deps.isAdmin(uid),
     nowMs: deps.now(),
   });
-  if (quota.geminiDisabled || quota.remaining < 1) {
+  // A job already holding its page is counted in `used`, so only the reservation below judges it.
+  if (quota.geminiDisabled || (quota.remaining < 1 && !job.charged)) {
+    await releaseHeld();
     await settleWithoutTranscript(db, jobRef, job, 'over-quota', deps.now());
     await archiveBlanks();
     return 'over-quota';
@@ -611,9 +625,15 @@ export async function requeuePaperJob(
     ) {
       return 'skipped';
     }
+    // A run that died after reserving its page leaves the charge on the old job; give it back on every exit that replaces or ends it.
+    const stuckCharge =
+      job.status === 'running' && job.charged
+        ? await preparePaperPageCharge(tx, db, { uid, jobRef, nowMs: opts.now })
+        : null;
     if (job.attempt + 1 > opts.maxAttempt) {
       // A stuck run past the cap would otherwise match the stuck query forever.
       if (job.status === 'running' || job.status === 'queued') {
+        stuckCharge?.release();
         tx.update(jobRef, {
           status: 'failed',
           lastError: `Stopped after ${job.attempt} attempts.`,
@@ -628,11 +648,6 @@ export async function requeuePaperJob(
       paperTranscriptionJobId(job.scanId, seat, job.page, job.attempt + 1)
     );
     const responseRef = responseRefFor(db, job);
-    // A run that died after reserving its page leaves the charge on the old job; the new job charges again.
-    const stuckCharge =
-      job.status === 'running' && job.charged
-        ? await preparePaperPageCharge(tx, db, { uid, jobRef, nowMs: opts.now })
-        : null;
     const [next, response, privates] = await Promise.all([
       tx.get(nextRef),
       tx.get(responseRef),
@@ -659,6 +674,7 @@ export async function requeuePaperJob(
         )
     );
     if (live.length === 0) {
+      stuckCharge?.release();
       tx.update(jobRef, { status: 'superseded', updatedAt: opts.now });
       return 'superseded';
     }

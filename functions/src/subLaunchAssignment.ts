@@ -6,7 +6,7 @@
 // share bundled; the caller supplies only run settings, from a closed
 // allowlist. Rationale for not re-deriving the whole session: see the PR.
 
-import { onCall } from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { randomUUID } from 'crypto';
 import './functionsInit';
@@ -716,16 +716,27 @@ async function liveHostAllowsAnonymousJoin(
   db: admin.firestore.Firestore,
   hostUid: string
 ): Promise<boolean> {
+  // The value is stamped once at create time, so a failed read asks the sub to retry instead of closing joins.
+  const unavailable = () =>
+    new HttpsError('unavailable', 'Could not start this activity. Try again.');
   try {
     const snap = await db
       .collection('global_permissions')
       .doc(ANONYMOUS_JOIN_FEATURE)
       .get();
     if (!snap.exists) return true;
+    const host = await admin.auth().getUser(hostUid);
+    const email = host.emailVerified ? (host.email ?? null) : null;
+    const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+    return await isGlobalFeatureGranted(
+      db,
+      ANONYMOUS_JOIN_FEATURE,
+      email,
+      hostUid
+    );
   } catch {
-    return false;
+    throw unavailable();
   }
-  return liveHostHasFeature(db, hostUid, ANONYMOUS_JOIN_FEATURE);
 }
 
 export const liveSubLaunchDeps: SubLaunchDeps = {

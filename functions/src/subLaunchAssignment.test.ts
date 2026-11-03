@@ -1786,13 +1786,22 @@ describe('liveSubLaunchDeps.hostAllowsAnonymousJoin', () => {
     );
   });
 
-  it('closes joins when the permission read fails', async () => {
+  it('asks the sub to retry rather than closing joins when a read fails', async () => {
     await expect(
       liveSubLaunchDeps.hostAllowsAnonymousJoin(
         dbWith(() => Promise.reject(new Error('unavailable'))),
         HOST
       )
-    ).resolves.toBe(false);
+    ).rejects.toMatchObject({ code: 'unavailable' });
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser: vi.fn().mockRejectedValue(new Error('auth down')),
+    } as never);
+    await expect(
+      liveSubLaunchDeps.hostAllowsAnonymousJoin(
+        dbWith(() => Promise.resolve({ exists: true })),
+        HOST
+      )
+    ).rejects.toMatchObject({ code: 'unavailable' });
   });
 });
 

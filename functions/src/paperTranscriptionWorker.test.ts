@@ -417,6 +417,43 @@ describe('runPaperTranscriptionJob', () => {
     expect(s.get(USAGE)?.count).toBe(0);
   });
 
+  it('gives back the page a reclaimed run held when it exits before the model call', async () => {
+    const s = setup({
+      [JOB]: {
+        ...seed()[JOB],
+        status: 'running',
+        leaseUntil: NOW - 1,
+        charged: true,
+        chargedAt: NOW,
+      },
+      [USAGE]: { count: 5 },
+      [PRIV('q1')]: { scanId: 'scan1', status: 'done', editedAt: 1 },
+    });
+    expect(await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps)).toBe(
+      'done'
+    );
+    expect(s.transcribe).not.toHaveBeenCalled();
+    expect(s.get(USAGE)?.count).toBe(4);
+    expect(s.get(JOB)).toMatchObject({ charged: false });
+  });
+
+  it('does not charge a reclaimed run twice, even at the limit', async () => {
+    const s = setup({
+      [JOB]: {
+        ...seed()[JOB],
+        status: 'running',
+        leaseUntil: NOW - 1,
+        charged: true,
+        chargedAt: NOW,
+      },
+      [USAGE]: { count: 300 },
+    });
+    expect(await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps)).toBe(
+      'done'
+    );
+    expect(s.get(USAGE)?.count).toBe(300);
+  });
+
   it('lets admins past the page limit', async () => {
     const s = setup(
       { [USAGE]: { count: 300 } },
@@ -587,6 +624,28 @@ describe('runPaperTranscriptionJob', () => {
 });
 
 describe('requeuePaperJob', () => {
+  it('gives back a dead run’s page when it is stopped at the attempt cap', async () => {
+    const s = setup({
+      [JOB]: {
+        ...seed()[JOB],
+        status: 'running',
+        leaseUntil: NOW - 1,
+        attempt: 10,
+        charged: true,
+        chargedAt: NOW,
+      },
+      [USAGE]: { count: 5 },
+    });
+    expect(
+      await requeuePaperJob(s.deps.db, 't1', 'scan1_3_1_0', {
+        now: NOW,
+        maxAttempt: 10,
+      })
+    ).toBe('skipped');
+    expect(s.get(USAGE)?.count).toBe(4);
+    expect(s.get(JOB)).toMatchObject({ status: 'failed', charged: false });
+  });
+
   it('gives back the page a dead run reserved', async () => {
     const s = setup({
       [JOB]: {

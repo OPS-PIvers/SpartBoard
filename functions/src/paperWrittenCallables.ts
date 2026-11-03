@@ -343,7 +343,7 @@ export async function handleGetPaperWrittenCrop(
     const path = paperCropStoragePath(
       teacherUid,
       newer.scanId,
-      seatOf(response, answer),
+      typeof priv?.seat === 'number' ? priv.seat : seatOf(response, answer),
       target.questionId
     );
     return (await cropFromStorage(deps, path)) ?? missing;
