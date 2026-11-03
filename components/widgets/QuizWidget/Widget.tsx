@@ -1650,12 +1650,20 @@ const TeacherQuizWidget: React.FC<{
         scoreboard &&
         (scoreboard.config as ScoreboardConfig).liveQuizWidgetId === widget.id
       ) {
-        updateWidget(scoreboardId, {
-          config: { ...scoreboard.config, liveQuizWidgetId: undefined },
-        });
+        updateWidget(
+          scoreboardId,
+          { config: { ...scoreboard.config, liveQuizWidgetId: undefined } },
+          { skipHistory: quizStopsSync }
+        );
       }
     }
-    if (isEnded) {
+    if (quizStopsSync) {
+      updateWidget(
+        widget.id,
+        { config: { ...configRef.current, liveScoreboardEnabled: false } },
+        { skipHistory: true }
+      );
+    } else if (isEnded) {
       handleUpdateQuizConfig({ liveScoreboardEnabled: false });
     }
   }, [
@@ -1682,9 +1690,11 @@ const TeacherQuizWidget: React.FC<{
         w.type === 'scoreboard' &&
         (w.config as ScoreboardConfig).liveQuizWidgetId === widget.id
       ) {
-        updateWidget(w.id, {
-          config: { ...w.config, liveQuizWidgetId: undefined },
-        });
+        updateWidget(
+          w.id,
+          { config: { ...w.config, liveQuizWidgetId: undefined } },
+          { skipHistory: true }
+        );
       }
     }
   }, [quizHoldsLiveScoreboard, updateWidget, widget.id]);
