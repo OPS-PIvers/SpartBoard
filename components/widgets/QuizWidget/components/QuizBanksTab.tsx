@@ -67,6 +67,7 @@ export interface QuizBanksTabProps {
     | 'tabLabels'
     | 'widgetLabel'
     | 'widgetType'
+    | 'clearsConnectionTab'
   >;
   onNewBank: () => void;
   /** Replaces the New bank and Import buttons when banks share the Quiz library header. */

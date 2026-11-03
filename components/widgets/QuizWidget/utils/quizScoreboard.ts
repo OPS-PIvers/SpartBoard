@@ -642,3 +642,15 @@ export function toBroadcastLeaderboard(
       : rest
   );
 }
+
+/** Where live scores go: the connected Scoreboard, else the remembered one, else the first on the board. */
+export const liveScoreboardTarget = <W extends { id: string; type: string }>(
+  widgets: readonly W[] | undefined,
+  connectedId: string | undefined,
+  rememberedId: string | undefined
+): W | undefined => {
+  const id = connectedId ?? rememberedId;
+  return id
+    ? widgets?.find((w) => w.id === id)
+    : widgets?.find((w) => w.type === 'scoreboard');
+};

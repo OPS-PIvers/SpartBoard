@@ -265,10 +265,15 @@ export const WIDGET_CONNECTIONS: Partial<
       },
     ],
   },
-  scoreboard: { defaultAction: '', actions: [], follows: ['random'] },
+  scoreboard: {
+    defaultAction: '',
+    actions: [],
+    follows: ['random', 'review'],
+  },
   text: { defaultAction: '', actions: [] },
   'activity-wall': { defaultAction: '', actions: [] },
   miniApp: { defaultAction: '', actions: [] },
+  review: { defaultAction: '', actions: [] },
   weather: { defaultAction: '', actions: [] },
 };
 

@@ -3956,6 +3956,11 @@ export const TOUR_ANCHORS = {
     label: 'Sync to scoreboard widget switch in the Quiz monitor settings',
     perWidgetType: true,
   },
+  'quiz-monitor.settings-scoreboard-edit-connection': {
+    label:
+      'Edit connection button for the connected Scoreboard in the Review monitor settings',
+    perWidgetType: true,
+  },
   'quiz-monitor.period-start': {
     label: 'Start button for the picked class in the Quiz monitor',
     perWidgetType: true,

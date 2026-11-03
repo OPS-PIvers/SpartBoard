@@ -80,7 +80,10 @@ import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
-import { QuizSettingsScreen } from './QuizSettingsScreen';
+import {
+  QuizSettingsScreen,
+  type LiveScoreboardLink,
+} from './QuizSettingsScreen';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
@@ -114,6 +117,8 @@ export interface QuizLiveMonitorProps {
   onBack?: () => void;
   /** Hide the scoreboard-sync setting (contexts with no board behind). */
   hideLiveScoreboard?: boolean;
+  /** The Scoreboard connected to this Review, which gets the live scores. */
+  liveScoreboardLink?: LiveScoreboardLink;
   /** Quiz-kind session: no reveal, podium, sounds or scoreboard sync (D9). */
   assessmentOnly?: boolean;
   /** M17 E2 F2: the active assignment's per-student accommodation overrides
@@ -166,6 +171,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onHideAnswer,
     onBack,
     hideLiveScoreboard = false,
+    liveScoreboardLink,
     assessmentOnly = false,
     overridesBySourcedId = null,
     localizedFibAnswers = null,
@@ -692,7 +698,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         className="flex items-center bg-brand-blue-primary text-white shrink-0"
         style={{
           gap: 'min(8px, 2cqmin)',
-          padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
+          paddingBlock: 'min(10px, 2.5cqmin)',
+          paddingLeft: 'min(12px, 3cqmin)',
+          // A connected Review carries the corner tab; keep the status pill clear of it.
+          paddingRight: liveScoreboardLink ? 40 : 'min(12px, 3cqmin)',
         }}
       >
         {(onBack != null || !onHome) && (
@@ -960,6 +969,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             session={session}
             config={config}
             hideLiveScoreboard={hideLiveScoreboard || assessmentOnly}
+            liveScoreboardLink={liveScoreboardLink}
             assessmentOnly={assessmentOnly}
             hasNames={Object.keys(data.pinToName).length > 0}
             onUpdateSession={handleUpdateSession}

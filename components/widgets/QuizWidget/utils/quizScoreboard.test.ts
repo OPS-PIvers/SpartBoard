@@ -44,6 +44,7 @@ import {
   __resetPinNameWarnDedupe,
   buildGameLeaderboard,
   toBroadcastLeaderboard,
+  liveScoreboardTarget,
 } from './quizScoreboard';
 import type {
   QuizResponse,
@@ -1182,5 +1183,21 @@ describe('toBroadcastLeaderboard', () => {
       { studentUid: 'b', score: 8, rank: 2 },
       { studentUid: 'c', score: 1, rank: 11 },
     ]);
+  });
+});
+
+describe('liveScoreboardTarget', () => {
+  const widgets = [
+    { id: 'a', type: 'scoreboard' },
+    { id: 'b', type: 'scoreboard' },
+    { id: 'c', type: 'scoreboard' },
+  ];
+  it('sends live scores to the connected Scoreboard over the remembered or first one', () => {
+    expect(liveScoreboardTarget(widgets, 'c', 'b')?.id).toBe('c');
+  });
+  it('keeps the remembered Scoreboard, else the first, without a connection', () => {
+    expect(liveScoreboardTarget(widgets, undefined, 'b')?.id).toBe('b');
+    expect(liveScoreboardTarget(widgets, undefined, undefined)?.id).toBe('a');
+    expect(liveScoreboardTarget(widgets, undefined, 'gone')).toBeUndefined();
   });
 });

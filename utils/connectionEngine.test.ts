@@ -3,6 +3,7 @@ import type { SequenceConnection, WidgetData } from '@/types';
 import {
   advanceRun,
   draftFromPicks,
+  followingScoreboard,
   isStepFinished,
   joinRunByHand,
   liveConnections,
@@ -168,6 +169,57 @@ describe('draftFromPicks', () => {
       }
     }
   );
+});
+
+describe('Review live scores', () => {
+  it('makes a Scoreboard picked with a Review a Follow of it, either order', () => {
+    for (const picks of [
+      [
+        { id: 'rv', type: 'review' as const },
+        { id: 'sb', type: 'scoreboard' as const },
+      ],
+      [
+        { id: 'sb', type: 'scoreboard' as const },
+        { id: 'rv', type: 'review' as const },
+      ],
+    ]) {
+      const draft = draftFromPicks(picks);
+      expect(draft.sequence).toBeNull();
+      expect(draft.follows).toEqual([
+        expect.objectContaining({ leaderId: 'rv', followerId: 'sb' }),
+      ]);
+    }
+  });
+
+  it('never connects a Quiz to a Scoreboard', () => {
+    const draft = draftFromPicks([
+      { id: 'qz', type: 'quiz' },
+      { id: 'sb', type: 'scoreboard' },
+    ]);
+    expect(draft.follows).toEqual([]);
+  });
+
+  it('finds the Scoreboard following a Review, and none for a Quiz', () => {
+    const widgets = [
+      widget('rv', 'review', {}),
+      widget('qz', 'quiz', {}),
+      widget('sb', 'scoreboard', {}),
+      widget('qr', 'qr', {}),
+    ];
+    const connections = [
+      { id: 'f1', kind: 'follow' as const, leaderId: 'rv', followerId: 'qr' },
+      { id: 'f2', kind: 'follow' as const, leaderId: 'rv', followerId: 'sb' },
+      { id: 'f3', kind: 'follow' as const, leaderId: 'qz', followerId: 'sb' },
+    ];
+    expect(followingScoreboard(connections, widgets, 'rv')).toEqual({
+      connection: connections[1],
+      scoreboard: widgets[2],
+    });
+    expect(followingScoreboard(connections, widgets, 'qz')).toBeUndefined();
+    expect(
+      followingScoreboard(connections, widgets.slice(0, 2), 'rv')
+    ).toBeUndefined();
+  });
 });
 
 describe('what moves a step on', () => {

@@ -272,6 +272,8 @@ interface QuizManagerProps {
   onAssignOpened?: () => void;
   /** This widget instance's id, for live-tour anchor scoping. */
   widgetId?: string;
+  /** Keeps the header's last button clear of the connection corner tab. */
+  clearsConnectionTab?: boolean;
   /** Per-period start and windows in the assign modal; absent while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
   quizzes: QuizMetadata[];
@@ -639,6 +641,7 @@ const SpinningRefreshIcon: React.ComponentType<{
 export const QuizManager: React.FC<QuizManagerProps> = ({
   userId,
   widgetId,
+  clearsConnectionTab = false,
   periodAccess,
   quizzes,
   loading,
@@ -2394,6 +2397,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onTabChange: (t) => onTabChange?.(t),
           counts: tabCounts,
           tabLabels,
+          clearsConnectionTab,
         }}
         headerAction={banksInLibrary ? primaryAction : undefined}
         libraryFolders={
@@ -2429,6 +2433,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       <LibraryShell
         widgetLabel={shellLabel}
         widgetType={variant}
+        clearsConnectionTab={clearsConnectionTab}
         tab={managerTab}
         onTabChange={(t) => onTabChange?.(t)}
         counts={tabCounts}
@@ -2494,6 +2499,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     <LibraryShell
       widgetLabel={shellLabel}
       widgetType={variant}
+      clearsConnectionTab={clearsConnectionTab}
       tab={managerTab}
       onTabChange={(t) => onTabChange?.(t)}
       counts={tabCounts}
