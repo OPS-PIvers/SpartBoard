@@ -291,7 +291,8 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   })
     .replace(/<cond>(.*?)<\/cond>/g, (_, c: string) => c.toUpperCase())
     .replace(/<br\s*\/?>/g, '\n')
-    .replace(/<[^>]+>/g, '');
+    .replace(/<[^>]+>/g, '')
+    .replace(/[<>]/g, '');
   let imageUrl: string | undefined;
 
   if (globalConfig?.temperatureRanges) {
