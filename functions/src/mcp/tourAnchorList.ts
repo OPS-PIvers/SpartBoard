@@ -20936,6 +20936,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "schoology-link.unlink",
+    "label": "Unlink button on a linked Schoology course",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
     "id": "schoology-link.cancel",
     "label": "Done/close button in the Link Schoology dialog",
     "scope": "board",
