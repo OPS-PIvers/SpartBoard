@@ -337,6 +337,24 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'dock.item:remote',
     parent: 'board.dock',
   },
+  // Opened by the Learning targets button in the Quiz, Video Activity and Guided Learning editors.
+  'board.target-picker': {
+    label: 'Learning target picker',
+    kind: 'shared',
+    files: [
+      'components/quiz/targets/TargetPicker.tsx',
+      'components/quiz/targets/TargetsField.tsx',
+    ],
+    needs: ['widget-on-stage'],
+  },
+  'board.schoology-push': {
+    label: 'Push to Schoology dialog',
+    kind: 'modal',
+    needs: ['widget-on-stage', 'student-data'],
+    files: ['components/schoology/ToolColumnPushDialog.tsx'],
+    openerMissing:
+      'Push to Schoology gradebook button in Quiz and Video Activity results (useSchoologyToolColumnPush)',
+  },
   'board.smart-paste': {
     label: 'Smart paste picker',
     kind: 'modal',

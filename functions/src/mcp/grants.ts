@@ -29,7 +29,11 @@ export interface GrantDoc {
   rotatedAt: number;
   refreshExpiresAt: number;
   revokedAt: number | null;
+  /** Set on grants minted by Enterprise Managed Auth; they never refresh. */
+  managedIssuer?: string;
 }
+
+export type ManagedTokenResponse = Omit<TokenResponse, 'refresh_token'>;
 
 export interface TokenResponse {
   access_token: string;
@@ -41,7 +45,8 @@ export interface TokenResponse {
 
 export class OAuthError extends Error {
   constructor(
-    readonly code: 'invalid_grant' | 'invalid_request' | 'access_denied',
+    readonly code:
+      'invalid_grant' | 'invalid_request' | 'invalid_target' | 'access_denied',
     message: string
   ) {
     super(message);
@@ -93,6 +98,66 @@ export async function createGrant(
   };
   await ref.set(doc);
   return issue(db, input.uid, input.email, ref.id, secret);
+}
+
+/** One live grant per teacher and issuer, re-used on every hourly exchange; no refresh token. */
+export async function issueManagedGrant(
+  db: Firestore,
+  input: {
+    uid: string;
+    email: string;
+    orgId: string;
+    issuer: string;
+    clientName: string;
+  },
+  now = Date.now()
+): Promise<ManagedTokenResponse> {
+  const grants = db.collection(`users/${input.uid}/mcp_grants`);
+  // One transaction, so two simultaneous first exchanges can't each create a grant.
+  const grantId = await db.runTransaction(async (tx) => {
+    const live = await tx.get(
+      grants
+        .where('managedIssuer', '==', input.issuer)
+        .where('revokedAt', '==', null)
+        .limit(1)
+    );
+    // A revoked grant is never revived, so tokens minted before a Disconnect stay dead.
+    if (!live.empty) {
+      const id = live.docs[0].id;
+      tx.update(grantRef(db, input.uid, id), {
+        email: input.email,
+        orgId: input.orgId,
+        lastRefreshedAt: now,
+      });
+      return id;
+    }
+    const id = `ema_${randomToken(16)}`;
+    const doc: GrantDoc = {
+      clientName: input.clientName.slice(0, 80),
+      email: input.email,
+      orgId: input.orgId,
+      createdAt: now,
+      lastRefreshedAt: now,
+      refreshHash: sha256(randomToken()),
+      prevRefreshHash: null,
+      rotatedAt: now,
+      refreshExpiresAt: 0,
+      revokedAt: null,
+      managedIssuer: input.issuer,
+    };
+    tx.set(grantRef(db, input.uid, id), doc);
+    return id;
+  });
+  return {
+    access_token: await signAccessToken(db, {
+      uid: input.uid,
+      email: input.email,
+      grantId,
+    }),
+    token_type: 'Bearer',
+    expires_in: ACCESS_TOKEN_TTL_S,
+    scope: SCOPE,
+  };
 }
 
 /** Rotate a refresh token; re-checks membership and the gate (CC-D5, CC-D7). */

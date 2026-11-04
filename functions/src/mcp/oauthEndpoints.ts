@@ -11,6 +11,12 @@ import {
 } from './config';
 import { pkceMatches, signClientId, verifyClientId } from './tokens';
 import { consumeAuthCode } from './codes';
+import { isCimdEnabled } from './cimd';
+import {
+  JWT_BEARER_GRANT,
+  exchangeAssertion,
+  isManagedAuthEnabled,
+} from './managedAuth';
 import {
   OAuthError,
   createGrant,
@@ -28,16 +34,21 @@ export function protectedResourceMetadata() {
   };
 }
 
-export function authorizationServerMetadata() {
+export function authorizationServerMetadata(cimd = false, managed = false) {
   const origin = publicOrigin();
   return {
+    ...(cimd ? { client_id_metadata_document_supported: true } : {}),
     issuer: origin,
     authorization_endpoint: `${origin}/connect`,
     token_endpoint: `${origin}/oauth/token`,
     registration_endpoint: `${origin}/oauth/register`,
     revocation_endpoint: `${origin}/oauth/revoke`,
     response_types_supported: ['code'],
-    grant_types_supported: ['authorization_code', 'refresh_token'],
+    grant_types_supported: [
+      'authorization_code',
+      'refresh_token',
+      ...(managed ? [JWT_BEARER_GRANT] : []),
+    ],
     code_challenge_methods_supported: ['S256'],
     token_endpoint_auth_methods_supported: ['none'],
     revocation_endpoint_auth_methods_supported: ['none'],
@@ -166,6 +177,9 @@ export async function handleToken(
         json: { ...(await refreshGrant(db, refreshToken)) },
       };
     }
+    if (grantType === JWT_BEARER_GRANT) {
+      return { status: 200, json: { ...(await exchangeAssertion(db, body)) } };
+    }
     return {
       status: 400,
       json: {
@@ -226,8 +240,13 @@ export const mcpOAuth = onRequest(
           path === '/.well-known/oauth-authorization-server/mcp')
       ) {
         res
-          .set('Cache-Control', 'public, max-age=3600')
-          .json(authorizationServerMetadata());
+          .set('Cache-Control', 'public, max-age=300')
+          .json(
+            authorizationServerMetadata(
+              await isCimdEnabled(db),
+              await isManagedAuthEnabled(db)
+            )
+          );
         return;
       }
       if (req.method !== 'POST') {

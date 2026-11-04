@@ -5026,3 +5026,13 @@ rather than "no data") is also still open.
   - Ready with minor notes: #5063 (rolling journal branch).
   - Follow-up notes: #5060 raises the worst-case Storage list calls per sweep from about 200 to about 1,000 while a backlog drains. #5046 should get a visual check on a board with a light custom primary colour. #5047's history row could link #5046 instead of "see PR".
 - Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-11-04
+
+- PRs reviewed: #5120 docs: unifier run 136 log (all dimensions aligned); #5116 mcp: Claude sign-in without Connect (Enterprise Managed Auth); #5115 mcp: let Claude connect with its client ID metadata document
+- Comments processed: 5 total. 0 fixed, 0 needing a reply. On #5116, both claude[bot] findings had already been fixed by the author: switched-off issuer copies (6eff10ed), and host hardening plus the assertion-lifetime cap (34dd29e4). The other comments were "no issues" summaries. No PR had inline review threads.
+- Fixes pushed: none
+- Reviews posted: 3
+  - Ready: #5120, #5115.
+  - Ready with minor notes: #5116 (non-transactional first-grant write, which is harmless; the managed grant's `clientName` is set only when it is created).
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
