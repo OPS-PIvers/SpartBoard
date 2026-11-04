@@ -26,13 +26,17 @@ import { resolveBaseTextScale } from '@/config/widgetAppearance';
 /** Drops markup from a message template; the text only sizes the headline and is never rendered as HTML. */
 const plainText = (text: string): string => {
   let out = '';
-  let inTag = false;
+  let tag: string | null = null;
   for (const ch of text) {
-    if (ch === '<') inTag = true;
-    else if (ch === '>') inTag = false;
-    else if (!inTag) out += ch;
+    if (ch === '<') {
+      if (tag !== null) out += tag;
+      tag = '';
+    } else if (ch === '>' && tag !== null) tag = null;
+    else if (tag !== null) tag += ch;
+    else if (ch !== '>') out += ch;
   }
-  return out;
+  // An unclosed '<' was not a tag: keep the text after it.
+  return tag === null ? out : out + tag;
 };
 
 export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
