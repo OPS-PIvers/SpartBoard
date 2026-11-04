@@ -145,7 +145,6 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   },
   {
     docId: CLAUDE_CONNECTOR_CIMD_SETTINGS_DOC,
-    feature: 'claude-connector',
     title: 'Claude connects without registering',
     description:
       'Claude identifies itself with its published client document instead of registering a new client on each connection.',
@@ -153,7 +152,6 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   },
   {
     docId: CLAUDE_MANAGED_AUTH_SETTINGS_DOC,
-    feature: 'claude-connector',
     title: 'Claude sign-in without Connect',
     description:
       'Staff connect Claude without the Connect step, once a SpartBoard admin sets the issuer in Organization > Overview.',

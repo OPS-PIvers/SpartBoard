@@ -912,6 +912,70 @@ export const TOUR_ANCHORS = {
     label: 'Select mode toggle in the Quiz library',
     perWidget: true,
   },
+  'targets.field': {
+    label: 'Learning targets button in a question editor',
+    panel: true,
+  },
+  'target-picker.close': {
+    label: 'Close button in the learning target picker',
+    panel: true,
+    closes: 'own',
+  },
+  'target-picker.search': {
+    label: 'Search box in the learning target picker',
+    panel: true,
+  },
+  'target-picker.source': {
+    label: 'Source select in the learning target picker',
+    panel: true,
+  },
+  'target-picker.grade': {
+    label: 'Grade select in the learning target picker',
+    panel: true,
+  },
+  'target-picker.subject': {
+    label: 'Content area select in the learning target picker',
+    panel: true,
+  },
+  'target-picker.cancel': {
+    label: 'Cancel button in the learning target picker',
+    panel: true,
+    closes: 'own',
+  },
+  'target-picker.replace': {
+    label: 'Replace tags button in the learning target picker',
+    panel: true,
+    closes: 'own',
+  },
+  'target-picker.apply': {
+    label: 'Add tags or Apply button in the learning target picker',
+    panel: true,
+    closes: 'own',
+  },
+  'schoology-push.cancel': {
+    label: 'Cancel button in the Push to Schoology dialog',
+    panel: true,
+    closes: 'own',
+  },
+  'schoology-push.confirm': {
+    label: 'Push button in the Push to Schoology dialog',
+    panel: true,
+    persists: true,
+    closes: 'own',
+  },
+  'schoology-push.add-category': {
+    label: 'Add category button in the Push to Schoology dialog',
+    panel: true,
+  },
+  'schoology-push.create-categories': {
+    label: 'Create categories button in the Push to Schoology dialog',
+    panel: true,
+    persists: true,
+  },
+  'schoology-push.skip-course': {
+    label: 'Skip this course button in the Push to Schoology dialog',
+    panel: true,
+  },
   'assign-step.classes': {
     label: 'Classes step header in the Assign dialog',
     panel: true,

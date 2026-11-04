@@ -97,6 +97,7 @@ export const TakeReviewPlayer: React.FC<{
         onTimeUpdate={(e) => setElapsedMs(e.currentTarget.currentTime * 1000)}
       />
       <button
+        // no-tour-anchor: plays a student's recorded answer, which never appears in a tour
         type="button"
         onClick={toggle}
         aria-label={

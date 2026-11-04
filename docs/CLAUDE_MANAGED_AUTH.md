@@ -10,13 +10,13 @@ Anthropic's developer reference: [Enterprise Managed Auth for connectors](https:
 
 You need to be an **Owner** or **Primary Owner** of the Claude organization and a **SpartBoard admin** (super admin). Domain and building admins can't see or change the Issuer URL: whoever controls it can sign in as any staff member of the organization.
 
-1. **SpartBoard switches (once per project).** Admin Settings > Access > Previews: turn on **Claude connects without registering**, then **Claude sign-in without Connect**. Both ship off.
+1. **SpartBoard switches (once per project).** Admin Settings > Access > Previews > District switches: turn on **Claude connects without registering**, then **Claude sign-in without Connect**. Both ship off.
 2. **Claude.** Add SpartBoard as a custom connector at `https://spartboard.web.app/mcp` (or `https://spartboard-dev.web.app/mcp` for dev). Open the connector, find **Managed authorization** under **Authentication**, click **Set up** and choose **Claude-issued**. Copy the **Issuer URL** it shows.
 3. **SpartBoard (super admin).** Admin Settings > Organization > Overview > **Claude sign-in**: paste the Issuer URL, turn the switch on and click **Save**.
 4. **Tenant ID (recommended).** Enter this organization's **Tenant ID** (shown on the same card) in **Tenant ID (optional)** in Claude's setup. Issuer URLs aren't secret: without a Tenant ID, sign-in stops working if the same Issuer URL is also saved, switched on, for another SpartBoard organization. With it, Claude names this organization in every sign-in and that can't happen.
 5. **Test.** In Claude's setup, click **Run test** under **Connection status**.
 
-To turn it off for an organization, a super admin turns off the switch on the card and saves. To turn it off everywhere, turn off **Claude sign-in without Connect** on Previews.
+To turn it off for an organization, a super admin turns off the switch on the card and saves. To turn it off everywhere, turn off **Claude sign-in without Connect** under Previews > District switches.
 
 ## Who gets signed in
 

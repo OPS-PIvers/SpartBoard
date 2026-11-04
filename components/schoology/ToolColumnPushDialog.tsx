@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Loader2, Plus, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourAttr } from '@/config/tourAnchors';
 import { functions } from '@/config/firebase';
 import {
   createToolColumnCategories,
@@ -127,6 +128,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
       <button
         type="button"
         onClick={onCancel}
+        {...tourAttr('schoology-push.cancel')}
         className="text-sm font-bold text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg transition-colors"
       >
         Cancel
@@ -135,6 +137,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
         type="button"
         disabled={undecided}
         onClick={() => onConfirm(picks)}
+        {...tourAttr('schoology-push.confirm')}
         className="text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Push
@@ -206,6 +209,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
                     Skipped. Add a grading category in Schoology, then push
                     again.{' '}
                     <button
+                      // no-tour-anchor: one per Schoology course, shown only after Skip this course
                       type="button"
                       className="font-bold text-brand-blue-primary"
                       onClick={() =>
@@ -272,6 +276,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
                           %
                         </span>
                         <button
+                          // no-tour-anchor: one remove button per category row
                           type="button"
                           aria-label={`Remove ${r.title || `category ${i + 1}`}`}
                           onClick={() =>
@@ -297,6 +302,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
                           })
                         }
                         disabled={e.rows.length >= 10}
+                        {...tourAttr('schoology-push.add-category')}
                         className="inline-flex items-center gap-1 text-xs font-bold text-brand-blue-primary disabled:opacity-50"
                       >
                         <Plus size={13} /> Add category
@@ -317,6 +323,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
                         type="button"
                         disabled={!rowsValid || e.creating}
                         onClick={() => void handleCreate(s)}
+                        {...tourAttr('schoology-push.create-categories')}
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-3 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {e.creating && (
@@ -330,6 +337,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
                         onClick={() =>
                           patchEmpty(s.contextId, { declined: true })
                         }
+                        {...tourAttr('schoology-push.skip-course')}
                         className="text-xs font-bold text-slate-500 hover:text-slate-700 px-2 py-1.5"
                       >
                         Skip this course

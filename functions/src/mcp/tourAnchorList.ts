@@ -3999,6 +3999,218 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "targets.field",
+    "label": "Learning targets button in a question editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.target-picker",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "target-picker.close",
+    "label": "Close button in the learning target picker",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.target-picker",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "target-picker.search",
+    "label": "Search box in the learning target picker",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.target-picker",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "target-picker.source",
+    "label": "Source select in the learning target picker",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.target-picker",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "target-picker.grade",
+    "label": "Grade select in the learning target picker",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.target-picker",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "target-picker.subject",
+    "label": "Content area select in the learning target picker",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.target-picker",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "target-picker.cancel",
+    "label": "Cancel button in the learning target picker",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.target-picker",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "target-picker.replace",
+    "label": "Replace tags button in the learning target picker",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.target-picker",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "target-picker.apply",
+    "label": "Add tags or Apply button in the learning target picker",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.target-picker",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-push.cancel",
+    "label": "Cancel button in the Push to Schoology dialog",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.schoology-push",
+        "kind": "modal"
+      }
+    ]
+  },
+  {
+    "id": "schoology-push.confirm",
+    "label": "Push button in the Push to Schoology dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.schoology-push",
+        "kind": "modal"
+      }
+    ]
+  },
+  {
+    "id": "schoology-push.add-category",
+    "label": "Add category button in the Push to Schoology dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-push",
+        "kind": "modal"
+      }
+    ]
+  },
+  {
+    "id": "schoology-push.create-categories",
+    "label": "Create categories button in the Push to Schoology dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.schoology-push",
+        "kind": "modal"
+      }
+    ]
+  },
+  {
+    "id": "schoology-push.skip-course",
+    "label": "Skip this course button in the Push to Schoology dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-push",
+        "kind": "modal"
+      }
+    ]
+  },
+  {
     "id": "assign-step.classes",
     "label": "Classes step header in the Assign dialog",
     "scope": "board",
