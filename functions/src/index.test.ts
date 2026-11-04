@@ -4052,6 +4052,7 @@ describe('index barrel — deployed export set', () => {
     'linkLtiCourseV1',
     'ltiSuggestClassLinkMatchV1',
     'ltiLinkSectionByUrlV1',
+    'ltiFindSchoologySectionsV1',
     'ltiUnlinkSectionV1',
     'ltiToolColumnCategoriesV1',
     'ltiCreateToolColumnCategoriesV1',

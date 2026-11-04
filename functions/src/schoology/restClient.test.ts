@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   createGradingCategories,
+  getGradingPeriod,
+  getSectionBySisId,
   getColumnCategory,
   isSchoologyApiUrl,
   listColumnGrades,
@@ -299,5 +301,79 @@ describe('schoologyUidFromSub', () => {
     ['::x', null],
   ])('%s → %s', (sub, uid) => {
     expect(schoologyUidFromSub(sub)).toBe(uid);
+  });
+});
+
+describe('getSectionBySisId', () => {
+  const SIS = '27FA3F6D-0469-4F6B-B69C-ED2172A99220';
+
+  it('reads the section by its SIS id', async () => {
+    const fetchMock = stubFetch(
+      json({
+        id: '8497590559',
+        course_title: 'BIOLOGY A',
+        section_title: '(S1) Curtis, J BIOLOGY A(5)',
+        section_school_code: SIS,
+        grading_periods: [1170969],
+      })
+    );
+    await expect(getSectionBySisId(CREDS, SIS)).resolves.toEqual({
+      id: '8497590559',
+      title: 'BIOLOGY A: (S1) Curtis, J BIOLOGY A(5)',
+      sisId: SIS,
+      gradingPeriodIds: ['1170969'],
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe(`${API}/sections/ext/${SIS}`);
+  });
+
+  it('returns null on a 404', async () => {
+    stubFetch(new Response('', { status: 404 }));
+    await expect(getSectionBySisId(CREDS, SIS)).resolves.toBeNull();
+  });
+
+  it('rethrows other failures', async () => {
+    stubFetch(new Response('', { status: 500 }));
+    await expect(getSectionBySisId(CREDS, SIS)).rejects.toMatchObject({
+      status: 500,
+    });
+  });
+
+  it('treats an id that could change the path as no section', async () => {
+    const fetchMock = stubFetch();
+    await expect(getSectionBySisId(CREDS, '../users/me')).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('encodes a sourcedId with a colon', async () => {
+    const fetchMock = stubFetch(new Response('', { status: 404 }));
+    await getSectionBySisId(CREDS, 'org:class-1');
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${API}/sections/ext/org%3Aclass-1`
+    );
+  });
+});
+
+describe('getGradingPeriod', () => {
+  it('reads the title and dates', async () => {
+    const fetchMock = stubFetch(
+      json({
+        id: 1170969,
+        title: 'HS Semester 1 (26-27)',
+        start: '2026-09-01',
+        end: '2027-01-22',
+      })
+    );
+    await expect(getGradingPeriod(CREDS, '1170969')).resolves.toEqual({
+      id: '1170969',
+      title: 'HS Semester 1 (26-27)',
+      start: '2026-09-01',
+      end: '2027-01-22',
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe(`${API}/gradingperiods/1170969`);
+  });
+
+  it('returns null on a 404', async () => {
+    stubFetch(new Response('', { status: 404 }));
+    await expect(getGradingPeriod(CREDS, '1')).resolves.toBeNull();
   });
 });

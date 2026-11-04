@@ -1,6 +1,6 @@
 # Schoology auto-link: find a teacher's Schoology sections for their classes
 
-Probed read-only on 2026-11-04 (Schoology REST with the SIS Connect key, ClassLink OneRoster, prod Firestore). Not built. One PR to `dev-paul` behind a preview flag.
+Probed read-only on 2026-11-04 (Schoology REST with the SIS Connect key, ClassLink OneRoster, prod Firestore). Built 2026-11-04 behind the `schoology-auto-link` preview flag: `functions/src/lti/findSchoologySections.ts` and `components/classes/SchoologyFindCourses.tsx`. Sections with no SpartBoard class stay hidden, and there is no semester banner yet.
 
 ## Goal
 
@@ -46,7 +46,7 @@ Per run: one REST GET per ClassLink roster (teachers have about 5–12), one NRP
 
 ## PR
 
-One PR behind the existing `schoology-tool-columns` flag (admin, on for Paul first): the two REST readers with tests, the callable with tests (SIS match, 404, foreign link, not an NRPS instructor, test-class skipped, already linked), the dialog button and list with `tourAttr` anchors, and a help note. The PR description names the flag and the admin path.
+One PR behind a new `schoology-auto-link` preview flag (admin, on for Paul first; `schoology-tool-columns` was retired in #5160): the two REST readers with tests, the callable with tests (SIS match, 404, foreign link, not an NRPS instructor, test-class skipped, already linked), the dialog button and list with `tourAttr` anchors, and a help note. The PR description names the flag and the admin path.
 
 ## Open questions for Paul
 

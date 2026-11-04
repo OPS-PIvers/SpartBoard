@@ -402,6 +402,7 @@ export {
   ltiUnlinkSectionV1,
 } from './lti/courseLinkEndpoints';
 export { ltiLinkSectionByUrlV1 } from './lti/linkSectionByUrl';
+export { ltiFindSchoologySectionsV1 } from './lti/findSchoologySections';
 export {
   ltiToolColumnCategoriesV1,
   ltiCreateToolColumnCategoriesV1,

@@ -508,6 +508,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/classes/LinkSchoologyModal.tsx',
       'components/classes/SchoologyLinkedCourses.tsx',
+      'components/classes/SchoologyFindCourses.tsx',
     ],
     opensWith: 'classes.link-schoology',
   },

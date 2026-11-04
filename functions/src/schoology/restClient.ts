@@ -420,3 +420,79 @@ export function schoologyUidFromSub(sub: string): string | null {
   const prefix = sub.slice(0, sep);
   return ID_RE.test(prefix) ? prefix : null;
 }
+
+const SIS_ID_RE = /^[A-Za-z0-9:_.-]{1,256}$/;
+
+export interface SchoologySection {
+  id: string;
+  /** "Course: Section", the shape NRPS reports as the context title. */
+  title: string;
+  /** The SIS class id (`section_school_code`), the ClassLink class sourcedId. */
+  sisId: string;
+  gradingPeriodIds: string[];
+}
+
+/** The section whose SIS id is `sisId`, or null when Schoology has none or the id can't be one. */
+export async function getSectionBySisId(
+  creds: SchoologyApiCredentials,
+  sisId: string
+): Promise<SchoologySection | null> {
+  if (!SIS_ID_RE.test(sisId)) return null;
+  let json: unknown;
+  try {
+    ({ json } = await sgyFetch(
+      creds,
+      'GET',
+      `/sections/ext/${encodeURIComponent(sisId)}`
+    ));
+  } catch (err) {
+    if (err instanceof SchoologyRestError && err.status === 404) return null;
+    throw err;
+  }
+  const r = asRecord(json);
+  const id = asIdString(r.id);
+  if (!id) return null;
+  const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+  const course = str(r.course_title);
+  const section = str(r.section_title);
+  return {
+    id,
+    title: course && section ? `${course}: ${section}` : course || section,
+    sisId: str(r.section_school_code),
+    gradingPeriodIds: asArray(r.grading_periods)
+      .map(asIdString)
+      .filter((g) => g.length > 0),
+  };
+}
+
+export interface GradingPeriod {
+  id: string;
+  title: string;
+  /** YYYY-MM-DD, or '' when Schoology leaves it blank. */
+  start: string;
+  end: string;
+}
+
+/** One grading period, or null when it doesn't exist. */
+export async function getGradingPeriod(
+  creds: SchoologyApiCredentials,
+  periodId: string
+): Promise<GradingPeriod | null> {
+  assertId(periodId, 'grading period id');
+  let json: unknown;
+  try {
+    ({ json } = await sgyFetch(creds, 'GET', `/gradingperiods/${periodId}`));
+  } catch (err) {
+    if (err instanceof SchoologyRestError && err.status === 404) return null;
+    throw err;
+  }
+  const r = asRecord(json);
+  const date = (v: unknown): string =>
+    typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '';
+  return {
+    id: asIdString(r.id) || periodId,
+    title: typeof r.title === 'string' ? r.title : '',
+    start: date(r.start),
+    end: date(r.end),
+  };
+}

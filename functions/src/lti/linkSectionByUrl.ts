@@ -22,6 +22,7 @@ import { schoologySectionUrls } from './lineItems';
 import {
   LTI_COURSE_LINKS_COLLECTION,
   dropOtherLinksForClass,
+  type ReplacedLinks,
 } from './courseLinkEndpoints';
 import { USERS_COLLECTION } from './nrpsStore';
 import { classroomAddonNet } from '../classroomAddonAuth';
@@ -93,15 +94,17 @@ export function activeLearnerEmails(members: NrpsMember[]): Set<string> {
   );
 }
 
-interface OwnedRoster {
+export interface OwnedRoster {
   rosterId: string;
   /** Exactly one of these is set: a real ClassLink class or an admin test class. */
   classlinkClassId: string | null;
   testClassId: string | null;
   classlinkOrgId: string | null;
+  /** When ClassLink last synced the roster, else when it was created. */
+  syncedAt: number;
 }
 
-async function ownedLinkableRosters(
+export async function ownedLinkableRosters(
   db: admin.firestore.Firestore,
   uid: string
 ): Promise<OwnedRoster[]> {
@@ -116,6 +119,8 @@ async function ownedLinkableRosters(
       classlinkClassId?: unknown;
       testClassId?: unknown;
       classlinkOrgId?: unknown;
+      classlinkSyncedAt?: unknown;
+      createdAt?: unknown;
     };
     const str = (v: unknown): string | null =>
       typeof v === 'string' && v ? v : null;
@@ -127,6 +132,12 @@ async function ownedLinkableRosters(
         classlinkClassId,
         testClassId,
         classlinkOrgId: str(data.classlinkOrgId),
+        syncedAt:
+          typeof data.classlinkSyncedAt === 'number'
+            ? data.classlinkSyncedAt
+            : typeof data.createdAt === 'number'
+              ? data.createdAt
+              : 0,
       });
     }
   }
@@ -226,6 +237,46 @@ async function overlapByRoster(
     out.set(r.rosterId, n ?? 0);
   }
   return out;
+}
+
+/** Write the caller's link of `contextId` to `roster`, then drop the class's other links. */
+export async function saveSectionLink(
+  db: admin.firestore.Firestore,
+  callerUid: string,
+  contextId: string,
+  roster: OwnedRoster,
+  title: string | null,
+  linkedBy: 'url' | 'sis'
+): Promise<ReplacedLinks> {
+  await db.runTransaction(async (tx) => {
+    const ref = db.collection(LTI_COURSE_LINKS_COLLECTION).doc(contextId);
+    const snap = await tx.get(ref);
+    const prior = snap.data()?.teacherUid as unknown;
+    if (typeof prior === 'string' && prior && prior !== callerUid) {
+      throw new HttpsError(
+        'already-exists',
+        'This Schoology section is already linked by another teacher.'
+      );
+    }
+    const payload: Record<string, unknown> = {
+      teacherUid: callerUid,
+      contextId,
+      classlinkClassId: roster.classlinkClassId,
+      testClassId: roster.testClassId,
+      classlinkOrgId: roster.classlinkOrgId,
+      contextTitle: title,
+      rosterId: roster.rosterId,
+      linkedBy,
+      updatedAt: Date.now(),
+    };
+    if (!snap.exists) payload.createdAt = Date.now();
+    tx.set(ref, payload, { merge: true });
+  });
+  return dropOtherLinksForClass(db, callerUid, contextId, {
+    rosterId: roster.rosterId,
+    classlinkClassId: roster.classlinkClassId,
+    testClassId: roster.testClassId,
+  });
 }
 
 export interface LinkByUrlSuggestion {
@@ -387,36 +438,14 @@ export const ltiLinkSectionByUrlV1 = onCall(
       );
     }
 
-    await db.runTransaction(async (tx) => {
-      const ref = db.collection(LTI_COURSE_LINKS_COLLECTION).doc(contextId);
-      const snap = await tx.get(ref);
-      const prior = snap.data()?.teacherUid as unknown;
-      if (typeof prior === 'string' && prior && prior !== callerUid) {
-        throw new HttpsError(
-          'already-exists',
-          'This Schoology section is already linked by another teacher.'
-        );
-      }
-      const payload: Record<string, unknown> = {
-        teacherUid: callerUid,
-        contextId,
-        classlinkClassId: roster.classlinkClassId,
-        testClassId: roster.testClassId,
-        classlinkOrgId: roster.classlinkOrgId,
-        contextTitle: title,
-        rosterId: roster.rosterId,
-        linkedBy: 'url',
-        updatedAt: Date.now(),
-      };
-      if (!snap.exists) payload.createdAt = Date.now();
-      tx.set(ref, payload, { merge: true });
-    });
-
-    const replaced = await dropOtherLinksForClass(db, callerUid, contextId, {
-      rosterId: roster.rosterId,
-      classlinkClassId: roster.classlinkClassId,
-      testClassId: roster.testClassId,
-    });
+    const replaced = await saveSectionLink(
+      db,
+      callerUid,
+      contextId,
+      roster,
+      title,
+      'url'
+    );
 
     return { ok: true, contextId, contextTitle: title, overlap, ...replaced };
   }

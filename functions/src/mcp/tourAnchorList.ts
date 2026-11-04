@@ -20892,6 +20892,58 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "schoology-link.find",
+    "label": "Find my Schoology courses button in the Link Schoology dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-link.found-row",
+    "label": "Checkbox on a found Schoology course row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-link.link-selected",
+    "label": "Link selected button for found Schoology courses",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
     "id": "schoology-link.unlink",
     "label": "Unlink button on a linked Schoology course",
     "scope": "field",
