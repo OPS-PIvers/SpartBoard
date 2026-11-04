@@ -3706,9 +3706,7 @@ const TeacherQuizWidget: React.FC<{
         }}
         onArchiveDelete={async (a) => {
           try {
-            const hadColumn =
-              canAccessFeature('schoology-tool-columns') &&
-              (await sessionHasToolColumn('quiz', a.id));
+            const hadColumn = await sessionHasToolColumn('quiz', a.id);
             await deleteAssignment(a.id);
             addToast('Assignment deleted.', 'success');
             if (hadColumn) {
@@ -4168,9 +4166,6 @@ const TeacherQuizWidget: React.FC<{
                 kind: 'quiz',
                 sessionId: target.id,
                 classroomFinalAttachments,
-                schoologyToolColumns: canAccessFeature(
-                  'schoology-tool-columns'
-                ),
                 classroomToken,
                 schoologyMaxPoints: pushMaxPoints,
                 buildClassroomGrades: (responses) => {

@@ -157,7 +157,6 @@ const TAB_GROUPS = [
         label: 'Schoology categories',
         icon: GraduationCap,
         component: SchoologyCategoriesPanel,
-        feature: 'schoology-tool-columns',
       },
       {
         id: 'sub-presets',

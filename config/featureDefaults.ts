@@ -26,7 +26,6 @@ import {
   Library,
   Link2,
   ListChecks,
-  ListOrdered,
   Mic,
   Music,
   Music2,
@@ -698,18 +697,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Arts & Letters Agenda: teachers pick Simple or Detailed, from the boxes admins build.
-  'agenda-versions': {
-    label: 'Agenda Simple and Detailed',
-    icon: ListOrdered,
-    description:
-      'A Simple or Detailed choice in Arts & Letters Agenda settings, using the boxes admins set for each building.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
   'claude-connector': {
     label: 'Claude connector',
@@ -1064,19 +1051,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'embed',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // SpartBoard creates the Schoology gradebook column (SCHOOLOGY_TOOL_COLUMNS.md D11).
-  'schoology-tool-columns': {
-    label: 'Schoology gradebook columns',
-    icon: GraduationCap,
-    description:
-      'Push scores to Schoology without adding the assignment there; SpartBoard makes the gradebook column.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
