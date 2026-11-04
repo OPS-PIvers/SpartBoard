@@ -7649,7 +7649,7 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   dueAt?: number | null;
   /** Whether `dueAt` encodes a chosen time-of-day vs a legacy date-only epoch. */
   dueAtHasTime?: boolean;
-  /** Stamped by va-quiz-alignment assigns; only then does the player honor shuffle, right/wrong and reveal answer. */
+  /** Stamped by assigns that carry their own rules; only then does the player honor shuffle, right/wrong and reveal answer. */
   answerRulesSet?: boolean;
 }
 
@@ -10395,7 +10395,7 @@ export interface UserProfile {
   alignmentGuidesEnabled?: boolean;
   /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
   spellCheckEnabled?: boolean;
-  /** Starting length in seconds for the teacher's new timers, where `timer-starting-length` allows; 0 or absent means the building default. */
+  /** Starting length in seconds for the teacher's new timers. 0 or absent means the building default. */
   timeToolStartSeconds?: number;
   /**
    * The user's dock layout (tools + folders, ordered). Synced across devices.
@@ -10751,8 +10751,6 @@ export type GlobalFeature =
   | 'claude-connector-guided-learning'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
-  /** Video Activity questions and assign rules work like Quiz (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md). */
-  | 'va-quiz-alignment'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
@@ -10762,8 +10760,6 @@ export type GlobalFeature =
   | 'quiz-spell-check-toggle'
   /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
   | 'quiz-rubric-visibility'
-  /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */
-  | 'rubric-scoring-guides'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -10798,8 +10794,6 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md D11). */
-  | 'schoology-tool-columns'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */
@@ -10824,15 +10818,12 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
-  | 'timer-starting-length'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
   | 'widget-connections'
   /** Randomizer groups setting that splits up students grouped together lately. */
   | 'random-avoid-repeats'
-  /** Ctrl+drag on the board draws a box that selects widgets to pin or group together. */
-  | 'board-multi-select'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */

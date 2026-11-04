@@ -22,7 +22,7 @@ export interface InlineAssignStepBodiesProps {
   /** Quiz only: the rule settings behind Attempts, Integrity and What students see. */
   behavior?: QuizBehaviorSettings;
   onBehaviorChange?: (next: QuizBehaviorSettings) => void;
-  /** Video only (va-quiz-alignment): the assignment's rules; omit to leave the rule bodies out. */
+  /** Video only: the assignment's rules; omit to leave the rule bodies out. */
   videoRules?: VideoAssignRules | null;
   onVideoRulesChange?: (next: VideoAssignRules) => void;
   disabled?: boolean;

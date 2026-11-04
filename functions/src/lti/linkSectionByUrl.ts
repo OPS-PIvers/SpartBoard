@@ -26,12 +26,9 @@ import {
 } from './courseLinkEndpoints';
 import { USERS_COLLECTION } from './nrpsStore';
 import { classroomAddonNet } from '../classroomAddonAuth';
-import { isGlobalFeatureGranted } from '../quizMediaArchive';
 import { loadTestClassMembership } from '../studentAssignmentTargets';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
-
-export const SCHOOLOGY_TOOL_COLUMNS_FEATURE = 'schoology-tool-columns';
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
@@ -325,20 +322,6 @@ export const ltiLinkSectionByUrlV1 = onCall(
     }
 
     const db = admin.firestore();
-    if (
-      !(await isGlobalFeatureGranted(
-        db,
-        SCHOOLOGY_TOOL_COLUMNS_FEATURE,
-        email,
-        callerUid
-      ))
-    ) {
-      throw new HttpsError(
-        'permission-denied',
-        'Linking by course link is not available for your account.'
-      );
-    }
-
     const existing = await db
       .collection(LTI_COURSE_LINKS_COLLECTION)
       .doc(contextId)

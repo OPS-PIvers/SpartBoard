@@ -5,7 +5,6 @@ import type { QuizQuestion } from '@/types';
 
 const saveLast = vi.fn();
 const saveLastVa = vi.fn();
-let vaFlag = false;
 
 const signCallable = vi.fn((_params: { dueAt?: number }) => ({
   data: { jwt: 'jwt-1', returnUrl: 'https://app.schoology.com/return' },
@@ -43,7 +42,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1', email: 't@example.com', displayName: 'T' },
     signInWithGoogle: vi.fn(),
     googleAccessToken: 'drive-token',
-    canAccessFeature: (id: string) => id === 'va-quiz-alignment' && vaFlag,
+    canAccessFeature: () => false,
   }),
 }));
 
@@ -194,7 +193,7 @@ describe('LtiDeepLinkPicker — assign stepper step bodies', () => {
   });
 });
 
-describe('LtiDeepLinkPicker — video activity rules (va-quiz-alignment)', () => {
+describe('LtiDeepLinkPicker — video activity rules', () => {
   beforeEach(() => {
     signCallable.mockClear();
     createVaAssignment.mockClear();
@@ -205,44 +204,7 @@ describe('LtiDeepLinkPicker — video activity rules (va-quiz-alignment)', () =>
     window.history.pushState({}, '', '/lti/deep-link?lc=code-1');
   });
 
-  it('flag on: the Video rule bodies set the session rules and save last-used', async () => {
-    vaFlag = true;
-    try {
-      render(<LtiDeepLinkPicker />);
-      fireEvent.click(
-        await screen.findByRole('tab', { name: 'Video Activity' })
-      );
-      fireEvent.click(
-        await screen.findByRole('button', { name: 'Video Activity' })
-      );
-      fireEvent.click(
-        await screen.findByRole('option', { name: 'My Video Activity' })
-      );
-      for (const name of ['Attempts and order', 'Video', 'Integrity'])
-        expect(screen.getByRole('region', { name })).toBeTruthy();
-      expect(screen.queryByText(/Inherits this activity/)).toBeNull();
-      fireEvent.click(
-        screen.getByRole('switch', { name: 'Autoplay after a question' })
-      );
-      fireEvent.click(
-        screen.getByRole('button', { name: /add video activity to schoology/i })
-      );
-      await waitFor(() => expect(createVaAssignment).toHaveBeenCalled());
-      const settings = (
-        createVaAssignment.mock.calls.at(-1) as unknown[]
-      )[1] as {
-        sessionOptions: { answerRulesSet?: boolean };
-        sessionSettings: { autoPlay: boolean };
-      };
-      expect(settings.sessionOptions.answerRulesSet).toBe(true);
-      expect(settings.sessionSettings.autoPlay).toBe(true);
-      expect(saveLastVa).toHaveBeenCalledOnce();
-    } finally {
-      vaFlag = false;
-    }
-  });
-
-  it('flag off: keeps the read-only summary and the activity behavior', async () => {
+  it('the Video rule bodies set the session rules and save last-used', async () => {
     render(<LtiDeepLinkPicker />);
     fireEvent.click(await screen.findByRole('tab', { name: 'Video Activity' }));
     fireEvent.click(
@@ -251,17 +213,22 @@ describe('LtiDeepLinkPicker — video activity rules (va-quiz-alignment)', () =>
     fireEvent.click(
       await screen.findByRole('option', { name: 'My Video Activity' })
     );
-    expect(screen.getByText(/Inherits this activity/)).toBeTruthy();
-    expect(screen.queryByRole('region', { name: 'Video' })).toBeNull();
+    for (const name of ['Attempts and order', 'Video', 'Integrity'])
+      expect(screen.getByRole('region', { name })).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Autoplay after a question' })
+    );
     fireEvent.click(
       screen.getByRole('button', { name: /add video activity to schoology/i })
     );
     await waitFor(() => expect(createVaAssignment).toHaveBeenCalled());
     const settings = (createVaAssignment.mock.calls.at(-1) as unknown[])[1] as {
       sessionOptions: { answerRulesSet?: boolean };
+      sessionSettings: { autoPlay: boolean };
     };
-    expect(settings.sessionOptions.answerRulesSet).toBeUndefined();
-    expect(saveLastVa).not.toHaveBeenCalled();
+    expect(settings.sessionOptions.answerRulesSet).toBe(true);
+    expect(settings.sessionSettings.autoPlay).toBe(true);
+    expect(saveLastVa).toHaveBeenCalledOnce();
   });
 });
 

@@ -22,7 +22,7 @@ export interface AssignStepContext {
   inPlc?: boolean;
   /** Flashcards Study: Speak is available for this set (flag and language). */
   speak?: boolean;
-  /** Video Activity: the rule steps belong to the assignment (`va-quiz-alignment`); self-paced only. */
+  /** Video Activity: the rule steps belong to the assignment; self-paced only. */
   rules?: boolean;
   /** Video Activity: the player honors shuffle and answer feedback (slice 5). */
   videoAnswerRows?: boolean;

@@ -41,7 +41,7 @@ interface LinkSchoologyModalProps {
   seenSections: SchoologySeenSection[];
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>;
-  /** Show "Paste a Schoology course link" (schoology-tool-columns flag). */
+  /** Show "Paste a Schoology course link" (the teacher has a ClassLink or test class). */
   pasteLinkEnabled?: boolean;
 }
 

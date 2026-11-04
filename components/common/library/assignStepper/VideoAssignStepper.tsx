@@ -1,4 +1,4 @@
-// Video Activity on the assign stepper: pacing switch, Classes, When, rule steps (va-quiz-alignment), Sharing (docs/plans/shipped/ASSIGN_STEPPER.md D4).
+// Video Activity on the assign stepper: pacing switch, Classes, When, rule steps, Sharing (docs/plans/shipped/ASSIGN_STEPPER.md D4).
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Play } from 'lucide-react';
@@ -65,7 +65,7 @@ export interface VideoAssignStepperResult {
   manualStart: boolean;
   /** The PLC to share results with, or null. */
   plc: Plc | null;
-  /** The assignment's rules (va-quiz-alignment); null for live or when the rule steps are off. */
+  /** The assignment's rules; null for a live run. */
   rules: VideoAssignRules | null;
   /** Staff: no classes; the link needs district Google sign-in. Self-paced only. */
   audience: AssignmentAudience;
@@ -85,8 +85,8 @@ export interface VideoAssignStepperProps {
   /** A make-up assign's students; sorted into their classes. */
   initialStudents?: StudentTargetRef[];
   error?: string | null;
-  /** Prefill for the rule steps; omit to leave them out (flag off). */
-  initialRules?: VideoAssignRules;
+  /** Prefill for the rule steps. */
+  initialRules: VideoAssignRules;
   onSubmit: (result: VideoAssignStepperResult) => Promise<void>;
 }
 
@@ -152,7 +152,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
   // null until the teacher edits a rule, so a last-used value that loads late still applies.
   const [pickedRules, setRules] = useState<VideoAssignRules | null>(null);
   // Live keeps today's rules (one attempt), so the steps are self-paced only.
-  const rules = initialRules && !live ? (pickedRules ?? initialRules) : null;
+  const rules = !live ? (pickedRules ?? initialRules) : null;
 
   const sharingOn = isSharingStepAvailable(plcs, 'work');
   const sharedPlc = sharing.plcMode ? resolveSharingPlc(sharing, plcs) : null;
