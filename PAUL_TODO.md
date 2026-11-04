@@ -7,7 +7,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
 - **Next free ID: PT-125.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
-Last audited 2026-11-01. Items removed as done: PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
+Last audited 2026-11-01. Items removed as done: PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
 ---
 
@@ -17,7 +17,6 @@ Last audited 2026-11-01. Items removed as done: PT-113 (dry run found 0 stale en
   > Run the post-release quiz join code backfill on prod: `node scripts/backfill-quiz-join-codes.mjs --all` as a dry run, show me the counts, then `--all --apply` after I say go.
 - [ ] **PT-2 🤖 Re-run the widened demote script** (F73, #4900). The first run only checked auto-enrolled teacher records; this one checks all of them, which can include students. On the PC with the prod key and ClassLink env vars:
   > Run `node scripts/demote-student-member-docs.mjs` on prod as a dry run and list who it would demote, then add `--apply` after I say go.
-- [ ] **PT-3 You: clear main's Actions cache** (F75). #4924 is on `main` now. Run `gh cache delete --all --ref refs/heads/main` once, or Actions > Caches > filter `main` > delete all.
 - [ ] **PT-4 🤖 Speak gate pass marks** (F2, #4435). Enforcement stays off until these three are set: the pass mark for "another word accepted" (it runs 0.2-2.2%, so 2% passes every set), whether Spanish sound-group recall under 80% is OK, and whether to drop the unusable held-out recordings.
   > Grill me on the three Speak gate pass-mark decisions in #4435, then write my answers into the pronunciation gate config and docs/pronunciation-gate-results.md.
 - [ ] **PT-5 You: Tell Bailey the Agenda choice is live** (F41, #4592). The Simple or Detailed choice in Arts & Letters Agenda settings (#4564) is now on for every teacher. Tell Bailey before Schumann expects it.
