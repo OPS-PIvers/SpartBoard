@@ -1030,9 +1030,8 @@ const StepCard: React.FC<{
           <select
             value={typeof tour.value === 'string' ? tour.value : ''}
             onChange={(e) => {
-              const next = { ...tour, value: e.target.value };
-              if (!e.target.value) delete next.value;
-              bind(next);
+              const { value: _old, ...rest } = tour;
+              bind(e.target.value ? { ...rest, value: e.target.value } : rest);
             }}
             className={inputClass}
           >
