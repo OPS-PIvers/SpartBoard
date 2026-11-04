@@ -8,7 +8,7 @@ Anthropic's developer reference: [Enterprise Managed Auth for connectors](https:
 
 ## Set it up
 
-You need to be an **Owner** or **Primary Owner** of the Claude organization and a **SpartBoard admin** (super admin). Domain and building admins can't see or change the Issuer URL: whoever controls it can sign in as any staff member of the organization.
+You need to be an **Owner** or **Primary Owner** of the Claude organization and a **SpartBoard admin** (super admin). Only super admins can change the Issuer URL, because whoever controls it can sign in as any staff member of the organization. The URL itself is not secret.
 
 1. **SpartBoard switches (once per project).** Admin Settings > Access > Previews > District switches: turn on **Claude connects without registering**, then **Claude sign-in without Connect**. Both ship off.
 2. **Claude.** Add SpartBoard as a custom connector at `https://spartboard.web.app/mcp` (or `https://spartboard-dev.web.app/mcp` for dev). Open the connector, find **Managed authorization** under **Authentication**, click **Set up** and choose **Claude-issued**. Copy the **Issuer URL** it shows.

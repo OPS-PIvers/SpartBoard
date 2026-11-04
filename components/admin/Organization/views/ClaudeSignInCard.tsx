@@ -67,7 +67,7 @@ export const ClaudeSignInCard: React.FC<Props> = ({
         </Field>
         <Field label="Tenant ID" hint="Enter it in Claude's setup too">
           {/* no-tour-anchor: read-only value, nothing to walk a teacher to */}
-          <Input value={org.id} readOnly disabled />
+          <Input value={org.id} readOnly />
         </Field>
       </div>
       <div className="mt-4 flex justify-end">
