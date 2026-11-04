@@ -10395,7 +10395,7 @@ export interface UserProfile {
   alignmentGuidesEnabled?: boolean;
   /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
   spellCheckEnabled?: boolean;
-  /** Starting length in seconds for the teacher's new timers, where `timer-starting-length` allows; 0 or absent means the building default. */
+  /** Starting length in seconds for the teacher's new timers. 0 or absent means the building default. */
   timeToolStartSeconds?: number;
   /**
    * The user's dock layout (tools + folders, ordered). Synced across devices.
@@ -10820,7 +10820,6 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
-  | 'timer-starting-length'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */

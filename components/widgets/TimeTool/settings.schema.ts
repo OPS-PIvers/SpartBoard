@@ -77,8 +77,7 @@ export default defineSettings<TimeToolConfig & { startLength?: never }>({
           key: 'startLength',
           label: 'startLength',
           help: 'startLengthHelp',
-          visibleWhen: (ctx) =>
-            isTimerMode(ctx) && ctx.canAccessFeature('timer-starting-length'),
+          visibleWhen: isTimerMode,
           render: renderStartLength,
         },
         // Timer-end partner cards: each disables while its partner is off the board and offers a one-tap add.
