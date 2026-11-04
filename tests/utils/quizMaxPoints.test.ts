@@ -79,3 +79,50 @@ describe('dedupeQuestionsById', () => {
     expect(dedupeQuestionsById([])).toEqual([]);
   });
 });
+
+describe('quizMaxPoints with bank slots', () => {
+  const pool = (n: number, prefix: string): QuizQuestion[] =>
+    Array.from(
+      { length: n },
+      (_, i) => ({ id: `${prefix}-${i}`, points: 1 }) as unknown as QuizQuestion
+    );
+
+  it('counts only the questions a student draws, not the whole pool', () => {
+    const questions = pool(26, 'vocab');
+    const slots = [
+      {
+        count: 10,
+        points: 1,
+        poolQuestionIds: questions.map((x) => x.id),
+      },
+    ];
+    expect(quizMaxPoints(questions, undefined, slots)).toBe(10);
+  });
+
+  it('adds fixed questions to the draw and uses the slot points', () => {
+    const fixed = [q(2), q(3)];
+    const drawn = pool(8, 'bank');
+    const slots = [
+      { count: 4, points: 2, poolQuestionIds: drawn.map((x) => x.id) },
+    ];
+    expect(quizMaxPoints([...fixed, ...drawn], undefined, slots)).toBe(13);
+  });
+
+  it('caps a draw at the pool size', () => {
+    const drawn = pool(3, 'small');
+    const slots = [
+      { count: 10, points: 1, poolQuestionIds: drawn.map((x) => x.id) },
+    ];
+    expect(quizMaxPoints(drawn, undefined, slots)).toBe(3);
+  });
+
+  it('applies a choose-N section to the drawn questions', () => {
+    const drawn = pool(20, 'sec');
+    const ids = drawn.map((x) => x.id);
+    const slots = [{ count: 10, points: 1, poolQuestionIds: ids }];
+    const sections = [
+      { id: 's1', title: 'Part 1', chooseCount: 5, questionIds: ids },
+    ];
+    expect(quizMaxPoints(drawn, sections, slots)).toBe(5);
+  });
+});

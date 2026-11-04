@@ -68,6 +68,7 @@ import { BankEditorModal } from './components/BankEditorModal';
 import type { QuestionBankData, QuestionBankMetadata } from '@/types';
 import { logError } from '@/utils/logError';
 import {
+  QUIZ_SESSIONS_COLLECTION,
   useQuizSessionTeacher,
   type QuizSessionOptions,
 } from '@/hooks/useQuizSession';
@@ -134,7 +135,7 @@ import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
-import { doc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { functions, db, storage } from '@/config/firebase';
 import { ref as storageRef, uploadBytes } from 'firebase/storage';
 import {
@@ -163,6 +164,7 @@ import {
   RESULTS_PROTECTION_DEFAULTS,
   type QuizAssignment,
   type QuizResponse,
+  type QuizSession,
   type PlcLinkage,
 } from '@/types';
 import {
@@ -4147,6 +4149,17 @@ const TeacherQuizWidget: React.FC<{
                   Date.now()
                 );
               };
+              // The session's bank slots count each draw once, not the whole pool.
+              const pushSession = await getDoc(
+                doc(db, QUIZ_SESSIONS_COLLECTION, target.id)
+              )
+                .then((snap) => snap.data() as QuizSession | undefined)
+                .catch(() => undefined);
+              const pushMaxPoints = quizMaxPoints(
+                data.questions,
+                pushSession?.sections ?? sessionSectionsFor(data),
+                pushSession?.bankSlots
+              );
               // Chain the LMS grade push(es) — never throws (publish already
               // committed; a push failure is its own toast).
               await runPublishGradePush<QuizResponse>({
@@ -4159,10 +4172,7 @@ const TeacherQuizWidget: React.FC<{
                   'schoology-tool-columns'
                 ),
                 classroomToken,
-                schoologyMaxPoints: quizMaxPoints(
-                  data.questions,
-                  sessionSectionsFor(data)
-                ),
+                schoologyMaxPoints: pushMaxPoints,
                 buildClassroomGrades: (responses) => {
                   // All attachments share the assignment's maxPoints.
                   const mp = classroomFinalAttachments[0]?.maxPoints;
@@ -4180,10 +4190,7 @@ const TeacherQuizWidget: React.FC<{
                     : [];
                 },
                 buildSchoologyGrades: (responses) => {
-                  const mp = quizMaxPoints(
-                    data.questions,
-                    sessionSectionsFor(data)
-                  );
+                  const mp = pushMaxPoints;
                   return withFinal(
                     buildQuizClassroomGradeEntries(
                       responses,
