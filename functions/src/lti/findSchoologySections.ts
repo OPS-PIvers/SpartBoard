@@ -44,6 +44,8 @@ const SCHOOLOGY_API_CONSUMER_SECRET = defineSecret(
 export const SCHOOLOGY_AUTO_LINK_FEATURE = 'schoology-auto-link';
 const MAX_CLASSES = 60;
 const CONCURRENCY = 5;
+/** Find returns the rows finished by then; the callable's own timeout is 120 s. */
+export const FIND_BUDGET_MS = 90_000;
 const ROSTER_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
 export type FoundStatus =
@@ -57,6 +59,8 @@ export interface FoundRow {
   periodTitle?: string | null;
   /** The section this class is linked to now, when linking would replace it. */
   replacesTitle?: string | null;
+  /** The caller's other roster this section is linked to now; linking moves it here. */
+  movesFromRosterId?: string | null;
   replaced?: string[];
   replacedIds?: string[];
   error?: string;
@@ -69,15 +73,35 @@ interface CallerLink {
   contextTitle: string | null;
 }
 
-async function inBatches<T, R>(
+/** Run `fn` a few at a time; an item not finished by `until` (epoch ms) gets `late(item)`. */
+export async function inBatches<T, R>(
   items: T[],
-  fn: (item: T) => Promise<R>
+  fn: (item: T) => Promise<R>,
+  until: number,
+  late: (item: T) => R
 ): Promise<R[]> {
-  const out: R[] = [];
-  for (let i = 0; i < items.length; i += CONCURRENCY) {
-    out.push(...(await Promise.all(items.slice(i, i + CONCURRENCY).map(fn))));
-  }
-  return out;
+  const out = new Array<R>(items.length);
+  const done = new Array<boolean>(items.length).fill(false);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length && Date.now() < until) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+      done[i] = true;
+    }
+  };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker)
+    ),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, Math.max(0, until - Date.now()));
+    }),
+  ]);
+  clearTimeout(timer);
+  next = items.length;
+  return items.map((item, i) => (done[i] ? out[i] : late(item)));
 }
 
 function restCreds(): SchoologyApiCredentials | null {
@@ -135,23 +159,30 @@ async function findRows(
   callerUid: string,
   email: string,
   creds: SchoologyApiCredentials,
-  rosters: OwnedRoster[]
+  rosters: OwnedRoster[],
+  until: number
 ): Promise<FoundRow[]> {
-  const sections = await inBatches(rosters, async (r) => {
-    try {
-      const s = await getSectionBySisId(creds, r.classlinkClassId as string);
-      const matches =
-        !!s &&
-        s.sisId.toLowerCase() === (r.classlinkClassId as string).toLowerCase();
-      return { section: matches ? s : null, failed: false };
-    } catch (err) {
-      console.warn(
-        `[ltiFindSections] REST lookup failed for ${r.rosterId}:`,
-        err
-      );
-      return { section: null, failed: true };
-    }
-  });
+  const sections = await inBatches(
+    rosters,
+    async (r) => {
+      try {
+        const s = await getSectionBySisId(creds, r.classlinkClassId as string);
+        const matches =
+          !!s &&
+          s.sisId.toLowerCase() ===
+            (r.classlinkClassId as string).toLowerCase();
+        return { section: matches ? s : null, failed: false };
+      } catch (err) {
+        console.warn(
+          `[ltiFindSections] REST lookup failed for ${r.rosterId}:`,
+          err
+        );
+        return { section: null, failed: true };
+      }
+    },
+    until,
+    () => ({ section: null, failed: true })
+  );
 
   const sectionIds = [
     ...new Set(
@@ -159,42 +190,47 @@ async function findRows(
     ),
   ];
 
-  const cfg = await getLtiPlatformConfig(db);
-  let token: string | null = null;
-  try {
-    token = await getAgsAccessToken({
-      clientId: cfg.clientId,
-      tokenUrl: cfg.tokenUrl,
-      privatePem: LTI_TOOL_PRIVATE_KEY.value(),
-      scopes: [NRPS_SCOPE],
-    });
-  } catch (err) {
-    console.warn('[ltiFindSections] NRPS token failed:', err);
-  }
+  // Shared across rows; a failed request is retried by the next row instead of failing them all.
+  let tokenRequest: Promise<string> | null = null;
+  const nrpsToken = (): Promise<string> =>
+    (tokenRequest ??= getLtiPlatformConfig(db)
+      .then((cfg) =>
+        getAgsAccessToken({
+          clientId: cfg.clientId,
+          tokenUrl: cfg.tokenUrl,
+          privatePem: LTI_TOOL_PRIVATE_KEY.value(),
+          scopes: [NRPS_SCOPE],
+        })
+      )
+      .catch((err: unknown) => {
+        tokenRequest = null;
+        throw err;
+      }));
   const instructorOf = new Map<
     string,
     { ok: boolean; title: string | null } | null
   >();
   // Co-teachers each link their own class, so every section is checked against NRPS.
-  await inBatches(sectionIds, async (id) => {
-    if (!token) {
-      instructorOf.set(id, null);
-      return;
-    }
-    try {
-      const { members, contextTitle } = await fetchNrpsMembership(
-        schoologySectionUrls(id).membershipUrl,
-        token
-      );
-      instructorOf.set(id, {
-        ok: isActiveInstructor(members, email),
-        title: contextTitle,
-      });
-    } catch (err) {
-      console.warn(`[ltiFindSections] NRPS read failed for ${id}:`, err);
-      instructorOf.set(id, null);
-    }
-  });
+  await inBatches(
+    sectionIds,
+    async (id) => {
+      try {
+        const { members, contextTitle } = await fetchNrpsMembership(
+          schoologySectionUrls(id).membershipUrl,
+          await nrpsToken()
+        );
+        instructorOf.set(id, {
+          ok: isActiveInstructor(members, email),
+          title: contextTitle,
+        });
+      } catch (err) {
+        console.warn(`[ltiFindSections] NRPS read failed for ${id}:`, err);
+        instructorOf.set(id, null);
+      }
+    },
+    until,
+    () => undefined
+  );
 
   const periodIds = [
     ...new Set(
@@ -202,14 +238,19 @@ async function findRows(
     ),
   ];
   const periodTitle = new Map<string, string>();
-  await inBatches(periodIds, async (id) => {
-    try {
-      const p = await getGradingPeriod(creds, id);
-      if (p?.title) periodTitle.set(id, p.title);
-    } catch {
-      // A missing period title only hides the semester label.
-    }
-  });
+  await inBatches(
+    periodIds,
+    async (id) => {
+      try {
+        const p = await getGradingPeriod(creds, id);
+        if (p?.title) periodTitle.set(id, p.title);
+      } catch {
+        // A missing period title only hides the semester label.
+      }
+    },
+    until,
+    () => undefined
+  );
 
   const links = await callerLinks(db, callerUid);
   const linkFor = (r: OwnedRoster): CallerLink | undefined =>
@@ -245,6 +286,13 @@ async function findRows(
       replacesTitle: current
         ? (current.contextTitle ?? 'another section')
         : null,
+      movesFromRosterId:
+        links.find(
+          (l) =>
+            l.contextId === s.id &&
+            l.rosterId !== r.rosterId &&
+            l.classlinkClassId !== r.classlinkClassId
+        )?.rosterId ?? null,
     };
   });
 }
@@ -254,6 +302,7 @@ export const ltiFindSchoologySectionsV1 = onCall(
     region: 'us-central1',
     invoker: 'public',
     cors: ALLOWED_ORIGINS,
+    timeoutSeconds: 120,
     secrets: [
       LTI_TOOL_PRIVATE_KEY,
       SCHOOLOGY_API_CONSUMER_KEY,
@@ -315,7 +364,8 @@ export const ltiFindSchoologySectionsV1 = onCall(
         callerUid,
         email,
         creds,
-        onePerClass(owned)
+        onePerClass(owned),
+        Date.now() + FIND_BUDGET_MS
       );
       return { rows };
     }
@@ -323,7 +373,14 @@ export const ltiFindSchoologySectionsV1 = onCall(
     const wanted = onePerClass(
       owned.filter((r) => rosterIds.includes(r.rosterId))
     );
-    const rows = await findRows(db, callerUid, email, creds, wanted);
+    const rows = await findRows(
+      db,
+      callerUid,
+      email,
+      creds,
+      wanted,
+      Date.now() + FIND_BUDGET_MS
+    );
     const results: FoundRow[] = [];
     for (const [i, row] of rows.entries()) {
       if (row.status !== 'ready' || !row.contextId) {

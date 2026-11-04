@@ -124,9 +124,8 @@ vi.mock('./config', async (orig) => ({
     .mockResolvedValue({ clientId: 'client-1', tokenUrl: 'https://lms/token' }),
 }));
 
-vi.mock('./ags', () => ({
-  getAgsAccessToken: vi.fn().mockResolvedValue('nrps-token'),
-}));
+const tokenMock = vi.hoisted(() => vi.fn());
+vi.mock('./ags', () => ({ getAgsAccessToken: tokenMock }));
 
 const { fetchNrpsMembershipMock, grantedMock, sectionMock, periodMock } =
   vi.hoisted(() => ({
@@ -144,7 +143,7 @@ vi.mock('../schoology/restClient', () => ({
   getGradingPeriod: periodMock,
 }));
 
-import { ltiFindSchoologySectionsV1 } from './findSchoologySections';
+import { inBatches, ltiFindSchoologySectionsV1 } from './findSchoologySections';
 
 type Req = {
   auth?: { uid: string; token: Record<string, unknown> };
@@ -189,6 +188,7 @@ beforeEach(() => {
   ];
   courseLinks.clear();
   grantedMock.mockReset().mockResolvedValue(true);
+  tokenMock.mockReset().mockResolvedValue('nrps-token');
   sectionMock
     .mockReset()
     .mockImplementation(async (_c: unknown, sis: string) => {
@@ -286,6 +286,39 @@ describe('ltiFindSchoologySectionsV1 find', () => {
     });
   });
 
+  it('names the other class a section would move from', async () => {
+    courseLinks.set('222', {
+      teacherUid: 'teacher-1',
+      rosterId: 'r-1',
+      classlinkClassId: 'cl-1',
+      contextTitle: 'BIOLOGY A: (S1) P6',
+    });
+    const r = byRoster((await call({ auth: TEACHER, data: {} })).rows);
+    expect(r['r-2']).toMatchObject({
+      status: 'ready',
+      movesFromRosterId: 'r-1',
+    });
+    expect(r['r-1'].movesFromRosterId).toBeNull();
+  });
+
+  it('retries the NRPS token instead of failing every row', async () => {
+    // Six sections: the first five share the failed request, the sixth retries.
+    rosters = Array.from({ length: 6 }, (_, i) => ({
+      id: `r${i}`,
+      data: { classlinkClassId: `c${i}` },
+    }));
+    sectionMock.mockImplementation(async (_c: unknown, sis: string) => ({
+      id: `${sis.slice(1)}00`,
+      title: sis,
+      sisId: sis,
+      gradingPeriodIds: [],
+    }));
+    tokenMock.mockRejectedValueOnce(new Error('token 500'));
+    const r = byRoster((await call({ auth: TEACHER, data: {} })).rows);
+    expect(r.r5.status).toBe('ready');
+    expect(tokenMock).toHaveBeenCalledTimes(2);
+  });
+
   it('ignores a section whose SIS id does not match', async () => {
     sectionMock.mockResolvedValue({
       id: '111',
@@ -331,6 +364,29 @@ describe('ltiFindSchoologySectionsV1 find', () => {
         data: {},
       })
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+});
+
+describe('inBatches', () => {
+  it('gives items unfinished at the deadline their late value', async () => {
+    const out = await inBatches(
+      [1, 2, 3],
+      (n) =>
+        n === 2
+          ? new Promise<string>(() => undefined)
+          : Promise.resolve(`ok${n}`),
+      Date.now() + 50,
+      (n) => `late${n}`
+    );
+    expect(out).toEqual(['ok1', 'late2', 'ok3']);
+  });
+
+  it('starts nothing after the deadline', async () => {
+    const fn = vi.fn(async (n: number) => n);
+    expect(await inBatches([1, 2], fn, Date.now() - 1, () => 0)).toEqual([
+      0, 0,
+    ]);
+    expect(fn).not.toHaveBeenCalled();
   });
 });
 

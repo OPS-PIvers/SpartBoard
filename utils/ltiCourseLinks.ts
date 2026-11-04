@@ -173,6 +173,8 @@ export interface FoundSectionRow extends ReplacedLinks {
   periodTitle?: string | null;
   /** The section a link would replace for this class. */
   replacesTitle?: string | null;
+  /** The caller's other roster this section is linked to now; linking moves it here. */
+  movesFromRosterId?: string | null;
   error?: string;
 }
 

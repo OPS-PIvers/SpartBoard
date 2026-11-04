@@ -437,7 +437,8 @@ export async function getSectionBySisId(
   creds: SchoologyApiCredentials,
   sisId: string
 ): Promise<SchoologySection | null> {
-  if (!SIS_ID_RE.test(sisId)) return null;
+  // A dot-only id would resolve as a path segment (`..`), so it can't be one.
+  if (!SIS_ID_RE.test(sisId) || /^\.+$/.test(sisId)) return null;
   let json: unknown;
   try {
     ({ json } = await sgyFetch(

@@ -344,6 +344,12 @@ describe('getSectionBySisId', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it.each(['.', '..', '...'])('never calls Schoology for %j', async (id) => {
+    const fetchMock = stubFetch();
+    await expect(getSectionBySisId(CREDS, id)).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('encodes a sourcedId with a colon', async () => {
     const fetchMock = stubFetch(new Response('', { status: 404 }));
     await getSectionBySisId(CREDS, 'org:class-1');
