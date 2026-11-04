@@ -1,17 +1,7 @@
 import React, { forwardRef } from 'react';
 import { DEFAULT_GLOBAL_STYLE, GlobalStyle } from '@/types';
 import { hexToRgba } from '@/utils/styles';
-
-const WINDOW_RADIUS_PX: Record<string, string> = {
-  none: '0px',
-  sm: '2px',
-  md: '6px',
-  lg: '8px',
-  xl: '12px',
-  '2xl': '16px',
-  '3xl': '24px',
-  full: '9999px',
-};
+import { WINDOW_RADIUS_PX } from '@/utils/windowRadius';
 
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;

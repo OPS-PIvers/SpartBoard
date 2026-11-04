@@ -889,7 +889,7 @@ describe('TimeToolWidget', () => {
     });
 
     it.each([['modern'], ['lcd'], ['minimal']] as const)(
-      'uses top:110% in digital clockStyle="%s"',
+      'anchors the row to the band under the time in digital clockStyle="%s"',
       (clockStyle) => {
         const widget = createWidget({
           mode: 'timer',
@@ -901,11 +901,11 @@ describe('TimeToolWidget', () => {
         const html = renderHtml(widget);
         const wrap = wrapperFor(html, 'Subtract time');
 
-        expect(wrap).toContain('top:110%');
+        expect(wrap).toContain('top:calc(50% + min(60cqh, 30cqw) / 2)');
       }
     );
 
-    it('uses top:115% when visualType="visual" (progress ring on)', () => {
+    it('puts ± in the bottom corners and play/reset under the time when the ring is on', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -914,9 +914,47 @@ describe('TimeToolWidget', () => {
         visualType: 'visual',
       });
       const html = renderHtml(widget);
-      const wrap = wrapperFor(html, 'Subtract time');
 
-      expect(wrap).toContain('top:115%');
+      expect(wrapperFor(html, 'Subtract time')).toMatch(
+        /bottom:16px;left:\d+px/
+      );
+      expect(wrapperFor(html, 'Add time')).toMatch(/bottom:16px;right:\d+px/);
+      expect(wrapperFor(html, 'Pause')).toContain('top:115%');
+    });
+
+    it('moves ± under the time with play/reset when the ring is too small for corners', () => {
+      const Original = global.ResizeObserver;
+      global.ResizeObserver = class {
+        constructor(private cb: ResizeObserverCallback) {}
+        observe = () =>
+          this.cb(
+            [
+              {
+                contentRect: { width: 220, height: 220 },
+              } as ResizeObserverEntry,
+            ],
+            this
+          );
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      };
+      try {
+        renderWidget(
+          createWidget({
+            mode: 'timer',
+            isRunning: true,
+            duration: 300,
+            elapsedTime: 240,
+            visualType: 'visual',
+          })
+        );
+      } finally {
+        global.ResizeObserver = Original;
+      }
+
+      const row = screen.getByLabelText('Pause').parentElement;
+      expect(row).toContainElement(screen.getByLabelText('Subtract time'));
+      expect(row).toContainElement(screen.getByLabelText('Add time'));
     });
 
     it('hides ± adjust buttons in stopwatch mode (only play/reset render)', () => {

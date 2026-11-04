@@ -3,9 +3,13 @@ import type { SequenceConnection, WidgetData } from '@/types';
 import {
   advanceRun,
   draftFromPicks,
+  followingScoreboard,
+  followConnection,
+  followLeaderId,
   isStepFinished,
   joinRunByHand,
   liveConnections,
+  sharesFollowSlot,
 } from './connectionEngine';
 import { currentShuffleName } from './randomCurrentName';
 
@@ -170,6 +174,57 @@ describe('draftFromPicks', () => {
   );
 });
 
+describe('Review live scores', () => {
+  it('makes a Scoreboard picked with a Review a Follow of it, either order', () => {
+    for (const picks of [
+      [
+        { id: 'rv', type: 'review' as const },
+        { id: 'sb', type: 'scoreboard' as const },
+      ],
+      [
+        { id: 'sb', type: 'scoreboard' as const },
+        { id: 'rv', type: 'review' as const },
+      ],
+    ]) {
+      const draft = draftFromPicks(picks);
+      expect(draft.sequence).toBeNull();
+      expect(draft.follows).toEqual([
+        expect.objectContaining({ leaderId: 'rv', followerId: 'sb' }),
+      ]);
+    }
+  });
+
+  it('never connects a Quiz to a Scoreboard', () => {
+    const draft = draftFromPicks([
+      { id: 'qz', type: 'quiz' },
+      { id: 'sb', type: 'scoreboard' },
+    ]);
+    expect(draft.follows).toEqual([]);
+  });
+
+  it('finds the Scoreboard following a Review, and none for a Quiz', () => {
+    const widgets = [
+      widget('rv', 'review', {}),
+      widget('qz', 'quiz', {}),
+      widget('sb', 'scoreboard', {}),
+      widget('qr', 'qr', {}),
+    ];
+    const connections = [
+      { id: 'f1', kind: 'follow' as const, leaderId: 'rv', followerId: 'qr' },
+      { id: 'f2', kind: 'follow' as const, leaderId: 'rv', followerId: 'sb' },
+      { id: 'f3', kind: 'follow' as const, leaderId: 'qz', followerId: 'sb' },
+    ];
+    expect(followingScoreboard(connections, widgets, 'rv')).toEqual({
+      connection: connections[1],
+      scoreboard: widgets[2],
+    });
+    expect(followingScoreboard(connections, widgets, 'qz')).toBeUndefined();
+    expect(
+      followingScoreboard(connections, widgets.slice(0, 2), 'rv')
+    ).toBeUndefined();
+  });
+});
+
 describe('what moves a step on', () => {
   const t = timer('t1', 120, {
     isRunning: true,
@@ -319,5 +374,61 @@ describe('liveConnections', () => {
       liveConnections([seq], [shuffle(['Ana']), timer('t1', 5)])
     ).toHaveLength(1);
     expect(liveConnections([seq], [timer('t1', 5)])).toHaveLength(0);
+  });
+});
+
+describe('a widget Follows one leader per slot', () => {
+  const sb = widget('sb', 'scoreboard', {});
+  const rand = widget('r', 'random', {});
+  const rand2 = widget('r2', 'random', {});
+  const meter = widget('m', 'sound', {});
+  const widgets = [sb, rand, rand2, meter];
+
+  it('lets a Scoreboard follow a Randomizer and a Noise meter from one pick', () => {
+    const draft = draftFromPicks([
+      { id: 'r', type: 'random' },
+      { id: 'sb', type: 'scoreboard' },
+      { id: 'm', type: 'sound' },
+    ]);
+    expect(
+      draft.follows.map((f) =>
+        f.kind === 'follow' ? [f.leaderId, f.followerId] : null
+      )
+    ).toEqual([
+      ['r', 'sb'],
+      ['m', 'sb'],
+    ]);
+  });
+
+  it('finds the leader of the asked slot', () => {
+    const connections = [
+      followConnection('m', 'sb'),
+      followConnection('r', 'sb'),
+    ];
+    expect(followLeaderId(connections, widgets, 'sb')).toBe('m');
+    expect(followLeaderId(connections, widgets, 'sb', 'teams')).toBe('r');
+    expect(followLeaderId(connections, widgets, 'sb', 'points')).toBe('m');
+  });
+
+  it('replaces a Follow only in the same slot', () => {
+    const fromRandom = followConnection('r', 'sb');
+    expect(
+      sharesFollowSlot(fromRandom, followConnection('r2', 'sb'), widgets)
+    ).toBe(true);
+    expect(
+      sharesFollowSlot(fromRandom, followConnection('m', 'sb'), widgets)
+    ).toBe(false);
+  });
+
+  it('keeps one leader for widgets without slots', () => {
+    const traffic = widget('t', 'traffic', {});
+    const meter2 = widget('m2', 'sound', {});
+    expect(
+      sharesFollowSlot(
+        followConnection('m', 't'),
+        followConnection('m2', 't'),
+        [traffic, meter, meter2]
+      )
+    ).toBe(true);
   });
 });

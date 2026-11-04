@@ -16580,6 +16580,30 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.settings-scoreboard-edit-connection",
+    "label": "Edit connection button for the connected Scoreboard in the Review monitor settings",
+    "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor.settings",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-settings"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.period-start",
     "label": "Start button for the picked class in the Quiz monitor",
     "scope": "widget type",
@@ -32094,6 +32118,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "widget.connect",
     "label": "Connect button in the widget toolbar",
     "scope": "widget",
+    "requires": "widget-selected",
     "routes": [
       {
         "surface": "board.widget",
@@ -55612,8 +55637,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "connections.editor.wait-seconds",
     "label": "Seconds box on a connection arrow",
-    "scope": "board",
+    "scope": "widget type",
     "panel": true,
+    "key_pattern": "[a-z][a-zA-Z0-9-]*",
+    "key_hint": "the widget type of the step above the arrow, e.g. time-tool",
     "routes": [
       {
         "surface": "board.connections-editor",
@@ -55705,8 +55732,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "connections.editor.advance",
     "label": "What moves a connection on to its next step",
-    "scope": "board",
+    "scope": "widget type",
     "panel": true,
+    "key_pattern": "[a-z][a-zA-Z0-9-]*",
+    "key_hint": "the widget type of the step above the arrow, e.g. time-tool",
     "routes": [
       {
         "surface": "board.connections-editor",

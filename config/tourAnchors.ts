@@ -3956,6 +3956,11 @@ export const TOUR_ANCHORS = {
     label: 'Sync to scoreboard widget switch in the Quiz monitor settings',
     perWidgetType: true,
   },
+  'quiz-monitor.settings-scoreboard-edit-connection': {
+    label:
+      'Edit connection button for the connected Scoreboard in the Review monitor settings',
+    perWidgetType: true,
+  },
   'quiz-monitor.period-start': {
     label: 'Start button for the picked class in the Quiz monitor',
     perWidgetType: true,
@@ -7456,6 +7461,7 @@ export const TOUR_ANCHORS = {
   'widget.connect': {
     label: 'Connect button in the widget toolbar',
     perWidget: true,
+    requires: 'widget-selected',
   },
   'widget.connect-menu.connection': {
     label: 'A connection row in the Connect button menu',
@@ -12293,6 +12299,9 @@ export const TOUR_ANCHORS = {
   },
   'connections.editor.wait-seconds': {
     label: 'Seconds box on a connection arrow',
+    perWidgetType: true,
+    keyPattern: '[a-z][a-zA-Z0-9-]*',
+    keyHint: 'the widget type of the step above the arrow, e.g. time-tool',
     panel: true,
   },
   'connections.editor.step-menu': {
@@ -12310,6 +12319,9 @@ export const TOUR_ANCHORS = {
   },
   'connections.editor.advance': {
     label: 'What moves a connection on to its next step',
+    perWidgetType: true,
+    keyPattern: '[a-z][a-zA-Z0-9-]*',
+    keyHint: 'the widget type of the step above the arrow, e.g. time-tool',
     panel: true,
   },
   'connections.editor.move-up': {

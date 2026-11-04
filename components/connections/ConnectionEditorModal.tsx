@@ -30,8 +30,9 @@ import {
 } from '@/context/connectionsUiStore';
 import { connectionDefFor } from '@/config/widgetConnections';
 import { TOOLS } from '@/config/tools';
+import { useConnectionWidgetTitle } from '@/hooks/useConnectionWidgetTitle';
 import { Z_INDEX } from '@/config/zIndex';
-import { isConnectionLive } from '@/utils/connectionEngine';
+import { isConnectionLive, sharesFollowSlot } from '@/utils/connectionEngine';
 import { sendRunCommand } from '@/utils/connectionSignals';
 import {
   advanceChoice,
@@ -181,15 +182,20 @@ export const ConnectionEditorModal: React.FC<{
   } | null>(null);
   const litWidgetId = useConnectionsUi((s) => s.highlightedWidgetId);
 
+  const titleOf = useConnectionWidgetTitle();
   const names = useMemo(
     () =>
-      widgetNames(board.widgets, (time) =>
-        t('connections.editor.timerName', {
-          time,
-          defaultValue: 'Timer {{time}}',
-        })
+      widgetNames(
+        board.widgets,
+        (time, name) =>
+          t('connections.editor.timerName', {
+            time,
+            name,
+            defaultValue: '{{name}} {{time}}',
+          }),
+        titleOf
       ),
-    [board.widgets, t]
+    [board.widgets, t, titleOf]
   );
   const widgetsById = useMemo(
     () => new Map(board.widgets.map((w) => [w.id, w])),
@@ -232,9 +238,15 @@ export const ConnectionEditorModal: React.FC<{
     const main = mainOf(cards[i]);
     const kind = sideJoinKind(w, main?.type);
     if (kind === 'follow' && main) {
+      const added: FollowConnection = {
+        id: newId(),
+        kind: 'follow',
+        leaderId: main.id,
+        followerId: w.id,
+      };
       setFollows((fs) => [
-        ...fs.filter((f) => f.followerId !== w.id),
-        { id: newId(), kind: 'follow', leaderId: main.id, followerId: w.id },
+        ...fs.filter((f) => !sharesFollowSlot(f, added, board.widgets)),
+        added,
       ]);
     } else if (kind === 'action') {
       const action = connectionDefFor(w.type)?.defaultAction;
@@ -249,14 +261,17 @@ export const ConnectionEditorModal: React.FC<{
       const next = cleanForSave(c, board.widgets);
       return next ? [next] : [];
     });
-    // A widget plays along with one leader, so a new side card replaces its other Follow.
-    const followers = new Set(
-      cleaned.flatMap((c) => (c.kind === 'follow' ? [c.followerId] : []))
+    // A widget plays along with one leader per slot, so a new side card replaces its other Follow there.
+    const savedFollows = cleaned.filter(
+      (c): c is FollowConnection => c.kind === 'follow'
     );
     const kept = (board.connections ?? []).filter(
       (c) =>
         !draft.replaces.includes(c.id) &&
-        !(c.kind === 'follow' && followers.has(c.followerId))
+        !(
+          c.kind === 'follow' &&
+          savedFollows.some((f) => sharesFollowSlot(c, f, board.widgets))
+        )
     );
     const next = [...kept, ...cleaned];
     updateDashboard({ connections: next });
@@ -477,12 +492,14 @@ export const ConnectionEditorModal: React.FC<{
   const arrow = (card: EditorCard, i: number) => {
     const choice = advanceChoice(card);
     const waits = !!stepWait(card.step, board.widgets);
+    // Tagged with the step's widget type so a tour can reach the arrow after a given widget.
+    const stepType = mainOf(card)?.type;
     return (
       <div className="flex h-11 items-center gap-2 pl-[1.1rem] text-xs font-semibold text-slate-500">
         <ArrowDown className="h-4 w-4 shrink-0" aria-hidden="true" />
         <select
           value={choice}
-          {...tourAttr('connections.editor.advance')}
+          {...tourAttr('connections.editor.advance', undefined, stepType)}
           aria-label={t('connections.editor.advanceFor', {
             n: i + 1,
             defaultValue: 'What moves on from step {{n}}',
@@ -513,7 +530,11 @@ export const ConnectionEditorModal: React.FC<{
               min={1}
               max={MAX_PAUSE_SECONDS}
               value={card.pauseSeconds ?? 10}
-              {...tourAttr('connections.editor.wait-seconds')}
+              {...tourAttr(
+                'connections.editor.wait-seconds',
+                undefined,
+                stepType
+              )}
               normalize={(n) =>
                 Math.min(MAX_PAUSE_SECONDS, Math.max(1, Math.round(n)))
               }

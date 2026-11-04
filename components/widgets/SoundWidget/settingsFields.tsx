@@ -4,7 +4,9 @@ import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { ScoreboardConfig, SoundConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { tourAttr } from '@/config/tourAnchors';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { isCalibrating } from './noiseTarget';
+import { connectedScoreboardIds } from './scoreboardAward';
 
 const translate = (ctx: CustomRenderCtx, leaf: string) =>
   ctx.t(`widgetSettings.sound.${leaf}`);
@@ -66,10 +68,21 @@ export const SoundGoalTeamField: React.FC<{ ctx: CustomRenderCtx }> = ({
   ctx,
 }) => {
   const { activeDashboard } = useDashboard();
-  const scoreboards = (activeDashboard?.widgets ?? []).filter((w) => {
+  const connectionsOn = useConnectionsEnabled();
+  const widgets = activeDashboard?.widgets ?? [];
+  // A connected Scoreboard is the only one offered; otherwise every Scoreboard on the board.
+  const connected = connectionsOn
+    ? connectedScoreboardIds(
+        activeDashboard?.connections,
+        widgets,
+        ctx.widget.id
+      )
+    : [];
+  const scoreboards = widgets.filter((w) => {
     const config = w.config as ScoreboardConfig;
     return (
       w.type === 'scoreboard' &&
+      (connected.length === 0 || connected.includes(w.id)) &&
       !config.liveQuizWidgetId &&
       Array.isArray(config.teams)
     );
@@ -85,10 +98,14 @@ export const SoundGoalTeamField: React.FC<{ ctx: CustomRenderCtx }> = ({
   const stored = config.quietGoalTeamId
     ? `${config.quietGoalScoreboardId ?? ''}|${config.quietGoalTeamId}`
     : '';
-  // Older picks saved only the team; show them on the first Scoreboard that has it.
+  const stalePick =
+    !!config.quietGoalScoreboardId &&
+    connected.length > 0 &&
+    !connected.includes(config.quietGoalScoreboardId);
+  // Older picks saved only the team, and picks on a no-longer-connected Scoreboard, show on the first Scoreboard that has the team.
   const value =
     options.find((o) => o.value === stored)?.value ??
-    (config.quietGoalTeamId && !config.quietGoalScoreboardId
+    (config.quietGoalTeamId && (!config.quietGoalScoreboardId || stalePick)
       ? options.find((o) => o.value.endsWith(`|${config.quietGoalTeamId}`))
           ?.value
       : undefined) ??
