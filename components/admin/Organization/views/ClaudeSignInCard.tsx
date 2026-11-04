@@ -29,7 +29,7 @@ export const ClaudeSignInCard: React.FC<Props> = ({
   const trimmed = issuer.trim();
   const issuerOk = trimmed === '' || isValidManagedAuthIssuer(trimmed);
   const dirty = enabled !== saved.enabled || trimmed !== saved.issuer;
-  const canSave = canEdit && dirty && issuerOk && (!enabled || trimmed !== '');
+  const canSave = canEdit && dirty && trimmed !== '' && issuerOk;
 
   return (
     <Card ruled className="pt-5 p-6">

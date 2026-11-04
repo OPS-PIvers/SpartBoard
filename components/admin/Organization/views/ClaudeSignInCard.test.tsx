@@ -50,6 +50,23 @@ describe('ClaudeSignInCard', () => {
     expect(screen.getByText('Enter an https:// URL')).toBeInTheDocument();
   });
 
+  it('will not save a cleared issuer, which the rules refuse', async () => {
+    render(
+      <ClaudeSignInCard
+        org={{ ...ORG, claudeManagedAuth: { enabled: true, issuer: ISSUER } }}
+        canEdit
+        onUpdate={vi.fn()}
+      />
+    );
+    await userEvent.click(
+      screen.getByRole('switch', {
+        name: /Sign staff in to the Claude connector/,
+      })
+    );
+    await userEvent.clear(screen.getByDisplayValue(ISSUER));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
   it('shows the org id as the tenant ID and is read-only without edit rights', () => {
     render(
       <ClaudeSignInCard
