@@ -2,8 +2,9 @@
 //
 //   linkLtiCourseV1            — pair a Schoology section (contextId) to a
 //                                ClassLink class, mirroring linkClassroomCourse.
-//                                A same-teacher re-link re-points it (the
-//                                correction path); there is no unlink CF.
+//                                A same-teacher re-link re-points it, and
+//                                the class's other section links are dropped.
+//   ltiUnlinkSectionV1         — the owner removes one of their own links.
 //   ltiSuggestClassLinkMatchV1 — best-effort auto-match: overlap a section's
 //                                NRPS roster emails with the teacher's ClassLink
 //                                rosters and suggest the best class. Email is
@@ -48,6 +49,66 @@ import { isDistrictTeacher } from './teacherAuth';
 
 /** Firestore collection holding the Schoology section↔class link docs. */
 export const LTI_COURSE_LINKS_COLLECTION = 'lti_course_links';
+
+/** The class a link points at; any one matching id makes two links the same class. */
+export interface LinkedClass {
+  rosterId: string | null;
+  classlinkClassId: string | null;
+  testClassId: string | null;
+}
+
+export function linksSameClass(
+  link: Record<string, unknown>,
+  cls: LinkedClass
+): boolean {
+  const str = (v: unknown): string | null =>
+    typeof v === 'string' && v ? v : null;
+  return (
+    (!!cls.rosterId && str(link.rosterId) === cls.rosterId) ||
+    (!!cls.classlinkClassId &&
+      str(link.classlinkClassId) === cls.classlinkClassId) ||
+    (!!cls.testClassId && str(link.testClassId) === cls.testClassId)
+  );
+}
+
+export interface ReplacedLinks {
+  /** Titles of the deleted links, for the toast. */
+  replaced: string[];
+  /** Section ids of the deleted links, so clients clear any roster still mirroring one. */
+  replacedIds: string[];
+}
+
+/** One Schoology section per class: best-effort delete of the teacher's other links to `cls`. */
+export async function dropOtherLinksForClass(
+  db: admin.firestore.Firestore,
+  teacherUid: string,
+  keepContextId: string,
+  cls: LinkedClass
+): Promise<ReplacedLinks> {
+  try {
+    const snap = await db
+      .collection(LTI_COURSE_LINKS_COLLECTION)
+      .where('teacherUid', '==', teacherUid)
+      .get();
+    const stale = snap.docs.filter(
+      (d) => d.id !== keepContextId && linksSameClass(d.data(), cls)
+    );
+    if (stale.length === 0) return { replaced: [], replacedIds: [] };
+    const batch = db.batch();
+    for (const d of stale) batch.delete(d.ref);
+    await batch.commit();
+    return {
+      replaced: stale.map((d) => {
+        const t = d.data().contextTitle as unknown;
+        return typeof t === 'string' && t ? t : 'a Schoology section';
+      }),
+      replacedIds: stale.map((d) => d.id),
+    };
+  } catch (err) {
+    console.warn('[lti] dropping replaced course links failed', err);
+    return { replaced: [], replacedIds: [] };
+  }
+}
 
 /** Cap on candidate classes a single suggest call will OneRoster-fetch. */
 const MAX_MATCH_CANDIDATES = 60;
@@ -358,6 +419,12 @@ export const linkLtiCourseV1 = onCall(
       tx.set(ref, payload, { merge: true });
     });
 
+    const replaced = await dropOtherLinksForClass(db, callerUid, contextId, {
+      rosterId,
+      classlinkClassId: classlinkClassId || null,
+      testClassId: testClassId || null,
+    });
+
     // Best-effort: the section now IS the paired class, so stop counting its title as a second class.
     try {
       await dropLinkedSectionPeriod(db, {
@@ -373,18 +440,36 @@ export const linkLtiCourseV1 = onCall(
       console.warn('[linkLtiCourse] period dedupe failed (non-fatal)', err);
     }
 
-    return { ok: true, contextId };
+    return { ok: true, contextId, ...replaced };
   }
 );
 
-// NOTE: there is intentionally no unlink CF. A mis-link is corrected by
-// re-linking (linkLtiCourseV1 lets the SAME teacher re-point their own link),
-// and omitting a delete path avoids the weaker-than-Classroom co-teacher
-// "takeover" vector (the LTI trust anchor — "owns a session that saw the
-// context" — is softer than Classroom's live verifyTeacherOfCourse, so allowing
-// deletion of a foreign-owned link would let a co-present teacher silently
-// re-route a section). Add one with an owner-only guard if a true remove-link UI
-// is ever needed.
+// ── ltiUnlinkSectionV1 ──────────────────────────────────────────────────────
+// Owner-only: a teacher can never remove a link another teacher made.
+export const ltiUnlinkSectionV1 = onCall(
+  { region: 'us-central1', invoker: 'public', cors: ALLOWED_ORIGINS },
+  async (request) => {
+    assertViewAsAllowed(request);
+    const callerUid = await requireTeacher(request);
+    const data = (request.data ?? {}) as { contextId?: unknown };
+    const contextId = typeof data.contextId === 'string' ? data.contextId : '';
+    if (!ID_RE.test(contextId)) {
+      throw new HttpsError('invalid-argument', 'contextId is required.');
+    }
+    const db = admin.firestore();
+    const ref = db.collection(LTI_COURSE_LINKS_COLLECTION).doc(contextId);
+    const snap = await ref.get();
+    if (!snap.exists) return { ok: true, contextId };
+    if (snap.data()?.teacherUid !== callerUid) {
+      throw new HttpsError(
+        'permission-denied',
+        'Only the teacher who linked this Schoology section can unlink it.'
+      );
+    }
+    await ref.delete();
+    return { ok: true, contextId };
+  }
+);
 
 // ── ltiSuggestClassLinkMatchV1 ──────────────────────────────────────────────
 //

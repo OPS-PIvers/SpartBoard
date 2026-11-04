@@ -10,9 +10,8 @@
  * launch + session ownership IS the proof.
  *
  * Per-class link state is read from the roster's mirrored `ltiContextId` (set on
- * link), so there is no client reverse-lookup here; and a mis-link is corrected
- * by re-linking (the server lets the same teacher re-point their own link), so
- * there is no unlink wrapper.
+ * link). Linking a class replaces its other section links server-side, and the
+ * owner can remove a link with `unlinkLtiSection`.
  */
 import { httpsCallable, type Functions } from 'firebase/functions';
 
@@ -64,10 +63,10 @@ export interface SuggestLtiMatchResult {
 export async function linkLtiCourse(
   functions: Functions,
   args: LinkLtiCourseArgs
-): Promise<{ ok: boolean; contextId: string }> {
+): Promise<{ ok: boolean; contextId: string } & ReplacedLinks> {
   const callable = httpsCallable<
     LinkLtiCourseArgs,
-    { ok: boolean; contextId: string }
+    { ok: boolean; contextId: string } & ReplacedLinks
   >(functions, 'linkLtiCourseV1');
   const { data } = await callable(args);
   return data;
@@ -121,11 +120,42 @@ export async function linkLtiSectionByUrl(
   functions: Functions,
   url: string,
   rosterId: string
-): Promise<{ ok: boolean; contextId: string; contextTitle: string | null }> {
+): Promise<LinkByUrlResult> {
   const callable = httpsCallable<
     { url: string; rosterId: string },
-    { ok: boolean; contextId: string; contextTitle: string | null }
+    LinkByUrlResult
   >(functions, 'ltiLinkSectionByUrlV1');
   const { data } = await callable({ url, rosterId });
   return data;
+}
+
+/** The class's earlier section links that a link replaced: titles and section ids. */
+export interface ReplacedLinks {
+  replaced?: string[];
+  replacedIds?: string[];
+}
+
+interface LinkByUrlResult extends ReplacedLinks {
+  ok: boolean;
+  contextId: string;
+  contextTitle: string | null;
+}
+
+/** Remove one of the caller's own Schoology section links. */
+export async function unlinkLtiSection(
+  functions: Functions,
+  contextId: string
+): Promise<{ ok: boolean; contextId: string }> {
+  const callable = httpsCallable<
+    { contextId: string },
+    { ok: boolean; contextId: string }
+  >(functions, 'ltiUnlinkSectionV1');
+  const { data } = await callable({ contextId });
+  return data;
+}
+
+/** " Replaced …" for a link toast, or "" when nothing was replaced. */
+export function replacedNote(replaced: string[] | undefined): string {
+  if (!replaced || replaced.length === 0) return '';
+  return ` Replaced ${replaced.map((t) => `“${t}”`).join(', ')}.`;
 }

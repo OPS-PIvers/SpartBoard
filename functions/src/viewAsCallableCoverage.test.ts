@@ -57,6 +57,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   linkClassroomCourse: 'write',
   linkLtiCourseV1: 'write',
   ltiLinkSectionByUrlV1: 'write',
+  ltiUnlinkSectionV1: 'write',
   ltiExchange: 'write',
   migratePlcs: 'write',
   pinLoginV1: 'write',
