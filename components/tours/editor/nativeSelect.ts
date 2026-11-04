@@ -25,12 +25,25 @@ export const selectChoices = (el: HTMLSelectElement): SelectChoice[] =>
     label: o.textContent?.replace(/\s+/g, ' ').trim() || o.value,
   }));
 
+/** The anchor is a dropdown, or a field wrapper whose only control is one; panels stay click steps. */
+function isDropdownAnchor(
+  binding: GuidedLearningTourBinding,
+  slots: TourSlots
+): boolean {
+  if (typeof document === 'undefined' || !binding.anchor) return false;
+  const el = findTourAnchor(binding, { slots });
+  if (!el) return false;
+  if (el instanceof HTMLSelectElement) return true;
+  const controls = el.querySelectorAll('select, input, textarea, button');
+  return controls.length === 1 && controls[0] instanceof HTMLSelectElement;
+}
+
 /** A click step on a native dropdown becomes a choice step, since its options can't be clicked. */
 export function asChoiceStep(
   binding: GuidedLearningTourBinding,
   slots: TourSlots = {}
 ): GuidedLearningTourBinding {
-  if (binding.action !== 'click' || !nativeSelectOf(binding, slots))
+  if (binding.action !== 'click' || !isDropdownAnchor(binding, slots))
     return binding;
   const next: GuidedLearningTourBinding = { ...binding, action: 'select' };
   // No value yet: any choice moves on until the admin picks one.

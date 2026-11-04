@@ -58,6 +58,39 @@ const questions = [
 ];
 
 describe('planSheetReprint', () => {
+  it("finds the bubble on a stub sheet once the quiz is filled from the teacher's paper", () => {
+    const filled = [
+      {
+        ...mc('q1', 'Rennin', ['Protease', 'Aribinose', 'mRNA']),
+        optionOrder: [1, 2, 0, 3],
+        paperOwnTest: true,
+      },
+    ];
+    const stub = batch({
+      questionCount: 1,
+      choiceOrder: { q1: ['A', 'B', 'C', 'D'] },
+    });
+    const plan = planSheetReprint(
+      response([{ questionId: 'q1', answer: 'Aribinose' }]),
+      stub,
+      quiz(filled)
+    );
+    expect(plan?.filled).toEqual([1]);
+    expect(plan?.correct).toEqual([2]);
+    const unrecorded = planSheetReprint(
+      response([{ questionId: 'q1', answer: 'Aribinose' }]),
+      batch({ questionCount: 1 }),
+      quiz(filled)
+    );
+    expect(unrecorded?.filled).toEqual([1]);
+    const beforeFill = planSheetReprint(
+      response([{ questionId: 'q1', answer: 'B' }]),
+      stub,
+      quiz(filled)
+    );
+    expect(beforeFill?.filled).toEqual([1]);
+  });
+
   it('maps each answer to its bubble through the shuffled batch order', () => {
     const plan = planSheetReprint(
       response([

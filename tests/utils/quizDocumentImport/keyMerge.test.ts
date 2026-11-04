@@ -9,6 +9,8 @@ import { findAnswerKey } from '@/utils/quizDocumentImport/answerKey';
 import { readKeyItems } from '@/utils/quizDocumentImport/keyForms';
 import { mergeAnswerKey } from '@/utils/quizDocumentImport/mergeKey';
 import { fillSavedQuizKey } from '@/utils/quizDocumentImport/savedQuizKey';
+import { paperChoiceOrder } from '@/utils/paperSheetPlan';
+import { rowsFromQuestion } from '@/utils/quizChoiceRows';
 import {
   aiQuizToExtracted,
   type AiExtractedQuiz,
@@ -505,6 +507,34 @@ describe('fillSavedQuizKey (R26)', () => {
     });
     expect(result.questions[0].needsKey).toBeUndefined();
     expect(result.filled).toEqual(['a']);
+  });
+
+  it('stores a choose-all key listed out of letter order in printed order', () => {
+    const result = fillSavedQuizKey(
+      [q({ id: 'a', type: 'MA' })],
+      [{ item: 1, answer: 'C, A' }]
+    );
+    const filled = result.questions[0];
+    expect(filled.correctAnswer).toBe('Red|Green');
+    expect(rowsFromQuestion(filled).map((r) => r.text)).toEqual([
+      'Red',
+      'Blue',
+      'Green',
+      'Gold',
+    ]);
+  });
+
+  it('keeps the filled answer where the paper printed it', () => {
+    const result = fillSavedQuizKey(
+      [q({ id: 'a', paperOwnTest: true })],
+      [{ item: 1, answer: 'C' }]
+    );
+    expect(paperChoiceOrder(result.questions[0])).toEqual([
+      'Red',
+      'Blue',
+      'Green',
+      'Gold',
+    ]);
   });
 
   it('skips an answered question and a letter past the choices', () => {
