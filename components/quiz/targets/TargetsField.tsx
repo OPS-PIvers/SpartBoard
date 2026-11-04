@@ -1,6 +1,7 @@
 import React, { useId, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { QuestionTargetTag } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { TargetPicker } from './TargetPicker';
 
 interface TargetsFieldProps {
@@ -36,6 +37,7 @@ export const TargetsField: React.FC<TargetsFieldProps> = ({
         aria-haspopup="dialog"
         aria-expanded={pickerOpen}
         onClick={() => setPickerOpen(true)}
+        {...tourAttr('targets.field')}
         title={tags.map((t) => t.label).join('\n') || undefined}
         className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-left text-sm text-slate-800 hover:border-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
       >

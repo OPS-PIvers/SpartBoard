@@ -53,7 +53,7 @@ const MAX_SUB_EXPIRATION_MS = 14 * 24 * 60 * 60 * 1000;
 const ORONO_EMAIL_DOMAIN = '@orono.k12.mn.us';
 
 function formatLocalDateTime(date: Date): string {
-  // <input type="datetime-local"> needs `YYYY-MM-DDTHH:mm` in local time.
+  // datetime-local fields need `YYYY-MM-DDTHH:mm` in local time.
   const pad = (n: number) => String(n).padStart(2, '0');
   return (
     `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +

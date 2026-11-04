@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Search, X } from 'lucide-react';
 import type { LearningTarget, QuestionTargetTag } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourAttr } from '@/config/tourAnchors';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { useAuth } from '@/context/useAuth';
 import { useStandardsCatalog } from '@/hooks/useStandardsCatalog';
@@ -195,6 +196,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
       className="flex items-start gap-2 px-2 py-1.5 rounded-sm hover:bg-slate-100 cursor-pointer"
     >
       <input
+        // no-tour-anchor: one checkbox per target row, generated from the catalog
         type="checkbox"
         className="mt-1 accent-brand-blue-primary"
         checked={selected.has(tag.id)}
@@ -244,6 +246,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close"
+            {...tourAttr('target-picker.close')}
             className="p-1 rounded-sm text-slate-500 hover:bg-slate-100"
           >
             <X className="w-4 h-4" />
@@ -257,6 +260,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
               <input
                 autoFocus
                 type="search"
+                {...tourAttr('target-picker.search')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search by code or text"
@@ -271,6 +275,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
                   writeLastSource(e.target.value);
                 }}
                 aria-label="Source"
+                {...tourAttr('target-picker.source')}
                 className={`${SELECT_CLASS} max-w-40`}
               >
                 <option value={STANDARDS_SOURCE}>Standards</option>
@@ -285,6 +290,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
               value={gradeChoice}
               onChange={(e) => setGradeChoice(e.target.value)}
               aria-label="Grade"
+              {...tourAttr('target-picker.grade')}
               className={SELECT_CLASS}
             >
               <option value={ALL_GRADES_CHOICE}>All grades</option>
@@ -304,6 +310,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
                 value={subject}
                 onChange={(e) => setSubjectChoice(e.target.value)}
                 aria-label="Content area"
+                {...tourAttr('target-picker.subject')}
                 className={SELECT_CLASS}
               >
                 <option value={ALL_SUBJECTS}>All content areas</option>
@@ -355,6 +362,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
           <button
             type="button"
             onClick={onClose}
+            {...tourAttr('target-picker.cancel')}
             className="px-3 py-1.5 text-sm font-semibold rounded-lg text-slate-700 hover:bg-slate-100"
           >
             Cancel
@@ -363,6 +371,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
             <button
               type="button"
               onClick={() => onApply(selectedList, 'replace')}
+              {...tourAttr('target-picker.replace')}
               className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100"
             >
               Replace tags
@@ -373,6 +382,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
             onClick={() =>
               onApply(selectedList, allowReplace ? 'add' : 'replace')
             }
+            {...tourAttr('target-picker.apply')}
             className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-brand-blue-primary text-white hover:bg-brand-blue-dark"
           >
             {allowReplace ? 'Add tags' : 'Apply'}
