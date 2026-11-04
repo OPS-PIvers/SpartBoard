@@ -54,12 +54,10 @@ const ringCornerFit = (w: number, h: number): number => {
   return lo;
 };
 
-// Ring digits are min(22cqmin, 12rem); buttons stay within 40% of them.
 const ringCtrlSizes = (w: number, h: number) => {
-  const digits = Math.min(0.22 * Math.min(w, h), 192);
   const center = Math.max(
     MIN_CTRL_PX,
-    Math.min(0.12 * Math.min(w, h), 0.4 * digits, MAX_CTRL_PX)
+    Math.min(0.12 * Math.min(w, h), MAX_CTRL_PX)
   );
   const fit = ringCornerFit(w, h);
   // Too small to clear the ring, the +/- buttons join play/reset inside it.
