@@ -43,7 +43,7 @@ Anyone else still gets the usual **Connect** step.
 2. **Keys.** Fetch `<iss>/.well-known/openid-configuration` and check that its `issuer` equals `iss`. Use only the keys at its `jwks_uri`.
 3. **Signature.** ES256 or RS256 only.
 4. **Type.** `typ` is `oauth-id-jag+jwt`.
-5. **Audience.** `aud` is exactly the string `https://spartboard.web.app`, our authorization server's `issuer`. An array, even one holding only that value, is refused.
+5. **Audience.** `aud` is exactly the string `https://spartboard.web.app`, our authorization server's `issuer`. An array with any other audience is refused; a one-item array holding only that value is accepted.
 6. **Client.** The `client_id` claim equals the request's `client_id`, and that client is one we recognize.
 7. **Subject.** `sub` is present. It isn't used for lookup.
 8. **Time.** Checked with 60 seconds of clock skew: `exp` hasn't passed, `iat` isn't in the future, and `nbf` (if present) has passed.
