@@ -20,9 +20,6 @@ import {
   Maximize,
   Minimize2,
   Copy,
-  Eraser,
-  Undo2,
-  Trash2,
   Highlighter,
   LayoutTemplate,
   LayoutGrid,
@@ -86,7 +83,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { useHasOpenModal } from './modalStore';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { IconButton } from '@/components/common/IconButton';
-import { PenColorSwatches } from '@/components/common/PenColorSwatches';
+import { WidgetAnnotateToolbar } from './WidgetAnnotateToolbar';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -2770,92 +2767,38 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   });
                 }}
               />
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-widget-internal-overlay flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm shadow-lg rounded-full border border-slate-200 animate-in slide-in-from-bottom-2 fade-in duration-200">
-                <PenColorSwatches
-                  variant="window"
-                  value={annotationColor}
-                  onSelect={setAnnotationColor}
-                  className="flex items-center gap-1 px-1"
-                />
-                <div className="w-px h-4 bg-slate-300 mx-1" />
-                <IconButton
-                  {...tourAttr(
-                    'widget.annotate-toolbar.eraser',
-                    widget.id,
-                    widget.type
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setAnnotationColor('eraser');
-                  }}
-                  icon={<Eraser className="w-3.5 h-3.5" />}
-                  label={t('widgetWindow.eraser')}
-                  size="sm"
-                  variant="ghost"
-                  active={annotationColor === 'eraser'}
-                />
-                <IconButton
-                  {...tourAttr(
-                    'widget.annotate-toolbar.undo',
-                    widget.id,
-                    widget.type
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const paths = widget.annotation?.paths ?? [];
-                    if (paths.length > 0) {
-                      updateWidget(widget.id, {
-                        annotation: {
-                          ...widget.annotation,
-                          mode: 'window',
-                          paths: paths.slice(0, -1),
-                        },
-                      });
-                    }
-                  }}
-                  icon={<Undo2 className="w-3.5 h-3.5" />}
-                  label={t('widgetWindow.undo')}
-                  size="sm"
-                  variant="ghost"
-                />
-                <IconButton
-                  {...tourAttr(
-                    'widget.annotate-toolbar.clear-all',
-                    widget.id,
-                    widget.type
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
+              <WidgetAnnotateToolbar
+                widgetId={widget.id}
+                widgetType={widget.type}
+                /* eslint-disable react-hooks/refs -- resolvedW derives from dragState.current, as above. */
+                availableWidth={isMaximized ? window.innerWidth : resolvedW}
+                /* eslint-enable react-hooks/refs */
+                color={annotationColor}
+                onColorChange={setAnnotationColor}
+                onUndo={() => {
+                  const paths = widget.annotation?.paths ?? [];
+                  if (paths.length > 0) {
                     updateWidget(widget.id, {
                       annotation: {
+                        ...widget.annotation,
                         mode: 'window',
-                        paths: [],
-                        color: annotationColor,
-                        width: annotationWidth,
+                        paths: paths.slice(0, -1),
                       },
                     });
-                  }}
-                  icon={<Trash2 className="w-3.5 h-3.5" />}
-                  label={t('widgetWindow.clearAll')}
-                  size="sm"
-                  variant="danger"
-                />
-                <div className="w-px h-4 bg-slate-300 mx-1" />
-                <button
-                  {...tourAttr(
-                    'widget.annotate-toolbar.done',
-                    widget.id,
-                    widget.type
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsAnnotating(false);
-                  }}
-                  className="px-2 py-0.5 text-xxs font-bold bg-brand-blue-primary text-white rounded-full hover:bg-brand-blue-dark transition-colors"
-                >
-                  {t('widgetWindow.done')}
-                </button>
-              </div>
+                  }
+                }}
+                onClearAll={() => {
+                  updateWidget(widget.id, {
+                    annotation: {
+                      mode: 'window',
+                      paths: [],
+                      color: annotationColor,
+                      width: annotationWidth,
+                    },
+                  });
+                }}
+                onDone={() => setIsAnnotating(false)}
+              />
             </>
           )}
         </div>

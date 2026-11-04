@@ -670,14 +670,6 @@ const LtiDeepLinkFlow: React.FC = () => {
           setErrorMsg(`Note: ${hiddenOptions.warnings.join(' ')}`);
         }
 
-        // Gradebook scale = the quiz's total points, so a 17/20 quiz reads 17/20
-        // in Schoology (not a percentage). Shared with the Results push via
-        // quizMaxPoints so the line item and the push denominator can't drift.
-        const maxPoints = quizMaxPoints(
-          quizData.questions,
-          sessionSectionsFor(quizData)
-        );
-
         // Assessment Mode always; options and attempt limit come from the quiz.
         const { sessionMode, sessionOptions, attemptLimit } =
           splitAssignSettings;
@@ -705,6 +697,16 @@ const LtiDeepLinkFlow: React.FC = () => {
           quizData,
           selectedQuiz.driveFileId,
           { loadBankContentsForQuiz, saveDriveSnapshot }
+        );
+
+        // Gradebook scale = the points a student can earn, so a 17/20 quiz reads 17/20 in Schoology.
+        const maxPoints = quizMaxPoints(
+          content.questions,
+          sessionSectionsFor(
+            { ...quizData, questions: content.questions },
+            content.bankSlots
+          ),
+          content.bankSlots
         );
 
         const { id: assignmentId, code: quizCode } = await createAssignment(

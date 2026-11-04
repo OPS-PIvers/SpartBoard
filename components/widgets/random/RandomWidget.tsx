@@ -103,6 +103,7 @@ import { useAuth } from '@/context/useAuth';
 import { WidgetLayout } from '../WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { clearConnectionTab } from '@/components/connections/connectionTabInset';
 
 interface ModeCycleEntry {
   id: string;
@@ -1974,6 +1975,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             style={{
               padding:
                 'clamp(4px, 1.5cqmin, 12px) clamp(8px, 2.5cqmin, 20px) 0',
+              paddingRight: clearConnectionTab('clamp(8px, 2.5cqmin, 20px)'),
             }}
           >
             <div

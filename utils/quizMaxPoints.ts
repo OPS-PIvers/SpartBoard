@@ -1,4 +1,8 @@
-import type { QuizQuestion, QuizSessionSection } from '@/types';
+import type {
+  QuizQuestion,
+  QuizSessionBankSlot,
+  QuizSessionSection,
+} from '@/types';
 import { sectionAwareMaxPoints } from '@/utils/quizSections';
 
 /**
@@ -27,10 +31,41 @@ import { sectionAwareMaxPoints } from '@/utils/quizSections';
 export function quizMaxPoints(
   questions: QuizQuestion[],
   /** A choose-N section adds only its N highest point values (QUIZ_EXAMVIEW_IMPORT.md E14). */
-  sections?: readonly QuizSessionSection[]
+  sections?: readonly QuizSessionSection[],
+  /** A bank slot adds only the `count` questions each student draws, not its whole pool. */
+  bankSlots?: QuizMaxPointsSlots
 ): number {
-  return sectionAwareMaxPoints(dedupeQuestionsById(questions), sections) || 100;
+  return (
+    sectionAwareMaxPoints(
+      countedQuestions(dedupeQuestionsById(questions), bankSlots),
+      sections
+    ) || 100
+  );
 }
+
+/** Fixed questions plus, per bank slot, as many pool questions as a student draws. */
+function countedQuestions(
+  questions: QuizQuestion[],
+  bankSlots: QuizMaxPointsSlots | undefined
+): { id: string; points?: number }[] {
+  if (!bankSlots?.length) return questions;
+  const present = new Set(questions.map((q) => q.id));
+  const poolIds = new Set<string>();
+  const drawn: { id: string; points?: number }[] = [];
+  for (const slot of bankSlots) {
+    const pool = slot.poolQuestionIds.filter((id) => present.has(id));
+    for (const id of pool) poolIds.add(id);
+    const count = Math.max(0, Math.min(slot.count, pool.length));
+    for (const id of pool.slice(0, count))
+      drawn.push({ id, points: slot.points });
+  }
+  return [...questions.filter((q) => !poolIds.has(q.id)), ...drawn];
+}
+
+type QuizMaxPointsSlots = readonly Pick<
+  QuizSessionBankSlot,
+  'count' | 'points' | 'poolQuestionIds'
+>[];
 
 /**
  * Drop duplicate question ids, keeping the first occurrence. The same

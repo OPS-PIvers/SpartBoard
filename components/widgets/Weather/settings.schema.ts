@@ -159,7 +159,9 @@ export default defineSettings<WeatherSettingsKeys>({
           type: 'surfaceColor',
           label: 'clothingCard',
           opacityKey: 'cardOpacity',
-          visibleWhen: showClothing,
+          // The redesigned recess gear has no card.
+          visibleWhen: (ctx) =>
+            showClothing(ctx) && !ctx.canAccessFeature('weather-gear-layout'),
         },
       ],
     },

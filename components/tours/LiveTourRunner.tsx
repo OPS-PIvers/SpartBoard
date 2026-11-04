@@ -293,6 +293,37 @@ const drawerWidgetOf = (el: Element | null): string | null =>
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
+// Native controls whose browser popup closes when they lose focus.
+const NATIVE_POPUP =
+  'select, input[type="color"], input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"]';
+
+/** Tracks the native dropdown or picker the teacher just pressed, until they choose or leave it. */
+function watchNativePopups(onOpen: (el: HTMLElement | null) => void) {
+  let open: HTMLElement | null = null;
+  const set = (el: HTMLElement | null) => {
+    open = el;
+    onOpen(el);
+  };
+  const down = (e: Event) => {
+    const el =
+      e.target instanceof Element
+        ? e.target.closest<HTMLElement>(NATIVE_POPUP)
+        : null;
+    set(el && !el.closest('[data-tour-ignore]') ? el : null);
+  };
+  const done = (e: Event) => {
+    if (open && e.target === open) set(null);
+  };
+  window.addEventListener('pointerdown', down, true);
+  window.addEventListener('change', done, true);
+  window.addEventListener('focusout', done, true);
+  return () => {
+    window.removeEventListener('pointerdown', down, true);
+    window.removeEventListener('change', done, true);
+    window.removeEventListener('focusout', done, true);
+  };
+}
+
 const readViewport = () =>
   typeof window === 'undefined'
     ? { w: 0, h: 0 }
@@ -1369,6 +1400,17 @@ export const LiveTourRunner: React.FC = () => {
   }, [active]);
   // Next and the bar never close a menu the step is about.
   useEffect(() => (active ? shieldTourUi() : undefined), [active]);
+  // A dropdown or picker the teacher just opened keeps focus when the step moves on.
+  const openPopup = useRef<HTMLElement | null>(null);
+  useEffect(
+    () =>
+      active
+        ? watchNativePopups((el) => {
+            openPopup.current = el;
+          })
+        : undefined,
+    [active]
+  );
   // Escape never destroys work: Keep on teardown, Cancel on the practice offer.
   const finishRef = useRef(finish);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
@@ -1970,6 +2012,9 @@ export const LiveTourRunner: React.FC = () => {
   const showingStep = running && !!step;
   useEffect(() => {
     if (!showingStep) return;
+    // A dropdown the teacher just opened keeps focus, or the browser closes its list.
+    const open = openPopup.current;
+    if (open && open === document.activeElement) return;
     headingRef.current?.focus({ preventScroll: true });
   }, [showingStep, stepIndex]);
 

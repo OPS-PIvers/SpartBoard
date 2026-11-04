@@ -3196,6 +3196,28 @@ describe('LiveTourRunner Autopilot performer', () => {
     expect(name()).toHaveValue('Hello');
   });
 
+  it('keeps a clicked dropdown focused so its list stays open for the next step', async () => {
+    await begin(
+      makeSet([
+        { anchor: 'board-nav.select-board', action: 'click' },
+        { anchor: 'board-nav.select-board', action: 'select', value: 'b' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    await run(200);
+    fireEvent.pointerDown(font());
+    font().focus();
+    fireEvent.click(font());
+    await run(200);
+    expect(progress()).toBe('2 / 3');
+    expect(document.activeElement).toBe(font());
+    // Once an option is chosen, the next step takes focus as usual.
+    fireEvent.change(font(), { target: { value: 'b' } });
+    await run(200);
+    expect(progress()).toBe('3 / 3');
+    expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
+  });
+
   it('advances a type step once the field holds the text, without a blur', async () => {
     await begin(
       makeSet([

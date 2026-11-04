@@ -4144,6 +4144,7 @@
     "tourValueOn": "On",
     "tourValueOff": "Off",
     "tourValueSelect": "Autopilot chooses:",
+    "tourValueAnyChoice": "Any option",
     "tourValueType": "Autopilot types:",
     "tourTeacherMustClick": "Teacher must click this",
     "tourSetupTitle": "Widgets this tour adds",

@@ -294,6 +294,11 @@ function toPaperQuestion(raw: unknown): PaperQuestion | null {
     incorrectAnswers: Array.isArray(raw.incorrectAnswers)
       ? raw.incorrectAnswers.filter((c): c is string => typeof c === 'string')
       : [],
+    ...(Array.isArray(raw.optionOrder) &&
+    raw.optionOrder.every((i) => typeof i === 'number')
+      ? { optionOrder: raw.optionOrder }
+      : {}),
+    ...(raw.paperOwnTest === true ? { paperOwnTest: true } : {}),
     ...(raw.recording ? { recording: true } : {}),
     ...(typeof raw.maxWords === 'number' ? { maxWords: raw.maxWords } : {}),
     ...(isPaperBoxSize(raw.paperBoxSize)

@@ -4440,6 +4440,8 @@ export interface QuizQuestion {
   blankAlternates?: { answers: string[] }[];
   /** MC/MA: editor-only display order over `[right options..., incorrectAnswers...]`; students still get a shuffle. */
   optionOrder?: number[];
+  /** MC from the teacher's own test paper: answer sheets letter options in the editor order above, never shuffled. */
+  paperOwnTest?: boolean;
   /**
    * Set by a document import that read the question but not its key
    * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D5). The question saves and prints
@@ -10808,6 +10810,8 @@ export type GlobalFeature =
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
+  /** Weather: recess gear redesign that fills the widget and stays readable at small sizes. */
+  | 'weather-gear-layout'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
