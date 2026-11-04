@@ -20,7 +20,7 @@ import {
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { followLeaderId, liveConnections } from '@/utils/connectionEngine';
 import { openConnectionEditor } from '@/context/connectionsUiStore';
-import { getTitle } from '@/utils/widgetHelpers';
+import { useConnectionWidgetTitle } from '@/hooks/useConnectionWidgetTitle';
 import { useDialog } from '@/context/useDialog';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { Button } from '@/components/common/Button';
@@ -84,6 +84,7 @@ export const ScoreboardSettings: React.FC<{
     activeRosterId,
   } = useDashboard();
   const { showConfirm } = useDialog();
+  const titleOf = useConnectionWidgetTitle();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [useGroupNames, setUseGroupNames] = useState(false);
   const config = widget.config as ScoreboardConfig;
@@ -437,7 +438,7 @@ export const ScoreboardSettings: React.FC<{
           />
           <span className="flex-1 min-w-0 text-sm font-bold text-slate-700">
             {t('widgetSettings.scoreboard.teamsFromLeader', {
-              name: getTitle(leaderRandomizer),
+              name: titleOf(leaderRandomizer),
             })}
           </span>
           <Button
