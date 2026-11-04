@@ -54,13 +54,22 @@ const ringCornerFit = (w: number, h: number): number => {
   return lo;
 };
 
+// Ring digits are min(22cqmin, 12rem); buttons stay within 40% of them.
 const ringCtrlSizes = (w: number, h: number) => {
+  const digits = Math.min(0.22 * Math.min(w, h), 192);
   const center = Math.max(
     MIN_CTRL_PX,
-    Math.min(0.12 * Math.min(w, h), MAX_CTRL_PX)
+    Math.min(0.12 * Math.min(w, h), 0.4 * digits, MAX_CTRL_PX)
   );
-  const corner = Math.max(MIN_CTRL_PX, Math.min(center, ringCornerFit(w, h)));
-  return { center: Math.round(center), corner: Math.round(corner) };
+  const fit = ringCornerFit(w, h);
+  // Too small to clear the ring, the +/- buttons join play/reset inside it.
+  const inCorners = fit >= MIN_CTRL_PX;
+  const corner = inCorners ? Math.min(center, fit) : center;
+  return {
+    center: Math.round(center),
+    corner: Math.round(corner),
+    inCorners,
+  };
 };
 
 // ─── Adjust Button ──────────────────────────────────────────────────────────
@@ -522,6 +531,7 @@ export const TimeToolWidget: React.FC<{
   const [ringSizes, setRingSizes] = useState({
     center: MIN_CTRL_PX,
     corner: MIN_CTRL_PX,
+    inCorners: true,
   });
 
   // The control row is horizontal, so only a narrow widget drops the +/- steppers.
@@ -534,7 +544,11 @@ export const TimeToolWidget: React.FC<{
       setIsNarrow(width < 180);
       const next = ringCtrlSizes(width, height);
       setRingSizes((prev) =>
-        prev.center === next.center && prev.corner === next.corner ? prev : next
+        prev.center === next.center &&
+        prev.corner === next.corner &&
+        prev.inCorners === next.inCorners
+          ? prev
+          : next
       );
     });
     ro.observe(el);
@@ -829,8 +843,10 @@ export const TimeToolWidget: React.FC<{
                       className="absolute z-10 flex items-center justify-center"
                       style={{ top: '115%', gap: ctrlGap }}
                     >
+                      {!ringSizes.inCorners && subtractButton}
                       {startPauseButton}
                       {resetButton}
+                      {!ringSizes.inCorners && addButton}
                     </div>
                   )}
                 </div>
@@ -851,7 +867,7 @@ export const TimeToolWidget: React.FC<{
                 )}
               </div>
 
-              {isVisual && subtractButton && (
+              {isVisual && ringSizes.inCorners && subtractButton && (
                 <div
                   className="absolute z-10 flex"
                   style={{ bottom: CORNER_BOTTOM_PX, left: cornerSide }}
@@ -859,7 +875,7 @@ export const TimeToolWidget: React.FC<{
                   {subtractButton}
                 </div>
               )}
-              {isVisual && addButton && (
+              {isVisual && ringSizes.inCorners && addButton && (
                 <div
                   className="absolute z-10 flex"
                   style={{ bottom: CORNER_BOTTOM_PX, right: cornerSide }}
