@@ -36,7 +36,6 @@ import {
 /** Sticky sub-uid → ClassLink-uid mapping. Server-write-only (firestore.rules). */
 export const LTI_IDENTITY_BRIDGE_COLLECTION = 'lti_identity_bridge';
 
-/** Firestore collection holding the Schoology section↔class link docs. */
 /** Most ClassLink classes one launch OneRoster-fetches across co-teachers' links. */
 const MAX_BRIDGE_CLASSES = 3;
 
