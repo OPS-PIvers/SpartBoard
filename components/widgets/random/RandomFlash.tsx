@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
+import { findFittingFontSize } from './randomFlashFit';
 
 /**
  * Placeholder text shown when no winner has been picked yet. Exported so the
@@ -14,12 +15,30 @@ interface RandomFlashProps {
   fontSize?: number | string;
 }
 
+const TEXT_CLASS = 'leading-tight uppercase';
+const TEXT_STYLE = {
+  display: 'inline-block',
+  maxWidth: '100%',
+  textAlign: 'center',
+  wordBreak: 'normal',
+  overflowWrap: 'normal',
+} as const;
+const MEASURER_STYLE = {
+  position: 'absolute',
+  left: '0',
+  top: '0',
+  visibility: 'hidden',
+  pointerEvents: 'none',
+} as const;
+
 export const RandomFlash: React.FC<RandomFlashProps> = ({
   displayResult,
   isSpinning,
   fontSize,
 }) => {
   const globalStyle = useGlobalStyle();
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<{ label: string; px: number } | null>(null);
 
   const fontStyle = typeof fontSize === 'number' ? `${fontSize}px` : fontSize;
 
@@ -32,6 +51,44 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
       ? displayResult
       : RANDOM_FLASH_PLACEHOLDER;
 
+  // Settled names are measured to fill the box; spinning keeps the stable roster-wide size.
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    if (isSpinning || !box) return;
+    const measure = () => {
+      const cs = getComputedStyle(box);
+      const w =
+        box.clientWidth -
+        parseFloat(cs.paddingLeft || '0') -
+        parseFloat(cs.paddingRight || '0');
+      const h =
+        box.clientHeight -
+        parseFloat(cs.paddingTop || '0') -
+        parseFloat(cs.paddingBottom || '0');
+      // A throwaway copy so the measuring text never sits in the DOM between fits.
+      const measurer = document.createElement('span');
+      measurer.className = TEXT_CLASS;
+      Object.assign(measurer.style, TEXT_STYLE, MEASURER_STYLE);
+      measurer.textContent = label;
+      box.appendChild(measurer);
+      const px = findFittingFontSize(measurer, w, h);
+      measurer.remove();
+      setFit(px === null ? null : { label, px });
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    let cancelled = false;
+    void document.fonts?.ready.then(() => {
+      if (!cancelled) measure();
+    });
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, [label, isSpinning, globalStyle.fontFamily]);
+
   // Cap by line count so wrapped names fit the flash area's height.
   const words = label.trim().split(/[ \t\n\r\f\v]+/);
   // While spinning keep the roster-wide size so the font doesn't jump each tick.
@@ -40,10 +97,12 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
     lines > 1
       ? `max(min(${fontStyle}, ${Math.floor(75 / lines)}cqh), min(${Math.max(4, Math.round(75 / label.length))}cqw, 60cqh))`
       : fontStyle;
+  const measured = !isSpinning && fit?.label === label ? fit.px : null;
 
   return (
     <div
-      className={`text-center font-black transition-all duration-300 w-full flex items-center justify-center font-${globalStyle.fontFamily} ${
+      ref={boxRef}
+      className={`relative text-center font-black transition-all duration-300 w-full flex items-center justify-center font-${globalStyle.fontFamily} ${
         isSpinning
           ? 'scale-90 opacity-30 grayscale'
           : 'scale-100 text-brand-blue-primary drop-shadow-xl'
@@ -56,14 +115,11 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
       }}
     >
       <span
-        className="leading-tight uppercase transition-[font-size] duration-300"
+        className={`${TEXT_CLASS} transition-[font-size] duration-300`}
         style={{
-          display: 'inline-block',
-          maxWidth: '100%',
-          textAlign: 'center',
-          wordBreak: 'normal',
-          overflowWrap: 'normal',
-          fontSize: `min(300px, ${fitted})`,
+          ...TEXT_STYLE,
+          fontSize:
+            measured !== null ? `${measured}px` : `min(300px, ${fitted})`,
         }}
       >
         {label}
