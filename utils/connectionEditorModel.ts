@@ -8,11 +8,24 @@ import { actionDefFor, connectionDefFor } from '@/config/widgetConnections';
 import { getTitle } from '@/utils/widgetHelpers';
 import { TOOLS } from '@/config/tools';
 
-// getTitle falls back to the raw type id ("Activity-wall"); the Dock's label reads better.
-const editorTitle = (w: WidgetData): string => {
+/** A widget's name in connection UI: the teacher's title, else the admin name, else the Dock label. */
+export const connectionWidgetTitle = (
+  w: WidgetData,
+  adminName?: string
+): string => {
+  if (w.customTitle) return w.customTitle;
   const title = getTitle(w);
+  const admin = adminName?.trim();
+  if (admin) {
+    // Keep a config-derived name (a quiz or guide title) so two such widgets stay apart.
+    const generic = getTitle({ ...w, config: {} });
+    if (title === generic) return admin;
+    return title.startsWith(`${generic}: `)
+      ? `${admin}${title.slice(generic.length)}`
+      : title;
+  }
   const raw = w.type.charAt(0).toUpperCase() + w.type.slice(1);
-  if (w.customTitle || title !== raw) return title;
+  if (title !== raw) return title;
   return TOOLS.find((tool) => tool.type === w.type)?.label ?? title;
 };
 
@@ -138,14 +151,18 @@ const clock = (seconds: number) => {
 /** Names a teacher can tell apart: Timers by their set time, others by title, numbered on a clash. */
 export const widgetNames = (
   widgets: WidgetData[],
-  timerName: (time: string) => string
+  timerName: (time: string, name: string) => string,
+  titleOf: (w: WidgetData) => string = (w) => connectionWidgetTitle(w)
 ): Map<string, string> => {
   const base = (w: WidgetData) =>
     w.type === 'time-tool' &&
     (w.config as TimeToolConfig).mode === 'timer' &&
     typeof (w.config as TimeToolConfig).duration === 'number'
-      ? timerName(clock((w.config as TimeToolConfig).duration))
-      : editorTitle(w);
+      ? timerName(
+          clock((w.config as TimeToolConfig).duration),
+          titleOf({ ...w, customTitle: undefined })
+        )
+      : titleOf(w);
   const counts = new Map<string, number>();
   for (const w of widgets) counts.set(base(w), (counts.get(base(w)) ?? 0) + 1);
   const seen = new Map<string, number>();

@@ -922,6 +922,41 @@ describe('TimeToolWidget', () => {
       expect(wrapperFor(html, 'Pause')).toContain('top:115%');
     });
 
+    it('moves ± under the time with play/reset when the ring is too small for corners', () => {
+      const Original = global.ResizeObserver;
+      global.ResizeObserver = class {
+        constructor(private cb: ResizeObserverCallback) {}
+        observe = () =>
+          this.cb(
+            [
+              {
+                contentRect: { width: 220, height: 220 },
+              } as ResizeObserverEntry,
+            ],
+            this
+          );
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      };
+      try {
+        renderWidget(
+          createWidget({
+            mode: 'timer',
+            isRunning: true,
+            duration: 300,
+            elapsedTime: 240,
+            visualType: 'visual',
+          })
+        );
+      } finally {
+        global.ResizeObserver = Original;
+      }
+
+      const row = screen.getByLabelText('Pause').parentElement;
+      expect(row).toContainElement(screen.getByLabelText('Subtract time'));
+      expect(row).toContainElement(screen.getByLabelText('Add time'));
+    });
+
     it('hides ± adjust buttons in stopwatch mode (only play/reset render)', () => {
       const widget = createWidget({
         mode: 'stopwatch',

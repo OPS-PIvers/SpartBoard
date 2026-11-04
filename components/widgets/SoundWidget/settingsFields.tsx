@@ -98,10 +98,14 @@ export const SoundGoalTeamField: React.FC<{ ctx: CustomRenderCtx }> = ({
   const stored = config.quietGoalTeamId
     ? `${config.quietGoalScoreboardId ?? ''}|${config.quietGoalTeamId}`
     : '';
-  // Older picks saved only the team; show them on the first Scoreboard that has it.
+  const stalePick =
+    !!config.quietGoalScoreboardId &&
+    connected.length > 0 &&
+    !connected.includes(config.quietGoalScoreboardId);
+  // Older picks saved only the team, and picks on a no-longer-connected Scoreboard, show on the first Scoreboard that has the team.
   const value =
     options.find((o) => o.value === stored)?.value ??
-    (config.quietGoalTeamId && !config.quietGoalScoreboardId
+    (config.quietGoalTeamId && (!config.quietGoalScoreboardId || stalePick)
       ? options.find((o) => o.value.endsWith(`|${config.quietGoalTeamId}`))
           ?.value
       : undefined) ??

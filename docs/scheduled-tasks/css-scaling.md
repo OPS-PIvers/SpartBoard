@@ -3,9 +3,11 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-03_
+_Last audited: 2026-11-04_
 _Last action: 2026-10-22 — LOW SmartNotebook Viewer page-counter `minWidth` scaled with cqmin (moved to Completed). Prior: 2026-10-21 — LOW MusicWidget landscape status row `gap-2` replaced with `min(8px, 2cqh)` gap (moved to Completed). Prior: 2026-10-18 — LOW `MiniAppAssignModal` skipped-students warning text scaled with cqmin (both duplicate entries moved to Completed). Prior: 2026-10-17 — LOW Soundboard active-sound dot scaled with cqmin._
 
+
+_2026-11-04: Daily audit (Wednesday). Scanned `components/widgets/**/Widget.tsx` for `max-h/max-w-[Npx]` caps and fixed pixel sizes; only container-query breakpoints (`@container(max-width:Npx)`) and `min()` clamps found, no content caps. 0 new issues._
 
 _2026-11-03: Daily audit (Tuesday). No `max-h-[Npx]`/`max-w-[Npx]` caps in any `Widget.tsx`; no new anti-patterns found; open items unchanged. 0 new issues._
 _2026-11-02: Daily audit (Monday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; only fixed-px hits are the two exempt portaled `fixed` DrawingWidget popovers. Poll/Quiz/Soundboard `Widget.tsx` changed since last audit (cqmin margin/padding scaling, #4971) — no new anti-patterns. 0 new issues._
@@ -428,6 +430,8 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 - **File:** components/widgets/random/RandomClassContextButton.tsx :337–:455 (drifted from :289–:367 — the 2026-09-18 class-groups feature, `377997e`, inserted a new "Draw from" pool section ahead of the existing class-switch list, pushing every hit further down)
 - **Detail:** The context dropdown menu rendered via `createPortal` to `document.body` still contains the same 9 violations, now at `w-4 h-4`/`w-3.5 h-3.5` icon elements (lines 349, 355, 440) and `text-sm`/`text-[10px]` text elements (lines 350, 363, 398, 403, 441, 448). This dropdown is portaled outside the widget's CSS container-query context, so `cqmin` units **will not resolve** against the widget size. The fix requires viewport-relative or em-based units, not `cqmin`. The RandomWidget has `skipScaling: true`. Additionally, the new pool section (lines 412–421) now also renders the shared `components/common/RosterGroupMenuItems.tsx` inline inside this same portal — that file's own hardcoded `pl-7 pr-3 py-1.5`/`w-3 h-3`/`text-xs`/`text-[10px]`/`ml-2 px-2 py-0.5` classes (its full content, no line list needed since the whole ~35-line file is unscaled) are further un-scaled surface under this same already-tracked finding, not a new distinct item, since it shares the identical portaled-dropdown, vmin-not-cqmin fix path.
 - **Fix:** Use `vmin` units (or em cascading from a viewport-based root) mirroring the LunchCount portaled modal pattern (which uses `vmin` per the comment at line 1045–1048). Example: `w-4 h-4` → `style={{ width: 'min(16px, 1.6vmin)', height: 'min(16px, 1.6vmin)' }}`, `text-sm` → `style={{ fontSize: 'min(14px, 1.4vmin)' }}`, `text-[10px]` → `style={{ fontSize: 'min(10px, 1vmin)' }}`. Apply the same conversion to `RosterGroupMenuItems.tsx` since it is only ever rendered inside portaled dropdowns (this one and `ActiveClassChip`'s, see the new Open item below).
+
+- **2026-11-04 action (deferred):** Selected this item's sibling (`RandomClassContextButton`, first Open LOW) and did not apply the fix. The suggested `min(14px, 1.4vmin)` pattern shrinks text below 14px on any viewport under 1000px tall-side (a 1366x768 Chromebook gives ~10.7px menu text, ~7.7px for `text-[10px]` labels), a legibility regression for a menu teachers click. Needs a decision on a floor (e.g. `clamp(12px, 1.4vmin, 16px)`) before converting both dropdowns together. Needs manual review.
 
 ### LOW Shared `ActiveClassChip.tsx` portaled class/group-switcher dropdown has zero scaling, unlike its own correctly-`clamp()`-scaled trigger chip
 
