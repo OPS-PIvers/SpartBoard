@@ -421,7 +421,7 @@ export function schoologyUidFromSub(sub: string): string | null {
   return ID_RE.test(prefix) ? prefix : null;
 }
 
-const SIS_ID_RE = /^[A-Za-z0-9._-]{1,128}$/;
+const SIS_ID_RE = /^[A-Za-z0-9:_.-]{1,256}$/;
 
 export interface SchoologySection {
   id: string;
@@ -432,14 +432,12 @@ export interface SchoologySection {
   gradingPeriodIds: string[];
 }
 
-/** The section whose SIS id is `sisId`, or null when Schoology has none. */
+/** The section whose SIS id is `sisId`, or null when Schoology has none or the id can't be one. */
 export async function getSectionBySisId(
   creds: SchoologyApiCredentials,
   sisId: string
 ): Promise<SchoologySection | null> {
-  if (!SIS_ID_RE.test(sisId)) {
-    throw new SchoologyRestError('Invalid class id.', 0);
-  }
+  if (!SIS_ID_RE.test(sisId)) return null;
   let json: unknown;
   try {
     ({ json } = await sgyFetch(

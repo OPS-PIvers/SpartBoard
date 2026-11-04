@@ -94,6 +94,19 @@ function restCreds(): SchoologyApiCredentials | null {
   return creds;
 }
 
+/** One roster per ClassLink class (the most recently synced), at most MAX_CLASSES. */
+export function onePerClass(rosters: OwnedRoster[]): OwnedRoster[] {
+  const byClass = new Map<string, OwnedRoster>();
+  for (const r of rosters) {
+    if (!r.classlinkClassId) continue;
+    const prev = byClass.get(r.classlinkClassId);
+    if (!prev || r.syncedAt > prev.syncedAt) {
+      byClass.set(r.classlinkClassId, r);
+    }
+  }
+  return [...byClass.values()].slice(0, MAX_CLASSES);
+}
+
 async function callerLinks(
   db: admin.firestore.Firestore,
   uid: string
@@ -308,21 +321,21 @@ export const ltiFindSchoologySectionsV1 = onCall(
       );
     }
 
-    const owned = (await ownedLinkableRosters(db, callerUid)).filter(
-      (r) => !!r.classlinkClassId
-    );
+    const owned = await ownedLinkableRosters(db, callerUid);
     if (rosterIds === null) {
       const rows = await findRows(
         db,
         callerUid,
         email,
         creds,
-        owned.slice(0, MAX_CLASSES)
+        onePerClass(owned)
       );
       return { rows };
     }
 
-    const wanted = owned.filter((r) => rosterIds.includes(r.rosterId));
+    const wanted = onePerClass(
+      owned.filter((r) => rosterIds.includes(r.rosterId))
+    );
     const rows = await findRows(db, callerUid, email, creds, wanted);
     const results: FoundRow[] = [];
     for (const [i, row] of rows.entries()) {

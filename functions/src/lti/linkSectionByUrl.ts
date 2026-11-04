@@ -103,6 +103,8 @@ export interface OwnedRoster {
   classlinkClassId: string | null;
   testClassId: string | null;
   classlinkOrgId: string | null;
+  /** When ClassLink last synced the roster, else when it was created. */
+  syncedAt: number;
 }
 
 export async function ownedLinkableRosters(
@@ -120,6 +122,8 @@ export async function ownedLinkableRosters(
       classlinkClassId?: unknown;
       testClassId?: unknown;
       classlinkOrgId?: unknown;
+      classlinkSyncedAt?: unknown;
+      createdAt?: unknown;
     };
     const str = (v: unknown): string | null =>
       typeof v === 'string' && v ? v : null;
@@ -131,6 +135,12 @@ export async function ownedLinkableRosters(
         classlinkClassId,
         testClassId,
         classlinkOrgId: str(data.classlinkOrgId),
+        syncedAt:
+          typeof data.classlinkSyncedAt === 'number'
+            ? data.classlinkSyncedAt
+            : typeof data.createdAt === 'number'
+              ? data.createdAt
+              : 0,
       });
     }
   }

@@ -338,12 +338,18 @@ describe('getSectionBySisId', () => {
     });
   });
 
-  it('refuses an id that could change the path', async () => {
+  it('treats an id that could change the path as no section', async () => {
     const fetchMock = stubFetch();
-    await expect(
-      getSectionBySisId(CREDS, '../users/me')
-    ).rejects.toBeInstanceOf(SchoologyRestError);
+    await expect(getSectionBySisId(CREDS, '../users/me')).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('encodes a sourcedId with a colon', async () => {
+    const fetchMock = stubFetch(new Response('', { status: 404 }));
+    await getSectionBySisId(CREDS, 'org:class-1');
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${API}/sections/ext/org%3Aclass-1`
+    );
   });
 });
 

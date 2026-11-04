@@ -219,6 +219,17 @@ describe('ltiFindSchoologySectionsV1 find', () => {
     expect(courseLinks.size).toBe(0);
   });
 
+  it('gives a class imported twice one row, for the newest roster', async () => {
+    rosters = [
+      { id: 'r-old', data: { classlinkClassId: 'cl-1', classlinkSyncedAt: 1 } },
+      { id: 'r-new', data: { classlinkClassId: 'cl-1', classlinkSyncedAt: 5 } },
+    ];
+    const { rows } = await call({ auth: TEACHER, data: {} });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ rosterId: 'r-new', status: 'ready' });
+    expect(sectionMock).toHaveBeenCalledTimes(1);
+  });
+
   it('marks a section another teacher linked as taken', async () => {
     courseLinks.set('111', { teacherUid: 'teacher-2', rosterId: 'x' });
     const r = byRoster((await call({ auth: TEACHER, data: {} })).rows);
