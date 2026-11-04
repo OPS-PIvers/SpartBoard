@@ -7,7 +7,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
 - **Next free ID: PT-126.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
-Last audited 2026-11-01. Items removed as done: PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
+Last audited 2026-11-01. Items removed as done: PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
 ---
 
@@ -124,7 +124,6 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 - [ ] **PT-70 You: Artifact Registry cleanup on prod.** Apply the same 1-day policy dev has (#4332) once its effect on build cache and deploy time is confirmed on dev. About $2/mo.
 - [ ] **PT-71 You: unused secrets.** No deployed function references `JULES_API_KEY` or `YOUTUBE_API_KEY` (checked 2026-11-01). Disable them in prod Secret Manager (reversible). Never run `firebase functions:secrets:prune`.
 - [ ] **PT-72 You: stale budget.** Delete the $20 "SpartBoard" budget on the personal billing account (01597B); it covers nothing now.
-- [ ] **PT-73 You: Vertex on prod.** Confirm `aiplatform.googleapis.com` is enabled and `roles/aiplatform.user` is granted on `spartboard`.
 - [ ] **PT-74 🤖 Daily prod backup schedule** (delete protection and PITR are on; PITR's 7 days is the only recovery path).
   > Propose a daily Firestore backup schedule for prod with a retention and cost estimate, then create it after I say go.
 - [ ] **PT-75 🤖 Prod CI to keyless deploys.**
@@ -134,16 +133,11 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 ## 5. District, IT, counsel and Google
 
-- [ ] **PT-77 You: IT trusts the OAuth clients** in Admin Console > Security > API Controls: the prod web client (`…-hdc7`) and both "Chrome extension" clients (prod `759666600376-3588...`, dev `258543092004-9mfh...`), so teachers get no consent prompt (H8).
 - [ ] **PT-78 You: IT force-installs the extension** on staff Chromebooks (0.1.26 is Published).
 - [ ] **PT-79 You: counsel, espeak-ng GPL-3** (F14, G19, #2337). `flashcards-speak` stays admin-only until counsel confirms.
 - [ ] **PT-80 You: counsel and family notice for Focus** (G1). Keep "Show each student's current site in Focus" off on prod until then. Before any pilot: 🤖 "Run `node scripts/focus-vapid-keygen.mjs --project prod` and commit the listing." (F59). Then the FS10 student pilot and the web tours pilot.
-- [ ] **PT-81 You: district privacy review for handwritten paper responses** (D7) before `paper-handwritten-responses` opens.
-- [ ] **PT-82 You: district sign-off for the AI Responsible Use widget**: the drafted grade 3-12 term definitions and the placeholder task-group headers (Writing, Projects, Learning support…).
-- [ ] **PT-83 You: counsel on the Gemini API age clause** before wide distribution.
 - [ ] **PT-84 You: wide distribution (hard to reverse).** Custom domain decision (the `*.web.app` domain can't meet OAuth branding rules), then upload the consent-screen logo (`marketplace-assets/icon-128.png`), then submit sensitive-scope verification (spreadsheets, calendar.readonly). Counsel finalizes `/privacy` and `/terms`; decide Path A vs B; then flip the consent screen Internal to External. 🤖 for the code half: "Broaden SupportPage.tsx for external users per docs/wide-distro-plan.md Phase 4."
 - [ ] **PT-85 You: vanity short domain** for the link shortener ($15-50/yr).
-- [ ] **PT-86 You: M14 Schoology Phase E** formal deliverables with the district.
 
 ## 6. Decisions (nothing blocked; pick when convenient)
 
