@@ -1714,7 +1714,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget.close-confirm.cancel': ['board.widget'],
     'widget.close-confirm.confirm': ['board.widget'],
     'widget.annotate-toolbar.colors': ['board.widget'],
-    'widget.annotate-toolbar.tools': ['board.widget'],
     'widget.annotate-toolbar.eraser': ['board.widget'],
     'widget.annotate-toolbar.undo': ['board.widget'],
     'widget.annotate-toolbar.clear-all': ['board.widget'],

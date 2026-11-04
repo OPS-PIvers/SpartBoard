@@ -32131,26 +32131,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "widget.annotate-toolbar.colors",
-    "label": "Pen colors button in a narrow widget annotate toolbar",
-    "scope": "widget",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.widget",
-        "kind": "widget",
-        "path": [
-          "widget.annotate"
-        ],
-        "reveal": "widget.annotate",
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "widget.annotate-toolbar.tools",
-    "label": "More tools button in a narrow widget annotate toolbar",
+    "label": "Pen colors in the widget annotate toolbar",
     "scope": "widget",
     "panel": true,
     "routes": [

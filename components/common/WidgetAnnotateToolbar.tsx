@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Eraser, MoreHorizontal, Trash2, Undo2 } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
@@ -6,6 +6,8 @@ import { PenColorSwatches } from '@/components/common/PenColorSwatches';
 import { tourAttr } from '@/config/tourAnchors';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { getAnnotateToolbarLayout } from '@/utils/annotateToolbarLayout';
+import { useTourRunning } from '@/components/tours/tourState';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface WidgetAnnotateToolbarProps {
   widgetId: string;
@@ -35,7 +37,23 @@ export const WidgetAnnotateToolbar: React.FC<WidgetAnnotateToolbarProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   useClickOutside(containerRef, () => setOpen(null));
 
-  const layout = getAnnotateToolbarLayout(availableWidth);
+  const tourRunning = useTourRunning();
+  const fitted = getAnnotateToolbarLayout(availableWidth);
+  // Live tours point at the inline tool anchors, so tools never fold away during one.
+  const layout =
+    tourRunning && fitted === 'compact' ? 'colors-collapsed' : fitted;
+
+  // Tapped buttons don't take focus on Safari/touch, so catch Escape on window before the widget exits annotate mode.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || isEscapeFromWidgetInput(e)) return;
+      e.stopPropagation();
+      setOpen(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [open]);
   const isEraser = color === 'eraser';
   const popoverMaxW = Math.max(availableWidth - 16, 96);
 
@@ -92,12 +110,6 @@ export const WidgetAnnotateToolbar: React.FC<WidgetAnnotateToolbarProps> = ({
     <div
       ref={containerRef}
       data-annotate-toolbar-layout={layout}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && open) {
-          e.stopPropagation();
-          setOpen(null);
-        }
-      }}
       className="absolute bottom-4 left-1/2 -translate-x-1/2 z-widget-internal-overlay flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm shadow-lg rounded-full border border-slate-200 animate-in slide-in-from-bottom-2 fade-in duration-200"
     >
       {layout === 'full' ? (
@@ -106,6 +118,11 @@ export const WidgetAnnotateToolbar: React.FC<WidgetAnnotateToolbarProps> = ({
           value={color}
           onSelect={onColorChange}
           className="flex items-center gap-1 px-1"
+          anchor={tourAttr(
+            'widget.annotate-toolbar.colors',
+            widgetId,
+            widgetType
+          )}
         />
       ) : (
         <button
@@ -139,8 +156,8 @@ export const WidgetAnnotateToolbar: React.FC<WidgetAnnotateToolbarProps> = ({
       {divider}
       {layout === 'compact' ? (
         <>
+          {/* no-tour-anchor: only shown outside live tours; tours use the inline tool anchors */}
           <IconButton
-            {...tourAttr('widget.annotate-toolbar.tools', widgetId, widgetType)}
             aria-haspopup="true"
             aria-expanded={open === 'tools'}
             onClick={(e) => {

@@ -116,7 +116,6 @@ export const SURFACES: TourSurfaceMap = {
       'widget.close-confirm.cancel': 'widget.close',
       'widget.close-confirm.confirm': 'widget.close',
       'widget.annotate-toolbar.colors': 'widget.annotate',
-      'widget.annotate-toolbar.tools': 'widget.annotate',
       'widget.annotate-toolbar.eraser': 'widget.annotate',
       'widget.annotate-toolbar.undo': 'widget.annotate',
       'widget.annotate-toolbar.clear-all': 'widget.annotate',

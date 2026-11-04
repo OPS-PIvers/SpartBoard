@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { DEFAULT_PEN_COLORS } from '@/utils/penColors';
 import { getAnnotateToolbarLayout } from '@/utils/annotateToolbarLayout';
+import { setTourRunning } from '@/components/tours/tourState';
 import { WidgetAnnotateToolbar } from './WidgetAnnotateToolbar';
 
 const renderToolbar = (
@@ -81,5 +82,35 @@ describe('WidgetAnnotateToolbar', () => {
     expect(screen.getByLabelText('Pen color 1')).toBeInTheDocument();
     fireEvent.pointerDown(document.body);
     expect(screen.queryByLabelText('Pen color 1')).not.toBeInTheDocument();
+  });
+
+  it('keeps the tools inline during a live tour so their anchors resolve', () => {
+    setTourRunning(true);
+    try {
+      renderToolbar(180);
+      expect(screen.getByLabelText('Eraser')).toBeInTheDocument();
+      expect(screen.getByLabelText('Undo')).toBeInTheDocument();
+      expect(screen.getByLabelText('Clear All')).toBeInTheDocument();
+    } finally {
+      setTourRunning(false);
+    }
+  });
+
+  it('anchors the colors in every layout', () => {
+    renderToolbar(500);
+    expect(
+      document.querySelector('[data-tour="widget.annotate-toolbar.colors"]')
+    ).toBeInTheDocument();
+  });
+
+  it('closes a popover on Escape without letting it reach the widget', () => {
+    const outer = vi.fn();
+    window.addEventListener('keydown', outer);
+    renderToolbar(300);
+    fireEvent.click(screen.getByRole('button', { name: 'Pen colors' }));
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByLabelText('Pen color 1')).not.toBeInTheDocument();
+    expect(outer).not.toHaveBeenCalled();
+    window.removeEventListener('keydown', outer);
   });
 });

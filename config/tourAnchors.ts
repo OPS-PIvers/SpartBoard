@@ -7474,15 +7474,11 @@ export const TOUR_ANCHORS = {
     destructive: true,
   },
   'widget.annotate-toolbar.colors': {
-    label: 'Pen colors button in a narrow widget annotate toolbar',
+    label: 'Pen colors in the widget annotate toolbar',
     perWidget: true,
     panel: true,
   },
-  'widget.annotate-toolbar.tools': {
-    label: 'More tools button in a narrow widget annotate toolbar',
-    perWidget: true,
-    panel: true,
-  },
+
   'widget.annotate-toolbar.eraser': {
     label: 'Eraser button in the widget annotate toolbar',
     perWidget: true,
