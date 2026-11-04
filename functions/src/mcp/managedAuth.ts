@@ -234,9 +234,6 @@ export async function exchangeAssertion(
 
   // 1. Issuer, against the one org it resolves to, before any key fetch.
   const orgId = await resolveOrg(db, iss, unverified.aud_tenant);
-  // Client check after the issuer, so untrusted requests never trigger a CIMD fetch.
-  const client = await verifyClientId(db, clientId);
-  if (!client) throw deny('Unknown client');
 
   // 2-5, 8. Keys from the issuer's own discovery document, signature, typ, aud and time.
   const jwksUri = await jwksUriFor(iss, deps);
@@ -272,6 +269,9 @@ export async function exchangeAssertion(
   // 6-7. Client and subject.
   if (payload.client_id !== clientId)
     throw deny('Assertion is for another client');
+  // Client lookup only after the signature, so unsigned requests never trigger a CIMD fetch.
+  const client = await verifyClientId(db, clientId);
+  if (!client) throw deny('Unknown client');
   if (!str(payload.sub)) throw deny('Assertion has no subject');
 
   // Claude-issued: find the user by email, only on a domain this org has verified.
