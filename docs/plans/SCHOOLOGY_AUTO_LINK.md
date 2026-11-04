@@ -22,7 +22,7 @@ All calls were GETs. Nothing was written. No student names, emails or response b
 
 ### D1. Start from the caller's classes
 
-`ltiFindSchoologySectionsV1` (callable, teacher only, same flag gate as `ltiLinkSectionByUrlV1`) reads the caller's rosters with a `classlinkClassId` (`ownedLinkableRosters`) and, a few at a time, calls `GET /sections/ext/{classlinkClassId}`. A 404 means "no Schoology course for this class". The teacher's Schoology uid isn't needed, so admins without a OneRoster record and co-taught sections work the same way. Test-class rosters are skipped (no SIS id).
+`ltiFindSchoologySectionsV1` (callable, teacher only, same flag gate as `ltiLinkSectionByUrlV1`) reads the caller's rosters with a `classlinkClassId` (`ownedLinkableRosters`), dedupes them by `classlinkClassId` (a teacher can import the same class twice; that class gets one row, which links the most recently synced roster), caps the list at `MAX_CANDIDATE_CLASSES` as `overlapByRoster` does, and, a few at a time, calls `GET /sections/ext/{classlinkClassId}`. A 404 means "no Schoology course for this class". Each lookup (REST and NRPS) is caught on its own: any other failure (403, 5xx, timeout) makes that row "Couldn't check" and the other rows still list. The teacher's Schoology uid isn't needed, so admins without a OneRoster record and co-taught sections work the same way. Test-class rosters are skipped (no SIS id).
 
 ### D2. Ownership checks stay
 
@@ -34,7 +34,7 @@ Before a pair is offered, and again when it is confirmed, each section passes th
 
 ### D3. The confirmation list
 
-The Link Schoology dialog gets **Find my Schoology courses**. It lists one row per class: the class name, the suggested section title, its grading period title, and a checkbox (on by default when the section isn't linked yet). Rows show "Already linked" for a class whose link already points at that section, "No Schoology course" for a 404, and "Linked by another teacher" where that applies. **Link selected** writes them through the existing link path, which since #5155 replaces a class's old link.
+The Link Schoology dialog gets **Find my Schoology courses**. It lists one row per class: the class name, the suggested section title, its grading period title, and a checkbox (on by default when the section isn't linked yet). Rows show "Already linked" for a class whose link already points at that section, "No Schoology course" for a 404, and "Linked by another teacher" where that applies. **Link selected** calls a new SIS-match write mode on the same callable, not the paste-a-URL `{ url, rosterId }` mode, which still rejects zero student overlap. For each pair it re-checks `GET /sections/ext/{classlinkClassId}`, `isActiveInstructor` and no-takeover, then writes with the same transaction and `dropOtherLinksForClass` as today, so since #5155 a class's old link is replaced.
 
 ### D4. Semester change
 
@@ -42,7 +42,7 @@ S2 classes reach SpartBoard when ClassLink syncs them into the teacher's rosters
 
 ### D5. Calls and limits
 
-Per run: one REST GET per ClassLink roster (teachers have about 5–12), one NRPS read per matched section, one grading-period GET per distinct period (cache by id). Use `restClient.ts` with two new readers, `getSectionBySisId(classId)` (404 → null) and `getGradingPeriod(id)`, both guarded by `assertId`-style checks (a GUID pattern for the class id). Never log response bodies.
+Per run: one REST GET per ClassLink roster (teachers have about 5–12), one NRPS read per matched section, one grading-period GET per distinct period (cache by id). Use `restClient.ts` with two new readers, `getSectionBySisId(classId)` (404 → null) and `getGradingPeriod(id)`, both with input checks. The class id check accepts any shape a stored OneRoster `sourcedId` can take (`[A-Za-z0-9:_.-]{1,256}`, passed through `encodeURIComponent`), since only one GUID was probed and rosters store `sourcedId` unchecked; an id that fails the check makes that row "No Schoology course" instead of throwing. Tests cover one section erroring while the others still list, and two rosters on one class giving one row. Never log response bodies.
 
 ## PR
 
