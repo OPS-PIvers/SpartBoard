@@ -13,6 +13,7 @@ import type { QuizQuestion } from '@/types';
 import { multiAnswerKey, type KeyItem } from './types';
 import { keyItemLabel } from './mergeKey';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
+import { questionFromRows } from '@/utils/quizChoiceRows';
 
 export interface SavedKeySkip {
   /** The question the entry matched, when it matched one. */
@@ -112,7 +113,15 @@ function fill(
     return { reason: `key says ${answer}, question takes one answer` };
   }
   const right = indexes.map((i) => q.incorrectAnswers[i]);
-  const { needsKey: _needsKey, ...rest } = q;
+  const { needsKey: _needsKey, optionOrder: _order, ...rest } = q;
+  // Keep each option where the paper printed it; a teacher's own test is lettered that way.
+  const { optionOrder } = questionFromRows(
+    q.incorrectAnswers.map((text, i) => ({
+      text,
+      correct: indexes.includes(i),
+    })),
+    q.type === 'MA'
+  );
   return {
     question: {
       ...rest,
@@ -120,6 +129,7 @@ function fill(
       incorrectAnswers: q.incorrectAnswers.filter(
         (_text, i) => !indexes.includes(i)
       ),
+      ...(optionOrder ? { optionOrder } : {}),
     },
   };
 }

@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { applyQuestionFill } from '@/utils/paperQuestionOcr';
+import { paperChoiceOrder } from '@/utils/paperSheetPlan';
 import type { QuizData, QuizQuestion } from '@/types';
 
 function stub(over: Partial<QuizQuestion> = {}): QuizQuestion {
@@ -31,6 +32,28 @@ const quiz = (questions: QuizQuestion[]): QuizData => ({
 });
 
 describe('applyQuestionFill', () => {
+  it("letters the answer sheet in the order the teacher's own paper prints", () => {
+    const options = ['Protease', 'Aribinose', 'Rennin', 'mRNA'];
+    const next = applyQuestionFill(
+      quiz([stub()]),
+      { 1: { text: 'Protein', options, correctAnswer: 'Rennin' } },
+      99
+    );
+    const q = next.questions[0];
+    expect(q.paperOwnTest).toBe(true);
+    expect(paperChoiceOrder(q)).toEqual(options);
+  });
+
+  it('keeps the paper order when the document named no answer', () => {
+    const options = ['Reaction 1', 'Reaction 2'];
+    const next = applyQuestionFill(
+      quiz([stub()]),
+      { 1: { text: 'Which reaction?', options, correctAnswer: '' } },
+      99
+    );
+    expect(paperChoiceOrder(next.questions[0])).toEqual(options);
+  });
+
   it('fills the stem, the choices and the key onto a stub row', () => {
     const next = applyQuestionFill(
       quiz([stub()]),
@@ -118,6 +141,7 @@ describe('applyQuestionFill', () => {
         correctAnswer: 'Yes',
         incorrectAnswers: ['No'],
         needsKey: undefined,
+        paperOwnTest: true,
       }),
     ]);
     expect(

@@ -33,6 +33,10 @@ export interface PaperQuestion {
   text?: string;
   correctAnswer: string;
   incorrectAnswers?: string[];
+  /** Mirrors `QuizQuestion.optionOrder`: editor order over `[correctAnswer, ...incorrectAnswers]`. */
+  optionOrder?: number[];
+  /** Mirrors `QuizQuestion.paperOwnTest`: letters follow `optionOrder`, never shuffled. */
+  paperOwnTest?: boolean;
   /** Any truthy value marks a recording question, which never prints. */
   recording?: unknown;
   maxWords?: number;
@@ -189,20 +193,40 @@ export const isPlaceholderLetterChoices = (
 
 /** The lettered order a question's options print in; seeded by the option set alone, like the client's. */
 export function paperChoiceOrder(
-  question: Pick<PaperQuestion, 'correctAnswer' | 'incorrectAnswers'>
+  question: Pick<
+    PaperQuestion,
+    'correctAnswer' | 'incorrectAnswers' | 'optionOrder' | 'paperOwnTest'
+  >
 ): string[] {
   const choices = [
     question.correctAnswer,
     ...(question.incorrectAnswers ?? []),
   ].slice(0, MAX_CHOICE_COUNT);
+  // Shuffled letters would print "A. C" and bubble A would mean option C.
+  if (isPlaceholderLetterChoices(choices)) {
+    return [...choices].sort((a, b) => a.trim().localeCompare(b.trim()));
+  }
+  // Mirrors `rowsFromQuestion` (utils/quizChoiceRows.ts) for single-answer questions.
+  if (question.paperOwnTest) {
+    const rows = [
+      ...(question.correctAnswer.trim() ? [question.correctAnswer] : []),
+      ...(question.incorrectAnswers ?? []),
+    ];
+    const order = question.optionOrder;
+    const isPermutation =
+      !!order &&
+      order.length === rows.length &&
+      new Set(order).size === rows.length &&
+      order.every((i) => Number.isInteger(i) && i >= 0 && i < rows.length);
+    return (isPermutation ? order.map((i) => rows[i]) : rows).slice(
+      0,
+      MAX_CHOICE_COUNT
+    );
+  }
   if (isTrueFalse(choices)) {
     return [...choices].sort((a) =>
       a.trim().toLowerCase() === 'true' ? -1 : 1
     );
-  }
-  // Shuffled letters would print "A. C" and bubble A would mean option C.
-  if (isPlaceholderLetterChoices(choices)) {
-    return [...choices].sort((a, b) => a.trim().localeCompare(b.trim()));
   }
   choices.sort();
   const rand = seededRandom(choices.join('\u0001'));

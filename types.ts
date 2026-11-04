@@ -4440,6 +4440,8 @@ export interface QuizQuestion {
   blankAlternates?: { answers: string[] }[];
   /** MC/MA: editor-only display order over `[right options..., incorrectAnswers...]`; students still get a shuffle. */
   optionOrder?: number[];
+  /** MC from the teacher's own test paper: answer sheets letter options in the editor order above, never shuffled. */
+  paperOwnTest?: boolean;
   /**
    * Set by a document import that read the question but not its key
    * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D5). The question saves and prints

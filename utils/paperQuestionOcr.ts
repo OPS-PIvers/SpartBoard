@@ -13,6 +13,7 @@ import {
 import type { KeyItem } from './quizDocumentImport/types';
 import { CHOICE_LETTERS } from './paperSheetLayout';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
+import { questionFromRows } from './quizChoiceRows';
 
 /** `A.` / `b)` / `(C)` option lines, which end the question text. */
 const OPTION = /^\s*\(?[A-Ea-e][.)]\s|^\s*\([A-Ea-e]\)\s*/;
@@ -119,9 +120,21 @@ export function applyQuestionFill(
     const options = fill.options?.filter((o) => o.trim());
     if (options && options.length > 0) {
       const answer = fill.correctAnswer?.trim() ?? '';
+      const answerAt = options.indexOf(answer);
+      // The teacher's paper letters these options; keep its order so bubbles score right.
+      const stored = questionFromRows(
+        options.map((text, at) => ({ text, correct: at === answerAt })),
+        false
+      );
       next.type = 'MC';
       next.correctAnswer = answer;
       next.incorrectAnswers = options.filter((o) => o !== answer);
+      next.paperOwnTest = true;
+      if (answerAt !== -1 && stored.optionOrder) {
+        next.optionOrder = stored.optionOrder;
+      } else {
+        delete next.optionOrder;
+      }
       // An answer the document supplied is a key the teacher no longer owes.
       if (answer) delete next.needsKey;
       else next.needsKey = true;
@@ -133,6 +146,8 @@ export function applyQuestionFill(
       next.correctAnswer === q.correctAnswer &&
       next.incorrectAnswers.join('\u0000') ===
         q.incorrectAnswers.join('\u0000') &&
+      (next.optionOrder ?? []).join() === (q.optionOrder ?? []).join() &&
+      next.paperOwnTest === q.paperOwnTest &&
       next.needsKey === q.needsKey
     ) {
       return q;
