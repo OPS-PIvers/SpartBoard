@@ -1,6 +1,4 @@
-// Schoology section links, one doc per teacher: the first teacher's at
-// `lti_course_links/{contextId}`, each co-teacher's at `{contextId}~{uid}`.
-// Every doc carries `teacherUid` and `contextId`, so per-teacher queries see both.
+// Schoology section links, one per teacher: `lti_course_links/{contextId}` for the first, `{contextId}~{uid}` for co-teachers.
 
 import { HttpsError } from 'firebase-functions/v2/https';
 import type * as admin from '../firebaseAdmin';
@@ -84,12 +82,7 @@ export interface TeacherLinkFields {
   linkedBy?: 'url' | 'sis';
 }
 
-/**
- * Write `uid`'s link of `contextId` without touching anyone else's. When another
- * teacher holds the section doc, the caller gets a co-teacher doc, but only when
- * `coTeacher` says Schoology lists them as a teacher of the section.
- * Returns the stored title.
- */
+/** Write `uid`'s own link (a co-teacher doc only when `coTeacher`, i.e. NRPS lists them); returns the stored title. */
 export async function writeTeacherLink(
   db: Db,
   uid: string,
@@ -139,11 +132,7 @@ export async function writeTeacherLink(
   });
 }
 
-/**
- * Delete `uid`'s own link of `contextId` in one transaction. When it was the
- * section doc, a co-teacher's link moves into it so lookups by section keep working.
- * False when only another teacher's link exists.
- */
+/** Delete `uid`'s own link, moving a co-teacher's into the section doc; false when only another teacher's exists. */
 export async function deleteTeacherLink(
   db: Db,
   uid: string,
@@ -152,30 +141,30 @@ export async function deleteTeacherLink(
   const col = db.collection(LTI_COURSE_LINKS_COLLECTION);
   const primaryRef = col.doc(contextId);
   const coRef = col.doc(coTeacherLinkId(contextId, uid));
-  const others = (
-    await col.where('contextId', '==', contextId).limit(MAX_SECTION_LINKS).get()
-  ).docs
-    .filter((d) => d.id !== contextId && d.id !== coRef.id)
-    .map((d) => d.ref);
+  const othersQuery = col
+    .where('contextId', '==', contextId)
+    .limit(MAX_SECTION_LINKS);
   return db.runTransaction(async (tx) => {
-    const [primary, co, ...candidates] = await Promise.all([
+    // Read in the transaction, so a co-teacher link committed meanwhile is a promotion candidate.
+    const [primary, co, others] = await Promise.all([
       tx.get(primaryRef),
       tx.get(coRef),
-      ...others.map((r) => tx.get(r)),
+      tx.get(othersQuery),
     ]);
     const ownsPrimary = primary.exists && primary.data()?.teacherUid === uid;
     if (!ownsPrimary && !co.exists) return !primary.exists;
     if (co.exists) tx.delete(coRef);
     if (ownsPrimary) {
-      const i = candidates.findIndex(
-        (c) =>
-          c.exists &&
-          !!str(c.data()?.teacherUid) &&
-          c.data()?.teacherUid !== uid
+      const next = others.docs.find(
+        (d) =>
+          d.id !== contextId &&
+          d.id !== coRef.id &&
+          !!str(d.data().teacherUid) &&
+          d.data().teacherUid !== uid
       );
-      if (i >= 0) {
-        tx.set(primaryRef, candidates[i].data() ?? {});
-        tx.delete(others[i]);
+      if (next) {
+        tx.set(primaryRef, next.data());
+        tx.delete(next.ref);
       } else {
         tx.delete(primaryRef);
       }

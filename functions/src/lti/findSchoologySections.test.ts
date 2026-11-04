@@ -100,10 +100,13 @@ vi.mock('../firebaseAdmin', () => ({
       }) => Promise<unknown>
     ) =>
       fn({
-        get: async (ref) => ({
-          exists: courseLinks.has(ref._ctx),
-          data: () => courseLinks.get(ref._ctx),
-        }),
+        get: async (ref) =>
+          '_ctx' in ref
+            ? {
+                exists: courseLinks.has(ref._ctx),
+                data: () => courseLinks.get(ref._ctx),
+              }
+            : (ref as unknown as { get: () => Promise<never> }).get(),
         set: (ref, data) =>
           courseLinks.set(ref._ctx, {
             ...(courseLinks.get(ref._ctx) ?? {}),

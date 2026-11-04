@@ -147,10 +147,16 @@ async function resolveLive(
       return null;
     }
     tried.add(classlinkClassId);
-    const uid = (
-      await oneRosterUidsByEmail(classlink, classlinkClassId, hmacSecret)
-    ).get(lower);
-    return uid ? { uid, classlinkClassId, live: true } : null;
+    try {
+      const uid = (
+        await oneRosterUidsByEmail(classlink, classlinkClassId, hmacSecret)
+      ).get(lower);
+      return uid ? { uid, classlinkClassId, live: true } : null;
+    } catch (err) {
+      // One class failing to load must not hide a co-teacher's class.
+      console.warn('[ltiClasslinkBridge] OneRoster fetch failed:', err);
+      return null;
+    }
   };
 
   const linkSnap = await db

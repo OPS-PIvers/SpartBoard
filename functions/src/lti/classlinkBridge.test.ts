@@ -150,6 +150,25 @@ describe('resolveClasslinkIdentity — co-teachers', () => {
     });
   });
 
+  it("still tries a co-teacher's class when the first class fails to load", async () => {
+    store.set('lti_course_links/ctx-1', {
+      classlinkClassId: 'class-7',
+      teacherUid: 'teacher-1',
+      contextId: 'ctx-1',
+    });
+    store.set('lti_course_links/ctx-1~teacher-2', {
+      classlinkClassId: 'class-8',
+      teacherUid: 'teacher-2',
+      contextId: 'ctx-1',
+    });
+    fetchSpy.mockImplementation(async (_t, _i, _s, classId) => {
+      if (classId === 'class-7') throw new Error('404');
+      return ROSTER;
+    });
+    const result = await resolveClasslinkIdentity(db, input());
+    expect(result?.classlinkClassId).toBe('class-8');
+  });
+
   it('does not refetch a class the co-teacher shares', async () => {
     store.set('lti_course_links/ctx-1', {
       classlinkClassId: 'class-7',
