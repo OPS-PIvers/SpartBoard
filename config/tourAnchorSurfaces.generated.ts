@@ -1119,6 +1119,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'classlink-import.import': ['board.classlink-import'],
     'schoology-link.section-row': ['board.schoology-link'],
     'schoology-link.link': ['board.schoology-link'],
+    'schoology-link.unlink': ['board.schoology-link'],
     'schoology-link.cancel': ['board.schoology-link'],
     'widget-settings.poll.scale-label': ['widgets.poll.settings'],
     'widget-settings.poll.correct-option': ['widgets.poll.settings'],

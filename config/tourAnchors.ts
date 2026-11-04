@@ -5028,6 +5028,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'schoology-link.unlink': {
+    label: 'Unlink button on a linked Schoology course',
+    perField: true,
+    panel: true,
+  },
   'schoology-link.cancel': {
     label: 'Done/close button in the Link Schoology dialog',
     panel: true,

@@ -20,11 +20,15 @@ import { functions } from '@/config/firebase';
 import type { ClassRoster } from '@/types';
 import {
   linkLtiCourse,
+  replacedNote,
   suggestLtiClassLinkMatch,
 } from '@/utils/ltiCourseLinks';
 import type { SchoologySeenSection } from '@/hooks/useSchoologySeenSections';
+import { useSchoologyCourseLinks } from '@/hooks/useSchoologyCourseLinks';
+import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { SchoologyPasteLink } from './SchoologyPasteLink';
+import { SchoologyLinkedCourses } from './SchoologyLinkedCourses';
 
 interface LinkSchoologyModalProps {
   isOpen: boolean;
@@ -50,6 +54,8 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
   updateRoster,
   pasteLinkEnabled = false,
 }) => {
+  const { user } = useAuth();
+  const courseLinks = useSchoologyCourseLinks(user?.uid, isOpen);
   // ClassLink rosters and admin test classes (mock ClassLink) can be paired.
   const candidateRosters = useMemo(
     () => rosters.filter((r) => !!r.classlinkClassId || !!r.testClassId),
@@ -150,7 +156,7 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
     }
     setRowState((p) => ({ ...p, [section.contextId]: 'linking' }));
     try {
-      await linkLtiCourse(functions, {
+      const res = await linkLtiCourse(functions, {
         contextId: section.contextId,
         sessionId: section.sessionId,
         kind: section.kind,
@@ -166,13 +172,18 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
       // the canonical link is the server doc that just succeeded).
       try {
         await updateRoster(roster.id, { ltiContextId: section.contextId });
+        for (const other of rosters.filter(
+          (r) => r.id !== roster.id && r.ltiContextId === section.contextId
+        )) {
+          await updateRoster(other.id, { ltiContextId: '' });
+        }
       } catch {
         // The link landed; the local mirror can resync later.
       }
       setRowState((p) => ({ ...p, [section.contextId]: 'linked' }));
       setLinkedHere((prev) => new Set(prev).add(section.contextId));
       addToast(
-        `Linked “${section.contextTitle ?? 'Schoology section'}” to ${roster.name}.`,
+        `Linked “${section.contextTitle ?? 'Schoology section'}” to ${roster.name}.${replacedNote(res.replaced)}`,
         'success'
       );
     } catch (err) {
@@ -261,6 +272,12 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
             updateRoster={updateRoster}
           />
         )}
+        <SchoologyLinkedCourses
+          links={courseLinks}
+          rosters={rosters}
+          addToast={addToast}
+          updateRoster={updateRoster}
+        />
         {candidateRosters.length === 0 ? (
           <p className="text-sm text-slate-500 py-6 text-center">
             Import your classes from ClassLink first — Schoology sections link

@@ -19,7 +19,10 @@ import { getAgsAccessToken } from './ags';
 import { fetchNrpsMembership, type NrpsMember } from './nrps';
 import { deriveRole } from './jwt';
 import { schoologySectionUrls } from './lineItems';
-import { LTI_COURSE_LINKS_COLLECTION } from './courseLinkEndpoints';
+import {
+  LTI_COURSE_LINKS_COLLECTION,
+  dropOtherLinksForClass,
+} from './courseLinkEndpoints';
 import { USERS_COLLECTION } from './nrpsStore';
 import { classroomAddonNet } from '../classroomAddonAuth';
 import { isGlobalFeatureGranted } from '../quizMediaArchive';
@@ -426,6 +429,12 @@ export const ltiLinkSectionByUrlV1 = onCall(
       tx.set(ref, payload, { merge: true });
     });
 
-    return { ok: true, contextId, contextTitle: title, overlap };
+    const replaced = await dropOtherLinksForClass(db, callerUid, contextId, {
+      rosterId: roster.rosterId,
+      classlinkClassId: roster.classlinkClassId,
+      testClassId: roster.testClassId,
+    });
+
+    return { ok: true, contextId, contextTitle: title, overlap, replaced };
   }
 );

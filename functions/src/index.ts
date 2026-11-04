@@ -399,6 +399,7 @@ export {
 export {
   linkLtiCourseV1,
   ltiSuggestClassLinkMatchV1,
+  ltiUnlinkSectionV1,
 } from './lti/courseLinkEndpoints';
 export { ltiLinkSectionByUrlV1 } from './lti/linkSectionByUrl';
 export {

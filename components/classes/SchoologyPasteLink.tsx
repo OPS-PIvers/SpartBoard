@@ -5,6 +5,7 @@ import type { ClassRoster } from '@/types';
 import {
   linkLtiSectionByUrl,
   previewLtiSectionByUrl,
+  replacedNote,
   type LtiSectionByUrlPreview,
 } from '@/utils/ltiCourseLinks';
 
@@ -68,6 +69,11 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
       const res = await linkLtiSectionByUrl(functions, url.trim(), roster.id);
       try {
         await updateRoster(roster.id, { ltiContextId: res.contextId });
+        for (const other of rosters.filter(
+          (r) => r.id !== roster.id && r.ltiContextId === res.contextId
+        )) {
+          await updateRoster(other.id, { ltiContextId: '' });
+        }
       } catch {
         // The server link landed; the roster mirror resyncs later.
       }
@@ -75,7 +81,10 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
       setLinkedTitle(title);
       setPreview(null);
       setUrl('');
-      addToast(`Linked “${title}” to ${roster.name}.`, 'success');
+      addToast(
+        `Linked “${title}” to ${roster.name}.${replacedNote(res.replaced)}`,
+        'success'
+      );
     } catch (err) {
       addToast(errorMessage(err, 'Failed to link the course.'), 'error');
     } finally {

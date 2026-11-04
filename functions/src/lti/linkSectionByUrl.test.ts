@@ -61,6 +61,13 @@ vi.mock('../firebaseAdmin', () => ({
               data: () => courseLinks.get(ctx),
             }),
           }),
+          where: (_f: string, _op: string, uid: string) => ({
+            get: async () => ({
+              docs: [...courseLinks]
+                .filter(([, v]) => v.teacherUid === uid)
+                .map(([id, v]) => ({ id, data: () => v, ref: { _ctx: id } })),
+            }),
+          }),
         };
       }
       if (name === 'users') {
@@ -76,6 +83,10 @@ vi.mock('../firebaseAdmin', () => ({
       }
       throw new Error(`unexpected collection ${name}`);
     },
+    batch: () => ({
+      delete: (ref: { _ctx: string }) => courseLinks.delete(ref._ctx),
+      commit: async () => undefined,
+    }),
     runTransaction: async (
       fn: (tx: {
         get: (ref: { _ctx: string }) => Promise<{
@@ -427,6 +438,23 @@ describe('ltiLinkSectionByUrlV1', () => {
       rosterId: 'r-1',
       contextTitle: 'Old title',
     });
+  });
+
+  it("replaces the class's earlier section link", async () => {
+    courseLinks.set('8497631489', {
+      teacherUid: 'teacher-1',
+      rosterId: 'r-1',
+      contextTitle: 'Biology B (S2)',
+    });
+    courseLinks.set('8497000000', { teacherUid: 'teacher-1', rosterId: 'r-2' });
+    const res = await call({
+      auth: TEACHER,
+      data: { url: URL_OK, rosterId: 'r-1' },
+    });
+    expect(res).toMatchObject({ replaced: ['Biology B (S2)'] });
+    expect(courseLinks.has('8497631489')).toBe(false);
+    expect(courseLinks.has('8497000000')).toBe(true);
+    expect(courseLinks.get('7660186912')).toMatchObject({ rosterId: 'r-1' });
   });
 
   it('reports an unreadable course plainly', async () => {

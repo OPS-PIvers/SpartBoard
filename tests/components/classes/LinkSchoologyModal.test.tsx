@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import type { ClassRoster } from '@/types';
 import type { SchoologySeenSection } from '@/hooks/useSchoologySeenSections';
 
@@ -10,11 +11,29 @@ const linkMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const suggestMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const previewByUrlMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const linkByUrlMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const unlinkMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 vi.mock('@/utils/ltiCourseLinks', () => ({
+  replacedNote: (replaced?: string[]) =>
+    replaced?.length
+      ? ` Replaced ${replaced.map((t) => `“${t}”`).join(', ')}.`
+      : '',
   linkLtiCourse: (...args: unknown[]) => linkMock(...args),
   suggestLtiClassLinkMatch: (...args: unknown[]) => suggestMock(...args),
   previewLtiSectionByUrl: (...args: unknown[]) => previewByUrlMock(...args),
   linkLtiSectionByUrl: (...args: unknown[]) => linkByUrlMock(...args),
+  unlinkLtiSection: (...args: unknown[]) => unlinkMock(...args),
+}));
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ user: { uid: 'teacher-1' } }),
+}));
+let courseLinks: {
+  contextId: string;
+  contextTitle: string | null;
+  rosterId: string | null;
+}[] = [];
+vi.mock('@/hooks/useSchoologyCourseLinks', () => ({
+  useSchoologyCourseLinks: () => courseLinks,
 }));
 
 import { LinkSchoologyModal } from '@/components/classes/LinkSchoologyModal';
@@ -48,6 +67,7 @@ const updateRoster = vi.fn().mockResolvedValue(undefined);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  courseLinks = [];
   updateRoster.mockResolvedValue(undefined);
 });
 
@@ -252,6 +272,80 @@ describe('LinkSchoologyModal', () => {
     );
     expect(addToast).toHaveBeenCalledWith(
       'Linked “Biology · P2” to Period 2.',
+      'success'
+    );
+  });
+
+  it('names the replaced section when a re-link replaces an earlier one', async () => {
+    const url = 'https://orono.schoology.com/course/8497590559/materials';
+    previewByUrlMock.mockResolvedValue({
+      contextId: '8497590559',
+      contextTitle: 'Biology A (S1)',
+      learnerCount: 24,
+      suggestions: [{ rosterId: 'rA', overlap: 22 }],
+      linkedRosterId: null,
+    });
+    linkByUrlMock.mockResolvedValue({
+      ok: true,
+      contextId: '8497590559',
+      contextTitle: 'Biology A (S1)',
+      replaced: ['Biology B (S2)'],
+    });
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[roster('rA', 'Period 5', 'cl-A')]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+        pasteLinkEnabled
+      />
+    );
+    fireEvent.change(screen.getByLabelText(/Paste a Schoology course link/i), {
+      target: { value: url },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Check/i }));
+    await screen.findByLabelText(/Class to link/i);
+    fireEvent.click(screen.getByRole('button', { name: /^Link$/i }));
+    await waitFor(() =>
+      expect(addToast).toHaveBeenCalledWith(
+        'Linked “Biology A (S1)” to Period 5. Replaced “Biology B (S2)”.',
+        'success'
+      )
+    );
+  });
+
+  it('lists linked courses and unlinks one, clearing the class mirror', async () => {
+    courseLinks = [
+      { contextId: 'ctx-s1', contextTitle: 'Biology A (S1)', rosterId: 'rA' },
+    ];
+    unlinkMock.mockResolvedValue({ ok: true, contextId: 'ctx-s1' });
+    const linked = {
+      ...roster('rA', 'Period 5', 'cl-A'),
+      ltiContextId: 'ctx-s1',
+    } as ClassRoster;
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[linked]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+      />
+    );
+    expect(screen.getByText('Linked courses')).toBeTruthy();
+    expect(screen.getByText('Period 5')).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Unlink Biology A (S1)' })
+    );
+    await waitFor(() => expect(unlinkMock).toHaveBeenCalledWith({}, 'ctx-s1'));
+    await waitFor(() =>
+      expect(updateRoster).toHaveBeenCalledWith('rA', { ltiContextId: '' })
+    );
+    expect(addToast).toHaveBeenCalledWith(
+      'Unlinked “Biology A (S1)”.',
       'success'
     );
   });
