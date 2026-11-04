@@ -14,9 +14,16 @@ export const connectionWidgetTitle = (
   adminName?: string
 ): string => {
   if (w.customTitle) return w.customTitle;
-  const admin = adminName?.trim();
-  if (admin) return admin;
   const title = getTitle(w);
+  const admin = adminName?.trim();
+  if (admin) {
+    // Keep a config-derived name (a quiz or guide title) so two such widgets stay apart.
+    const generic = getTitle({ ...w, config: {} });
+    if (title === generic) return admin;
+    return title.startsWith(`${generic}: `)
+      ? `${admin}${title.slice(generic.length)}`
+      : title;
+  }
   const raw = w.type.charAt(0).toUpperCase() + w.type.slice(1);
   if (title !== raw) return title;
   return TOOLS.find((tool) => tool.type === w.type)?.label ?? title;

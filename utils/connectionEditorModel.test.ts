@@ -135,6 +135,16 @@ describe('connectionWidgetTitle', () => {
     ).toBe('Teams');
   });
 
+  it('keeps the quiz title next to the admin name', () => {
+    expect(
+      connectionWidgetTitle(
+        w('q', 'review', { selectedQuizTitle: 'Unit 3' }),
+        'Game'
+      )
+    ).toBe('Game: Unit 3');
+    expect(connectionWidgetTitle(w('q', 'review'), 'Game')).toBe('Game');
+  });
+
   it('names timers with the admin name', () => {
     const names = widgetNames(
       [w('t', 'time-tool', { mode: 'timer', duration: 60 }), w('r', 'random')],
