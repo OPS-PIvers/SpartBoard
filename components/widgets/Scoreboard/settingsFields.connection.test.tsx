@@ -10,7 +10,10 @@ import type { WidgetData, WidgetConnection } from '@/types';
 
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => false }),
+  useAuth: () => ({
+    canAccessFeature: () => false,
+    featurePermissions: [{ widgetType: 'random', displayName: 'Group Maker' }],
+  }),
 }));
 vi.mock('@/hooks/useRosterGroupsIntegrationSettings', () => ({
   useRosterGroupsIntegrationSettings: () => ({ enabled: false }),
@@ -36,7 +39,6 @@ const randomizer = {
   ...scoreboard,
   id: 'rnd',
   type: 'random',
-  customTitle: 'Selector',
   config: { lastResult: [{ id: 'a', names: ['Ana'] }] },
 } as unknown as WidgetData;
 const follow: WidgetConnection = {
@@ -77,7 +79,7 @@ describe('ScoreboardSettings connected to a Randomizer', () => {
 
   it('replaces Import and team add/delete with the connected row', () => {
     renderWith(true, [follow]);
-    expect(screen.getByText('Teams come from Selector')).toBeInTheDocument();
+    expect(screen.getByText('Teams come from Group Maker')).toBeInTheDocument();
     expect(screen.queryByTestId('import-groups-btn')).toBeNull();
     expect(screen.queryByText('Add Team')).toBeNull();
     fireEvent.click(screen.getByText('Edit connection'));

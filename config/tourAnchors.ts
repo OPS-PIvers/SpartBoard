@@ -7461,6 +7461,7 @@ export const TOUR_ANCHORS = {
   'widget.connect': {
     label: 'Connect button in the widget toolbar',
     perWidget: true,
+    requires: 'widget-selected',
   },
   'widget.connect-menu.connection': {
     label: 'A connection row in the Connect button menu',
@@ -12298,6 +12299,9 @@ export const TOUR_ANCHORS = {
   },
   'connections.editor.wait-seconds': {
     label: 'Seconds box on a connection arrow',
+    perWidgetType: true,
+    keyPattern: '[a-z][a-zA-Z0-9-]*',
+    keyHint: 'the widget type of the step above the arrow, e.g. time-tool',
     panel: true,
   },
   'connections.editor.step-menu': {
@@ -12315,6 +12319,9 @@ export const TOUR_ANCHORS = {
   },
   'connections.editor.advance': {
     label: 'What moves a connection on to its next step',
+    perWidgetType: true,
+    keyPattern: '[a-z][a-zA-Z0-9-]*',
+    keyHint: 'the widget type of the step above the arrow, e.g. time-tool',
     panel: true,
   },
   'connections.editor.move-up': {

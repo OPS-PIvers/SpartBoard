@@ -2606,6 +2606,12 @@
   ],
   "widgetNotes": [
     {
+      "id": "time-tool-bigger-buttons-2026-11-04",
+      "widget": "time-tool",
+      "date": "2026-11-04",
+      "text": "The play, reset, plus and minus buttons are bigger. With the ring showing on a larger timer, plus and minus move to the bottom corners."
+    },
+    {
       "id": "clock-show-time-date-2026-11-03",
       "widget": "clock",
       "date": "2026-11-03",
