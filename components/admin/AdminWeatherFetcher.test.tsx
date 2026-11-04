@@ -110,6 +110,71 @@ describe('AdminWeatherFetcher freshness check', () => {
   });
 });
 
+describe('AdminWeatherFetcher when the station has no temperature', () => {
+  const stationWithoutTemp = {
+    data: { o: { t: null, fl: null, ic: 264, h: 100, wsa: 5.5 } },
+  };
+
+  beforeEach(() => {
+    vi.stubEnv('VITE_OPENWEATHER_API_KEY', 'test-key');
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    mocks.getDoc.mockReset().mockResolvedValue(snapshot(null));
+    mocks.setDoc.mockReset().mockResolvedValue(undefined);
+    mocks.proxy.mockReset().mockResolvedValue(stationWithoutTemp);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it('fills temperature from OpenWeather instead of storing null', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) =>
+      Promise.resolve(
+        (input instanceof Request ? input.url : input.toString()).includes(
+          'openweathermap'
+        )
+          ? new Response(
+              JSON.stringify({
+                cod: 200,
+                name: 'Orono',
+                main: { temp: 47.3, feels_like: 44.1, humidity: 90 },
+                weather: [{ main: 'Clouds' }],
+              }),
+              { status: 200 }
+            )
+          : new Response('[]', { status: 200 })
+      )
+    );
+
+    render(<AdminWeatherFetcher />);
+
+    await waitFor(() => expect(mocks.setDoc).toHaveBeenCalledTimes(1));
+    expect(mocks.setDoc.mock.calls[0][1]).toMatchObject({
+      temp: 47.3,
+      feelsLike: 44.1,
+      condition: 'clouds',
+      source: 'earth_networks',
+      locationName: 'Orono IS',
+    });
+  });
+
+  it('writes nothing when the fallback also fails', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ cod: 401, message: 'bad key' }), {
+        status: 401,
+      })
+    );
+
+    render(<AdminWeatherFetcher />);
+
+    await waitFor(() => expect(mocks.proxy).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mocks.setDoc).not.toHaveBeenCalled();
+  });
+});
+
 describe('isStoredWeatherFresh', () => {
   const now = 1_000_000_000;
   const base = {
