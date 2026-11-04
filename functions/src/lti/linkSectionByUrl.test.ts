@@ -121,26 +121,18 @@ vi.mock('./ags', () => ({
   getAgsAccessToken: vi.fn().mockResolvedValue('nrps-token'),
 }));
 
-const {
-  fetchNrpsMembershipMock,
-  fetchClassStudentsMock,
-  grantedMock,
-  testMembershipMock,
-} = vi.hoisted(() => ({
-  fetchNrpsMembershipMock: vi.fn(),
-  fetchClassStudentsMock: vi.fn(),
-  grantedMock: vi.fn(),
-  testMembershipMock: vi.fn(),
-}));
+const { fetchNrpsMembershipMock, fetchClassStudentsMock, testMembershipMock } =
+  vi.hoisted(() => ({
+    fetchNrpsMembershipMock: vi.fn(),
+    fetchClassStudentsMock: vi.fn(),
+    testMembershipMock: vi.fn(),
+  }));
 vi.mock('../studentAssignmentTargets', () => ({
   loadTestClassMembership: testMembershipMock,
 }));
 vi.mock('./nrps', () => ({ fetchNrpsMembership: fetchNrpsMembershipMock }));
 vi.mock('../classroomAddonAuth', () => ({
   classroomAddonNet: { fetchClassStudents: fetchClassStudentsMock },
-}));
-vi.mock('../quizMediaArchive', () => ({
-  isGlobalFeatureGranted: grantedMock,
 }));
 
 import {
@@ -196,7 +188,6 @@ beforeEach(() => {
     { id: 'r-test', data: { testClassId: 'mock-p1' } },
   ];
   courseLinks.clear();
-  grantedMock.mockReset().mockResolvedValue(true);
   fetchNrpsMembershipMock.mockReset().mockResolvedValue({
     contextTitle: 'Biology · P2',
     members: [
@@ -300,14 +291,6 @@ describe('ltiLinkSectionByUrlV1', () => {
     await expect(
       call({ auth: TEACHER, data: { url: 'https://evil.test/course/1' } })
     ).rejects.toMatchObject({ code: 'invalid-argument' });
-    expect(fetchNrpsMembershipMock).not.toHaveBeenCalled();
-  });
-
-  it('rejects a caller without the feature', async () => {
-    grantedMock.mockResolvedValue(false);
-    await expect(
-      call({ auth: TEACHER, data: { url: URL_OK } })
-    ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(fetchNrpsMembershipMock).not.toHaveBeenCalled();
   });
 
