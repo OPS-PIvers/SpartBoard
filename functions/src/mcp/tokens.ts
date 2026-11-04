@@ -8,6 +8,7 @@ import {
   publicOrigin,
   resourceUrl,
 } from './config';
+import { fetchCimdClient, isCimdClientId, isCimdEnabled } from './cimd';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -82,6 +83,9 @@ export async function verifyClientId(
   db: Firestore,
   clientId: string
 ): Promise<RegisteredClient | null> {
+  if (isCimdClientId(clientId)) {
+    return (await isCimdEnabled(db)) ? fetchCimdClient(clientId) : null;
+  }
   try {
     const { payload } = await jwtVerify(clientId, await getSigningKey(db), {
       issuer: publicOrigin(),

@@ -61,3 +61,39 @@ export function isAllowedRedirectUri(raw: string): boolean {
     (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
   );
 }
+
+/** Exact match, except a registered loopback URI matches any port (RFC 8252 7.3). */
+export function redirectUriMatches(
+  registered: readonly string[],
+  presented: string
+): boolean {
+  if (registered.includes(presented)) return true;
+  let want: URL;
+  try {
+    want = new URL(presented);
+  } catch {
+    return false;
+  }
+  if (
+    want.protocol !== 'http:' ||
+    want.hash ||
+    want.username ||
+    want.password
+  ) {
+    return false;
+  }
+  return registered.some((raw) => {
+    try {
+      const reg = new URL(raw);
+      return (
+        reg.protocol === 'http:' &&
+        (reg.hostname === 'localhost' || reg.hostname === '127.0.0.1') &&
+        reg.hostname === want.hostname &&
+        reg.pathname === want.pathname &&
+        reg.search === want.search
+      );
+    } catch {
+      return false;
+    }
+  });
+}

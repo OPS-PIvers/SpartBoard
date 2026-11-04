@@ -11,6 +11,7 @@ import {
 } from './config';
 import { pkceMatches, signClientId, verifyClientId } from './tokens';
 import { consumeAuthCode } from './codes';
+import { isCimdEnabled } from './cimd';
 import {
   OAuthError,
   createGrant,
@@ -28,9 +29,10 @@ export function protectedResourceMetadata() {
   };
 }
 
-export function authorizationServerMetadata() {
+export function authorizationServerMetadata(cimd = false) {
   const origin = publicOrigin();
   return {
+    ...(cimd ? { client_id_metadata_document_supported: true } : {}),
     issuer: origin,
     authorization_endpoint: `${origin}/connect`,
     token_endpoint: `${origin}/oauth/token`,
@@ -226,8 +228,8 @@ export const mcpOAuth = onRequest(
           path === '/.well-known/oauth-authorization-server/mcp')
       ) {
         res
-          .set('Cache-Control', 'public, max-age=3600')
-          .json(authorizationServerMetadata());
+          .set('Cache-Control', 'public, max-age=300')
+          .json(authorizationServerMetadata(await isCimdEnabled(db)));
         return;
       }
       if (req.method !== 'POST') {
