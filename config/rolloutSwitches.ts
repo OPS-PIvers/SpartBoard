@@ -29,6 +29,10 @@ import {
   normalizeClaudeReviewRemindersSettings,
 } from '@/config/claudeReviewReminders';
 import {
+  CLAUDE_CONNECTOR_CIMD_SETTINGS_DOC,
+  normalizeClaudeConnectorCimdSettings,
+} from '@/config/claudeConnectorCimd';
+import {
   GRADEBOOK_INDEX_SETTINGS_DOC,
   normalizeGradebookIndexSettings,
 } from '@/config/gradebookIndex';
@@ -134,6 +138,13 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Flag items Claude made or changed until the teacher opens them. On by default.',
     normalize: normalizeClaudeReviewRemindersSettings,
+  },
+  {
+    docId: CLAUDE_CONNECTOR_CIMD_SETTINGS_DOC,
+    title: 'Claude connects without registering',
+    description:
+      'Claude identifies itself with its published client document instead of registering a new client on each connection.',
+    normalize: normalizeClaudeConnectorCimdSettings,
   },
   {
     docId: GRADEBOOK_INDEX_SETTINGS_DOC,
