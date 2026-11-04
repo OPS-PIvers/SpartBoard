@@ -815,7 +815,7 @@ const TeacherVideoActivityWidget: React.FC<{
           const blocker = videoActivityAssignBlocker(data);
           if (blocker)
             throw new Error(`This activity can't be assigned yet: ${blocker}.`);
-          // The stepper's rules win (va-quiz-alignment); otherwise the activity's behavior and the board's player rules.
+          // The stepper's rules win; otherwise the activity's behavior and the board's player rules.
           const rules = isLive ? null : (extras?.rules ?? null);
           const behavior = getVideoActivityBehavior(meta);
           const fromRules = rules ? videoRulesSessionFields(rules) : null;

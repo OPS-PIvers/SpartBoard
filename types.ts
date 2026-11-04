@@ -7649,7 +7649,7 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   dueAt?: number | null;
   /** Whether `dueAt` encodes a chosen time-of-day vs a legacy date-only epoch. */
   dueAtHasTime?: boolean;
-  /** Stamped by va-quiz-alignment assigns; only then does the player honor shuffle, right/wrong and reveal answer. */
+  /** Stamped by assigns that carry their own rules; only then does the player honor shuffle, right/wrong and reveal answer. */
   answerRulesSet?: boolean;
 }
 
@@ -10751,8 +10751,6 @@ export type GlobalFeature =
   | 'claude-connector-guided-learning'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
-  /** Video Activity questions and assign rules work like Quiz (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md). */
-  | 'va-quiz-alignment'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */

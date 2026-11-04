@@ -1,4 +1,4 @@
-// What the self-paced VA player shows after an answer (va-quiz-alignment slice 5); mirrored in functions/src/videoActivityGrade.ts.
+// What the self-paced VA player shows after an answer (VA_QUIZ_ALIGNMENT slice 5); mirrored in functions/src/videoActivityGrade.ts.
 import type { VideoActivitySession } from '@/types';
 
 export interface VideoActivityAnswerRules {

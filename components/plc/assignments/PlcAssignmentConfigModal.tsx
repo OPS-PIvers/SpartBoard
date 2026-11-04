@@ -25,7 +25,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Calendar, X } from 'lucide-react';
-import { AssignmentSettingsToggleGroup } from '@/components/common/library/AssignmentSettingsToggleGroup';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -50,10 +49,7 @@ import { dueInputsToEpoch, DEFAULT_DUE_TIME } from '@/utils/localDate';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
-import {
-  DEFAULT_VA_BEHAVIOR,
-  formatVideoActivityBehaviorSummary,
-} from '@/utils/videoActivityBehavior';
+import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
 import { useLastVideoAssignSettings } from '@/hooks/useLastVideoAssignSettings';
 import { InlineVideoRuleBodies } from '@/components/common/library/assignStepper/InlineAssignStepBodies';
 import {
@@ -71,11 +67,10 @@ import type {
   VideoActivityBehaviorSettings,
   VideoActivitySessionSettings,
   VideoActivitySessionOptions,
-  BaseSessionOptions,
   ClassRoster,
 } from '@/types';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr } from '@/config/tourAnchors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -104,12 +99,7 @@ type PlcAssignmentConfigModalProps = {
       quizRef?: never;
       quizData?: never;
       quizBehavior?: never;
-      /**
-       * Task 10 (VA parity): when provided, the settings toggles are replaced
-       * with a read-only behavior summary. Source from
-       * `getVideoActivityBehavior(savedMeta)` in the caller
-       * (PlcAuthorVideoActivityModal). When omitted, legacy form controls render.
-       */
+      /** The activity's saved behavior; prefills the rules when there are no last-used ones. */
       vaBehavior?: VideoActivityBehaviorSettings;
     }
 );
@@ -117,13 +107,6 @@ type PlcAssignmentConfigModalProps = {
 // ---------------------------------------------------------------------------
 // Default session options
 // ---------------------------------------------------------------------------
-
-const DEFAULT_VA_SESSION_OPTIONS: VideoActivitySessionOptions = {
-  tabWarningsEnabled: true,
-  showResultToStudent: false,
-  showCorrectAnswerToStudent: false,
-  shuffleQuestions: true,
-};
 
 const DEFAULT_VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
   autoPlay: false,
@@ -150,7 +133,7 @@ export const PlcAssignmentConfigModal: React.FC<
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user, getAssignmentMode, canAccessFeature } = useAuth();
+  const { user, getAssignmentMode } = useAuth();
   // D12: settings come from the teacher's last-used, editable inline.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
@@ -162,21 +145,21 @@ export const PlcAssignmentConfigModal: React.FC<
     () => editedAssignSettings ?? getQuizAssignPrefill(lastAssignSettings),
     [editedAssignSettings, lastAssignSettings]
   );
-  // va-quiz-alignment: VA rules are edited here, prefilled from last-used else the activity (V3).
-  const vaRulesOn =
-    kind === 'video-activity' && canAccessFeature('va-quiz-alignment');
-  const lastVaRules = useLastVideoAssignSettings(user?.uid, vaRulesOn);
+  // VA rules are edited here, prefilled from last-used else the activity (V3).
+  const lastVaRules = useLastVideoAssignSettings(
+    user?.uid,
+    kind === 'video-activity'
+  );
   const [editedVaRules, setEditedVaRules] = useState<VideoAssignRules | null>(
     null
   );
-  const vaRules: VideoAssignRules | null = vaRulesOn
-    ? (editedVaRules ??
-      videoRulesPrefill(
-        vaBehavior ?? DEFAULT_VA_BEHAVIOR,
-        lastVaRules.lastUsed,
-        DEFAULT_VA_SESSION_SETTINGS
-      ))
-    : null;
+  const vaRules: VideoAssignRules =
+    editedVaRules ??
+    videoRulesPrefill(
+      vaBehavior ?? DEFAULT_VA_BEHAVIOR,
+      lastVaRules.lastUsed,
+      DEFAULT_VA_SESSION_SETTINGS
+    );
   const { addToast, rosters } = useDashboard();
   const { createAssignment: createQuizAssignment } = useQuizAssignments(
     user?.uid
@@ -195,9 +178,6 @@ export const PlcAssignmentConfigModal: React.FC<
   // --- Form state ---
   const [picker, setPicker] =
     useState<AssignClassPickerValue>(makeEmptyPickerValue);
-  const [vaOptions, setVaOptions] = useState<BaseSessionOptions>(
-    DEFAULT_VA_SESSION_OPTIONS
-  );
   const [teacherName, setTeacherName] = useState(user?.displayName ?? '');
   const [dueAtInput, setDueAtInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -335,40 +315,17 @@ export const PlcAssignmentConfigModal: React.FC<
           );
         }
 
-        // Task 10 (VA parity): when vaBehavior is provided, source settings
-        // from it (behavior lives on the activity). Otherwise fall back to the
-        // legacy form-driven controls (vaOptions) for backward compatibility.
-        let effectiveVaSessionOptions: VideoActivitySessionOptions;
-        const fromRules = vaRules ? videoRulesSessionFields(vaRules) : null;
-        if (fromRules) {
-          effectiveVaSessionOptions = {
-            ...fromRules.sessionOptions,
-            ...(parsedDueAt != null
-              ? { dueAt: parsedDueAt, dueAtHasTime: true }
-              : {}),
-          };
-        } else if (vaBehavior) {
-          effectiveVaSessionOptions = {
-            ...vaBehavior.sessionOptions,
-            attemptLimit: vaBehavior.attemptLimit,
-            ...(parsedDueAt != null
-              ? { dueAt: parsedDueAt, dueAtHasTime: true }
-              : {}),
-          };
-        } else {
-          // Backward-compat guard: preserve legacy form controls for any
-          // caller that opens this modal without providing vaBehavior.
-          effectiveVaSessionOptions = {
-            ...vaOptions,
-            ...(parsedDueAt != null
-              ? { dueAt: parsedDueAt, dueAtHasTime: true }
-              : {}),
-          };
-        }
+        // The assignment's rules from the inline rule bodies.
+        const fromRules = videoRulesSessionFields(vaRules);
+        const effectiveVaSessionOptions: VideoActivitySessionOptions = {
+          ...fromRules.sessionOptions,
+          ...(parsedDueAt != null
+            ? { dueAt: parsedDueAt, dueAtHasTime: true }
+            : {}),
+        };
 
         const vaSettings: VideoActivityAssignmentSettings = {
-          sessionSettings:
-            fromRules?.sessionSettings ?? DEFAULT_VA_SESSION_SETTINGS,
+          sessionSettings: fromRules.sessionSettings,
           sessionOptions: effectiveVaSessionOptions,
           teacherName: teacherName.trim() || undefined,
           periodNames: derived.periodNames,
@@ -385,7 +342,7 @@ export const PlcAssignmentConfigModal: React.FC<
           derived.rosterIds,
           assignmentMode
         );
-        if (vaRules) lastVaRules.save(vaRules);
+        lastVaRules.save(vaRules);
 
         // B5: VA template write via the tested
         // writePlcVideoActivityAssignmentTemplate helper. It writes to the
@@ -448,7 +405,6 @@ export const PlcAssignmentConfigModal: React.FC<
     vaRules,
     lastVaRules,
     splitAssignSettings,
-    vaOptions,
     teacherName,
     parsedDueAt,
     assignmentMode,
@@ -544,59 +500,11 @@ export const PlcAssignmentConfigModal: React.FC<
               value={splitAssignSettings}
               onChange={setEditedAssignSettings}
             />
-          ) : vaRules ? (
+          ) : (
             <InlineVideoRuleBodies
               value={vaRules}
               onChange={setEditedVaRules}
               disabled={submitting}
-            />
-          ) : vaBehavior ? (
-            /* VA slimmed path (Task 10 parity): read-only behavior summary */
-            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-                  {t('plcDashboard.assignmentConfig.behaviorLabel', {
-                    defaultValue: 'Behavior',
-                  })}
-                </p>
-                <span className="text-xxs text-slate-400">
-                  {t('plcDashboard.assignmentConfig.vaBehaviorEditHint', {
-                    defaultValue: 'Edit in the activity editor',
-                  })}
-                </span>
-              </div>
-              <p
-                data-testid="plc-config-va-behavior-summary"
-                className="text-sm text-slate-600 leading-snug"
-              >
-                {formatVideoActivityBehaviorSummary(vaBehavior)}
-              </p>
-            </div>
-          ) : (
-            /* Video-activity legacy path: settings toggles */
-            <AssignmentSettingsToggleGroup
-              options={vaOptions}
-              onOptionsChange={setVaOptions}
-              attemptLimit={undefined}
-              onAttemptLimitChange={undefined}
-              shuffleQuestionsAvailable
-              anchors={{
-                focusMode: tourFieldAttr(
-                  'plc-assign.option-toggle',
-                  'plc',
-                  'focus-mode'
-                ),
-                shuffleQuestions: tourFieldAttr(
-                  'plc-assign.option-toggle',
-                  'plc',
-                  'shuffle-questions'
-                ),
-                shuffleAnswerOptions: tourFieldAttr(
-                  'plc-assign.option-toggle',
-                  'plc',
-                  'shuffle-answers'
-                ),
-              }}
             />
           )}
 
@@ -629,7 +537,9 @@ export const PlcAssignmentConfigModal: React.FC<
             {...tourAttr('plc-assign.submit')}
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || (vaRulesOn && !lastVaRules.loaded)}
+            disabled={
+              submitting || (kind === 'video-activity' && !lastVaRules.loaded)
+            }
             className="px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-sm font-semibold hover:bg-brand-blue-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting

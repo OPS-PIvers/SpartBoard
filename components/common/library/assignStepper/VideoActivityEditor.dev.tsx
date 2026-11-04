@@ -1,7 +1,6 @@
-// DEV-only: the Video Activity editor on a fixture activity for /assign-stepper-dev screenshots; ?flag=off shows the legacy layout.
+// DEV-only: the Video Activity editor on a fixture activity for /assign-stepper-dev screenshots.
 /* eslint-disable react-refresh/only-export-components -- default export is a harness preview record */
-import React, { useContext, useMemo } from 'react';
-import { AuthContext } from '@/context/AuthContextValue';
+import React from 'react';
 import { VideoActivityEditorModal } from '@/components/widgets/VideoActivityWidget/components/VideoActivityEditorModal';
 import type { VideoActivityData } from '@/types';
 
@@ -61,35 +60,15 @@ const ACTIVITY: VideoActivityData = {
   ],
 };
 
-const Preview: React.FC = () => {
-  const flagOff =
-    new URLSearchParams(window.location.search).get('flag') === 'off';
-  const auth = useContext(AuthContext);
-  const value = useMemo(
-    () =>
-      auth && flagOff
-        ? {
-            ...auth,
-            canAccessFeature: (
-              id: Parameters<typeof auth.canAccessFeature>[0]
-            ) =>
-              id === 'va-quiz-alignment' ? false : auth.canAccessFeature(id),
-          }
-        : auth,
-    [auth, flagOff]
-  );
-  return (
-    <AuthContext.Provider value={value}>
-      <VideoActivityEditorModal
-        isOpen
-        activity={ACTIVITY}
-        onClose={() => undefined}
-        onSave={() => Promise.resolve()}
-        autosave={false}
-      />
-    </AuthContext.Provider>
-  );
-};
+const Preview: React.FC = () => (
+  <VideoActivityEditorModal
+    isOpen
+    activity={ACTIVITY}
+    onClose={() => undefined}
+    onSave={() => Promise.resolve()}
+    autosave={false}
+  />
+);
 
 const preview = { title: 'Video Activity editor', render: Preview };
 export default preview;
