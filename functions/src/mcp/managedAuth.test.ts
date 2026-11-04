@@ -293,6 +293,19 @@ describe('cases to check before launch', () => {
     expect(picked.ok).toBe(true);
   });
 
+  it('ignores a switched-off copy of the issuer in another org', async () => {
+    const db = seed({
+      orgs: {
+        orono: { enabled: true, issuer: ISS },
+        other: { enabled: false, issuer: ISS },
+      },
+    });
+    const out = await refused(db, makeDeps().deps, async (c) => ({
+      assertion: await assertion(c),
+    }));
+    expect(out.ok).toBe(true);
+  });
+
   it('refuses the same assertion a second time', async () => {
     const db = seed();
     const { deps } = makeDeps();

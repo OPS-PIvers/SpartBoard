@@ -13,7 +13,7 @@ You need to be an **Owner** or **Primary Owner** of the Claude organization and 
 1. **SpartBoard switches (once per project).** Admin Settings > Access > Previews: turn on **Claude connects without registering**, then **Claude sign-in without Connect**. Both ship off.
 2. **Claude.** Add SpartBoard as a custom connector at `https://spartboard.web.app/mcp` (or `https://spartboard-dev.web.app/mcp` for dev). Open the connector, find **Managed authorization** under **Authentication**, click **Set up** and choose **Claude-issued**. Copy the **Issuer URL** it shows.
 3. **SpartBoard.** Admin Settings > Organization > Overview > **Claude sign-in**: paste the Issuer URL, turn the switch on and click **Save**.
-4. **Optional tenant ID.** If the same Issuer URL is saved in more than one SpartBoard organization, enter this organization's **Tenant ID** (shown on the same card) in **Tenant ID (optional)** in Claude's setup. Otherwise leave it blank.
+4. **Tenant ID (recommended).** Enter this organization's **Tenant ID** (shown on the same card) in **Tenant ID (optional)** in Claude's setup. Issuer URLs aren't secret: without a Tenant ID, sign-in stops working if an admin of another SpartBoard organization saves the same Issuer URL with their card switched on. With it, Claude names this organization in every sign-in and that can't happen.
 5. **Test.** In Claude's setup, click **Run test** under **Connection status**.
 
 To turn it off for your organization, turn off the switch on the card and save. To turn it off everywhere, turn off **Claude sign-in without Connect** on Previews.
@@ -39,7 +39,7 @@ Anyone else still gets the usual **Connect** step.
 
 `functions/src/mcp/managedAuth.ts`, in this order. Any failure returns `invalid_grant`.
 
-1. **Organization.** If the assertion has `aud_tenant`, use the organization with that ID. Otherwise use the only organization whose saved issuer equals `iss`; none, or more than one, is refused. The saved issuer must equal `iss` exactly, and the card must be switched on. No keys are fetched before this passes.
+1. **Organization.** If the assertion has `aud_tenant`, use the organization with that ID. Otherwise use the only switched-on organization whose saved issuer equals `iss`; none, or more than one, is refused. Switched-off copies are ignored, so another org can't block yours by saving your Issuer URL switched off. The saved issuer must equal `iss` exactly. No keys are fetched before this passes.
 2. **Keys.** Fetch `<iss>/.well-known/openid-configuration` and check that its `issuer` equals `iss`. Use only the keys at its `jwks_uri`.
 3. **Signature.** ES256 or RS256 only.
 4. **Type.** `typ` is `oauth-id-jag+jwt`.

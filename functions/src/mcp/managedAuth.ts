@@ -144,12 +144,12 @@ export async function resolveOrg(
     .collection('organizations')
     .where(`${MANAGED_AUTH_FIELD}.issuer`, '==', iss)
     .get();
-  if (hits.docs.length !== 1) throw deny('Issuer is not trusted');
-  const only = hits.docs[0];
-  if (!readConfig(only.get(MANAGED_AUTH_FIELD))?.enabled) {
-    throw deny('Issuer is not trusted');
-  }
-  return only.id;
+  // Only switched-on orgs count, so a switched-off copy of another org's issuer can't block it.
+  const live = hits.docs.filter(
+    (d) => readConfig(d.get(MANAGED_AUTH_FIELD))?.enabled === true
+  );
+  if (live.length !== 1) throw deny('Issuer is not trusted');
+  return live[0].id;
 }
 
 async function jwksUriFor(iss: string, deps: ManagedAuthDeps): Promise<string> {

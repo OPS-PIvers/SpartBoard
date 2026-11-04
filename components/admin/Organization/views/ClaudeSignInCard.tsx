@@ -36,7 +36,12 @@ export const ClaudeSignInCard: React.FC<Props> = ({
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex items-center gap-2">
           <KeyRound size={16} className="text-brand-blue-dark" />
-          <h3 className="text-sm font-bold text-slate-900">Claude sign-in</h3>
+          <h3
+            className="text-sm font-bold text-slate-900"
+            title="Staff in your Claude organization connect without the Connect step. The Issuer URL is in Claude's managed authorization setup for the SpartBoard connector."
+          >
+            Claude sign-in
+          </h3>
         </div>
         <Toggle
           anchor={tourAttr('admin.org.overview-claude-sign-in-toggle')}
@@ -47,11 +52,6 @@ export const ClaudeSignInCard: React.FC<Props> = ({
           showLabels={false}
         />
       </div>
-      <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-        Staff in your Claude organization connect to SpartBoard without the
-        Connect step. Copy the Issuer URL from Claude&apos;s managed
-        authorization setup for the SpartBoard connector.
-      </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field
           label="Issuer URL"
@@ -65,10 +65,7 @@ export const ClaudeSignInCard: React.FC<Props> = ({
             disabled={!canEdit}
           />
         </Field>
-        <Field
-          label="Tenant ID"
-          hint="Optional in Claude's setup; enter it there to pick this organization"
-        >
+        <Field label="Tenant ID" hint="Enter it in Claude's setup too">
           {/* no-tour-anchor: read-only value, nothing to walk a teacher to */}
           <Input value={org.id} readOnly disabled />
         </Field>
