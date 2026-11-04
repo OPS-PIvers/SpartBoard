@@ -142,9 +142,8 @@ vi.mock('./config', async (orig) => ({
     .mockResolvedValue({ clientId: 'client-1', tokenUrl: 'https://lms/token' }),
 }));
 
-const { grantedMock, pushSectionMock, restMock, deleteLineItemMock, nrpsMock } =
-  vi.hoisted(() => ({
-    grantedMock: vi.fn(),
+const { pushSectionMock, restMock, deleteLineItemMock, nrpsMock } = vi.hoisted(
+  () => ({
     pushSectionMock: vi.fn(),
     deleteLineItemMock: vi.fn(),
     nrpsMock: vi.fn(),
@@ -153,8 +152,8 @@ const { grantedMock, pushSectionMock, restMock, deleteLineItemMock, nrpsMock } =
       createGradingCategories: vi.fn(),
       getColumnCategory: vi.fn(),
     },
-  }));
-vi.mock('../quizMediaArchive', () => ({ isGlobalFeatureGranted: grantedMock }));
+  })
+);
 vi.mock('./ags', () => ({
   getAgsAccessToken: vi.fn().mockResolvedValue('tok'),
   postScore: vi.fn(),
@@ -216,7 +215,6 @@ beforeEach(() => {
     SCHOOLOGY_API_CONSUMER_KEY: 'key',
     SCHOOLOGY_API_CONSUMER_SECRET: 'secret',
   });
-  grantedMock.mockReset().mockResolvedValue(true);
   pushSectionMock.mockReset().mockImplementation(
     async (
       _deps,
@@ -288,15 +286,11 @@ const pushData = {
 };
 
 describe('ltiPushToolColumnV1', () => {
-  it('rejects signed-out, student and flag-off callers', async () => {
+  it('rejects signed-out and student callers', async () => {
     await expect(push({ data: pushData })).rejects.toThrow(/Sign in/);
     await expect(
       push({ auth: { uid: 's', token: { studentRole: true } }, data: pushData })
     ).rejects.toThrow(/Teacher account/);
-    grantedMock.mockResolvedValue(false);
-    await expect(push({ auth: T, data: pushData })).rejects.toMatchObject({
-      code: 'permission-denied',
-    });
     expect(pushSectionMock).not.toHaveBeenCalled();
   });
 

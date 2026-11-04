@@ -1197,9 +1197,7 @@ const TeacherVideoActivityWidget: React.FC<{
         }}
         onArchiveDelete={async (assignment) => {
           try {
-            const hadColumn =
-              canAccessFeature('schoology-tool-columns') &&
-              (await sessionHasToolColumn('va', assignment.id));
+            const hadColumn = await sessionHasToolColumn('va', assignment.id);
             await deleteAssignment(assignment.id);
             addToast('Assignment deleted.', 'success');
             if (hadColumn) {
@@ -1508,9 +1506,6 @@ const TeacherVideoActivityWidget: React.FC<{
                 kind: 'va',
                 sessionId: target.id,
                 classroomFinalAttachments,
-                schoologyToolColumns: canAccessFeature(
-                  'schoology-tool-columns'
-                ),
                 classroomToken,
                 schoologyMaxPoints: videoActivityMaxPoints(data.questions),
                 buildClassroomGrades: (responses) => {

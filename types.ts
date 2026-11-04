@@ -10800,8 +10800,6 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md D11). */
-  | 'schoology-tool-columns'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */

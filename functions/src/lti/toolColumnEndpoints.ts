@@ -63,11 +63,7 @@ import {
   type ToolColumnDeps,
   type ToolColumnRecord,
 } from './toolColumns';
-import {
-  SCHOOLOGY_TOOL_COLUMNS_FEATURE,
-  isActiveInstructor,
-} from './linkSectionByUrl';
-import { isGlobalFeatureGranted } from '../quizMediaArchive';
+import { isActiveInstructor } from './linkSectionByUrl';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
 
@@ -126,26 +122,6 @@ async function requireTeacher(
     throw new HttpsError('permission-denied', 'Teacher account required.');
   }
   return { uid: request.auth.uid, email };
-}
-
-async function requireFeature(
-  db: admin.firestore.Firestore,
-  uid: string,
-  email: string
-): Promise<void> {
-  if (
-    !(await isGlobalFeatureGranted(
-      db,
-      SCHOOLOGY_TOOL_COLUMNS_FEATURE,
-      email,
-      uid
-    ))
-  ) {
-    throw new HttpsError(
-      'permission-denied',
-      'Schoology gradebook columns are not available for your account.'
-    );
-  }
 }
 
 interface OwnedSession {
@@ -479,9 +455,8 @@ export const ltiToolColumnCategoriesV1 = onCall(
   },
   async (request) => {
     assertViewAsAllowed(request, { read: true });
-    const { uid, email } = await requireTeacher(request);
+    const { uid } = await requireTeacher(request);
     const db = admin.firestore();
-    await requireFeature(db, uid, email);
     const session = await loadOwnedSession(
       db,
       uid,
@@ -555,7 +530,6 @@ export const ltiCreateToolColumnCategoriesV1 = onCall(
     assertViewAsAllowed(request, { outward: true });
     const { uid, email } = await requireTeacher(request);
     const db = admin.firestore();
-    await requireFeature(db, uid, email);
     const data = (request.data ?? {}) as Record<string, unknown>;
     const session = await loadOwnedSession(db, uid, data);
     const contextId = typeof data.contextId === 'string' ? data.contextId : '';
@@ -647,7 +621,6 @@ export const ltiPushToolColumnV1 = onCall(
     assertViewAsAllowed(request, { outward: true });
     const { uid, email } = await requireTeacher(request);
     const db = admin.firestore();
-    await requireFeature(db, uid, email);
     const data = (request.data ?? {}) as Record<string, unknown>;
     const maxPoints =
       typeof data.maxPoints === 'number' &&
