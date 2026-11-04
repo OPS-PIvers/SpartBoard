@@ -28,7 +28,7 @@ const isTabVisible = () => document.visibilityState === 'visible';
 /** "Claude is editing" toast, clearing the Boards list badge on open, and recording the full-screen shape (AI boards D7, D11, D24). */
 export const useClaudeBoardActivity = (): void => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user } = useAuth();
   const {
     dashboards,
     activeDashboard,
@@ -37,8 +37,6 @@ export const useClaudeBoardActivity = (): void => {
     loadDashboard,
     markClaudeBoardSeen,
   } = useDashboard();
-  // Optional call: many useAuth test doubles leave canAccessFeature out.
-  const enabled = canAccessFeature?.('ai-boards') === true;
   const uid = user?.uid;
   const canWrite =
     Boolean(uid) && !isAuthBypass && !viewAsSuppressesBackgroundWrites();
@@ -48,7 +46,7 @@ export const useClaudeBoardActivity = (): void => {
   const stampsRef = useRef<Map<string, number> | null>(null);
   const lastToastAtRef = useRef(new Map<string, number>());
   useEffect(() => {
-    if (!enabled || loading) {
+    if (loading) {
       stampsRef.current = null;
       return;
     }
@@ -73,7 +71,7 @@ export const useClaudeBoardActivity = (): void => {
         tourId: showTourId,
       }
     );
-  }, [enabled, loading, dashboards, activeId, addToast, loadDashboard, t]);
+  }, [loading, dashboards, activeId, addToast, loadDashboard, t]);
 
   // Opening the board is what clears its badge; keyed by stamp so a later Claude edit clears again.
   const clearedRef = useRef(new Set<string>());
@@ -83,8 +81,7 @@ export const useClaudeBoardActivity = (): void => {
       : null;
   useEffect(() => {
     // A background tab hasn't shown the board to anyone yet.
-    if (!enabled || !canWrite || !uid || !activeId || !unseenKey || !visible)
-      return;
+    if (!canWrite || !uid || !activeId || !unseenKey || !visible) return;
     if (clearedRef.current.has(unseenKey)) return;
     clearedRef.current.add(unseenKey);
     markClaudeBoardSeen(activeId).catch((err: unknown) => {
@@ -94,20 +91,12 @@ export const useClaudeBoardActivity = (): void => {
         boardId: activeId,
       });
     });
-  }, [
-    enabled,
-    canWrite,
-    uid,
-    activeId,
-    unseenKey,
-    visible,
-    markClaudeBoardSeen,
-  ]);
+  }, [canWrite, uid, activeId, unseenKey, visible, markClaudeBoardSeen]);
 
   // Last full-screen size this tab wrote, so a resize that lands on the same shape writes nothing.
   const recordedRef = useRef<{ w: number; h: number } | null>(null);
   useEffect(() => {
-    if (!enabled || !canWrite || !uid) return;
+    if (!canWrite || !uid) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const record = () => {
       if (!isFullScreenWindow()) return;
@@ -138,5 +127,5 @@ export const useClaudeBoardActivity = (): void => {
       document.removeEventListener('fullscreenchange', schedule);
       window.removeEventListener('resize', schedule);
     };
-  }, [enabled, canWrite, uid]);
+  }, [canWrite, uid]);
 };

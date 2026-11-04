@@ -12,9 +12,7 @@ import {
   placeInZone,
 } from './boardEngine.gen';
 
-const archive = vi.hoisted(() => ({ granted: true }));
 vi.mock('../quizMediaArchive', () => ({
-  isGlobalFeatureGranted: vi.fn(() => Promise.resolve(archive.granted)),
   deriveTeacherTier: vi.fn(() => Promise.resolve('internal')),
   isBetaTeacher: vi.fn(() => Promise.resolve(false)),
   meetsMinTierServer: () => true,
@@ -240,10 +238,6 @@ const widgetsOf = (docs: Map<string, Data>, path = BOARD) =>
   (docs.get(path)?.widgets ?? []) as Data[];
 
 describe('create_board', () => {
-  beforeEach(() => {
-    archive.granted = true;
-  });
-
   it('builds a board on the template, at the top of the list, marked as made by Claude', async () => {
     const { db, docs } = fakeDb(seed());
     const call = await connect(db);
@@ -407,16 +401,6 @@ describe('create_board', () => {
     expect(bad.error).toMatch(/library_item_id instead of `selectedQuizId`/);
   });
 
-  it('is hidden behind the ai-boards flag', async () => {
-    archive.granted = false;
-    const { db } = fakeDb(seed());
-    const call = await connect(db);
-    const out = await call('create_board', {
-      boards: [{ name: 'A', widgets: [] }],
-    });
-    expect(out.error).toMatch(/not turned on/);
-  });
-
   it('keeps boards to 20 widgets', async () => {
     const { db } = fakeDb(seed());
     const call = await connect(db);
@@ -434,10 +418,6 @@ describe('create_board', () => {
 });
 
 describe('edit_board', () => {
-  beforeEach(() => {
-    archive.granted = true;
-  });
-
   it('applies batched changes, bumps versions and keeps the previous version', async () => {
     const { db, docs } = fakeDb(seed());
     const call = await connect(db);
@@ -1252,15 +1232,5 @@ describe('tidy_board', () => {
     expect(shared.map((w) => w.xProp)).toEqual(
       widgetsOf(docs).map((w) => w.xProp)
     );
-  });
-
-  it('is hidden behind the ai-boards flag', async () => {
-    archive.granted = false;
-    const { db } = fakeDb(messy());
-    const call = await connect(db);
-    expect((await call('tidy_board', { board_id: 'b1' })).error).toMatch(
-      /not turned on/
-    );
-    archive.granted = true;
   });
 });

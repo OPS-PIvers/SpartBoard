@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   setDoc: vi.fn(() => Promise.resolve()),
   addToast: vi.fn(),
   loadDashboard: vi.fn(),
-  flagOn: true,
   dash: {
     dashboards: [] as Dashboard[],
     activeDashboard: null as Dashboard | null,
@@ -24,10 +23,7 @@ vi.mock('@/utils/viewAsTab', () => ({
   viewAsSuppressesBackgroundWrites: () => false,
 }));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({
-    user: { uid: 'u1' },
-    canAccessFeature: (id: string) => id === 'ai-boards' && mocks.flagOn,
-  }),
+  useAuth: () => ({ user: { uid: 'u1' } }),
 }));
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -56,7 +52,6 @@ const setBoards = (boards: Dashboard[], activeId: string) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.flagOn = true;
   mocks.dash.loading = false;
   setBoards([], '');
 });
@@ -109,17 +104,6 @@ describe('useClaudeBoardActivity', () => {
     setBoards([board('a'), board('b', { claudeEditedAt: t0 + 1 })], 'a');
     rerender();
     expect(mocks.addToast).toHaveBeenCalledTimes(1);
-  });
-
-  it('does nothing with the flag off', () => {
-    mocks.flagOn = false;
-    setBoards([board('a'), board('b', { claudeUnseen: true })], 'b');
-    const { rerender } = renderHook(() => useClaudeBoardActivity());
-    setBoards([board('a', { claudeEditedAt: Date.now() }), board('b')], 'b');
-    rerender();
-    expect(mocks.addToast).not.toHaveBeenCalled();
-    expect(mocks.markClaudeBoardSeen).not.toHaveBeenCalled();
-    expect(mocks.setDoc).not.toHaveBeenCalled();
   });
 
   it('clears the badge once when the board is opened', () => {
