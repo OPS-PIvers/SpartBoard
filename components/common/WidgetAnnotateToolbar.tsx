@@ -33,7 +33,7 @@ export const WidgetAnnotateToolbar: React.FC<WidgetAnnotateToolbarProps> = ({
   onDone,
 }) => {
   const { t } = useTranslation();
-  const [open, setOpen] = useState<OpenPopover>(null);
+  const [requested, setOpen] = useState<OpenPopover>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   useClickOutside(containerRef, () => setOpen(null));
 
@@ -42,6 +42,12 @@ export const WidgetAnnotateToolbar: React.FC<WidgetAnnotateToolbarProps> = ({
   // Live tours point at the inline tool anchors, so tools never fold away during one.
   const layout =
     tourRunning && fitted === 'compact' ? 'colors-collapsed' : fitted;
+  // A popover the current layout no longer renders counts as closed.
+  const open: OpenPopover =
+    (requested === 'colors' && layout !== 'full') ||
+    (requested === 'tools' && layout === 'compact')
+      ? requested
+      : null;
 
   // Tapped buttons don't take focus on Safari/touch, so catch Escape on window before the widget exits annotate mode.
   useEffect(() => {

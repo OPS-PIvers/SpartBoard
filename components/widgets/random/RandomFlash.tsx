@@ -73,7 +73,13 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
       box.appendChild(measurer);
       const px = findFittingFontSize(measurer, w, h);
       measurer.remove();
-      setFit(px === null ? null : { label, px });
+      setFit((prev) =>
+        px === null
+          ? null
+          : prev?.label === label && prev.px === px
+            ? prev
+            : { label, px }
+      );
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return;

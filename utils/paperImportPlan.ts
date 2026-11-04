@@ -20,7 +20,11 @@ import { CHOICE_LETTERS } from './paperSheetLayout';
 import { analyzePaperQuiz, isPlaceholderLetterChoices } from './paperSheetPlan';
 import { pageMapsForSeat } from './paperSheetVersions';
 import { paperCropStoragePath } from './paperWritten';
-import { questionFromRows, rowsFromQuestion } from './quizChoiceRows';
+import {
+  hasArrangedOrder,
+  questionFromRows,
+  rowsFromQuestion,
+} from './quizChoiceRows';
 
 /** Client mirror of the function's `ImportPaperAnswer`. */
 export interface ImportPaperAnswerPayload {
@@ -90,7 +94,12 @@ export function printedOptionsFor(
 ): string[] {
   const recorded = batch.choiceOrder?.[questionId];
   if (recorded && !isPlaceholderLetterChoices(recorded)) return [...recorded];
-  if (question && (question.type === 'MC' || question.type === 'MA')) {
+  // An own-test fill or an editor arrangement keeps the paper's letters; an older document fill stored the answer first.
+  if (
+    question &&
+    (question.paperOwnTest || hasArrangedOrder(question)) &&
+    (question.type === 'MC' || question.type === 'MA')
+  ) {
     const filled = rowsFromQuestion(question).map((r) => r.text);
     if (filled.length > 0 && !isPlaceholderLetterChoices(filled)) return filled;
   }
@@ -100,6 +109,23 @@ export function printedOptionsFor(
         0,
         Math.max(2, 1 + (question?.incorrectAnswers?.length ?? 0))
       );
+}
+
+/** Each recorded question's printed options, read through the filled quiz for a stub batch. */
+export function printedChoiceOrder(
+  batch: Pick<PaperBatch, 'choiceOrder'>,
+  questions: readonly QuizQuestion[]
+): Record<string, string[]> | undefined {
+  const out: Record<string, string[]> = {};
+  for (const q of questions) {
+    const options = printedOptionsFor(batch, q, q.id);
+    if (batch.choiceOrder?.[q.id] || !isPlaceholderLetterChoices(options))
+      out[q.id] = options;
+  }
+  for (const [id, recorded] of Object.entries(batch.choiceOrder ?? {})) {
+    out[id] ??= [...recorded];
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /** Option text a bubbled choice stands for; a stub's is the letter until the quiz is filled in. */
