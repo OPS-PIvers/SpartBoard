@@ -19,6 +19,7 @@ import {
   fetchUvHours,
   parseEarthNetworksDetails,
   parseOpenWeatherDetails,
+  readStationTemperature,
 } from './details';
 
 function useWeatherGlobalConfig(): WeatherGlobalConfig | undefined {
@@ -142,9 +143,11 @@ export const WeatherAutoSyncField: React.FC<{
       ]);
       const observation = result.data.o;
       if (!observation) throw new Error('No observation data available');
+      const reading = readStationTemperature(observation);
+      if (!reading) throw new Error('Station has no temperature reading');
       ctx.updateConfig({
-        temp: observation.t,
-        feelsLike: observation.fl ?? observation.t,
+        temp: reading.temp,
+        feelsLike: reading.feelsLike,
         condition: mapEarthNetworksIcon(observation.ic),
         locationName: STATION_CONFIG.name,
         lastSync: Date.now(),
