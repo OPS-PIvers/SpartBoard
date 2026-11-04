@@ -30,6 +30,17 @@ export function parseEarthNetworksDetails(
   };
 }
 
+const finite = (n: number | null | undefined): n is number =>
+  typeof n === 'number' && Number.isFinite(n);
+
+// Null when the station sensor sends no temperature, which would otherwise render as 0°.
+export function readStationTemperature(
+  o: NonNullable<EarthNetworksResponse['o']>
+): { temp: number; feelsLike: number } | null {
+  if (!finite(o.t)) return null;
+  return { temp: o.t, feelsLike: finite(o.fl) ? o.fl : o.t };
+}
+
 export function parseOpenWeatherDetails(data: OpenWeatherData): WeatherDetails {
   const hpa = num(data.main.pressure);
   const sunrise = num(data.sys?.sunrise);

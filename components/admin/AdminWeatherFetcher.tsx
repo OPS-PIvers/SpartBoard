@@ -13,6 +13,7 @@ import {
   fetchUvHours,
   parseEarthNetworksDetails,
   parseOpenWeatherDetails,
+  readStationTemperature,
 } from '@/components/widgets/Weather/details';
 import { isStoredWeatherFresh } from './adminWeatherFreshness';
 
@@ -129,16 +130,10 @@ export const AdminWeatherFetcher: React.FC = () => {
           }
 
           if (data?.o) {
-            const stationTemp = data.o.t;
-            if (
-              typeof stationTemp === 'number' &&
-              Number.isFinite(stationTemp)
-            ) {
-              temp = stationTemp;
-              feelsLike =
-                typeof data.o.fl === 'number' && Number.isFinite(data.o.fl)
-                  ? data.o.fl
-                  : stationTemp;
+            const reading = readStationTemperature(data.o);
+            if (reading) {
+              temp = reading.temp;
+              feelsLike = reading.feelsLike;
               condition = EARTH_NETWORKS_ICONS.SNOW.includes(data.o.ic)
                 ? 'snowy'
                 : EARTH_NETWORKS_ICONS.CLOUDY.includes(data.o.ic)
