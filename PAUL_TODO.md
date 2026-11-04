@@ -7,7 +7,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
 - **Next free ID: PT-125.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
-Last audited 2026-11-01. Items removed as done: PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
+Last audited 2026-11-01. Items removed as done: PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
 ---
 
@@ -17,31 +17,19 @@ Last audited 2026-11-01. Items removed as done: PT-113 (dry run found 0 stale en
   > Run the post-release quiz join code backfill on prod: `node scripts/backfill-quiz-join-codes.mjs --all` as a dry run, show me the counts, then `--all --apply` after I say go.
 - [ ] **PT-2 🤖 Re-run the widened demote script** (F73, #4900). The first run only checked auto-enrolled teacher records; this one checks all of them, which can include students. On the PC with the prod key and ClassLink env vars:
   > Run `node scripts/demote-student-member-docs.mjs` on prod as a dry run and list who it would demote, then add `--apply` after I say go.
-- [ ] **PT-3 You: clear main's Actions cache** (F75). #4924 is on `main` now. Run `gh cache delete --all --ref refs/heads/main` once, or Actions > Caches > filter `main` > delete all.
 - [ ] **PT-4 🤖 Speak gate pass marks** (F2, #4435). Enforcement stays off until these three are set: the pass mark for "another word accepted" (it runs 0.2-2.2%, so 2% passes every set), whether Spanish sound-group recall under 80% is OK, and whether to drop the unusable held-out recordings.
   > Grill me on the three Speak gate pass-mark decisions in #4435, then write my answers into the pronunciation gate config and docs/pronunciation-gate-results.md.
-- [ ] **PT-5 You: Tell Bailey the Agenda choice is live** (F41, #4592). The Simple or Detailed choice in Arts & Letters Agenda settings (#4564) is now on for every teacher. Tell Bailey before Schumann expects it.
 - [ ] **PT-6 You: `ORG_REPO_TOKEN` secret on OPS-PIvers/claude-skills** (F42, claude-skills #24). Fine-grained PAT: owner Orono-Public-Schools, repo claude-skills only, Contents read and write. Then tell an agent "merge claude-skills #24". Without the secret, the first mirror run after merge fails.
 - [ ] **PT-7 🤖 Focus push key on dev** (F44, #4823). Devices poll every 5 minutes until this lands. On a PC with gcloud signed in as an owner:
   > Run `node scripts/focus-vapid-keygen.mjs --project dev`, then commit the updated `extension/src/listings.ts` with an extension version bump and open the PR.
-- [ ] **PT-8 You: send two Schoology links** (F79). One rubric and one discussion you own, in the "Import S8" thread. S8 PR2 (single rubric or discussion Send) is built from them.
-- [ ] **PT-9 You: CodeQL alert 100** (F20). Agents can't read code-scanning alerts. It was flagged on `scopeIncludesTasks`, which #4556 rewrote as a Set lookup; if it's still open, dismiss it as a false positive.
 
 ## 2. Waiting on your prod test
-
-### 2a. Save these Previews rows once on prod
-
-Admin Settings > Access > Previews on spartboard.web.app. Each row is admin-only and hidden even from admins until it's saved once (F16). Save "Import anything" before the Import rows.
-
-- [ ] **PT-10 You:** Multi-version test import · Calculator stimulus · Submit quiz for a student · Whiteboard quiz responses · Quote from passages · Rubric visibility for students · Mini App results · Live tour editing v2 · Goal coach · Google Tasks sync · Spell check switch in quizzes · Spell check switch · Seating Chart: seating plans · Sound: noise meter upgrades · Drawing: whiteboard tools · Camera as a document camera · Weather details · My songs in Music · Focus: page protections · Widget connections · Web tours · Bloom's Taxonomy: question starters · Send quizzes from Schoology · Assign to staff · Cross out answer choices · Import anything · Video Activity: short answer, notes and clips · Video import: AI questions · Flashcards Speak (dev too) · Randomizer: avoid recent partners · Weather recess gear redesign · the 15 "Import: ..." rows.
-- [ ] **PT-11 You:** Admin Settings > Access > **Widgets** > Focus (starts at admin) (F51).
 
 ### 2b. Wording to OK before a flag opens
 
 Merged behind admin flags. Reply "OK" or the change.
 
 - [ ] **PT-12 You: Drawing whiteboard tools** (F47): "Highlighter", "Laser pointer", "Sticky note", "Dashed", "Both ends", "Duplicate (Ctrl+D)", tooltips like "Pen (P)", and the what's new note "Zoom in and move around the page, mark up with a highlighter, point with a laser pointer and add sticky notes. Hold Shift for straight lines and even shapes, and duplicate, copy and paste items between boards."
-- [ ] **PT-15 You: "Change Google Classroom link"** (F50, #4756). Already live for everyone since #4841; OK or change.
 - [ ] **PT-16 You: Import rows** (F81, #4960): the 15 "Import: ..." labels and descriptions (admin-only text, already merged).
 - [ ] **PT-17 You: Video import "Left out" line** (F82, #4961): "Left out: 2 answer choices past the most a question can hold."
 - [ ] **PT-18 You: Poll upgrades wording** in #4637, #4651, #4658 and the slice 4 PR.
@@ -72,7 +60,6 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 | PT-36  | Google Tasks sync (`google-tasks-sync`)                                   | Needs PT-53.                                                                                                                                                                                                                                                                                                                         | "Google Tasks sync is Public: retire the gate and add the changelog entry."                                                       |
 | PT-37  | Claude connector (`claude-connector`, `-guided-learning`)                 | Confirm the prod SpartBoard custom connector is added in Claude org settings. Decide whether the plan's $5 budget alert is still wanted next to the $30/mo budget.                                                                                                                                                                   | "Claude connector is Public: retire the gates and add the changelog entry."                                                       |
 | PT-39  | View as (`admin_settings/view_as`, Previews tab)                          | High risk. Check custom claims survive an ID-token refresh, and that student join paths load an existing response without creating one.                                                                                                                                                                                              | "View as is on: write the release note if it's teacher-visible."                                                                  |
-| PT-40  | Schoology gradebook columns                                               | Phase 5 pilot on one real section; answer Q1-Q3 in `SCHOOLOGY_TOOL_COLUMNS.md` (cross-listed sections, visibility timing, dropped students). Afterwards delete the leftover Schoology test columns and your local `scripts/schoology-api.key`.                                                                                       | "Schoology gradebook columns are Public: retire the gate; confirm both Schoology secrets exist in both projects."                 |
 | PT-43  | Weather details                                                           | Tick buildings in Admin Settings > Widgets > Weather (configure) > Weather Details.                                                                                                                                                                                                                                                  | "Weather details is Public: retire the gate and add the changelog entry."                                                         |
 | PT-44  | Flashcards (Widgets tab)                                                  | Move from admin to Beta with the world-language teachers (Q47).                                                                                                                                                                                                                                                                      | none yet                                                                                                                          |
 | PT-45  | PLC delegated printing (rollout switch)                                   | Use it live.                                                                                                                                                                                                                                                                                                                         | "Delegated printing is on: add the changelog entry."                                                                              |
@@ -106,7 +93,6 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 ## 3. Prod steps that need your OK
 
 - [ ] **PT-122 You: try the Claude connector without registration**. On spartboard-dev, Admin Settings > Access > Previews > District switches > "Claude connects without registering" > on. Wait 5 minutes, remove and re-add the dev connector in Claude, connect from claude.ai and from Claude Code (`/mcp`), and run one tool in each. If both work, turn the same row on in prod and repeat once. Turning it off puts Claude back on registration within 5 minutes.
-- [ ] **PT-123 You: test Claude sign-in without Connect** (after PT-122). Needs a Claude Team org where you're an Owner and that doesn't sign in through Okta. Follow docs/CLAUDE_MANAGED_AUTH.md on spartboard-dev: turn on Admin Settings > Access > Previews > District switches > "Claude sign-in without Connect", then you (as a SpartBoard admin, not a domain admin) save the Claude-issued Issuer URL in Organization > Overview, then Run test in Claude. Check a teacher on the verified domain connects with no Connect card and a gmail.com member gets the normal Connect step. Then prod (live since release #5128, 2026-11-04). Only super admins can flip either Claude switch or save the issuer.
 - [ ] **PT-60 🤖 Scrub active Video Activity sessions** (F19). Outside school hours, PC with the prod key:
   > Scrub the active VA sessions on prod with `--include-active` (4 sessions): dry run, then apply after I say go.
 - [ ] **PT-61 🤖 Grade index backfill** (F19, 347 sessions). Once the Gradebook score index switch is on:
