@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, Loader2, Search } from 'lucide-react';
 import { functions } from '@/config/firebase';
 import type { ClassRoster } from '@/types';
@@ -45,6 +45,9 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [finding, setFinding] = useState(false);
   const [linking, setLinking] = useState(false);
+
+  // The dialog can drop this list while it stays open; its footer count comes back then.
+  useEffect(() => () => onListShown?.(false), [onListShown]);
 
   const nameOf = (id: string): string =>
     rosters.find((r) => r.id === id)?.name ?? 'Class';
@@ -192,7 +195,11 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
                       )}
                       {ready && row.movesFromRosterId && (
                         <span className="block text-xs text-amber-700 truncate">
-                          Moves the link from {nameOf(row.movesFromRosterId)}.
+                          Moves the link from{' '}
+                          {rosters.some((r) => r.id === row.movesFromRosterId)
+                            ? nameOf(row.movesFromRosterId)
+                            : 'another class'}
+                          .
                         </span>
                       )}
                     </label>

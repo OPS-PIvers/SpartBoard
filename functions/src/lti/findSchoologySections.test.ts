@@ -301,6 +301,15 @@ describe('ltiFindSchoologySectionsV1 find', () => {
     expect(r['r-1'].movesFromRosterId).toBeNull();
   });
 
+  it('still flags a move when the old link has no roster id', async () => {
+    courseLinks.set('222', {
+      teacherUid: 'teacher-1',
+      classlinkClassId: 'cl-1',
+    });
+    const r = byRoster((await call({ auth: TEACHER, data: {} })).rows);
+    expect(r['r-2'].movesFromRosterId).toBe('r-1');
+  });
+
   it('retries the NRPS token instead of failing every row', async () => {
     // Six sections: the first five share the failed request, the sixth retries.
     rosters = Array.from({ length: 6 }, (_, i) => ({

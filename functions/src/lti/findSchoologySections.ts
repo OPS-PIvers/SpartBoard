@@ -260,6 +260,24 @@ async function findRows(
         (!!r.classlinkClassId && l.classlinkClassId === r.classlinkClassId)
     );
 
+  // An older link may lack its rosterId; it still flags the move, by class or as unknown.
+  const movesFrom = (sectionId: string, r: OwnedRoster): string | null => {
+    const l = links.find(
+      (x) =>
+        x.contextId === sectionId &&
+        x.rosterId !== r.rosterId &&
+        x.classlinkClassId !== r.classlinkClassId
+    );
+    if (!l) return null;
+    return (
+      l.rosterId ??
+      rosters.find(
+        (x) => !!l.classlinkClassId && x.classlinkClassId === l.classlinkClassId
+      )?.rosterId ??
+      'unknown'
+    );
+  };
+
   return rosters.map((r, i): FoundRow => {
     const { section, failed } = sections[i];
     if (!section) {
@@ -286,13 +304,7 @@ async function findRows(
       replacesTitle: current
         ? (current.contextTitle ?? 'another section')
         : null,
-      movesFromRosterId:
-        links.find(
-          (l) =>
-            l.contextId === s.id &&
-            l.rosterId !== r.rosterId &&
-            l.classlinkClassId !== r.classlinkClassId
-        )?.rosterId ?? null,
+      movesFromRosterId: movesFrom(s.id, r),
     };
   });
 }

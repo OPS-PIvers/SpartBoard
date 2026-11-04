@@ -178,6 +178,9 @@ export interface FoundSectionRow extends ReplacedLinks {
   error?: string;
 }
 
+/** Above the callable's 120 s limit; the client default of 70 s would cut off its 90 s budget. */
+export const FIND_TIMEOUT_MS = 125_000;
+
 /** Find the Schoology section for each of the caller's ClassLink classes. */
 export async function findSchoologySections(
   functions: Functions
@@ -185,7 +188,9 @@ export async function findSchoologySections(
   const callable = httpsCallable<
     Record<string, never>,
     { rows: FoundSectionRow[] }
-  >(functions, 'ltiFindSchoologySectionsV1');
+  >(functions, 'ltiFindSchoologySectionsV1', {
+    timeout: FIND_TIMEOUT_MS,
+  });
   const { data } = await callable({});
   return data.rows;
 }
@@ -198,7 +203,9 @@ export async function linkFoundSchoologySections(
   const callable = httpsCallable<
     { rosterIds: string[] },
     { rows: FoundSectionRow[] }
-  >(functions, 'ltiFindSchoologySectionsV1');
+  >(functions, 'ltiFindSchoologySectionsV1', {
+    timeout: FIND_TIMEOUT_MS,
+  });
   const { data } = await callable({ rosterIds });
   return data.rows;
 }
