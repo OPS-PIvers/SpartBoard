@@ -49,6 +49,7 @@ export const TargetChips: React.FC<TargetChipsProps> = ({
           </span>
           {onRemove && !muted && (
             <button
+              // no-tour-anchor: one remove button per chip, generated from the tags
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
