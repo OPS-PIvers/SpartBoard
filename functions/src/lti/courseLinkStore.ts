@@ -74,30 +74,6 @@ export async function readCoTeacherLinks(
   return snap.docs.filter((d) => d.id !== contextId).map((d) => d.data());
 }
 
-/** After the section doc is deleted, move a co-teacher's link into it so lookups by section keep working. */
-export async function promoteCoTeacherLink(
-  db: Db,
-  contextId: string
-): Promise<void> {
-  const col = db.collection(LTI_COURSE_LINKS_COLLECTION);
-  const snap = await col
-    .where('contextId', '==', contextId)
-    .limit(MAX_SECTION_LINKS)
-    .get();
-  const next = snap.docs.find((d) => d.id !== contextId);
-  if (!next) return;
-  await db.runTransaction(async (tx) => {
-    const primaryRef = col.doc(contextId);
-    const [primary, co] = await Promise.all([
-      tx.get(primaryRef),
-      tx.get(next.ref),
-    ]);
-    if (primary.exists || !co.exists) return;
-    tx.set(primaryRef, co.data() ?? {});
-    tx.delete(next.ref);
-  });
-}
-
 export interface TeacherLinkFields {
   classlinkClassId: string | null;
   testClassId: string | null;
@@ -163,7 +139,11 @@ export async function writeTeacherLink(
   });
 }
 
-/** Delete `uid`'s own link(s) of `contextId`; false when only another teacher's link exists. */
+/**
+ * Delete `uid`'s own link of `contextId` in one transaction. When it was the
+ * section doc, a co-teacher's link moves into it so lookups by section keep working.
+ * False when only another teacher's link exists.
+ */
 export async function deleteTeacherLink(
   db: Db,
   uid: string,
@@ -172,19 +152,34 @@ export async function deleteTeacherLink(
   const col = db.collection(LTI_COURSE_LINKS_COLLECTION);
   const primaryRef = col.doc(contextId);
   const coRef = col.doc(coTeacherLinkId(contextId, uid));
-  const [primary, co] = await Promise.all([primaryRef.get(), coRef.get()]);
-  const ownsPrimary = primary.exists && primary.data()?.teacherUid === uid;
-  if (!ownsPrimary && !co.exists) return !primary.exists;
-  const batch = db.batch();
-  if (ownsPrimary) batch.delete(primaryRef);
-  if (co.exists) batch.delete(coRef);
-  await batch.commit();
-  if (ownsPrimary) {
-    try {
-      await promoteCoTeacherLink(db, contextId);
-    } catch (err) {
-      console.warn('[lti] promoting a co-teacher link failed', err);
+  const others = (
+    await col.where('contextId', '==', contextId).limit(MAX_SECTION_LINKS).get()
+  ).docs
+    .filter((d) => d.id !== contextId && d.id !== coRef.id)
+    .map((d) => d.ref);
+  return db.runTransaction(async (tx) => {
+    const [primary, co, ...candidates] = await Promise.all([
+      tx.get(primaryRef),
+      tx.get(coRef),
+      ...others.map((r) => tx.get(r)),
+    ]);
+    const ownsPrimary = primary.exists && primary.data()?.teacherUid === uid;
+    if (!ownsPrimary && !co.exists) return !primary.exists;
+    if (co.exists) tx.delete(coRef);
+    if (ownsPrimary) {
+      const i = candidates.findIndex(
+        (c) =>
+          c.exists &&
+          !!str(c.data()?.teacherUid) &&
+          c.data()?.teacherUid !== uid
+      );
+      if (i >= 0) {
+        tx.set(primaryRef, candidates[i].data() ?? {});
+        tx.delete(others[i]);
+      } else {
+        tx.delete(primaryRef);
+      }
     }
-  }
-  return true;
+    return true;
+  });
 }

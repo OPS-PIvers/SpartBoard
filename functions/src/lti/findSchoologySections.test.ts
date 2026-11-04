@@ -59,13 +59,17 @@ vi.mock('../firebaseAdmin', () => ({
               data: () => courseLinks.get(ctx),
             }),
           }),
-          where: (_f: string, _op: string, uid: string) => ({
-            get: async () => ({
-              docs: [...courseLinks]
-                .filter(([, v]) => v.teacherUid === uid)
-                .map(([id, v]) => ({ id, data: () => v, ref: { _ctx: id } })),
-            }),
-          }),
+          where: (field: string, _op: string, value: string) => {
+            const q = {
+              limit: () => q,
+              get: async () => ({
+                docs: [...courseLinks]
+                  .filter(([, v]) => v[field] === value)
+                  .map(([id, v]) => ({ id, data: () => v, ref: { _ctx: id } })),
+              }),
+            };
+            return q;
+          },
         };
       }
       if (name === 'users') {

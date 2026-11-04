@@ -335,6 +335,25 @@ describe('ltiPushToolColumnV1', () => {
     expect(docs.get('quiz_sessions/S1')?.ltiToolColumn).toBe(true);
   });
 
+  it("pushes to a co-teacher's own link of a section another teacher linked", async () => {
+    docs.set('lti_course_links/555', {
+      teacherUid: 'teacher-2',
+      classlinkClassId: 'cl-9',
+    });
+    docs.set('lti_course_links/555~teacher-1', {
+      teacherUid: 'teacher-1',
+      contextId: '555',
+      classlinkClassId: 'cl-1',
+    });
+    await push({ auth: T, data: pushData });
+    const ids = pushSectionMock.mock.calls.map(
+      (c) =>
+        ((c[1] as Record<string, unknown>).section as { contextId: string })
+          .contextId
+    );
+    expect(ids).toEqual(['111', '222', '555']);
+  });
+
   it('reports a failing section without failing the others', async () => {
     pushSectionMock.mockRejectedValueOnce(new Error('ags down'));
     const res = await push({ auth: T, data: pushData });

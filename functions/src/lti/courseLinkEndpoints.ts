@@ -54,7 +54,6 @@ import {
   deleteTeacherLink,
   isActiveInstructor,
   linkContextId,
-  promoteCoTeacherLink,
   writeTeacherLink,
 } from './courseLinkStore';
 
@@ -106,15 +105,9 @@ export async function dropOtherLinksForClass(
         linksSameClass(d.data(), cls)
     );
     if (stale.length === 0) return { replaced: [], replacedIds: [] };
-    const batch = db.batch();
-    for (const d of stale) batch.delete(d.ref);
-    await batch.commit();
+    // Each delete re-checks ownership in its own transaction, so a racing unlink or promotion can't take another teacher's link.
     for (const d of stale) {
-      if (d.id === linkContextId(d.id, d.data())) {
-        await promoteCoTeacherLink(db, d.id).catch((err: unknown) =>
-          console.warn('[lti] promoting a co-teacher link failed', err)
-        );
-      }
+      await deleteTeacherLink(db, teacherUid, linkContextId(d.id, d.data()));
     }
     return {
       replaced: stale.map((d) => {
@@ -325,10 +318,12 @@ async function ownedClasslinkClassIds(
 async function callerTeachesSection(
   db: admin.firestore.Firestore,
   email: string | undefined,
-  membershipUrl: string
+  membershipUrl: string | null,
+  contextId: string
 ): Promise<boolean> {
   if (!email) return false;
   try {
+    const url = membershipUrl ?? schoologySectionUrls(contextId).membershipUrl;
     const cfg = await getLtiPlatformConfig(db);
     const token = await getAgsAccessToken({
       clientId: cfg.clientId,
@@ -336,10 +331,7 @@ async function callerTeachesSection(
       privatePem: LTI_TOOL_PRIVATE_KEY.value(),
       scopes: [NRPS_SCOPE],
     });
-    return isActiveInstructor(
-      await fetchNrpsMembers(membershipUrl, token),
-      email
-    );
+    return isActiveInstructor(await fetchNrpsMembers(url, token), email);
   } catch (err) {
     console.warn('[linkLtiCourse] co-teacher NRPS check failed:', err);
     return false;
@@ -426,7 +418,8 @@ export const linkLtiCourseV1 = onCall(
       (await callerTeachesSection(
         db,
         request.auth?.token.email,
-        membershipUrl ?? schoologySectionUrls(contextId).membershipUrl
+        membershipUrl,
+        contextId
       ));
     const linkedTitle = await writeTeacherLink(
       db,

@@ -498,6 +498,36 @@ describe('linkLtiCourseV1', () => {
     });
   });
 
+  it("drops the caller's co-teacher link on another section of the same class, and promotes nothing of theirs", async () => {
+    seenSession();
+    courseLinks.set('ctx-old', {
+      teacherUid: 'other',
+      contextId: 'ctx-old',
+      classlinkClassId: 'cl-x',
+    });
+    courseLinks.set('ctx-old~teacher-1', {
+      teacherUid: 'teacher-1',
+      contextId: 'ctx-old',
+      classlinkClassId: 'cl-1',
+      contextTitle: 'Old',
+    });
+    const res = await callLink({ auth: TEACHER, data: base });
+    expect(res).toMatchObject({ replaced: ['Old'], replacedIds: ['ctx-old'] });
+    expect(courseLinks.has('ctx-old~teacher-1')).toBe(false);
+    expect(courseLinks.get('ctx-old')).toMatchObject({ teacherUid: 'other' });
+  });
+
+  it('folds a leftover co-teacher link into the section doc once the caller holds it', async () => {
+    seenSession();
+    courseLinks.set('ctx-1~teacher-1', {
+      teacherUid: 'teacher-1',
+      contextId: 'ctx-1',
+    });
+    await callLink({ auth: TEACHER, data: base });
+    expect(courseLinks.get('ctx-1')).toMatchObject({ teacherUid: 'teacher-1' });
+    expect(courseLinks.has('ctx-1~teacher-1')).toBe(false);
+  });
+
   it('skips the NRPS check when the section is free or already the caller’s', async () => {
     seenSession();
     await callLink({ auth: TEACHER, data: base });
@@ -625,6 +655,16 @@ describe('ltiUnlinkSectionV1', () => {
       rosterId: 'co-roster',
     });
     expect(courseLinks.has('ctx-1~co')).toBe(false);
+  });
+
+  it("a repeated unlink never removes the co-teacher's promoted link", async () => {
+    courseLinks.set('ctx-1', { teacherUid: 'teacher-1', contextId: 'ctx-1' });
+    courseLinks.set('ctx-1~co', { teacherUid: 'co', contextId: 'ctx-1' });
+    await callUnlink({ auth: TEACHER, data: { contextId: 'ctx-1' } });
+    await expect(
+      callUnlink({ auth: TEACHER, data: { contextId: 'ctx-1' } })
+    ).rejects.toThrow(/Only the teacher who linked/);
+    expect(courseLinks.get('ctx-1')).toMatchObject({ teacherUid: 'co' });
   });
 
   it("never removes another teacher's link", async () => {

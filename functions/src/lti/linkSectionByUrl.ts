@@ -31,12 +31,12 @@ import {
   readTeacherLink,
   writeTeacherLink,
 } from './courseLinkStore';
-
-export { isActiveInstructor };
 import { classroomAddonNet } from '../classroomAddonAuth';
 import { loadTestClassMembership } from '../studentAssignmentTargets';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
+
+export { isActiveInstructor };
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
