@@ -5550,9 +5550,10 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource == null ||
         authUid() == existing().studentUid ||
-        authUid() == existing().teacherUid ||
         isAdmin() ||
-        authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid
+        (!isStudentRoleUser() &&
+         (authUid() == existing().teacherUid ||
+          authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid))
       );
       allow create: if signedIn() &&
         ledgerCreateOk(ledgerId, ledgerS('video_activity_sessions', ledgerId), 'activityId');
@@ -5567,7 +5568,8 @@ service cloud.firestore {
         ||
         // Teacher reset/refund branch (see quiz_attempt_ledger): may only DECREASE
         // completedAttempts (removeStudent reset + unlockStudentAttempt refund).
-        (((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
+        (!isStudentRoleUser() &&
+         ((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
           authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid) &&
          unchanged('studentUid') &&
          unchanged('activityId') &&
@@ -5583,8 +5585,10 @@ service cloud.firestore {
       // ledgers symmetric.
       allow delete: if signedIn() && (
         resource == null ||
-        (authUid() == existing().teacherUid && authUid() != existing().studentUid) || isAdmin() ||
-        authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid
+        isAdmin() ||
+        (!isStudentRoleUser() &&
+         ((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
+          authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid))
       );
     }
 
@@ -5903,7 +5907,7 @@ service cloud.firestore {
           vaS().status == 'ended' ||
           periodOpen(vaS(), seatedClassId('video_activity_sessions', sessionId))
         );
-        allow write: if contentWriteOk('video_activity_sessions', sessionId);
+        allow write: if !isStudentRoleUser() && contentWriteOk('video_activity_sessions', sessionId);
       }
       match /seats/{uid} {
         allow read: if signedIn() && authUid() == uid;

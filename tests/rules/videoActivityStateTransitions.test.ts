@@ -14,6 +14,7 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -320,5 +321,29 @@ describe('video_activity_sessions: student tokens never act as the session teach
       updateDoc(doc(asSsoAuthor(), SESSION_PATH), { activityTitle: 'x' })
     );
     await assertSucceeds(getDoc(doc(asSsoStudent(), RESPONSE_PATH)));
+  });
+
+  it('a student-authored session lets its author edit neither content nor ledger rows', async () => {
+    await seedSession({ teacherUid: AUTHOR_UID, sessionMode: 'student' });
+    const ledgerPath = `video_activity_attempt_ledger/${SESSION_ID}__${SSO_UID}`;
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), ledgerPath), {
+        studentUid: SSO_UID,
+        activityId: 'act-1',
+        teacherUid: AUTHOR_UID,
+        completedAttempts: 2,
+      });
+    });
+    await assertFails(
+      setDoc(doc(asSsoAuthor(), `${SESSION_PATH}/content/questions`), {
+        publicQuestions: [],
+      })
+    );
+    await assertFails(getDoc(doc(asSsoAuthor(), ledgerPath)));
+    await assertFails(
+      updateDoc(doc(asSsoAuthor(), ledgerPath), { completedAttempts: 0 })
+    );
+    await assertFails(deleteDoc(doc(asSsoAuthor(), ledgerPath)));
+    await assertSucceeds(getDoc(doc(asSsoStudent(), ledgerPath)));
   });
 });
