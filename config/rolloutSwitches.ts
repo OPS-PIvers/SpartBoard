@@ -141,7 +141,6 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   },
   {
     docId: CLAUDE_CONNECTOR_CIMD_SETTINGS_DOC,
-    feature: 'claude-connector',
     title: 'Claude connects without registering',
     description:
       'Claude identifies itself with its published client document instead of registering a new client on each connection.',

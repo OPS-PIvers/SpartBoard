@@ -111,7 +111,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 ## 3. Prod steps that need your OK
 
-- [ ] **PT-122 You: try the Claude connector without registration**. On spartboard-dev, Admin Settings > Access > Previews > "Claude connects without registering" > on. Wait 5 minutes, remove and re-add the dev connector in Claude, connect from claude.ai and from Claude Code (`/mcp`), and run one tool in each. If both work, turn the same row on in prod and repeat once. Turning it off puts Claude back on registration within 5 minutes.
+- [ ] **PT-122 You: try the Claude connector without registration**. On spartboard-dev, Admin Settings > Access > Previews > District switches > "Claude connects without registering" > on. Wait 5 minutes, remove and re-add the dev connector in Claude, connect from claude.ai and from Claude Code (`/mcp`), and run one tool in each. If both work, turn the same row on in prod and repeat once. Turning it off puts Claude back on registration within 5 minutes.
 - [ ] **PT-60 🤖 Scrub active Video Activity sessions** (F19). Outside school hours, PC with the prod key:
   > Scrub the active VA sessions on prod with `--include-active` (4 sessions): dry run, then apply after I say go.
 - [ ] **PT-61 🤖 Grade index backfill** (F19, 347 sessions). Once the Gradebook score index switch is on:
