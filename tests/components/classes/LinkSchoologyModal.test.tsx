@@ -489,6 +489,92 @@ describe('LinkSchoologyModal', () => {
     expect(screen.getByText('Linked')).toBeInTheDocument();
   });
 
+  it('leaves a move unchecked, names its class, and clears that mirror', async () => {
+    findMock.mockResolvedValue([
+      {
+        rosterId: 'rB',
+        status: 'ready',
+        contextId: '111',
+        contextTitle: 'BIOLOGY A: (S1) P5',
+        movesFromRosterId: 'rA',
+      },
+    ]);
+    linkFoundMock.mockResolvedValue([
+      { rosterId: 'rB', status: 'linked', contextId: '111' },
+    ]);
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[
+          { ...roster('rA', 'Period 1', 'cl-A'), ltiContextId: '111' },
+          roster('rB', 'Period 2', 'cl-B'),
+        ]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+        pasteLinkEnabled
+        findCoursesEnabled
+      />
+    );
+    expect(screen.getByText(/sections? to link/)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: /Find my Schoology courses/i })
+    );
+    expect(
+      await screen.findByText('Moves the link from Period 1.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/sections? to link/)).toBeNull();
+    const box = screen.getByRole('checkbox', { name: /Period 2/ });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole('button', { name: 'Link selected (1)' }));
+    await waitFor(() =>
+      expect(updateRoster).toHaveBeenCalledWith('rA', { ltiContextId: '' })
+    );
+    expect(updateRoster).toHaveBeenCalledWith('rB', { ltiContextId: '111' });
+  });
+
+  it('keeps a move checked when its class is relinked in the same pass', async () => {
+    findMock.mockResolvedValue([
+      {
+        rosterId: 'rA',
+        status: 'ready',
+        contextId: '111',
+        contextTitle: 'A section',
+        replacesTitle: 'B section',
+      },
+      {
+        rosterId: 'rB',
+        status: 'ready',
+        contextId: '222',
+        contextTitle: 'B section',
+        movesFromRosterId: 'rA',
+      },
+    ]);
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[
+          { ...roster('rA', 'Period 1', 'cl-A'), ltiContextId: '222' },
+          roster('rB', 'Period 2', 'cl-B'),
+        ]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+        pasteLinkEnabled
+        findCoursesEnabled
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Find my Schoology courses/i })
+    );
+    await screen.findByText('Moves the link from Period 1.');
+    expect(document.getElementById('schoology-found-rA')).toBeChecked();
+    expect(document.getElementById('schoology-found-rB')).toBeChecked();
+  });
+
   it('hides Find without the flag', () => {
     render(
       <LinkSchoologyModal

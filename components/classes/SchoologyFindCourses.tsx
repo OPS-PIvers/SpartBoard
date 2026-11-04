@@ -18,6 +18,8 @@ interface SchoologyFindCoursesProps {
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>;
   onReplaced?: (contextIds: string[]) => void;
+  /** Called when the found list shows or clears. */
+  onListShown?: (shown: boolean) => void;
 }
 
 const STATUS_TEXT: Record<Exclude<FoundSectionStatus, 'ready'>, string> = {
@@ -37,6 +39,7 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
   addToast,
   updateRoster,
   onReplaced,
+  onListShown,
 }) => {
   const [rows, setRows] = useState<FoundSectionRow[] | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -54,9 +57,22 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
         nameOf(a.rosterId).localeCompare(nameOf(b.rosterId))
       );
       setRows(sorted);
+      onListShown?.(sorted.length > 0);
+      // A move waits for a tick, unless its class is relinked here anyway (which drops the old link).
+      const relinked = new Set(
+        sorted
+          .filter((r) => r.status === 'ready' && !r.movesFromRosterId)
+          .map((r) => r.rosterId)
+      );
       setChecked(
         new Set(
-          sorted.filter((r) => r.status === 'ready').map((r) => r.rosterId)
+          sorted
+            .filter(
+              (r) =>
+                r.status === 'ready' &&
+                (!r.movesFromRosterId || relinked.has(r.movesFromRosterId))
+            )
+            .map((r) => r.rosterId)
         )
       );
       if (sorted.length === 0) {
@@ -167,34 +183,45 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
                     )}
                     className="mt-1 h-4 w-4 shrink-0 accent-brand-blue-primary disabled:opacity-40"
                   />
-                  <label htmlFor={inputId} className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-slate-800 truncate">
-                      {nameOf(row.rosterId)}
-                    </span>
-                    {row.contextTitle && (
-                      <span className="block text-xs text-slate-500 truncate">
-                        {row.contextTitle}
-                        {row.periodTitle ? ` · ${row.periodTitle}` : ''}
+                  <div className="min-w-0 flex-1 flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                    <label htmlFor={inputId} className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-slate-800 truncate">
+                        {nameOf(row.rosterId)}
+                      </span>
+                      {row.contextTitle && (
+                        <span className="block text-xs text-slate-500 truncate">
+                          {row.contextTitle}
+                          {row.periodTitle ? ` · ${row.periodTitle}` : ''}
+                        </span>
+                      )}
+                      {ready && row.replacesTitle && (
+                        <span className="block text-xs text-amber-700 truncate">
+                          Replaces “{row.replacesTitle}”
+                        </span>
+                      )}
+                      {ready && row.movesFromRosterId && (
+                        <span className="block text-xs text-amber-700 truncate">
+                          Moves the link from{' '}
+                          {rosters.some((r) => r.id === row.movesFromRosterId)
+                            ? nameOf(row.movesFromRosterId)
+                            : 'another class'}
+                          .
+                        </span>
+                      )}
+                    </label>
+                    {row.status !== 'ready' && (
+                      <span
+                        className={`inline-flex items-center gap-1 text-xs font-bold sm:shrink-0 ${
+                          row.status === 'linked'
+                            ? 'text-emerald-600'
+                            : 'text-slate-500'
+                        }`}
+                      >
+                        {row.status === 'linked' && <Check size={14} />}
+                        {STATUS_TEXT[row.status]}
                       </span>
                     )}
-                    {ready && row.replacesTitle && (
-                      <span className="block text-xs text-amber-700 truncate">
-                        Replaces “{row.replacesTitle}”
-                      </span>
-                    )}
-                  </label>
-                  {row.status !== 'ready' && (
-                    <span
-                      className={`inline-flex items-center gap-1 text-xs font-bold shrink-0 ${
-                        row.status === 'linked'
-                          ? 'text-emerald-600'
-                          : 'text-slate-500'
-                      }`}
-                    >
-                      {row.status === 'linked' && <Check size={14} />}
-                      {STATUS_TEXT[row.status]}
-                    </span>
-                  )}
+                  </div>
                 </li>
               );
             })}
