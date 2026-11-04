@@ -26,6 +26,7 @@ import {
 import { isConnectable } from '@/config/widgetConnections';
 import { liveConnections } from '@/utils/connectionEngine';
 import { summaryKey } from './connectionSummary';
+import { publishConnectionTabSize } from './connectionTabInset';
 import { useConnectionWidgetTitle } from '@/hooks/useConnectionWidgetTitle';
 import { sendRunCommand } from '@/utils/connectionSignals';
 import { tourAttr } from '@/config/tourAnchors';
@@ -91,6 +92,7 @@ const ConnectionBadgeInner: React.FC<{
     <>
       <button
         type="button"
+        ref={publishConnectionTabSize}
         {...tourAttr('widget.connection-badge', widget.id, widget.type)}
         onPointerDown={(e) => {
           e.stopPropagation();
