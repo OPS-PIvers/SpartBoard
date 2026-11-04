@@ -145,6 +145,7 @@ const TYPE_BOUND_EXTRAS = [
   'enforceWordLimit',
   'noSpellCheck',
   'paperBoxSize',
+  'paperOwnTest',
 ] as const;
 
 /** Joins per-blank answers in a multi-blank key; mirrors utils/quizFibBlanks.ts. */
