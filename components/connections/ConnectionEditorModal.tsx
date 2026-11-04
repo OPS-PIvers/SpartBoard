@@ -486,12 +486,14 @@ export const ConnectionEditorModal: React.FC<{
   const arrow = (card: EditorCard, i: number) => {
     const choice = advanceChoice(card);
     const waits = !!stepWait(card.step, board.widgets);
+    // Tagged with the step's widget type so a tour can reach the arrow after a given widget.
+    const stepType = mainOf(card)?.type;
     return (
       <div className="flex h-11 items-center gap-2 pl-[1.1rem] text-xs font-semibold text-slate-500">
         <ArrowDown className="h-4 w-4 shrink-0" aria-hidden="true" />
         <select
           value={choice}
-          {...tourAttr('connections.editor.advance')}
+          {...tourAttr('connections.editor.advance', undefined, stepType)}
           aria-label={t('connections.editor.advanceFor', {
             n: i + 1,
             defaultValue: 'What moves on from step {{n}}',
@@ -522,7 +524,11 @@ export const ConnectionEditorModal: React.FC<{
               min={1}
               max={MAX_PAUSE_SECONDS}
               value={card.pauseSeconds ?? 10}
-              {...tourAttr('connections.editor.wait-seconds')}
+              {...tourAttr(
+                'connections.editor.wait-seconds',
+                undefined,
+                stepType
+              )}
               normalize={(n) =>
                 Math.min(MAX_PAUSE_SECONDS, Math.max(1, Math.round(n)))
               }
