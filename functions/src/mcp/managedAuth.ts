@@ -21,6 +21,8 @@ export const ID_JAG_TYP = 'oauth-id-jag+jwt';
 export const MANAGED_AUTH_FIELD = 'claudeManagedAuth';
 
 const CLOCK_SKEW_S = 60;
+/** Claude-issued assertions live under a minute; this bounds replay records too. */
+const MAX_LIFETIME_S = 300;
 const DISCOVERY_CACHE_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 3000;
 const MAX_DOC_BYTES = 64 * 1024;
@@ -92,13 +94,17 @@ export const defaultDeps: ManagedAuthDeps = {
 export const isManagedAuthEnabled = (db: Firestore, now = Date.now()) =>
   isSwitchOn(db, MANAGED_AUTH_SETTINGS_PATH, now);
 
-/** An issuer an admin may register: a plain https URL. */
+/** A plain https URL on a public DNS name, port 443: no IP literals or single-label hosts. */
 export function isValidIssuerUrl(raw: string): boolean {
   if (raw.length > 300) return false;
   try {
     const url = new URL(raw);
     return (
       url.protocol === 'https:' &&
+      !url.port &&
+      url.hostname.includes('.') &&
+      !url.hostname.startsWith('[') &&
+      !/^[\d.]+$/.test(url.hostname) &&
       !url.search &&
       !url.hash &&
       !url.username &&
@@ -250,6 +256,12 @@ export async function exchangeAssertion(
   }
   if (typeof payload.iat !== 'number' || payload.iat > nowS + CLOCK_SKEW_S) {
     throw deny('Assertion issued in the future');
+  }
+  if (
+    typeof payload.exp !== 'number' ||
+    payload.exp - payload.iat > MAX_LIFETIME_S
+  ) {
+    throw deny('Assertion lifetime is too long');
   }
 
   // 6-7. Client and subject.

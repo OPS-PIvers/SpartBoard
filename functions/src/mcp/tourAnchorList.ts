@@ -41949,6 +41949,68 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.org.overview-claude-sign-in-toggle",
+    "label": "Claude sign-in switch in Organization overview",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.organization.overview",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#organization",
+          "admin.org.section:admin#overview"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.org.overview-claude-sign-in-issuer",
+    "label": "Claude sign-in Issuer URL field in Organization overview",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.organization.overview",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#organization",
+          "admin.org.section:admin#overview"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.org.overview-claude-sign-in-save",
+    "label": "Claude sign-in Save button in Organization overview",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.organization.overview",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#organization",
+          "admin.org.section:admin#overview"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.org.overview-name",
     "label": "Organization name field in Organization overview",
     "scope": "board",

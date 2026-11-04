@@ -428,6 +428,7 @@ describe('cases to check before launch', () => {
       { iat: nowS + 120, nbf: nowS + 120, exp: nowS + 180 },
       { jti: undefined },
       { sub: undefined },
+      { exp: nowS + 3600 },
     ]) {
       const out = await refused(db, deps, async (c) => ({
         assertion: await assertion(c, claims),
@@ -465,5 +466,16 @@ describe('cases to check before launch', () => {
     expect(isValidIssuerUrl('http://identity.anthropic.com/x')).toBe(false);
     expect(isValidIssuerUrl('https://x.example/?a=1')).toBe(false);
     expect(isValidIssuerUrl('not a url')).toBe(false);
+    for (const host of [
+      'https://10.0.0.1/x',
+      'https://169.254.169.254/latest',
+      'https://2130706433/x',
+      'https://[::1]/x',
+      'https://localhost/x',
+      'https://metadata/x',
+      'https://idp.example.com:8443/x',
+    ]) {
+      expect(isValidIssuerUrl(host)).toBe(false);
+    }
   });
 });

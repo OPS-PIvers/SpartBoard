@@ -22,6 +22,10 @@ export function isValidManagedAuthIssuer(raw: string): boolean {
     const url = new URL(raw);
     return (
       url.protocol === 'https:' &&
+      !url.port &&
+      url.hostname.includes('.') &&
+      !url.hostname.startsWith('[') &&
+      !/^[\d.]+$/.test(url.hostname) &&
       !url.search &&
       !url.hash &&
       !url.username &&
