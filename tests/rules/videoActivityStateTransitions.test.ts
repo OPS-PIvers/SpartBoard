@@ -13,8 +13,10 @@ import {
 import {
   arrayRemove,
   arrayUnion,
+  collection,
   doc,
   getDoc,
+  getDocs,
   increment,
   setDoc,
   updateDoc,
@@ -264,5 +266,59 @@ describe('video_activity_sessions responses: lifecycle patches', () => {
     await seedResponse({});
     await assertSucceeds(getDoc(doc(asSsoStudent(), RESPONSE_PATH)));
     await assertFails(getDoc(doc(asAnonStudent(), RESPONSE_PATH)));
+  });
+});
+
+describe('video_activity_sessions: student tokens never act as the session teacher', () => {
+  const AUTHOR_UID = 'sso-va-author';
+  const asSsoAuthor = () =>
+    testEnv
+      .authenticatedContext(AUTHOR_UID, {
+        email: '',
+        studentRole: true,
+        classIds: [CLASS_A],
+        firebase: { sign_in_provider: 'custom' },
+      })
+      .firestore();
+  const newSession = (teacherUid: string) => ({
+    id: 'va-new',
+    activityId: 'act-1',
+    teacherUid,
+    status: 'active',
+    mode: 'submissions',
+    classIds: [CLASS_A],
+    createdAt: 1,
+    questions: [],
+  });
+
+  it('a studentRole token cannot create a class-targeted session it owns', async () => {
+    await assertFails(
+      setDoc(
+        doc(asSsoAuthor(), 'video_activity_sessions/va-new'),
+        newSession(AUTHOR_UID)
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), 'video_activity_sessions/va-new'),
+        newSession(TEACHER_UID)
+      )
+    );
+  });
+
+  it('a student-authored session gives its author no teacher access', async () => {
+    await seedSession({ teacherUid: AUTHOR_UID, sessionMode: 'student' });
+    await seedResponse({});
+    await assertFails(getDoc(doc(asSsoAuthor(), RESPONSE_PATH)));
+    await assertFails(
+      getDocs(collection(asSsoAuthor(), `${SESSION_PATH}/responses`))
+    );
+    await assertFails(
+      updateDoc(doc(asSsoAuthor(), RESPONSE_PATH), { score: 100 })
+    );
+    await assertFails(
+      updateDoc(doc(asSsoAuthor(), SESSION_PATH), { activityTitle: 'x' })
+    );
+    await assertSucceeds(getDoc(doc(asSsoStudent(), RESPONSE_PATH)));
   });
 });

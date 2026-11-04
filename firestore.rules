@@ -5846,8 +5846,9 @@ service cloud.firestore {
       function vaS() {
         return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data;
       }
+      // Student tokens are non-anonymous, so they never count as the owner.
       function vaOwner(s) {
-        return signedIn() && (s.teacherUid == authUid() || isAdmin());
+        return signedIn() && ((s.teacherUid == authUid() && !isStudentRoleUser()) || isAdmin());
       }
       // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
       // caller can't enumerate every teacher's sessions.
@@ -5856,6 +5857,8 @@ service cloud.firestore {
       // Non-anonymous teachers create only sessions they own.
       allow create: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
+        notDeactivated() &&
         subMonitorStampAbsent() &&
         incoming().teacherUid == authUid() &&
         !('ltiAttachment' in incoming());
@@ -5865,6 +5868,7 @@ service cloud.firestore {
       // hasOnly). The student response rule below stays tight.
       allow update: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
         existing().teacherUid == authUid() &&
         subMonitorStampUnchanged() &&
         sameId() &&
