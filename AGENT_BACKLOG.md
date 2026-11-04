@@ -143,6 +143,7 @@ The plan holds the slices; build the **Next** one and update this line in the sa
 - **AB-45 Chrome extension quiz and video hand-off**: `docs/plans/CHROME_EXTENSION.md`. Next: slice 15 / F13.
 - **AB-46 Drawing page space**: `docs/plans/shipped/QUIZ_WHITEBOARD_RESPONSE.md` D29, the decoupled Drawing widget page-space migration.
 - **AB-80 Clearer message when a long PIN can't join a ClassLink quiz** (S, needs Paul's wording OK). Since security batch 1A (#4986), an anonymous join with a 6+ character PIN on a session with both rosters and class ids is refused when the PIN sign-in doesn't match (stale PIN index, rate limit, outage, or a local roster linked only to a Schoology section). The student sees the "already in this quiz on another tab" message from `hooks/useQuizSession.ts`; it should tell them to sign in with their school account. Also consider counting only non-`schoology:` class ids in that rule.
+- **AB-54 Import S8 PR2** (M). Extension Send for a single Schoology rubric or discussion. Build it from the two Schoology links (one rubric, one discussion) Paul posted in the "Import S8" thread (PT-8, done 2026-11-04).
 
 ## Blocked
 
@@ -155,7 +156,6 @@ Each names what unblocks it. When the blocker clears, move the item to Ready.
 - **AB-51 PLC phases 7-8** (L). Blocked on PT-88. Phase 7 Mini-Apps PLC integration (`useSyncedMiniAppGroups`, `synced_mini_apps` rules, CF join, PLC body and import modal, flag row; widen `assignment_index` so `sheetUrl` is optional for `mini-app` and `guided-learning`). Phase 8 GL PLC sharing (same pattern plus Drive-backed import gating). Spec: `docs/specs/M16-plc-phases-7-8-spec.md`.
 - **AB-52 Nexus connections** (S-L). Blocked on PT-89 (Decision A). Then tracer 1: Checklist → Timer (candidate 2); tracer 2: Webcam/Drawing → GL (1); Scoreboard → Stickers (8); Quiz/Text/GL/Poll spawns (3, 4, 5, 7, 10; new AIGenerationType and promptMap entries); VA → GL (6); Schedule → Catalyst (9). Spec: `docs/specs/LO12-nexus-widget-connections-spec.md`.
 - **AB-53 Import wave 2 and 3 readers** (M each). Blocked on PT-91 samples. Google Forms reader, Canvas/QTI file route, then ranked wave 3. Plan: `docs/plans/IMPORT.md`.
-- **AB-54 Import S8 PR2** (M). Blocked on PT-8. Extension Send for a single Schoology rubric or discussion.
 - **AB-55 Schoology grade import** (L). Blocked on PT-90. Plan: `docs/plans/SCHOOLOGY_GRADE_IMPORT.md`.
 - **AB-56 Web tour list cost** (M). Blocked on firestore.rules size headroom. Store each tour's start host and step count at publish so `webToursListV1` stops reading every step.
 - **AB-57 Starred class PR 4** (S). Blocked on Paul opening the per-widget class flag (after AB-41 PR 2-3). Remove the star UI, `activeRosterId`/`setActiveRoster`, the localStorage key and the Classes widget catalog entry.
