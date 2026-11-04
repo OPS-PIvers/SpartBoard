@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 135_
-_Last run: 2026-11-03_
+_Run count: 136_
+_Last run: 2026-11-04_
 _Base branch: dev-paul_
 
 ---
@@ -577,6 +577,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-11-04 | `nightly/unifier-log-2026-11-04` | D1/D2/D3/D4/D5 | Aligned (run 136) — light probe of 58 commits / 80 non-test client `.tsx` files since run 135 (`0b1e5280^..dev-paul`: connection lines, Timer controls, tour anchors, admin widget names). Diff-scoped greps over added lines: the only `'../'` import is `QuizResults.tsx` -> `../utils/resolveDisplayName` (D4-E3 own-widget gray zone); no `<Toast`; the only `#2d3f89` hits are run 135's own `var(--spart-primary, #2d3f89)` fallbacks; no hand-rolled `text-xxs font-black/bold uppercase` labels; the new `role="group"` is a labelled row in Random settings (not an exclusive picker) and the `aria-pressed` is the independent per-option correct-answer toggle in Poll `settingsFields.tsx`; no new `Widget.tsx`. No subagents dispatched, no code shipped; full `validate` not re-run (docs-only change). | — |
 | 2026-11-03 | `nightly/unify-d2-brand-colors-2026-11-03` | D1/D2/D3/D4/D5 | D2 shipped (run 135) — `components/connections/ConnectionLines.tsx` (Widget Connections, #5010) hardcoded `#2d3f89` as SVG `stroke`/`fill` for the connection line and dots → `var(--spart-primary, #2d3f89)`, same SVG-presentation-attribute precedent as run 97 `calloutStyle.ts`. Default-theme render is identical; `vitest related` 69/69. D1/D3/D4/D5 aligned: diff-scoped greps over added lines found only own-widget/extension `../` imports (D4-E3/out of scope), no new `<Toast`, no new `Widget.tsx`; `text-xxs ... uppercase` hits are button/chip styles; new `aria-pressed` sites are non-exclusive toggles. `validate` not run (CLAUDE.md forbids full-repo runs; CI gates). | see PR |
 | 2026-11-02 | `nightly/unifier-log-2026-11-02` | D1/D2/D3/D4/D5 | Aligned (run 134) — light probe of 9 commits / 103 non-test client files since run 133 (mostly docs, tour-anchor sweep, css-scaling margins, extension release). Diff-scoped greps over added lines for `'../'` imports, `<Toast`, `#2d3f89`/`#ad2122`, hand-rolled `text-xxs font-black/bold uppercase` labels, `aria-pressed` and `role="group"` returned zero hits; no new `Widget.tsx`. No subagents dispatched, no code shipped; `validate` not run (docs-only; CLAUDE.md forbids full-repo runs). | — |
 | 2026-11-01 | `nightly/unifier-log-2026-11-01` | D1/D2/D3/D4/D5 | Aligned (run 133) — light probe of 4 commits / 19 client `.tsx` files since run 132 (`faaa01b4..dev-paul`: Quizlet import, tour-anchor sweep, EmbedWidget css-scaling). Diff-scoped greps over added lines for `'../'` imports, `<Toast`, `#2d3f89`/`#ad2122`, hand-rolled `text-xxs font-black/bold uppercase` labels, `aria-pressed` and `role="group"` returned zero hits; no new `Widget.tsx`. No subagents dispatched, no code shipped; `validate` not run (docs-only; CLAUDE.md forbids full-repo runs). | — |
