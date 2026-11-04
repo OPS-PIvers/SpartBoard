@@ -8,6 +8,7 @@ import {
 } from '../classlinkShared';
 import { publicOrigin, resourceUrl } from './config';
 import { checkEligibility } from './eligibility';
+import { isStaffMemberData } from '../districtStaff';
 import { OAuthError, issueManagedGrant } from './grants';
 import type { ManagedTokenResponse } from './grants';
 import { sha256, verifyClientId } from './tokens';
@@ -280,13 +281,17 @@ export async function exchangeAssertion(
     throw deny('Email is not on a verified domain of this organization');
   }
   const user = await deps.getUserByEmail(email);
-  // student is a backstop; the active staff member doc checked below is what keeps students out.
   if (!user || !user.emailVerified || user.student) {
     throw deny('No SpartBoard teacher account for this email');
   }
   const eligibility = await checkEligibility(db, user.uid, email);
   if (!eligibility.ok || eligibility.orgId !== orgId) {
     throw deny('This account cannot connect Claude yet');
+  }
+  // Students and staff share the domain, so only a staff member doc may sign in unattended.
+  const member = await db.doc(`organizations/${orgId}/members/${email}`).get();
+  if (!isStaffMemberData(member.data())) {
+    throw deny('Only staff can sign in to Claude automatically');
   }
 
   // 9. Replay, last, so a refused assertion never burns its jti.

@@ -50,6 +50,7 @@ beforeEach(async () => {
 interface SeedOpts {
   switchOn?: boolean;
   orgs?: Record<string, { enabled: boolean; issuer: string } | undefined>;
+  memberRole?: string;
 }
 
 function seed(opts: SeedOpts = {}) {
@@ -59,7 +60,10 @@ function seed(opts: SeedOpts = {}) {
       domain: '@orono.k12.mn.us',
       status: 'verified',
     },
-    [`organizations/orono/members/${TEACHER}`]: { status: 'active' },
+    [`organizations/orono/members/${TEACHER}`]: {
+      status: 'active',
+      ...(opts.memberRole ? { roleId: opts.memberRole } : {}),
+    },
     'global_permissions/claude-connector': {
       enabled: true,
       accessLevel: 'public',
@@ -407,6 +411,14 @@ describe('cases to check before launch', () => {
       }));
       expect(out).toMatchObject({ ok: false, error: 'invalid_grant' });
     }
+  });
+
+  it('refuses a student member doc, since students share the staff domain', async () => {
+    const db = seed({ memberRole: 'student' });
+    const out = await refused(db, makeDeps().deps, async (c) => ({
+      assertion: await assertion(c),
+    }));
+    expect(out).toMatchObject({ ok: false, error: 'invalid_grant' });
   });
 
   it('refuses a verified-domain address that is not an active member', async () => {

@@ -25,7 +25,7 @@ A person is signed in only when all of these are true:
 - They are a current member of the Claude organization whose Issuer URL you saved.
 - Their Claude email is on a **verified** sign-in domain of this SpartBoard organization (Organization > Sign-in domains).
 - They have signed in to SpartBoard with Google at least once, with that same address.
-- They are an active staff member of the organization and the Claude connector is on for them. These are the same checks as the Connect step, and the active staff member record is what keeps students out.
+- They hold an active, non-student member record in the organization, and the Claude connector is on for them. Students share the district domain, so that member record is what keeps them out.
 
 Anyone else still gets the usual **Connect** step.
 
