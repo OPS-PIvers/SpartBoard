@@ -1,6 +1,6 @@
 # Schoology auto-link: find a teacher's Schoology sections for their classes
 
-Probed read-only on 2026-11-04 (Schoology REST with the SIS Connect key, ClassLink OneRoster, prod Firestore). Not built. One PR to `dev-paul` behind a preview flag.
+Probed read-only on 2026-11-04 (Schoology REST with the SIS Connect key, ClassLink OneRoster, prod Firestore). Built 2026-11-04 behind `schoology-tool-columns`: `functions/src/lti/findSchoologySections.ts` and `components/classes/SchoologyFindCourses.tsx`. Both open questions took the proposal: sections with no SpartBoard class stay hidden, and there is no semester banner yet.
 
 ## Goal
 

@@ -29,6 +29,7 @@ import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { SchoologyPasteLink } from './SchoologyPasteLink';
 import { SchoologyLinkedCourses } from './SchoologyLinkedCourses';
+import { SchoologyFindCourses } from './SchoologyFindCourses';
 import { syncRosterMirrors } from '@/utils/ltiRosterMirrors';
 
 interface LinkSchoologyModalProps {
@@ -285,6 +286,14 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
       ariaLabel="Link to Schoology"
     >
       <div className="py-4 space-y-3">
+        {pasteLinkEnabled && matchCandidates.length > 0 && (
+          <SchoologyFindCourses
+            rosters={rosters}
+            addToast={addToast}
+            updateRoster={updateRoster}
+            onReplaced={forgetLinked}
+          />
+        )}
         {pasteLinkEnabled && candidateRosters.length > 0 && (
           <SchoologyPasteLink
             rosters={candidateRosters}

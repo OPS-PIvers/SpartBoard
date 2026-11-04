@@ -5028,6 +5028,20 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'schoology-link.find': {
+    label: 'Find my Schoology courses button in the Link Schoology dialog',
+    panel: true,
+  },
+  'schoology-link.found-row': {
+    label: 'Checkbox on a found Schoology course row',
+    perField: true,
+    panel: true,
+  },
+  'schoology-link.link-selected': {
+    label: 'Link selected button for found Schoology courses',
+    persists: true,
+    panel: true,
+  },
   'schoology-link.unlink': {
     label: 'Unlink button on a linked Schoology course',
     perField: true,

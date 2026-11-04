@@ -12,6 +12,8 @@ const suggestMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const previewByUrlMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const linkByUrlMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const unlinkMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const findMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const linkFoundMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 vi.mock('@/utils/ltiCourseLinks', () => ({
   replacedNote: (replaced?: string[]) =>
     replaced?.length
@@ -22,6 +24,8 @@ vi.mock('@/utils/ltiCourseLinks', () => ({
   previewLtiSectionByUrl: (...args: unknown[]) => previewByUrlMock(...args),
   linkLtiSectionByUrl: (...args: unknown[]) => linkByUrlMock(...args),
   unlinkLtiSection: (...args: unknown[]) => unlinkMock(...args),
+  findSchoologySections: (...args: unknown[]) => findMock(...args),
+  linkFoundSchoologySections: (...args: unknown[]) => linkFoundMock(...args),
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -423,5 +427,80 @@ describe('LinkSchoologyModal', () => {
     expect(
       screen.getByLabelText(/Paste a Schoology course link/i)
     ).toBeTruthy();
+  });
+
+  it('finds sections by class and links the checked ones', async () => {
+    findMock.mockResolvedValue([
+      {
+        rosterId: 'rA',
+        status: 'ready',
+        contextId: '111',
+        contextTitle: 'BIOLOGY A: (S1) P5',
+        periodTitle: 'HS Semester 1 (26-27)',
+        replacesTitle: '(S2) BIOLOGY B',
+      },
+      { rosterId: 'rB', status: 'none' },
+    ]);
+    linkFoundMock.mockResolvedValue([
+      {
+        rosterId: 'rA',
+        status: 'linked',
+        contextId: '111',
+        contextTitle: 'BIOLOGY A: (S1) P5',
+        replaced: ['(S2) BIOLOGY B'],
+        replacedIds: ['999'],
+      },
+    ]);
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[
+          roster('rA', 'Period 1', 'cl-A'),
+          roster('rB', 'Period 2', 'cl-B'),
+        ]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+        pasteLinkEnabled
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Find my Schoology courses/i })
+    );
+    expect(
+      await screen.findByText('BIOLOGY A: (S1) P5 · HS Semester 1 (26-27)')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Replaces “(S2) BIOLOGY B”')).toBeInTheDocument();
+    expect(screen.getByText('No Schoology course')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Period 1/ })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Period 2/ })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Link selected (1)' }));
+    await waitFor(() =>
+      expect(addToast).toHaveBeenCalledWith(
+        'Linked 1 class. Replaced “(S2) BIOLOGY B”.',
+        'success'
+      )
+    );
+    expect(linkFoundMock).toHaveBeenCalledWith({}, ['rA']);
+    expect(updateRoster).toHaveBeenCalledWith('rA', { ltiContextId: '111' });
+    expect(screen.getByText('Linked')).toBeInTheDocument();
+  });
+
+  it('hides Find without the flag', () => {
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[roster('rA', 'Period 1', 'cl-A')]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: /Find my Schoology courses/i })
+    ).toBeNull();
   });
 });

@@ -159,3 +159,44 @@ export function replacedNote(replaced: string[] | undefined): string {
   if (!replaced || replaced.length === 0) return '';
   return ` Replaced ${replaced.map((t) => `“${t}”`).join(', ')}.`;
 }
+
+/** How a class stands against the Schoology section its SIS id points at. */
+export type FoundSectionStatus =
+  'ready' | 'linked' | 'none' | 'taken' | 'not-teacher' | 'error';
+
+/** One of the caller's ClassLink classes and its Schoology section. */
+export interface FoundSectionRow extends ReplacedLinks {
+  rosterId: string;
+  status: FoundSectionStatus;
+  contextId?: string;
+  contextTitle?: string | null;
+  periodTitle?: string | null;
+  /** The section a link would replace for this class. */
+  replacesTitle?: string | null;
+  error?: string;
+}
+
+/** Find the Schoology section for each of the caller's ClassLink classes. */
+export async function findSchoologySections(
+  functions: Functions
+): Promise<FoundSectionRow[]> {
+  const callable = httpsCallable<
+    Record<string, never>,
+    { rows: FoundSectionRow[] }
+  >(functions, 'ltiFindSchoologySectionsV1');
+  const { data } = await callable({});
+  return data.rows;
+}
+
+/** Link these classes to the sections found for them; returns each class's outcome. */
+export async function linkFoundSchoologySections(
+  functions: Functions,
+  rosterIds: string[]
+): Promise<FoundSectionRow[]> {
+  const callable = httpsCallable<
+    { rosterIds: string[] },
+    { rows: FoundSectionRow[] }
+  >(functions, 'ltiFindSchoologySectionsV1');
+  const { data } = await callable({ rosterIds });
+  return data.rows;
+}
