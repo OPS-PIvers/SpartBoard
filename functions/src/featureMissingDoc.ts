@@ -55,7 +55,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'music-my-songs',
   'widget-connections',
   'random-avoid-repeats',
-  'board-multi-select',
   'focus-sessions',
   'staff-audience',
   'universal-import',
