@@ -9511,6 +9511,20 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.org.overview-claude-sign-in-toggle': {
+    label: 'Claude sign-in switch in Organization overview',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.overview-claude-sign-in-issuer': {
+    label: 'Claude sign-in Issuer URL field in Organization overview',
+    panel: true,
+  },
+  'admin.org.overview-claude-sign-in-save': {
+    label: 'Claude sign-in Save button in Organization overview',
+    persists: true,
+    panel: true,
+  },
   'admin.org.overview-name': {
     label: 'Organization name field in Organization overview',
     panel: true,

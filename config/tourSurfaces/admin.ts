@@ -719,7 +719,10 @@ export const SURFACES: TourSurfaceMap = {
   'admin.organization.overview': {
     label: 'Organization > Overview',
     kind: 'panel',
-    files: ['components/admin/Organization/views/OverviewView.tsx'],
+    files: [
+      'components/admin/Organization/views/OverviewView.tsx',
+      'components/admin/Organization/views/ClaudeSignInCard.tsx',
+    ],
     opensWith: 'admin.org.section:admin#overview',
     needs: ['admin'],
   },

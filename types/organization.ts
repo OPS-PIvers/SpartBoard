@@ -65,6 +65,8 @@ export interface OrgRecord {
   status: 'active' | 'trial' | 'archived';
   seedColor: string; // tailwind bg class e.g. 'bg-indigo-600'
   supportUrl?: string;
+  /** Enterprise Managed Auth for the Claude connector; the server trusts this issuer for this org only. */
+  claudeManagedAuth?: { enabled: boolean; issuer: string };
 }
 
 export interface BuildingRecord {

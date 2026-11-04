@@ -21,7 +21,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -406,6 +406,65 @@ describe('organizations — domain admin writes on own org', () => {
         name: 'Hijacked',
       })
     );
+  });
+
+  it('cannot set the Claude sign-in issuer', async () => {
+    await assertFails(
+      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
+        claudeManagedAuth: {
+          enabled: true,
+          issuer: 'https://identity.anthropic.com/issuers/abc123',
+        },
+      })
+    );
+  });
+
+  it('a building admin cannot set the Claude sign-in issuer', async () => {
+    await assertFails(
+      updateDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}`), {
+        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
+      })
+    );
+  });
+});
+
+describe('organizations — Claude sign-in issuer (super admin only)', () => {
+  it('a super admin can set the issuer only in its pinned shape', async () => {
+    const ref = () => doc(asSuper(), `organizations/${ORG_ID}`);
+    await assertSucceeds(
+      updateDoc(ref(), {
+        claudeManagedAuth: {
+          enabled: true,
+          issuer: 'https://identity.anthropic.com/issuers/abc123',
+        },
+      })
+    );
+    for (const bad of [
+      { enabled: true, issuer: 'http://identity.anthropic.com/issuers/a' },
+      { enabled: true, issuer: 'https://x.example/?a=1' },
+      { enabled: 'yes', issuer: 'https://x.example' },
+      { enabled: true, issuer: 'https://x.example', extra: 1 },
+      'https://x.example',
+    ]) {
+      await assertFails(updateDoc(ref(), { claudeManagedAuth: bad }));
+    }
+    await assertSucceeds(updateDoc(ref(), { name: 'Orono Schools' }));
+  });
+
+  it('an org member can read the saved issuer and a non-member cannot', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `organizations/${ORG_ID}`), {
+        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
+      });
+    });
+    const snap = await assertSucceeds(
+      getDoc(doc(asTeacher(), `organizations/${ORG_ID}`))
+    );
+    expect(snap.data()?.claudeManagedAuth).toEqual({
+      enabled: true,
+      issuer: 'https://x.example',
+    });
+    await assertFails(getDoc(doc(asOutsider(), `organizations/${ORG_ID}`)));
   });
 });
 
