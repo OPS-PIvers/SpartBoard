@@ -82,7 +82,7 @@ const pickDisplayLabel = (
     (s): s is string => typeof s === 'string' && s.length > 0
   ) ?? '—';
 
-/** Self-paced Video Activity monitor in the Quiz monitor's layout (monitor-parity). */
+/** Self-paced Video Activity monitor in the Quiz monitor's layout. */
 export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
   session,
   responses,

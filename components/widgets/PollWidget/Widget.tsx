@@ -106,11 +106,11 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           : user?.uid,
     onConfigChange: applyConfig,
     readAnswers: !isAnnouncement && !inShare && !foreignSession,
-    endSessionOnReset: canAccessFeature('poll-pro') && !isAnnouncement,
-    pollPro: canAccessFeature('poll-pro') && !isAnnouncement,
+    endSessionOnReset: !isAnnouncement,
   });
   const isLive = sessionLive && !inShare;
-  const proEnabled = canAccessFeature('poll-pro') && !isAnnouncement;
+  // Announcement embeds keep the plain board: no reveal, lock or typed answers.
+  const proEnabled = !isAnnouncement;
   const hidden = proEnabled && resultsHidden;
   // Reveal and lock steer the session, so only its owner sees them.
   // On a linked board only the stamped session owner steers; an unstamped session's owner is unknown.

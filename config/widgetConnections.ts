@@ -55,6 +55,8 @@ export interface WidgetConnectionDef {
   defaultAction: string;
   /** Widget types this one can Follow (it keeps matching the leader). */
   follows?: WidgetType[];
+  /** Leader types that get their own Follow slot; the rest share one, so a widget Follows one leader per slot. */
+  followSlots?: Partial<Record<WidgetType, string>>;
 }
 
 const asTimer = (c: Config) => c as unknown as TimeToolConfig;
@@ -177,7 +179,11 @@ export const WIDGET_CONNECTIONS: Partial<
       timerAction('reset', 'Reset', 'reset', false),
     ],
   },
-  random: { defaultAction: 'next', actions: [randomNext] },
+  random: {
+    defaultAction: 'next',
+    actions: [randomNext],
+    follows: ['stations'],
+  },
   music: { defaultAction: '', actions: [], follows: ['time-tool'] },
   traffic: {
     defaultAction: 'red',
@@ -206,7 +212,11 @@ export const WIDGET_CONNECTIONS: Partial<
     actions: [bump('rotate', 'Rotate', 'rotationTrigger', 'next')],
   },
   sound: { defaultAction: '', actions: [], follows: ['expectations'] },
-  qr: { defaultAction: '', actions: [], follows: ['text'] },
+  qr: {
+    defaultAction: '',
+    actions: [],
+    follows: ['text', 'activity-wall', 'miniApp'],
+  },
   recessGear: { defaultAction: '', actions: [], follows: ['weather'] },
   checklist: { defaultAction: 'next', actions: [checklistNext] },
   schedule: {
@@ -257,13 +267,28 @@ export const WIDGET_CONNECTIONS: Partial<
       },
     ],
   },
+  scoreboard: {
+    defaultAction: '',
+    actions: [],
+    follows: ['random', 'review', 'sound'],
+    followSlots: { random: 'teams', review: 'teams', sound: 'points' },
+  },
   text: { defaultAction: '', actions: [] },
+  'activity-wall': { defaultAction: '', actions: [] },
+  miniApp: { defaultAction: '', actions: [] },
+  review: { defaultAction: '', actions: [] },
   weather: { defaultAction: '', actions: [] },
 };
 
 export const connectionDefFor = (
   type: WidgetType
 ): WidgetConnectionDef | undefined => WIDGET_CONNECTIONS[type];
+
+/** The Follow slot a `leaderType` leader takes on a `followerType` widget. */
+export const followSlotOf = (
+  followerType: WidgetType,
+  leaderType: WidgetType
+): string => WIDGET_CONNECTIONS[followerType]?.followSlots?.[leaderType] ?? '';
 
 export const isConnectable = (type: WidgetType): boolean =>
   !!WIDGET_CONNECTIONS[type];

@@ -18,6 +18,11 @@ import { useTimeTool } from './useTimeTool';
 // TimeToolWidget itself now reads globalStyle from the mount-stable store.
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/dashboardCanvasStore');
+const mockAuth = {
+  canAccessFeature: vi.fn(() => false),
+  canAccessWidget: vi.fn(() => true),
+};
+vi.mock('@/context/useAuth', () => ({ useAuth: () => mockAuth }));
 vi.mock('@/utils/timeToolAudio', () => ({
   playTimerAlert: vi.fn(),
   resumeAudio: vi.fn().mockResolvedValue(undefined),
@@ -884,7 +889,7 @@ describe('TimeToolWidget', () => {
     });
 
     it.each([['modern'], ['lcd'], ['minimal']] as const)(
-      'uses top:110% in digital clockStyle="%s"',
+      'anchors the row to the band under the time in digital clockStyle="%s"',
       (clockStyle) => {
         const widget = createWidget({
           mode: 'timer',
@@ -896,11 +901,11 @@ describe('TimeToolWidget', () => {
         const html = renderHtml(widget);
         const wrap = wrapperFor(html, 'Subtract time');
 
-        expect(wrap).toContain('top:110%');
+        expect(wrap).toContain('top:calc(50% + min(60cqh, 30cqw) / 2)');
       }
     );
 
-    it('uses top:115% when visualType="visual" (progress ring on)', () => {
+    it('puts ± in the bottom corners and play/reset under the time when the ring is on', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -909,9 +914,47 @@ describe('TimeToolWidget', () => {
         visualType: 'visual',
       });
       const html = renderHtml(widget);
-      const wrap = wrapperFor(html, 'Subtract time');
 
-      expect(wrap).toContain('top:115%');
+      expect(wrapperFor(html, 'Subtract time')).toMatch(
+        /bottom:16px;left:\d+px/
+      );
+      expect(wrapperFor(html, 'Add time')).toMatch(/bottom:16px;right:\d+px/);
+      expect(wrapperFor(html, 'Pause')).toContain('top:115%');
+    });
+
+    it('moves ± under the time with play/reset when the ring is too small for corners', () => {
+      const Original = global.ResizeObserver;
+      global.ResizeObserver = class {
+        constructor(private cb: ResizeObserverCallback) {}
+        observe = () =>
+          this.cb(
+            [
+              {
+                contentRect: { width: 220, height: 220 },
+              } as ResizeObserverEntry,
+            ],
+            this
+          );
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      };
+      try {
+        renderWidget(
+          createWidget({
+            mode: 'timer',
+            isRunning: true,
+            duration: 300,
+            elapsedTime: 240,
+            visualType: 'visual',
+          })
+        );
+      } finally {
+        global.ResizeObserver = Original;
+      }
+
+      const row = screen.getByLabelText('Pause').parentElement;
+      expect(row).toContainElement(screen.getByLabelText('Subtract time'));
+      expect(row).toContainElement(screen.getByLabelText('Add time'));
     });
 
     it('hides ± adjust buttons in stopwatch mode (only play/reset render)', () => {
@@ -952,6 +995,101 @@ describe('TimeToolWidget', () => {
         createWidget({ mode: 'stopwatch', elapsedTime: 0, isRunning: false })
       );
       expect(screen.getByLabelText('Play')).toBeEnabled();
+    });
+  });
+
+  describe('Add linked music button', () => {
+    const music: WidgetData = {
+      id: 'music-1',
+      type: 'music',
+      x: 0,
+      y: 0,
+      w: 340,
+      h: 120,
+      z: 1,
+      flipped: false,
+      config: {},
+    };
+    const addWidget = vi.fn();
+    const updateDashboard = vi.fn();
+    const withBoard = (
+      extra: Partial<{
+        widgets: WidgetData[];
+        connections: unknown[];
+        readOnly: boolean;
+      }> = {}
+    ) => {
+      const timer = createWidget();
+      (useDashboard as Mock).mockReturnValue({
+        ...mockDashboardContext,
+        addWidget,
+        updateDashboard,
+        isActiveBoardReadOnly: extra.readOnly ?? false,
+        activeDashboard: {
+          ...mockDashboardContext.activeDashboard,
+          widgets: [timer, ...(extra.widgets ?? [])],
+          connections: extra.connections,
+        },
+      });
+      return timer;
+    };
+
+    beforeEach(() => {
+      mockAuth.canAccessFeature.mockReturnValue(true);
+    });
+
+    it('stays hidden while widget connections is off', () => {
+      mockAuth.canAccessFeature.mockReturnValue(false);
+      renderWidget(withBoard());
+      expect(screen.queryByLabelText('Add linked music')).toBeNull();
+    });
+
+    it('adds a Music widget that follows this timer', () => {
+      const timer = withBoard();
+      renderWidget(timer);
+      fireEvent.click(screen.getByLabelText('Add linked music'));
+      const [type, overrides] = addWidget.mock.calls[0] as [
+        string,
+        { id: string; x: number; y: number },
+      ];
+      expect(type).toBe('music');
+      expect(overrides.x).toBe(timer.x + timer.w + 20);
+      expect(updateDashboard).toHaveBeenCalledWith({
+        connections: [
+          expect.objectContaining({
+            kind: 'follow',
+            leaderId: timer.id,
+            followerId: overrides.id,
+          }),
+        ],
+      });
+    });
+
+    it('hides once a Music widget follows this timer', () => {
+      const timer = withBoard({
+        widgets: [music],
+        connections: [
+          {
+            id: 'c1',
+            kind: 'follow',
+            leaderId: 'timetool-1',
+            followerId: 'music-1',
+          },
+        ],
+      });
+      renderWidget(timer);
+      expect(screen.queryByLabelText('Add linked music')).toBeNull();
+    });
+
+    it('stays hidden on a Timer that is not on the board', () => {
+      withBoard();
+      renderWidget({ ...createWidget(), id: 'announcement-preview' });
+      expect(screen.queryByLabelText('Add linked music')).toBeNull();
+    });
+
+    it('stays hidden on a read-only board', () => {
+      renderWidget(withBoard({ readOnly: true }));
+      expect(screen.queryByLabelText('Add linked music')).toBeNull();
     });
   });
 });

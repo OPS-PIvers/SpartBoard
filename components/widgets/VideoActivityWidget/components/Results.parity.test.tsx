@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type {
   VideoActivityQuestion,
@@ -8,13 +8,12 @@ import type {
   VideoActivitySession,
 } from '@/types';
 
-let features: Record<string, boolean> = {};
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     ensureGoogleScope: vi.fn(),
     user: { uid: 'teacher-1' },
     orgId: null,
-    canAccessFeature: (id: string) => features[id] === true,
+    canAccessFeature: () => false,
     isExternalUser: false,
   }),
 }));
@@ -96,11 +95,7 @@ const renderResults = (
 ) =>
   render(<Results session={session} responses={responses} onBack={onBack} />);
 
-beforeEach(() => {
-  features = { 'monitor-parity': true };
-});
-
-describe('Video activity Results — monitor-parity layout', () => {
+describe('Video activity Results — Quiz results layout', () => {
   it('shows the class average and score spread of finished students', () => {
     renderResults();
     expect(screen.getByText('Class average')).toBeVisible();
@@ -137,13 +132,5 @@ describe('Video activity Results — monitor-parity layout', () => {
       screen.getAllByRole('button', { name: 'Export to Sheets' })[1]
     ).toBeDisabled();
     expect(screen.getAllByText('—')[0]).toBeVisible();
-  });
-
-  it('keeps the tabbed layout with the flag off', () => {
-    features = {};
-    renderResults();
-    expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
-    expect(screen.queryByText('Class average')).toBeNull();
-    expect(screen.getByText('Avg Score')).toBeInTheDocument();
   });
 });

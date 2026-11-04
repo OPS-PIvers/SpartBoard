@@ -13,12 +13,18 @@ import {
   RandomSendToStationsField,
   RandomLockedGroupsField,
   RandomSaveAsClassGroupsField,
+  RandomNamesFromStationsField,
 } from './settingsFields';
 import { hiddenWithConnections } from '@/components/settings/schema/hiddenWithConnections';
 
 const mode = (ctx: FieldCtx) => ctx.config.mode ?? 'single';
 const isMode = (value: string) => (ctx: FieldCtx) => mode(ctx) === value;
-const isCustomRoster = (ctx: FieldCtx) => ctx.config.rosterMode === 'custom';
+// While names follow a connected Stations widget, the name source fields would only be overwritten.
+const followsStations = (ctx: FieldCtx) =>
+  ctx.followLeader?.type === 'stations';
+const ownsNames = (ctx: FieldCtx) => !followsStations(ctx);
+const isCustomRoster = (ctx: FieldCtx) =>
+  ownsNames(ctx) && ctx.config.rosterMode === 'custom';
 // The permission half of the gate; the org-wide switch is a Firestore read, so
 // the fields themselves check it (see settingsFields.tsx). Keeping the switch
 // out of here keeps a live listener out of every settings panel.
@@ -41,6 +47,8 @@ const renderLockedGroups = (ctx: CustomRenderCtx) =>
   React.createElement(RandomLockedGroupsField, { ctx });
 const renderSaveAsClassGroups = (ctx: CustomRenderCtx) =>
   React.createElement(RandomSaveAsClassGroupsField, { ctx });
+const renderNamesFromStations = (ctx: CustomRenderCtx) =>
+  React.createElement(RandomNamesFromStationsField, { ctx });
 
 export default defineSettings<RandomConfig>({
   groups: [
@@ -51,6 +59,15 @@ export default defineSettings<RandomConfig>({
           key: 'rosterMode',
           type: 'rosterPicker',
           label: 'rosterSource',
+          visibleWhen: ownsNames,
+        },
+        // schema-gap: connectedNameSource
+        {
+          key: 'rosterMode',
+          type: 'custom',
+          label: 'rosterSource',
+          visibleWhen: followsStations,
+          render: renderNamesFromStations,
         },
         {
           key: 'firstNames',
@@ -171,6 +188,15 @@ export default defineSettings<RandomConfig>({
             isMode('groups')(ctx) && ctx.config.groupingMode === 'count',
           render: renderGroupCount,
         },
+        {
+          key: 'avoidRecentPartners',
+          type: 'toggle',
+          label: 'avoidRecentPartners',
+          help: 'avoidRecentPartnersHelp',
+          visibleWhen: (ctx) =>
+            isMode('groups')(ctx) &&
+            ctx.canAccessFeature('random-avoid-repeats'),
+        },
         // schema-gap: rosterDerivedSlider
         {
           key: 'numHomeGroups',
@@ -214,7 +240,7 @@ export default defineSettings<RandomConfig>({
           type: 'custom',
           label: 'sendToStations',
           searchTerms: ['stations'],
-          visibleWhen: isMode('groups'),
+          visibleWhen: (ctx) => isMode('groups')(ctx) && ownsNames(ctx),
           render: renderSendToStations,
         },
         // schema-gap: partnerAction

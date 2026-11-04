@@ -1,4 +1,4 @@
-// Flashcards results on the monitor-parity layout: Quiz-style counts, class picker and footer.
+// Flashcards results on the Quiz monitor layout: Quiz-style counts, class picker and footer.
 import '@testing-library/jest-dom';
 import React from 'react';
 import {
@@ -20,7 +20,6 @@ import type { FlashcardResultRecord } from '@/utils/flashcardResults';
 const h = vi.hoisted(() => ({
   session: null as FlashcardSession | null,
   results: [] as FlashcardResultRecord[],
-  parity: true,
   confirm: vi.fn(() => Promise.resolve(true)),
   resolveFlag: vi.fn(() => Promise.resolve()),
 }));
@@ -43,7 +42,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1' },
     orgId: null,
-    canAccessFeature: (id: string) => h.parity && id === 'monitor-parity',
+    canAccessFeature: () => false,
   }),
 }));
 vi.mock('@/context/useDashboard', () => ({
@@ -127,7 +126,6 @@ const bucket = (label: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  h.parity = true;
   h.session = session();
   h.results = [
     { studentUid: 'fresh-1', classId: 'cl-1' },
@@ -146,14 +144,7 @@ beforeEach(() => {
   ];
 });
 
-describe('FlashcardResultsView — monitor-parity layout', () => {
-  it('keeps the old layout while the flag is off', () => {
-    h.parity = false;
-    show();
-    expect(screen.queryByRole('button', { name: /Card results/ })).toBeNull();
-    expect(screen.getByText('Average mastered')).toBeInTheDocument();
-  });
-
+describe('FlashcardResultsView monitor layout', () => {
   it('counts study students as Not started, In progress and Mastered', () => {
     show();
     expect(bucket('Not started')).toHaveTextContent('1');

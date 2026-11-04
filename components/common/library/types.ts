@@ -256,6 +256,8 @@ export interface LibraryShellProps {
   folderView?: LibraryFolderViewModel | null;
   /** Layout for folder rows; match the item grid's view mode. */
   folderViewMode?: LibraryViewMode;
+  /** Keeps the header's last button clear of the connection corner tab. */
+  clearsConnectionTab?: boolean;
 }
 
 /* ─── LibraryToolbar (search / sort / filter / view-mode) ─────────────────── */

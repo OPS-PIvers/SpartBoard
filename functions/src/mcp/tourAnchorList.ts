@@ -741,7 +741,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "clock#format24",
       "clock#glow",
+      "clock#showDate",
       "clock#showSeconds",
+      "clock#showTime",
       "countdown#countToday",
       "countdown#includeWeekends",
       "drawing#shapeFill",
@@ -752,6 +754,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "numberLine#showArrows",
       "qr#showUrl",
       "random#autoStartTimer",
+      "random#avoidRecentPartners",
       "random#soundEnabled",
       "recessGear#useFeelsLike",
       "reveal-grid#isMemoryMode",
@@ -2877,6 +2880,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "time-tool.start-pause",
     "label": "Start or pause button in Timer/Stopwatch",
     "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.time-tool.face",
+        "kind": "widget",
+        "widget_type": "time-tool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "time-tool.launch-music",
+    "label": "Button on the Timer that opens a linked Music widget",
+    "scope": "widget",
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.time-tool.face",
@@ -16560,6 +16580,30 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.settings-scoreboard-edit-connection",
+    "label": "Edit connection button for the connected Scoreboard in the Review monitor settings",
+    "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor.settings",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-settings"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.period-start",
     "label": "Start button for the picked class in the Quiz monitor",
     "scope": "widget type",
@@ -18588,6 +18632,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.scoreboard.edit-connection",
+    "label": "Edit connection button in Scoreboard settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.settings",
+        "kind": "settings-drawer",
+        "widget_type": "scoreboard",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.scoreboard.use-group-names",
     "label": "Use group names checkbox in Scoreboard settings",
     "scope": "widget",
@@ -19375,6 +19438,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "widget-settings.random.send-stations",
     "label": "Send to Stations button in Random Picker settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.random.settings",
+        "kind": "settings-drawer",
+        "widget_type": "random",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.random.names-connection",
+    "label": "Edit connection button where Random Picker names come from Stations",
     "scope": "widget",
     "panel": true,
     "routes": [
@@ -32036,6 +32118,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "widget.connect",
     "label": "Connect button in the widget toolbar",
     "scope": "widget",
+    "requires": "widget-selected",
     "routes": [
       {
         "surface": "board.widget",
@@ -45883,26 +45966,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "flashcards.results-class-filter",
-    "label": "Class filter button in Flashcards results",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.results",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "flashcards.scores-cancel",
     "label": "Cancel button in the Flashcards publish scores dialog",
     "scope": "widget type",
@@ -48368,6 +48431,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "video-activity.results-tab",
     "label": "Overview, Questions and Students tabs in video activity results",
     "scope": "field",
+    "keys": [
+      "video-activity#questions",
+      "video-activity#students"
+    ],
     "routes": [
       {
         "surface": "library.video-activity.results",
@@ -48389,6 +48456,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "keys": [
+      "video-activity#item-1"
+    ],
     "routes": [
       {
         "surface": "library.video-activity.results",
@@ -50673,50 +50743,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gl-results.export",
     "label": "Export button in the results header",
     "scope": "board",
-    "routes": [
-      {
-        "surface": "guidedLearning.results",
-        "kind": "panel",
-        "widget_type": "guided-learning",
-        "path": [
-          "library-shell.tab:guided-learning#active",
-          "library-shell.card-primary-action:guided-learning#row-1"
-        ],
-        "needs": [
-          "widget-on-stage",
-          "library-item",
-          "student-data"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "gl-results.period-start-all",
-    "label": "Start all periods button in results",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "guidedLearning.results",
-        "kind": "panel",
-        "widget_type": "guided-learning",
-        "path": [
-          "library-shell.tab:guided-learning#active",
-          "library-shell.card-primary-action:guided-learning#row-1"
-        ],
-        "needs": [
-          "widget-on-stage",
-          "library-item",
-          "student-data"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "gl-results.period-pause-all",
-    "label": "Pause all periods button in results",
-    "scope": "board",
-    "persists": true,
     "routes": [
       {
         "surface": "guidedLearning.results",
@@ -55611,8 +55637,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "connections.editor.wait-seconds",
     "label": "Seconds box on a connection arrow",
-    "scope": "board",
+    "scope": "widget type",
     "panel": true,
+    "key_pattern": "[a-z][a-zA-Z0-9-]*",
+    "key_hint": "the widget type of the step above the arrow, e.g. time-tool",
     "routes": [
       {
         "surface": "board.connections-editor",
@@ -55704,8 +55732,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "connections.editor.advance",
     "label": "What moves a connection on to its next step",
-    "scope": "board",
+    "scope": "widget type",
     "panel": true,
+    "key_pattern": "[a-z][a-zA-Z0-9-]*",
+    "key_hint": "the widget type of the step above the arrow, e.g. time-tool",
     "routes": [
       {
         "surface": "board.connections-editor",
@@ -63121,46 +63151,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.monitor-start-all",
-    "label": "Start all button in the video activity monitor",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.live",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab:video-activity#active",
-          "library-shell.archive-primary-action:video-activity#row-1"
-        ],
-        "needs": [
-          "live-session",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.monitor-pause-all",
-    "label": "Pause all button in the video activity monitor",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.live",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab:video-activity#active",
-          "library-shell.archive-primary-action:video-activity#row-1"
-        ],
-        "needs": [
-          "live-session",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.monitor-pause-toggle",
     "label": "Pause or Resume button in the video activity monitor",
     "scope": "board",
@@ -63507,54 +63497,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "library-item",
           "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.period-start-all",
-    "label": "Start all periods button in Flashcards results",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.results",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.period-pause-all",
-    "label": "Pause all periods button in Flashcards results",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.results",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "student-data",
           "widget-on-stage"
         ]
       }

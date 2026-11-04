@@ -113,11 +113,11 @@ beforeEach(() => {
 });
 
 describe('Video activity Results: live sessions', () => {
-  it('shows skipped questions as not asked on the Questions tab', () => {
+  it('shows skipped questions as not asked in Question results', () => {
     render(
       <Results session={session()} responses={[response]} onBack={vi.fn()} />
     );
-    fireEvent.click(screen.getByRole('tab', { name: /Questions/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Question results/ }));
     expect(screen.getAllByText('Not asked')).toHaveLength(1);
     // q1 all correct, q3 answered by nobody.
     expect(screen.getByText('100%')).toBeInTheDocument();
@@ -127,8 +127,8 @@ describe('Video activity Results: live sessions', () => {
     render(
       <Results session={session()} responses={[response]} onBack={vi.fn()} />
     );
-    fireEvent.click(screen.getByRole('tab', { name: /Students/ }));
-    const panel = screen.getByRole('tabpanel');
+    fireEvent.click(screen.getByRole('button', { name: /^Students/ }));
+    const panel = document.body;
     expect(within(panel).getByRole('img', { name: 'Correct' })).toBeTruthy();
     expect(within(panel).getByRole('img', { name: 'Not asked' })).toBeTruthy();
     expect(within(panel).getByRole('img', { name: 'Missed' })).toBeTruthy();
@@ -195,8 +195,8 @@ describe('Video activity Results: live sessions', () => {
         onBack={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole('tab', { name: /Students/ }));
-    const panel = screen.getByRole('tabpanel');
+    fireEvent.click(screen.getByRole('button', { name: /^Students/ }));
+    const panel = document.body;
     expect(within(panel).queryByRole('img', { name: 'Missed' })).toBeNull();
     expect(within(panel).getByText('1/3 correct')).toBeInTheDocument();
   });
@@ -228,9 +228,7 @@ describe('Video activity Results: live sessions', () => {
         onBack={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole('tab', { name: /Students/ }));
-    expect(
-      within(screen.getByRole('tabpanel')).getByText('2 · 0:45')
-    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Students/ }));
+    expect(screen.getByText('2 · 0:45')).toBeInTheDocument();
   });
 });

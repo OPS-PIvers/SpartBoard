@@ -6,6 +6,28 @@ import type {
 } from '@/types';
 import { actionDefFor, connectionDefFor } from '@/config/widgetConnections';
 import { getTitle } from '@/utils/widgetHelpers';
+import { TOOLS } from '@/config/tools';
+
+/** A widget's name in connection UI: the teacher's title, else the admin name, else the Dock label. */
+export const connectionWidgetTitle = (
+  w: WidgetData,
+  adminName?: string
+): string => {
+  if (w.customTitle) return w.customTitle;
+  const title = getTitle(w);
+  const admin = adminName?.trim();
+  if (admin) {
+    // Keep a config-derived name (a quiz or guide title) so two such widgets stay apart.
+    const generic = getTitle({ ...w, config: {} });
+    if (title === generic) return admin;
+    return title.startsWith(`${generic}: `)
+      ? `${admin}${title.slice(generic.length)}`
+      : title;
+  }
+  const raw = w.type.charAt(0).toUpperCase() + w.type.slice(1);
+  if (title !== raw) return title;
+  return TOOLS.find((tool) => tool.type === w.type)?.label ?? title;
+};
 
 /** One numbered card in the editor: a step, plus the pause its arrow adds after it. */
 export interface EditorCard {
@@ -129,14 +151,18 @@ const clock = (seconds: number) => {
 /** Names a teacher can tell apart: Timers by their set time, others by title, numbered on a clash. */
 export const widgetNames = (
   widgets: WidgetData[],
-  timerName: (time: string) => string
+  timerName: (time: string, name: string) => string,
+  titleOf: (w: WidgetData) => string = (w) => connectionWidgetTitle(w)
 ): Map<string, string> => {
   const base = (w: WidgetData) =>
     w.type === 'time-tool' &&
     (w.config as TimeToolConfig).mode === 'timer' &&
     typeof (w.config as TimeToolConfig).duration === 'number'
-      ? timerName(clock((w.config as TimeToolConfig).duration))
-      : getTitle(w);
+      ? timerName(
+          clock((w.config as TimeToolConfig).duration),
+          titleOf({ ...w, customTitle: undefined })
+        )
+      : titleOf(w);
   const counts = new Map<string, number>();
   for (const w of widgets) counts.set(base(w), (counts.get(base(w)) ?? 0) + 1);
   const seen = new Map<string, number>();
@@ -157,6 +183,14 @@ export const sideJoinKind = (
 ): 'follow' | 'action' | null => {
   const def = connectionDefFor(widget.type);
   if (!def) return null;
-  if (mainType && def.follows?.includes(mainType)) return 'follow';
+  // Beside a step widget, a widget with its own step (Randomizer by Stations) joins as a step.
+  const mainIsStep = !!(mainType && connectionDefFor(mainType)?.defaultAction);
+  if (
+    mainType &&
+    def.follows?.includes(mainType) &&
+    !(def.defaultAction && mainIsStep)
+  ) {
+    return 'follow';
+  }
   return def.actions.length > 0 ? 'action' : null;
 };

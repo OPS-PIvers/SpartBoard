@@ -17,6 +17,7 @@ import { getNamedLucideIcon, useLucideIconMap } from '@/utils/lucideIconMap';
 import { BLOOMS_DATA } from '@/config/bloomsData';
 import { prepareLaunchConfig } from './constants';
 import { tourAttr } from '@/config/tourAnchors';
+import { RetirementNotice } from './RetirementNotice';
 
 // Color mapping for routines
 const ROUTINE_COLORS: Record<
@@ -345,7 +346,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
 
 import { WidgetLayout } from '../WidgetLayout';
 
-export const InstructionalRoutinesWidget: React.FC<{ widget: WidgetData }> = ({
+const InstructionalRoutinesBody: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addWidget } = useDashboard();
@@ -739,3 +740,13 @@ export const InstructionalRoutinesWidget: React.FC<{ widget: WidgetData }> = ({
     />
   );
 };
+
+export const InstructionalRoutinesWidget: React.FC<{
+  widget: WidgetData;
+  isStudentView?: boolean;
+}> = ({ widget, isStudentView }) => (
+  <div className="relative h-full w-full">
+    <InstructionalRoutinesBody widget={widget} />
+    <RetirementNotice widget={widget} isStudentView={isStudentView} />
+  </div>
+);

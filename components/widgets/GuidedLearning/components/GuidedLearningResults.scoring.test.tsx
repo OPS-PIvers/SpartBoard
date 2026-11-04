@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type {
   GuidedLearningResponse,
   GuidedLearningSet,
@@ -90,6 +90,11 @@ const response = (
   score: null,
 });
 
+const openBucket = async (label: string) =>
+  fireEvent.click(
+    await screen.findByRole('button', { name: new RegExp(label) })
+  );
+
 const ASSIGNED = [mc('q1', 'a'), mc('q2', 'b'), mc('q3', 'a')];
 
 beforeEach(() => {
@@ -116,9 +121,10 @@ describe('GuidedLearningResults scoring', () => {
         onClose={() => undefined}
       />
     );
+    await openBucket('In progress');
     expect(await screen.findByText('1/3 correct')).toBeInTheDocument();
+    await openBucket('Done');
     expect(screen.getByText('2/3 correct')).toBeInTheDocument();
-    expect(screen.getByText('67%')).toBeInTheDocument();
   });
 
   it('keeps scores unchanged after the set is edited post-assign', async () => {
@@ -130,9 +136,10 @@ describe('GuidedLearningResults scoring', () => {
         onClose={() => undefined}
       />
     );
+    await openBucket('In progress');
     expect(await screen.findByText('1/3 correct')).toBeInTheDocument();
+    await openBucket('Done');
     expect(screen.getByText('2/3 correct')).toBeInTheDocument();
-    expect(screen.getByText('67%')).toBeInTheDocument();
     expect(screen.queryByText(/Question q4/)).not.toBeInTheDocument();
   });
 
@@ -151,6 +158,7 @@ describe('GuidedLearningResults scoring', () => {
         onClose={() => undefined}
       />
     );
+    await openBucket('Done');
     expect(await screen.findByText('2/3 correct')).toBeInTheDocument();
   });
 });

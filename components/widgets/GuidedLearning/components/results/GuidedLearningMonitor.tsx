@@ -58,7 +58,7 @@ const footerButtonStyle = {
   fontSize: 'min(13px, 4.5cqmin)',
 };
 
-/** Guided Learning assignment monitor in the Quiz monitor's self-paced layout (monitor-parity). */
+/** Guided Learning assignment monitor in the Quiz monitor's self-paced layout. */
 export const GuidedLearningMonitor = <R extends GlMonitorRow>({
   title,
   status,

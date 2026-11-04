@@ -26,6 +26,7 @@ export const PII_WIDGET_FIELDS = [
   'doneNames',
   'jigsawHomeGroups',
   'jigsawExpertGroups',
+  'recentGroupings',
   'names',
   'roster',
   'customRoster',

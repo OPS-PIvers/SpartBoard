@@ -54,7 +54,11 @@ import { useTooLoudAlert } from './useTooLoudAlert';
 import { useQuietGoal } from './useQuietGoal';
 import { useNoiseSession } from './useNoiseSession';
 import { usePageVisible } from './usePageVisible';
-import { awardPoint, findTeamScoreboard } from './scoreboardAward';
+import {
+  awardPoint,
+  connectedScoreboardIds,
+  findTeamScoreboard,
+} from './scoreboardAward';
 import { SessionSummary } from './components/SessionSummary';
 
 // Add type definition for webkitAudioContext
@@ -77,7 +81,6 @@ export const SoundWidget: React.FC<{
   const { t } = useTranslation();
   const { canAccessFeature } = useAuth();
   const pro = canAccessFeature(NOISE_METER_PRO);
-  const scoreboardPro = canAccessFeature('scoreboard-pro');
   const [volume, setVolume] = useState(0);
   const [history, setHistory] = useState<number[]>(new Array(50).fill(0));
   const [micReady, setMicReady] = useState(false);
@@ -468,14 +471,20 @@ export const SoundWidget: React.FC<{
       const scoreboard = findTeamScoreboard(
         activeDashboard.widgets,
         quietGoalScoreboardId,
-        quietGoalTeamId
+        quietGoalTeamId,
+        connectionsOn
+          ? connectedScoreboardIds(
+              activeDashboard.connections,
+              activeDashboard.widgets,
+              widget.id
+            )
+          : []
       );
       if (!scoreboard) return;
       updateWidget(scoreboard.id, {
         config: awardPoint(
           scoreboard.config as ScoreboardConfig,
-          quietGoalTeamId,
-          scoreboardPro
+          quietGoalTeamId
         ),
       });
     }

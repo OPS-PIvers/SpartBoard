@@ -116,4 +116,22 @@ describe('hydrateCollectionTemplate', () => {
     expect(sample).not.toHaveProperty('driveFileId');
     expect(sample).not.toHaveProperty('thumbnailUrl');
   });
+
+  it("carries each board's Connections, without a Run", () => {
+    const tpl = template();
+    tpl.boardSnapshots[0].connections = [
+      {
+        id: 's1',
+        kind: 'sequence',
+        steps: [],
+        repeat: 'once',
+        run: { deviceId: 'd', stepIndex: 0, stepStartedAt: 1, loops: 0 },
+      },
+    ];
+    const out = hydrateCollectionTemplate(tpl, { existingMaxOrder: 0 });
+    expect(out.boardInputs[0].connections).toEqual([
+      expect.objectContaining({ id: 's1', run: null }),
+    ]);
+    expect(out.boardInputs[1]).not.toHaveProperty('connections');
+  });
 });

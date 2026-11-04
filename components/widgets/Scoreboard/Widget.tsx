@@ -10,10 +10,20 @@ import { useTranslation } from 'react-i18next';
 import {
   useGlobalStyle,
   useDashboardActions,
+  useDashboardCanvasSelector,
 } from '@/context/dashboardCanvasStore';
-import { WidgetData, ScoreboardConfig, ScoreboardTeam } from '@/types';
+import {
+  WidgetData,
+  ScoreboardConfig,
+  ScoreboardTeam,
+  RandomConfig,
+  RandomGroup,
+} from '@/types';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
+import { followLeaderId } from '@/utils/connectionEngine';
+import { hasConnectionTab } from '@/components/connections/connectionSummary';
+import { randomizerGroups, sameTeams, teamsFromGroups } from './groupTeams';
 import { History, Trophy, Undo2 } from 'lucide-react';
-import { useAuth } from '@/context/useAuth';
 import { tourAttr } from '@/config/tourAnchors';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ScoreboardItem } from './components/ScoreboardItem';
@@ -47,7 +57,6 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
   const globalStyle = useGlobalStyle();
   const config = widget.config as ScoreboardConfig;
   const { t } = useTranslation();
-  const pro = useAuth().canAccessFeature('scoreboard-pro');
   const isLive = !!config.liveQuizWidgetId;
   const [showHistory, setShowHistory] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -75,10 +84,69 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
     }
   }, [config, widget.id, updateWidget]);
 
+  // Teams follow a connected Randomizer's groups; the key changes only when the groups or their names do.
+  const connectionsOn = useConnectionsEnabled();
+  const leaderGroupsKey = useDashboardCanvasSelector((s) => {
+    const board = s.activeDashboard;
+    if (!connectionsOn || !board) return '';
+    const leaderId = followLeaderId(
+      board.connections,
+      board.widgets,
+      widget.id,
+      'teams'
+    );
+    const leader = leaderId
+      ? board.widgets.find((w) => w.id === leaderId && w.type === 'random')
+      : undefined;
+    const groups = randomizerGroups(leader?.config as RandomConfig | undefined);
+    if (!groups) return '';
+    const ids = new Set(groups.map((g) => g.id));
+    return JSON.stringify({
+      groups: groups.map((g) => (g.id ? { id: g.id } : {})),
+      shared: (board.sharedGroups ?? []).filter((sg) => ids.has(sg.id)),
+    });
+  });
+  const showsConnectionTab = useDashboardCanvasSelector(
+    (s) =>
+      connectionsOn &&
+      !!s.activeDashboard &&
+      hasConnectionTab(
+        s.activeDashboard.connections,
+        s.activeDashboard.widgets,
+        widget.id
+      )
+  );
+  useEffect(() => {
+    if (!leaderGroupsKey || config.liveQuizWidgetId) return;
+    const { groups, shared } = JSON.parse(leaderGroupsKey) as {
+      groups: RandomGroup[];
+      shared: NonNullable<Parameters<typeof teamsFromGroups>[1]>;
+    };
+    const current = Array.isArray(config.teams) ? config.teams : [];
+    const next = teamsFromGroups(groups, shared, current, (count) =>
+      t('widgetSettings.scoreboard.groupName', { count })
+    );
+    if (!sameTeams(next, current)) {
+      // Not an undo step: Undo would only restore stale teams that this sync puts back.
+      updateWidget(
+        widget.id,
+        { config: { teams: next } },
+        { skipHistory: true }
+      );
+    }
+  }, [
+    leaderGroupsKey,
+    config.teams,
+    config.liveQuizWidgetId,
+    updateWidget,
+    widget.id,
+    t,
+  ]);
+
   const teams = Array.isArray(config.teams) ? config.teams : DEFAULT_TEAMS;
   const layout = config.layout ?? 'cards';
 
-  const sortRows = !pro || config.sortByScore !== false;
+  const sortRows = config.sortByScore !== false;
   const sortedTeams = useMemo(
     () =>
       layout === 'rows' && sortRows
@@ -86,11 +154,8 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
         : teams,
     [teams, layout, sortRows]
   );
-  const pointValues = scoreboardPointValues(config, pro);
-  const leaders = useMemo(
-    () => (pro ? scoreboardLeaders(teams) : new Map<string, never>()),
-    [teams, pro]
-  );
+  const pointValues = scoreboardPointValues(config);
+  const leaders = useMemo(() => scoreboardLeaders(teams), [teams]);
 
   // Keep a ref to the latest config to ensure handleUpdateScore is stable.
   // Assigned inline in the render body (not in a useEffect) so the ref is
@@ -139,7 +204,7 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
         ...currentConfig,
         teams: newTeams,
       };
-      if (pro && !currentConfig.liveQuizWidgetId) {
+      if (!currentConfig.liveQuizWidgetId) {
         const before = currentTeams.find((t) => t.id === teamId);
         const after = newTeams.find((t) => t.id === teamId);
         if (before && after) {
@@ -156,14 +221,11 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
         config: nextConfig,
       });
     },
-    [widget.id, updateWidget, pro]
+    [widget.id, updateWidget]
   );
 
   const canUndo =
-    pro &&
-    !isLive &&
-    Array.isArray(config.history) &&
-    config.history.length > 0;
+    !isLive && Array.isArray(config.history) && config.history.length > 0;
 
   const handleUndo = useCallback(() => {
     const currentConfig = configRef.current;
@@ -192,14 +254,13 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
   });
 
   useEffect(() => {
-    if (!pro) return;
     const listener = (e: KeyboardEvent) => onUndoKey(e);
     window.addEventListener('keydown', listener, true);
     return () => window.removeEventListener('keydown', listener, true);
-  }, [pro]);
+  }, []);
 
-  const historyOpen = pro && !isLive && showHistory;
-  const showFooter = pro && !isLive && teams.length > 0;
+  const historyOpen = !isLive && showHistory;
+  const showFooter = !isLive && teams.length > 0;
   const footerButtonClass =
     'flex items-center justify-center bg-white border border-slate-200 shadow-xs rounded-lg font-bold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-default disabled:active:scale-100';
   const footerButtonStyle: React.CSSProperties = {
@@ -301,6 +362,8 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
               style={{
                 gap: 'min(16px, 3.5cqmin)',
                 padding: 'min(16px, 3.5cqmin)',
+                // Keeps the top-right team clear of the connection tab.
+                ...(showsConnectionTab && { paddingTop: 28 }),
               }}
             >
               {teams.map((team, index) => (
@@ -312,8 +375,7 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
                   onUpdateScore={handleUpdateScore}
                   pointValues={pointValues}
                   leader={leaders.get(team.id) ?? null}
-                  showLeader={pro && teams.length > 1}
-                  pro={pro}
+                  showLeader={teams.length > 1}
                 />
               ))}
             </div>
@@ -323,19 +385,19 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
               style={{
                 gap: 'min(4px, 1cqmin)',
                 padding: 'min(8px, 2cqmin)',
+                ...(showsConnectionTab && { paddingTop: 28 }),
               }}
             >
               {sortedTeams.map((team, index) => (
                 <ScoreboardRowItem
                   key={team.id}
                   team={team}
-                  rank={pro ? scoreboardRank(teams, team) : index + 1}
+                  rank={scoreboardRank(teams, team)}
                   position={index + 1}
                   widgetId={widget.id}
                   onUpdateScore={handleUpdateScore}
                   pointValues={pointValues}
                   leader={leaders.get(team.id) ?? null}
-                  pro={pro}
                 />
               ))}
             </div>

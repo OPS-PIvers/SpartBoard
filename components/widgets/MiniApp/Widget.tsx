@@ -1,5 +1,11 @@
 import { copyText } from '@/utils/copyText';
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useLayoutEffect,
+} from 'react';
 import {
   DEFAULT_MINI_APP_RESULTS,
   loadMiniAppKey,
@@ -38,6 +44,8 @@ import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast'
 import { buildMiniAppExportFilename } from './exportFilename';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
+import { followConnection, followerIds } from '@/utils/connectionEngine';
+import { hasConnectionTab } from '@/components/connections/connectionSummary';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
 import { useFolders } from '@/hooks/useFolders';
@@ -442,6 +450,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     selectedWidgetId,
     isActiveBoardReadOnly,
     updateRoster,
+    activeDashboard,
+    updateDashboard,
   } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
@@ -960,6 +970,17 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   // regardless of the widget's admin-configured assignmentMode — the QR
   // flow is inherently a "students view on iPads" use case.
   const [isCreatingQrShare, setIsCreatingQrShare] = useState(false);
+  const latestBoardRef = useRef(activeDashboard);
+  const mountedRef = useRef(true);
+  useLayoutEffect(() => {
+    latestBoardRef.current = activeDashboard;
+  });
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const handleCreateQrShare = useCallback(async () => {
     if (!user) {
@@ -969,6 +990,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     if (!activeApp) return;
     if (isCreatingQrShare) return;
     setIsCreatingQrShare(true);
+    const startBoardId = latestBoardRef.current?.id;
     try {
       const sessionId = await createSession(activeApp, user.uid, '', {
         mode: 'view-only',
@@ -991,7 +1013,37 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         );
       }
       const url = `${window.location.origin}/miniapp/${sessionId}`;
-      addWidget('qr', { config: { url, showUrl: true } });
+      // Read after the awaits, so a connection made meanwhile isn't dropped.
+      const latestBoard = latestBoardRef.current;
+      const widgets = latestBoard?.widgets ?? [];
+      const connections = latestBoard?.connections;
+      // With Connections, a QR that Follows this app gets the new link instead of adding another.
+      // Only while this app's board is still the one on screen, so another board's connections are never replaced.
+      const linked =
+        canAccessFeature('widget-connections') &&
+        mountedRef.current &&
+        !!startBoardId &&
+        latestBoard?.id === startBoardId &&
+        widgets.some((w) => w.id === widget.id);
+      const linkedQrs = linked
+        ? followerIds(connections, widgets, widget.id).filter(
+            (id) => widgets.find((w) => w.id === id)?.type === 'qr'
+          )
+        : [];
+      if (linkedQrs.length > 0) {
+        linkedQrs.forEach((id) => updateWidget(id, { config: { url } }));
+      } else {
+        const qrId = crypto.randomUUID();
+        addWidget('qr', { id: qrId, config: { url, showUrl: true } });
+        if (linked) {
+          updateDashboard({
+            connections: [
+              ...(connections ?? []),
+              followConnection(widget.id, qrId),
+            ],
+          });
+        }
+      }
       addToast('Share link ready — students can scan the QR code', 'success');
     } catch (err) {
       console.error('[MiniAppWidget] Failed to create QR share', err);
@@ -1007,6 +1059,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     createAssignment,
     addWidget,
     addToast,
+    canAccessFeature,
+    updateDashboard,
+    updateWidget,
+    widget.id,
   ]);
 
   // --- HANDLERS ---
@@ -1869,6 +1925,14 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           <div className="relative flex flex-col w-full h-full min-h-0">
             <MiniAppManager
               userId={user?.uid}
+              clearsConnectionTab={
+                canAccessFeature('widget-connections') &&
+                hasConnectionTab(
+                  activeDashboard?.connections,
+                  activeDashboard?.widgets ?? [],
+                  widget.id
+                )
+              }
               tab={managerTab}
               onTabChange={setManagerTab}
               personalLibrary={library}

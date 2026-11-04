@@ -184,6 +184,7 @@ interface RenderOpts {
   onEnd?: () => Promise<void>;
   onClearHand?: (key: string) => Promise<void>;
   assessmentOnly?: boolean;
+  hideLiveScoreboard?: boolean;
 }
 
 function renderMonitor(opts: RenderOpts = {}) {
@@ -206,6 +207,7 @@ function renderMonitor(opts: RenderOpts = {}) {
       onUpdateConfig={opts.onUpdateConfig ?? vi.fn()}
       onClearHand={opts.onClearHand}
       assessmentOnly={opts.assessmentOnly}
+      hideLiveScoreboard={opts.hideLiveScoreboard}
     />
   );
 }
@@ -408,6 +410,17 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     }
   );
 
+  it('a Quiz widget keeps podium and reveal on a legacy paced session but never offers scoreboard sync', () => {
+    renderMonitor({ hideLiveScoreboard: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Quiz settings' }));
+    expect(
+      screen.getByRole('switch', { name: 'Podium between questions' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('switch', { name: 'Sync to scoreboard widget' })
+    ).toBeNull();
+  });
+
   it('hides the Tab warnings toggle when the session has tab warnings disabled', () => {
     renderMonitor({
       session: { tabWarningsEnabled: false },
@@ -419,7 +432,7 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('narrows buckets by period chips but keeps the leaderboard broadcast on the unfiltered set', () => {
+  it('narrows buckets by class but keeps the leaderboard broadcast on the unfiltered set', () => {
     vi.useFakeTimers();
     try {
       leaderboardBatch.update.mockClear();
@@ -431,9 +444,11 @@ describe('QuizLiveMonitor (rebuilt)', () => {
           makeResponse({ pin: '2222', classPeriod: 'P2' }),
         ],
       });
-      // Multi-period default narrows to the first period.
-      const doneCounts = screen.getAllByText('1');
-      expect(doneCounts.length).toBeGreaterThan(0);
+      // The class picker opens on All classes, then narrows to one period.
+      fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
+        target: { value: 'P1' },
+      });
+      expect(screen.getAllByText('1').length).toBeGreaterThan(0);
 
       act(() => {
         vi.advanceTimersByTime(400);

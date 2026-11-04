@@ -91,7 +91,6 @@ export const PollSettings: React.FC<{
   const { showConfirm } = useDialog();
   const { canAccessFeature, user } = useAuth();
   const boardShareId = useBoardLinkedShareId();
-  const pollPro = canAccessFeature('poll-pro');
   const config = useMemo(
     () => (widget.config || {}) as PollConfig,
     [widget.config]
@@ -108,10 +107,9 @@ export const PollSettings: React.FC<{
   const questions = useMemo(() => getPollQuestions(config), [config]);
 
   // Results come from the live or last session the teacher ran, else the board's own tallies.
-  const resultsSessionId =
-    pollPro && showContent
-      ? (activePollSessionId ?? config.lastPollSessionId ?? null)
-      : null;
+  const resultsSessionId = showContent
+    ? (activePollSessionId ?? config.lastPollSessionId ?? null)
+    : null;
   const resultsOwnerUid =
     (isLive
       ? config.activePollSessionOwnerUid
@@ -189,12 +187,7 @@ export const PollSettings: React.FC<{
         reserved && !config.joinCode
           ? { ...config, joinCode: reserved }
           : config;
-      const next = await startPollSession(
-        base,
-        user.uid,
-        mode,
-        canAccessFeature('poll-pro')
-      );
+      const next = await startPollSession(base, user.uid, mode);
       applyConfig(next);
     } catch (err) {
       // Surface the failure rather than leaving the teacher with a
@@ -239,8 +232,8 @@ export const PollSettings: React.FC<{
         ? config.activePollSessionOwnerUid
         : config.lastPollSessionOwnerUid) ?? user.uid) === user.uid
     ) {
-      void syncSessionResultsState(user.uid, sessionId, next, pollPro).catch(
-        (err) => logError('PollSettings.hideResults', err)
+      void syncSessionResultsState(user.uid, sessionId, next).catch((err) =>
+        logError('PollSettings.hideResults', err)
       );
     }
   };
@@ -443,20 +436,7 @@ export const PollSettings: React.FC<{
   };
 
   const handleExport = () => {
-    // CSV Export Logic
-    // Wrap fields in quotes to handle commas/newlines
-    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
-    const csvHeader = 'Question,Option,Votes\n';
-    const csvRows = questions
-      .flatMap((q) =>
-        q.options.map(
-          (o) => `${escape(q.question)},${escape(o.label)},${o.votes}`
-        )
-      )
-      .join('\n');
-    const csvContent = pollPro
-      ? pollResultsCsv(summaries)
-      : csvHeader + csvRows;
+    const csvContent = pollResultsCsv(summaries);
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -491,8 +471,8 @@ export const PollSettings: React.FC<{
     saveEditing({ options: options.filter((_, i) => i !== index) });
   };
 
-  const editingScale = pollPro && isScaleQuestion(editing);
-  const editingText = pollPro && isTextQuestion(editing);
+  const editingScale = isScaleQuestion(editing);
+  const editingText = isTextQuestion(editing);
 
   const setQuestionKind = (kind: PollQuestionKind) => {
     if (kind === (editing.kind ?? 'choice')) return;
@@ -549,7 +529,7 @@ export const PollSettings: React.FC<{
     );
     if (!confirmed) return;
     const reset = withVotesReset(config);
-    const next = pollPro ? withStoppedSessionEnded(reset) : reset;
+    const next = withStoppedSessionEnded(reset);
     if (
       next.joinCode !== config.joinCode &&
       config.joinCode &&
@@ -829,99 +809,97 @@ export const PollSettings: React.FC<{
               />
             </div>
 
-            {pollPro && (
-              <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <SettingsLabel htmlFor={`poll-question-type-${widget.id}`}>
+                  {t('widgetSettings.poll.questionType')}
+                </SettingsLabel>
+                <select
+                  id={`poll-question-type-${widget.id}`}
+                  value={editing.kind ?? 'choice'}
+                  onChange={(e) =>
+                    setQuestionKind(e.target.value as PollQuestionKind)
+                  }
+                  className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  {...tourAttr(
+                    'widget-settings.poll.question-type',
+                    widget.id,
+                    widget.type
+                  )}
+                >
+                  <option value="choice">
+                    {t('widgetSettings.poll.multipleChoice')}
+                  </option>
+                  <option value="scale">
+                    {t('widgetSettings.poll.ratingScale')}
+                  </option>
+                  <option value="words">
+                    {t('widgetSettings.poll.wordCloud')}
+                  </option>
+                  <option value="text">
+                    {t('widgetSettings.poll.openResponse')}
+                  </option>
+                </select>
+              </div>
+              {editingScale && (
                 <div className="min-w-0">
-                  <SettingsLabel htmlFor={`poll-question-type-${widget.id}`}>
-                    {t('widgetSettings.poll.questionType')}
+                  <SettingsLabel htmlFor={`poll-scale-size-${widget.id}`}>
+                    {t('widgetSettings.poll.scaleSize')}
                   </SettingsLabel>
                   <select
-                    id={`poll-question-type-${widget.id}`}
-                    value={editing.kind ?? 'choice'}
+                    id={`poll-scale-size-${widget.id}`}
+                    value={options.length}
                     onChange={(e) =>
-                      setQuestionKind(e.target.value as PollQuestionKind)
+                      saveEditing({
+                        options: makeScaleOptions(Number(e.target.value)),
+                      })
                     }
                     className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-hidden focus:ring-2 focus:ring-indigo-500"
                     {...tourAttr(
-                      'widget-settings.poll.question-type',
+                      'widget-settings.poll.scale-size',
                       widget.id,
                       widget.type
                     )}
                   >
-                    <option value="choice">
-                      {t('widgetSettings.poll.multipleChoice')}
-                    </option>
-                    <option value="scale">
-                      {t('widgetSettings.poll.ratingScale')}
-                    </option>
-                    <option value="words">
-                      {t('widgetSettings.poll.wordCloud')}
-                    </option>
-                    <option value="text">
-                      {t('widgetSettings.poll.openResponse')}
-                    </option>
+                    {SCALE_SIZES.map((size) => (
+                      <option key={size} value={size}>
+                        {t('widgetSettings.poll.scaleOneTo', { count: size })}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                {editingScale && (
-                  <div className="min-w-0">
-                    <SettingsLabel htmlFor={`poll-scale-size-${widget.id}`}>
-                      {t('widgetSettings.poll.scaleSize')}
-                    </SettingsLabel>
-                    <select
-                      id={`poll-scale-size-${widget.id}`}
-                      value={options.length}
-                      onChange={(e) =>
-                        saveEditing({
-                          options: makeScaleOptions(Number(e.target.value)),
-                        })
-                      }
-                      className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-hidden focus:ring-2 focus:ring-indigo-500"
-                      {...tourAttr(
-                        'widget-settings.poll.scale-size',
-                        widget.id,
-                        widget.type
+              )}
+              {editingScale &&
+                (['scaleLow', 'scaleHigh'] as const).map((field) => (
+                  <div key={field} className="min-w-0">
+                    <SettingsLabel htmlFor={`poll-${field}-${widget.id}`}>
+                      {t(
+                        field === 'scaleLow'
+                          ? 'widgetSettings.poll.scaleLowLabel'
+                          : 'widgetSettings.poll.scaleHighLabel'
                       )}
-                    >
-                      {SCALE_SIZES.map((size) => (
-                        <option key={size} value={size}>
-                          {t('widgetSettings.poll.scaleOneTo', { count: size })}
-                        </option>
-                      ))}
-                    </select>
+                    </SettingsLabel>
+                    <input
+                      key={`${editing.id}:${editing[field] ?? ''}`}
+                      id={`poll-${field}-${widget.id}`}
+                      type="text"
+                      maxLength={40}
+                      defaultValue={editing[field] ?? ''}
+                      onBlur={(e) => {
+                        if (e.target.value !== (editing[field] ?? '')) {
+                          saveEditing({ [field]: e.target.value });
+                        }
+                      }}
+                      className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-hidden focus:ring-2 focus:ring-indigo-500"
+                      {...tourFieldAttr(
+                        'widget-settings.poll.scale-label',
+                        widget.type,
+                        field === 'scaleLow' ? 'low' : 'high'
+                      )}
+                    />
                   </div>
-                )}
-                {editingScale &&
-                  (['scaleLow', 'scaleHigh'] as const).map((field) => (
-                    <div key={field} className="min-w-0">
-                      <SettingsLabel htmlFor={`poll-${field}-${widget.id}`}>
-                        {t(
-                          field === 'scaleLow'
-                            ? 'widgetSettings.poll.scaleLowLabel'
-                            : 'widgetSettings.poll.scaleHighLabel'
-                        )}
-                      </SettingsLabel>
-                      <input
-                        key={`${editing.id}:${editing[field] ?? ''}`}
-                        id={`poll-${field}-${widget.id}`}
-                        type="text"
-                        maxLength={40}
-                        defaultValue={editing[field] ?? ''}
-                        onBlur={(e) => {
-                          if (e.target.value !== (editing[field] ?? '')) {
-                            saveEditing({ [field]: e.target.value });
-                          }
-                        }}
-                        className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-hidden focus:ring-2 focus:ring-indigo-500"
-                        {...tourFieldAttr(
-                          'widget-settings.poll.scale-label',
-                          widget.type,
-                          field === 'scaleLow' ? 'low' : 'high'
-                        )}
-                      />
-                    </div>
-                  ))}
-              </div>
-            )}
+                ))}
+            </div>
 
             {/* Options List */}
             <div className={editingScale || editingText ? 'hidden' : 'mt-4'}>
@@ -943,26 +921,24 @@ export const PollSettings: React.FC<{
                       label={option.label}
                       onSave={updateOptionLabel}
                     />
-                    {pollPro && (
-                      <button
-                        onClick={() => toggleCorrect(idx)}
-                        aria-pressed={option.correct === true}
-                        aria-label={t('widgetSettings.poll.correctAnswer')}
-                        title={t('widgetSettings.poll.correctAnswer')}
-                        className={`relative touch-target-expand p-2 rounded-lg transition-colors ${
-                          option.correct
-                            ? 'text-emerald-700 bg-emerald-50'
-                            : 'text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
-                        }`}
-                        {...tourFieldAttr(
-                          'widget-settings.poll.correct-option',
-                          widget.type,
-                          `option-${idx + 1}`
-                        )}
-                      >
-                        <CircleCheck className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => toggleCorrect(idx)}
+                      aria-pressed={option.correct === true}
+                      aria-label={t('widgetSettings.poll.correctAnswer')}
+                      title={t('widgetSettings.poll.correctAnswer')}
+                      className={`relative touch-target-expand p-2 rounded-lg transition-colors ${
+                        option.correct
+                          ? 'text-emerald-700 bg-emerald-50'
+                          : 'text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
+                      }`}
+                      {...tourFieldAttr(
+                        'widget-settings.poll.correct-option',
+                        widget.type,
+                        `option-${idx + 1}`
+                      )}
+                    >
+                      <CircleCheck className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => removeOption(idx)}
                       className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -994,14 +970,12 @@ export const PollSettings: React.FC<{
             </div>
           </fieldset>
 
-          {pollPro && (
-            <div className="pt-4 border-t border-slate-100">
-              <SettingsLabel as="span">
-                {t('widgetSettings.poll.results')}
-              </SettingsLabel>
-              <PollResultsSummary summaries={summaries} />
-            </div>
-          )}
+          <div className="pt-4 border-t border-slate-100">
+            <SettingsLabel as="span">
+              {t('widgetSettings.poll.results')}
+            </SettingsLabel>
+            <PollResultsSummary summaries={summaries} />
+          </div>
 
           {/* Actions */}
           <div className="pt-4 border-t border-slate-100">
@@ -1042,21 +1016,19 @@ export const PollSettings: React.FC<{
             </div>
           </div>
 
-          {pollPro && (
-            <SavedPollsPanel
-              questions={questions}
-              hideResults={config.hideResults === true}
-              isLive={isLive}
-              onLoad={handleLoadSaved}
-              widgetId={widget.id}
-              widgetType={widget.type}
-            />
-          )}
+          <SavedPollsPanel
+            questions={questions}
+            hideResults={config.hideResults === true}
+            isLive={isLive}
+            onLoad={handleLoadSaved}
+            widgetId={widget.id}
+            widgetType={widget.type}
+          />
         </>
       )}
 
       {/* Live Device Voting — gated by anonymous-join */}
-      {showBehavior && canAccessFeature('poll-pro') && (
+      {showBehavior && (
         <div className="pt-4 border-t border-slate-100 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <SettingsLabel icon={EyeOff}>

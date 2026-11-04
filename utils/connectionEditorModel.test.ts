@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ConnectionStep, WidgetData } from '@/types';
 import {
   advanceChoice,
+  connectionWidgetTitle,
   fromCards,
   loopRunsOut,
   sideJoinKind,
@@ -120,10 +121,54 @@ describe('widgetNames', () => {
   });
 });
 
+describe('connectionWidgetTitle', () => {
+  it('uses the admin name over the built-in one, and the teacher title over both', () => {
+    expect(connectionWidgetTitle(w('r', 'random'))).toBe('Selector');
+    expect(connectionWidgetTitle(w('r', 'random'), ' Group Maker ')).toBe(
+      'Group Maker'
+    );
+    expect(
+      connectionWidgetTitle(
+        { ...w('r', 'random'), customTitle: 'Teams' },
+        'Group Maker'
+      )
+    ).toBe('Teams');
+  });
+
+  it('keeps the quiz title next to the admin name', () => {
+    expect(
+      connectionWidgetTitle(
+        w('q', 'review', { selectedQuizTitle: 'Unit 3' }),
+        'Game'
+      )
+    ).toBe('Game: Unit 3');
+    expect(connectionWidgetTitle(w('q', 'review'), 'Game')).toBe('Game');
+  });
+
+  it('names timers with the admin name', () => {
+    const names = widgetNames(
+      [w('t', 'time-tool', { mode: 'timer', duration: 60 }), w('r', 'random')],
+      (time, name) => `${name} ${time}`,
+      (x) =>
+        connectionWidgetTitle(
+          x,
+          x.type === 'random' ? 'Group Maker' : 'Countdown'
+        )
+    );
+    expect(names.get('t')).toBe('Countdown 1:00');
+    expect(names.get('r')).toBe('Group Maker');
+  });
+});
+
 describe('sideJoinKind', () => {
   it('plays Music along with a Timer, and adds other widgets at the same moment', () => {
     expect(sideJoinKind(widgets[5], 'time-tool')).toBe('follow');
     expect(sideJoinKind(widgets[5], 'random')).toBeNull();
     expect(sideJoinKind(widgets[6], 'random')).toBe('action');
+  });
+
+  it('adds a Randomizer beside a Stations step as its own step, not a Follow', () => {
+    expect(sideJoinKind(widgets[2], 'stations')).toBe('action');
+    expect(sideJoinKind(widgets[6], 'sound')).toBe('follow');
   });
 });

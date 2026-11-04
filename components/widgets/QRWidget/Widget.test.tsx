@@ -1,6 +1,6 @@
 import type { ContextType } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { act, render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { QRWidget } from './Widget';
 import { QRSettingsFields as QRSettings } from './settingsFields';
 import { WidgetData, QRConfig } from '@/types';
@@ -8,6 +8,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
 import { AuthContext } from '@/context/AuthContextValue';
+import { publishWidgetShareLink } from '@/utils/widgetShareLinks';
 
 // Mock the context using the standard pattern
 vi.mock('@/context/useDashboard', () => ({
@@ -416,6 +417,69 @@ describe('QRSettings', () => {
         } as Partial<QRConfig>)
       );
       expect(urlOf()).toContain(encodeURIComponent('https://example.com'));
+    });
+
+    describe('following an Activity Wall', () => {
+      const wall = { id: 'wall-1', type: 'activity-wall', config: {} };
+      const follow = {
+        id: 'c1',
+        kind: 'follow',
+        leaderId: 'wall-1',
+        followerId: 'test-widget-id',
+      };
+      const qr = createMockWidget({ url: 'https://spawned.example' });
+      const wallPublisher = Symbol('wall');
+
+      beforeEach(() => {
+        mockActiveDashboard.widgets = [wall as WidgetData, qr, textWidget];
+        (mockActiveDashboard as { connections?: unknown[] }).connections = [
+          follow,
+        ];
+      });
+      afterEach(() => {
+        publishWidgetShareLink('wall-1', wallPublisher, undefined);
+        delete (mockActiveDashboard as { connections?: unknown[] }).connections;
+      });
+
+      it("shows the wall's current link and updates when it changes", () => {
+        publishWidgetShareLink(
+          'wall-1',
+          wallPublisher,
+          'https://wall.example/a'
+        );
+        renderWithConnections(qr);
+        expect(urlOf()).toContain(encodeURIComponent('https://wall.example/a'));
+        // The connection tab marks it instead of the pill.
+        expect(screen.queryByText('Linked')).not.toBeInTheDocument();
+
+        act(() =>
+          publishWidgetShareLink(
+            'wall-1',
+            wallPublisher,
+            'https://wall.example/b'
+          )
+        );
+        expect(urlOf()).toContain(encodeURIComponent('https://wall.example/b'));
+      });
+
+      it('keeps its own link while the wall has none, and never reads a Text widget', () => {
+        renderWithConnections(qr);
+        expect(urlOf()).toContain(
+          encodeURIComponent('https://spawned.example')
+        );
+      });
+
+      it('ignores the connection while Connections is off', () => {
+        publishWidgetShareLink(
+          'wall-1',
+          wallPublisher,
+          'https://wall.example/a'
+        );
+        render(<QRWidget widget={qr} />);
+        expect(urlOf()).toContain(
+          encodeURIComponent('https://spawned.example')
+        );
+      });
     });
   });
 });

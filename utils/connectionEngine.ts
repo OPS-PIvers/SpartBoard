@@ -1,6 +1,7 @@
 // Pure Sequence/Follow logic for widget Connections (docs/adr/0002); the runner component does the I/O.
 import type {
   ConnectionStep,
+  FollowConnection,
   SequenceConnection,
   WidgetConnection,
   WidgetData,
@@ -9,6 +10,7 @@ import type {
 import {
   actionDefFor,
   connectionDefFor,
+  followSlotOf,
   type ConnectionHandAction,
 } from '@/config/widgetConnections';
 
@@ -284,10 +286,15 @@ export interface ConnectionDraft {
   follows: WidgetConnection[];
 }
 
+const isStep = (p: PickedWidget) => !!connectionDefFor(p.type)?.defaultAction;
+
 const followPair = (
   a: PickedWidget,
-  b: PickedWidget
+  b: PickedWidget,
+  pickCount: number
 ): { leaderId: string; followerId: string } | null => {
+  // Two step widgets (Stations, Randomizer) Follow only when picked alone; in a longer pick they stay steps.
+  if (pickCount > 2 && isStep(a) && isStep(b)) return null;
   if (connectionDefFor(b.type)?.follows?.includes(a.type)) {
     return { leaderId: a.id, followerId: b.id };
   }
@@ -318,9 +325,15 @@ export const draftFromPicks = (
   const ordered = closesLoop ? picks.slice(0, -1) : picks;
   const follows: WidgetConnection[] = [];
   const followerIds = new Set<string>();
+  const slots = new Set<string>();
   for (let i = 1; i < picks.length; i++) {
-    const pair = followPair(picks[i - 1], picks[i]);
-    if (pair && !followerIds.has(pair.followerId)) {
+    const [a, b] = [picks[i - 1], picks[i]];
+    const pair = followPair(a, b, picks.length);
+    if (!pair) continue;
+    const [leader, follower] = pair.leaderId === a.id ? [a, b] : [b, a];
+    const slot = `${follower.id}|${followSlotOf(follower.type, leader.type)}`;
+    if (!slots.has(slot)) {
+      slots.add(slot);
       followerIds.add(pair.followerId);
       follows.push({ id: newId(), kind: 'follow', ...pair });
     }
@@ -358,16 +371,46 @@ export const draftFromPicks = (
   return { sequence, follows };
 };
 
-/** The widget `followerId` Follows on this board, if any. */
+/** The widget `followerId` Follows on this board, if any; `slot` limits it to that Follow slot. */
 export const followLeaderId = (
   connections: WidgetConnection[] | undefined,
   widgets: WidgetData[],
-  followerId: string
+  followerId: string,
+  slot?: string
 ): string | undefined => {
+  const map = slot === undefined ? undefined : byId(widgets);
+  const followerType = map?.get(followerId)?.type;
   for (const c of liveConnections(connections, widgets)) {
-    if (c.kind === 'follow' && c.followerId === followerId) return c.leaderId;
+    if (c.kind !== 'follow' || c.followerId !== followerId) continue;
+    const leaderType = map?.get(c.leaderId)?.type;
+    if (
+      !map ||
+      (followerType &&
+        leaderType &&
+        followSlotOf(followerType, leaderType) === slot)
+    ) {
+      return c.leaderId;
+    }
   }
   return undefined;
+};
+
+/** True when both Follows take the same slot on one widget, so the newer one replaces the other. */
+export const sharesFollowSlot = (
+  a: FollowConnection,
+  b: FollowConnection,
+  widgets: WidgetData[]
+): boolean => {
+  if (a.followerId !== b.followerId) return false;
+  const map = byId(widgets);
+  const follower = map.get(a.followerId);
+  const leaderA = map.get(a.leaderId);
+  const leaderB = map.get(b.leaderId);
+  if (!follower || !leaderA || !leaderB) return true;
+  return (
+    followSlotOf(follower.type, leaderA.type) ===
+    followSlotOf(follower.type, leaderB.type)
+  );
 };
 
 /** Widgets that Follow `leaderId` on this board. */
@@ -379,3 +422,38 @@ export const followerIds = (
   liveConnections(connections, widgets).flatMap((c) =>
     c.kind === 'follow' && c.leaderId === leaderId ? [c.followerId] : []
   );
+
+/** A new Follow from `leaderId` to `followerId`. */
+export const followConnection = (
+  leaderId: string,
+  followerId: string
+): FollowConnection => ({
+  id: newId(),
+  kind: 'follow',
+  leaderId,
+  followerId,
+});
+
+/** The Scoreboard that Follows a Review widget, with that Follow; a Quiz never leads one. */
+export const followingScoreboard = (
+  connections: WidgetConnection[] | undefined,
+  widgets: WidgetData[],
+  reviewId: string
+): { connection: WidgetConnection; scoreboard: WidgetData } | undefined => {
+  const review = widgets.find((w) => w.id === reviewId);
+  if (review?.type !== 'review') return undefined;
+  for (const c of liveConnections(connections, widgets)) {
+    if (c.kind !== 'follow' || c.leaderId !== reviewId) continue;
+    const scoreboard = widgets.find(
+      (w) => w.id === c.followerId && w.type === 'scoreboard'
+    );
+    // The Review must hold the Scoreboard's teams slot, not share it with a Randomizer.
+    if (
+      scoreboard &&
+      followLeaderId(connections, widgets, scoreboard.id, 'teams') === reviewId
+    ) {
+      return { connection: c, scoreboard };
+    }
+  }
+  return undefined;
+};

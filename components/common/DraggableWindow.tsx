@@ -40,6 +40,8 @@ import {
   setWidgetOverride,
   subscribeWidgetOverride,
 } from './widgetRefRegistry';
+import { getBoxSelection, useIsBoxSelected } from './boxSelectionStore';
+import { setGroupDragPositions } from './groupDragPositions';
 import { setAlignmentGuides } from './alignmentGuidesStore';
 import {
   computeGuides,
@@ -73,6 +75,7 @@ import {
   useDashboardCanvasStateGetter,
 } from '@/context/dashboardCanvasStore';
 import { GlassCard } from './GlassCard';
+import { WINDOW_RADIUS_PX } from '@/utils/windowRadius';
 import { WidgetHostContext } from './WidgetHostContext';
 import {
   markSettingsClosedByGesture,
@@ -157,26 +160,48 @@ interface DraggableWindowProps {
   alignmentGuides?: boolean;
 }
 
-const ResizeHandleIcon = ({
+// Handle box is 36px with the widget corner 24px in; the arc stays concentric with the frame corner.
+const RESIZE_ARC_CORNER = 24;
+const RESIZE_ARC_MIN_RADIUS = 12;
+const RESIZE_ARC_INSET = 3.5;
+
+const resizeArcPath = (cornerRadiusPx: number): string => {
+  const outer = Math.max(cornerRadiusPx, RESIZE_ARC_MIN_RADIUS);
+  const r = outer - RESIZE_ARC_INSET;
+  const center = RESIZE_ARC_CORNER - outer;
+  const point = (deg: number) => {
+    const t = (deg * Math.PI) / 180;
+    return `${(center + r * Math.cos(t)).toFixed(2)} ${(center + r * Math.sin(t)).toFixed(2)}`;
+  };
+  return `M ${point(12)} A ${r} ${r} 0 0 1 ${point(78)}`;
+};
+
+const ResizeHandleArc = ({
+  cornerRadiusPx,
   className,
   style,
 }: {
+  cornerRadiusPx: number;
   className?: string;
   style?: React.CSSProperties;
 }) => (
   <svg
-    width="10"
-    height="10"
-    viewBox="0 0 10 10"
+    width="36"
+    height="36"
+    viewBox="0 0 36 36"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     className={className}
     style={style}
     aria-hidden="true"
+    data-testid="resize-handle-arc"
   >
-    <path d="M8 2L2 8" stroke="currentColor" strokeLinecap="round" />
-    <path d="M8 5.5L5.5 8" stroke="currentColor" strokeLinecap="round" />
-    <path d="M8 9L9 8" stroke="currentColor" strokeLinecap="round" />
+    <path
+      d={resizeArcPath(cornerRadiusPx)}
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
@@ -302,6 +327,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       ) ??
         false)
   );
+  const isBoxSelected = useIsBoxSelected(widget.id);
   const isGroupBuildSelected = useDashboardCanvasSelector(
     (s) => s.groupBuildMode && s.selectedWidgetIds.includes(widget.id)
   );
@@ -1156,13 +1182,26 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // Collect group siblings for coordinated drag. Read the dashboard at
     // event time via the getter — this shell no longer subscribes to it.
-    const hasGroup = !!widget.groupId;
+    // A Ctrl+drag box selection moves together like a group, along with each member's own group.
+    const boxIds = getBoxSelection();
+    const isBoxDrag = boxIds.length > 1 && boxIds.includes(widget.id);
     const dashboardAtPointerDown = getCanvasState().activeDashboard;
+    const boxGroupIds = new Set(
+      isBoxDrag
+        ? (dashboardAtPointerDown?.widgets ?? [])
+            .filter((w) => boxIds.includes(w.id) && w.groupId)
+            .map((w) => w.groupId)
+        : []
+    );
+    const inBoxDrag = (w: WidgetData) =>
+      boxIds.includes(w.id) || (!!w.groupId && boxGroupIds.has(w.groupId));
+    const hasGroup = !!widget.groupId || isBoxDrag;
     if (hasGroup && dashboardAtPointerDown) {
       groupSiblingsRef.current = dashboardAtPointerDown.widgets
         .filter(
           (w) =>
-            w.groupId === widget.groupId &&
+            ((!!widget.groupId && w.groupId === widget.groupId) ||
+              (isBoxDrag && inBoxDrag(w))) &&
             w.id !== widget.id &&
             !w.minimized &&
             !w.isLocked &&
@@ -1238,6 +1277,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
+        setGroupDragPositions(null);
       }
       groupDragActiveRef.current = false;
     };
@@ -1379,6 +1419,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // React re-renders mid-drag (bringToFront, server sync, etc.).
         if (groupSiblingsRef.current.length > 0) {
           groupDragDeltaRef.current = { x: deltaX, y: deltaY };
+          const live = new Map([[widget.id, { x: newX, y: newY }]]);
           for (const sib of groupSiblingsRef.current) {
             const { x: sibX, y: sibY } = clampWidgetToWorld(
               sib.startX + deltaX,
@@ -1391,7 +1432,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             sib.el.style.left = `${sibX}px`;
             sib.el.style.top = `${sibY}px`;
             setWidgetOverride(sib.id, { x: sibX, y: sibY });
+            live.set(sib.id, { x: sibX, y: sibY });
           }
+          setGroupDragPositions(live);
         }
       });
     };
@@ -1480,6 +1523,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
+        setGroupDragPositions(null);
       }
       groupDragActiveRef.current = false;
 
@@ -1531,7 +1575,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     handleDragStart(e);
   };
 
-  const handleResizeStart = (e: React.PointerEvent, direction: string) => {
+  const handleResizeStart = (
+    e: React.PointerEvent,
+    direction: string,
+    force = false
+  ) => {
     if (isMaximized) return;
     if (isLocked || isPinned) return;
     if (widget.groupId) return; // Grouped widgets use GroupBoundingBox for coordinated resize
@@ -1560,7 +1608,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         e.clientY <= rect.top + RESIZE_PRIORITY_INSET;
       inPriorityZone = eastOk && westOk && southOk && northOk;
     }
-    if (!inPriorityZone) {
+    if (!inPriorityZone && !force) {
       const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
       for (const el of elementsAtPoint) {
         if (el === resizeEl) continue;
@@ -1873,6 +1921,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   // Force 100% opacity when spotlighted so it stands out against the dimming overlay
   // This prevents the "dimmed text" issue reported by users.
+  const resizeCornerRadiusPx = parseFloat(
+    WINDOW_RADIUS_PX[globalStyle.windowBorderRadius] ?? WINDOW_RADIUS_PX['2xl']
+  );
   const transparency = isSpotlighted
     ? 1
     : (widget.transparency ?? globalStyle.windowTransparency);
@@ -2440,6 +2491,20 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         ...style, // Merge custom styles
       }}
     >
+      {isBoxSelected && !isMaximized && (
+        <div
+          data-testid="box-selected-outline"
+          style={{
+            position: 'absolute',
+            inset: -3,
+            border: '2px solid rgb(59, 130, 246)',
+            borderRadius: 'inherit',
+            zIndex: 20,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
       {/* Group indicator dot */}
       {isInGroup && !isMaximized && (
         <div
@@ -2484,7 +2549,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       <ConnectPickOverlay widget={widget} />
       <ConnectionWidgetHighlight widgetId={widget.id} />
-      {!isMaximized && <ConnectionBadge widget={widget} />}
+      {!isMaximized && !isAnnotating && (
+        <ConnectionBadge
+          widget={widget}
+          onResizeStart={(e) => handleResizeStart(e, 'ne', true)}
+        />
+      )}
 
       {/* Group-build mode selection overlay */}
       {groupBuildMode && (
@@ -2795,7 +2865,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           Rendered as siblings of `drag-surface` so they aren't clipped by its
           `overflow: hidden`, allowing each handle to extend ~12px outside the
           widget bounds for a 36×36 effective hit zone (12 outside + 24 inside).
-          The visible SE corner icon stays anchored at the inner corner.
+          The visible SE arc follows the frame corner radius.
           Hidden when maximized or annotating to mirror the outer drag strips
           and avoid intercepting annotation strokes near the corners. */}
       {!isLocked && !isPinned && !isMaximized && !isAnnotating && (
@@ -2838,7 +2908,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           />
           <div
             onPointerDown={(e) => handleResizeStart(e, 'se')}
-            className="resize-handle cursor-se-resize z-widget-resize"
+            className="resize-handle group/resize cursor-se-resize z-widget-resize"
             style={{
               position: 'absolute',
               bottom: -12,
@@ -2848,20 +2918,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               touchAction: 'none',
             }}
           >
-            <div
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                bottom: 13.5,
-                right: 13.5,
-                pointerEvents: 'none',
-              }}
-            >
-              <ResizeHandleIcon
-                className="text-slate-400"
-                style={{ opacity: isSelected ? 1 : transparency }}
-              />
-            </div>
+            <ResizeHandleArc
+              cornerRadiusPx={resizeCornerRadiusPx}
+              className={`pointer-events-none absolute inset-0 transition-colors ${
+                isResizing
+                  ? 'text-brand-blue-primary'
+                  : 'text-slate-400 group-hover/resize:text-brand-blue-primary'
+              }`}
+              style={{ opacity: isSelected || isResizing ? 1 : transparency }}
+            />
           </div>
         </>
       )}

@@ -2606,6 +2606,18 @@
   ],
   "widgetNotes": [
     {
+      "id": "time-tool-bigger-buttons-2026-11-04",
+      "widget": "time-tool",
+      "date": "2026-11-04",
+      "text": "The play, reset, plus and minus buttons are bigger. With the ring showing on a larger timer, plus and minus move to the bottom corners."
+    },
+    {
+      "id": "clock-show-time-date-2026-11-03",
+      "widget": "clock",
+      "date": "2026-11-03",
+      "text": "You can turn the time or the date off in Settings, and the date now stays on when seconds are showing."
+    },
+    {
       "id": "random-name-style-2026-11-03",
       "widget": "random",
       "date": "2026-11-03",
@@ -2615,7 +2627,6 @@
       "id": "poll-pro-2026-10-25",
       "widget": "poll",
       "date": "2026-10-25",
-      "feature": "poll-pro",
       "text": "Hide results until you reveal them, lock voting, show the correct answer, and ask rating scale, word cloud and open response questions. Settings show every question's results, export them, and save a poll to use again."
     },
     {
@@ -2629,8 +2640,7 @@
       "id": "scoreboard-undo-points-2026-10-25",
       "widget": "scoreboard",
       "date": "2026-10-25",
-      "text": "Undo takes back the last score change and History shows each team's recent changes. You can also pick point buttons like +5 and +10, and the leading team gets a crown.",
-      "feature": "scoreboard-pro"
+      "text": "Undo takes back the last score change and History shows each team's recent changes. You can also pick point buttons like +5 and +10, and the leading team gets a crown."
     },
     {
       "id": "2026-10-25-seating-chart-plans",

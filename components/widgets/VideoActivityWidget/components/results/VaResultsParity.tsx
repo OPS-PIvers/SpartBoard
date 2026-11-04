@@ -14,7 +14,7 @@ const footerIcon = {
 const sectionLabel =
   'font-sans font-semibold text-brand-blue-primary uppercase tracking-wider';
 
-/** Blue results header in the Quiz results layout (monitor-parity). */
+/** Blue results header in the Quiz results layout. */
 export const ParityHeader: React.FC<{
   title: string;
   status: string;
