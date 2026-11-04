@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-122.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-123.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -111,6 +111,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 ## 3. Prod steps that need your OK
 
 - [ ] **PT-121 You: try the Claude connector without registration**. On spartboard-dev, Admin Settings > Access > Previews > "Claude connects without registering" > on. Wait 5 minutes, remove and re-add the dev connector in Claude, connect from claude.ai and from Claude Code (`/mcp`), and run one tool in each. If both work, turn the same row on in prod and repeat once. Turning it off puts Claude back on registration within 5 minutes.
+- [ ] **PT-122 You: test Claude sign-in without Connect** (after PT-121). Needs a Claude Team org where you're an Owner and that doesn't sign in through Okta. Follow docs/CLAUDE_MANAGED_AUTH.md on spartboard-dev: Previews switch on, Claude-issued Issuer URL saved in Organization > Overview, then Run test in Claude. Check a teacher on the verified domain connects with no Connect card and a gmail.com member gets the normal Connect step. Then prod.
 - [ ] **PT-60 🤖 Scrub active Video Activity sessions** (F19). Outside school hours, PC with the prod key:
   > Scrub the active VA sessions on prod with `--include-active` (4 sessions): dry run, then apply after I say go.
 - [ ] **PT-61 🤖 Grade index backfill** (F19, 347 sessions). Once the Gradebook score index switch is on:

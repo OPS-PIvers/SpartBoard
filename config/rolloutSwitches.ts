@@ -33,6 +33,10 @@ import {
   normalizeClaudeConnectorCimdSettings,
 } from '@/config/claudeConnectorCimd';
 import {
+  CLAUDE_MANAGED_AUTH_SETTINGS_DOC,
+  normalizeClaudeManagedAuthSettings,
+} from '@/config/claudeManagedAuth';
+import {
   GRADEBOOK_INDEX_SETTINGS_DOC,
   normalizeGradebookIndexSettings,
 } from '@/config/gradebookIndex';
@@ -146,6 +150,14 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Claude identifies itself with its published client document instead of registering a new client on each connection.',
     normalize: normalizeClaudeConnectorCimdSettings,
+  },
+  {
+    docId: CLAUDE_MANAGED_AUTH_SETTINGS_DOC,
+    feature: 'claude-connector',
+    title: 'Claude sign-in without Connect',
+    description:
+      'Staff connect Claude without the Connect step, once a domain admin sets the issuer in Organization > Overview.',
+    normalize: normalizeClaudeManagedAuthSettings,
   },
   {
     docId: GRADEBOOK_INDEX_SETTINGS_DOC,

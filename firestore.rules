@@ -539,12 +539,20 @@ service cloud.firestore {
       // fields for their own org only. users/buildings are server-derived counts,
       // never client-settable at the domain-admin tier.
       allow create, delete: if isSuperAdmin();
+      // claudeManagedAuth is the org's trusted issuer for Claude sign-in; the server trusts it, so its shape is pinned.
       allow update: if isSuperAdmin() ||
         (isDomainAdmin(orgId) &&
          changedOnly([
            'name', 'shortName', 'shortCode', 'state', 'primaryAdminEmail',
-           'seedColor', 'supportUrl'
-         ]));
+           'seedColor', 'supportUrl', 'claudeManagedAuth'
+         ]) &&
+         (!incoming().keys().hasAny(['claudeManagedAuth']) ||
+          managedAuthShape(incoming().claudeManagedAuth)));
+      function managedAuthShape(m) {
+        return m is map && m.keys().hasOnly(['enabled', 'issuer']) &&
+          m.enabled is bool && m.issuer is string && m.issuer.size() <= 300 &&
+          m.issuer.matches('https://[^\\s?#@]+');
+      }
 
       match /buildings/{buildingId} {
         allow read: if isOrgMember(orgId) || isSuperAdmin();

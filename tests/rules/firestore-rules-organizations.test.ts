@@ -407,6 +407,43 @@ describe('organizations — domain admin writes on own org', () => {
       })
     );
   });
+
+  it('can set the Claude sign-in issuer only in its pinned shape', async () => {
+    const ref = () => doc(asDomainAdmin(), `organizations/${ORG_ID}`);
+    await assertSucceeds(
+      updateDoc(ref(), {
+        claudeManagedAuth: {
+          enabled: true,
+          issuer: 'https://identity.anthropic.com/issuers/abc123',
+        },
+      })
+    );
+    for (const bad of [
+      { enabled: true, issuer: 'http://identity.anthropic.com/issuers/a' },
+      { enabled: true, issuer: 'https://x.example/?a=1' },
+      { enabled: 'yes', issuer: 'https://x.example' },
+      { enabled: true, issuer: 'https://x.example', extra: 1 },
+      'https://x.example',
+    ]) {
+      await assertFails(updateDoc(ref(), { claudeManagedAuth: bad }));
+    }
+  });
+
+  it('cannot set the Claude sign-in issuer on another org', async () => {
+    await assertFails(
+      updateDoc(doc(asDomainAdmin(), `organizations/${OTHER_ORG_ID}`), {
+        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
+      })
+    );
+  });
+
+  it('a building admin cannot set the Claude sign-in issuer', async () => {
+    await assertFails(
+      updateDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}`), {
+        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
+      })
+    );
+  });
 });
 
 describe('organizations — building admin writes on org doc (denied)', () => {

@@ -16,6 +16,7 @@ import {
   Confirm,
 } from '@/components/admin/Organization/components/primitives';
 import { Toggle } from '@/components/common/Toggle';
+import { ClaudeSignInCard } from './ClaudeSignInCard';
 
 const PLAN_META: Record<
   Plan,
@@ -166,6 +167,15 @@ export const OverviewView: React.FC<Props> = ({
             </p>
           )}
         </Card>
+      </div>
+
+      <div className="mt-5">
+        <ClaudeSignInCard
+          key={`${org.id}:${org.claudeManagedAuth?.issuer ?? ''}:${String(org.claudeManagedAuth?.enabled ?? false)}`}
+          org={org}
+          canEdit={canEditOrg}
+          onUpdate={onUpdate}
+        />
       </div>
 
       <div className="mt-5">

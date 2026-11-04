@@ -1,6 +1,7 @@
 // Client ID Metadata Documents: Claude's client_id is an https URL on a Claude host that we fetch.
 import type * as admin from '../firebaseAdmin';
-import { STATUS_CACHE_MS, isAllowedRedirectUri } from './config';
+import { isAllowedRedirectUri } from './config';
+import { CIMD_SETTINGS_PATH, isSwitchOn, resetSwitchCache } from './switches';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -9,41 +10,23 @@ export interface CimdClient {
   clientName: string;
 }
 
-/** Kill switch doc; the connector advertises and accepts CIMD only while `enabled` is true. */
-export const CIMD_SETTINGS_PATH = 'admin_settings/claude_connector_cimd';
-
 const CIMD_HOSTS = new Set(['claude.ai', 'claude.com']);
 const DOC_CACHE_MS = 5 * 60 * 1000;
 const MAX_DOC_BYTES = 16 * 1024;
 const FETCH_TIMEOUT_MS = 3000;
 const MAX_CACHED = 20;
 
-let switchCache: { enabled: boolean; at: number } | null = null;
 const docCache = new Map<string, { client: CimdClient; at: number }>();
 
 /** Test hook: forget cached switch reads and documents. */
 export function resetCimdCache(): void {
-  switchCache = null;
+  resetSwitchCache();
   docCache.clear();
 }
 
-export async function isCimdEnabled(
-  db: Firestore,
-  now = Date.now()
-): Promise<boolean> {
-  if (switchCache && now - switchCache.at < STATUS_CACHE_MS) {
-    return switchCache.enabled;
-  }
-  let enabled = false;
-  try {
-    const snap = await db.doc(CIMD_SETTINGS_PATH).get();
-    enabled = snap.exists && snap.get('enabled') === true;
-  } catch (err) {
-    console.error('[cimd] switch read failed', err);
-  }
-  switchCache = { enabled, at: now };
-  return enabled;
-}
+/** The connector advertises and accepts CIMD only while this switch is on. */
+export const isCimdEnabled = (db: Firestore, now = Date.now()) =>
+  isSwitchOn(db, CIMD_SETTINGS_PATH, now);
 
 /** A client_id that names a metadata document we are willing to fetch. */
 export function isCimdClientId(clientId: string): boolean {
