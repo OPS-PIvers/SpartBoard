@@ -59,13 +59,17 @@ vi.mock('../firebaseAdmin', () => ({
               data: () => courseLinks.get(ctx),
             }),
           }),
-          where: (_f: string, _op: string, uid: string) => ({
-            get: async () => ({
-              docs: [...courseLinks]
-                .filter(([, v]) => v.teacherUid === uid)
-                .map(([id, v]) => ({ id, data: () => v, ref: { _ctx: id } })),
-            }),
-          }),
+          where: (field: string, _op: string, value: string) => {
+            const q = {
+              limit: () => q,
+              get: async () => ({
+                docs: [...courseLinks]
+                  .filter(([, v]) => v[field] === value)
+                  .map(([id, v]) => ({ id, data: () => v, ref: { _ctx: id } })),
+              }),
+            };
+            return q;
+          },
         };
       }
       if (name === 'users') {
@@ -92,18 +96,23 @@ vi.mock('../firebaseAdmin', () => ({
           data: () => unknown;
         }>;
         set: (ref: { _ctx: string }, data: Record<string, unknown>) => void;
+        delete: (ref: { _ctx: string }) => void;
       }) => Promise<unknown>
     ) =>
       fn({
-        get: async (ref) => ({
-          exists: courseLinks.has(ref._ctx),
-          data: () => courseLinks.get(ref._ctx),
-        }),
+        get: async (ref) =>
+          '_ctx' in ref
+            ? {
+                exists: courseLinks.has(ref._ctx),
+                data: () => courseLinks.get(ref._ctx),
+              }
+            : (ref as unknown as { get: () => Promise<never> }).get(),
         set: (ref, data) =>
           courseLinks.set(ref._ctx, {
             ...(courseLinks.get(ref._ctx) ?? {}),
             ...data,
           }),
+        delete: (ref) => courseLinks.delete(ref._ctx),
       }),
   })),
 }));
@@ -230,10 +239,22 @@ describe('ltiFindSchoologySectionsV1 find', () => {
     expect(sectionMock).toHaveBeenCalledTimes(1);
   });
 
-  it('marks a section another teacher linked as taken', async () => {
+  it('offers a co-taught section another teacher linked', async () => {
     courseLinks.set('111', { teacherUid: 'teacher-2', rosterId: 'x' });
     const r = byRoster((await call({ auth: TEACHER, data: {} })).rows);
-    expect(r['r-1'].status).toBe('taken');
+    expect(r['r-1'].status).toBe('ready');
+  });
+
+  it("shows a co-teacher's own link as linked", async () => {
+    courseLinks.set('111', { teacherUid: 'teacher-2', rosterId: 'x' });
+    courseLinks.set('111~teacher-1', {
+      teacherUid: 'teacher-1',
+      contextId: '111',
+      rosterId: 'r-1',
+      classlinkClassId: 'cl-1',
+    });
+    const r = byRoster((await call({ auth: TEACHER, data: {} })).rows);
+    expect(r['r-1'].status).toBe('linked');
   });
 
   it('needs the caller to be an NRPS instructor', async () => {
@@ -352,10 +373,16 @@ describe('ltiFindSchoologySectionsV1 link', () => {
       ).rows
     );
     expect(r['r-1'].status).toBe('linked');
-    expect(r['r-2'].status).toBe('taken');
+    expect(r['r-2'].status).toBe('linked');
     expect(r['r-none'].status).toBe('none');
     expect(r['not-mine']).toMatchObject({ status: 'error' });
     expect(courseLinks.get('222')).toEqual({ teacherUid: 'teacher-2' });
+    expect(courseLinks.get('222~teacher-1')).toMatchObject({
+      teacherUid: 'teacher-1',
+      contextId: '222',
+      rosterId: 'r-2',
+      linkedBy: 'sis',
+    });
   });
 
   it('rejects bad roster ids', async () => {

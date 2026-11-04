@@ -8,6 +8,7 @@
 // Ownership needs no launch: the caller's email must be an active Instructor in
 // the section's NRPS roster, and the section's learners must overlap the chosen
 // class. NRPS and OneRoster emails are read transiently, never returned or stored.
+// Co-teachers each keep their own link (courseLinkStore.ts).
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
@@ -25,10 +26,17 @@ import {
   type ReplacedLinks,
 } from './courseLinkEndpoints';
 import { USERS_COLLECTION } from './nrpsStore';
+import {
+  isActiveInstructor,
+  readTeacherLink,
+  writeTeacherLink,
+} from './courseLinkStore';
 import { classroomAddonNet } from '../classroomAddonAuth';
 import { loadTestClassMembership } from '../studentAssignmentTargets';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
+
+export { isActiveInstructor };
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
@@ -71,17 +79,6 @@ export function parseSchoologyCourseUrl(raw: string): string | null {
 
 const isActive = (m: NrpsMember): boolean =>
   !m.status || m.status.toLowerCase() === 'active';
-
-/** True when `email` is an active Instructor of the section. */
-export function isActiveInstructor(
-  members: NrpsMember[],
-  email: string
-): boolean {
-  const lower = email.toLowerCase();
-  return members.some(
-    (m) => isActive(m) && m.email === lower && deriveRole(m.roles) === 'teacher'
-  );
-}
 
 /** Lowercased emails of the section's active learners. */
 export function activeLearnerEmails(members: NrpsMember[]): Set<string> {
@@ -239,7 +236,7 @@ async function overlapByRoster(
   return out;
 }
 
-/** Write the caller's link of `contextId` to `roster`, then drop the class's other links. */
+/** Write the caller's own link of `contextId` to `roster`, then drop the class's other links. */
 export async function saveSectionLink(
   db: admin.firestore.Firestore,
   callerUid: string,
@@ -248,30 +245,21 @@ export async function saveSectionLink(
   title: string | null,
   linkedBy: 'url' | 'sis'
 ): Promise<ReplacedLinks> {
-  await db.runTransaction(async (tx) => {
-    const ref = db.collection(LTI_COURSE_LINKS_COLLECTION).doc(contextId);
-    const snap = await tx.get(ref);
-    const prior = snap.data()?.teacherUid as unknown;
-    if (typeof prior === 'string' && prior && prior !== callerUid) {
-      throw new HttpsError(
-        'already-exists',
-        'This Schoology section is already linked by another teacher.'
-      );
-    }
-    const payload: Record<string, unknown> = {
-      teacherUid: callerUid,
-      contextId,
+  // Callers have just checked NRPS lists the caller as an active Instructor, so a co-teacher may link too.
+  await writeTeacherLink(
+    db,
+    callerUid,
+    contextId,
+    {
       classlinkClassId: roster.classlinkClassId,
       testClassId: roster.testClassId,
       classlinkOrgId: roster.classlinkOrgId,
-      contextTitle: title,
       rosterId: roster.rosterId,
+      contextTitle: title,
       linkedBy,
-      updatedAt: Date.now(),
-    };
-    if (!snap.exists) payload.createdAt = Date.now();
-    tx.set(ref, payload, { merge: true });
-  });
+    },
+    true
+  );
   return dropOtherLinksForClass(db, callerUid, contextId, {
     rosterId: roster.rosterId,
     classlinkClassId: roster.classlinkClassId,
@@ -322,21 +310,10 @@ export const ltiLinkSectionByUrlV1 = onCall(
     }
 
     const db = admin.firestore();
-    const existing = await db
-      .collection(LTI_COURSE_LINKS_COLLECTION)
-      .doc(contextId)
-      .get();
-    const existingTeacher = existing.data()?.teacherUid as unknown;
-    if (
-      typeof existingTeacher === 'string' &&
-      existingTeacher &&
-      existingTeacher !== callerUid
-    ) {
-      throw new HttpsError(
-        'already-exists',
-        'This Schoology section is already linked by another teacher.'
-      );
-    }
+    const [sectionDoc, ownLink] = await Promise.all([
+      db.collection(LTI_COURSE_LINKS_COLLECTION).doc(contextId).get(),
+      readTeacherLink(db, contextId, callerUid),
+    ]);
 
     const cfg = await getLtiPlatformConfig(db);
     let members: NrpsMember[];
@@ -387,9 +364,11 @@ export const ltiLinkSectionByUrlV1 = onCall(
 
     const owned = await ownedLinkableRosters(db, callerUid);
     const storedTitle =
-      typeof existing.data()?.contextTitle === 'string'
-        ? (existing.data()?.contextTitle as string)
-        : null;
+      typeof ownLink?.contextTitle === 'string'
+        ? ownLink.contextTitle
+        : typeof sectionDoc.data()?.contextTitle === 'string'
+          ? (sectionDoc.data()?.contextTitle as string)
+          : null;
     const title = contextTitle ?? storedTitle;
 
     if (rosterId === null) {
@@ -407,16 +386,14 @@ export const ltiLinkSectionByUrlV1 = onCall(
         }))
         .filter((s) => s.overlap > 0)
         .sort((a, b) => b.overlap - a.overlap);
-      const linkedRosterId = existing.data()?.rosterId as unknown;
+      const linkedRosterId = ownLink?.rosterId;
       return {
         contextId,
         contextTitle: title,
         learnerCount: learnerEmails.size,
         suggestions,
         linkedRosterId:
-          typeof linkedRosterId === 'string' && existing.exists
-            ? linkedRosterId
-            : null,
+          typeof linkedRosterId === 'string' ? linkedRosterId : null,
       };
     }
 

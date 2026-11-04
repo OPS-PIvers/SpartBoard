@@ -4,6 +4,8 @@
 //                                ClassLink class, mirroring linkClassroomCourse.
 //                                A same-teacher re-link re-points it, and
 //                                the class's other section links are dropped.
+//                                A co-teacher NRPS lists as Instructor gets
+//                                their own link (courseLinkStore.ts).
 //   ltiUnlinkSectionV1         — the owner removes one of their own links.
 //   ltiSuggestClassLinkMatchV1 — best-effort auto-match: overlap a section's
 //                                NRPS roster emails with the teacher's ClassLink
@@ -46,9 +48,16 @@ import {
 import { classroomAddonNet } from '../classroomAddonAuth';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
+import { schoologySectionUrls } from './lineItems';
+import {
+  LTI_COURSE_LINKS_COLLECTION,
+  deleteTeacherLink,
+  isActiveInstructor,
+  linkContextId,
+  writeTeacherLink,
+} from './courseLinkStore';
 
-/** Firestore collection holding the Schoology section↔class link docs. */
-export const LTI_COURSE_LINKS_COLLECTION = 'lti_course_links';
+export { LTI_COURSE_LINKS_COLLECTION } from './courseLinkStore';
 
 /** The class a link points at; any one matching id makes two links the same class. */
 export interface LinkedClass {
@@ -91,18 +100,21 @@ export async function dropOtherLinksForClass(
       .where('teacherUid', '==', teacherUid)
       .get();
     const stale = snap.docs.filter(
-      (d) => d.id !== keepContextId && linksSameClass(d.data(), cls)
+      (d) =>
+        linkContextId(d.id, d.data()) !== keepContextId &&
+        linksSameClass(d.data(), cls)
     );
     if (stale.length === 0) return { replaced: [], replacedIds: [] };
-    const batch = db.batch();
-    for (const d of stale) batch.delete(d.ref);
-    await batch.commit();
+    // Each delete re-checks ownership in its own transaction, so a racing unlink or promotion can't take another teacher's link.
+    for (const d of stale) {
+      await deleteTeacherLink(db, teacherUid, linkContextId(d.id, d.data()));
+    }
     return {
       replaced: stale.map((d) => {
         const t = d.data().contextTitle as unknown;
         return typeof t === 'string' && t ? t : 'a Schoology section';
       }),
-      replacedIds: stale.map((d) => d.id),
+      replacedIds: stale.map((d) => linkContextId(d.id, d.data())),
     };
   } catch (err) {
     console.warn('[lti] dropping replaced course links failed', err);
@@ -302,9 +314,38 @@ async function ownedClasslinkClassIds(
   return (await ownedClassIds(db, callerUid)).classlink;
 }
 
+/** Whether NRPS lists `email` as an active Instructor of the section; false on any failure. */
+async function callerTeachesSection(
+  db: admin.firestore.Firestore,
+  email: string | undefined,
+  membershipUrl: string | null,
+  contextId: string
+): Promise<boolean> {
+  if (!email) return false;
+  try {
+    const url = membershipUrl ?? schoologySectionUrls(contextId).membershipUrl;
+    const cfg = await getLtiPlatformConfig(db);
+    const token = await getAgsAccessToken({
+      clientId: cfg.clientId,
+      tokenUrl: cfg.tokenUrl,
+      privatePem: LTI_TOOL_PRIVATE_KEY.value(),
+      scopes: [NRPS_SCOPE],
+    });
+    return isActiveInstructor(await fetchNrpsMembers(url, token), email);
+  } catch (err) {
+    console.warn('[linkLtiCourse] co-teacher NRPS check failed:', err);
+    return false;
+  }
+}
+
 // ── linkLtiCourseV1 ─────────────────────────────────────────────────────────
 export const linkLtiCourseV1 = onCall(
-  { region: 'us-central1', invoker: 'public', cors: ALLOWED_ORIGINS },
+  {
+    region: 'us-central1',
+    invoker: 'public',
+    cors: ALLOWED_ORIGINS,
+    secrets: [LTI_TOOL_PRIVATE_KEY],
+  },
   async (request) => {
     assertViewAsAllowed(request);
     const callerUid = await requireTeacher(request);
@@ -341,7 +382,7 @@ export const linkLtiCourseV1 = onCall(
     const rosterId = typeof data.rosterId === 'string' ? data.rosterId : null;
 
     const db = admin.firestore();
-    const { contextTitle } = await assertOwnsSchoologyContext(
+    const { contextTitle, membershipUrl } = await assertOwnsSchoologyContext(
       db,
       callerUid,
       sessionId,
@@ -366,58 +407,34 @@ export const linkLtiCourseV1 = onCall(
       );
     }
 
-    // Transactional check-then-write: never re-point a link another teacher owns
-    // (no-hijack); a same-teacher re-link just updates the paired class.
-    let linkedTitle: string | null = contextTitle;
-    await db.runTransaction(async (tx) => {
-      const ref = db.collection(LTI_COURSE_LINKS_COLLECTION).doc(contextId);
-      const existing = await tx.get(ref);
-      const priorData = existing.exists
-        ? (existing.data() as {
-            teacherUid?: unknown;
-            contextTitle?: unknown;
-          })
-        : null;
-      if (priorData) {
-        const priorTeacher =
-          typeof priorData.teacherUid === 'string' ? priorData.teacherUid : '';
-        if (priorTeacher && priorTeacher !== callerUid) {
-          throw new HttpsError(
-            'already-exists',
-            'This Schoology section is already linked by another teacher.'
-          );
-        }
-      }
-      // Preserve a previously-captured contextTitle: some Schoology deployments
-      // omit the context title on relaunches (privacy config). The session
-      // membership doc written by nrpsStore.ts may then store null for the
-      // title (a new session has no prior record to fall back on), so
-      // contextTitle arriving here can be null even though a valid title was
-      // captured from an earlier launch and already written to this doc.
-      // Overwriting with null would clear the section name shown in the
-      // linking UI — the same preservation pattern applied in nrpsStore.ts
-      // (contextTitle) and launchEndpoints.ts (contextId).
-      const storedTitle =
-        priorData && typeof priorData.contextTitle === 'string'
-          ? priorData.contextTitle
-          : null;
-      const finalContextTitle = contextTitle ?? storedTitle;
-      linkedTitle = finalContextTitle;
-      // A test link stores classlinkClassId: null so the identity bridge (which
-      // OneRoster-fetches the paired class) skips it.
-      const payload: Record<string, unknown> = {
-        teacherUid: callerUid,
-        contextId,
+    // A section another teacher linked gets the caller's own link only when Schoology lists them as its teacher.
+    const owner = (
+      await db.collection(LTI_COURSE_LINKS_COLLECTION).doc(contextId).get()
+    ).data()?.teacherUid as unknown;
+    const coTeacher =
+      typeof owner === 'string' &&
+      !!owner &&
+      owner !== callerUid &&
+      (await callerTeachesSection(
+        db,
+        request.auth?.token.email,
+        membershipUrl,
+        contextId
+      ));
+    const linkedTitle = await writeTeacherLink(
+      db,
+      callerUid,
+      contextId,
+      {
+        // A test link stores classlinkClassId: null so the identity bridge skips it.
         classlinkClassId: classlinkClassId || null,
         testClassId: testClassId || null,
         classlinkOrgId,
-        contextTitle: finalContextTitle,
         rosterId,
-        updatedAt: Date.now(),
-      };
-      if (!existing.exists) payload.createdAt = Date.now();
-      tx.set(ref, payload, { merge: true });
-    });
+        contextTitle,
+      },
+      coTeacher
+    );
 
     const replaced = await dropOtherLinksForClass(db, callerUid, contextId, {
       rosterId,
@@ -445,7 +462,7 @@ export const linkLtiCourseV1 = onCall(
 );
 
 // ── ltiUnlinkSectionV1 ──────────────────────────────────────────────────────
-// Owner-only: a teacher can never remove a link another teacher made.
+// A teacher removes only their own link; a co-teacher's link of the same section stays.
 export const ltiUnlinkSectionV1 = onCall(
   { region: 'us-central1', invoker: 'public', cors: ALLOWED_ORIGINS },
   async (request) => {
@@ -456,17 +473,12 @@ export const ltiUnlinkSectionV1 = onCall(
     if (!ID_RE.test(contextId)) {
       throw new HttpsError('invalid-argument', 'contextId is required.');
     }
-    const db = admin.firestore();
-    const ref = db.collection(LTI_COURSE_LINKS_COLLECTION).doc(contextId);
-    const snap = await ref.get();
-    if (!snap.exists) return { ok: true, contextId };
-    if (snap.data()?.teacherUid !== callerUid) {
+    if (!(await deleteTeacherLink(admin.firestore(), callerUid, contextId))) {
       throw new HttpsError(
         'permission-denied',
         'Only the teacher who linked this Schoology section can unlink it.'
       );
     }
-    await ref.delete();
     return { ok: true, contextId };
   }
 );

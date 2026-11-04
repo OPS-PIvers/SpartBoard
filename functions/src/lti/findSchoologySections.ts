@@ -6,7 +6,7 @@
 //
 // The SIS match (`section_school_code === classlinkClassId`) stands in for the
 // student-overlap check. The caller must still be an active NRPS Instructor of
-// the section, and a section another teacher linked can't be taken.
+// the section. A co-teacher gets their own link; nobody else's link changes.
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
@@ -18,6 +18,7 @@ import { getAgsAccessToken } from './ags';
 import { fetchNrpsMembership } from './nrps';
 import { schoologySectionUrls } from './lineItems';
 import { LTI_COURSE_LINKS_COLLECTION } from './courseLinkEndpoints';
+import { linkContextId } from './courseLinkStore';
 import {
   isActiveInstructor,
   ownedLinkableRosters,
@@ -120,7 +121,7 @@ async function callerLinks(
   return snap.docs.map((d) => {
     const data = d.data() as Record<string, unknown>;
     return {
-      contextId: d.id,
+      contextId: linkContextId(d.id, data),
       rosterId: str(data.rosterId),
       classlinkClassId: str(data.classlinkClassId),
       contextTitle: str(data.contextTitle),
@@ -158,13 +159,6 @@ async function findRows(
     ),
   ];
 
-  const ownerOf = new Map<string, string | null>();
-  await inBatches(sectionIds, async (id) => {
-    const snap = await db.collection(LTI_COURSE_LINKS_COLLECTION).doc(id).get();
-    const t = snap.data()?.teacherUid as unknown;
-    ownerOf.set(id, typeof t === 'string' && t ? t : null);
-  });
-
   const cfg = await getLtiPlatformConfig(db);
   let token: string | null = null;
   try {
@@ -181,31 +175,26 @@ async function findRows(
     string,
     { ok: boolean; title: string | null } | null
   >();
-  await inBatches(
-    sectionIds.filter((id) => {
-      const owner = ownerOf.get(id);
-      return !owner || owner === callerUid;
-    }),
-    async (id) => {
-      if (!token) {
-        instructorOf.set(id, null);
-        return;
-      }
-      try {
-        const { members, contextTitle } = await fetchNrpsMembership(
-          schoologySectionUrls(id).membershipUrl,
-          token
-        );
-        instructorOf.set(id, {
-          ok: isActiveInstructor(members, email),
-          title: contextTitle,
-        });
-      } catch (err) {
-        console.warn(`[ltiFindSections] NRPS read failed for ${id}:`, err);
-        instructorOf.set(id, null);
-      }
+  // Co-teachers each link their own class, so every section is checked against NRPS.
+  await inBatches(sectionIds, async (id) => {
+    if (!token) {
+      instructorOf.set(id, null);
+      return;
     }
-  );
+    try {
+      const { members, contextTitle } = await fetchNrpsMembership(
+        schoologySectionUrls(id).membershipUrl,
+        token
+      );
+      instructorOf.set(id, {
+        ok: isActiveInstructor(members, email),
+        title: contextTitle,
+      });
+    } catch (err) {
+      console.warn(`[ltiFindSections] NRPS read failed for ${id}:`, err);
+      instructorOf.set(id, null);
+    }
+  });
 
   const periodIds = [
     ...new Set(
@@ -237,7 +226,6 @@ async function findRows(
     }
     const s: SchoologySection = section;
     const nrps = instructorOf.get(s.id);
-    const owner = ownerOf.get(s.id);
     const current = linkFor(r);
     const base = {
       rosterId: r.rosterId,
@@ -247,7 +235,6 @@ async function findRows(
         ? (periodTitle.get(s.gradingPeriodIds[0]) ?? null)
         : null,
     };
-    if (owner && owner !== callerUid) return { ...base, status: 'taken' };
     if (current?.contextId === s.id) return { ...base, status: 'linked' };
     if (nrps === undefined || nrps === null)
       return { ...base, status: 'error' };
