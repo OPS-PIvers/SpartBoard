@@ -254,8 +254,9 @@ export async function exchangeAssertion(
   } catch {
     throw deny('Assertion did not verify');
   }
-  // jose accepts an array containing us; the ID-JAG audience must be exactly this server.
-  if (payload.aud !== publicOrigin())
+  // jose accepts an array containing us; refuse any other audience alongside this server.
+  const aud = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+  if (aud.length !== 1 || aud[0] !== publicOrigin())
     throw deny('Assertion audience is not exact');
   if (typeof payload.iat !== 'number' || payload.iat > nowS + CLOCK_SKEW_S) {
     throw deny('Assertion issued in the future');

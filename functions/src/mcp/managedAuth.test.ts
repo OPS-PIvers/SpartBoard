@@ -358,7 +358,6 @@ describe('cases to check before launch', () => {
       resourceUrl(),
       `${publicOrigin()}/`,
       'https://other.example',
-      [publicOrigin()],
       [publicOrigin(), 'https://other.example'],
     ]) {
       const out = await refused(db, makeDeps().deps, async (c) => ({
@@ -366,6 +365,14 @@ describe('cases to check before launch', () => {
       }));
       expect(out).toMatchObject({ ok: false, error: 'invalid_grant' });
     }
+  });
+
+  it('accepts aud as a one-item array naming this server', async () => {
+    const db = seed();
+    const out = await refused(db, makeDeps().deps, async (c) => ({
+      assertion: await assertion(c, { aud: [publicOrigin()] }),
+    }));
+    expect(out).toMatchObject({ ok: true });
   });
 
   it('finds the teacher by email on a verified domain, not by sub', async () => {
