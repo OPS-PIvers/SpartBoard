@@ -2844,6 +2844,7 @@
     "tourValueOn": "Activé",
     "tourValueOff": "Désactivé",
     "tourValueSelect": "Autopilot choisit :",
+    "tourValueAnyChoice": "N'importe quelle option",
     "tourValueType": "Autopilot tape :",
     "tourTeacherMustClick": "L'enseignant doit cliquer ici",
     "tourSetupTitle": "Widgets ajoutés par cette visite",

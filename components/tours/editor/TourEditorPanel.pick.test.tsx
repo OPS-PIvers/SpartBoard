@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { TourEditorPanel } from './TourEditorPanel';
 import { IDLE_PLAYBACK } from './tourEditStore';
@@ -84,6 +84,7 @@ describe('TourEditorPanel picking', () => {
   beforeEach(() => {
     document.elementsFromPoint = () => [];
   });
+  afterEach(() => vi.restoreAllMocks());
 
   it("shows the step's control and binds a new one picked on the board", () => {
     const session = makeSession([
@@ -147,6 +148,77 @@ describe('TourEditorPanel picking', () => {
       tour: { anchor: 'dock.open-tools', action: 'click' },
       text: 'Click the Open Tools button in the collapsed dock.',
     });
+  });
+
+  // The dropdown is on the board before the panel renders, as in the app.
+  const renderWithDropdown = (session: TourEditorSession) => {
+    vi.spyOn(
+      HTMLSelectElement.prototype,
+      'getBoundingClientRect'
+    ).mockReturnValue(new DOMRect(10, 10, 120, 28));
+    const board = document.createElement('div');
+    board.innerHTML =
+      '<select data-tour="connections.editor.advance" data-tour-widget-type="random" aria-label="What moves on from step 1"><option value="now">Right away</option><option value="pause">After a few seconds</option></select>';
+    document.body.appendChild(board);
+    const view = render(
+      <TourEditorPanel
+        session={session}
+        playback={{ ...IDLE_PLAYBACK, slots: {} }}
+        readAloud={{ on: false, onToggle: vi.fn() }}
+        onClose={vi.fn()}
+        initialCollapsed={false}
+        initialSide="right"
+      />
+    );
+    const dropdown = screen.getByRole('combobox', {
+      name: 'What moves on from step 1',
+    });
+    return { ...view, dropdown, board };
+  };
+
+  it('makes a picked native dropdown a choice step', () => {
+    const session = makeSession([step('a')]);
+    const { dropdown, board } = renderWithDropdown(session);
+    fireEvent.click(screen.getByRole('button', { name: 'Pick' }));
+    fireEvent.click(dropdown);
+    board.remove();
+    expect(session.updateStep).toHaveBeenCalledWith(
+      'a',
+      expect.objectContaining({
+        tour: {
+          anchor: 'connections.editor.advance:random',
+          action: 'select',
+          fallback: { role: 'combobox', name: 'what moves on from step 1' },
+        },
+      })
+    );
+  });
+
+  it("lists a choice step's real options and names the chosen one in the text", () => {
+    const session = makeSession([
+      step('a', {
+        anchor: 'connections.editor.advance:random',
+        action: 'select',
+      }),
+    ]);
+    const { board } = renderWithDropdown(session);
+    const choice = screen.getByRole('combobox', { name: 'Autopilot chooses:' });
+    expect(
+      Array.from((choice as HTMLSelectElement).options).map((o) => o.text)
+    ).toEqual(['Any option', 'Right away', 'After a few seconds']);
+    fireEvent.change(choice, { target: { value: 'pause' } });
+    expect(session.updateStep).toHaveBeenCalledWith(
+      'a',
+      expect.objectContaining({
+        tour: {
+          anchor: 'connections.editor.advance:random',
+          action: 'select',
+          value: 'pause',
+        },
+        text: 'Choose "After a few seconds" in the what moves a connection on to its next step.',
+      })
+    );
+    board.remove();
   });
 
   it('adds a step after the selection and starts picking for it', () => {

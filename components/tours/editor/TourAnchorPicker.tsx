@@ -105,6 +105,19 @@ const passThrough = (e: MouseEvent, type = e.type) => {
   asScriptedClick(() => el.dispatchEvent(copy));
 };
 
+// A synthetic click can't open a native dropdown, so the modifier click opens its list directly.
+const openNativeSelect = (e: MouseEvent): boolean => {
+  const select = elementBelow(e)?.closest('select');
+  if (!select || select.disabled) return false;
+  select.focus({ preventScroll: true });
+  try {
+    select.showPicker();
+  } catch {
+    // Older browsers have no showPicker; the dropdown is focused for the arrow keys instead.
+  }
+  return true;
+};
+
 // The tour's dim layer sits over the board, so look through it at what is underneath.
 const pickAt = (e: MouseEvent, slots: TourSlots | undefined) => {
   const stack =
@@ -190,6 +203,7 @@ export const TourAnchorPicker: React.FC<Props> = ({
       }
       // Cancelling pointerdown stops the browser's own mousedown and mouseup, so send them here.
       if (e.type === 'mousedown' || e.type === 'mouseup') return;
+      if (e.type === 'pointerdown' && openNativeSelect(e)) return;
       passThrough(e);
       if (e.type === 'pointerdown') passThrough(e, 'mousedown');
       if (e.type === 'pointerup') passThrough(e, 'mouseup');
