@@ -27,6 +27,7 @@ import {
 import { MAX_SEAT } from './paperSheetMarker';
 import type { PaperSheetEntry } from './paperPageMap';
 import { paperBoxSizeOf } from './paperWritten';
+import { rowsFromQuestion } from './quizChoiceRows';
 import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
 
 /** Small deterministic PRNG so an option set always shuffles the same way. */
@@ -70,20 +71,27 @@ export const isPlaceholderLetterChoices = (
  * first, as students expect.
  */
 export function paperChoiceOrder(
-  question: Pick<QuizQuestion, 'correctAnswer' | 'incorrectAnswers'>
+  question: Pick<QuizQuestion, 'correctAnswer' | 'incorrectAnswers'> &
+    Partial<Pick<QuizQuestion, 'type' | 'optionOrder' | 'paperOwnTest'>>
 ): string[] {
   const choices = [
     question.correctAnswer,
     ...(question.incorrectAnswers ?? []),
   ].slice(0, MAX_CHOICE_COUNT);
+  // Shuffled letters would print "A. C" and bubble A would mean option C.
+  if (isPlaceholderLetterChoices(choices)) {
+    return [...choices].sort((a, b) => a.trim().localeCompare(b.trim()));
+  }
+  // The teacher's own paper already lettered these; a shuffle would misread every bubble.
+  if (question.paperOwnTest) {
+    return rowsFromQuestion({ type: 'MC', ...question })
+      .map((r) => r.text)
+      .slice(0, MAX_CHOICE_COUNT);
+  }
   if (isTrueFalse(choices)) {
     return [...choices].sort((a) =>
       a.trim().toLowerCase() === 'true' ? -1 : 1
     );
-  }
-  // Shuffled letters would print "A. C" and bubble A would mean option C.
-  if (isPlaceholderLetterChoices(choices)) {
-    return [...choices].sort((a, b) => a.trim().localeCompare(b.trim()));
   }
   choices.sort();
   const rand = seededRandom(choices.join('\u0001'));
@@ -453,6 +461,7 @@ export function buildPaperStubQuiz(input: PaperStubQuizInput): QuizData {
       type: 'MC' as const,
       correctAnswer: letters[0],
       incorrectAnswers: letters.slice(1),
+      paperOwnTest: true,
       points: 1,
     })
   );
