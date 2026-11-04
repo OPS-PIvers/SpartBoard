@@ -639,7 +639,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     savedWidgetConfigs,
     materialsPreferences,
     timeToolStartSeconds,
-    canAccessFeature,
     profileLoaded,
     setupCompleted,
     lastActiveCollectionId,
@@ -6440,10 +6439,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // The building layer for a new widget, with the teacher's own timer starting length over it.
-  const timerStartSeconds =
-    timeToolStartSeconds && canAccessFeature('timer-starting-length')
-      ? timeToolStartSeconds
-      : 0;
+  const timerStartSeconds = timeToolStartSeconds ?? 0;
   const getNewWidgetBaseConfig = useCallback(
     (type: WidgetType): Record<string, unknown> | undefined => {
       const building = getAdminBuildingConfig(type);

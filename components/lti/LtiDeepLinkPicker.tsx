@@ -92,10 +92,7 @@ import {
   defaultWhenValue,
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
-import {
-  getVideoActivityBehavior,
-  formatVideoActivityBehaviorSummary,
-} from '@/utils/videoActivityBehavior';
+import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { sessionSectionsFor } from '@/utils/quizSections';
@@ -294,11 +291,9 @@ const LtiDeepLinkFlow: React.FC = () => {
     >
   >(new Map());
 
-  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
-    useAuth();
-  // va-quiz-alignment: VA rules are edited here, prefilled from last-used else the activity (V3).
-  const vaRulesOn = canAccessFeature('va-quiz-alignment');
-  const lastVaRules = useLastVideoAssignSettings(user?.uid, vaRulesOn);
+  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  // VA rules are edited here, prefilled from last-used else the activity (V3).
+  const lastVaRules = useLastVideoAssignSettings(user?.uid, true);
   const [editedVaRules, setEditedVaRules] = useState<{
     activityId: string;
     rules: VideoAssignRules;
@@ -436,28 +431,15 @@ const LtiDeepLinkFlow: React.FC = () => {
     () => activities.find((a) => a.id === selectedActivityId),
     [activities, selectedActivityId]
   );
-  const vaRules: VideoAssignRules | null =
-    vaRulesOn && selectedActivity
-      ? editedVaRules?.activityId === selectedActivity.id
-        ? editedVaRules.rules
-        : videoRulesPrefill(
-            getVideoActivityBehavior(selectedActivity),
-            lastVaRules.lastUsed,
-            VA_SESSION_SETTINGS
-          )
-      : null;
-
-  // Read-only summary of the configured behavior the assignment will inherit —
-  // surfaces the parity (the quiz/VA's own session mode, attempts, etc.) so the
-  // teacher can see what students will get before adding it.
-  const behaviorSummary = useMemo(() => {
-    if (kind === 'quiz' || vaRulesOn) return null;
-    return selectedActivity
-      ? formatVideoActivityBehaviorSummary(
-          getVideoActivityBehavior(selectedActivity)
+  const vaRules: VideoAssignRules | null = selectedActivity
+    ? editedVaRules?.activityId === selectedActivity.id
+      ? editedVaRules.rules
+      : videoRulesPrefill(
+          getVideoActivityBehavior(selectedActivity),
+          lastVaRules.lastUsed,
+          VA_SESSION_SETTINGS
         )
-      : null;
-  }, [kind, selectedActivity, vaRulesOn]);
+    : null;
 
   const windowBackwards =
     assignWindowOn &&
@@ -856,7 +838,7 @@ const LtiDeepLinkFlow: React.FC = () => {
         // on `behavior`, so it stays the conservative VA_SESSION_SETTINGS
         // default the route uses.
         const behavior = getVideoActivityBehavior(selectedActivity);
-        // The assignment's rules (va-quiz-alignment) replace the activity's behavior and the player defaults.
+        // The assignment's rules replace the activity's behavior and the player defaults.
         const fromRules = vaRules ? videoRulesSessionFields(vaRules) : null;
         const sessionOptions: VideoActivitySessionOptions = {
           ...(fromRules?.sessionOptions ?? {
@@ -1213,16 +1195,6 @@ const LtiDeepLinkFlow: React.FC = () => {
                 Assignment settings
               </h2>
 
-              {behaviorSummary && (
-                <p className="text-xs text-slate-500">
-                  Inherits this {kind === 'quiz' ? 'quiz' : 'activity'}
-                  &rsquo;s settings:{' '}
-                  <span className="font-medium text-slate-700">
-                    {behaviorSummary}
-                  </span>
-                </p>
-              )}
-
               <div>
                 <label
                   htmlFor={teacherNameId}
@@ -1334,7 +1306,7 @@ const LtiDeepLinkFlow: React.FC = () => {
               disabled={
                 !canAdd ||
                 windowBackwards ||
-                (kind !== 'quiz' && vaRulesOn && !lastVaRules.loaded)
+                (kind !== 'quiz' && !lastVaRules.loaded)
               }
               title={windowBackwards ? 'Closes before it opens.' : undefined}
               icon={Send}

@@ -121,7 +121,7 @@ export interface VideoActivityAssignExtras {
   manualStart: boolean;
   /** Share results with this PLC (D10). */
   plc: Plc | null;
-  /** The assignment's own rules (va-quiz-alignment); null keeps the activity's and the board's. */
+  /** The assignment's own rules; null keeps the activity's and the board's. */
   rules?: VideoAssignRules | null;
   /** Staff: the link needs district Google sign-in. */
   audience?: AssignmentAudience;
@@ -201,7 +201,7 @@ export interface VideoActivityManagerProps {
   ) => Promise<string>;
   /** The teacher's PLCs, for the stepper's Sharing step. */
   plcs?: readonly Plc[];
-  /** This board's player rules; prefill the Video step when nothing was used before (va-quiz-alignment V4). */
+  /** This board's player rules; prefill the Video step when nothing was used before (VA_QUIZ_ALIGNMENT V4). */
   boardPlayerSettings?: VideoActivitySessionSettings;
   /** Rosters to populate the picker. */
   rosters: ClassRoster[];
@@ -279,7 +279,7 @@ export interface VideoActivityManagerProps {
   ) => void | Promise<void>;
   /** Opens the Edit classes dialog for an in-progress assignment. */
   onArchiveEditClasses?: (assignment: VideoActivityAssignment) => void;
-  /** Opens Settings (When and the rule steps) for a self-paced assignment (va-quiz-alignment). */
+  /** Opens Settings (When and the rule steps) for a self-paced assignment. */
   onArchiveEditSettings?: (assignment: VideoActivityAssignment) => void;
 
   // Legacy per-activity session view (one-off session history). Kept for
@@ -550,8 +550,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const canAssignLive = canAccessFeature('video-activity-live');
   const lastPacing = useLastVideoAssignPacing(userId, canAssignLive);
-  const rulesOnAssign = canAccessFeature('va-quiz-alignment');
-  const lastRules = useLastVideoAssignSettings(userId, rulesOnAssign);
+  const lastRules = useLastVideoAssignSettings(userId, true);
   const claudeReview = useClaudeReview('video_activities');
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -1313,10 +1312,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       });
     }
 
-    // Rules belong to the assignment once they leave the editor (va-quiz-alignment V2).
+    // Rules belong to the assignment once they leave the editor (VA_QUIZ_ALIGNMENT V2).
     if (
       onArchiveEditSettings &&
-      rulesOnAssign &&
       !assignmentIsViewOnly &&
       assignment.sessionMode !== 'teacher'
     ) {
@@ -1591,7 +1589,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       )}
 
       {/* Waits for last-used rules so an early Assign can't overwrite them with the activity's. */}
-      {assignTarget && !isViewOnly && (!rulesOnAssign || lastRules.loaded) && (
+      {assignTarget && !isViewOnly && lastRules.loaded && (
         <VideoAssignStepper
           key={`${assignTarget.id}:${activePending?.key ?? ''}`}
           onClose={closeAssign}
@@ -1608,15 +1606,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           initialClassIds={pickerValue.rosterIds}
           initialStudents={activePending?.targetStudents}
           error={assignError}
-          initialRules={
-            rulesOnAssign
-              ? videoRulesPrefill(
-                  getVideoActivityBehavior(assignTarget),
-                  lastRules.lastUsed,
-                  boardPlayerSettings
-                )
-              : undefined
-          }
+          initialRules={videoRulesPrefill(
+            getVideoActivityBehavior(assignTarget),
+            lastRules.lastUsed,
+            boardPlayerSettings
+          )}
           onSubmit={handleStepperSubmit}
         />
       )}

@@ -1,4 +1,4 @@
-// DEV-only: the real VA question card under each answer rule (va-quiz-alignment slice 5).
+// DEV-only: the real VA question card under each answer rule (VA_QUIZ_ALIGNMENT slice 5).
 import React from 'react';
 import { QuestionOverlay } from '@/components/videoActivity/QuestionOverlay';
 import type {

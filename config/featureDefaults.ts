@@ -55,7 +55,6 @@ import {
   Triangle,
   Workflow,
   Shuffle,
-  SquareDashedMousePointer,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -734,20 +733,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Video Activity editor and assign rules on the Quiz versions (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md).
-  'va-quiz-alignment': {
-    label: 'Video Activity matches Quiz',
-    icon: ListChecks,
-    description: 'Video Activity questions and assign rules work like Quiz.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'video-activity',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: false,
-    missingDocPublic: false,
-    // Closed for admins too until LTI, Classroom and PLC assigns read the new rules (slices 6 and 7).
-    failClosedForAdmins: true,
-  },
   // Quiz library "Student view": the real student player with focus-mode toggles, local-only.
   'quiz-student-view': {
     label: 'Quiz student view',
@@ -854,18 +839,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Rubric visibility for students',
     icon: Eye,
     description: 'Rubrics stay hidden unless a question shows them.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Scoring-guide rubrics. Admin-only until Paul has tested them in prod.
-  'rubric-scoring-guides': {
-    label: 'Scoring-guide rubrics',
-    icon: ListChecks,
-    description:
-      'Rubrics with parts, scoring guidelines and example responses.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1197,16 +1170,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'timer-starting-length': {
-    label: 'Timer starting length',
-    icon: Timer,
-    description: 'Teachers choose the length their new timers start at.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'music-my-songs': {
     label: 'My songs in Music',
     icon: Music,
@@ -1235,17 +1198,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Shuffle,
     description:
       'A Groups setting that keeps students apart from recent groupmates.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'board-multi-select': {
-    label: 'Drag to select widgets',
-    icon: SquareDashedMousePointer,
-    description:
-      'Hold Ctrl and drag across the board to select several widgets, then pin or group them.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

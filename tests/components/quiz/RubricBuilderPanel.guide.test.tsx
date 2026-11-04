@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { AuthContext } from '@/context/AuthContextValue';
 import type { Rubric } from '@/types';
 
 const showConfirm = vi.fn();
@@ -27,25 +26,16 @@ vi.mock('@/context/useDialog', () => ({
 
 import { RubricBuilderPanel } from '@/components/widgets/QuizWidget/components/RubricBuilderPanel';
 
-const open = (flagOn: boolean, onAttach = vi.fn(), snapshot?: Rubric) =>
+const open = (onAttach = vi.fn(), snapshot?: Rubric) =>
   render(
-    <AuthContext.Provider
-      value={
-        {
-          canAccessFeature: (f: string) =>
-            flagOn && f === 'rubric-scoring-guides',
-        } as never
-      }
-    >
-      <RubricBuilderPanel
-        questionId="q1"
-        existingSnapshot={snapshot}
-        onAttach={onAttach}
-        onDetach={vi.fn()}
-        onClose={vi.fn()}
-        teacherUid="uid-test"
-      />
-    </AuthContext.Provider>
+    <RubricBuilderPanel
+      questionId="q1"
+      existingSnapshot={snapshot}
+      onAttach={onAttach}
+      onDetach={vi.fn()}
+      onClose={vi.fn()}
+      teacherUid="uid-test"
+    />
   );
 
 describe('RubricBuilderPanel scoring guide', () => {
@@ -54,14 +44,9 @@ describe('RubricBuilderPanel scoring guide', () => {
     showConfirm.mockResolvedValue(true);
   });
 
-  it('hides the template switch while the flag is off', () => {
-    open(false);
-    expect(screen.queryByRole('radio', { name: 'Scoring guide' })).toBeNull();
-  });
-
   it('builds a part with guidelines, examples and points', async () => {
     const onAttach = vi.fn();
-    open(true, onAttach);
+    open(onAttach);
     fireEvent.click(screen.getByRole('radio', { name: 'Scoring guide' }));
     await waitFor(() =>
       expect(screen.getByLabelText('Part 1 label')).toBeTruthy()
