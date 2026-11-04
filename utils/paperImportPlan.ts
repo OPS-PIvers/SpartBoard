@@ -20,7 +20,11 @@ import { CHOICE_LETTERS } from './paperSheetLayout';
 import { analyzePaperQuiz, isPlaceholderLetterChoices } from './paperSheetPlan';
 import { pageMapsForSeat } from './paperSheetVersions';
 import { paperCropStoragePath } from './paperWritten';
-import { questionFromRows, rowsFromQuestion } from './quizChoiceRows';
+import {
+  hasArrangedOrder,
+  questionFromRows,
+  rowsFromQuestion,
+} from './quizChoiceRows';
 
 /** Client mirror of the function's `ImportPaperAnswer`. */
 export interface ImportPaperAnswerPayload {
@@ -90,9 +94,10 @@ export function printedOptionsFor(
 ): string[] {
   const recorded = batch.choiceOrder?.[questionId];
   if (recorded && !isPlaceholderLetterChoices(recorded)) return [...recorded];
-  // Only a paper-own-test fill keeps the paper's letters; an older fill stored the answer first.
+  // An own-test fill or an editor arrangement keeps the paper's letters; an older document fill stored the answer first.
   if (
-    question?.paperOwnTest &&
+    question &&
+    (question.paperOwnTest || hasArrangedOrder(question)) &&
     (question.type === 'MC' || question.type === 'MA')
   ) {
     const filled = rowsFromQuestion(question).map((r) => r.text);
@@ -308,13 +313,6 @@ export function applyKeyToQuiz(
     const options = printedOptionsFor(batch, q, q.id);
     const correct = options[choice];
     if (correct === undefined) return q;
-    if (!q.paperOwnTest) {
-      return {
-        ...q,
-        correctAnswer: correct,
-        incorrectAnswers: options.filter((_, i) => i !== choice),
-      };
-    }
     // Keep each option where the sheet lettered it, so a reprint letters it the same way.
     const { optionOrder } = questionFromRows(
       options.map((text, i) => ({ text, correct: i === choice })),

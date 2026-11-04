@@ -138,6 +138,8 @@ describe('answerTextFor', () => {
     const oldFill = mc('q1', 'Rennin', ['Protease', 'Aribinose', 'mRNA']);
     const stubBatch = { choiceOrder: { q1: ['A', 'B', 'C', 'D'] } };
     expect(answerTextFor(stubBatch, oldFill, 'q1', 0)).toBe('A');
+    const editorFill = { ...oldFill, optionOrder: [1, 0, 2, 3] };
+    expect(answerTextFor(stubBatch, editorFill, 'q1', 0)).toBe('Protease');
   });
 });
 
