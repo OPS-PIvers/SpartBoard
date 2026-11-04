@@ -17,7 +17,7 @@ export function normalizeClaudeManagedAuthSettings(
 
 /** Mirrors `isValidIssuerUrl` in functions/src/mcp/managedAuth.ts and the org rule. */
 export function isValidManagedAuthIssuer(raw: string): boolean {
-  if (raw.length > 300) return false;
+  if (raw.length > 300 || !/^https:\/\/[^\s?#@]+$/.test(raw)) return false;
   try {
     const url = new URL(raw);
     return (

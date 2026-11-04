@@ -11,6 +11,7 @@ import {
 } from './cimd';
 import {
   resetSigningKeyCache,
+  signClientId,
   verifyAccessToken,
   verifyClientId,
 } from './tokens';
@@ -213,6 +214,27 @@ describe('CIMD behind the switch', () => {
     expect(
       await verifyAccessToken(db, out.json.access_token as string)
     ).toMatchObject({ uid: 't1', email: TEACHER });
+  });
+
+  it('keeps exact redirect matching for registered (DCR) clients', async () => {
+    const db = seed(true);
+    const clientId = await signClientId(db, {
+      redirectUris: ['http://localhost:3118/callback'],
+      clientName: 'Registered',
+    });
+    await expect(
+      authorize(
+        db,
+        { uid: 't1', token: { email: TEACHER, email_verified: true } },
+        {
+          clientId,
+          redirectUri: 'http://localhost:4000/callback',
+          codeChallenge: 'a'.repeat(43),
+          codeChallengeMethod: 'S256',
+          decision: 'preview',
+        }
+      )
+    ).rejects.toThrow(/not valid/);
   });
 
   it('never redirects to a URI the document does not list', async () => {

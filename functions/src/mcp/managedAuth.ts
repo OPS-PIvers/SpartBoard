@@ -223,9 +223,6 @@ export async function exchangeAssertion(
   if (resource && resource.replace(/\/+$/, '') !== resourceUrl()) {
     throw new OAuthError('invalid_target', 'Unknown resource');
   }
-  const client = await verifyClientId(db, clientId);
-  if (!client) throw deny('Unknown client');
-
   let unverified: JWTPayload;
   try {
     unverified = decodeJwt(assertion);
@@ -237,6 +234,9 @@ export async function exchangeAssertion(
 
   // 1. Issuer, against the one org it resolves to, before any key fetch.
   const orgId = await resolveOrg(db, iss, unverified.aud_tenant);
+  // Client check after the issuer, so untrusted requests never trigger a CIMD fetch.
+  const client = await verifyClientId(db, clientId);
+  if (!client) throw deny('Unknown client');
 
   // 2-5, 8. Keys from the issuer's own discovery document, signature, typ, aud and time.
   const jwksUri = await jwksUriFor(iss, deps);

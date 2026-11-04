@@ -1067,7 +1067,7 @@ service cloud.firestore {
     match /admin_settings/{document=**} {
       allow read: if isAdmin();
       allow write: if notDomainsPath(document) &&
-                      ((isAdmin() && !string(document).matches('(.*/)?(user_roles|view_as|lti_config|sub_launch_as_teacher|classlink_sync|focus_sessions)(/.*)?')) ||
+                      ((isAdmin() && !string(document).matches('(.*/)?(user_roles|view_as|lti_config|sub_launch_as_teacher|classlink_sync|focus_sessions|claude_managed_auth|claude_connector_cimd)(/.*)?')) ||
                        isSuperAdmin());
     }
 

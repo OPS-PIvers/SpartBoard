@@ -149,6 +149,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Claude identifies itself with its published client document instead of registering a new client on each connection.',
     normalize: normalizeClaudeConnectorCimdSettings,
+    superAdminOnly: true,
   },
   {
     docId: CLAUDE_MANAGED_AUTH_SETTINGS_DOC,
@@ -156,6 +157,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Staff connect Claude without the Connect step, once a SpartBoard admin sets the issuer in Organization > Overview.',
     normalize: normalizeClaudeManagedAuthSettings,
+    superAdminOnly: true,
   },
   {
     docId: GRADEBOOK_INDEX_SETTINGS_DOC,

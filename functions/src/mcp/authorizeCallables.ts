@@ -4,6 +4,7 @@ import * as admin from '../firebaseAdmin';
 import '../functionsInit';
 import { resourceUrl, publicOrigin, redirectUriMatches } from './config';
 import { verifyClientId } from './tokens';
+import { isCimdClientId } from './cimd';
 import { checkEligibility } from './eligibility';
 import { mintAuthCode } from './codes';
 import { grantRef } from './grants';
@@ -63,7 +64,13 @@ export async function authorize(
   const redirectUri = str(data.redirectUri);
   const client = clientId ? await verifyClientId(db, clientId) : null;
   // Never redirect to a URI the client did not register: that would be an open redirect.
-  if (!client || !redirectUriMatches(client.redirectUris, redirectUri)) {
+  // Any-port loopback matching applies only to CIMD clients; registered clients keep exact match.
+  const redirectOk =
+    client &&
+    (isCimdClientId(clientId)
+      ? redirectUriMatches(client.redirectUris, redirectUri)
+      : client.redirectUris.includes(redirectUri));
+  if (!client || !redirectOk) {
     throw new HttpsError(
       'invalid-argument',
       'This connection link is not valid. Start again from Claude.'
