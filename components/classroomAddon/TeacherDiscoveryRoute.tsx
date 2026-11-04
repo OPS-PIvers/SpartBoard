@@ -612,14 +612,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       append(`Note: ${warning}`);
     }
 
-    // Classroom grade scale = quiz's total points (e.g. 17/20), not a percentage.
-    // loadQuizData only normalizes question types, so guard against a
-    // malformed/legacy file missing `questions` — fall back to 100, matching
-    // quizMaxPoints's own empty-set denominator.
-    const maxPoints = Array.isArray(quizData?.questions)
-      ? quizMaxPoints(quizData.questions, sessionSectionsFor(quizData))
-      : 100;
-
     const targeting = await resolveClassTargeting();
 
     // Assessment Mode always; options and attempt limit come from the quiz.
@@ -642,6 +634,16 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       quizData,
       selectedQuiz.driveFileId,
       { loadBankContentsForQuiz, saveDriveSnapshot }
+    );
+
+    // Classroom grade scale = the points a student can earn (e.g. 17/20), not a percentage.
+    const maxPoints = quizMaxPoints(
+      content.questions,
+      sessionSectionsFor(
+        { ...quizData, questions: content.questions },
+        content.bankSlots
+      ),
+      content.bankSlots
     );
 
     append('Creating a class-targeted assignment…');
