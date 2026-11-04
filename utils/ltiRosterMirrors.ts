@@ -13,10 +13,32 @@ export async function syncRosterMirrors(
   replacedIds: string[] | undefined,
   updateRoster: UpdateRoster
 ): Promise<void> {
-  const writes: [string, string][] = [[rosterId, contextId]];
-  const stale = new Set([contextId, ...(replacedIds ?? [])]);
+  await syncRosterMirrorsBatch(
+    rosters,
+    [{ rosterId, contextId }],
+    replacedIds,
+    updateRoster
+  );
+}
+
+/** One set of mirror writes for several links: linked rosters are set, never cleared. */
+export async function syncRosterMirrorsBatch(
+  rosters: ClassRoster[],
+  links: { rosterId: string; contextId: string }[],
+  replacedIds: string[] | undefined,
+  updateRoster: UpdateRoster
+): Promise<void> {
+  const linked = new Set(links.map((l) => l.rosterId));
+  const writes: [string, string][] = links.map((l) => [
+    l.rosterId,
+    l.contextId,
+  ]);
+  const stale = new Set([
+    ...links.map((l) => l.contextId),
+    ...(replacedIds ?? []),
+  ]);
   for (const r of rosters) {
-    if (r.id !== rosterId && r.ltiContextId && stale.has(r.ltiContextId)) {
+    if (!linked.has(r.id) && r.ltiContextId && stale.has(r.ltiContextId)) {
       writes.push([r.id, '']);
     }
   }

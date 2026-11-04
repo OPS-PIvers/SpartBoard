@@ -9,7 +9,7 @@ import {
   type FoundSectionRow,
   type FoundSectionStatus,
 } from '@/utils/ltiCourseLinks';
-import { syncRosterMirrors } from '@/utils/ltiRosterMirrors';
+import { syncRosterMirrorsBatch } from '@/utils/ltiRosterMirrors';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface SchoologyFindCoursesProps {
@@ -81,20 +81,20 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
       const linked = results.filter(
         (r) => r.status === 'linked' && !!r.contextId
       );
-      for (const r of linked) {
-        try {
-          await syncRosterMirrors(
-            rosters,
-            r.rosterId,
-            r.contextId as string,
-            r.replacedIds,
-            updateRoster
-          );
-        } catch {
-          // The server link landed; the roster mirror resyncs later.
-        }
-      }
       const replacedIds = linked.flatMap((r) => r.replacedIds ?? []);
+      try {
+        await syncRosterMirrorsBatch(
+          rosters,
+          linked.map((r) => ({
+            rosterId: r.rosterId,
+            contextId: r.contextId as string,
+          })),
+          replacedIds,
+          updateRoster
+        );
+      } catch {
+        // The server links landed; the roster mirrors resync later.
+      }
       if (replacedIds.length > 0) onReplaced?.(replacedIds);
       const byId = new Map(results.map((r) => [r.rosterId, r]));
       setRows((prev) =>
@@ -163,7 +163,7 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
                     {...tourFieldAttr(
                       'schoology-link.found-row',
                       'schoology-link',
-                      `found-${i + 1}`
+                      `row-${i + 1}`
                     )}
                     className="mt-1 h-4 w-4 shrink-0 accent-brand-blue-primary disabled:opacity-40"
                   />
@@ -183,7 +183,7 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
                       </span>
                     )}
                   </label>
-                  {!ready && (
+                  {row.status !== 'ready' && (
                     <span
                       className={`inline-flex items-center gap-1 text-xs font-bold shrink-0 ${
                         row.status === 'linked'
