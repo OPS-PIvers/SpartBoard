@@ -2606,6 +2606,12 @@
   ],
   "widgetNotes": [
     {
+      "id": "time-tool-bigger-buttons-2026-11-04",
+      "widget": "time-tool",
+      "date": "2026-11-04",
+      "text": "The play, reset and one minute buttons are bigger. With the ring showing, the one minute buttons sit in the bottom corners."
+    },
+    {
       "id": "clock-show-time-date-2026-11-03",
       "widget": "clock",
       "date": "2026-11-03",
