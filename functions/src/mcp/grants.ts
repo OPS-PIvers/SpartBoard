@@ -113,22 +113,25 @@ export async function issueManagedGrant(
   now = Date.now()
 ): Promise<ManagedTokenResponse> {
   const grants = db.collection(`users/${input.uid}/mcp_grants`);
-  const live = await grants
-    .where('managedIssuer', '==', input.issuer)
-    .where('revokedAt', '==', null)
-    .limit(1)
-    .get();
-  // A revoked grant is never revived, so tokens minted before a Disconnect stay dead.
-  let grantId: string;
-  if (!live.empty) {
-    grantId = live.docs[0].id;
-    await grantRef(db, input.uid, grantId).update({
-      email: input.email,
-      orgId: input.orgId,
-      lastRefreshedAt: now,
-    });
-  } else {
-    grantId = `ema_${randomToken(16)}`;
+  // One transaction, so two simultaneous first exchanges can't each create a grant.
+  const grantId = await db.runTransaction(async (tx) => {
+    const live = await tx.get(
+      grants
+        .where('managedIssuer', '==', input.issuer)
+        .where('revokedAt', '==', null)
+        .limit(1)
+    );
+    // A revoked grant is never revived, so tokens minted before a Disconnect stay dead.
+    if (!live.empty) {
+      const id = live.docs[0].id;
+      tx.update(grantRef(db, input.uid, id), {
+        email: input.email,
+        orgId: input.orgId,
+        lastRefreshedAt: now,
+      });
+      return id;
+    }
+    const id = `ema_${randomToken(16)}`;
     const doc: GrantDoc = {
       clientName: input.clientName.slice(0, 80),
       email: input.email,
@@ -142,8 +145,9 @@ export async function issueManagedGrant(
       revokedAt: null,
       managedIssuer: input.issuer,
     };
-    await grantRef(db, input.uid, grantId).set(doc);
-  }
+    tx.set(grantRef(db, input.uid, id), doc);
+    return id;
+  });
   return {
     access_token: await signAccessToken(db, {
       uid: input.uid,
