@@ -771,9 +771,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "time-tool#timerEndTriggerNextUp",
       "time-tool#timerEndTriggerRandom",
       "time-tool#timerEndTriggerStationsRotate",
-      "video-activity#allowSkipping",
-      "video-activity#autoPlay",
-      "video-activity#requireCorrectAnswer",
       "weather#detail_dewPoint",
       "weather#detail_feelsLike",
       "weather#detail_highLow",
@@ -901,7 +898,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "time-tool#content",
       "time-tool#display",
       "url#content",
-      "video-activity#behavior",
       "weather#behavior",
       "weather#content",
       "weather#display",
@@ -5860,46 +5856,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.publish-scores",
         "kind": "shared",
         "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-video-behavior.scoring",
-    "label": "Scoring section header in the Video Activity assign settings",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity",
-          "video-activity.editor-tab:video-activity#settings"
-        ],
-        "reveal": "video-activity.editor-tab:video-activity#settings",
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "assign-video-behavior.score-visibility",
-    "label": "Score visibility option in the Video Activity assign settings",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity",
-          "video-activity.editor-tab:video-activity#settings"
-        ],
-        "reveal": "video-activity.editor-tab:video-activity#settings",
-        "needs": [
-          "widget-on-stage"
-        ]
       }
     ]
   },
@@ -23001,23 +22957,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.plcs",
           "plcs.invites"
         ]
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.option-toggle",
-    "label": "Option switch in the PLC assign dialog",
-    "scope": "field",
-    "panel": true,
-    "keys": [
-      "plc#focus-mode",
-      "plc#shuffle-answers",
-      "plc#shuffle-questions"
-    ],
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
       }
     ]
   },
@@ -47867,46 +47806,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.editor-question-type",
-    "label": "Question type button in the video activity editor",
-    "scope": "field",
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.editor-question-timestamp",
     "label": "Question timestamp box in the video activity editor",
-    "scope": "board",
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-question-time-limit",
-    "label": "Question time limit box in the video activity editor",
     "scope": "board",
     "persists": true,
     "sandboxed": true,
@@ -47981,122 +47882,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.editor-correct-answer",
-    "label": "Correct answer box for a multiple choice question",
-    "scope": "board",
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-incorrect-answer",
-    "label": "Incorrect answer box for a multiple choice question",
-    "scope": "field",
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.editor-fib-answer",
     "label": "Canonical answer box for a fill in the blank question",
-    "scope": "board",
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-fib-variants",
-    "label": "Acceptable variants box for a fill in the blank question",
-    "scope": "board",
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-option-correct",
-    "label": "Correct toggle on a multi-answer option",
-    "scope": "field",
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-option-text",
-    "label": "Text box on a multi-answer option",
-    "scope": "field",
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-partial-credit",
-    "label": "Allow partial credit checkbox in the video activity editor",
     "scope": "board",
     "persists": true,
     "sandboxed": true,
@@ -48281,23 +48068,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "persists": true,
     "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-tab",
-    "label": "Questions and Settings tabs in the video activity editor",
-    "scope": "field",
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -48882,27 +48652,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "widget",
         "widget_type": "video-activity",
         "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.settings-score-visibility",
-    "label": "Score visibility option in video activity behavior settings",
-    "scope": "field",
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity",
-          "video-activity.editor-tab:video-activity#settings"
-        ],
-        "reveal": "video-activity.editor-tab:video-activity#settings",
         "needs": [
           "widget-on-stage"
         ]

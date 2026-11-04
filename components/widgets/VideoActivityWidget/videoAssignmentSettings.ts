@@ -1,4 +1,4 @@
-// Rules on a launched Video Activity assignment: the Settings dialog's value and what a Save writes (va-quiz-alignment slice 6).
+// Rules on a launched Video Activity assignment: the Settings dialog's value and what a Save writes (VA_QUIZ_ALIGNMENT slice 6).
 import type {
   VideoActivityAssignment,
   VideoActivitySessionOptions,

@@ -7,7 +7,6 @@ import type { QuizQuestion, VideoActivityQuestion } from '@/types';
 
 const saveLast = vi.fn();
 const saveLastVa = vi.fn();
-let vaFlag = false;
 
 const mockCallable = vi.fn((_params: { maxPoints: number }) => ({
   data: { attachmentId: 'att-1' },
@@ -49,7 +48,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1', email: 't@example.com', displayName: 'T' },
     signInWithGoogle: vi.fn(),
     googleAccessToken: 'drive-token',
-    canAccessFeature: (id: string) => id === 'va-quiz-alignment' && vaFlag,
+    canAccessFeature: () => false,
     ensureGoogleScope: vi.fn(() => null),
   }),
 }));
@@ -281,43 +280,35 @@ describe('ClassroomAddonTeacherSpike attach flow — assign step bodies', () => 
     expect(typeof settings.sessionOptions.dueAt).toBe('number');
   });
 
-  it('va-quiz-alignment: the Video rule bodies replace the summary and set the session rules', async () => {
-    vaFlag = true;
+  it('the Video rule bodies set the session rules', async () => {
     saveLastVa.mockClear();
-    try {
-      render(<ClassroomAddonTeacherSpike />);
-      fireEvent.click(screen.getByRole('tab', { name: 'Video Activity' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Video Activity' }));
-      fireEvent.click(
-        await screen.findByRole('option', { name: 'My Video Activity' })
-      );
-      for (const name of [
-        'When',
-        'Attempts and order',
-        'Video',
-        'Integrity',
-        'What students see',
-      ])
-        expect(screen.getByRole('region', { name })).toBeTruthy();
-      expect(screen.queryByText(/Inherits this activity/)).toBeNull();
-      fireEvent.click(
-        screen.getByRole('switch', { name: 'Allow skipping ahead' })
-      );
-      fireEvent.click(
-        screen.getByRole('button', { name: /attach video activity/i })
-      );
-      await waitFor(() => expect(createVaAssignment).toHaveBeenCalled());
-      const settings = (
-        createVaAssignment.mock.calls.at(-1) as unknown[]
-      )[1] as {
-        sessionOptions: { answerRulesSet?: boolean };
-        sessionSettings: { allowSkipping: boolean };
-      };
-      expect(settings.sessionOptions.answerRulesSet).toBe(true);
-      expect(settings.sessionSettings.allowSkipping).toBe(true);
-      expect(saveLastVa).toHaveBeenCalledOnce();
-    } finally {
-      vaFlag = false;
-    }
+    render(<ClassroomAddonTeacherSpike />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Video Activity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Video Activity' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'My Video Activity' })
+    );
+    for (const name of [
+      'When',
+      'Attempts and order',
+      'Video',
+      'Integrity',
+      'What students see',
+    ])
+      expect(screen.getByRole('region', { name })).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Allow skipping ahead' })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /attach video activity/i })
+    );
+    await waitFor(() => expect(createVaAssignment).toHaveBeenCalled());
+    const settings = (createVaAssignment.mock.calls.at(-1) as unknown[])[1] as {
+      sessionOptions: { answerRulesSet?: boolean };
+      sessionSettings: { allowSkipping: boolean };
+    };
+    expect(settings.sessionOptions.answerRulesSet).toBe(true);
+    expect(settings.sessionSettings.allowSkipping).toBe(true);
+    expect(saveLastVa).toHaveBeenCalledOnce();
   });
 });

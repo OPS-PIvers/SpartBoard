@@ -1,15 +1,13 @@
 /**
  * VideoActivityEditorModal — full-screen editor for a Video Activity.
  *
- * Wraps the two-pane EditorWorkspace: left context pane has the
- * YouTube URL + Timeline + sortable question list; right detail pane has
- * the editor for the currently-selected question (timestamp / type /
- * prompt / answers).
+ * Wraps the two-pane EditorWorkspace on the Quiz editor layout: left context
+ * pane has the YouTube URL + Timeline + question list; right detail pane has
+ * the editor for the currently-selected question.
  */
 
-import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Wand2 } from 'lucide-react';
 import {
   LibraryFolder,
   VideoActivityBehaviorSettings,
@@ -20,12 +18,7 @@ import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { videoActivityIncompleteReason } from '@/utils/activityCompleteness';
 import { useAuth } from '@/context/useAuth';
-import { VideoActivityBehaviorSettingsPanel } from '@/components/common/library/VideoActivityBehaviorSettingsPanel';
-import {
-  VideoActivityAiOverlay,
-  VideoActivityEditorContextPane,
-  VideoActivityEditorDetailPane,
-} from './VideoActivityEditor';
+import { VideoActivityAiOverlay } from './VideoActivityEditor';
 import { useVideoActivityEditorState } from './useVideoActivityEditorState';
 import {
   VideoActivityQuizContextPane,
@@ -48,11 +41,7 @@ interface VideoActivityEditorModalProps {
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
-  /**
-   * Seed behavior for the Settings tab. For an existing activity, pass
-   * `getVideoActivityBehavior(meta)`; for a new activity, omit (defaults to
-   * `DEFAULT_VA_BEHAVIOR`).
-   */
+  /** The activity's saved behavior, passed back unchanged on save; omit for `DEFAULT_VA_BEHAVIOR`. */
   behavior?: VideoActivityBehaviorSettings;
   /**
    * Off for flows whose save publishes rather than persists — PLC authoring
@@ -107,37 +96,6 @@ const questionsEqual = (
   return true;
 };
 
-/**
- * Shallow-equal over the union of both objects' keys. Sufficient for
- * session-options objects, whose values are all primitives. Matches the
- * previous `JSON.stringify(a) !== JSON.stringify(b)` dirty-check semantics
- * (explicit `undefined` == absent) without serializing on every keystroke.
- * Tolerates a missing object on either side (legacy Firestore docs may lack
- * sessionOptions despite the type) — the old stringify compare did too.
- */
-const shallowRecordEqual = <T extends object>(
-  a: T | undefined,
-  b: T | undefined
-): boolean => {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof T)[]);
-  for (const key of keys) {
-    if (!Object.is(a[key], b[key])) return false;
-  }
-  return true;
-};
-
-/** Field-by-field VideoActivityBehaviorSettings compare for the isDirty check. */
-const videoActivityBehaviorSettingsEqual = (
-  a: VideoActivityBehaviorSettings,
-  b: VideoActivityBehaviorSettings
-): boolean =>
-  a === b ||
-  (a.sessionMode === b.sessionMode &&
-    a.attemptLimit === b.attemptLimit &&
-    shallowRecordEqual(a.sessionOptions, b.sessionOptions));
-
 export const VideoActivityEditorModal: React.FC<
   VideoActivityEditorModalProps
 > = ({
@@ -157,7 +115,6 @@ export const VideoActivityEditorModal: React.FC<
   const canUseAi =
     canAccessFeature('gemini-functions') &&
     canAccessFeature('video-activity-ai');
-  const quizLayout = canAccessFeature('va-quiz-alignment');
   const stopsEnabled = canAccessFeature('video-activity-stops');
   const timelineRef = useRef<TimelineHandle>(null);
 
@@ -184,31 +141,14 @@ export const VideoActivityEditorModal: React.FC<
     originalNotes,
   } = editorState;
 
-  // ─── Behavior settings state ─────────────────────────────────────────────
-  const [pickedTab, setEditorTab] = useState<'questions' | 'settings'>(
-    'questions'
-  );
-  // Flag on: the rules moved to the assignment, so there is no Settings tab.
-  const editorTab = quizLayout ? 'questions' : pickedTab;
+  // Rules live on each assignment; the seed is saved back untouched, re-seeded per activity.
   const [behavior, setBehavior] = useState<VideoActivityBehaviorSettings>(
     () => behaviorSeed ?? DEFAULT_VA_BEHAVIOR
   );
-  const [originalBehavior, setOriginalBehavior] =
-    useState<VideoActivityBehaviorSettings>(
-      () => behaviorSeed ?? DEFAULT_VA_BEHAVIOR
-    );
-
-  // Re-seed behavior when the activity being edited changes (e.g. user closes
-  // editor and opens a different activity without unmounting the modal). Adjust
-  // state while rendering (see CLAUDE.md), keyed on activity?.id only so a fresh
-  // behaviorSeed object from a parent re-render doesn't clobber in-progress
-  // edits.
   const [seededActivityId, setSeededActivityId] = useState(activity?.id);
   if (seededActivityId !== activity?.id) {
     setSeededActivityId(activity?.id);
-    const seed = behaviorSeed ?? DEFAULT_VA_BEHAVIOR;
-    setBehavior(seed);
-    setOriginalBehavior(seed);
+    setBehavior(behaviorSeed ?? DEFAULT_VA_BEHAVIOR);
   }
 
   // Reference equality first — setState produces a new questions array on
@@ -223,8 +163,7 @@ export const VideoActivityEditorModal: React.FC<
       !(
         questions === originalQuestions ||
         questionsEqual(questions, originalQuestions)
-      ) ||
-      !videoActivityBehaviorSettingsEqual(behavior, originalBehavior),
+      ),
     [
       title,
       originalTitle,
@@ -236,8 +175,6 @@ export const VideoActivityEditorModal: React.FC<
       originalNotes,
       questions,
       originalQuestions,
-      behavior,
-      originalBehavior,
     ]
   );
 
@@ -345,29 +282,6 @@ export const VideoActivityEditorModal: React.FC<
       ) : null,
     [folders, folderId, onFolderChange]
   );
-  const { setShowAiPrompt } = editorState;
-  const hasYoutubeUrl = Boolean(youtubeUrl.trim());
-  const footerExtras = useMemo(
-    () =>
-      canUseAi && !quizLayout ? (
-        <button
-          {...tourAttr('video-activity.editor-draft-ai')}
-          onClick={() => setShowAiPrompt(true)}
-          disabled={!hasYoutubeUrl}
-          className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          title={
-            hasYoutubeUrl
-              ? 'Generate questions with AI'
-              : 'Paste a YouTube URL first'
-          }
-        >
-          <Wand2 className="w-4 h-4" />
-          Draft with AI
-        </button>
-      ) : null,
-    [canUseAi, quizLayout, hasYoutubeUrl, setShowAiPrompt]
-  );
-
   if (!activity) return null;
 
   return (
@@ -388,71 +302,22 @@ export const VideoActivityEditorModal: React.FC<
       incompleteNotice={incompleteNotice}
       onClose={onClose}
       saveLabel="Save Activity"
-      footerExtras={footerExtras}
       contextRatio={56}
       contextPaneClassName="bg-slate-50 border-r border-slate-200 overflow-hidden!"
       contextPane={
         <div className="flex flex-col h-full">
-          {/* Questions / Settings segmented tab toggle */}
-          {!quizLayout && (
-            <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
-              {(['questions', 'settings'] as const).map((tab) => (
-                <button
-                  {...tourFieldAttr(
-                    'video-activity.editor-tab',
-                    'video-activity',
-                    tab
-                  )}
-                  key={tab}
-                  type="button"
-                  onClick={() => setEditorTab(tab)}
-                  className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
-                    editorTab === tab
-                      ? 'bg-brand-blue-primary text-white'
-                      : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
-                  }`}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {editorTab === 'questions' ? (
-            quizLayout ? (
-              <VideoActivityQuizContextPane
-                state={editorState}
-                timelineRef={timelineRef}
-                aiEnabled={canUseAi}
-              />
-            ) : (
-              <VideoActivityEditorContextPane state={editorState} />
-            )
-          ) : (
-            <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-5 space-y-5">
-              <VideoActivityBehaviorSettingsPanel
-                value={behavior}
-                onChange={setBehavior}
-              />
-            </div>
-          )}
+          <VideoActivityQuizContextPane
+            state={editorState}
+            timelineRef={timelineRef}
+            aiEnabled={canUseAi}
+          />
         </div>
       }
       detailPane={
-        editorTab === 'questions' ? (
-          quizLayout ? (
-            <VideoActivityQuizDetailPane
-              state={editorState}
-              timelineRef={timelineRef}
-            />
-          ) : (
-            <VideoActivityEditorDetailPane state={editorState} />
-          )
-        ) : (
-          <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
-            <p>Defaults for new assignments.</p>
-          </div>
-        )
+        <VideoActivityQuizDetailPane
+          state={editorState}
+          timelineRef={timelineRef}
+        />
       }
       overlay={<VideoActivityAiOverlay state={editorState} />}
     />

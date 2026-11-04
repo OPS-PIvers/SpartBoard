@@ -760,20 +760,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Video Activity editor and assign rules on the Quiz versions (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md).
-  'va-quiz-alignment': {
-    label: 'Video Activity matches Quiz',
-    icon: ListChecks,
-    description: 'Video Activity questions and assign rules work like Quiz.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'video-activity',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: false,
-    missingDocPublic: false,
-    // Closed for admins too until LTI, Classroom and PLC assigns read the new rules (slices 6 and 7).
-    failClosedForAdmins: true,
-  },
   // Quiz library "Student view": the real student player with focus-mode toggles, local-only.
   'quiz-student-view': {
     label: 'Quiz student view',

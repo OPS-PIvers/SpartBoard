@@ -1,4 +1,4 @@
-// Settings on a launched self-paced Video Activity assignment: When and the rule steps, with Save (va-quiz-alignment slice 6).
+// Settings on a launched self-paced Video Activity assignment: When and the rule steps, with Save (VA_QUIZ_ALIGNMENT slice 6).
 import React, { useState } from 'react';
 import { Pause, Save } from 'lucide-react';
 import { useTranslation } from 'react-i18next';

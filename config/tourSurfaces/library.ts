@@ -189,17 +189,10 @@ export const SURFACES: TourSurfaceMap = {
       'components/widgets/VideoActivityWidget/components/VideoActivityQuizLayout.tsx',
       'components/widgets/VideoActivityWidget/components/VideoActivityClipFields.tsx',
       'components/widgets/VideoActivityWidget/components/VideoActivityNotesEditor.tsx',
-      'components/common/library/VideoActivityBehaviorSettingsPanel.tsx',
     ],
     opensWith: 'library-shell.new:video-activity',
     parent: 'library.video-activity',
     inner: {
-      'assign-video-behavior.scoring':
-        'video-activity.editor-tab:video-activity#settings',
-      'assign-video-behavior.score-visibility':
-        'video-activity.editor-tab:video-activity#settings',
-      'video-activity.settings-score-visibility':
-        'video-activity.editor-tab:video-activity#settings',
       'video-activity.editor-ai-close': 'video-activity.editor-draft-ai',
       'video-activity.editor-ai-generate': 'video-activity.editor-draft-ai',
       'video-activity.ai-count-decrement': 'video-activity.editor-draft-ai',
