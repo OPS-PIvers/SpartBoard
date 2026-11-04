@@ -3205,14 +3205,17 @@ describe('LiveTourRunner Autopilot performer', () => {
       ])
     );
     await run(200);
+    fireEvent.pointerDown(font());
     font().focus();
     fireEvent.click(font());
     await run(200);
     expect(progress()).toBe('2 / 3');
     expect(document.activeElement).toBe(font());
+    // Once an option is chosen, the next step takes focus as usual.
     fireEvent.change(font(), { target: { value: 'b' } });
     await run(200);
     expect(progress()).toBe('3 / 3');
+    expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
   });
 
   it('advances a type step once the field holds the text, without a blur', async () => {
