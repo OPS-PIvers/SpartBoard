@@ -185,6 +185,21 @@ describe('TourAnchorPicker', () => {
     );
   });
 
+  it('opens a native dropdown on a Ctrl click so its option can be chosen', () => {
+    const showPicker = vi.fn();
+    HTMLSelectElement.prototype.showPicker = showPicker;
+    const { onPick } = setup();
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', 'What moves on');
+    document.body.appendChild(select);
+    fireEvent.pointerDown(select, { ctrlKey: true });
+    expect(showPicker).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(select);
+    fireEvent.click(select, { ctrlKey: true });
+    expect(onPick).not.toHaveBeenCalled();
+    select.remove();
+  });
+
   it('sends a Ctrl click through the tour dim to the control under it', () => {
     boardClick.mockClear();
     const { onPick } = setup();

@@ -62,6 +62,16 @@ describe('resolvePickTarget', () => {
     expect(hit?.pick).not.toHaveProperty('slot');
   });
 
+  it('binds a native dropdown as the element, not one of its options', () => {
+    mount(
+      '<select data-tour="connections.editor.advance" data-tour-widget-type="random" aria-label="What moves on from step 1"><option id="o" value="now">Right away</option></select>'
+    );
+    expect(resolvePickTarget(document.getElementById('o'))?.pick).toEqual({
+      anchor: 'connections.editor.advance:random',
+      fallback: { role: 'combobox', name: 'what moves on from step 1' },
+    });
+  });
+
   it('builds a field ref', () => {
     mount(
       '<div data-tour-widget="w-1"><div id="t" data-tour="settings.field" data-tour-widget-type="clock" data-tour-field="format24">f</div></div>'
