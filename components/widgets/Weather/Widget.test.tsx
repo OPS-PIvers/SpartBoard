@@ -50,6 +50,7 @@ const mockFeaturePermissions = [
 
 const mockAuth = {
   detailsFlag: false,
+  gearFlag: false,
   selectedBuildings: ['intermediate'],
 };
 
@@ -57,7 +58,11 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     featurePermissions: mockFeaturePermissions,
     canAccessFeature: (id: string) =>
-      id === 'weather-details' ? mockAuth.detailsFlag : true,
+      id === 'weather-details'
+        ? mockAuth.detailsFlag
+        : id === 'weather-gear-layout'
+          ? mockAuth.gearFlag
+          : true,
     selectedBuildings: mockAuth.selectedBuildings,
   }),
 }));
@@ -110,6 +115,7 @@ describe('WeatherWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAuth.detailsFlag = false;
+    mockAuth.gearFlag = false;
     mockAuth.selectedBuildings = ['intermediate'];
   });
 
@@ -263,6 +269,52 @@ describe('WeatherWidget', () => {
       );
       expect(screen.getByText('dewPoint:40°')).toBeInTheDocument();
       expect(screen.getByText('humidity:92')).toBeInTheDocument();
+    });
+  });
+  describe('recess gear redesign', () => {
+    beforeEach(() => {
+      mockAuth.gearFlag = true;
+    });
+
+    it('fills the widget with the default message and its picture', () => {
+      const widget: WidgetData = {
+        ...baseWidget,
+        w: 340,
+        h: 300,
+        config: { ...baseWidget.config, temp: 72 },
+      };
+      render(<WeatherWidget widget={widget} />);
+      const card = screen.getByTestId('weather-clothing-card');
+      expect(card).toHaveTextContent(/Long Sleeves/i);
+      expect(card.style.width).not.toBe('');
+      expect(screen.getByText('72°')).toBeInTheDocument();
+    });
+
+    it('shows the admin message and image without cropping it', () => {
+      const widget: WidgetData = {
+        ...baseWidget,
+        w: 340,
+        h: 300,
+        config: { ...baseWidget.config, temp: 20 },
+      };
+      render(<WeatherWidget widget={widget} />);
+      expect(screen.getByText('It is freezing!')).toBeInTheDocument();
+      const img = screen.getByAltText('Weather');
+      expect(img).toHaveAttribute('src', 'ice.png');
+      expect(img).toHaveClass('object-contain');
+    });
+
+    it('still hides the gear when hideClothing is on', () => {
+      const widget: WidgetData = {
+        ...baseWidget,
+        w: 340,
+        h: 300,
+        config: { ...baseWidget.config, hideClothing: true },
+      };
+      render(<WeatherWidget widget={widget} />);
+      expect(
+        screen.queryByTestId('weather-clothing-card')
+      ).not.toBeInTheDocument();
     });
   });
 });
