@@ -2149,7 +2149,6 @@ const TeacherQuizWidget: React.FC<{
             importVersions: true,
             plainVersions: canAccessFeature('quiz-import-versions-plain'),
             saveVersionImport,
-            rubricScoringGuides: canAccessFeature('rubric-scoring-guides'),
             ...(canUseAiReader
               ? { aiExtractVersions: extractTestSetFromDocument }
               : {}),

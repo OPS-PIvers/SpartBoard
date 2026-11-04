@@ -10762,8 +10762,6 @@ export type GlobalFeature =
   | 'quiz-spell-check-toggle'
   /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
   | 'quiz-rubric-visibility'
-  /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */
-  | 'rubric-scoring-guides'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */

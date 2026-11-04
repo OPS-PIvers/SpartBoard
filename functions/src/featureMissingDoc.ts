@@ -25,7 +25,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-attempt-history',
   'quiz-spell-check-toggle',
   'quiz-rubric-visibility',
-  'rubric-scoring-guides',
   'gradebook',
   'student-gradebook',
   'quiz-time-limit',

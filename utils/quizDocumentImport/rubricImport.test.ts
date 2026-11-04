@@ -183,7 +183,6 @@ describe('toRubric', () => {
 
   it('makes one criterion per letter with levels 0..points (V2)', () => {
     const r = toRubric('Unit 3 – Version A', rubric1.criteria, {
-      scoringGuides: true,
       newId: idGen(),
       now: 5,
     });
@@ -206,7 +205,6 @@ describe('toRubric', () => {
 
   it('titles a row with its letter and prompt and keeps credit lines verbatim in the guide (V3)', () => {
     const r = toRubric('x', rubric1.criteria, {
-      scoringGuides: true,
       newId: idGen(),
     });
     const a = r.criteria[0];
@@ -222,28 +220,8 @@ describe('toRubric', () => {
     );
   });
 
-  it('puts the same guide text in a plain criterion when scoring guides are off (V26)', () => {
-    const on = toRubric('x', rubric1.criteria, {
-      scoringGuides: true,
-      newId: idGen(),
-    });
-    const off = toRubric('x', rubric1.criteria, {
-      scoringGuides: false,
-      newId: idGen(),
-    });
-    expect(off.criteria.every((c) => c.guide === undefined)).toBe(true);
-    expect(off.criteria.map((c) => c.description)).toEqual(
-      on.criteria.map((c) => c.description)
-    );
-    expect(off.criteria[2].levels.map((l) => l.label)).toEqual([
-      '0 of 2',
-      '1 of 2',
-      '2 of 2',
-    ]);
-  });
-
   it('leaves out the description when a row has no credit or notes', () => {
-    const r = toRubric('x', [row('A', 'Prompt', 1)], { scoringGuides: true });
+    const r = toRubric('x', [row('A', 'Prompt', 1)], {});
     expect(r.criteria[0]).not.toHaveProperty('description');
   });
 
@@ -251,9 +229,7 @@ describe('toRubric', () => {
     const r = toRubric(
       'x',
       [row('A', 'p', 0), row('B', 'p', 9), row('C', 'p', 1.6)],
-      {
-        scoringGuides: false,
-      }
+      {}
     );
     expect(r.criteria.map((c) => c.levels.length)).toEqual([2, 6, 3]);
   });
@@ -288,9 +264,7 @@ describe('rubricLibraryName', () => {
 
 describe('rubricAttachment', () => {
   it('sets what the quiz editor sets when attaching a library rubric', () => {
-    const r = toRubric('x', fixture().rubrics[2].criteria, {
-      scoringGuides: true,
-    });
+    const r = toRubric('x', fixture().rubrics[2].criteria, {});
     expect(rubricAttachment(r)).toEqual({
       rubricId: r.id,
       rubricSnapshot: r,
@@ -491,7 +465,6 @@ describe('review flags (V16)', () => {
     );
     expect(flags.map((f) => f.kind)).toEqual(['typo']);
     const plan = planImportedRubrics(set, pairRubricsByOrder(set), set.title, {
-      scoringGuides: true,
       newId: idGen(),
     });
     expect(plan[1].libraryRubric.criteria[4].description).toContain(
@@ -522,7 +495,6 @@ describe('planImportedRubrics', () => {
       pairRubricsByOrder(set),
       'Unit 3 FRQ (2025)',
       {
-        scoringGuides: true,
         newId: idGen(),
         now: 1,
       }
@@ -558,7 +530,6 @@ describe('planImportedRubrics', () => {
   it('gives each split part its slice of the one rubric, totalling 10 (V10)', () => {
     const set = fixture();
     const split = planImportedRubrics(set, pairRubricsByOrder(set), 'F', {
-      scoringGuides: true,
       newId: idGen(),
     })[4];
     expect(split.libraryRubric.criteria).toHaveLength(6);
@@ -585,7 +556,6 @@ describe('planImportedRubrics', () => {
       letter: String(i + 1),
     }));
     const split = planImportedRubrics(set, pairRubricsByOrder(set), 'F', {
-      scoringGuides: false,
       newId: idGen(),
     })[4];
     expect(split.flags.map((f) => f.kind)).toContain('split-order');
@@ -604,7 +574,6 @@ describe('planImportedRubrics', () => {
       0
     );
     const plans = planImportedRubrics(set, pairing, 'F', {
-      scoringGuides: true,
       newId: idGen(),
     });
     expect(plans.map((p) => [p.unitIndex, p.rubricIndex])).toEqual([
@@ -620,7 +589,6 @@ describe('saveImportedRubrics', () => {
   it('saves each library rubric once through the injected saver', async () => {
     const set = fixture();
     const plans = planImportedRubrics(set, pairRubricsByOrder(set), 'F', {
-      scoringGuides: true,
       newId: idGen(),
     });
     const saved: Rubric[] = [];
