@@ -119,8 +119,12 @@ export function applyQuestionFill(
     const next = { ...q, text: fill.text.trim() };
     const options = fill.options?.filter((o) => o.trim());
     if (options && options.length > 0) {
-      const answer = fill.correctAnswer?.trim() ?? '';
-      const answerAt = options.indexOf(answer);
+      const wanted = fill.correctAnswer?.trim().toLowerCase() ?? '';
+      const answerAt = wanted
+        ? options.findIndex((o) => o.trim().toLowerCase() === wanted)
+        : -1;
+      // A key that names none of the printed options is no key; the paper's rows stay exact.
+      const answer = answerAt === -1 ? '' : options[answerAt];
       // The teacher's paper letters these options; keep its order so bubbles score right.
       const stored = questionFromRows(
         options.map((text, at) => ({ text, correct: at === answerAt })),
@@ -128,9 +132,9 @@ export function applyQuestionFill(
       );
       next.type = 'MC';
       next.correctAnswer = answer;
-      next.incorrectAnswers = options.filter((o) => o !== answer);
+      next.incorrectAnswers = options.filter((_o, at) => at !== answerAt);
       next.paperOwnTest = true;
-      if (answerAt !== -1 && stored.optionOrder) {
+      if (stored.optionOrder) {
         next.optionOrder = stored.optionOrder;
       } else {
         delete next.optionOrder;

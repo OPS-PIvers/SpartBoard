@@ -44,6 +44,29 @@ describe('applyQuestionFill', () => {
     expect(paperChoiceOrder(q)).toEqual(options);
   });
 
+  it('treats a key that names none of the options as no key', () => {
+    const options = ['Red', 'Blue', 'Green'];
+    const next = applyQuestionFill(
+      quiz([stub()]),
+      { 1: { text: 'Pick', options, correctAnswer: 'Purple' } },
+      99
+    );
+    const q = next.questions[0];
+    expect(q.correctAnswer).toBe('');
+    expect(q.needsKey).toBe(true);
+    expect(paperChoiceOrder(q)).toEqual(options);
+  });
+
+  it('matches the key to an option despite case and spacing', () => {
+    const next = applyQuestionFill(
+      quiz([stub()]),
+      { 1: { text: 'Pick', options: ['Red', 'Blue'], correctAnswer: ' blue' } },
+      99
+    );
+    expect(next.questions[0].correctAnswer).toBe('Blue');
+    expect(paperChoiceOrder(next.questions[0])).toEqual(['Red', 'Blue']);
+  });
+
   it('keeps the paper order when the document named no answer', () => {
     const options = ['Reaction 1', 'Reaction 2'];
     const next = applyQuestionFill(

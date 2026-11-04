@@ -20,6 +20,7 @@ export interface StoredQuestionFields {
   alternateAnswers?: string[];
   blankAlternates?: { answers: string[] }[];
   optionOrder?: number[];
+  paperOwnTest?: boolean;
   needsKey?: boolean;
   points?: number;
   matchingDistractors?: string[];
@@ -162,6 +163,35 @@ function assertNoPipe(n: number, values: string[], what: string): void {
   }
 }
 
+/** Options in the order the teacher's own paper prints them (mirrors `rowsFromQuestion`). */
+function printedOptions(q: StoredQuestion): string[] {
+  const rows = [
+    ...(q.correctAnswer.trim() ? [q.correctAnswer] : []),
+    ...q.incorrectAnswers,
+  ];
+  const order = q.optionOrder ?? [];
+  const valid =
+    order.length === rows.length &&
+    new Set(order).size === rows.length &&
+    order.every((i) => Number.isInteger(i) && i >= 0 && i < rows.length);
+  return valid ? order.map((i) => rows[i]) : rows;
+}
+
+/** Same options as the paper: keep its lettering. Different options: the paper no longer describes them. */
+function keepPrintedOrder(next: StoredQuestion, existing: StoredQuestion) {
+  const printed = printedOptions(existing);
+  const rows = [next.correctAnswer, ...next.incorrectAnswers];
+  const sameSet =
+    rows.length === printed.length &&
+    [...rows].sort().join('\u0000') === [...printed].sort().join('\u0000');
+  if (!sameSet) {
+    delete next.paperOwnTest;
+    return;
+  }
+  const order = printed.map((text) => rows.indexOf(text));
+  if (order.some((v, i) => v !== i)) next.optionOrder = order;
+}
+
 /** Tool input → stored question, keeping the existing question's non-key extras (targets, stimuli, rubric). */
 export function toStoredQuestion(
   input: FriendlyQuestion,
@@ -208,6 +238,7 @@ export function toStoredQuestion(
       }
       base.correctAnswer = correct;
       base.incorrectAnswers = wrong;
+      if (existing?.paperOwnTest) keepPrintedOrder(base, existing);
       break;
     }
     case 'MA': {

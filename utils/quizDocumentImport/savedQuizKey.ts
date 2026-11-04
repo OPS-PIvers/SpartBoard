@@ -108,7 +108,8 @@ function fill(
   }
   const picked = chosen(q, answer);
   if ('reason' in picked) return picked;
-  const { indexes } = picked;
+  // Printed position order, so `correctAnswer` and `optionOrder` agree on a choose-all key.
+  const indexes = [...picked.indexes].sort((a, b) => a - b);
   if (q.type === 'MC' && indexes.length > 1) {
     return { reason: `key says ${answer}, question takes one answer` };
   }
