@@ -22,7 +22,7 @@ All calls were GETs. Nothing was written. No student names, emails or response b
 
 ### D1. Start from the caller's classes
 
-`ltiFindSchoologySectionsV1` (callable, teacher only, same flag gate as `ltiLinkSectionByUrlV1`) reads the caller's rosters with a `classlinkClassId` (`ownedLinkableRosters`), dedupes them by `classlinkClassId` (a teacher can import the same class twice; that class gets one row, which links the most recently synced roster), caps the list at `MAX_CANDIDATE_CLASSES` as `overlapByRoster` does, and, a few at a time, calls `GET /sections/ext/{classlinkClassId}`. A 404 means "no Schoology course for this class". Each lookup (REST and NRPS) is caught on its own: any other failure (403, 5xx, timeout) makes that row "Couldn't check" and the other rows still list. The teacher's Schoology uid isn't needed, so admins without a OneRoster record and co-taught sections work the same way. Test-class rosters are skipped (no SIS id).
+`ltiFindSchoologySectionsV1` (callable, teacher only, same flag gate as `ltiLinkSectionByUrlV1`) reads the caller's rosters with a `classlinkClassId` (`ownedLinkableRosters`), dedupes them by `classlinkClassId` (a teacher can import the same class twice; that class gets one row, which links the most recently synced roster), caps the list at `MAX_CANDIDATE_CLASSES` as `overlapByRoster` does, and, a few at a time, calls `GET /sections/ext/{classlinkClassId}`. A 404 means "no Schoology course for this class". Each lookup (REST and NRPS) is caught on its own: any other failure (403, 5xx, timeout) makes that row "Couldn't check" and the other rows still list. The teacher's Schoology uid isn't needed, so admins without a OneRoster record and co-taught sections work the same way. Test-class rosters are skipped (no SIS id). **The list only ever shows the teacher's current SpartBoard classes** (Paul, 2026-11-04): a Schoology section whose class hasn't been imported into SpartBoard (for example the S2 sections before the teacher imports their S2 classes) never appears, so the call never lists the teacher's Schoology sections.
 
 ### D2. Ownership checks stay
 
@@ -50,5 +50,4 @@ One PR behind the existing `schoology-tool-columns` flag (admin, on for Paul fir
 
 ## Open questions for Paul
 
-- Should the dialog also offer sections whose class isn't in SpartBoard yet (the S2 sections before ClassLink syncs them)? The probe says they'd have nothing to link to, so the proposal hides them.
 - Banner at the semester change (D4): worth it, or is the button enough?
