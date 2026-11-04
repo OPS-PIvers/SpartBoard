@@ -90,7 +90,11 @@ export function printedOptionsFor(
 ): string[] {
   const recorded = batch.choiceOrder?.[questionId];
   if (recorded && !isPlaceholderLetterChoices(recorded)) return [...recorded];
-  if (question && (question.type === 'MC' || question.type === 'MA')) {
+  // Only a paper-own-test fill keeps the paper's letters; an older fill stored the answer first.
+  if (
+    question?.paperOwnTest &&
+    (question.type === 'MC' || question.type === 'MA')
+  ) {
     const filled = rowsFromQuestion(question).map((r) => r.text);
     if (filled.length > 0 && !isPlaceholderLetterChoices(filled)) return filled;
   }
@@ -287,6 +291,13 @@ export function applyKeyToQuiz(
     const options = printedOptionsFor(batch, q, q.id);
     const correct = options[choice];
     if (correct === undefined) return q;
+    if (!q.paperOwnTest) {
+      return {
+        ...q,
+        correctAnswer: correct,
+        incorrectAnswers: options.filter((_, i) => i !== choice),
+      };
+    }
     // Keep each option where the sheet lettered it, so a reprint letters it the same way.
     const { optionOrder } = questionFromRows(
       options.map((text, i) => ({ text, correct: i === choice })),
