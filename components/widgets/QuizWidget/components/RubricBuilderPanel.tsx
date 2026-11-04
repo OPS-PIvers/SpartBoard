@@ -1,12 +1,6 @@
 // Rubric library + criteria/levels builder slide-over (M12 spec §6.1).
 
-import React, {
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowDown,
@@ -39,7 +33,6 @@ import {
   isScoringGuide,
   newGuideRow,
 } from '@/utils/rubricGuide';
-import { AuthContext } from '@/context/AuthContextValue';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 export interface RubricBuilderPanelProps {
@@ -302,9 +295,6 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   const { rubrics, saveRubric, shareRubric, importSharedRubric } =
     useRubrics(teacherUid);
   const { showConfirm } = useDialog();
-  const guidesOn =
-    useContext(AuthContext)?.canAccessFeature?.('rubric-scoring-guides') ===
-    true;
   const [draft, setDraft] = useState<Rubric>(
     () => existingSnapshot ?? blankRubric()
   );
@@ -745,35 +735,33 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           />
         </div>
 
-        {(guidesOn || guide) && (
-          <div
-            role="radiogroup"
-            aria-label="Rubric type"
-            {...tourTypeAttr('quiz-rubric.template', 'quiz')}
-            className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5"
-          >
-            {[
-              { value: false, label: 'Levels' },
-              { value: true, label: 'Scoring guide' },
-            ].map((opt) => (
-              // no-tour-anchor: one option of the Levels / Scoring guide switch, rendered from a list
-              <button
-                key={opt.label}
-                type="button"
-                role="radio"
-                aria-checked={guide === opt.value}
-                onClick={() => void switchTemplate(opt.value)}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                  guide === opt.value
-                    ? 'bg-brand-blue-primary text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
+        <div
+          role="radiogroup"
+          aria-label="Rubric type"
+          {...tourTypeAttr('quiz-rubric.template', 'quiz')}
+          className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5"
+        >
+          {[
+            { value: false, label: 'Levels' },
+            { value: true, label: 'Scoring guide' },
+          ].map((opt) => (
+            // no-tour-anchor: one option of the Levels / Scoring guide switch, rendered from a list
+            <button
+              key={opt.label}
+              type="button"
+              role="radio"
+              aria-checked={guide === opt.value}
+              onClick={() => void switchTemplate(opt.value)}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                guide === opt.value
+                  ? 'bg-brand-blue-primary text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
 
         {draft.criteria.map((c, ci) => (
           <div

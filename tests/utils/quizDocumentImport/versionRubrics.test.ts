@@ -9,7 +9,7 @@ import {
 } from '@/utils/quizDocumentImport/versionPlan';
 import { importedFrq, importedMc } from './versionFixtures';
 
-const guides = { rubrics: { scoringGuides: true } };
+const guides = { rubrics: {} };
 
 describe('version rubrics', () => {
   it('pairs rubrics by order with the split counted once', async () => {
