@@ -17,9 +17,9 @@ export interface OpenWeatherData {
 
 export interface EarthNetworksResponse {
   o?: {
-    t: number;
+    t: number | null;
     ic: number;
-    fl?: number;
+    fl?: number | null;
     dp?: number | null;
     h?: number | null;
     psl?: number | null;
