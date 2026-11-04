@@ -293,6 +293,12 @@ const drawerWidgetOf = (el: Element | null): string | null =>
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
+/** A native dropdown in the app has focus, so its open list must not lose it. */
+const nativeSelectInUse = (): boolean => {
+  const el = typeof document === 'undefined' ? null : document.activeElement;
+  return el instanceof HTMLSelectElement && !el.closest('[data-tour-ignore]');
+};
+
 const readViewport = () =>
   typeof window === 'undefined'
     ? { w: 0, h: 0 }
@@ -1970,6 +1976,8 @@ export const LiveTourRunner: React.FC = () => {
   const showingStep = running && !!step;
   useEffect(() => {
     if (!showingStep) return;
+    // A dropdown the teacher just opened keeps focus, or the browser closes its list.
+    if (nativeSelectInUse()) return;
     headingRef.current?.focus({ preventScroll: true });
   }, [showingStep, stepIndex]);
 
