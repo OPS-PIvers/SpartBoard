@@ -6,7 +6,7 @@
 //                                                         deny all client R/W
 //   lti_launch_codes/{code}                            — server-internal,
 //                                                         deny all client R/W
-//   lti_course_links/{contextId}                       — authed read,
+//   lti_course_links/{contextId}                       — owner-only read,
 //                                                         server-only write
 //   lti_grade_links/{pseudonymUid}/resources/{rid}     — server-internal,
 //                                                         deny all client R/W
@@ -16,8 +16,8 @@
 // grade-sync links (the launch CF writes them and the grade-push CF reads them,
 // both server-side; a link carries a student's LTI `sub` + AGS endpoint URLs, so
 // no client should enumerate them). Clients can neither read nor write those
-// three. Only lti_course_links exposes READ to any authenticated caller (the
-// teacher monitor needs link state); its WRITE is server-only — rules cannot
+// three. lti_course_links exposes READ only to the teacher a link belongs to
+// (the link dialog lists their own links); its WRITE is server-only — rules cannot
 // validate an LTI launch, so a client write would let any authed user squat a
 // context_id.
 //
@@ -38,7 +38,15 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  getDoc,
+  getDocs,
+  doc,
+  collection,
+  query,
+  where,
+} from 'firebase/firestore';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -60,6 +68,7 @@ const OTHER_TEACHER_UID = 'teacher-uid-2';
 const STATE_PATH = `lti_oidc_state/${STATE_ID}`;
 const LAUNCH_CODE_PATH = `lti_launch_codes/${LAUNCH_CODE}`;
 const COURSE_LINK_PATH = `lti_course_links/${CONTEXT_ID}`;
+const CO_LINK_PATH = `lti_course_links/${CONTEXT_ID}~${TEACHER_UID}`;
 const GRADE_LINK_PATH = `lti_grade_links/${PSEUDONYM_UID}/resources/${RESOURCE_LINK_ID}`;
 const TOOL_COLUMN_PATH = `lti_tool_columns/session-1/sections/${CONTEXT_ID}`;
 const TOOL_COLUMN_PREFS_PATH = `lti_tool_columns_prefs/${TEACHER_UID}_${CONTEXT_ID}`;
@@ -157,6 +166,18 @@ beforeEach(async () => {
       teacherUid: TEACHER_UID,
       contextId: CONTEXT_ID,
     });
+    await setDoc(doc(db, `lti_course_links/ctx-other~${TEACHER_UID}`), {
+      teacherUid: TEACHER_UID,
+      contextId: 'ctx-other',
+    });
+    await setDoc(doc(db, `lti_course_links/ctx-other`), {
+      teacherUid: OTHER_TEACHER_UID,
+      contextId: 'ctx-other',
+    });
+    await setDoc(doc(db, CO_LINK_PATH), {
+      teacherUid: TEACHER_UID,
+      contextId: CONTEXT_ID,
+    });
     await setDoc(doc(db, GRADE_LINK_PATH), {
       lineitemUrl: 'https://schoology.example/lineitem/1',
       resourceLinkId: RESOURCE_LINK_ID,
@@ -244,15 +265,53 @@ describe('LTI collections — unauthenticated client', () => {
 
 // ---------------------------------------------------------------------------
 // Authenticated (teacher / non-student) client.
-//   READ allowed on lti_course_links only.
+//   READ allowed on their own lti_course_links only.
 //   READ denied on the three server-internal collections (state, codes,
 //     grade-links).
 //   WRITE denied on all four.
 // ---------------------------------------------------------------------------
 
 describe('LTI collections — authenticated (non-student) client', () => {
-  it('can read lti_course_links', async () => {
+  it('can read their own lti_course_links, by doc and by teacherUid query', async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), COURSE_LINK_PATH)));
+    await assertSucceeds(getDoc(doc(asTeacher(), CO_LINK_PATH)));
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asTeacher(), 'lti_course_links'),
+          where('teacherUid', '==', TEACHER_UID)
+        )
+      )
+    );
+  });
+
+  it("cannot read another teacher's lti_course_links or list them all", async () => {
+    await assertFails(getDoc(doc(asOtherTeacher(), COURSE_LINK_PATH)));
+    await assertFails(getDoc(doc(asOtherTeacher(), CO_LINK_PATH)));
+    await assertFails(
+      getDocs(
+        query(
+          collection(asOtherTeacher(), 'lti_course_links'),
+          where('teacherUid', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertFails(getDocs(collection(asTeacher(), 'lti_course_links')));
+  });
+
+  it('cannot write a co-teacher link (server-only)', async () => {
+    await assertFails(
+      setDoc(doc(asTeacher(), CO_LINK_PATH), { teacherUid: TEACHER_UID })
+    );
+    await assertFails(
+      setDoc(
+        doc(asOtherTeacher(), `${COURSE_LINK_PATH}~${OTHER_TEACHER_UID}`),
+        {
+          teacherUid: OTHER_TEACHER_UID,
+          contextId: CONTEXT_ID,
+        }
+      )
+    );
   });
 
   it('cannot read lti_grade_links resource (server-internal)', async () => {
@@ -304,15 +363,15 @@ describe('LTI collections — authenticated (non-student) client', () => {
 
 // ---------------------------------------------------------------------------
 // studentRole-authed client. These collections don't use the class-gate
-// helpers, so a studentRole token behaves exactly like any other authed
-// caller: read allowed on lti_course_links, denied on the three server-internal
+// helpers, so a studentRole token behaves like any other authed non-owner:
+// read denied on lti_course_links (not their link) and on the three server-internal
 // collections (state, codes, grade-links), writes denied everywhere. Kept light
 // per the "don't over-test" note.
 // ---------------------------------------------------------------------------
 
 describe('LTI collections — studentRole-authed client', () => {
-  it('can read lti_course_links', async () => {
-    await assertSucceeds(getDoc(doc(asStudentRole(), COURSE_LINK_PATH)));
+  it('cannot read lti_course_links', async () => {
+    await assertFails(getDoc(doc(asStudentRole(), COURSE_LINK_PATH)));
   });
 
   it('cannot read lti_grade_links resource (server-internal)', async () => {

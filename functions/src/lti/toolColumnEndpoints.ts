@@ -33,6 +33,7 @@ import {
   oneRosterUidsByEmail,
 } from './classlinkBridge';
 import { LTI_COURSE_LINKS_COLLECTION } from './courseLinkEndpoints';
+import { linkContextId } from './courseLinkStore';
 import {
   QUIZ_SESSIONS_COLLECTION,
   VIDEO_ACTIVITY_SESSIONS_COLLECTION,
@@ -192,9 +193,10 @@ export async function targetSections(
       (classlinkClassId && classIds.has(classlinkClassId)) ||
       (testClassId && classIds.has(testClassId)) ||
       (rosterId && rosterIds.has(rosterId));
-    if (!targeted || !isSchoologySectionId(d.id)) continue;
+    const contextId = linkContextId(d.id, l);
+    if (!targeted || !isSchoologySectionId(contextId)) continue;
     out.push({
-      contextId: d.id,
+      contextId,
       title: str(l.contextTitle),
       classlinkClassId,
       testClassId,

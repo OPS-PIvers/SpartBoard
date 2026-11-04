@@ -30,7 +30,11 @@ export function useSchoologyCourseLinks(
         const links = snap.docs.map((d): SchoologyCourseLink => {
           const data = d.data() as Record<string, unknown>;
           return {
-            contextId: d.id,
+            // A co-teacher's link doc id is `{contextId}~{uid}`.
+            contextId:
+              typeof data.contextId === 'string' && data.contextId
+                ? data.contextId
+                : d.id,
             contextTitle:
               typeof data.contextTitle === 'string' ? data.contextTitle : null,
             rosterId: typeof data.rosterId === 'string' ? data.rosterId : null,

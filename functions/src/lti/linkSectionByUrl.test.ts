@@ -94,6 +94,7 @@ vi.mock('../firebaseAdmin', () => ({
           data: () => unknown;
         }>;
         set: (ref: { _ctx: string }, data: Record<string, unknown>) => void;
+        delete: (ref: { _ctx: string }) => void;
       }) => Promise<unknown>
     ) =>
       fn({
@@ -106,6 +107,7 @@ vi.mock('../firebaseAdmin', () => ({
             ...(courseLinks.get(ref._ctx) ?? {}),
             ...data,
           }),
+        delete: (ref) => courseLinks.delete(ref._ctx),
       }),
   })),
 }));
@@ -393,12 +395,39 @@ describe('ltiLinkSectionByUrlV1', () => {
     expect(fetchClassStudentsMock).not.toHaveBeenCalled();
   });
 
-  it('never re-points a section another teacher linked', async () => {
-    courseLinks.set('7660186912', { teacherUid: 'teacher-2' });
-    await expect(
-      call({ auth: TEACHER, data: { url: URL_OK, rosterId: 'r-1' } })
-    ).rejects.toMatchObject({ code: 'already-exists' });
-    expect(courseLinks.get('7660186912')).toEqual({ teacherUid: 'teacher-2' });
+  it("gives a co-teacher their own link without touching the other teacher's", async () => {
+    courseLinks.set('7660186912', {
+      teacherUid: 'teacher-2',
+      contextId: '7660186912',
+      rosterId: 'their-roster',
+    });
+    const res = await call({
+      auth: TEACHER,
+      data: { url: URL_OK, rosterId: 'r-1' },
+    });
+    expect(res).toMatchObject({ ok: true, contextId: '7660186912' });
+    expect(courseLinks.get('7660186912')).toEqual({
+      teacherUid: 'teacher-2',
+      contextId: '7660186912',
+      rosterId: 'their-roster',
+    });
+    expect(courseLinks.get('7660186912~teacher-1')).toMatchObject({
+      teacherUid: 'teacher-1',
+      contextId: '7660186912',
+      rosterId: 'r-1',
+      linkedBy: 'url',
+    });
+    const preview = await call({ auth: TEACHER, data: { url: URL_OK } });
+    expect(preview.linkedRosterId).toBe('r-1');
+  });
+
+  it("does not show another teacher's class as the caller's link", async () => {
+    courseLinks.set('7660186912', {
+      teacherUid: 'teacher-2',
+      rosterId: 'their-roster',
+    });
+    const preview = await call({ auth: TEACHER, data: { url: URL_OK } });
+    expect(preview.linkedRosterId).toBeNull();
   });
 
   it('lets the same teacher re-link and keeps an earlier title', async () => {
