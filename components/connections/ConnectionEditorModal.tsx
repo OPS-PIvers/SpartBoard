@@ -30,6 +30,7 @@ import {
 } from '@/context/connectionsUiStore';
 import { connectionDefFor } from '@/config/widgetConnections';
 import { TOOLS } from '@/config/tools';
+import { useConnectionWidgetTitle } from '@/hooks/useConnectionWidgetTitle';
 import { Z_INDEX } from '@/config/zIndex';
 import { isConnectionLive, sharesFollowSlot } from '@/utils/connectionEngine';
 import { sendRunCommand } from '@/utils/connectionSignals';
@@ -181,15 +182,20 @@ export const ConnectionEditorModal: React.FC<{
   } | null>(null);
   const litWidgetId = useConnectionsUi((s) => s.highlightedWidgetId);
 
+  const titleOf = useConnectionWidgetTitle();
   const names = useMemo(
     () =>
-      widgetNames(board.widgets, (time) =>
-        t('connections.editor.timerName', {
-          time,
-          defaultValue: 'Timer {{time}}',
-        })
+      widgetNames(
+        board.widgets,
+        (time, name) =>
+          t('connections.editor.timerName', {
+            time,
+            name,
+            defaultValue: '{{name}} {{time}}',
+          }),
+        titleOf
       ),
-    [board.widgets, t]
+    [board.widgets, t, titleOf]
   );
   const widgetsById = useMemo(
     () => new Map(board.widgets.map((w) => [w.id, w])),

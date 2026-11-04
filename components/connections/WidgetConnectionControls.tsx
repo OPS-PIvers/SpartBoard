@@ -26,7 +26,7 @@ import {
 import { isConnectable } from '@/config/widgetConnections';
 import { liveConnections } from '@/utils/connectionEngine';
 import { summaryKey } from './connectionSummary';
-import { getTitle } from '@/utils/widgetHelpers';
+import { useConnectionWidgetTitle } from '@/hooks/useConnectionWidgetTitle';
 import { sendRunCommand } from '@/utils/connectionSignals';
 import { tourAttr } from '@/config/tourAnchors';
 import { Z_INDEX } from '@/config/zIndex';
@@ -58,6 +58,7 @@ const ConnectionBadgeInner: React.FC<{
   onResizeStart?: (e: React.PointerEvent) => void;
 }> = ({ widget, onResizeStart }) => {
   const { t } = useTranslation();
+  const titleOf = useConnectionWidgetTitle();
   const summary = useWidgetConnectionSummary(widget.id);
   const boardId = useDashboardCanvasSelector((s) => s.activeDashboard?.id);
   const inConnectMode = useConnectionsUi((s) => !!s.connectMode);
@@ -81,7 +82,7 @@ const ConnectionBadgeInner: React.FC<{
     }
   };
   const label = t('connections.badgeTitle', {
-    name: getTitle(widget),
+    name: titleOf(widget),
     defaultValue: 'Connected: open the steps',
   });
   const itemClass =
@@ -261,6 +262,7 @@ const ConnectPickOverlayInner: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { t } = useTranslation();
+  const titleOf = useConnectionWidgetTitle();
   const picksKey = useConnectionsUi((s) =>
     s.connectMode
       ? s.connectMode.picks
@@ -278,7 +280,7 @@ const ConnectPickOverlayInner: React.FC<{ widget: WidgetData }> = ({
       disabled={!eligible}
       {...tourAttr('widget.connect-pick', widget.id, widget.type)}
       aria-label={t('connections.pick', {
-        name: getTitle(widget),
+        name: titleOf(widget),
         defaultValue: 'Add {{name}}',
       })}
       aria-pressed={picked}

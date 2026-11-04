@@ -32,7 +32,7 @@ import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { followingScoreboard, followLeaderId } from '@/utils/connectionEngine';
 import { hasConnectionTab } from '@/components/connections/connectionSummary';
 import { openConnectionEditor } from '@/context/connectionsUiStore';
-import { getTitle } from '@/utils/widgetHelpers';
+import { useConnectionWidgetTitle } from '@/hooks/useConnectionWidgetTitle';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareQuizWidget } from './SubShareWidget';
 import { SharedBoardQuizView } from './SharedBoardQuizView';
@@ -321,6 +321,7 @@ const TeacherQuizWidget: React.FC<{
     updateAppSettings,
   } = useAuth();
   const viewAsDrive = useViewAsDriveStatus();
+  const titleOf = useConnectionWidgetTitle();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const quizAssignmentMode = getAssignmentMode('quiz');
   const { showConfirm } = useDialog();
@@ -1434,7 +1435,7 @@ const TeacherQuizWidget: React.FC<{
   const lastSyncTargetRef = useRef<string | undefined>(undefined);
   const liveScoreboardLink = scoreboardFollow
     ? {
-        name: getTitle(scoreboardFollow.scoreboard),
+        name: titleOf(scoreboardFollow.scoreboard),
         onEdit: () => {
           if (!activeDashboard) return;
           openConnectionEditor(

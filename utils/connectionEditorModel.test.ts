@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ConnectionStep, WidgetData } from '@/types';
 import {
   advanceChoice,
+  connectionWidgetTitle,
   fromCards,
   loopRunsOut,
   sideJoinKind,
@@ -117,6 +118,45 @@ describe('widgetNames', () => {
     expect(names.get('t')).toBe('Timer 2:00');
     expect(names.get('t2')).toBe('Timer 0:30 (1)');
     expect(names.get('t3')).toBe('Timer 0:30 (2)');
+  });
+});
+
+describe('connectionWidgetTitle', () => {
+  it('uses the admin name over the built-in one, and the teacher title over both', () => {
+    expect(connectionWidgetTitle(w('r', 'random'))).toBe('Selector');
+    expect(connectionWidgetTitle(w('r', 'random'), ' Group Maker ')).toBe(
+      'Group Maker'
+    );
+    expect(
+      connectionWidgetTitle(
+        { ...w('r', 'random'), customTitle: 'Teams' },
+        'Group Maker'
+      )
+    ).toBe('Teams');
+  });
+
+  it('keeps the quiz title next to the admin name', () => {
+    expect(
+      connectionWidgetTitle(
+        w('q', 'review', { selectedQuizTitle: 'Unit 3' }),
+        'Game'
+      )
+    ).toBe('Game: Unit 3');
+    expect(connectionWidgetTitle(w('q', 'review'), 'Game')).toBe('Game');
+  });
+
+  it('names timers with the admin name', () => {
+    const names = widgetNames(
+      [w('t', 'time-tool', { mode: 'timer', duration: 60 }), w('r', 'random')],
+      (time, name) => `${name} ${time}`,
+      (x) =>
+        connectionWidgetTitle(
+          x,
+          x.type === 'random' ? 'Group Maker' : 'Countdown'
+        )
+    );
+    expect(names.get('t')).toBe('Countdown 1:00');
+    expect(names.get('r')).toBe('Group Maker');
   });
 });
 
