@@ -23,6 +23,22 @@ import { WeatherDetailsLayout } from './WeatherDetailsPanel';
 import { RecessGearFace } from './RecessGearFace';
 import { resolveBaseTextScale } from '@/config/widgetAppearance';
 
+/** Drops markup from a message template; the text only sizes the headline and is never rendered as HTML. */
+const plainText = (text: string): string => {
+  let out = '';
+  let tag: string | null = null;
+  for (const ch of text) {
+    if (ch === '<') {
+      if (tag !== null) out += tag;
+      tag = '';
+    } else if (ch === '>' && tag !== null) tag = null;
+    else if (tag !== null) tag += ch;
+    else if (ch !== '>') out += ch;
+  }
+  // An unclosed '<' was not a tag: keep the text after it.
+  return tag === null ? out : out + tag;
+};
+
 export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t, i18n } = useTranslation();
   const { updateWidget, activeDashboard, setBackground } = useDashboard();
@@ -290,9 +306,8 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     clothing: clothing.label,
   })
     .replace(/<cond>(.*?)<\/cond>/g, (_, c: string) => c.toUpperCase())
-    .replace(/<br\s*\/?>/g, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/[<>]/g, '');
+    .replace(/<br\s*\/?>/g, '\n');
+  displayText = plainText(displayText);
   let imageUrl: string | undefined;
 
   if (globalConfig?.temperatureRanges) {
