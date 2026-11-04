@@ -46,7 +46,7 @@ Per run: one REST GET per ClassLink roster (teachers have about 5–12), one NRP
 
 ## PR
 
-One PR behind the existing `schoology-tool-columns` flag (admin, on for Paul first): the two REST readers with tests, the callable with tests (SIS match, 404, foreign link, not an NRPS instructor, test-class skipped, already linked), the dialog button and list with `tourAttr` anchors, and a help note. The PR description names the flag and the admin path.
+One PR behind a new `schoology-auto-link` preview flag (admin, on for Paul first; `schoology-tool-columns` was retired in #5160): the two REST readers with tests, the callable with tests (SIS match, 404, foreign link, not an NRPS instructor, test-class skipped, already linked), the dialog button and list with `tourAttr` anchors, and a help note. The PR description names the flag and the admin path.
 
 ## Open questions for Paul
 
