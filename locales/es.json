@@ -2844,6 +2844,7 @@
     "tourValueOn": "Activado",
     "tourValueOff": "Desactivado",
     "tourValueSelect": "Autopilot elige:",
+    "tourValueAnyChoice": "Cualquier opción",
     "tourValueType": "Autopilot escribe:",
     "tourTeacherMustClick": "El docente debe hacer clic aquí",
     "tourSetupTitle": "Widgets que añade este recorrido",

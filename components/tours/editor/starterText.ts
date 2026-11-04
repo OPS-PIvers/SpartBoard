@@ -28,12 +28,17 @@ const nounOf = (label: string, widgetType?: string): string => {
   return keep ? noun : noun.charAt(0).toLowerCase() + noun.slice(1);
 };
 
+/** A select step's option text for its stored value, when the dropdown is on screen. */
+export type ChoiceLabel = (value: string) => string | undefined;
+
 const sentenceFor = (
   binding: GuidedLearningTourBinding,
-  target: string
+  target: string,
+  labelOf?: ChoiceLabel
 ): string => {
   const { action, value } = binding;
-  const quoted = typeof value === 'string' && value.trim() ? value.trim() : '';
+  const raw = typeof value === 'string' && value.trim() ? value.trim() : '';
+  const quoted = action === 'select' && raw ? (labelOf?.(raw) ?? raw) : raw;
   switch (action) {
     case 'observe':
       return `Take a look at ${target}.`;
@@ -54,7 +59,8 @@ const sentenceFor = (
 
 /** A starting title and text for a step bound to `binding`, or null when there is nothing to say. */
 export function starterStepText(
-  binding: GuidedLearningTourBinding | undefined
+  binding: GuidedLearningTourBinding | undefined,
+  labelOf?: ChoiceLabel
 ): StarterText | null {
   if (!binding) return null;
   if (!binding.anchor) {
@@ -62,7 +68,7 @@ export function starterStepText(
     if (!name) return null;
     return {
       label: name.charAt(0).toUpperCase() + name.slice(1),
-      text: sentenceFor(binding, name),
+      text: sentenceFor(binding, name, labelOf),
     };
   }
   const { id, widgetType } = parseTourAnchorRef(binding.anchor);
@@ -73,7 +79,7 @@ export function starterStepText(
     : label;
   return {
     label: anchorName(named),
-    text: sentenceFor(binding, `the ${nounOf(label, widgetType)}`),
+    text: sentenceFor(binding, `the ${nounOf(label, widgetType)}`, labelOf),
   };
 }
 
@@ -83,13 +89,20 @@ const untouched = (value: string | undefined, starter: string | undefined) =>
 /** A step patch with the new binding, refreshing a title or text that is empty or still the previous starter. */
 export function bindWithStarterText(
   step: GuidedLearningStep,
-  tour: GuidedLearningTourBinding
+  tour: GuidedLearningTourBinding,
+  labelOf?: ChoiceLabel
 ): Partial<GuidedLearningStep> {
-  const before = starterStepText(step.tour);
-  const after = starterStepText(tour);
+  // Older starter text quoted the raw value, so it still counts as untouched.
+  const befores = [
+    starterStepText(step.tour, labelOf),
+    starterStepText(step.tour),
+  ];
+  const after = starterStepText(tour, labelOf);
   const patch: Partial<GuidedLearningStep> = { tour };
   if (!after) return patch;
-  if (untouched(step.label, before?.label)) patch.label = after.label;
-  if (untouched(step.text, before?.text)) patch.text = after.text;
+  if (befores.some((b) => untouched(step.label, b?.label)))
+    patch.label = after.label;
+  if (befores.some((b) => untouched(step.text, b?.text)))
+    patch.text = after.text;
   return patch;
 }

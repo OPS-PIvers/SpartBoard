@@ -54,7 +54,10 @@ import {
   getTourLayoutOverrides,
   useTourHidden,
 } from '@/context/dashboardCanvasStore';
-import { teacherMustClick } from '@/components/tours/tourSession';
+import {
+  teacherMustClick,
+  type TourSlots,
+} from '@/components/tours/tourSession';
 import {
   iconBtn,
   primaryBtn,
@@ -104,7 +107,8 @@ import { TourAnchorList } from './TourAnchorList';
 import { ClaudeNoteField } from './ClaudeNoteField';
 import { TourWidgetFields } from './TourWidgetFields';
 import { applyAnchorPick, type TourAnchorPick } from './pickAnchor';
-import { bindWithStarterText } from './starterText';
+import { bindWithStarterText, type ChoiceLabel } from './starterText';
+import { asChoiceStep, nativeSelectOf, selectChoices } from './nativeSelect';
 import {
   TOUR_ACTIONS,
   isRedStatus,
@@ -236,7 +240,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
         pickingStep.id,
         bindWithStarterText(
           pickingStep,
-          applyAnchorPick(pickingStep.tour, pick)
+          asChoiceStep(applyAnchorPick(pickingStep.tour, pick), playback.slots)
         )
       );
     setPicking(null);
@@ -708,6 +712,7 @@ const StepOutline: React.FC<{
                 i === playback.index && playback.jumping && playback.blocked
               }
               session={session}
+              slots={playback.slots}
               onPick={onPick}
               onCopyForClaude={onCopyForClaude}
             />
@@ -727,6 +732,7 @@ const OutlineRow: React.FC<{
   /** A fast-forward is stopped here for the admin's click. */
   waiting: boolean;
   session: TourEditorSession;
+  slots: TourSlots;
   onPick: (stepId: string) => void;
   onCopyForClaude?: (stepId: string) => void;
 }> = ({
@@ -737,6 +743,7 @@ const OutlineRow: React.FC<{
   jumping,
   waiting,
   session,
+  slots,
   onPick,
   onCopyForClaude,
 }) => {
@@ -874,6 +881,7 @@ const OutlineRow: React.FC<{
         <StepCard
           step={step}
           session={session}
+          slots={slots}
           onPick={() => onPick(step.id)}
         />
       )}
@@ -885,14 +893,21 @@ const OutlineRow: React.FC<{
 const StepCard: React.FC<{
   step: GuidedLearningStep;
   session: TourEditorSession;
+  slots: TourSlots;
   onPick: () => void;
-}> = ({ step, session, onPick }) => {
+}> = ({ step, session, slots, onPick }) => {
   const { t } = useTranslation();
   const tour = step.tour;
+  // A choice step on a native dropdown lists its real options instead of a raw value.
+  const dropdown =
+    tour?.action === 'select' ? nativeSelectOf(tour, slots) : null;
+  const choices = dropdown ? selectChoices(dropdown) : [];
+  const labelOf: ChoiceLabel = (value) =>
+    choices.find((c) => c.value === value)?.label;
   const update = (patch: Partial<GuidedLearningStep>, field?: string) =>
     session.updateStep(step.id, patch, field);
   const bind = (next: NonNullable<GuidedLearningStep['tour']>) =>
-    session.updateStep(step.id, bindWithStarterText(step, next));
+    session.updateStep(step.id, bindWithStarterText(step, next, labelOf));
   const thumb = tourThumbnail(step);
   const bound = !!tour?.anchor && tour.anchor !== WHOLE_BOARD_ANCHOR;
   // An unbound step can carry a picture from where it came from (a recording or a converted slide).
@@ -1008,7 +1023,34 @@ const StepCard: React.FC<{
           </select>
         </label>
       )}
-      {(tour?.action === 'select' || tour?.action === 'type') && (
+      {tour?.action === 'select' && choices.length > 0 && (
+        <label className={labelClass}>
+          {t('glStudio.tourValueSelect')}
+          {/* no-tour-anchor: the tour editor is never a tour target */}
+          <select
+            value={typeof tour.value === 'string' ? tour.value : ''}
+            onChange={(e) => {
+              const { value: _old, ...rest } = tour;
+              bind(e.target.value ? { ...rest, value: e.target.value } : rest);
+            }}
+            className={inputClass}
+          >
+            <option value="">{t('glStudio.tourValueAnyChoice')}</option>
+            {typeof tour.value === 'string' &&
+              tour.value !== '' &&
+              !choices.some((c) => c.value === tour.value) && (
+                <option value={tour.value}>{tour.value}</option>
+              )}
+            {choices.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {((tour?.action === 'select' && choices.length === 0) ||
+        tour?.action === 'type') && (
         <label className={labelClass}>
           {t(
             tour.action === 'type'
