@@ -79,12 +79,12 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
   // ones linked in THIS session too, so a just-linked row leaves the list
   // immediately (before the roster snapshot round-trips).
   const [linkedHere, setLinkedHere] = useState<Set<string>>(new Set());
-  // The Find list unmounts with the dialog, so its shown flag resets on close.
+  // The Find list unmounts with the dialog, so its shown flag resets on open and close.
   const [findListShown, setFindListShown] = useState(false);
   const [openedFor, setOpenedFor] = useState(isOpen);
   if (openedFor !== isOpen) {
     setOpenedFor(isOpen);
-    if (!isOpen) setFindListShown(false);
+    setFindListShown(false);
   }
   const unlinkedSections = useMemo(
     () =>
@@ -258,7 +258,7 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
   const footer = (
     <div className="flex items-center justify-between gap-2">
       <span className="text-xs text-slate-400">
-        {findListShown
+        {findListShown && findCoursesEnabled && matchCandidates.length > 0
           ? null
           : `${unlinkedSections.length} section${unlinkedSections.length === 1 ? '' : 's'} to link`}
       </span>

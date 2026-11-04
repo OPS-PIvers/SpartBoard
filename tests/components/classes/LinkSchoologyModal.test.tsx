@@ -535,6 +535,46 @@ describe('LinkSchoologyModal', () => {
     expect(updateRoster).toHaveBeenCalledWith('rB', { ltiContextId: '111' });
   });
 
+  it('keeps a move checked when its class is relinked in the same pass', async () => {
+    findMock.mockResolvedValue([
+      {
+        rosterId: 'rA',
+        status: 'ready',
+        contextId: '111',
+        contextTitle: 'A section',
+        replacesTitle: 'B section',
+      },
+      {
+        rosterId: 'rB',
+        status: 'ready',
+        contextId: '222',
+        contextTitle: 'B section',
+        movesFromRosterId: 'rA',
+      },
+    ]);
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[
+          { ...roster('rA', 'Period 1', 'cl-A'), ltiContextId: '222' },
+          roster('rB', 'Period 2', 'cl-B'),
+        ]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+        pasteLinkEnabled
+        findCoursesEnabled
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Find my Schoology courses/i })
+    );
+    await screen.findByText('Moves the link from Period 1.');
+    expect(document.getElementById('schoology-found-rA')).toBeChecked();
+    expect(document.getElementById('schoology-found-rB')).toBeChecked();
+  });
+
   it('hides Find without the flag', () => {
     render(
       <LinkSchoologyModal

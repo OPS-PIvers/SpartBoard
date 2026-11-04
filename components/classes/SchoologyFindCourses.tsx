@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Check, Loader2, Search } from 'lucide-react';
 import { functions } from '@/config/firebase';
 import type { ClassRoster } from '@/types';
@@ -46,9 +46,6 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
   const [finding, setFinding] = useState(false);
   const [linking, setLinking] = useState(false);
 
-  // The dialog can drop this list while it stays open; its footer count comes back then.
-  useEffect(() => () => onListShown?.(false), [onListShown]);
-
   const nameOf = (id: string): string =>
     rosters.find((r) => r.id === id)?.name ?? 'Class';
 
@@ -61,11 +58,20 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
       );
       setRows(sorted);
       onListShown?.(sorted.length > 0);
-      // A move takes the link off another class, so it waits for the teacher to tick it.
+      // A move waits for a tick, unless its class is relinked here anyway (which drops the old link).
+      const relinked = new Set(
+        sorted
+          .filter((r) => r.status === 'ready' && !r.movesFromRosterId)
+          .map((r) => r.rosterId)
+      );
       setChecked(
         new Set(
           sorted
-            .filter((r) => r.status === 'ready' && !r.movesFromRosterId)
+            .filter(
+              (r) =>
+                r.status === 'ready' &&
+                (!r.movesFromRosterId || relinked.has(r.movesFromRosterId))
+            )
             .map((r) => r.rosterId)
         )
       );
