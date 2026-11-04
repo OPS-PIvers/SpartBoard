@@ -696,19 +696,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // docs/plans/shipped/AI_BOARDS.md D26: connector board tools and the new Magic Board engine.
-  'ai-boards': {
-    label: 'AI boards',
-    icon: LayoutDashboard,
-    description:
-      'Claude builds and edits boards from templates, and Magic Board uses the same layouts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    category: 'ai',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
   'claude-connector': {
     label: 'Claude connector',

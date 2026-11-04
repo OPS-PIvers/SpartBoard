@@ -17,7 +17,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'paper-handwritten-responses',
   'claude-connector',
   'web-tours',
-  'ai-boards',
   'claude-connector-guided-learning',
   'video-activity-live',
   'quiz-student-view',
