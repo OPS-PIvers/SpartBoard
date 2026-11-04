@@ -20,12 +20,18 @@ export const findTeamScoreboard = (
   scoreboardId: string | null | undefined,
   teamId: string,
   connectedIds: readonly string[] = []
-): WidgetData | undefined =>
-  widgets.find((w) => {
+): WidgetData | undefined => {
+  const connected = connectedIds.length > 0;
+  // A pick on a Scoreboard that is no longer connected falls back to the team on a connected one.
+  const pinnedId =
+    scoreboardId && (!connected || connectedIds.includes(scoreboardId))
+      ? scoreboardId
+      : null;
+  return widgets.find((w) => {
     if (w.type !== 'scoreboard') return false;
-    if (connectedIds.length > 0 && !connectedIds.includes(w.id)) return false;
+    if (connected && !connectedIds.includes(w.id)) return false;
     // Every new Scoreboard starts with the same team ids, so match the widget too.
-    if (scoreboardId && w.id !== scoreboardId) return false;
+    if (pinnedId && w.id !== pinnedId) return false;
     const config = w.config as ScoreboardConfig;
     // A live quiz drives its own scores.
     if (config.liveQuizWidgetId) return false;
@@ -33,6 +39,7 @@ export const findTeamScoreboard = (
       Array.isArray(config.teams) && config.teams.some((t) => t.id === teamId)
     );
   });
+};
 
 /** Adds one point to a team and records it in the Scoreboard's history. */
 export const awardPoint = (

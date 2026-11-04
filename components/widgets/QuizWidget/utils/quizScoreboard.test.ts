@@ -1205,6 +1205,21 @@ describe('liveScoreboardTarget', () => {
     expect(liveScoreboardTarget(widgets, undefined, undefined, taken)?.id).toBe(
       'b'
     );
-    expect(liveScoreboardTarget(widgets, undefined, 'a', taken)?.id).toBe('b');
+    expect(
+      liveScoreboardTarget(widgets, undefined, 'a', taken)
+    ).toBeUndefined();
+  });
+  it('moves off a taken remembered Scoreboard only to one it made', () => {
+    const taken = new Set(['a']);
+    const withOwn = [
+      ...widgets,
+      { id: 'd', type: 'scoreboard', config: { liveQuizWidgetId: 'r1' } },
+    ];
+    expect(liveScoreboardTarget(withOwn, undefined, 'a', taken, 'r1')?.id).toBe(
+      'd'
+    );
+    expect(
+      liveScoreboardTarget(withOwn, undefined, 'a', taken, 'r2')
+    ).toBeUndefined();
   });
 });
