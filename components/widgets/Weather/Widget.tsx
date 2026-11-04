@@ -395,8 +395,6 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       imageAlt={t('widgets.weather.weatherImageAlt')}
       emoji={clothing.icon}
       fontColor={fontColor}
-      cardColor={cardColor}
-      cardOpacity={cardOpacity}
       textScale={resolveBaseTextScale(widget.baseTextSize)}
       fallbackWidth={widget.w}
       fallbackHeight={widget.h}

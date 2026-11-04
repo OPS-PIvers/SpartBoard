@@ -1,21 +1,18 @@
-// Sizes the recess gear panel in px from the measured widget face, fitting the message as large as it can go.
+// Lays out the recess gear face in px: the message as a headline, then the picture beside the temperature.
 
 export type MeasureText = (text: string) => number;
 
 export interface GearLayout {
-  orientation: 'row' | 'column';
+  pad: number;
+  headlineWidth: number;
+  headlineHeight: number;
+  fontSize: number;
+  // The picture and temperature sit side by side, or stacked when the space under the headline is tall.
+  row: 'side' | 'stacked';
+  rowHeight: number;
+  image: number;
   tempWidth: number;
   tempHeight: number;
-  pad: number;
-  panelWidth: number;
-  panelHeight: number;
-  panelPad: number;
-  radius: number;
-  arrangement: 'side' | 'stacked' | 'text';
-  image: number;
-  textWidth: number;
-  textHeight: number;
-  fontSize: number;
 }
 
 export const GEAR_LINE_HEIGHT = 1.15;
@@ -98,100 +95,51 @@ export const layoutRecessGear = ({
   textScale?: number;
 }): GearLayout => {
   const short = Math.max(1, Math.min(width, height));
-  const pad = clamp(short * 0.035, 3, 14);
-  const orientation = width / Math.max(1, height) >= 1.6 ? 'row' : 'column';
+  const pad = clamp(short * 0.05, 4, 20);
   const innerW = Math.max(0, width - pad * 2);
   const innerH = Math.max(0, height - pad * 2);
-
-  const tempWidth = orientation === 'row' ? Math.round(innerW * 0.42) : innerW;
-  const tempHeight =
-    orientation === 'row'
-      ? innerH
-      : Math.round(innerH * (short < 220 ? 0.36 : 0.4));
-  const panelWidth = orientation === 'row' ? innerW - tempWidth - pad : innerW;
-  const panelHeight =
-    orientation === 'row' ? innerH : innerH - tempHeight - pad;
-
-  const panelShort = Math.max(1, Math.min(panelWidth, panelHeight));
-  const panelPad = clamp(panelShort * 0.07, 3, 18);
-  const radius = clamp(panelShort * 0.09, 6, 18);
-  const gap = clamp(panelShort * 0.06, 3, 16);
-  const boxW = Math.max(0, panelWidth - panelPad * 2);
-  const boxH = Math.max(0, panelHeight - panelPad * 2);
-  const maxFont = short * 0.14 * textScale;
   const paragraphs = toParagraphs(text);
 
-  type Candidate = Pick<
-    GearLayout,
-    'arrangement' | 'image' | 'textWidth' | 'textHeight' | 'fontSize'
-  >;
-  const shape = (arrangement: 'side' | 'stacked', share: number): Candidate => {
-    const side = arrangement === 'side';
-    const image = Math.max(
-      0,
-      side ? Math.min(boxH, boxW * share) : Math.min(boxW, boxH * share)
-    );
-    const textWidth = side ? boxW - image - gap : boxW;
-    const textHeight = side ? boxH : boxH - image - gap;
-    return {
-      arrangement,
-      image,
-      textWidth,
-      textHeight,
-      fontSize: fitFontSize(
-        paragraphs,
-        textWidth,
-        textHeight,
-        maxFont,
-        measure
-      ),
-    };
-  };
-  let candidates = [shape('side', 0.4), shape('stacked', 0.5)];
-  // Shrink the picture only when the full-size one leaves the words small.
-  if (Math.max(...candidates.map((c) => c.fontSize)) < 16) {
-    candidates = [...candidates, shape('side', 0.28), shape('stacked', 0.34)];
-  }
+  // A tall window stacks the picture over the temperature; otherwise the row is about as tall as a 40%-wide picture.
+  const tall = innerH > innerW * 1.5;
+  const rowTarget = tall
+    ? innerH * 0.54
+    : clamp(innerW * 0.4, innerH * 0.38, innerH * 0.54);
+  const maxHeadline = Math.max(0, innerH - rowTarget - pad);
+  const fontSize = fitFontSize(
+    paragraphs,
+    innerW,
+    maxHeadline,
+    short * 0.2 * textScale,
+    measure
+  );
+  // The headline gives back any height its wrapped lines don't use.
+  const lines = linesAt(paragraphs, fontSize, innerW * WIDTH_SAFETY, measure);
+  const headlineHeight = Math.min(
+    maxHeadline,
+    (lines ?? 1) * fontSize * GEAR_LINE_HEIGHT
+  );
 
-  const best = Math.max(...candidates.map((c) => c.fontSize));
-  // Favor big words and a big picture; a column under about six words wide reads as a list.
-  const score = (c: Candidate) =>
-    c.fontSize < best * 0.7
-      ? 0
-      : c.fontSize *
-        Math.sqrt(c.image) *
-        (c.textWidth >= c.fontSize * 6 ? 1 : 0.7);
-  let chosen: Candidate = [...candidates].sort(
-    (a, b) => score(b) - score(a)
-  )[0];
-
-  // Only drop the picture when keeping it would leave the words too small to read.
-  if (chosen.fontSize < 14) {
-    const textOnly = fitFontSize(paragraphs, boxW, boxH, maxFont, measure);
-    if (textOnly > chosen.fontSize * 1.25) {
-      chosen = {
-        arrangement: 'text',
-        image: 0,
-        textWidth: boxW,
-        textHeight: boxH,
-        fontSize: textOnly,
-      };
-    }
-  }
+  const rowHeight = Math.max(0, innerH - headlineHeight - pad);
+  // The row's top padding and its gap are each half the outer padding.
+  const gap = pad * 0.5;
+  const rowInner = Math.max(0, rowHeight - gap - 1);
+  const stacked = tall;
+  const image = stacked
+    ? Math.min(innerW * 0.7, rowInner * 0.48)
+    : Math.min(rowInner, innerW * 0.4);
+  const tempWidth = stacked ? innerW : innerW - image - gap;
+  const tempHeight = stacked ? rowInner - image - gap : rowInner;
 
   return {
-    orientation,
-    tempWidth,
-    tempHeight,
     pad,
-    panelWidth,
-    panelHeight,
-    panelPad,
-    radius,
-    arrangement: chosen.arrangement,
-    image: chosen.image,
-    textWidth: Math.max(0, chosen.textWidth),
-    textHeight: Math.max(0, chosen.textHeight),
-    fontSize: chosen.fontSize,
+    headlineWidth: innerW,
+    headlineHeight,
+    fontSize,
+    row: stacked ? 'stacked' : 'side',
+    rowHeight,
+    image,
+    tempWidth: Math.max(0, tempWidth),
+    tempHeight: Math.max(0, tempHeight),
   };
 };

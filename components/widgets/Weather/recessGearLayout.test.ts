@@ -18,6 +18,14 @@ const SIZES: [number, number][] = [
   [220, 420],
   [700, 450],
 ];
+const layout = (width: number, height: number, text = LONG, textScale = 1) =>
+  layoutRecessGear({
+    width,
+    height,
+    text,
+    measure: estimateTextWidth,
+    textScale,
+  });
 
 describe('fitFontSize', () => {
   it('returns a size whose wrapped lines fit the box', () => {
@@ -57,68 +65,39 @@ describe('fitFontSize', () => {
 
 describe('layoutRecessGear', () => {
   it.each(SIZES)('keeps everything inside a %ix%i widget', (width, height) => {
-    const l = layoutRecessGear({
-      width,
-      height,
-      text: LONG,
-      measure: estimateTextWidth,
-    });
-    const sumW =
-      l.orientation === 'row'
-        ? l.tempWidth + l.panelWidth + l.pad * 3
-        : l.panelWidth + l.pad * 2;
-    const sumH =
-      l.orientation === 'row'
-        ? l.panelHeight + l.pad * 2
-        : l.tempHeight + l.panelHeight + l.pad * 3;
-    expect(sumW).toBeLessThanOrEqual(width + 0.5);
-    expect(sumH).toBeLessThanOrEqual(height + 0.5);
-    expect(l.textWidth).toBeLessThanOrEqual(l.panelWidth);
-    expect(l.fontSize).toBeGreaterThanOrEqual(10);
+    const l = layout(width, height);
+    expect(l.headlineWidth + l.pad * 2).toBeLessThanOrEqual(width + 0.5);
+    expect(l.headlineHeight + l.rowHeight + l.pad * 3).toBeLessThanOrEqual(
+      height + 0.5
+    );
+    const rowW =
+      l.row === 'side' ? l.image + l.tempWidth + l.pad * 0.5 : l.tempWidth;
+    expect(rowW).toBeLessThanOrEqual(l.headlineWidth + 0.5);
+    expect(l.fontSize).toBeGreaterThanOrEqual(9);
+    expect(l.image).toBeGreaterThan(0);
   });
 
-  it('grows the message and picture with the widget', () => {
-    const small = layoutRecessGear({
-      width: 250,
-      height: 280,
-      text: LONG,
-      measure: estimateTextWidth,
-    });
-    const large = layoutRecessGear({
-      width: 700,
-      height: 450,
-      text: LONG,
-      measure: estimateTextWidth,
-    });
+  it('grows the headline and picture with the widget', () => {
+    const small = layout(250, 280);
+    const large = layout(700, 450);
     expect(large.fontSize).toBeGreaterThan(small.fontSize * 1.5);
     expect(large.image).toBeGreaterThan(small.image * 1.5);
   });
 
-  it('puts the gear beside the temperature on a wide widget', () => {
-    expect(
-      layoutRecessGear({
-        width: 600,
-        height: 250,
-        text: LONG,
-        measure: estimateTextWidth,
-      }).orientation
-    ).toBe('row');
+  it('stacks the picture over the temperature on a tall window', () => {
+    expect(layout(220, 420).row).toBe('stacked');
+    expect(layout(340, 300).row).toBe('side');
+  });
+
+  it('gives a short message its own height back', () => {
+    const short = layout(420, 520, 'Coat');
+    const long = layout(420, 520);
+    expect(short.headlineHeight).toBeLessThan(long.headlineHeight);
   });
 
   it('scales the text cap with the window text size', () => {
-    const base = layoutRecessGear({
-      width: 700,
-      height: 450,
-      text: 'Coat',
-      measure: estimateTextWidth,
-    });
-    const big = layoutRecessGear({
-      width: 700,
-      height: 450,
-      text: 'Coat',
-      measure: estimateTextWidth,
-      textScale: 1.25,
-    });
-    expect(big.fontSize).toBeGreaterThan(base.fontSize);
+    expect(layout(700, 450, 'Coat', 1.25).fontSize).toBeGreaterThan(
+      layout(700, 450, 'Coat').fontSize
+    );
   });
 });

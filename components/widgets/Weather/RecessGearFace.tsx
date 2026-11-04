@@ -1,5 +1,4 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { hexToRgba } from '@/utils/styles';
 import {
   GEAR_LINE_HEIGHT,
   estimateTextWidth,
@@ -16,8 +15,6 @@ interface Props {
   imageAlt: string;
   emoji: string;
   fontColor: string;
-  cardColor: string;
-  cardOpacity: number;
   textScale: number;
   fallbackWidth: number;
   fallbackHeight: number;
@@ -54,8 +51,6 @@ export const RecessGearFace: React.FC<Props> = ({
   imageAlt,
   emoji,
   fontColor,
-  cardColor,
-  cardOpacity,
   textScale,
   fallbackWidth,
   fallbackHeight,
@@ -114,77 +109,68 @@ export const RecessGearFace: React.FC<Props> = ({
     measure,
     textScale,
   });
-  const side = layout.arrangement === 'side';
+  const stacked = layout.row === 'stacked';
 
   return (
     <div
       ref={ref}
-      className={`flex h-full w-full items-center justify-center ${className}`}
-      style={{
-        flexDirection: layout.orientation === 'row' ? 'row' : 'column',
-        padding: layout.pad,
-        gap: layout.pad,
-      }}
+      className={`flex h-full w-full flex-col items-center justify-center ${className}`}
+      style={{ padding: layout.pad, gap: layout.pad }}
     >
       <div
-        className="flex shrink-0 items-center justify-center"
+        data-testid="weather-clothing-card"
+        className="flex shrink-0 items-center justify-center font-bold"
         style={{
-          width: layout.tempWidth,
-          height: layout.tempHeight,
-          containerType: 'size',
+          width: layout.headlineWidth,
+          height: layout.headlineHeight,
+          fontSize: layout.fontSize,
+          lineHeight: GEAR_LINE_HEIGHT,
+          color: fontColor,
+          textAlign: 'center',
+          textWrap: 'balance',
         }}
       >
-        {temperature}
+        <div className="w-full">{message}</div>
       </div>
       <div
-        data-testid="weather-clothing-card"
-        className="flex shrink-0 items-center justify-center overflow-hidden border border-slate-200/60"
+        className="flex shrink-0 items-center justify-center border-t border-slate-400/30"
         style={{
-          width: layout.panelWidth,
-          height: layout.panelHeight,
-          padding: layout.panelPad,
-          gap: layout.panelPad * 0.85,
-          borderRadius: layout.radius,
-          flexDirection: side ? 'row' : 'column',
-          backgroundColor: hexToRgba(cardColor, cardOpacity),
+          width: layout.headlineWidth,
+          height: layout.rowHeight,
+          gap: layout.pad * 0.5,
+          paddingTop: layout.pad * 0.5,
+          flexDirection: stacked ? 'column' : 'row',
         }}
       >
-        {layout.image > 0 && (
-          <div
-            className="flex shrink-0 items-center justify-center"
-            style={{ width: layout.image, height: layout.image }}
-          >
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={imageAlt}
-                className="h-full w-full object-contain"
-                draggable={false}
-              />
-            ) : (
-              <span
-                aria-hidden="true"
-                style={{ fontSize: layout.image * 0.82, lineHeight: 1 }}
-              >
-                {emoji}
-              </span>
-            )}
-          </div>
-        )}
         <div
-          className="flex min-w-0 items-center font-bold"
+          className="flex shrink-0 items-center justify-center"
+          style={{ width: layout.image, height: layout.image }}
+        >
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={imageAlt}
+              className="h-full w-full object-contain"
+              draggable={false}
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              style={{ fontSize: layout.image * 0.82, lineHeight: 1 }}
+            >
+              {emoji}
+            </span>
+          )}
+        </div>
+        <div
+          className="flex shrink-0 items-center justify-center"
           style={{
-            maxWidth: layout.textWidth,
-            maxHeight: layout.textHeight,
-            fontSize: layout.fontSize,
-            lineHeight: GEAR_LINE_HEIGHT,
-            color: fontColor,
-            textAlign: side ? 'left' : 'center',
-            justifyContent: side ? 'flex-start' : 'center',
-            textWrap: 'balance',
+            width: layout.tempWidth,
+            height: layout.tempHeight,
+            containerType: 'size',
           }}
         >
-          <div className="w-full">{message}</div>
+          {temperature}
         </div>
       </div>
     </div>
