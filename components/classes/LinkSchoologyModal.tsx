@@ -29,6 +29,7 @@ import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { SchoologyPasteLink } from './SchoologyPasteLink';
 import { SchoologyLinkedCourses } from './SchoologyLinkedCourses';
+import { syncRosterMirrors } from '@/utils/ltiRosterMirrors';
 
 interface LinkSchoologyModalProps {
   isOpen: boolean;
@@ -55,7 +56,10 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
   pasteLinkEnabled = false,
 }) => {
   const { user } = useAuth();
-  const courseLinks = useSchoologyCourseLinks(user?.uid, isOpen);
+  const courseLinks = useSchoologyCourseLinks(
+    user?.uid,
+    isOpen && pasteLinkEnabled
+  );
   // ClassLink rosters and admin test classes (mock ClassLink) can be paired.
   const candidateRosters = useMemo(
     () => rosters.filter((r) => !!r.classlinkClassId || !!r.testClassId),
@@ -147,6 +151,20 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, unlinkedSections.length, matchCandidates.length]);
 
+  // An unlinked or replaced section goes back on the list to link.
+  const forgetLinked = (contextIds: string[]) => {
+    setLinkedHere((prev) => {
+      const next = new Set(prev);
+      for (const id of contextIds) next.delete(id);
+      return next;
+    });
+    setRowState((prev) => {
+      const next = { ...prev };
+      for (const id of contextIds) delete next[id];
+      return next;
+    });
+  };
+
   const handleLink = async (section: SchoologySeenSection) => {
     const rosterId = selections[section.contextId];
     const roster = candidateRosters.find((r) => r.id === rosterId);
@@ -171,17 +189,19 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
       // Mirror onto the roster so link state shows everywhere (best-effort —
       // the canonical link is the server doc that just succeeded).
       try {
-        await updateRoster(roster.id, { ltiContextId: section.contextId });
-        for (const other of rosters.filter(
-          (r) => r.id !== roster.id && r.ltiContextId === section.contextId
-        )) {
-          await updateRoster(other.id, { ltiContextId: '' });
-        }
+        await syncRosterMirrors(
+          rosters,
+          roster.id,
+          section.contextId,
+          res.replacedIds,
+          updateRoster
+        );
       } catch {
         // The link landed; the local mirror can resync later.
       }
       setRowState((p) => ({ ...p, [section.contextId]: 'linked' }));
       setLinkedHere((prev) => new Set(prev).add(section.contextId));
+      if (res.replacedIds?.length) forgetLinked(res.replacedIds);
       addToast(
         `Linked “${section.contextTitle ?? 'Schoology section'}” to ${roster.name}.${replacedNote(res.replaced)}`,
         'success'
@@ -270,14 +290,19 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
             rosters={candidateRosters}
             addToast={addToast}
             updateRoster={updateRoster}
+            allRosters={rosters}
+            onReplaced={forgetLinked}
           />
         )}
-        <SchoologyLinkedCourses
-          links={courseLinks}
-          rosters={rosters}
-          addToast={addToast}
-          updateRoster={updateRoster}
-        />
+        {pasteLinkEnabled && (
+          <SchoologyLinkedCourses
+            links={courseLinks}
+            rosters={rosters}
+            addToast={addToast}
+            updateRoster={updateRoster}
+            onUnlinked={(id) => forgetLinked([id])}
+          />
+        )}
         {candidateRosters.length === 0 ? (
           <p className="text-sm text-slate-500 py-6 text-center">
             Import your classes from ClassLink first — Schoology sections link

@@ -11,6 +11,7 @@ interface SchoologyLinkedCoursesProps {
   rosters: ClassRoster[];
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>;
+  onUnlinked?: (contextId: string) => void;
 }
 
 /** The teacher's linked Schoology courses, each with an Unlink button. */
@@ -19,6 +20,7 @@ export const SchoologyLinkedCourses: React.FC<SchoologyLinkedCoursesProps> = ({
   rosters,
   addToast,
   updateRoster,
+  onUnlinked,
 }) => {
   const [busy, setBusy] = useState<string | null>(null);
   if (links.length === 0) return null;
@@ -43,6 +45,7 @@ export const SchoologyLinkedCourses: React.FC<SchoologyLinkedCoursesProps> = ({
           // The server link is gone; the roster mirror resyncs later.
         }
       }
+      onUnlinked?.(link.contextId);
       addToast(`Unlinked “${title}”.`, 'success');
     } catch (err) {
       addToast(

@@ -290,12 +290,17 @@ describe('LinkSchoologyModal', () => {
       contextId: '8497590559',
       contextTitle: 'Biology A (S1)',
       replaced: ['Biology B (S2)'],
+      replacedIds: ['ctx-s2'],
     });
+    const dup = {
+      ...roster('rDup', 'Period 5 copy', 'cl-A'),
+      ltiContextId: 'ctx-s2',
+    } as ClassRoster;
     render(
       <LinkSchoologyModal
         isOpen
         onClose={vi.fn()}
-        rosters={[roster('rA', 'Period 5', 'cl-A')]}
+        rosters={[roster('rA', 'Period 5', 'cl-A'), dup]}
         seenSections={[]}
         addToast={addToast}
         updateRoster={updateRoster}
@@ -314,6 +319,7 @@ describe('LinkSchoologyModal', () => {
         'success'
       )
     );
+    expect(updateRoster).toHaveBeenCalledWith('rDup', { ltiContextId: '' });
   });
 
   it('lists linked courses and unlinks one, clearing the class mirror', async () => {
@@ -333,6 +339,7 @@ describe('LinkSchoologyModal', () => {
         seenSections={[]}
         addToast={addToast}
         updateRoster={updateRoster}
+        pasteLinkEnabled
       />
     );
     expect(screen.getByText('Linked courses')).toBeTruthy();
@@ -348,6 +355,57 @@ describe('LinkSchoologyModal', () => {
       'Unlinked “Biology A (S1)”.',
       'success'
     );
+  });
+
+  it('hides the linked courses list unless the flag is on', () => {
+    courseLinks = [
+      { contextId: 'ctx-s1', contextTitle: 'Biology A (S1)', rosterId: 'rA' },
+    ];
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[roster('rA', 'Period 5', 'cl-A')]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+      />
+    );
+    expect(screen.queryByText('Linked courses')).toBeNull();
+  });
+
+  it('puts a section linked then unlinked in this dialog back on the list', async () => {
+    suggestMock.mockResolvedValue({ suggestion: null });
+    linkMock.mockResolvedValue({ ok: true, contextId: 'ctx-1' });
+    unlinkMock.mockResolvedValue({ ok: true, contextId: 'ctx-1' });
+    const props = {
+      isOpen: true,
+      onClose: vi.fn(),
+      rosters: [roster('rA', 'Period 1', 'cl-A')],
+      seenSections: [section('ctx-1', 'Algebra 1 · P1')],
+      addToast,
+      updateRoster,
+      pasteLinkEnabled: true,
+    };
+    const { rerender } = render(<LinkSchoologyModal {...props} />);
+    fireEvent.change(screen.getByLabelText(/Class for Algebra 1/i), {
+      target: { value: 'rA' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Link$/i }));
+    await waitFor(() => expect(linkMock).toHaveBeenCalled());
+    courseLinks = [
+      { contextId: 'ctx-1', contextTitle: 'Algebra 1 · P1', rosterId: 'rA' },
+    ];
+    rerender(<LinkSchoologyModal {...props} />);
+    await waitFor(() =>
+      expect(screen.queryByLabelText(/Class for Algebra 1/i)).toBeNull()
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Unlink Algebra 1 · P1' })
+    );
+    expect(
+      await screen.findByLabelText(/Class for Algebra 1/i)
+    ).toBeInTheDocument();
   });
 
   it('offers the paste field with only admin test classes', () => {

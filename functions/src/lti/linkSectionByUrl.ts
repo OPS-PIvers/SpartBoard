@@ -435,6 +435,6 @@ export const ltiLinkSectionByUrlV1 = onCall(
       testClassId: roster.testClassId,
     });
 
-    return { ok: true, contextId, contextTitle: title, overlap, replaced };
+    return { ok: true, contextId, contextTitle: title, overlap, ...replaced };
   }
 );

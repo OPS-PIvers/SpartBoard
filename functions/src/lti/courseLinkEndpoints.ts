@@ -71,28 +71,43 @@ export function linksSameClass(
   );
 }
 
-/** One Schoology section per class: delete the teacher's other links to `cls`, returning their titles. */
+export interface ReplacedLinks {
+  /** Titles of the deleted links, for the toast. */
+  replaced: string[];
+  /** Section ids of the deleted links, so clients clear any roster still mirroring one. */
+  replacedIds: string[];
+}
+
+/** One Schoology section per class: best-effort delete of the teacher's other links to `cls`. */
 export async function dropOtherLinksForClass(
   db: admin.firestore.Firestore,
   teacherUid: string,
   keepContextId: string,
   cls: LinkedClass
-): Promise<string[]> {
-  const snap = await db
-    .collection(LTI_COURSE_LINKS_COLLECTION)
-    .where('teacherUid', '==', teacherUid)
-    .get();
-  const stale = snap.docs.filter(
-    (d) => d.id !== keepContextId && linksSameClass(d.data(), cls)
-  );
-  if (stale.length === 0) return [];
-  const batch = db.batch();
-  for (const d of stale) batch.delete(d.ref);
-  await batch.commit();
-  return stale.map((d) => {
-    const t = d.data().contextTitle as unknown;
-    return typeof t === 'string' && t ? t : 'a Schoology section';
-  });
+): Promise<ReplacedLinks> {
+  try {
+    const snap = await db
+      .collection(LTI_COURSE_LINKS_COLLECTION)
+      .where('teacherUid', '==', teacherUid)
+      .get();
+    const stale = snap.docs.filter(
+      (d) => d.id !== keepContextId && linksSameClass(d.data(), cls)
+    );
+    if (stale.length === 0) return { replaced: [], replacedIds: [] };
+    const batch = db.batch();
+    for (const d of stale) batch.delete(d.ref);
+    await batch.commit();
+    return {
+      replaced: stale.map((d) => {
+        const t = d.data().contextTitle as unknown;
+        return typeof t === 'string' && t ? t : 'a Schoology section';
+      }),
+      replacedIds: stale.map((d) => d.id),
+    };
+  } catch (err) {
+    console.warn('[lti] dropping replaced course links failed', err);
+    return { replaced: [], replacedIds: [] };
+  }
 }
 
 /** Cap on candidate classes a single suggest call will OneRoster-fetch. */
@@ -425,7 +440,7 @@ export const linkLtiCourseV1 = onCall(
       console.warn('[linkLtiCourse] period dedupe failed (non-fatal)', err);
     }
 
-    return { ok: true, contextId, replaced };
+    return { ok: true, contextId, ...replaced };
   }
 );
 

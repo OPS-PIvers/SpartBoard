@@ -8,12 +8,16 @@ import {
   replacedNote,
   type LtiSectionByUrlPreview,
 } from '@/utils/ltiCourseLinks';
+import { syncRosterMirrors } from '@/utils/ltiRosterMirrors';
 
 interface SchoologyPasteLinkProps {
   /** The teacher's ClassLink and admin test-class rosters. */
   rosters: ClassRoster[];
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>;
+  /** Every roster, so a replaced link's mirror is cleared too. */
+  allRosters?: ClassRoster[];
+  onReplaced?: (contextIds: string[]) => void;
 }
 
 const errorMessage = (err: unknown, fallback: string): string =>
@@ -24,6 +28,8 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
   rosters,
   addToast,
   updateRoster,
+  allRosters,
+  onReplaced,
 }) => {
   const [url, setUrl] = useState('');
   const [checking, setChecking] = useState(false);
@@ -68,15 +74,17 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
     try {
       const res = await linkLtiSectionByUrl(functions, url.trim(), roster.id);
       try {
-        await updateRoster(roster.id, { ltiContextId: res.contextId });
-        for (const other of rosters.filter(
-          (r) => r.id !== roster.id && r.ltiContextId === res.contextId
-        )) {
-          await updateRoster(other.id, { ltiContextId: '' });
-        }
+        await syncRosterMirrors(
+          allRosters ?? rosters,
+          roster.id,
+          res.contextId,
+          res.replacedIds,
+          updateRoster
+        );
       } catch {
         // The server link landed; the roster mirror resyncs later.
       }
+      if (res.replacedIds?.length) onReplaced?.(res.replacedIds);
       const title = res.contextTitle ?? 'the Schoology course';
       setLinkedTitle(title);
       setPreview(null);

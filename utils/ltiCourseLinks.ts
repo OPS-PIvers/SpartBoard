@@ -63,10 +63,10 @@ export interface SuggestLtiMatchResult {
 export async function linkLtiCourse(
   functions: Functions,
   args: LinkLtiCourseArgs
-): Promise<{ ok: boolean; contextId: string; replaced?: string[] }> {
+): Promise<{ ok: boolean; contextId: string } & ReplacedLinks> {
   const callable = httpsCallable<
     LinkLtiCourseArgs,
-    { ok: boolean; contextId: string; replaced?: string[] }
+    { ok: boolean; contextId: string } & ReplacedLinks
   >(functions, 'linkLtiCourseV1');
   const { data } = await callable(args);
   return data;
@@ -129,12 +129,16 @@ export async function linkLtiSectionByUrl(
   return data;
 }
 
-interface LinkByUrlResult {
+/** The class's earlier section links that a link replaced: titles and section ids. */
+export interface ReplacedLinks {
+  replaced?: string[];
+  replacedIds?: string[];
+}
+
+interface LinkByUrlResult extends ReplacedLinks {
   ok: boolean;
   contextId: string;
   contextTitle: string | null;
-  /** Titles of this class's earlier section links that the link replaced. */
-  replaced?: string[];
 }
 
 /** Remove one of the caller's own Schoology section links. */

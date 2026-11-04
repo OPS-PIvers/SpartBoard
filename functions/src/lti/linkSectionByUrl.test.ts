@@ -451,7 +451,10 @@ describe('ltiLinkSectionByUrlV1', () => {
       auth: TEACHER,
       data: { url: URL_OK, rosterId: 'r-1' },
     });
-    expect(res).toMatchObject({ replaced: ['Biology B (S2)'] });
+    expect(res).toMatchObject({
+      replaced: ['Biology B (S2)'],
+      replacedIds: ['8497631489'],
+    });
     expect(courseLinks.has('8497631489')).toBe(false);
     expect(courseLinks.has('8497000000')).toBe(true);
     expect(courseLinks.get('7660186912')).toMatchObject({ rosterId: 'r-1' });

@@ -63,6 +63,7 @@ let ownedTestClasses: string[] = [];
 // The caller's own seen-section docs, keyed by contextId.
 const seenSections = new Map<string, { sessionId: string }>();
 const courseLinks = new Map<string, Record<string, unknown>>();
+const linkQuery = { fail: false };
 
 vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
@@ -94,11 +95,14 @@ vi.mock('../firebaseAdmin', () => ({
             },
           }),
           where: (_f: string, _op: string, uid: string) => ({
-            get: async () => ({
-              docs: [...courseLinks]
-                .filter(([, v]) => v.teacherUid === uid)
-                .map(([id, v]) => ({ id, data: () => v, ref: { _ctx: id } })),
-            }),
+            get: async () => {
+              if (linkQuery.fail) throw new Error('query failed');
+              return {
+                docs: [...courseLinks]
+                  .filter(([, v]) => v.teacherUid === uid)
+                  .map(([id, v]) => ({ id, data: () => v, ref: { _ctx: id } })),
+              };
+            },
           }),
         };
       }
@@ -322,6 +326,7 @@ describe('linkLtiCourseV1', () => {
       ok: true,
       contextId: 'ctx-1',
       replaced: [],
+      replacedIds: [],
     });
   });
 
@@ -347,7 +352,12 @@ describe('linkLtiCourseV1', () => {
         rosterId: 'r-test',
       },
     });
-    expect(res).toEqual({ ok: true, contextId: 'ctx-1', replaced: [] });
+    expect(res).toEqual({
+      ok: true,
+      contextId: 'ctx-1',
+      replaced: [],
+      replacedIds: [],
+    });
     expect(courseLinks.get('ctx-1')).toMatchObject({
       classlinkClassId: null,
       testClassId: 'mock-p1',
@@ -382,7 +392,12 @@ describe('linkLtiCourseV1', () => {
       ok: boolean;
       contextId: string;
     };
-    expect(res).toEqual({ ok: true, contextId: 'ctx-1', replaced: [] });
+    expect(res).toEqual({
+      ok: true,
+      contextId: 'ctx-1',
+      replaced: [],
+      replacedIds: [],
+    });
     const link = courseLinks.get('ctx-1')!;
     expect(link).toMatchObject({
       teacherUid: 'teacher-1',
@@ -415,7 +430,12 @@ describe('linkLtiCourseV1', () => {
     seenSession();
     dropLinkedSectionPeriodMock.mockRejectedValueOnce(new Error('boom'));
     const res = await callLink({ auth: TEACHER, data: base });
-    expect(res).toEqual({ ok: true, contextId: 'ctx-1', replaced: [] });
+    expect(res).toEqual({
+      ok: true,
+      contextId: 'ctx-1',
+      replaced: [],
+      replacedIds: [],
+    });
     expect(courseLinks.has('ctx-1')).toBe(true);
   });
 
@@ -465,11 +485,25 @@ describe('linkLtiCourseV1', () => {
       classlinkClassId: 'cl-1',
     });
     const res = await callLink({ auth: TEACHER, data: base });
-    expect(res).toMatchObject({ replaced: ['Biology B (S2)'] });
+    expect(res).toMatchObject({
+      replaced: ['Biology B (S2)'],
+      replacedIds: ['ctx-s2'],
+    });
     expect(courseLinks.has('ctx-s2')).toBe(false);
     expect(courseLinks.has('ctx-1')).toBe(true);
     expect(courseLinks.has('ctx-other-class')).toBe(true);
     expect(courseLinks.has('ctx-other-teacher')).toBe(true);
+  });
+
+  it('still reports the link when dropping old links fails', async () => {
+    seenSession();
+    courseLinks.set('ctx-s2', { teacherUid: 'teacher-1', rosterId: 'r-1' });
+    linkQuery.fail = true;
+    const res = await callLink({ auth: TEACHER, data: base });
+    linkQuery.fail = false;
+    expect(res).toMatchObject({ ok: true, replaced: [], replacedIds: [] });
+    expect(courseLinks.has('ctx-1')).toBe(true);
+    expect(dropLinkedSectionPeriodMock).toHaveBeenCalled();
   });
 
   it('preserves a stored contextTitle when a privacy-stripped relaunch yields null (#null-clobber)', async () => {
