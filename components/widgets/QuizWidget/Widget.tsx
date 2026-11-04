@@ -1641,7 +1641,8 @@ const TeacherQuizWidget: React.FC<{
           widgets,
           connectedId,
           currentConfig.liveScoreboardWidgetId,
-          takenScoreboardIdsRef.current
+          takenScoreboardIdsRef.current,
+          widget.id
         );
 
         // A Scoreboard this Review left (connection moved) drops its LIVE badge.

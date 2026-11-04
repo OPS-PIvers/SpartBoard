@@ -56,7 +56,7 @@ describe('quiet time goal Scoreboard point', () => {
       'm'
     );
     expect(connected).toEqual(['sb2']);
-    expect(findTeamScoreboard(widgets, 'sb', 'a', connected)).toBeUndefined();
+    expect(findTeamScoreboard(widgets, 'sb', 'a', connected)?.id).toBe('sb2');
     expect(findTeamScoreboard(widgets, 'sb2', 'a', connected)?.id).toBe('sb2');
     expect(findTeamScoreboard(widgets, 'sb', 'a', [])?.id).toBe('sb');
   });
