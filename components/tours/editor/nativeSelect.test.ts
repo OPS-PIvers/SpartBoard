@@ -39,4 +39,14 @@ describe('native dropdown steps', () => {
     } as const;
     expect(asChoiceStep(typed)).toBe(typed);
   });
+
+  it('keeps a click on a panel that only contains a dropdown', () => {
+    document.body.innerHTML =
+      '<div data-tour="dock.open-tools"><select><option value="a">A</option></select><button>Save</button></div>';
+    document.querySelectorAll('div, select, button').forEach((el) => {
+      el.getBoundingClientRect = () => new DOMRect(0, 0, 100, 20);
+    });
+    const panel = { anchor: 'dock.open-tools', action: 'click' } as const;
+    expect(asChoiceStep(panel)).toBe(panel);
+  });
 });

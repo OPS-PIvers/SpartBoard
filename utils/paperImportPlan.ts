@@ -106,6 +106,23 @@ export function printedOptionsFor(
       );
 }
 
+/** Each recorded question's printed options, read through the filled quiz for a stub batch. */
+export function printedChoiceOrder(
+  batch: Pick<PaperBatch, 'choiceOrder'>,
+  questions: readonly QuizQuestion[]
+): Record<string, string[]> | undefined {
+  const out: Record<string, string[]> = {};
+  for (const q of questions) {
+    const options = printedOptionsFor(batch, q, q.id);
+    if (batch.choiceOrder?.[q.id] || !isPlaceholderLetterChoices(options))
+      out[q.id] = options;
+  }
+  for (const [id, recorded] of Object.entries(batch.choiceOrder ?? {})) {
+    out[id] ??= [...recorded];
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 /** Option text a bubbled choice stands for; a stub's is the letter until the quiz is filled in. */
 export function answerTextFor(
   batch: Pick<PaperBatch, 'choiceOrder'>,

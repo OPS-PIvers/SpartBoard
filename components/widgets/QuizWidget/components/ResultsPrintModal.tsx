@@ -16,6 +16,7 @@ import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { getPaperBatch } from '@/utils/paperBatchStore';
 import { logError } from '@/utils/logError';
 import { planSheetReprint } from '@/utils/paperSheetReprint';
+import { printedChoiceOrder } from '@/utils/paperImportPlan';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import {
   paperPrivateKey,
@@ -306,7 +307,9 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
         period: r.classPeriod ?? null,
         status: r.status,
         drilldown: computeStudentDrilldown(quiz.questions, r, gradeFn, {
-          choiceOrder: batch?.choiceOrder,
+          choiceOrder: batch
+            ? printedChoiceOrder(batch, quiz.questions)
+            : undefined,
           rubricFor: (q) => rubricFor(r, q),
         }),
         targets: targetsFor(r),

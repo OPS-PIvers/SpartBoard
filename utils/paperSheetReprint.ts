@@ -7,6 +7,7 @@ import {
   paperGridOf,
   type PaperGrid,
 } from './paperSheetLayout';
+import { printedChoiceOrder } from './paperImportPlan';
 import { mcItemsOf } from './paperPageMap';
 import { analyzePaperQuiz } from './paperSheetPlan';
 import { pageMapsForSeat } from './paperSheetVersions';
@@ -39,12 +40,12 @@ export interface SheetReprint {
 
 /** Bubble index of an option's text on this batch's sheet: its place in the printed order, or a bare letter for a stub. */
 function bubbleFor(
-  batch: PaperBatch,
+  choiceOrder: Record<string, string[]> | undefined,
   questionId: string,
   text: string
 ): number | null {
   if (!text) return null;
-  const order = batch.choiceOrder?.[questionId];
+  const order = choiceOrder?.[questionId];
   if (order) {
     let i = order.indexOf(text);
     if (i < 0) {
@@ -95,6 +96,7 @@ export function planSheetReprint(
   const questions = new Map(quiz.questions.map((q) => [q.id, q]));
   const answers = selectRepresentativeAnswers(response.answers ?? []);
   const columnsPerPage = paperGridOf(batch);
+  const choiceOrder = printedChoiceOrder(batch, quiz.questions);
   const filled: (number | null)[] = [];
   const correct: (number | null)[] = [];
   const unclear: boolean[] = [];
@@ -102,12 +104,14 @@ export function planSheetReprint(
     const entry = answers.get(row.questionId);
     filled.push(
       entry && !entry.unresponded
-        ? bubbleFor(batch, row.questionId, entry.answer ?? '')
+        ? bubbleFor(choiceOrder, row.questionId, entry.answer ?? '')
         : null
     );
     unclear.push(entry?.unresponded === 'paper-unclear');
     const key = questions.get(row.questionId)?.correctAnswer ?? '';
-    correct.push(key.trim() ? bubbleFor(batch, row.questionId, key) : null);
+    correct.push(
+      key.trim() ? bubbleFor(choiceOrder, row.questionId, key) : null
+    );
   }
   return {
     batchId: batch.id,
@@ -119,7 +123,7 @@ export function planSheetReprint(
       ? {
           questionTexts: rows.map((row) => ({
             text: questions.get(row.questionId)?.text ?? '',
-            choices: batch.choiceOrder?.[row.questionId] ?? [],
+            choices: choiceOrder?.[row.questionId] ?? [],
           })),
         }
       : {}),
