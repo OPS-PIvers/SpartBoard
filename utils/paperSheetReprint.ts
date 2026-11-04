@@ -52,8 +52,9 @@ function bubbleFor(
       const wanted = normalizeAnswer(text);
       i = order.findIndex((o) => normalizeAnswer(o) === wanted);
     }
-    return i < 0 ? null : i;
+    if (i >= 0) return i;
   }
+  // A stub answer imported before the quiz was filled in is still a bare letter.
   const letter = CHOICE_LETTERS.indexOf(text.trim().toUpperCase());
   return letter < 0 ? null : letter;
 }

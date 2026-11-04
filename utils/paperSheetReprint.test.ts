@@ -83,6 +83,12 @@ describe('planSheetReprint', () => {
       quiz(filled)
     );
     expect(unrecorded?.filled).toEqual([1]);
+    const beforeFill = planSheetReprint(
+      response([{ questionId: 'q1', answer: 'B' }]),
+      stub,
+      quiz(filled)
+    );
+    expect(beforeFill?.filled).toEqual([1]);
   });
 
   it('maps each answer to its bubble through the shuffled batch order', () => {
