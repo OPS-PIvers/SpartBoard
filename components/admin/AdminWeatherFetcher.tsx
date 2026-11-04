@@ -130,25 +130,24 @@ export const AdminWeatherFetcher: React.FC = () => {
           }
 
           if (data?.o) {
+            condition = EARTH_NETWORKS_ICONS.SNOW.includes(data.o.ic)
+              ? 'snowy'
+              : EARTH_NETWORKS_ICONS.CLOUDY.includes(data.o.ic)
+                ? 'cloudy'
+                : EARTH_NETWORKS_ICONS.SUNNY.includes(data.o.ic)
+                  ? 'sunny'
+                  : EARTH_NETWORKS_ICONS.RAIN.includes(data.o.ic)
+                    ? 'rainy'
+                    : 'cloudy';
             const reading = readStationTemperature(data.o);
             if (reading) {
               temp = reading.temp;
               feelsLike = reading.feelsLike;
-              condition = EARTH_NETWORKS_ICONS.SNOW.includes(data.o.ic)
-                ? 'snowy'
-                : EARTH_NETWORKS_ICONS.CLOUDY.includes(data.o.ic)
-                  ? 'cloudy'
-                  : EARTH_NETWORKS_ICONS.SUNNY.includes(data.o.ic)
-                    ? 'sunny'
-                    : EARTH_NETWORKS_ICONS.RAIN.includes(data.o.ic)
-                      ? 'rainy'
-                      : 'cloudy';
             } else {
               // Station sensor reports no temperature; never store null (shows as 0°).
               const fallback = await fetchOpenWeather();
               temp = fallback.main.temp;
               feelsLike = fallback.main.feels_like;
-              condition = fallback.weather[0].main.toLowerCase();
             }
             locationName = STATION_CONFIG.name;
             details = {
