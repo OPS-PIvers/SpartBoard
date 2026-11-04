@@ -62,6 +62,7 @@ describe('AdminWeatherFetcher freshness check', () => {
       snapshot({
         updatedAt: Date.now() - 60 * 1000,
         source: 'earth_networks',
+        temp: 40,
       })
     );
 
@@ -154,7 +155,7 @@ describe('AdminWeatherFetcher when the station has no temperature', () => {
     expect(mocks.setDoc.mock.calls[0][1]).toMatchObject({
       temp: 47.3,
       feelsLike: 44.1,
-      condition: 'clouds',
+      condition: 'cloudy',
       source: 'earth_networks',
       locationName: 'Orono IS',
     });
@@ -191,6 +192,7 @@ describe('isStoredWeatherFresh', () => {
           updatedAt: now - 0.89 * FIFTEEN_MIN,
           source: 'openweather',
           city: 'Orono',
+          temp: 40,
         },
         base
       )
@@ -220,6 +222,15 @@ describe('isStoredWeatherFresh', () => {
     expect(
       isStoredWeatherFresh(
         { updatedAt: now, source: 'openweather', city: 'Wayzata' },
+        base
+      )
+    ).toBe(false);
+  });
+
+  it('is stale when an older client stored a blank temperature', () => {
+    expect(
+      isStoredWeatherFresh(
+        { updatedAt: now, source: 'openweather', city: 'Orono', temp: null },
         base
       )
     ).toBe(false);
