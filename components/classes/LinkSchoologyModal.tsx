@@ -43,6 +43,8 @@ interface LinkSchoologyModalProps {
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>;
   /** Show "Paste a Schoology course link" (the teacher has a ClassLink or test class). */
   pasteLinkEnabled?: boolean;
+  /** Show Find my Schoology courses (schoology-auto-link flag). */
+  findCoursesEnabled?: boolean;
 }
 
 type RowState = 'idle' | 'linking' | 'linked' | 'error';
@@ -55,6 +57,7 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
   addToast,
   updateRoster,
   pasteLinkEnabled = false,
+  findCoursesEnabled = false,
 }) => {
   const { user } = useAuth();
   const courseLinks = useSchoologyCourseLinks(
@@ -286,7 +289,7 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
       ariaLabel="Link to Schoology"
     >
       <div className="py-4 space-y-3">
-        {pasteLinkEnabled && matchCandidates.length > 0 && (
+        {findCoursesEnabled && matchCandidates.length > 0 && (
           <SchoologyFindCourses
             rosters={rosters}
             addToast={addToast}

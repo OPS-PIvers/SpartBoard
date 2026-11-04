@@ -1041,6 +1041,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Find each class's Schoology section by its ClassLink id (SCHOOLOGY_AUTO_LINK.md D3).
+  'schoology-auto-link': {
+    label: 'Find my Schoology courses',
+    icon: GraduationCap,
+    description: 'Links each class to its Schoology course in one step.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Inert while Mini App assignments are view-only in Organization settings.
   'mini-app-results': {
     label: 'Mini App results',

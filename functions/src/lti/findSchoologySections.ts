@@ -19,7 +19,6 @@ import { fetchNrpsMembership } from './nrps';
 import { schoologySectionUrls } from './lineItems';
 import { LTI_COURSE_LINKS_COLLECTION } from './courseLinkEndpoints';
 import {
-  SCHOOLOGY_TOOL_COLUMNS_FEATURE,
   isActiveInstructor,
   ownedLinkableRosters,
   saveSectionLink,
@@ -41,6 +40,7 @@ const SCHOOLOGY_API_CONSUMER_SECRET = defineSecret(
   'SCHOOLOGY_API_CONSUMER_SECRET'
 );
 
+export const SCHOOLOGY_AUTO_LINK_FEATURE = 'schoology-auto-link';
 const MAX_CLASSES = 60;
 const CONCURRENCY = 5;
 const ROSTER_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
@@ -303,7 +303,7 @@ export const ltiFindSchoologySectionsV1 = onCall(
     if (
       !(await isGlobalFeatureGranted(
         db,
-        SCHOOLOGY_TOOL_COLUMNS_FEATURE,
+        SCHOOLOGY_AUTO_LINK_FEATURE,
         email,
         callerUid
       ))

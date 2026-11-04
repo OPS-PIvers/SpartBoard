@@ -463,6 +463,7 @@ describe('LinkSchoologyModal', () => {
         addToast={addToast}
         updateRoster={updateRoster}
         pasteLinkEnabled
+        findCoursesEnabled
       />
     );
     fireEvent.click(
@@ -497,6 +498,7 @@ describe('LinkSchoologyModal', () => {
         seenSections={[]}
         addToast={addToast}
         updateRoster={updateRoster}
+        pasteLinkEnabled
       />
     );
     expect(
