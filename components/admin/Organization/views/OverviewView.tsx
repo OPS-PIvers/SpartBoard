@@ -17,6 +17,14 @@ import {
 } from '@/components/admin/Organization/components/primitives';
 import { Toggle } from '@/components/common/Toggle';
 import { ClaudeSignInCard } from './ClaudeSignInCard';
+import { useAuth } from '@/context/useAuth';
+import { useRolloutSwitch } from '@/components/admin/access/useRolloutSwitch';
+import { ROLLOUT_SWITCHES } from '@/config/rolloutSwitches';
+import { CLAUDE_MANAGED_AUTH_SETTINGS_DOC } from '@/config/claudeManagedAuth';
+
+const MANAGED_AUTH_SWITCH = ROLLOUT_SWITCHES.find(
+  (sw) => sw.docId === CLAUDE_MANAGED_AUTH_SETTINGS_DOC
+);
 
 const PLAN_META: Record<
   Plan,
@@ -58,6 +66,13 @@ export const OverviewView: React.FC<Props> = ({
   const aiGated = org.plan !== 'full';
   // Building admins can view org-level settings but cannot modify them.
   const canEditOrg = actorRole !== 'building_admin';
+  const { isAdmin, canAccessFeature } = useAuth();
+  // The issuer mints tokens for any staff member, so only SpartBoard super admins see it.
+  const mayManageClaude =
+    isSuperAdmin && isAdmin === true && canAccessFeature('claude-connector');
+  const managedAuthSwitch = useRolloutSwitch(
+    mayManageClaude ? MANAGED_AUTH_SWITCH : undefined
+  );
 
   return (
     <div>
@@ -169,14 +184,16 @@ export const OverviewView: React.FC<Props> = ({
         </Card>
       </div>
 
-      <div className="mt-5">
-        <ClaudeSignInCard
-          key={`${org.id}:${org.claudeManagedAuth?.issuer ?? ''}:${String(org.claudeManagedAuth?.enabled ?? false)}`}
-          org={org}
-          canEdit={canEditOrg}
-          onUpdate={onUpdate}
-        />
-      </div>
+      {mayManageClaude && managedAuthSwitch.enabled === true && (
+        <div className="mt-5">
+          <ClaudeSignInCard
+            key={`${org.id}:${org.claudeManagedAuth?.issuer ?? ''}:${String(org.claudeManagedAuth?.enabled ?? false)}`}
+            org={org}
+            canEdit={isSuperAdmin}
+            onUpdate={onUpdate}
+          />
+        </div>
+      )}
 
       <div className="mt-5">
         <Card ruled className="pt-5 p-6">

@@ -17,7 +17,7 @@ type Firestore = admin.firestore.Firestore;
 
 export const JWT_BEARER_GRANT = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
 export const ID_JAG_TYP = 'oauth-id-jag+jwt';
-/** Org field an org's domain admins set in Organization > Overview. */
+/** Org field only SpartBoard super admins set, in Organization > Overview. */
 export const MANAGED_AUTH_FIELD = 'claudeManagedAuth';
 
 const CLOCK_SKEW_S = 60;
@@ -254,6 +254,9 @@ export async function exchangeAssertion(
   } catch {
     throw deny('Assertion did not verify');
   }
+  // jose accepts an array containing us; the ID-JAG audience must be exactly this server.
+  if (payload.aud !== publicOrigin())
+    throw deny('Assertion audience is not exact');
   if (typeof payload.iat !== 'number' || payload.iat > nowS + CLOCK_SKEW_S) {
     throw deny('Assertion issued in the future');
   }
@@ -276,6 +279,7 @@ export async function exchangeAssertion(
     throw deny('Email is not on a verified domain of this organization');
   }
   const user = await deps.getUserByEmail(email);
+  // student is a backstop; the active staff member doc checked below is what keeps students out.
   if (!user || !user.emailVerified || user.student) {
     throw deny('No SpartBoard teacher account for this email');
   }

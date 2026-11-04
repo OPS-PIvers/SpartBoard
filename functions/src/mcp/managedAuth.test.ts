@@ -11,6 +11,7 @@ import {
   handleToken,
 } from './oauthEndpoints';
 import { refreshGrant } from './grants';
+import { isGrantActive } from './mcpEndpoint';
 import { encodeRefreshToken } from './tokens';
 import {
   ID_JAG_TYP,
@@ -117,7 +118,7 @@ async function assertion(
     iss: ISS,
     sub: 'opaque-sub',
     email: TEACHER,
-    aud: [publicOrigin()],
+    aud: publicOrigin(),
     client_id: clientId,
     iat,
     nbf: iat - 15,
@@ -185,6 +186,39 @@ describe('jwt-bearer exchange', () => {
     await expect(
       refreshGrant(db, encodeRefreshToken('t1', a?.grantId ?? '', 'guess'))
     ).rejects.toMatchObject({ code: 'invalid_grant' });
+  });
+
+  it('never revives a grant after Disconnect, so earlier tokens stay dead', async () => {
+    const db = seed();
+    const { deps } = makeDeps();
+    const clientId = await clientIdFor(db);
+    const exchangeOnce = async () =>
+      exchangeAssertion(
+        db,
+        { assertion: await assertion(clientId), client_id: clientId },
+        deps
+      );
+    const before = await verifyAccessToken(
+      db,
+      (await exchangeOnce()).access_token
+    );
+    if (!before) throw new Error('expected claims');
+    await db
+      .doc(`users/t1/mcp_grants/${before.grantId}`)
+      .update({ revokedAt: NOW });
+    const after = await verifyAccessToken(
+      db,
+      (await exchangeOnce()).access_token
+    );
+    if (!after) throw new Error('expected claims');
+    expect(after.grantId).not.toBe(before.grantId);
+    expect(await isGrantActive(db, before, NOW + 1)).toBe(false);
+    expect(await isGrantActive(db, after, NOW + 1)).toBe(true);
+    const third = await verifyAccessToken(
+      db,
+      (await exchangeOnce()).access_token
+    );
+    expect(third?.grantId).toBe(after.grantId);
   });
 
   it('is refused while the switch is off and not advertised', async () => {
@@ -324,6 +358,8 @@ describe('cases to check before launch', () => {
       resourceUrl(),
       `${publicOrigin()}/`,
       'https://other.example',
+      [publicOrigin()],
+      [publicOrigin(), 'https://other.example'],
     ]) {
       const out = await refused(db, makeDeps().deps, async (c) => ({
         assertion: await assertion(c, { aud }),

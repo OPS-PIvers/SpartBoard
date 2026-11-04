@@ -50,7 +50,7 @@ describe('ClaudeSignInCard', () => {
     expect(screen.getByText('Enter an https:// URL')).toBeInTheDocument();
   });
 
-  it('shows the org id as the tenant ID and is read-only for building admins', () => {
+  it('shows the org id as the tenant ID and is read-only without edit rights', () => {
     render(
       <ClaudeSignInCard
         org={{

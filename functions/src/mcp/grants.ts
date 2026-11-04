@@ -100,7 +100,7 @@ export async function createGrant(
   return issue(db, input.uid, input.email, ref.id, secret);
 }
 
-/** One grant per teacher and issuer, re-used on every hourly exchange; no refresh token. */
+/** One live grant per teacher and issuer, re-used on every hourly exchange; no refresh token. */
 export async function issueManagedGrant(
   db: Firestore,
   input: {
@@ -112,17 +112,23 @@ export async function issueManagedGrant(
   },
   now = Date.now()
 ): Promise<ManagedTokenResponse> {
-  const grantId = `ema_${sha256(input.issuer)}`;
-  const ref = grantRef(db, input.uid, grantId);
-  const snap = await ref.get();
-  if (snap.exists) {
-    await ref.update({
+  const grants = db.collection(`users/${input.uid}/mcp_grants`);
+  const live = await grants
+    .where('managedIssuer', '==', input.issuer)
+    .where('revokedAt', '==', null)
+    .limit(1)
+    .get();
+  // A revoked grant is never revived, so tokens minted before a Disconnect stay dead.
+  let grantId: string;
+  if (!live.empty) {
+    grantId = live.docs[0].id;
+    await grantRef(db, input.uid, grantId).update({
       email: input.email,
       orgId: input.orgId,
       lastRefreshedAt: now,
-      revokedAt: null,
     });
   } else {
+    grantId = `ema_${randomToken(16)}`;
     const doc: GrantDoc = {
       clientName: input.clientName.slice(0, 80),
       email: input.email,
@@ -136,7 +142,7 @@ export async function issueManagedGrant(
       revokedAt: null,
       managedIssuer: input.issuer,
     };
-    await ref.set(doc);
+    await grantRef(db, input.uid, grantId).set(doc);
   }
   return {
     access_token: await signAccessToken(db, {

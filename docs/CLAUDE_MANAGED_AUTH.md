@@ -8,15 +8,15 @@ Anthropic's developer reference: [Enterprise Managed Auth for connectors](https:
 
 ## Set it up
 
-You need to be an **Owner** or **Primary Owner** of the Claude organization and a **domain admin** of the SpartBoard organization.
+You need to be an **Owner** or **Primary Owner** of the Claude organization and a **SpartBoard admin** (super admin). Domain and building admins can't see or change the Issuer URL: whoever controls it can sign in as any staff member of the organization.
 
 1. **SpartBoard switches (once per project).** Admin Settings > Access > Previews: turn on **Claude connects without registering**, then **Claude sign-in without Connect**. Both ship off.
 2. **Claude.** Add SpartBoard as a custom connector at `https://spartboard.web.app/mcp` (or `https://spartboard-dev.web.app/mcp` for dev). Open the connector, find **Managed authorization** under **Authentication**, click **Set up** and choose **Claude-issued**. Copy the **Issuer URL** it shows.
-3. **SpartBoard.** Admin Settings > Organization > Overview > **Claude sign-in**: paste the Issuer URL, turn the switch on and click **Save**.
-4. **Tenant ID (recommended).** Enter this organization's **Tenant ID** (shown on the same card) in **Tenant ID (optional)** in Claude's setup. Issuer URLs aren't secret: without a Tenant ID, sign-in stops working if an admin of another SpartBoard organization saves the same Issuer URL with their card switched on. With it, Claude names this organization in every sign-in and that can't happen.
+3. **SpartBoard (super admin).** Admin Settings > Organization > Overview > **Claude sign-in**: paste the Issuer URL, turn the switch on and click **Save**.
+4. **Tenant ID (recommended).** Enter this organization's **Tenant ID** (shown on the same card) in **Tenant ID (optional)** in Claude's setup. Issuer URLs aren't secret: without a Tenant ID, sign-in stops working if the same Issuer URL is also saved, switched on, for another SpartBoard organization. With it, Claude names this organization in every sign-in and that can't happen.
 5. **Test.** In Claude's setup, click **Run test** under **Connection status**.
 
-To turn it off for your organization, turn off the switch on the card and save. To turn it off everywhere, turn off **Claude sign-in without Connect** on Previews.
+To turn it off for an organization, a super admin turns off the switch on the card and saves. To turn it off everywhere, turn off **Claude sign-in without Connect** on Previews.
 
 ## Who gets signed in
 
@@ -24,15 +24,15 @@ A person is signed in only when all of these are true:
 
 - They are a current member of the Claude organization whose Issuer URL you saved.
 - Their Claude email is on a **verified** sign-in domain of this SpartBoard organization (Organization > Sign-in domains).
-- They have signed in to SpartBoard with Google at least once, with that same address, and it isn't a student account.
-- They are an active member of the organization and the Claude connector is on for them. These are the same checks as the Connect step.
+- They have signed in to SpartBoard with Google at least once, with that same address.
+- They are an active staff member of the organization and the Claude connector is on for them. These are the same checks as the Connect step, and the active staff member record is what keeps students out.
 
 Anyone else still gets the usual **Connect** step.
 
 ## What to know
 
 - **Removing someone.** When a person leaves the Claude organization, Claude stops signing assertions for them. The access token they already have works for up to one hour.
-- **Disconnect.** **Connected apps > Disconnect** in SpartBoard ends the current token. While managed sign-in is on, Claude connects that person again the next time they use the connector. To stop it for one person, remove them from the Claude organization or the connector.
+- **Disconnect.** **Connected apps > Disconnect** in SpartBoard ends the current token for good: the next sign-in gets a new connection, never the old one back. While managed sign-in is on, Claude connects that person again the next time they use the connector. To stop it for one person, remove them from the Claude organization or the connector.
 - **One sign-in per person.** Each person gets one connection per Issuer URL. It's refreshed each hour and shows in their **Connected apps** like any other connection.
 
 ## How the server checks an assertion
@@ -43,7 +43,7 @@ Anyone else still gets the usual **Connect** step.
 2. **Keys.** Fetch `<iss>/.well-known/openid-configuration` and check that its `issuer` equals `iss`. Use only the keys at its `jwks_uri`.
 3. **Signature.** ES256 or RS256 only.
 4. **Type.** `typ` is `oauth-id-jag+jwt`.
-5. **Audience.** `aud` is `https://spartboard.web.app`, our authorization server's `issuer`.
+5. **Audience.** `aud` is exactly the string `https://spartboard.web.app`, our authorization server's `issuer`. An array, even one holding only that value, is refused.
 6. **Client.** The `client_id` claim equals the request's `client_id`, and that client is one we recognize.
 7. **Subject.** `sub` is present. It isn't used for lookup.
 8. **Time.** Checked with 60 seconds of clock skew: `exp` hasn't passed, `iat` isn't in the future, and `nbf` (if present) has passed.

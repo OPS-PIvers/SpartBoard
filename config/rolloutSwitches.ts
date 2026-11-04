@@ -156,7 +156,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     feature: 'claude-connector',
     title: 'Claude sign-in without Connect',
     description:
-      'Staff connect Claude without the Connect step, once a domain admin sets the issuer in Organization > Overview.',
+      'Staff connect Claude without the Connect step, once a SpartBoard admin sets the issuer in Organization > Overview.',
     normalize: normalizeClaudeManagedAuthSettings,
   },
   {

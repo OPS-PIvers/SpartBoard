@@ -21,7 +21,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -408,8 +408,29 @@ describe('organizations — domain admin writes on own org', () => {
     );
   });
 
-  it('can set the Claude sign-in issuer only in its pinned shape', async () => {
-    const ref = () => doc(asDomainAdmin(), `organizations/${ORG_ID}`);
+  it('cannot set the Claude sign-in issuer', async () => {
+    await assertFails(
+      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
+        claudeManagedAuth: {
+          enabled: true,
+          issuer: 'https://identity.anthropic.com/issuers/abc123',
+        },
+      })
+    );
+  });
+
+  it('a building admin cannot set the Claude sign-in issuer', async () => {
+    await assertFails(
+      updateDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}`), {
+        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
+      })
+    );
+  });
+});
+
+describe('organizations — Claude sign-in issuer (super admin only)', () => {
+  it('a super admin can set the issuer only in its pinned shape', async () => {
+    const ref = () => doc(asSuper(), `organizations/${ORG_ID}`);
     await assertSucceeds(
       updateDoc(ref(), {
         claudeManagedAuth: {
@@ -427,22 +448,23 @@ describe('organizations — domain admin writes on own org', () => {
     ]) {
       await assertFails(updateDoc(ref(), { claudeManagedAuth: bad }));
     }
+    await assertSucceeds(updateDoc(ref(), { name: 'Orono Schools' }));
   });
 
-  it('cannot set the Claude sign-in issuer on another org', async () => {
-    await assertFails(
-      updateDoc(doc(asDomainAdmin(), `organizations/${OTHER_ORG_ID}`), {
+  it('an org member can read the saved issuer and a non-member cannot', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `organizations/${ORG_ID}`), {
         claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
-      })
+      });
+    });
+    const snap = await assertSucceeds(
+      getDoc(doc(asTeacher(), `organizations/${ORG_ID}`))
     );
-  });
-
-  it('a building admin cannot set the Claude sign-in issuer', async () => {
-    await assertFails(
-      updateDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}`), {
-        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
-      })
-    );
+    expect(snap.data()?.claudeManagedAuth).toEqual({
+      enabled: true,
+      issuer: 'https://x.example',
+    });
+    await assertFails(getDoc(doc(asOutsider(), `organizations/${ORG_ID}`)));
   });
 });
 
