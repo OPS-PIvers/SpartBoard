@@ -7473,6 +7473,12 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'widget.annotate-toolbar.colors': {
+    label: 'Pen colors in the widget annotate toolbar',
+    perWidget: true,
+    panel: true,
+  },
+
   'widget.annotate-toolbar.eraser': {
     label: 'Eraser button in the widget annotate toolbar',
     perWidget: true,
