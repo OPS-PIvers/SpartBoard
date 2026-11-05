@@ -42,9 +42,10 @@ vi.mock('./secrets', () => ({
   STUDENT_PSEUDONYM_HMAC_SECRET: { value: () => 'unit-test-hmac-secret' },
 }));
 
-import { computeStudentUid } from './classlinkShared';
+import { CLASSLINK_TIMEOUT_MS, computeStudentUid } from './classlinkShared';
 import {
   MAX_TARGET_REFS,
+  MAX_TAUGHT_CLASSES,
   computeSessionCloseAt,
   handleSetAssignmentTargets,
   isTestClassAuthority,
@@ -2523,6 +2524,70 @@ describe('loadClassLinkMembership', () => {
         'https://tenant.example'
       )
     ).rejects.toThrow('page cap');
+  });
+
+  const manyClasses = (count: number) => {
+    axiosGet.mockImplementation((url: string) => {
+      if (url.endsWith('/users'))
+        return Promise.resolve({
+          data: { users: [{ sourcedId: 'T1', role: 'teacher' }] },
+        });
+      if (url.endsWith('/classes'))
+        return Promise.resolve({
+          data: {
+            classes: Array.from({ length: count }, (_, i) => ({
+              sourcedId: `class-${i}`,
+            })),
+          },
+        });
+      const classId = /\/classes\/([^/]+)\/students$/.exec(url)?.[1] ?? '';
+      return Promise.resolve({
+        data: { users: [{ sourcedId: `kid-of-${classId}` }] },
+      });
+    });
+  };
+
+  it('reads every taught class past the old 40-class cap when no list is given', async () => {
+    manyClasses(120);
+    const out = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      null,
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(out.size).toBe(120);
+    expect(out.get('kid-of-class-119')).toBe('class-119');
+  });
+
+  it('fails loudly, never with a partial set, past the taught-class ceiling', async () => {
+    manyClasses(MAX_TAUGHT_CLASSES + 1);
+    await expect(
+      loadClassLinkMembership(
+        'teacher@orono.k12.mn.us',
+        null,
+        'id',
+        'secret',
+        'https://tenant.example'
+      )
+    ).rejects.toThrow('too many classes');
+  });
+
+  it('puts a timeout on every ClassLink call', async () => {
+    route([{ sourcedId: 'T1', role: 'teacher' }]);
+    await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      [CLASS_A],
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(axiosGet).toHaveBeenCalledTimes(3);
+    for (const call of axiosGet.mock.calls as unknown[][]) {
+      expect((call[1] as { timeout?: number }).timeout).toBe(
+        CLASSLINK_TIMEOUT_MS
+      );
+    }
   });
 
   it('SECURITY: a student-only OneRoster caller resolves to no classes', async () => {

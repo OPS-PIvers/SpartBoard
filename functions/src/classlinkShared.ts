@@ -36,6 +36,8 @@ export const ALLOWED_ORIGINS: (string | RegExp)[] = [
 
 /** OneRoster v1.1 API base path segment (appended to a tenant URL). */
 export const ONEROSTER_BASE = '/ims/oneroster/v1p1';
+/** How long any ClassLink request may take before it counts as unavailable. */
+export const CLASSLINK_TIMEOUT_MS = 20000;
 
 /**
  * OneRoster student shape (subset). Fields are optional because a OneRoster

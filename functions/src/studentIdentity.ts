@@ -14,6 +14,7 @@ import { chunk } from './shared';
 import { computeAssignmentPseudonym } from './assignmentPseudonym';
 import {
   ALLOWED_ORIGINS,
+  CLASSLINK_TIMEOUT_MS,
   ONEROSTER_BASE,
   computeStudentUid,
   getOAuthHeaders,
@@ -1123,7 +1124,6 @@ export const PIN_INDEX_MAX_ENTRIES = 200;
 
 const ONEROSTER_PAGE_LIMIT = 200;
 const ONEROSTER_MAX_PAGES = 10;
-const CLASSLINK_TIMEOUT_MS = 20000;
 
 /** Every page of a OneRoster list endpoint, or null if it ran past the page cap. */
 async function fetchOneRosterPages<T>(
