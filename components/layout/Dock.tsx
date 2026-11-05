@@ -890,7 +890,16 @@ export const Dock: React.FC = () => {
   // Minimized widgets whose type has no dock button get a temporary slot so the same instance (and its connections) can come back.
   const strandedTypes = strandedMinimizedTypes(
     minimizedWidgetsByType,
-    new Set([...topLevelTypes, ...pinnedTools.map((tool) => tool.type)]),
+    new Set([
+      ...topLevelTypes,
+      ...pinnedTools.map((tool) => tool.type),
+      // A folder already shows its own restore badge for minimized widgets.
+      ...dockItems.flatMap((item) =>
+        item.type === 'folder' && isDockItemVisible(item)
+          ? (item.folder.items ?? []).filter((type) => canAccessTool(type))
+          : []
+      ),
+    ]),
     canAccessTool
   );
 
