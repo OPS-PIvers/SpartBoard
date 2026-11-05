@@ -4,6 +4,7 @@ import {
   isStudentPseudonym,
   planCleanup,
   sessionOwner,
+  sideIdRange,
 } from './remove-student-authored-sessions.mjs';
 
 const STUDENT = 'a'.repeat(63) + 'f';
@@ -57,5 +58,18 @@ describe('authSaysStudent / planCleanup', () => {
     const { remove, review } = planCleanup(candidates, users);
     expect(remove.map((c) => c.id)).toEqual(['s1']);
     expect(review.map((c) => c.id)).toEqual(['s2']);
+  });
+});
+
+describe('sideIdRange', () => {
+  it("covers only that session's `${sessionId}__${uid}` rows", () => {
+    const [lo, hi] = sideIdRange('va-1');
+    const inRange = (id: string) => id >= lo && id < hi;
+    expect(lo).not.toBe(hi);
+    expect(inRange(`va-1__${STUDENT}`)).toBe(true);
+    expect(inRange('va-1__x')).toBe(true);
+    expect(inRange('va-10__x')).toBe(false);
+    expect(inRange('va-1_x')).toBe(false);
+    expect(inRange('va-2__x')).toBe(false);
   });
 });

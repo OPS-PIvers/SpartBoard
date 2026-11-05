@@ -113,13 +113,19 @@ async function loadUsers(auth, uids) {
   return byUid;
 }
 
+/** Doc-id bounds [lo, hi) for the `${sessionId}__${uid}` rows of one session. */
+export function sideIdRange(sessionId) {
+  return [`${sessionId}__`, `${sessionId}__\uf8ff`];
+}
+
 async function sideRefs(db, sessionId, collections) {
   const refs = [];
+  const [lo, hi] = sideIdRange(sessionId);
   for (const name of collections) {
     const snap = await db
       .collection(name)
-      .where(FieldPath.documentId(), '>=', `${sessionId}__`)
-      .where(FieldPath.documentId(), '<', `${sessionId}__`)
+      .where(FieldPath.documentId(), '>=', lo)
+      .where(FieldPath.documentId(), '<', hi)
       .select()
       .get();
     refs.push(...snap.docs.map((d) => d.ref));
