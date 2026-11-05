@@ -49,6 +49,12 @@ export const TestQuestionNav: React.FC<TestQuestionNavProps> = ({
   return (
     <div
       ref={rootRef}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && open) {
+          event.stopPropagation();
+          setOpen(false);
+        }
+      }}
       className={cx(
         'sticky top-0 border-b backdrop-blur-md',
         dark

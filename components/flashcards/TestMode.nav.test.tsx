@@ -91,6 +91,9 @@ describe('TestMode question bar', () => {
     await user.click(screen.getByRole('button', { name: 'Next unanswered' }));
     expect(screen.getByText('Question 3 of 6')).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'All questions' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('offers Submit once every question is answered', async () => {
