@@ -922,6 +922,110 @@ describe('handleSetAssignmentTargets', () => {
 // would never reach their pointer doc.
 // ---------------------------------------------------------------------------
 
+describe('handleSetAssignmentTargets — pointers owned by another teacher', () => {
+  const uidA = () => computeStudentUid(SOURCED_A, HMAC);
+  const victimPointer = (extra: Record<string, unknown> = {}) => ({
+    kind: 'quiz',
+    sessionId: 'victim-session',
+    teacherUid: OTHER_TEACHER_UID,
+    classId: 'victim-class',
+    createdAt: 1,
+    updatedAt: 1,
+    ...extra,
+  });
+
+  it('keeps the other teacher pointer when a same-id assignment asks to remove the student', async () => {
+    state.docs.set(pointerPath(uidA()), victimPointer());
+    const before = { ...state.docs.get(pointerPath(uidA())) };
+    const result = await run(
+      baseInput({
+        add: [],
+        remove: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    expect(result.removed).toBe(0);
+    expect(state.docs.get(pointerPath(uidA()))).toEqual(before);
+    expect(
+      state.writes.filter((w) => w.path === pointerPath(uidA()))
+    ).toHaveLength(0);
+  });
+
+  it('does not re-own or re-point the other teacher pointer on add, and reports the skip', async () => {
+    state.docs.set(pointerPath(uidA()), victimPointer());
+    const before = { ...state.docs.get(pointerPath(uidA())) };
+    const result = await run(baseInput());
+    expect(result.written).toBe(0);
+    expect(result.skipped).toEqual([
+      {
+        ref: { kind: 'classlink', sourcedId: SOURCED_A },
+        reason: 'not-in-teacher-classes',
+      },
+    ]);
+    expect(state.docs.get(pointerPath(uidA()))).toEqual(before);
+    expect(state.docs.get(assignmentPath())).toMatchObject({
+      targetStudents: [],
+    });
+  });
+
+  it('does not overwrite the other teacher pointer with a skip marker', async () => {
+    state.docs.set(pointerPath(uidA()), victimPointer());
+    const before = { ...state.docs.get(pointerPath(uidA())) };
+    const result = await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    expect(result.skippedExclusions).toHaveLength(1);
+    expect(state.docs.get(pointerPath(uidA()))).toEqual(before);
+  });
+
+  it('still adds the caller own students beside a foreign-held one', async () => {
+    state.docs.set(pointerPath(uidA()), victimPointer());
+    const result = await run(
+      baseInput({
+        add: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: SOURCED_B },
+        ],
+      })
+    );
+    expect(result.written).toBe(1);
+    expect(pointerFor(SOURCED_B)).toMatchObject({ teacherUid: TEACHER_UID });
+    expect(pointerFor(SOURCED_A)).toMatchObject({
+      teacherUid: OTHER_TEACHER_UID,
+    });
+  });
+
+  it('removes and re-adds the caller own pointers as before', async () => {
+    await run(baseInput());
+    expect(pointerFor()).toMatchObject({ teacherUid: TEACHER_UID });
+    const result = await run(
+      baseInput({
+        add: [],
+        remove: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    expect(result.removed).toBe(1);
+    expect(state.docs.has(pointerPath(uidA()))).toBe(false);
+    await run(baseInput());
+    expect(pointerFor()).toMatchObject({
+      teacherUid: TEACHER_UID,
+      sessionId: ASSIGNMENT_ID,
+    });
+  });
+
+  it('lets the caller re-point their own pointer to a new session', async () => {
+    state.docs.set(
+      pointerPath(uidA()),
+      victimPointer({ teacherUid: TEACHER_UID, sessionId: 'old-session' })
+    );
+    const result = await run(baseInput());
+    expect(result.written).toBe(1);
+    expect(pointerFor()).toMatchObject({ sessionId: ASSIGNMENT_ID });
+  });
+});
+
 describe('handleSetAssignmentTargets — already-targeted refresh', () => {
   const seedTwo = () =>
     run(

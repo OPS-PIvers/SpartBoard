@@ -727,6 +727,21 @@ async function chunkedCommit(
   }
 }
 
+/** Reads pointer docs into `into`, keyed by the student uid in each path. */
+async function readPointers(
+  db: admin.firestore.Firestore,
+  refs: admin.firestore.DocumentReference[],
+  into: Map<string, Record<string, unknown>>
+): Promise<void> {
+  for (let i = 0; i < refs.length; i += GET_ALL_CHUNK) {
+    const snaps = await db.getAll(...refs.slice(i, i + GET_ALL_CHUNK));
+    for (const snap of snaps) {
+      const data = snap.data();
+      if (data) into.set(snap.ref.parent.parent?.id ?? '', data);
+    }
+  }
+}
+
 /**
  * Core orchestration. `loadContext` is injected so unit tests can supply the
  * authorized-class map without standing up ClassLink.
@@ -794,12 +809,12 @@ export async function handleSetAssignmentTargets(
   // Absent `excludedTargets` ⇒ an empty set ⇒ byte-identical behaviour to a
   // client that never sends the field.
   const excludedKeys = new Set((input.excludedTargets ?? []).map(refKey));
-  const excludedResult = resolveTargets(
+  const excludedResolved = resolveTargets(
     input.excludedTargets ?? [],
     ctx,
     hmacSecret
   );
-  const addResult = resolveTargets(
+  const addResolved = resolveTargets(
     input.add.filter((ref) => !excludedKeys.has(refKey(ref))),
     ctx,
     hmacSecret
@@ -811,6 +826,42 @@ export async function handleSetAssignmentTargets(
       .doc(uid)
       .collection(STUDENT_ASSIGNMENT_ITEMS)
       .doc(input.assignmentId);
+
+  // Pointers are keyed by assignment id alone, so a same-id assignment of another teacher may hold one.
+  const pointerByUid = new Map<string, Record<string, unknown>>();
+  const pointerReads = [
+    ...new Set([
+      ...addResolved.resolved.map((t) => t.uid),
+      ...excludedResolved.resolved.map((t) => t.uid),
+      ...input.remove.map((ref) => uidForRef(ref, hmacSecret)),
+    ]),
+  ].map(itemsPath);
+  await readPointers(db, pointerReads, pointerByUid);
+  const isForeign = (uid: string): boolean => {
+    const pointer = pointerByUid.get(uid);
+    if (!pointer) return false;
+    return (
+      pointer.teacherUid !== callerUid ||
+      (typeof pointer.kind === 'string' && pointer.kind !== input.kind)
+    );
+  };
+  const withoutForeign = (r: {
+    resolved: ResolvedTarget[];
+    skipped: SetAssignmentTargetsResult['skipped'];
+  }) => ({
+    resolved: r.resolved.filter((t) => !isForeign(t.uid)),
+    skipped: [
+      ...r.skipped,
+      ...r.resolved
+        .filter((t) => isForeign(t.uid))
+        .map((t) => ({
+          ref: t.ref,
+          reason: 'not-in-teacher-classes' as const,
+        })),
+    ],
+  });
+  const addResult = withoutForeign(addResolved);
+  const excludedResult = withoutForeign(excludedResolved);
 
   // The authoritative post-call target set: what the doc already recorded,
   // minus this call's removals, plus the refs that resolved. This — not the
@@ -849,6 +900,8 @@ export async function handleSetAssignmentTargets(
   const removeUids = [
     ...new Set(input.remove.map((ref) => uidForRef(ref, hmacSecret))),
   ].filter((uid) => !addedUids.has(uid) && !excludedUids.has(uid));
+  // Only a pointer this caller fanned out is deleted; another teacher's survives.
+  const deletableRemoveUids = removeUids.filter((uid) => !isForeign(uid));
 
   // F1: an already-targeted student never appears in `add` (the client sends a
   // strict diff), so an override edit or a window change would otherwise never
@@ -1025,20 +1078,14 @@ export async function handleSetAssignmentTargets(
     Record<string, unknown> & { override?: StudentOverride | null }
   >();
   const existingExcludedByUid = new Map<string, Record<string, unknown>>();
-  const readRefs = [
-    ...admitted,
-    ...refreshTargets,
-    ...excludedResult.resolved,
-  ].map((t) => itemsPath(t.uid));
-  for (let i = 0; i < readRefs.length; i += GET_ALL_CHUNK) {
-    const snaps = await db.getAll(...readRefs.slice(i, i + GET_ALL_CHUNK));
-    for (const snap of snaps) {
-      const data = snap.data();
-      if (!data) continue;
-      const uid = snap.ref.parent.parent?.id ?? '';
-      existingByUid.set(uid, data);
-      if (excludedUids.has(uid)) existingExcludedByUid.set(uid, data);
-    }
+  const readRefs = [...admitted, ...refreshTargets, ...excludedResult.resolved]
+    .filter((t) => !pointerByUid.has(t.uid))
+    .map((t) => itemsPath(t.uid));
+  const latestByUid = new Map(pointerByUid);
+  await readPointers(db, readRefs, latestByUid);
+  for (const [uid, data] of latestByUid) {
+    existingByUid.set(uid, data);
+    if (excludedUids.has(uid)) existingExcludedByUid.set(uid, data);
   }
 
   /** The mutable half of a pointer write, shared by adds and refreshes. */
@@ -1124,7 +1171,7 @@ export async function handleSetAssignmentTargets(
     updated += 1;
     ops.push((batch) => batch.set(ref, payload, { merge: true }));
   }
-  for (const uid of removeUids) {
+  for (const uid of deletableRemoveUids) {
     const ref = itemsPath(uid);
     ops.push((batch) => batch.delete(ref));
   }
@@ -1259,7 +1306,7 @@ export async function handleSetAssignmentTargets(
   return {
     written: admitted.length,
     updated,
-    removed: removeUids.length,
+    removed: deletableRemoveUids.length,
     skipped: [
       ...preSkipped,
       ...addResult.skipped,

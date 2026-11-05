@@ -43,16 +43,30 @@ vi.mock('firebase-functions/v2/https', () => ({
   },
 }));
 
+import * as admin from './firebaseAdmin';
 import { computeStudentUid } from './classlinkShared';
 import {
+  cleanupQuizAssignmentPointers,
   deletePointersForAssignment,
   targetRefsFromAssignment,
 } from './studentAssignmentCleanup';
 
 const HMAC = 'unit-test-hmac-secret';
 const ASSIGNMENT_ID = 'assignment-1';
+const OWNER = 'teacher-a';
 
 let deleted: string[];
+let docs: Map<string, Record<string, unknown>>;
+
+const pointerPath = (uid: string) =>
+  `student_assignments/${uid}/items/${ASSIGNMENT_ID}`;
+const uidOf = (sourcedId: string) => computeStudentUid(sourcedId, HMAC);
+const ownedPointer = (
+  uid: string,
+  extra: Record<string, unknown> = {}
+): void => {
+  docs.set(pointerPath(uid), { teacherUid: OWNER, kind: 'quiz', ...extra });
+};
 
 function makeDb() {
   const docRef = (path: string) => ({
@@ -64,23 +78,35 @@ function makeDb() {
   });
   return {
     collection: (name: string) => collectionRef(name),
-    batch: () => {
+    runTransaction: async <T>(
+      fn: (tx: {
+        get: (ref: { __path: string }) => Promise<unknown>;
+        delete: (ref: { __path: string }) => void;
+      }) => Promise<T>
+    ): Promise<T> => {
       const ops: string[] = [];
-      return {
-        delete: (ref: { __path: string }) => {
+      const result = await fn({
+        get: (ref) => {
+          const data = docs.get(ref.__path);
+          return Promise.resolve({
+            exists: data !== undefined,
+            ref,
+            get: (field: string) => data?.[field],
+          });
+        },
+        delete: (ref) => {
           ops.push(ref.__path);
         },
-        commit: () => {
-          deleted.push(...ops);
-          return Promise.resolve();
-        },
-      };
+      });
+      deleted.push(...ops);
+      return result;
     },
   };
 }
 
 beforeEach(() => {
   deleted = [];
+  docs = new Map();
 });
 
 describe('targetRefsFromAssignment', () => {
@@ -111,21 +137,74 @@ describe('targetRefsFromAssignment', () => {
 });
 
 describe('deletePointersForAssignment', () => {
-  it('deletes exactly the pointer doc of every targeted student', async () => {
+  const refs = [
+    { kind: 'classlink' as const, sourcedId: 'sid-1' },
+    { kind: 'test' as const, email: 'kid@school.edu' },
+  ];
+  const testUid = computeStudentUid('test:kid@school.edu', HMAC);
+
+  it('deletes the pointer doc of every targeted student the owner fanned out', async () => {
+    ownedPointer(uidOf('sid-1'));
+    ownedPointer(testUid);
     const removed = await deletePointersForAssignment(
       makeDb() as never,
       ASSIGNMENT_ID,
-      [
-        { kind: 'classlink', sourcedId: 'sid-1' },
-        { kind: 'test', email: 'kid@school.edu' },
-      ],
-      HMAC
+      refs,
+      HMAC,
+      OWNER,
+      'quiz'
     );
     expect(removed).toBe(2);
     expect(deleted).toEqual([
-      `student_assignments/${computeStudentUid('sid-1', HMAC)}/items/${ASSIGNMENT_ID}`,
-      `student_assignments/${computeStudentUid('test:kid@school.edu', HMAC)}/items/${ASSIGNMENT_ID}`,
+      pointerPath(uidOf('sid-1')),
+      pointerPath(testUid),
     ]);
+  });
+
+  it("leaves another teacher's pointer alone when a forged target list names it", async () => {
+    docs.set(pointerPath(uidOf('sid-1')), {
+      teacherUid: 'teacher-b',
+      kind: 'quiz',
+    });
+    ownedPointer(testUid);
+    const removed = await deletePointersForAssignment(
+      makeDb() as never,
+      ASSIGNMENT_ID,
+      refs,
+      HMAC,
+      OWNER,
+      'quiz'
+    );
+    expect(removed).toBe(1);
+    expect(deleted).toEqual([pointerPath(testUid)]);
+  });
+
+  it('deletes nothing when every pointer belongs to someone else', async () => {
+    docs.set(pointerPath(uidOf('sid-1')), { teacherUid: 'teacher-b' });
+    docs.set(pointerPath(testUid), { kind: 'quiz' });
+    expect(
+      await deletePointersForAssignment(
+        makeDb() as never,
+        ASSIGNMENT_ID,
+        refs,
+        HMAC,
+        OWNER
+      )
+    ).toBe(0);
+    expect(deleted).toEqual([]);
+  });
+
+  it('leaves a pointer of another assignment kind alone even for the same teacher', async () => {
+    ownedPointer(uidOf('sid-1'), { kind: 'flashcards' });
+    await deletePointersForAssignment(
+      makeDb() as never,
+      ASSIGNMENT_ID,
+      [refs[0]],
+      HMAC,
+      OWNER,
+      'quiz'
+    );
+    expect(deleted).toEqual([]);
   });
 
   it('writes nothing when the assignment had no targets (legacy path)', async () => {
@@ -133,13 +212,15 @@ describe('deletePointersForAssignment', () => {
       makeDb() as never,
       ASSIGNMENT_ID,
       [],
-      HMAC
+      HMAC,
+      OWNER
     );
     expect(removed).toBe(0);
     expect(deleted).toEqual([]);
   });
 
   it('dedupes repeated refs into a single delete', async () => {
+    ownedPointer(uidOf('sid-1'));
     await deletePointersForAssignment(
       makeDb() as never,
       ASSIGNMENT_ID,
@@ -147,7 +228,8 @@ describe('deletePointersForAssignment', () => {
         { kind: 'classlink', sourcedId: 'sid-1' },
         { kind: 'classlink', sourcedId: 'sid-1' },
       ],
-      HMAC
+      HMAC,
+      OWNER
     );
     expect(deleted).toHaveLength(1);
   });
@@ -155,17 +237,54 @@ describe('deletePointersForAssignment', () => {
   it('reaps a skipped student whose exclusion marker is the only pointer', async () => {
     const { pointerRefsFromAssignment } =
       await import('./studentAssignmentCleanup');
-    const refs = pointerRefsFromAssignment({
+    ownedPointer(uidOf('sid-9'), { excluded: true });
+    const skipped = pointerRefsFromAssignment({
       excludedTargets: [{ kind: 'classlink', sourcedId: 'sid-9' }],
     });
     await deletePointersForAssignment(
       makeDb() as never,
       ASSIGNMENT_ID,
-      refs,
-      HMAC
+      skipped,
+      HMAC,
+      OWNER
     );
-    expect(deleted).toEqual([
-      `student_assignments/${computeStudentUid('sid-9', HMAC)}/items/${ASSIGNMENT_ID}`,
-    ]);
+    expect(deleted).toEqual([pointerPath(uidOf('sid-9'))]);
+  });
+});
+
+describe('cleanupQuizAssignmentPointers', () => {
+  type Handler = (event: {
+    params: Record<string, string>;
+    data?: { data: () => Record<string, unknown> };
+  }) => Promise<void>;
+  const run = (userId: string) =>
+    (cleanupQuizAssignmentPointers as unknown as Handler)({
+      params: { userId, assignmentId: ASSIGNMENT_ID },
+      data: {
+        data: () => ({
+          targetStudents: [{ kind: 'classlink', sourcedId: 'victim' }],
+        }),
+      },
+    });
+
+  beforeEach(() => {
+    (admin.firestore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      makeDb()
+    );
+  });
+
+  it("does not touch another teacher's pointer when an attacker's same-id assignment lists the student", async () => {
+    docs.set(pointerPath(uidOf('victim')), {
+      teacherUid: 'teacher-victim',
+      kind: 'quiz',
+    });
+    await run('attacker');
+    expect(deleted).toEqual([]);
+  });
+
+  it('removes the pointers of the teacher whose assignment was deleted', async () => {
+    docs.set(pointerPath(uidOf('victim')), { teacherUid: OWNER, kind: 'quiz' });
+    await run(OWNER);
+    expect(deleted).toEqual([pointerPath(uidOf('victim'))]);
   });
 });

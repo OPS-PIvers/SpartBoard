@@ -293,6 +293,31 @@ function sameRow(row: IndexRow, previous: Doc | undefined): boolean {
   return stableStringify(next) === stableStringify(prev);
 }
 
+/**
+ * A row id carries no kind, so an existing row at it may belong to another live session.
+ * Returns the row to build on (undefined once a stale one is retaken), or null when it must be left alone.
+ */
+async function claimRow(
+  db: Firestore,
+  row: Pick<IndexRow, 'kind' | 'sessionId' | 'studentUid'>,
+  current: Doc | undefined
+): Promise<Doc | undefined | null> {
+  if (!current) return undefined;
+  const kind = asString(current.kind) || row.kind;
+  const sessionId = asString(current.sessionId) || row.sessionId;
+  if (kind === row.kind && sessionId === row.sessionId) return current;
+  if (!(kind in SESSION_COLLECTION)) return undefined;
+  const owner = asString(current.ownerUid);
+  if (!owner) return undefined;
+  const session = await db
+    .collection(SESSION_COLLECTION[kind as GradeKind])
+    .doc(sessionId)
+    .get();
+  return session.exists && session.data()?.teacherUid === owner
+    ? null
+    : undefined;
+}
+
 /** Write only when something besides `updatedAt` changed, so reruns cost no writes. */
 async function writeRow(
   db: Firestore,
@@ -320,6 +345,7 @@ async function writeRowIfNotNewer(
     const snap = await tx.get(ref);
     const current = snap.data();
     if (sameRow(row, current)) return false;
+    if ((await claimRow(db, row, current)) === null) return false;
     if (typeof current?.updatedAt === 'number' && current.updatedAt > startedAt)
       return false;
     tx.set(ref, row as unknown as Doc);
@@ -361,7 +387,13 @@ async function deleteRow(
   const ref = db.collection(GRADE_INDEX).doc(rowId(sessionId, studentUid));
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    if (snap.exists && (snap.data()?.kind ?? kind) === kind) tx.delete(ref);
+    const data = snap.data();
+    if (
+      snap.exists &&
+      (data?.kind ?? kind) === kind &&
+      (data?.sessionId ?? sessionId) === sessionId
+    )
+      tx.delete(ref);
   });
 }
 
@@ -384,15 +416,44 @@ async function wallSubmittedAt(
   return times.length > 0 ? Math.min(...times) : 0;
 }
 
-/** Rows for every member of one project group; the group doc supplies the members. */
+/** Checks each class once per run against the owner's live roster; a lookup failure throws so the recompute retries. */
+export function defaultProjectMemberAuthority(
+  db: Firestore
+): ProjectMemberAuthority {
+  const rosters = new Map<string, Promise<Set<string>>>();
+  return async (ownerUid, classId, memberUids) => {
+    if (!classId || memberUids.length === 0) return new Set();
+    const key = `${ownerUid}\n${classId}`;
+    let roster = rosters.get(key);
+    if (!roster) {
+      roster = import('./projectMemberAuthority').then((m) =>
+        m.loadClassStudentUids(db, ownerUid, classId)
+      );
+      rosters.set(key, roster);
+      void roster.catch(() => rosters.delete(key));
+    }
+    const students = await roster;
+    return new Set(memberUids.filter((uid) => students.has(uid)));
+  };
+}
+
+/** The uids among `memberUids` that the session owner may grade in `classId`. */
+export type ProjectMemberAuthority = (
+  ownerUid: string,
+  classId: string,
+  memberUids: string[]
+) => Promise<Set<string>>;
+
+/** Rows for every member of one project group; only members the owner's class roster vouches for get a row. */
 async function projectRows(
   db: Firestore,
   ctx: SessionContext,
   groupId: string,
   grade: Doc | undefined,
   now: number,
-  prevOf: (uid: string) => Promise<Doc | undefined>
-): Promise<{ upserts: IndexRow[]; memberUids: string[] }> {
+  prevOf: (uid: string) => Promise<Doc | undefined | null>,
+  authority: ProjectMemberAuthority
+): Promise<{ upserts: IndexRow[]; memberUids: string[]; denied: string[] }> {
   const groupSnap = await db
     .collection(SESSION_COLLECTION.projects)
     .doc(ctx.sessionId)
@@ -401,21 +462,30 @@ async function projectRows(
     .get();
   const group = groupSnap.data() ?? {};
   const memberUids = asStrings(group.memberUids);
-  if (!grade) return { upserts: [], memberUids };
+  if (!grade) return { upserts: [], memberUids, denied: [] };
+  const allowed = await authority(
+    ctx.meta.ownerUid,
+    asString(group.classId),
+    memberUids
+  );
+  const denied = memberUids.filter((uid) => !allowed.has(uid));
   const upserts: IndexRow[] = [];
   for (const uid of memberUids) {
+    if (!allowed.has(uid)) continue;
+    const previous = await prevOf(uid);
+    if (previous === null) continue;
     upserts.push(
       await buildRow(
         db,
         ctx,
         uid,
         scoreProjectMember(grade, group, uid),
-        await prevOf(uid),
+        previous,
         now
       )
     );
   }
-  return { upserts, memberUids };
+  return { upserts, memberUids, denied };
 }
 
 export interface DocWrite {
@@ -471,11 +541,26 @@ export function docWriteMatters(w: DocWrite): boolean {
   return done && stableStringify(b.answers) !== stableStringify(a.answers);
 }
 
+/** The row at this id to build on: undefined if none or a stale foreign one, null if another kind's live session holds it. */
+async function previousRow(
+  db: Firestore,
+  kind: GradeKind,
+  sessionId: string,
+  studentUid: string
+): Promise<Doc | undefined | null> {
+  const snap = await db
+    .collection(GRADE_INDEX)
+    .doc(rowId(sessionId, studentUid))
+    .get();
+  return claimRow(db, { kind, sessionId, studentUid }, snap.data());
+}
+
 /** Upserts or deletes the rows one per-student doc write affects. */
 export async function applyDocWrite(
   db: Firestore,
   w: DocWrite,
-  now = Date.now()
+  now = Date.now(),
+  authority?: ProjectMemberAuthority
 ): Promise<number> {
   if (!docWriteMatters(w)) return 0;
   if (hasNoStudentKey(w.kind, w.docId)) return 0;
@@ -486,28 +571,30 @@ export async function applyDocWrite(
   w = { ...w, after };
 
   if (w.kind === 'projects') {
-    const { upserts, memberUids } = await projectRows(
+    const { upserts, memberUids, denied } = await projectRows(
       db,
       ctx,
       w.docId,
       w.after,
       now,
-      async (uid) =>
-        (
-          await db.collection(GRADE_INDEX).doc(rowId(w.sessionId, uid)).get()
-        ).data()
+      (uid) => previousRow(db, 'projects', w.sessionId, uid),
+      authority ?? defaultProjectMemberAuthority(db)
     );
     if (!w.after) {
       for (const uid of memberUids)
         await deleteRow(db, w.kind, w.sessionId, uid);
       return memberUids.length;
     }
+    for (const uid of denied) await deleteRow(db, w.kind, w.sessionId, uid);
     for (const row of upserts) {
-      const prev = await db
-        .collection(GRADE_INDEX)
-        .doc(rowId(row.sessionId, row.studentUid))
-        .get();
-      if (await writeRow(db, row, prev.data())) writes++;
+      const prev = await previousRow(
+        db,
+        row.kind,
+        row.sessionId,
+        row.studentUid
+      );
+      if (prev === null) continue;
+      if (await writeRow(db, row, prev)) writes++;
     }
     return writes;
   }
@@ -530,11 +617,8 @@ export async function applyDocWrite(
     await deleteRow(db, w.kind, w.sessionId, studentUid);
     return 1;
   }
-  const prevSnap = await db
-    .collection(GRADE_INDEX)
-    .doc(rowId(w.sessionId, studentUid))
-    .get();
-  const prev = prevSnap.data();
+  const prev = await previousRow(db, w.kind, w.sessionId, studentUid);
+  if (prev === null) return 0;
   const row = await buildRow(db, ctx, studentUid, score, prev, now);
   return (await writeRow(db, row, prev)) ? 1 : 0;
 }
@@ -544,7 +628,8 @@ export async function recomputeSession(
   db: Firestore,
   kind: GradeKind,
   sessionId: string,
-  now = Date.now()
+  now = Date.now(),
+  authority?: ProjectMemberAuthority
 ): Promise<{ written: number; deleted: number }> {
   const existingSnap = await db
     .collection(GRADE_INDEX)
@@ -568,6 +653,7 @@ export async function recomputeSession(
       .get();
     const rows: IndexRow[] = [];
     if (kind === 'projects') {
+      const memberAuthority = authority ?? defaultProjectMemberAuthority(db);
       for (const d of docs.docs) {
         const { upserts } = await projectRows(
           db,
@@ -575,7 +661,8 @@ export async function recomputeSession(
           d.id,
           d.data(),
           now,
-          (uid) => Promise.resolve(existing.get(rowId(sessionId, uid)))
+          (uid) => Promise.resolve(existing.get(rowId(sessionId, uid))),
+          memberAuthority
         );
         rows.push(...upserts);
       }
@@ -666,7 +753,7 @@ export function sessionWriteMatters(
   );
 }
 
-/** Queues a whole-session recompute; the scheduled worker drains it oldest first. */
+/** Queues a whole-session recompute, oldest first. Entries queued before the key carried a kind are keyed by session id alone. */
 export async function markSessionDirty(
   db: Firestore,
   kind: GradeKind,
@@ -675,7 +762,7 @@ export async function markSessionDirty(
 ): Promise<void> {
   await db
     .collection(GRADE_INDEX_QUEUE)
-    .doc(sessionId)
+    .doc(`${kind}__${sessionId}`)
     .set({ kind, sessionId, dirtyAt: now });
 }
 
@@ -707,7 +794,7 @@ export async function drainDirtySessions(
       continue;
     }
     try {
-      await recomputeSession(db, kind, doc.id);
+      await recomputeSession(db, kind, asString(data.sessionId) || doc.id);
       recomputed++;
       await db.runTransaction(async (tx) => {
         const current = await tx.get(doc.ref);
@@ -718,7 +805,7 @@ export async function drainDirtySessions(
       failed++;
       const failures = (Number(data.failures) || 0) + 1;
       logger.error('gradeIndex: session recompute failed', {
-        sessionId: doc.id,
+        sessionId: asString(data.sessionId) || doc.id,
         kind,
         failures,
         error: err instanceof Error ? err.message : String(err),
