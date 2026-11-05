@@ -1,4 +1,5 @@
 import type {
+  FlashcardCheckRules,
   FlashcardMasteryThreshold,
   FlashcardMode,
   FlashcardScoreVisibility,
@@ -16,6 +17,7 @@ import {
   type LastAssignSettings,
   type LastAssignSettingsSpec,
 } from '@/hooks/useLastAssignSettings';
+import { parseFlashcardCheckRules } from '@/components/common/library/assignStepper/flashcardsRuleValues';
 
 /** Profile field holding this teacher's last-used Flashcards check rules (plan D12). */
 export const LAST_FLASHCARD_ASSIGN_SETTINGS_FIELD =
@@ -25,7 +27,10 @@ export const LAST_FLASHCARD_ASSIGN_SETTINGS_FIELD =
 export type FlashcardAssignRules = Omit<
   FlashcardAssignForm,
   'collectSubmission'
->;
+> & {
+  /** flashcards-assign-v2: the Quiz-style rule steps; absent before that flag. */
+  rules?: FlashcardCheckRules;
+};
 
 const MODES: readonly FlashcardMode[] = ['flashcards', 'write', 'test'];
 const SIDES: readonly FlashcardSide[] = ['term', 'definition'];
@@ -65,6 +70,12 @@ export function parseLastFlashcardAssignSettings(
     testCount,
     masteryThreshold: pick(THRESHOLDS, r.masteryThreshold, d.masteryThreshold),
     scoreVisibility: pick(VISIBILITIES, r.scoreVisibility, d.scoreVisibility),
+    ...(r.rules !== undefined
+      ? (() => {
+          const rules = parseFlashcardCheckRules(r.rules);
+          return rules ? { rules } : {};
+        })()
+      : {}),
   };
 }
 
@@ -72,8 +83,8 @@ export function parseLastFlashcardAssignSettings(
 export function getFlashcardAssignPrefill(
   lastUsed: FlashcardAssignRules | null,
   deckSize: number
-): FlashcardAssignForm {
-  const form: FlashcardAssignForm = {
+): FlashcardAssignForm & Pick<FlashcardAssignRules, 'rules'> {
+  const form: FlashcardAssignForm & Pick<FlashcardAssignRules, 'rules'> = {
     ...DEFAULT_FLASHCARD_ASSIGN_FORM,
     ...(lastUsed ?? {}),
   };

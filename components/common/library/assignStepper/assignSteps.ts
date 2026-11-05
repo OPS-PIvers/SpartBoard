@@ -63,11 +63,15 @@ export function getAssignSteps(
   if (activity === 'flashcards') {
     steps.push(
       ...(ctx.flashcardsV2
-        ? (['cards', 'check', 'feedback'] as const)
+        ? (['cards', 'check', 'attempts', 'integrity', 'feedback'] as const)
         : (['check'] as const))
     );
   }
-  if ((activity === 'quiz' || activity === 'video') && ctx.inPlc) {
+  const plcSharing =
+    activity === 'quiz' ||
+    activity === 'video' ||
+    (activity === 'flashcards' && ctx.flashcardsV2);
+  if (plcSharing && ctx.inPlc) {
     steps.push('sharing');
   }
   return steps;
@@ -93,7 +97,8 @@ export function getAssignStepTitle(
   ctx: AssignStepContext
 ): string {
   if (id === 'classes' && activity === 'video' && ctx.live) return 'Class';
-  if (id === 'integrity' && activity === 'video') return 'Integrity';
+  if (id === 'integrity' && (activity === 'video' || activity === 'flashcards'))
+    return 'Integrity';
   if (id === 'when' && effectiveKind(activity, ctx.kind) === 'resource') {
     return 'Available';
   }

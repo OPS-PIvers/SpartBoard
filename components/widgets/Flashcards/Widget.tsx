@@ -40,7 +40,10 @@ import {
 } from '@/utils/studentTargetRef';
 import { buildMixedTargetsPayload } from '@/utils/assignTargets';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
-import { FlashcardAssignStepper } from './FlashcardAssignStepper';
+import {
+  FlashcardAssignStepper,
+  type FlashcardAssignExtras,
+} from './FlashcardAssignStepper';
 import { useFlashcardPlcSharing } from './useFlashcardPlcSharing';
 import {
   rosterHasSsoClass,
@@ -412,12 +415,15 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     claudeReview.whenReviewed(set, () => setAssigningSet(set));
   };
 
-  const performAssign = async ({
-    input,
-    rosterIds,
-    expandedTargeting,
-    studentTargetClassIds,
-  }: FlashcardAssignSubmission): Promise<boolean> => {
+  const performAssign = async (
+    {
+      input,
+      rosterIds,
+      expandedTargeting,
+      studentTargetClassIds,
+    }: FlashcardAssignSubmission,
+    extras?: FlashcardAssignExtras
+  ): Promise<boolean> => {
     const { set } = input;
     try {
       const sessionId = await createAssignment(input);
@@ -485,6 +491,25 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         );
       } catch {
         addToast(`“${set.title}” assigned.`, 'success');
+      }
+      const sharePlc = extras?.sharePlc;
+      if (
+        sharePlc &&
+        !(await plcSharing.shareNewAssignmentResults(
+          {
+            id: sessionId,
+            sessionId,
+            setId: set.id,
+            setTitle: set.title,
+            periodNames: input.periodNames,
+          },
+          sharePlc
+        ))
+      ) {
+        addToast(
+          `Assigned, but the results could not be shared with ${sharePlc.name}.`,
+          'error'
+        );
       }
       return true;
     } catch (error) {
@@ -838,6 +863,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           onClose={() => setAssigningSet(null)}
           onAssign={performAssign}
           periodAccess={assignPeriodCtx}
+          plcs={plcSharing.enabled ? plcSharing.editablePlcs : []}
         />
       )}
     </>

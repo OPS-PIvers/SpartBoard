@@ -1,7 +1,7 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ClassRoster, FlashcardSet } from '@/types';
+import type { ClassRoster, FlashcardSet, Plc } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { DEFAULT_FLASHCARD_ASSIGN_FORM } from './utils/flashcardAssign';
@@ -86,15 +86,18 @@ const renderStepper = ({
   canSpeak = false,
   v2 = false,
   set = makeSet(),
+  plcs,
 }: {
   rosterIds?: string[];
   periodAccess?: AssignPeriodAccessContext;
   canSpeak?: boolean;
   v2?: boolean;
   set?: FlashcardSet;
+  plcs?: Plc[];
 } = {}) => {
-  const onAssign = vi.fn((_submission: FlashcardAssignSubmission) =>
-    Promise.resolve(true)
+  const onAssign = vi.fn(
+    (_submission: FlashcardAssignSubmission, _extras?: { sharePlc?: Plc }) =>
+      Promise.resolve(true)
   );
   const auth = {
     user: { uid: 'teacher-1' },
@@ -112,6 +115,7 @@ const renderStepper = ({
         onClose={vi.fn()}
         onAssign={onAssign}
         periodAccess={periodAccess}
+        plcs={plcs}
       />
     </AuthContext.Provider>
   );
@@ -357,6 +361,64 @@ describe('FlashcardAssignStepper', () => {
         mode: 'pick',
         cardIds: ['c2', 'c7'],
       });
+    });
+
+    it('uses the Quiz rule steps and stamps their rules', async () => {
+      const { onAssign } = renderStepper({ v2: true });
+      expect(screen.getByText('Attempts and order')).toBeTruthy();
+      expect(screen.getByText('Integrity')).toBeTruthy();
+      fireEvent.click(screen.getByText('Attempts and order'));
+      expect(screen.queryByText('Shuffle answer options')).toBeNull();
+      fireEvent.click(screen.getByRole('switch', { name: 'Shuffle cards' }));
+      fireEvent.click(screen.getByText('What students see'));
+      expect(screen.queryByText('Group results by learning target')).toBeNull();
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Show right and wrong to students' })
+      );
+      fireEvent.click(
+        screen.getByRole('switch', {
+          name: 'Reveal correct answer to students',
+        })
+      );
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      const { input } = lastSubmission(onAssign);
+      expect(input.rules?.attemptLimit).toBe(1);
+      expect(input.rules?.sessionOptions.shuffleQuestions).toBe(true);
+      expect(input.rules?.sessionOptions).not.toHaveProperty(
+        'timeLimitMinutes'
+      );
+      expect(input.lockedSettings?.shuffle).toBe(true);
+      expect(input.scoreVisibility).toBe('score-and-answers');
+      expect(lastUsed.save).toHaveBeenCalledWith(
+        expect.objectContaining({ rules: input.rules })
+      );
+    });
+
+    it('turns last-used score visibility into the What students see switches', async () => {
+      lastUsed.value = {
+        ...DEFAULT_FLASHCARD_ASSIGN_FORM,
+        scoreVisibility: 'none',
+      };
+      const { onAssign } = renderStepper({ v2: true });
+      expect(screen.getByText('Nothing until I release results')).toBeTruthy();
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      expect(lastSubmission(onAssign).input.scoreVisibility).toBe('none');
+    });
+
+    it('shares results with the PLC picked in the Sharing step', async () => {
+      const plc = { id: 'plc-1', name: 'Spanish PLC' } as Plc;
+      const { onAssign } = renderStepper({ v2: true, plcs: [plc] });
+      fireEvent.click(screen.getByText('Sharing'));
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Share results with Spanish PLC' })
+      );
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      expect(onAssign.mock.calls[0][1]).toEqual({ sharePlc: plc });
+      fireEvent.click(screen.getByRole('radio', { name: /Study resource/ }));
+      expect(screen.queryByText('Sharing')).toBeNull();
     });
 
     it('offers Speak as a check mode only when Speak is available', () => {

@@ -33,16 +33,29 @@ import {
   whenBackwards,
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
-import {
-  FlashcardsCheckStep,
-  FlashcardsFeedbackStep,
-} from '@/components/common/library/assignStepper/FlashcardsCheckStep';
+import { FlashcardsCheckStep } from '@/components/common/library/assignStepper/FlashcardsCheckStep';
 import {
   formatFlashcardsCheckValue,
-  formatFlashcardsFeedbackValue,
   formatFlashcardsModeValue,
   type FlashcardsCheckValue,
 } from '@/components/common/library/assignStepper/flashcardsCheckValue';
+import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
+import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
+import {
+  behaviorToFlashcardRules,
+  flashcardRulesToBehavior,
+  rulesFromScoreVisibility,
+  scoreVisibilityFromRules,
+} from '@/components/common/library/assignStepper/flashcardsRuleValues';
+import { SharingStep } from '@/components/common/library/assignStepper/SharingStep';
+import {
+  formatSharingValue,
+  isSharingStepAvailable,
+  PICK_A_PLC,
+  resolveSharingPlc,
+  sharingNeedsPlc,
+  type SharingStepValue,
+} from '@/components/common/library/assignStepper/SharingStep.format';
 import { FlashcardsCardsStep } from '@/components/common/library/assignStepper/FlashcardsCardsStep';
 import {
   DEFAULT_FLASHCARDS_CARDS_VALUE,
@@ -74,7 +87,12 @@ import {
   validateFlashcardAssignForm,
   type FlashcardAssignSubmission,
 } from './utils/flashcardAssign';
-import type { ClassRoster, FlashcardSet } from '@/types';
+import type {
+  ClassRoster,
+  FlashcardCheckRules,
+  FlashcardSet,
+  Plc,
+} from '@/types';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 
 export interface FlashcardAssignStepperProps {
@@ -84,9 +102,19 @@ export interface FlashcardAssignStepperProps {
   initialRosterIds?: string[];
   onClose: () => void;
   /** Resolves false when the assign failed. */
-  onAssign: (submission: FlashcardAssignSubmission) => Promise<boolean | void>;
+  onAssign: (
+    submission: FlashcardAssignSubmission,
+    extras?: FlashcardAssignExtras
+  ) => Promise<boolean | void>;
   /** Per-period mode and windows; undefined while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
+  /** PLCs the teacher can share results with; the Sharing step shows only with flashcards-assign-v2. */
+  plcs?: readonly Plc[];
+}
+
+/** What a v2 Check submits beyond the legacy input: the PLC to share results with, if any. */
+export interface FlashcardAssignExtras {
+  sharePlc?: Plc;
 }
 
 export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
@@ -97,6 +125,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   onClose,
   onAssign,
   periodAccess,
+  plcs = [],
 }) => {
   const { t } = useTranslation();
   const auth = useContext(AuthContext);
@@ -132,28 +161,45 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   );
 
   const [check, setCheck] = useState<FlashcardsCheckValue>(() => {
-    const { collectSubmission: _kind, ...rules } = getFlashcardAssignPrefill(
-      null,
-      cardCount
-    );
-    return rules;
+    const {
+      collectSubmission: _kind,
+      rules: _rules,
+      ...form
+    } = getFlashcardAssignPrefill(null, cardCount);
+    return form;
   });
+  const [rules, setRules] = useState<FlashcardCheckRules>(() =>
+    rulesFromScoreVisibility(check.scoreVisibility)
+  );
   // Last-used rules land once, unless the teacher already changed a rule.
   const [prefilled, setPrefilled] = useState(false);
   if (!prefilled && lastUsed.loaded) {
     setPrefilled(true);
     if (lastUsed.lastUsed) {
-      const { collectSubmission: _kind, ...rules } = getFlashcardAssignPrefill(
-        lastUsed.lastUsed,
-        cardCount
-      );
-      setCheck(rules);
+      const {
+        collectSubmission: _kind,
+        rules: savedRules,
+        ...form
+      } = getFlashcardAssignPrefill(lastUsed.lastUsed, cardCount);
+      setCheck(form);
+      setRules(savedRules ?? rulesFromScoreVisibility(form.scoreVisibility));
     }
   }
   const changeCheck = (next: FlashcardsCheckValue) => {
     setPrefilled(true);
     setCheck(next);
   };
+  const changeRules = (next: FlashcardCheckRules) => {
+    setPrefilled(true);
+    setRules(next);
+  };
+  const gates = useQuizRuleGates();
+  // Rows a flag hides are not stamped, as in Quiz.
+  const stampedRules: FlashcardCheckRules = (() => {
+    if (gates.timeLimitOn) return rules;
+    const { timeLimitMinutes: _off, ...sessionOptions } = rules.sessionOptions;
+    return { ...rules, sessionOptions };
+  })();
 
   const speakCheckOk = v2 && speakAvailable;
   const effectiveCheck: FlashcardsCheckValue =
@@ -197,7 +243,13 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
                 )
               : undefined;
 
-  const ctx = { kind, speak: speakAvailable, flashcardsV2: v2 };
+  const inPlc = v2 && isSharingStepAvailable(plcs, kind);
+  const [sharing, setSharing] = useState<SharingStepValue>({
+    plcMode: false,
+    plcId: '',
+  });
+  const needsPlc = inPlc && sharingNeedsPlc(sharing, plcs);
+  const ctx = { kind, speak: speakAvailable, flashcardsV2: v2, inPlc };
   const whenVariant = kind === 'resource' ? 'available' : 'when';
   const manualAvailable = whenVariant === 'when' && !staff;
 
@@ -287,11 +339,9 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         />
       ),
     },
-    feedback: {
-      value: formatFlashcardsFeedbackValue(effectiveCheck),
-      body: (
-        <FlashcardsFeedbackStep value={effectiveCheck} onChange={changeCheck} />
-      ),
+    sharing: {
+      value: needsPlc ? PICK_A_PLC : formatSharingValue(sharing, { plcs }),
+      body: <SharingStep value={sharing} onChange={setSharing} plcs={plcs} />,
     },
     speak: {
       value: formatFlashcardsSpeakValue(speak, t),
@@ -299,8 +349,20 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     },
   };
 
+  const ruleSteps = new Map(
+    quizRuleStepDefs({
+      value: flashcardRulesToBehavior(rules),
+      onChange: (next) => changeRules(behaviorToFlashcardRules(next)),
+      gates,
+      handRaiseMode: 'force-off',
+      flashcards: true,
+    }).map((step) => [step.id, step])
+  );
+
   const steps: AssignStepDef[] = getAssignSteps('flashcards', ctx).flatMap(
     (id) => {
+      const ruleStep = ruleSteps.get(id);
+      if (ruleStep) return [ruleStep];
       const step = bodies[id];
       if (!step) return [];
       const def: AssignStepDef = {
@@ -347,6 +409,20 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     if (useCardChoice && cards.mode !== 'all') {
       submission.input.cardSelection = cards;
     }
+    if (useCardChoice) {
+      submission.input.rules = stampedRules;
+      submission.input.scoreVisibility = scoreVisibilityFromRules(rules);
+      if (submission.input.lockedSettings) {
+        submission.input.lockedSettings = {
+          ...submission.input.lockedSettings,
+          shuffle: rules.sessionOptions.shuffleQuestions === true,
+        };
+      }
+    }
+    const sharePlc =
+      inPlc && sharing.plcMode
+        ? (resolveSharingPlc(sharing, plcs) ?? undefined)
+        : undefined;
     const studySpeak = speakAvailable && kind === 'resource';
     const ok = await onAssign(
       studySpeak
@@ -359,9 +435,20 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
                 : { speakOff: true }),
             },
           }
-        : submission
+        : submission,
+      sharePlc ? { sharePlc } : undefined
     );
-    if (ok !== false && kind === 'work') lastUsed.save(check);
+    if (ok !== false && kind === 'work') {
+      lastUsed.save(
+        v2
+          ? {
+              ...check,
+              scoreVisibility: scoreVisibilityFromRules(rules),
+              rules: stampedRules,
+            }
+          : check
+      );
+    }
   };
 
   const title = set.title || 'Untitled set';
@@ -383,8 +470,8 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       steps={steps}
       submitLabel="Assign"
       onSubmit={handleSubmit}
-      disabled={disabledReason !== undefined}
-      disabledReason={disabledReason}
+      disabled={disabledReason !== undefined || needsPlc}
+      disabledReason={disabledReason ?? (needsPlc ? PICK_A_PLC : undefined)}
       // Flashcards opens maximized; z-dialog sits above a maximized widget.
       zIndex="z-dialog"
       overlayView={
