@@ -68,6 +68,25 @@ describe('checkAttempt', () => {
     expect(withCardSubset(session, { questionIds: ['gone'] })).toBe(session);
   });
 
+  it('keeps every card when a Speak subset has none that can be spoken', () => {
+    const speak = check({
+      checkMode: 'speak',
+      cards: [
+        {
+          id: 'a',
+          term: 'uno',
+          definition: 'one',
+          speak: { term: 'uno', refs: [{ tokens: ['u'] }] } as never,
+        },
+        { id: 'b', term: 'dos', definition: 'two' },
+      ],
+    });
+    expect(withCardSubset(speak, { questionIds: ['b'] })).toBe(speak);
+    expect(
+      withCardSubset(speak, { questionIds: ['a'] }).cards.map((c) => c.id)
+    ).toEqual(['a']);
+  });
+
   it('allows Try again while attempts remain', () => {
     const limited = check({ rules: { attemptLimit: 2, sessionOptions: {} } });
     expect(canTryAgain(limited, {})).toBe(true);

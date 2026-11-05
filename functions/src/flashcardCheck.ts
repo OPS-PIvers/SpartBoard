@@ -171,16 +171,25 @@ const sessionOptionsOf = (
   return isRecord(rules.sessionOptions) ? rules.sessionOptions : {};
 };
 
-// A forced submission only stands when the teacher turned on the rule that forces it.
+// A forced submission only stands when the teacher turned on the rule that forces it, for the Check or this student.
 export function forcedSubmitAllowed(
   session: Record<string, unknown>,
-  forced: ForcedSubmit
+  forced: ForcedSubmit,
+  pointer: Record<string, unknown> = {}
 ): boolean {
   const o = sessionOptionsOf(session);
-  return forced === 'time'
-    ? isFiniteNumber(o.timeLimitMinutes) && o.timeLimitMinutes > 0
-    : o.tabAwayAutoSubmit === true ||
-        (o.tabWarningsEnabled === true && o.tabWarningThreshold !== 'off');
+  if (forced === 'time')
+    return isFiniteNumber(o.timeLimitMinutes) && o.timeLimitMinutes > 0;
+  const ov =
+    isRecord(session.rules) && isRecord(pointer.override)
+      ? pointer.override
+      : {};
+  return (
+    o.tabAwayAutoSubmit === true ||
+    (o.tabWarningsEnabled === true && o.tabWarningThreshold !== 'off') ||
+    (o.tabWarningsEnabled === true && isFiniteNumber(ov.tabWarningThreshold)) ||
+    (isFiniteNumber(o.tabAwayLimitSeconds) && isFiniteNumber(ov.tabAwayLimit))
+  );
 }
 
 /** null = unlimited; Checks assigned before the Attempts step allow one. */
@@ -382,7 +391,7 @@ async function loadOpenCheck(
   return { sessionRef, session, pointer, sharedClassId, staffFields };
 }
 
-// A Check with rules grades only the student's card subset; a subset matching no card is ignored.
+// A Check with rules grades only the student's card subset; a subset leaving nothing to do is ignored.
 function studentCards(
   cards: FlashcardCard[],
   { session, pointer }: CheckAccess
@@ -391,7 +400,12 @@ function studentCards(
   const ids = pointer.override.questionIds;
   if (!Array.isArray(ids)) return cards;
   const subset = cards.filter((card) => ids.includes(card.id));
-  return subset.length > 0 ? subset : cards;
+  // Mirrors withCardSubset in components/flashcards/checkAttempt.ts.
+  const usable =
+    session.checkMode === 'speak'
+      ? subset.some(isSpeakableCard)
+      : subset.length > 0;
+  return usable ? subset : cards;
 }
 
 // Per-period sessions keep their cards in content/cards.
@@ -464,7 +478,10 @@ export async function handleSubmitFlashcardCheck(
       strict: settings.strict,
     }).result !== 'wrong';
 
-  if (input.forced && !forcedSubmitAllowed(session, input.forced))
+  if (
+    input.forced &&
+    !forcedSubmitAllowed(session, input.forced, access.pointer)
+  )
     throw new HttpsError(
       'failed-precondition',
       'This assignment has no rule that submits for the student.'

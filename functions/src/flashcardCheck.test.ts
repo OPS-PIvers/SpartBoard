@@ -1005,6 +1005,30 @@ describe('handleSubmitFlashcardCheck speak mode', () => {
     });
   });
 
+  it("uses every card when the student's subset has none that can be spoken", async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: {
+        ...speakSession(),
+        rules: { attemptLimit: 1, sessionOptions: {} },
+      },
+      [POINTER_PATH]: {
+        kind: 'flashcards',
+        classId: 'class-1',
+        override: { questionIds: ['c4'] },
+      },
+    };
+    const result = await handleSubmitFlashcardCheck(
+      makeDb(docs),
+      student,
+      {
+        assignmentId: 'a1',
+        answerLog: speakLog({ c1: true, c2: true, c3: true }),
+      },
+      NOW
+    );
+    expect(result).toMatchObject({ score: 3, total: 3 });
+  });
+
   it('rejects a log that skips, repeats or invents cards, or has no verdict', async () => {
     for (const answerLog of [
       [],
@@ -1089,6 +1113,34 @@ describe('forced submissions', () => {
     expect(
       (docs[PROGRESS_PATH].answerLog as Doc[]).map((e) => e.cardId)
     ).toEqual(['c1', 'c2', 'c3', 'c4']);
+  });
+
+  it("accepts a tab submit the student's own tab rule forces", async () => {
+    const tabSession = session({
+      rules: {
+        attemptLimit: 1,
+        sessionOptions: {
+          tabWarningsEnabled: true,
+          tabWarningThreshold: 'off',
+          tabAwayLimitSeconds: 30,
+        },
+      },
+    });
+    const submitTab = (pointer?: Doc) =>
+      handleSubmitFlashcardCheck(
+        makeDb({
+          [SESSION_PATH]: tabSession,
+          ...(pointer ? { [POINTER_PATH]: pointer } : {}),
+        }),
+        student,
+        { assignmentId: 'a1', answerLog: [], forced: 'tab' },
+        NOW
+      );
+    await expectCode(submitTab(), 'failed-precondition');
+    for (const override of [{ tabWarningThreshold: 2 }, { tabAwayLimit: 20 }])
+      await expect(
+        submitTab({ kind: 'flashcards', classId: 'class-1', override })
+      ).resolves.toMatchObject({ score: 0, total: 4 });
   });
 
   it('pads a timed-out Test with the remaining questions, graded as typed', async () => {

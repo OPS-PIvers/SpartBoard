@@ -705,6 +705,30 @@ describe('flashcard_sessions progress', () => {
     );
   });
 
+  it('lets a student copy only their own pointer card subset onto progress', async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    const ref = doc(studentDb, progressPath);
+    // No pointer subset: a subset can't be invented, but clearing is fine.
+    await assertFails(setDoc(ref, progress({ cardSubset: ['card-1'] })));
+    await assertSucceeds(setDoc(ref, progress({ cardSubset: null })));
+    await seed(`student_assignments/${STUDENT_UID}/items/session-1`, {
+      kind: 'flashcards',
+      sessionId: 'session-1',
+      teacherUid: TEACHER_UID,
+      classId: CLASS_A,
+      override: { questionIds: ['card-1', 'card-2'] },
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await assertFails(setDoc(ref, { cardSubset: ['card-1'] }, { merge: true }));
+    await assertSucceeds(
+      setDoc(ref, { cardSubset: ['card-1', 'card-2'] }, { merge: true })
+    );
+    // Later writes carry it through unchanged.
+    await assertSucceeds(setDoc(ref, { studyMs: 5 }, { merge: true }));
+  });
+
   it('lets the session teacher unlock a student’s results', async () => {
     await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
     await seed(

@@ -30,6 +30,8 @@ export interface FlashcardRosterStudent {
   score: number | null;
   /** Cards finished so far, for "Q3" in the In progress list. */
   cardsDone: number;
+  /** This student's card count when they work on a subset. */
+  cardTotal?: number;
   /** Flagged answers waiting for Accept or Dismiss. */
   openFlags?: number;
   /** A raised hand while working. */

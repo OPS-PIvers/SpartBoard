@@ -327,3 +327,35 @@ describe('speak aggregation (F10)', () => {
     });
   });
 });
+
+describe('card subsets', () => {
+  const rules = { attemptLimit: 1, sessionOptions: {} };
+  const subsetResult: FlashcardResultRecord = {
+    studentUid: 'a',
+    cardSubset: ['c1', 'c3'],
+    cards: { c1: card(3), c2: card(3) },
+  };
+
+  it('counts only the student’s cards on a Check with rules', () => {
+    const [row] = buildStudyRows(
+      session({ kind: 'check', checkMode: 'flashcards', rules }),
+      [subsetResult]
+    );
+    expect(row).toMatchObject({ mastered: 1, total: 2, masteredPercent: 50 });
+    const [check] = buildCheckRows(
+      session({ kind: 'check', checkMode: 'write', rules }),
+      [{ studentUid: 'a', cardSubset: ['c2'] }]
+    );
+    expect(check.total).toBe(1);
+  });
+
+  it('ignores a subset without rules, or one that matches no card', () => {
+    const [plain] = buildStudyRows(session(), [subsetResult]);
+    expect(plain.total).toBe(3);
+    const [gone] = buildStudyRows(
+      session({ kind: 'check', checkMode: 'flashcards', rules }),
+      [{ ...subsetResult, cardSubset: ['gone'] }]
+    );
+    expect(gone.total).toBe(3);
+  });
+});
