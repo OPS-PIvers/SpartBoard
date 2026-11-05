@@ -172,22 +172,21 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     enabled: !inShare,
     addToast,
     setPlcShare,
-    linkCheck: quizStyle
-      ? (assignment, plc) =>
-          updateDoc(
-            doc(db, FLASHCARD_SESSIONS_COLLECTION, assignment.sessionId),
-            plc
-              ? {
-                  plcId: plc.id,
-                  syncGroupId: plcSyncGroupId(
-                    flashcardSets.sets.find((s) => s.id === assignment.setId),
-                    assignment.setId,
-                    plc.id
-                  ),
-                }
-              : { plcId: deleteField(), syncGroupId: deleteField() }
-          )
-      : undefined,
+    linkChecks: quizStyle,
+    linkCheck: (assignment, plc) =>
+      updateDoc(
+        doc(db, FLASHCARD_SESSIONS_COLLECTION, assignment.sessionId),
+        plc
+          ? {
+              plcId: plc.id,
+              syncGroupId: plcSyncGroupId(
+                flashcardSets.sets.find((s) => s.id === assignment.setId),
+                assignment.setId,
+                plc.id
+              ),
+            }
+          : { plcId: deleteField(), syncGroupId: deleteField() }
+      ),
   });
   const folders = useFolders(inShare ? undefined : user?.uid, 'flashcards');
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(() => {
@@ -540,6 +539,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
             setTitle: set.title,
             periodNames: input.periodNames,
             kind: input.kind,
+            audience: input.audience,
           },
           sharePlc
         ))
@@ -798,10 +798,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onBack={showLibrary}
                 onPublishScores={publishScores}
                 onUnpublishScores={unpublishScores}
-                syncPlcShare={
-                  plcSharing.enabled &&
-                  !(quizStyle && openResults.kind === 'check')
-                }
+                syncPlcShare={plcSharing.enabled}
                 onEnd={() => endAssignment(openResults.id)}
                 screen={config.resultsScreen}
                 monitorPrefs={config}

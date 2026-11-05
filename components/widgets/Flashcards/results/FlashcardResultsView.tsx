@@ -78,7 +78,8 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     assignment,
     session,
     results,
-    syncPlcShare && !loading && !error
+    // A session linked to the PLC is pooled on the server instead.
+    syncPlcShare && !loading && !error && !session?.plcId
   );
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [publishOpen, setPublishOpen] = useState(false);

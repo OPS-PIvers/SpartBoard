@@ -381,9 +381,15 @@ export async function writePlcFlashcardResult(
   );
 }
 
+/** A missing doc is not an error. */
 export async function deletePlcFlashcardResult(
   plcId: string,
   assignmentId: string
 ): Promise<void> {
-  await deleteDoc(doc(db, PLCS, plcId, PLC_FLASHCARD_RESULTS, assignmentId));
+  const ref = doc(db, PLCS, plcId, PLC_FLASHCARD_RESULTS, assignmentId);
+  try {
+    await deleteDoc(ref);
+  } catch (error) {
+    if ((await getDoc(ref)).exists()) throw error;
+  }
 }
