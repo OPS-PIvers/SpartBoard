@@ -48,6 +48,20 @@ describe('production deploy', () => {
     );
   });
 
+  it('carries assets forward beside the backend deploy and waits before hosting', () => {
+    const start = yaml.indexOf(
+      "- name: Start carrying recent builds' assets forward"
+    );
+    const backend = yaml.indexOf('- name: Deploy Firebase Rules, Indexes');
+    const wait = yaml.indexOf("- name: Carry recent builds' assets forward");
+    const hosting = yaml.indexOf('- name: Deploy to Firebase Hosting (Live)');
+    expect(start).toBeGreaterThan(-1);
+    expect(start).toBeLessThan(backend);
+    expect(backend).toBeLessThan(wait);
+    expect(wait).toBeLessThan(hosting);
+    expect(yaml).toContain('exit "$(cat "$RUNNER_TEMP/carry-forward.exit")"');
+  });
+
   it('never deploys after a failed or cancelled check', () => {
     expect(yaml).toContain(
       "if: ${{ !failure() && !cancelled() && needs.build.result == 'success' }}"
