@@ -34,6 +34,7 @@ import {
   getCentralDayKey,
   hasSubmittedToday,
   reportClassKey,
+  submittedClassKey,
   submittedMarker,
 } from './redesign/lunchCountFormat';
 import { logError } from '@/utils/logError';
@@ -385,6 +386,14 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     rosterPoolGroupId,
     rosterGroupsEnabled,
   ]);
+  const sentClass = submittedClassKey(
+    formatLunchTime(lunchTimeHour, lunchTimeMinute),
+    formatGradeLabel(gradeLevel),
+    rosterMode === 'custom'
+      ? null
+      : ((rosters.find((r) => r.id === activeRosterId) ?? rosters[0])?.id ??
+          null)
+  );
 
   const groupedStudents = useMemo(() => {
     const hot: { id: string; name: string }[] = [];
@@ -580,12 +589,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       }
 
       updateWidget(widget.id, {
-        config: submittedMarker(
-          config,
-          widget.id,
-          dayKey,
-          reportClassKey(lunchTime, gradeLabel)
-        ),
+        config: submittedMarker(config, widget.id, dayKey, sentClass),
       });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
@@ -1222,14 +1226,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             .join(' - '),
         }}
         isSubmitting={isSubmitting}
-        alreadySubmitted={hasSubmittedToday(
-          config,
-          widget.id,
-          reportClassKey(
-            formatLunchTime(lunchTimeHour, lunchTimeMinute),
-            formatGradeLabel(gradeLevel)
-          )
-        )}
+        alreadySubmitted={hasSubmittedToday(config, widget.id, sentClass)}
       />
       <Modal
         isOpen={!!peekedItem}

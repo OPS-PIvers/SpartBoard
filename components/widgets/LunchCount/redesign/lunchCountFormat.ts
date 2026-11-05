@@ -69,6 +69,16 @@ export function reportClassKey(lunchTime: string, gradeLabel: string): string {
   return `${lunchTime || '??:??'} - ${gradeLabel || 'Grade ?'}`;
 }
 
+/** What the one-send-per-day marker records: the class part plus the active roster, if any. */
+export function submittedClassKey(
+  lunchTime: string,
+  gradeLabel: string,
+  rosterId: string | null
+): string {
+  const base = reportClassKey(lunchTime, gradeLabel);
+  return rosterId ? `${base} #${rosterId}` : base;
+}
+
 interface SubmittedMarker {
   lastSubmittedDate?: string;
   lastSubmittedWidgetId?: string;
