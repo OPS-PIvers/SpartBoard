@@ -68,6 +68,8 @@ describe('useTabAwayTracker', () => {
         'clearInterval',
         'Date',
         'performance',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
       ],
     });
     vi.setSystemTime(1_000_000);
@@ -313,7 +315,9 @@ describe('useTabAwayTracker', () => {
       await flush();
       hasFocus = true;
       act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
         window.dispatchEvent(new Event('focus'));
+        vi.advanceTimersByTime(5);
       });
       setFullscreen(false);
       act(() => {

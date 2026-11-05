@@ -196,9 +196,9 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
   useEffect(() => {
     if (!awayOpen) return;
     // Chrome can deliver the fullscreen exit after the tab is visible again, so a fullscreen page confirms the return a frame later.
-    let backSeen = false;
+    let confirming = false;
     let frame = 0;
-    const tick = () => {
+    const check = (fromFrame: boolean) => {
       const open = openRef.current;
       if (!open) return;
       const a = argsRef.current;
@@ -213,17 +213,20 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
         document.hasFocus() &&
         fullscreenOk()
       ) {
-        if (!watchesFullscreen() || backSeen) {
+        if (!watchesFullscreen() || fromFrame) {
           closeOpen(outcomeFor(ms, a.limitMs), ms);
-        } else {
-          backSeen = true;
-          cancelAnimationFrame(frame);
-          frame = requestAnimationFrame(() => window.setTimeout(tick, 0));
+        } else if (!confirming) {
+          confirming = true;
+          frame = requestAnimationFrame(() =>
+            window.setTimeout(() => {
+              confirming = false;
+              check(true);
+            }, 0)
+          );
         }
-      } else {
-        backSeen = false;
       }
     };
+    const tick = () => check(false);
     const id = window.setInterval(tick, 250);
     document.addEventListener('visibilitychange', tick);
     document.addEventListener('fullscreenchange', tick);
