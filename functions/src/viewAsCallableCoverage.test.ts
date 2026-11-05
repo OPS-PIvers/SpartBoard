@@ -82,6 +82,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   studentLoginV1: 'write',
   submitFlashcardCheckV1: 'write',
   submitMiniAppResultV1: 'write',
+  ensureMiniAppReceiptV1: 'write',
   syncBuildingGroupV1: 'write',
   syncMyMaterialsFromProdV1: 'write',
   unlinkClassroomCourse: 'write',

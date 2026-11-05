@@ -390,6 +390,83 @@ export async function handleSubmitMiniAppResult(
   });
 }
 
+export interface MiniAppReceipt {
+  studentUid: string;
+  submittedAt: number | null;
+  attemptCount: number;
+}
+
+/** Writes the caller's missing receipt from their summary (no score); null when they have no submission. */
+export async function handleEnsureMiniAppReceipt(
+  db: admin.firestore.Firestore,
+  caller: Pick<MiniAppCaller, 'uid' | 'studentRole'> | null,
+  rawInput: unknown,
+  pseudonymFor: (uid: string, sessionId: string) => string
+): Promise<{ receipt: MiniAppReceipt | null }> {
+  if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
+  const sessionId = (isRecord(rawInput) ? rawInput : {}).sessionId;
+  if (
+    typeof sessionId !== 'string' ||
+    sessionId.length === 0 ||
+    sessionId.length > MAX_ID_LENGTH ||
+    sessionId.includes('/')
+  )
+    invalid('sessionId is required.');
+  const sid = sessionId as string;
+  const sessionRef = db.collection(SESSIONS).doc(sid);
+  const sessionSnap = await sessionRef.get();
+  const session: Record<string, unknown> = sessionSnap.data() ?? {};
+  // Only a hidden-answers v2 session has a teacher-only summary that needs a receipt.
+  if (session.resultsVersion !== 2 || session.showCorrectAnswers !== false)
+    return { receipt: null };
+  const key = caller.studentRole ? pseudonymFor(caller.uid, sid) : caller.uid;
+  const summarySnap = await sessionRef.collection('submissions').doc(key).get();
+  const summary: Record<string, unknown> = summarySnap.exists
+    ? (summarySnap.data() ?? {})
+    : {};
+  if (summary.studentUid !== caller.uid) return { receipt: null };
+  const receipt: MiniAppReceipt = {
+    studentUid: caller.uid,
+    submittedAt: isFiniteNumber(summary.submittedAt)
+      ? summary.submittedAt
+      : null,
+    attemptCount: isFiniteNumber(summary.attemptCount)
+      ? summary.attemptCount
+      : 0,
+  };
+  await sessionRef.collection('receipts').doc(key).set(receipt);
+  return { receipt };
+}
+
+export const ensureMiniAppReceiptV1 = onCall(
+  {
+    memory: '256MiB',
+    timeoutSeconds: 30,
+    secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
+    cors: ALLOWED_ORIGINS,
+    invoker: 'public',
+  },
+  (request) => {
+    assertViewAsAllowed(request);
+    return handleEnsureMiniAppReceipt(
+      admin.firestore(),
+      request.auth
+        ? {
+            uid: request.auth.uid,
+            studentRole: request.auth.token.studentRole === true,
+          }
+        : null,
+      request.data,
+      (uid, sessionId) => {
+        const secret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
+        if (!secret)
+          throw new HttpsError('internal', 'Server configuration missing.');
+        return computeAssignmentPseudonym(uid, sessionId, secret);
+      }
+    );
+  }
+);
+
 export const submitMiniAppResultV1 = onCall(
   {
     memory: '256MiB',

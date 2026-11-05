@@ -1342,6 +1342,65 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(batchCommit).not.toHaveBeenCalled();
   });
 
+  it('keeps the read-aloud paths when it rewrites a per-period content doc', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'Updated',
+      questions: [
+        {
+          id: 'q1',
+          text: 'Q1',
+          type: 'MC' as const,
+          correctAnswer: 'a',
+          incorrectAnswers: ['b'],
+          timeLimit: 30,
+        },
+      ],
+      version: 5,
+    });
+    const readAloud = { voice: 'v', files: { 'q:q1:question': 'p.mp3' } };
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ publicQuestions: [], questionsInContent: true }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ publicQuestions: [], readAloud }),
+      })
+      .mockResolvedValue(NO_SESSION_SNAP);
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+    const batchSet = vi.fn();
+    mockWriteBatch.mockReturnValue({
+      set: batchSet,
+      update: batchUpdate,
+      delete: batchDelete,
+      commit: batchCommit,
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    const contentCall = batchSet.mock.calls.find(
+      ([ref]) => ref === `quiz_sessions/${ASSIGNMENT_ID}/content/questions`
+    );
+    expect(contentCall?.[1]).toMatchObject({
+      publicQuestions: [expect.objectContaining({ id: 'q1' })],
+      readAloud,
+    });
+  });
+
   it('re-projects the served locales instead of refusing (PLC re-sync)', async () => {
     const { pullSyncedQuizContent } =
       await import('@/hooks/useSyncedQuizGroups');

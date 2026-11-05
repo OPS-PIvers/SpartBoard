@@ -894,9 +894,9 @@ export const READ_ALOUD_PATH_FIELDS = [
   'localized',
 ] as const;
 
-/** A per-period session hides its questions until the period opens, and its audio paths with them. */
+/** A session that keeps its questions in the content doc keeps its audio paths there too. */
 export function readAloudGated(session: Record<string, unknown>): boolean {
-  return session.questionsInContent === true || !!session.periodAccess;
+  return session.questionsInContent === true;
 }
 
 /** Deletes every path field from the session-doc manifest. */
@@ -1101,8 +1101,8 @@ export async function prepareQuizReadAloud(
     ...(Object.keys(localized).length > 0 ? { localized } : {}),
   };
   try {
-    // Behind the content doc's period gate; with no content doc the gated callable serves each part.
-    if (gated && session.questionsInContent === true)
+    // Behind the content doc's period gate.
+    if (gated)
       await contentRef(sessionRef).set(
         { readAloud: { voice: voices.neural2, ...paths } },
         { merge: true }
@@ -1327,7 +1327,7 @@ export async function synthesizeQuizAudio(
     typeof session.readAloud === 'object' && session.readAloud !== null;
   const gated = readAloudGated(session);
   // Saves the new paths so the next student plays straight from Storage.
-  const patchManifest = async (paths: Record<string, unknown>) => {
+  const writeManifestPaths = async (paths: Record<string, unknown>) => {
     if (!gated) {
       await sessionRef.set(
         {
@@ -1342,11 +1342,10 @@ export async function synthesizeQuizAudio(
       );
       return;
     }
-    if (session.questionsInContent === true)
-      await contentRef(sessionRef).set(
-        { readAloud: { voice: sessionVoice, ...paths } },
-        { merge: true }
-      );
+    await contentRef(sessionRef).set(
+      { readAloud: { voice: sessionVoice, ...paths } },
+      { merge: true }
+    );
     const stale = hasManifest
       ? READ_ALOUD_PATH_FIELDS.some(
           (f) => f in (session.readAloud as Record<string, unknown>)
@@ -1354,6 +1353,17 @@ export async function synthesizeQuizAudio(
       : false;
     if (stale)
       await sessionRef.set({ readAloud: pathFieldsDeleted() }, { merge: true });
+  };
+  // A failed cache write must never fail playback; the next student re-patches.
+  const patchManifest = async (paths: Record<string, unknown>) => {
+    try {
+      await writeManifestPaths(paths);
+    } catch (error) {
+      console.warn('[quizReadAloud] manifest patch failed', {
+        sessionId: request.sessionId,
+        error,
+      });
+    }
   };
 
   if (request.part.kind === 'stimulus') {

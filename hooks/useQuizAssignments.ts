@@ -1768,7 +1768,8 @@ export const useQuizAssignments = (
             : session,
           targetedLocaleCountByCode,
           SESSION_DOC_BYTE_BUDGET,
-          readAloudPlanned && !perPeriod
+          // A per-period session's manifest lives in that same content doc.
+          readAloudPlanned
             ? estimateReadAloudManifestBytes(
                 estimateReadAloudPartCount(session.publicQuestions),
                 readAloudLocales.length
@@ -2943,13 +2944,16 @@ export const useQuizAssignments = (
         QUIZ_CONTENT_DOC
       );
       const inContent = rawSessionData?.questionsInContent === true;
+      const priorContent =
+        rawSessionData && inContent
+          ? ((await getDoc(contentRef)).data() as
+              QuizSessionContent | undefined)
+          : undefined;
+      const { readAloud: priorReadAloud, ...priorQuestions } =
+        priorContent ?? {};
       const sessionData =
         rawSessionData && inContent
-          ? {
-              ...rawSessionData,
-              ...((await getDoc(contentRef)).data() as
-                QuizSessionContent | undefined),
-            }
+          ? { ...rawSessionData, ...priorQuestions }
           : rawSessionData;
       // Exactly the locales already being served — a re-sync never widens coverage.
       const servedLocales = new Set<string>(
@@ -3226,6 +3230,8 @@ export const useQuizAssignments = (
           ...(Object.keys(canonicalReadAloudText).length > 0
             ? { readAloudTextByStimulusId: canonicalReadAloudText }
             : {}),
+          // Audio paths are content-hashed, so unchanged parts keep playing.
+          ...(priorReadAloud ? { readAloud: priorReadAloud } : {}),
         };
         firstBatch.set(contentRef, syncedContent);
       }

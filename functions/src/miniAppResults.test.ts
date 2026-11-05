@@ -28,6 +28,7 @@ vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 
 import {
   WINDOW_GRACE_MS,
+  handleEnsureMiniAppReceipt,
   handleSubmitMiniAppResult,
   type MiniAppCaller,
 } from './miniAppResults';
@@ -437,5 +438,83 @@ describe('handleSubmitMiniAppResult staff audience', () => {
     };
     await submit(docs, result('B', true));
     expect(docs[SUMMARY]).not.toHaveProperty('staffEmail');
+  });
+});
+
+describe('handleEnsureMiniAppReceipt', () => {
+  const RECEIPT = `${SESSION}/receipts/${pseudonym('stu-1', 's1')}`;
+  const ensure = (docs: Record<string, Doc>, caller = student) =>
+    handleEnsureMiniAppReceipt(
+      makeDb(docs),
+      caller,
+      { sessionId: 's1' },
+      pseudonym
+    );
+
+  it("rebuilds a missing receipt from the caller's own summary, with no score", async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: session({ showCorrectAnswers: false }),
+      [SUMMARY]: {
+        studentUid: 'stu-1',
+        submittedAt: 5,
+        attemptCount: 2,
+        best: { score: 1, maxScore: 2 },
+        payload: { score: 1 },
+      },
+    };
+    const want = { studentUid: 'stu-1', submittedAt: 5, attemptCount: 2 };
+    await expect(ensure(docs)).resolves.toEqual({ receipt: want });
+    expect(docs[RECEIPT]).toEqual(want);
+  });
+
+  it('counts an I am Done summary as no attempts', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: session({ showCorrectAnswers: false }),
+      [SUMMARY]: { studentUid: 'stu-1', submittedAt: 5, payload: {} },
+    };
+    expect((await ensure(docs)).receipt?.attemptCount).toBe(0);
+  });
+
+  it("writes nothing for a submission that is not the caller's", async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: session({ showCorrectAnswers: false }),
+      [SUMMARY]: { studentUid: 'someone-else', submittedAt: 5 },
+    };
+    await expect(ensure(docs)).resolves.toEqual({ receipt: null });
+    expect(docs[RECEIPT]).toBeUndefined();
+  });
+
+  it('writes nothing with no submission or when answers are shown', async () => {
+    const none: Record<string, Doc> = {
+      [SESSION]: session({ showCorrectAnswers: false }),
+    };
+    await expect(ensure(none)).resolves.toEqual({ receipt: null });
+    const shown: Record<string, Doc> = {
+      [SESSION]: session(),
+      [SUMMARY]: { studentUid: 'stu-1', submittedAt: 5 },
+    };
+    await expect(ensure(shown)).resolves.toEqual({ receipt: null });
+    expect(shown[RECEIPT]).toBeUndefined();
+  });
+
+  it('rejects a signed-out caller and a bad session id', async () => {
+    await expectCode(
+      handleEnsureMiniAppReceipt(
+        makeDb({}),
+        null,
+        { sessionId: 's1' },
+        pseudonym
+      ),
+      'unauthenticated'
+    );
+    await expectCode(
+      handleEnsureMiniAppReceipt(
+        makeDb({}),
+        student,
+        { sessionId: 'a/b' },
+        pseudonym
+      ),
+      'invalid-argument'
+    );
   });
 });

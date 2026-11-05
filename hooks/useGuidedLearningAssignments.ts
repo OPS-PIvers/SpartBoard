@@ -36,7 +36,6 @@ import {
   type AssignmentClassEdit,
 } from '@/utils/assignmentClassEdit';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
-import { activeResultsOverride } from '@/utils/quizResultsVisibility';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import {
   type SharedSource,
@@ -462,6 +461,7 @@ export const useGuidedLearningAssignments = (
       batch.update(assignmentRef, {
         scoreVisibility: deleteField(),
         scorePublishedAt: deleteField(),
+        revealedAnswers: deleteField(),
         updatedAt: now,
       });
       batch.update(sessionRef, {
@@ -546,7 +546,7 @@ export const useGuidedLearningAssignments = (
         )
       );
 
-      // The key goes on each submitted response that shows answers, never the session (as Quiz does).
+      // The key goes on each submitted response, never the session (as Quiz does).
       const revealedAnswers: Record<string, string> | null =
         visibility === 'score-responses-and-answers' ? {} : null;
       if (revealedAnswers) {
@@ -577,18 +577,13 @@ export const useGuidedLearningAssignments = (
             stepsById,
             gradableStepIds.size
           );
-        const override = activeResultsOverride(data.resultsOverride, now);
-        const showsAnswers =
-          !override ||
-          (override.mode === 'shown' &&
-            override.visibility === 'score-responses-and-answers');
+        // A per-student override still gates what the student sees (resolveResultsVisibility), as in Quiz.
         updates.push({
           ref: d.ref,
           patch: {
             score,
             answers: gradedAnswers,
-            revealedAnswers:
-              revealedAnswers && showsAnswers ? revealedAnswers : deleteField(),
+            revealedAnswers: revealedAnswers ?? deleteField(),
           },
         });
       }
@@ -602,6 +597,8 @@ export const useGuidedLearningAssignments = (
       firstBatch.update(assignmentRef, {
         scoreVisibility: visibility,
         scorePublishedAt: now,
+        // Teacher-only copy the server gives students who submit after this publish.
+        revealedAnswers: revealedAnswers ?? deleteField(),
         updatedAt: now,
       });
       const sessionPatch: Record<string, unknown> = {

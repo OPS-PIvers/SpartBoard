@@ -856,14 +856,62 @@ describe('per-period manifests', () => {
     expect(docs[CONTENT].publicQuestions).toEqual(QUESTIONS);
   });
 
-  it('prepare on a period-only session leaves the paths to the gated callable', async () => {
+  it('prepare keeps paths on the session when its questions are inline too', async () => {
     const docs = makeDocs({ session: { periodAccess: OPEN } });
     const { deps } = makeDeps(docs);
     await prepareQuizReadAloud({ sessionId: 's1', callerUid: TEACHER }, deps);
     const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
     expect(manifest.status).toBe('ready');
-    for (const f of pathFields) expect(manifest).not.toHaveProperty(f);
+    expect(Object.keys(manifest.files as Doc).length).toBeGreaterThan(0);
     expect(docs[CONTENT]).toBeUndefined();
+  });
+
+  it('plays even when saving the new path fails', async () => {
+    const docs = perPeriodDocs();
+    const { deps } = makeDeps(docs);
+    const realDb = deps.db as unknown as {
+      collection: (c: string) => { doc: (id: string) => Doc };
+    };
+    const collection = realDb.collection.bind(realDb);
+    realDb.collection = (c: string) => {
+      const col = collection(c);
+      const doc = col.doc.bind(col);
+      return {
+        ...col,
+        doc: (id: string) => {
+          const ref = doc(id) as Doc & {
+            collection: (sub: string) => { doc: (x: string) => Doc };
+          };
+          if (c !== 'quiz_sessions') return ref;
+          return {
+            ...ref,
+            collection: (sub: string) => ({
+              doc: (x: string) =>
+                sub === 'content'
+                  ? {
+                      ...ref.collection(sub).doc(x),
+                      set: () => Promise.reject(new Error('too big')),
+                    }
+                  : ref.collection(sub).doc(x),
+            }),
+          };
+        },
+      };
+    };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const res = await synthesizeQuizAudio(
+      {
+        mode: 'student',
+        sessionId: 's1',
+        questionId: 'q1',
+        part: { kind: 'question' },
+      },
+      classStudent,
+      deps
+    );
+    expect(res.path).toMatch(/^quiz_tts_cache\//);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('the student fallback patches the content doc and clears old session paths', async () => {

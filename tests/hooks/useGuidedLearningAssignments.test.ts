@@ -480,13 +480,43 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
       batchUpdate.mock.calls.find(([r]) => r === ref)?.[1] as
         { revealedAnswers: unknown } | undefined;
     const key = { s0: 'a', s1: 'A → 1\nB → 2', s2: 'x → y → z' };
-    expect(patchFor(refDone)?.revealedAnswers).toEqual(key);
-    expect(patchFor(refExpired)?.revealedAnswers).toEqual(key);
+    // Every submitted response gets the key; the student view applies overrides, as Quiz does.
+    for (const ref of [refDone, refExpired, refHidden, refLower])
+      expect(patchFor(ref)?.revealedAnswers).toEqual(key);
     // Not submitted: no write at all.
     expect(patchFor(refWorking)).toBeUndefined();
-    // A student held back or shown less gets no key.
-    expect(patchFor(refHidden)?.revealedAnswers).toBe(DELETE_FIELD_SENTINEL);
-    expect(patchFor(refLower)?.revealedAnswers).toBe(DELETE_FIELD_SENTINEL);
+    // The teacher-only assignment doc keeps a copy for students who submit later.
+    const assignmentCall = batchUpdate.mock.calls.find(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith(`users/${TEACHER_UID}/guided_learning_assignments/`)
+    );
+    expect(assignmentCall?.[1]).toMatchObject({ revealedAnswers: key });
+  });
+
+  it('drops the teacher-only key copy below the answers level and on unpublish', async () => {
+    mockGetDocs.mockResolvedValue({ docs: [] });
+    const { result } = renderHook(() =>
+      useGuidedLearningAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        mcSet([mcStep('s0', 'a', ['a', 'b'])]),
+        'score-and-responses'
+      );
+      await result.current.unpublishAssignmentScores(ASSIGNMENT_ID);
+    });
+    const assignmentPatches = batchUpdate.mock.calls
+      .filter(
+        ([ref]) =>
+          typeof ref === 'string' &&
+          ref.startsWith(`users/${TEACHER_UID}/guided_learning_assignments/`)
+      )
+      .map(([, patch]) => patch as { revealedAnswers: unknown });
+    expect(assignmentPatches).toHaveLength(2);
+    for (const p of assignmentPatches)
+      expect(p.revealedAnswers).toBe(DELETE_FIELD_SENTINEL);
   });
 
   it('clears stale isCorrect when a step no longer exists', async () => {

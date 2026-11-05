@@ -13,12 +13,28 @@ import {
 } from 'firebase/firestore';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import type { PeriodAccess, QuizQuestion } from '@/types';
+import {
+  enforceSessionSizeBudget,
+  loadTranslationsForPublish,
+} from '@/utils/quizTranslationPublish';
 
 // Every candidate code is unclaimed and unused, so allocateJoinCode takes the first one.
 vi.mock('@/utils/quizJoinCodes', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/utils/quizJoinCodes')>()),
   readJoinCodeOwner: vi.fn(() => Promise.resolve(null)),
   findQuizSessionsByCode: vi.fn(() => Promise.resolve([])),
+}));
+
+vi.mock('@/utils/quizTranslationPublish', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/quizTranslationPublish')>()),
+  enforceSessionSizeBudget: vi.fn(),
+  loadTranslationsForPublish: vi.fn(() =>
+    Promise.resolve({
+      byLocale: {},
+      freshQuestionIdsByLocale: {},
+      titleByLocale: {},
+    })
+  ),
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -216,5 +232,29 @@ describe('useQuizAssignments — per-period sessions', () => {
       );
     });
     expect(batchDelete).not.toHaveBeenCalledWith('quiz_sessions/a-1');
+  });
+
+  it('reserves read-aloud manifest room in the content doc', async () => {
+    (loadTranslationsForPublish as Mock).mockResolvedValueOnce({
+      byLocale: { es: { locale: 'es', title: 'T', questions: {} } },
+      freshQuestionIdsByLocale: { es: [] },
+      titleByLocale: {},
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(
+        QUIZ,
+        { sessionMode: 'student', sessionOptions: { readAloudAll: true } },
+        {
+          accessMode: 'assessment',
+          periodAccess: PERIODS,
+          openAt: 1_000,
+          closeAt: 2_000,
+        }
+      );
+    });
+    const call = (enforceSessionSizeBudget as Mock).mock.calls[0];
+    expect(call?.[0]).toHaveProperty('publicQuestions');
+    expect(call?.[3]).toBeGreaterThan(0);
   });
 });

@@ -160,7 +160,10 @@ export {
   recordFlashcardCheckRatingsV1,
   submitFlashcardCheckV1,
 } from './flashcardCheck';
-export { submitMiniAppResultV1 } from './miniAppResults';
+export {
+  ensureMiniAppReceiptV1,
+  submitMiniAppResultV1,
+} from './miniAppResults';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
 // ── Flashcards Speak reference lookup (docs/multilingual-pronunciation-engine.md S3) ─
@@ -244,6 +247,7 @@ export { recomputePlcAssessments } from './recomputePlcAssessments';
 // Poll join codes resolve through server-written poll_codes pointers.
 export { pollCodePointer } from './pollCodePointer';
 export { resolvePollCodeV1, mintPollCodeV1 } from './pollCodeResolve';
+export { guidedLearningLateRevealKey } from './guidedLearningRevealKey';
 
 // Gradebook grade index and student projection (docs/plans/GRADEBOOK.md D10, D37); off until admin_settings/gradebook_index.enabled.
 // gradeIndexQuizResponse also keeps quiz attempt history, which is always on (docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md).

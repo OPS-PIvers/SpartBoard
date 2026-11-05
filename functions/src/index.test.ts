@@ -3863,6 +3863,7 @@ describe('index barrel — deployed export set', () => {
     'submitFlashcardCheckV1',
     'recordFlashcardCheckRatingsV1',
     'submitMiniAppResultV1',
+    'ensureMiniAppReceiptV1',
     'resolveFlashcardFlagV1',
     // Shared board Activity Wall editing
     'saveSharedActivityWallV1',
@@ -3919,6 +3920,7 @@ describe('index barrel — deployed export set', () => {
     'pollCodePointer',
     'resolvePollCodeV1',
     'mintPollCodeV1',
+    'guidedLearningLateRevealKey',
     // Gradebook grade index + student projection
     'gradeIndexQuizResponse',
     'gradeIndexVideoResponse',
