@@ -212,7 +212,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
       value: formatWhenValue(when, {
         variant,
         rosterCount: pickedRosters.length,
-        manualAvailable: true,
+        manualAvailable: !staff,
         t,
       }),
       body: (
@@ -222,7 +222,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
           variant={variant}
           rosters={pickedRosters}
           periodAccess={periodAccess}
-          manualAvailable
+          manualAvailable={!staff}
         />
       ),
     }),

@@ -138,7 +138,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       value: formatWhenValue(when, {
         variant: 'when',
         rosterCount: picked.length,
-        manualAvailable: true,
+        manualAvailable: !staff,
         t,
       }),
       body: (
@@ -148,7 +148,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           variant="when"
           rosters={picked}
           periodAccess={periodAccess}
-          manualAvailable
+          manualAvailable={!staff}
           // Per-class due dates save without bells; only a period gate saves per-class opens.
           perClass
           sharedOpens={!periodAccess}

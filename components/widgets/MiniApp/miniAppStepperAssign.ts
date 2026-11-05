@@ -54,7 +54,7 @@ export function planMiniAppStepperAssign(
     { ...targeting, availability: when.availability, workKind: kind },
     {
       mode: when.mode,
-      manualAvailable: true,
+      manualAvailable: choices.audience !== 'staff',
       rosters: selectedRosters,
       bellWindow,
       workKind: { default: kind, locked: true },

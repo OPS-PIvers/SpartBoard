@@ -199,7 +199,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
 
   const ctx = { kind, speak: speakAvailable, flashcardsV2: v2 };
   const whenVariant = kind === 'resource' ? 'available' : 'when';
-  const manualAvailable = whenVariant === 'when';
+  const manualAvailable = whenVariant === 'when' && !staff;
 
   const bodies: Partial<
     Record<AssignStepId, { value: string; body: React.ReactNode }>
@@ -259,7 +259,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
           variant={whenVariant}
           rosters={pickedRosters}
           periodAccess={periodAccess}
-          manualAvailable
+          manualAvailable={manualAvailable}
         />
       ),
     },

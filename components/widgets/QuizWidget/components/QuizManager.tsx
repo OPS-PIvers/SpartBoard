@@ -1963,7 +1963,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       },
       {
         mode: assignWhen.mode,
-        manualAvailable: true,
+        manualAvailable: !assignToStaff,
         rosters: validRosters,
         bellWindow,
       }

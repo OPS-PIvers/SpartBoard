@@ -107,7 +107,7 @@ export const GuidedLearningAssignStepper: React.FC<{
       { ...targeting, availability: when.availability },
       {
         mode: when.mode,
-        manualAvailable: true,
+        manualAvailable: !staff,
         rosters: picked,
         bellWindow,
         workKind: { default: kind, locked: true },
@@ -161,7 +161,7 @@ export const GuidedLearningAssignStepper: React.FC<{
       value: formatWhenValue(when, {
         variant: whenVariant,
         rosterCount: picked.length,
-        manualAvailable: true,
+        manualAvailable: !staff,
         t,
       }),
       body: (
@@ -171,7 +171,7 @@ export const GuidedLearningAssignStepper: React.FC<{
           variant={whenVariant}
           rosters={picked}
           periodAccess={periodAccess}
-          manualAvailable
+          manualAvailable={!staff}
         />
       ),
     };

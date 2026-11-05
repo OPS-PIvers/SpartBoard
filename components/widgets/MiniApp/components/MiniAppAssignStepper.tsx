@@ -150,7 +150,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
         variant={variant}
         rosters={pickedRosters}
         periodAccess={periodAccess}
-        manualAvailable
+        manualAvailable={!staff}
       />
     ),
   };
@@ -159,7 +159,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
     when: formatWhenValue(when, {
       variant,
       rosterCount: pickedRosters.length,
-      manualAvailable: true,
+      manualAvailable: !staff,
       t,
     }),
   };
