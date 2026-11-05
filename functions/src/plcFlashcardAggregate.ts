@@ -60,13 +60,24 @@ export function parseSubmittedFlashcardCheck(
   raw: Record<string, unknown> | undefined
 ): SubmittedFlashcardCheck | null {
   if (!raw || finite(raw.submittedAt) === null) return null;
+  // A teacher-accepted flag raises the score without flipping answerLog, so count it as right here too.
+  const accepted = new Set(
+    Array.isArray(raw.flags)
+      ? raw.flags.flatMap((f: unknown) => {
+          if (typeof f !== 'object' || f === null) return [];
+          const r = f as Record<string, unknown>;
+          const cardId = asString(r.cardId);
+          return cardId && r.accepted === true ? [cardId] : [];
+        })
+      : []
+  );
   const answerLog = Array.isArray(raw.answerLog)
     ? raw.answerLog.flatMap((a: unknown) => {
         if (typeof a !== 'object' || a === null) return [];
         const r = a as Record<string, unknown>;
         const cardId = asString(r.cardId);
         return cardId && typeof r.correct === 'boolean'
-          ? [{ cardId, correct: r.correct }]
+          ? [{ cardId, correct: r.correct || accepted.has(cardId) }]
           : [];
       })
     : [];
