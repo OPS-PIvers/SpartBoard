@@ -22,7 +22,7 @@
     "lint:extension": "pnpm -C extension run lint",
     "build:extension": "pnpm -C extension run package",
     "lint:fix": "eslint . --fix && pnpm -C functions run lint:fix && pnpm -C extension run lint:fix",
-    "type-check": "tsc --noEmit",
+    "type-check": "node --max-old-space-size=8192 node_modules/typescript/bin/tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "install:ci": "pnpm install --frozen-lockfile && pnpm -C functions install --frozen-lockfile && pnpm -C extension install --frozen-lockfile",
