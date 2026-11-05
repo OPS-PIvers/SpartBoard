@@ -7,7 +7,8 @@
  */
 
 import { arrayUnion, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '@/config/firebase';
 import type {
   PollConfig,
   PollQuestion,
@@ -22,8 +23,6 @@ import {
 } from '@/utils/pollQuestions';
 
 const POLL_SESSIONS = 'poll_sessions';
-const POLL_CODES = 'poll_codes';
-const CODE_MINT_RETRIES = 5;
 
 /** `poll_sessions` doc id: `{teacherUid}_{pollSessionId}`. */
 export const makePollSessionId = (
@@ -133,21 +132,25 @@ export const toSessionResultsState = (
   };
 };
 
-/** Mint a code no other session is already using. */
+/** Mint a code no other session is already using; the server picks it. */
 const mintUniquePollCode = async (): Promise<string> => {
-  for (let attempt = 0; attempt < CODE_MINT_RETRIES; attempt += 1) {
-    const candidate = generatePollCode();
-    const taken = await getDoc(doc(db, POLL_CODES, candidate)).then(
-      (snap) => snap.exists(),
-      // Offline: treat as free; the server never moves a live session's code.
-      (err: unknown) => {
-        if ((err as { code?: string })?.code === 'unavailable') return false;
-        throw err;
-      }
-    );
-    if (!taken) return candidate;
+  try {
+    const { data } = await httpsCallable<
+      Record<string, never>,
+      { code: string }
+    >(
+      functions,
+      'mintPollCodeV1'
+    )({});
+    return data.code;
+  } catch (err: unknown) {
+    // Offline: treat a local code as free; the server never moves a live session's code.
+    const code = (err as { code?: unknown } | null)?.code;
+    if (typeof code === 'string' && code.endsWith('unavailable')) {
+      return generatePollCode();
+    }
+    throw err;
   }
-  throw new Error('Could not generate a unique poll join code.');
 };
 
 const writeSessionDoc = async (
@@ -206,21 +209,27 @@ export const ensurePollJoinCode = async (
 
 const POINTER_RETRY_MS = [1500, 3000];
 
+const resolveCode = async (code: string): Promise<string | null> =>
+  (
+    await httpsCallable<{ code: string }, { sessionId: string | null }>(
+      functions,
+      'resolvePollCodeV1'
+    )({ code })
+  ).data.sessionId;
+
 /** Resolve a participant-entered code to its session doc. */
 export const lookupPollSessionByCode = async (
   rawCode: string
 ): Promise<{ sessionId: string; data: PollSessionDoc } | null> => {
   const code = normalizePollCode(rawCode);
   if (!code) return null;
-  let pointer = await getDoc(doc(db, POLL_CODES, code));
+  let sessionId = await resolveCode(code);
   // The server writes the pointer just after Start, so a quick scan can beat it.
   for (const wait of POINTER_RETRY_MS) {
-    if (pointer.exists()) break;
+    if (sessionId) break;
     await new Promise((resolve) => setTimeout(resolve, wait));
-    pointer = await getDoc(doc(db, POLL_CODES, code));
+    sessionId = await resolveCode(code);
   }
-  if (!pointer.exists()) return null;
-  const sessionId = (pointer.data() as { sessionId?: string }).sessionId;
   if (!sessionId) return null;
   const snap = await getDoc(doc(db, POLL_SESSIONS, sessionId));
   if (!snap.exists()) return null;
