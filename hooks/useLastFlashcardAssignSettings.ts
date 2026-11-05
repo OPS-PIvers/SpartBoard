@@ -32,7 +32,12 @@ export type FlashcardAssignRules = Omit<
   rules?: FlashcardCheckRules;
 };
 
-const MODES: readonly FlashcardMode[] = ['flashcards', 'write', 'test'];
+const MODES: readonly FlashcardMode[] = [
+  'flashcards',
+  'write',
+  'test',
+  'speak',
+];
 const SIDES: readonly FlashcardSide[] = ['term', 'definition'];
 const TEST_TYPES: readonly FlashcardTestType[] = ['mc', 'fib'];
 const THRESHOLDS: readonly FlashcardMasteryThreshold[] = [2, 3, 4];
