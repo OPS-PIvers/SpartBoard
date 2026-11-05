@@ -5097,6 +5097,94 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards-check.speak-level",
+    "label": "Speak Level dropdown in the Flashcards check step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.check"
+        ],
+        "reveal": "assign-step.check",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-check.speak-attempts",
+    "label": "Speak Attempts per card dropdown in the Flashcards check step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.check"
+        ],
+        "reveal": "assign-step.check",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-check.speak-strict",
+    "label": "Speak Strict switch in the Flashcards check step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.check"
+        ],
+        "reveal": "assign-step.check",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-check.speak-example",
+    "label": "Speak Hear it button switch in the Flashcards check step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.check"
+        ],
+        "reveal": "assign-step.check",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards-cards.mode",
     "label": "All, random or chosen cards switch in the Flashcards assign Cards step",
     "scope": "board",

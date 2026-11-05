@@ -358,12 +358,16 @@ export function parseSpeakChoice(
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const r = raw as Record<string, unknown>;
   if (
-    typeof r.preset !== 'string' ||
+    !(['beginner', 'intermediate', 'advanced', 'custom'] as const).includes(
+      r.preset as SpeakPreset
+    ) ||
     typeof r.strict !== 'boolean' ||
     typeof r.attempts !== 'number' ||
+    !Number.isFinite(r.attempts) ||
     typeof r.example !== 'boolean' ||
     !r.groups ||
-    typeof r.groups !== 'object'
+    typeof r.groups !== 'object' ||
+    Array.isArray(r.groups)
   ) {
     return undefined;
   }

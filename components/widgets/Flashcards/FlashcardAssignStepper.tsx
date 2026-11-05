@@ -380,7 +380,16 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
           cardCount={chosenCount}
           v2={v2}
           speakAvailable={speakCheckOk}
-          speakRules={speakRulesBody}
+          speakRules={
+            speakRulesOn && speakRules && speakLanguage ? (
+              <FlashcardsSpeakRules
+                language={speakLanguage}
+                value={speakRules}
+                onChange={setSpeakRules}
+                placement="check-step"
+              />
+            ) : undefined
+          }
         />
       ),
     },

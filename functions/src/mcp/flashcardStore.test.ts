@@ -264,7 +264,7 @@ describe('Speak carry-through', () => {
     const choice = {
       preset: 'beginner',
       strict: false,
-      groups: { 'es-trill': 'forgive' },
+      groups: { 'es-trill-stale': 'forgive' },
       attempts: 2,
       example: true,
     };
@@ -314,11 +314,18 @@ describe('Speak carry-through', () => {
     const byId = Object.fromEntries(updates);
     expect(byId['s-locked'].speak).toEqual({ ...stamp, locked: true });
     expect(byId['s-new'].speak).toEqual({ ...stamp, locked: false });
-    expect(byId['s-chosen'].speak).toEqual({
+    expect(byId['s-chosen'].speak).toMatchObject({
       ...stamp,
-      ...choice,
+      preset: 'beginner',
+      strict: false,
+      attempts: 2,
+      example: true,
       locked: false,
     });
+    // A named level's groups are rebuilt for the set's language, dropping a stale id.
+    expect(
+      (byId['s-chosen'].speak as { groups: Record<string, string> }).groups
+    ).not.toHaveProperty('es-trill-stale');
     expect((byId['s-new'].cards as FlashcardSet['cards'])[0].speak).toBe(speak);
     expect(byId['s-off']).not.toHaveProperty('speak');
     expect(

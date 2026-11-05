@@ -3,6 +3,12 @@ import type * as admin from '../firebaseAdmin';
 import { FieldValue, type Timestamp } from 'firebase-admin/firestore';
 import { randomUUID } from 'node:crypto';
 import { ToolError } from './activity';
+import {
+  SPEAK_GROUP_IDS,
+  speakLanguageOf,
+  speakPresetSettings,
+  type SpeakPreset,
+} from './flashcardSpeakSettings';
 
 type Firestore = admin.firestore.Firestore;
 type WriteBatch = admin.firestore.WriteBatch;
@@ -176,16 +182,18 @@ export function stageSetWrite(
   }
 }
 
-/** Mirrors parseSpeakChoice in components/widgets/Flashcards/utils/flashcardAssign.ts. */
+/** Mirrors parseSpeakChoice + withSpeakChoice in components/widgets/Flashcards/utils/flashcardAssign.ts. */
 export function speakChoiceOf(
-  raw: unknown
+  raw: unknown,
+  termLanguage: string
 ): Record<string, unknown> | undefined {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const language = speakLanguageOf(termLanguage);
+  if (!language || !raw || typeof raw !== 'object' || Array.isArray(raw))
+    return undefined;
   const r = raw as Record<string, unknown>;
+  const presets = ['beginner', 'intermediate', 'advanced', 'custom'];
   if (
-    !['beginner', 'intermediate', 'advanced', 'custom'].includes(
-      r.preset as string
-    ) ||
+    !presets.includes(r.preset as string) ||
     typeof r.strict !== 'boolean' ||
     typeof r.attempts !== 'number' ||
     !Number.isFinite(r.attempts) ||
@@ -196,10 +204,19 @@ export function speakChoiceOf(
   ) {
     return undefined;
   }
+  const ids = SPEAK_GROUP_IDS[language];
+  const fits = Object.keys(r.groups).every((id) => ids.includes(id));
+  // A named level follows the current language; a Custom from another language becomes Intermediate.
+  const preset = (
+    r.preset === 'custom' && !fits ? 'intermediate' : r.preset
+  ) as SpeakPreset;
   return {
-    preset: r.preset,
+    preset,
     strict: r.strict,
-    groups: r.groups,
+    groups:
+      preset === 'custom'
+        ? r.groups
+        : speakPresetSettings(language, preset).groups,
     attempts: Math.min(10, Math.max(1, Math.round(r.attempts))),
     example: r.example,
   };
@@ -227,11 +244,11 @@ export async function rewriteOpenStudySessions(
     const dialects = (stamp as { dialects?: unknown } | undefined)?.dialects;
     const speakOff = sessionDoc.get('speakOff') === true;
     // A fresh stamp keeps the assignment's lock; a session turned off never gets one.
-    // Rules picked when assigning win over the set's while the language is unchanged, as on the client.
-    const choice =
-      Array.isArray(dialects) && dialectsFit(dialects, set.termLanguage)
-        ? speakChoiceOf(sessionDoc.get('speakChoice'))
-        : undefined;
+    // Rules picked when assigning win over the set's, as on the client.
+    const choice = speakChoiceOf(
+      sessionDoc.get('speakChoice'),
+      set.termLanguage
+    );
     const nextStamp =
       speakStamp && !speakOff
         ? {

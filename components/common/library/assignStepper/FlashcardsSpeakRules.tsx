@@ -22,6 +22,8 @@ export interface FlashcardsSpeakRulesProps {
   language: SpeakLanguage;
   value: FlashcardSpeakSettings;
   onChange: (value: FlashcardSpeakSettings) => void;
+  /** The Speak check places these in "How students are checked", so tours get their own anchors there. */
+  placement?: 'speak-step' | 'check-step';
 }
 
 const ROW_CLASS = 'flex min-h-8 items-center justify-between gap-3';
@@ -38,10 +40,24 @@ export const FlashcardsSpeakRules: React.FC<FlashcardsSpeakRulesProps> = ({
   language,
   value,
   onChange,
+  placement = 'speak-step',
 }) => {
   const { t } = useTranslation();
   const levelId = useId();
-  const levelHelpId = useId();
+  const anchors =
+    placement === 'check-step'
+      ? {
+          level: tourAttr('flashcards-check.speak-level'),
+          attempts: tourAttr('flashcards-check.speak-attempts'),
+          strict: tourAttr('flashcards-check.speak-strict'),
+          example: tourAttr('flashcards-check.speak-example'),
+        }
+      : {
+          level: tourAttr('flashcards-speak.level'),
+          attempts: tourAttr('flashcards-speak.attempts'),
+          strict: tourAttr('flashcards-speak.strict'),
+          example: tourAttr('flashcards-speak.example'),
+        };
   const attemptsId = useId();
   const presets: SpeakPreset[] =
     value.preset === 'custom'
@@ -52,41 +68,36 @@ export const FlashcardsSpeakRules: React.FC<FlashcardsSpeakRulesProps> = ({
 
   return (
     <div className="space-y-2">
-      <div>
-        <div className={ROW_CLASS}>
-          <label htmlFor={levelId} className={LABEL_CLASS}>
-            {t('flashcards.speak.editor.level', 'Level')}
-          </label>
-          <select
-            id={levelId}
-            value={value.preset}
-            aria-describedby={
-              value.preset === 'custom' ? undefined : levelHelpId
-            }
-            onChange={(event) =>
-              onChange(
-                applySpeakPreset(
-                  value,
-                  language,
-                  event.target.value as SpeakPreset
-                )
+      <div className={ROW_CLASS}>
+        <label htmlFor={levelId} className={LABEL_CLASS}>
+          {t('flashcards.speak.editor.level', 'Level')}
+        </label>
+        <select
+          id={levelId}
+          value={value.preset}
+          title={
+            value.preset === 'custom'
+              ? undefined
+              : t(`flashcards.speak.editor.presets.${value.preset}Help`)
+          }
+          onChange={(event) =>
+            onChange(
+              applySpeakPreset(
+                value,
+                language,
+                event.target.value as SpeakPreset
               )
-            }
-            className={SELECT_CLASS}
-            {...tourAttr('flashcards-speak.level')}
-          >
-            {presets.map((preset) => (
-              <option key={preset} value={preset}>
-                {t(`flashcards.speak.editor.presets.${preset}`)}
-              </option>
-            ))}
-          </select>
-        </div>
-        {value.preset !== 'custom' && (
-          <p id={levelHelpId} className="text-xs text-slate-500">
-            {t(`flashcards.speak.editor.presets.${value.preset}Help`)}
-          </p>
-        )}
+            )
+          }
+          className={SELECT_CLASS}
+          {...anchors.level}
+        >
+          {presets.map((preset) => (
+            <option key={preset} value={preset}>
+              {t(`flashcards.speak.editor.presets.${preset}`)}
+            </option>
+          ))}
+        </select>
       </div>
       <div className={ROW_CLASS}>
         <label htmlFor={attemptsId} className={LABEL_CLASS}>
@@ -99,7 +110,7 @@ export const FlashcardsSpeakRules: React.FC<FlashcardsSpeakRulesProps> = ({
             onChange({ ...value, attempts: Number(event.target.value) })
           }
           className={SELECT_CLASS}
-          {...tourAttr('flashcards-speak.attempts')}
+          {...anchors.attempts}
         >
           {ATTEMPTS.map((n) => (
             <option key={n} value={n}>
@@ -113,7 +124,7 @@ export const FlashcardsSpeakRules: React.FC<FlashcardsSpeakRulesProps> = ({
         <Toggle
           size="sm"
           label={strictLabel}
-          anchor={tourAttr('flashcards-speak.strict')}
+          anchor={anchors.strict}
           checked={value.strict}
           onChange={(strict) => onChange(setSpeakStrict(value, strict))}
         />
@@ -123,7 +134,7 @@ export const FlashcardsSpeakRules: React.FC<FlashcardsSpeakRulesProps> = ({
         <Toggle
           size="sm"
           label={exampleLabel}
-          anchor={tourAttr('flashcards-speak.example')}
+          anchor={anchors.example}
           checked={value.example}
           onChange={(example) => onChange({ ...value, example })}
         />
