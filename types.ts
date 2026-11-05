@@ -9485,8 +9485,8 @@ export interface FlashcardCardSpeak {
   dialects?: SpeakDialect[];
   /** Teacher confirmed a needs-review card. */
   confirmedAt?: number;
-  /** Advanced panel. */
-  ipaOverride?: Partial<Record<SpeakDialect, string>>;
+  /** Advanced panel: one IPA reading per accent, or several accepted ones. */
+  ipaOverride?: Partial<Record<SpeakDialect, string | string[]>>;
 }
 
 export interface FlashcardSpeakProgress extends FlashcardCardProgress {
