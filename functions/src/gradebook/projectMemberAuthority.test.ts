@@ -37,7 +37,10 @@ vi.mock('firebase-functions/logger', () => ({
 }));
 
 import { computeStudentUid } from '../classlinkShared';
-import { loadClassStudentUids } from './projectMemberAuthority';
+import {
+  __resetClassLinkSweepCache,
+  loadClassStudentUids,
+} from './projectMemberAuthority';
 import { RosterUnavailableError } from './rosterUnavailable';
 import {
   __resetProjectRosterCache,
@@ -54,6 +57,7 @@ const noTestClasses = { membership: new Map(), authorized: false };
 
 beforeEach(() => {
   __resetProjectRosterCache();
+  __resetClassLinkSweepCache();
   secret.hmac = 'hmac';
   secret.clientId = 'id';
   getUser.mockReset().mockResolvedValue(teacher);
@@ -202,6 +206,20 @@ describe('defaultProjectMemberAuthority', () => {
     expect(loadClassLinkMembership).toHaveBeenCalledTimes(1);
   });
 
+  it('sweeps the owner classes once for groups with different class ids', async () => {
+    loadClassLinkMembership.mockResolvedValue(
+      new Map([
+        ['a', 'class-a'],
+        ['b', 'class-b'],
+      ])
+    );
+    const authority = defaultProjectMemberAuthority(db);
+    await authority('owner', 'class-a', [uidOf('a')]);
+    await authority('owner', 'class-b', [uidOf('b')]);
+    await authority('owner', 'class-c', [uidOf('a')]);
+    expect(loadClassLinkMembership).toHaveBeenCalledTimes(1);
+  });
+
   it('shares one lookup between groups with no class id and local roster ids', async () => {
     loadClassLinkMembership.mockResolvedValue(new Map([['s1', 'class-1']]));
     const authority = defaultProjectMemberAuthority(db);
@@ -305,6 +323,29 @@ describe('drainDirtySessions when the class roster is unavailable', () => {
     const queued = stub.get('grade_index_sessions/projects__t1_p1');
     expect(queued?.unavailable).toBe(8);
     expect(queued?.failures).toBeUndefined();
+  });
+
+  it('does not let entries backing off crowd due ones out of the batch', async () => {
+    const backing = (n: number) => ({
+      [`grade_index_sessions/projects__old${n}`]: {
+        kind: 'projects',
+        sessionId: `old${n}`,
+        dirtyAt: n,
+        retryAt: Date.now() + 600_000,
+      },
+    });
+    const stub = makeStubFirestore({
+      ...project,
+      ...backing(0),
+      ...backing(0.1),
+      ...backing(0.2),
+    });
+    loadClassLinkMembership.mockResolvedValue(new Map([['u1', 'c1']]));
+    const typed = stub.db as unknown as Parameters<
+      typeof drainDirtySessions
+    >[0];
+    await drainDirtySessions(typed, 2);
+    expect(stub.has('grade_index_sessions/projects__t1_p1')).toBe(false);
   });
 
   it('skips an entry still backing off, and drains it once the roster answers', async () => {

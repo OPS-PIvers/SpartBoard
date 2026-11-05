@@ -21,18 +21,26 @@ export interface ClassStudents {
   degraded: RosterUnavailableError | null;
 }
 
-/** Pseudonym uids of every student in a class `ownerUid` teaches; `classId` only hints at a test class to read. */
-export async function loadClassStudentUids(
-  db: admin.firestore.Firestore,
+interface OwnerSweep {
+  email: string | null;
+  classlinkUids: Set<string>;
+  degraded: RosterUnavailableError | null;
+}
+
+const SWEEP_CACHE_MS = 90_000;
+const sweepCache = new Map<
+  string,
+  { at: number; sweep: Promise<OwnerSweep> }
+>();
+
+export function __resetClassLinkSweepCache(): void {
+  sweepCache.clear();
+}
+
+async function sweepOwnerClasses(
   ownerUid: string,
-  classId: string
-): Promise<ClassStudents> {
-  const uids = new Set<string>();
-  if (!ownerUid) return { uids, degraded: null };
-  const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
-  if (!hmacSecret) {
-    throw new HttpsError('internal', 'Server configuration missing.');
-  }
+  hmacSecret: string
+): Promise<OwnerSweep> {
   let owner;
   try {
     owner = await admin
@@ -46,7 +54,9 @@ export async function loadClassStudentUids(
   } catch (err) {
     throw new RosterUnavailableError(err);
   }
-  if (!owner?.email || !owner.emailVerified) return { uids, degraded: null };
+  const classlinkUids = new Set<string>();
+  if (!owner?.email || !owner.emailVerified)
+    return { email: null, classlinkUids, degraded: null };
 
   const classlinkClientId = CLASSLINK_CLIENT_ID.value();
   const classlinkClientSecret = CLASSLINK_CLIENT_SECRET.value();
@@ -62,11 +72,55 @@ export async function loadClassStudentUids(
         tenantUrl
       );
       for (const sourcedId of membership.keys())
-        uids.add(computeStudentUid(sourcedId, hmacSecret));
+        classlinkUids.add(computeStudentUid(sourcedId, hmacSecret));
     } catch (err) {
       degraded = new RosterUnavailableError(err);
     }
   }
+  return { email: owner.email, classlinkUids, degraded };
+}
+
+/** One ClassLink sweep per owner for 90 s, shared by every group class id; failures and empty results are not kept. */
+function cachedOwnerSweep(
+  ownerUid: string,
+  hmacSecret: string
+): Promise<OwnerSweep> {
+  const now = Date.now();
+  let entry = sweepCache.get(ownerUid);
+  if (!entry || now - entry.at > SWEEP_CACHE_MS) {
+    const stored = {
+      at: now,
+      sweep: sweepOwnerClasses(ownerUid, hmacSecret),
+    };
+    entry = stored;
+    sweepCache.set(ownerUid, stored);
+    const evict = () => {
+      if (sweepCache.get(ownerUid) === stored) sweepCache.delete(ownerUid);
+    };
+    stored.sweep.then((result) => {
+      if (result.degraded || result.classlinkUids.size === 0) evict();
+    }, evict);
+  }
+  return entry.sweep;
+}
+
+/** Pseudonym uids of every student in a class `ownerUid` teaches; `classId` only hints at a test class to read. */
+export async function loadClassStudentUids(
+  db: admin.firestore.Firestore,
+  ownerUid: string,
+  classId: string
+): Promise<ClassStudents> {
+  const uids = new Set<string>();
+  if (!ownerUid) return { uids, degraded: null };
+  const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
+  if (!hmacSecret) {
+    throw new HttpsError('internal', 'Server configuration missing.');
+  }
+  const sweep = await cachedOwnerSweep(ownerUid, hmacSecret);
+  if (!sweep.email) return { uids, degraded: null };
+  for (const uid of sweep.classlinkUids) uids.add(uid);
+  const owner = { email: sweep.email };
+  const degraded = sweep.degraded;
 
   // Test classes: the ones on the owner's rosters, plus the group's own class id.
   const owned = await loadOwnedRosterClasses(db, ownerUid);

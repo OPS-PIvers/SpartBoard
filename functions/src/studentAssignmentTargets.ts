@@ -151,6 +151,9 @@ export const MAX_TAUGHT_CLASSES = 40;
 export const MAX_STUDENT_TARGET_CLASSES = 100;
 const ROSTER_SCAN_LIMIT = 100;
 const POINTER_TX_CHUNK = 200;
+/** OneRoster page size and ceiling (25 x 200 students) when listing a class. */
+const ONEROSTER_PAGE_LIMIT = 200;
+const ONEROSTER_MAX_PAGES = 25;
 const GET_ALL_CHUNK = 100;
 
 export type StudentTargetRef =
@@ -1560,17 +1563,33 @@ export async function loadClassLinkMembership(
   const rosters = await Promise.all(
     authorized.map(async (classId) => {
       const studentsUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/classes/${classId}/students`;
-      const headers = getOAuthHeaders(
-        studentsUrl,
-        {},
-        'GET',
-        classlinkClientId,
-        classlinkClientSecret
-      );
-      const resp = await axios.get<{ users: ClassLinkStudent[] }>(studentsUrl, {
-        headers: { ...headers },
-      });
-      return { classId, students: resp.data.users ?? [] };
+      const students: ClassLinkStudent[] = [];
+      for (let page = 0; ; page += 1) {
+        // OneRoster signs the query string, so the same params go to both.
+        const params = {
+          limit: String(ONEROSTER_PAGE_LIMIT),
+          offset: String(page * ONEROSTER_PAGE_LIMIT),
+        };
+        const headers = getOAuthHeaders(
+          studentsUrl,
+          params,
+          'GET',
+          classlinkClientId,
+          classlinkClientSecret
+        );
+        const resp = await axios.get<{ users: ClassLinkStudent[] }>(
+          studentsUrl,
+          { params, headers: { ...headers } }
+        );
+        const batch = resp.data.users ?? [];
+        students.push(...batch);
+        // A short page is the end; a full page at the cap means students may be missing.
+        if (batch.length < ONEROSTER_PAGE_LIMIT) break;
+        if (page + 1 >= ONEROSTER_MAX_PAGES) {
+          throw new Error('ClassLink class roster exceeds the page cap');
+        }
+      }
+      return { classId, students };
     })
   );
   for (const { classId, students } of rosters) {
