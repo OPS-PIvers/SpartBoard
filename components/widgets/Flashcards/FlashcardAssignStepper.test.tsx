@@ -365,39 +365,8 @@ describe('FlashcardAssignStepper', () => {
       expect(screen.queryByRole('radio', { name: 'Speak' })).toBeNull();
     });
 
-    const speakableSet = (): FlashcardSet => {
-      const set = makeSet(3);
-      return {
-        ...set,
-        cards: set.cards.map((card) => ({
-          ...card,
-          speak: {
-            term: card.term,
-            refs: [{ dialect: 'es-419', tokens: ['t'], stress: [] }],
-            g2pVersion: 'test',
-            status: 'ready',
-          },
-        })),
-      };
-    };
-
-    it('blocks a Speak check when no card can be spoken', () => {
-      renderStepper({ v2: true, canSpeak: true });
-      fireEvent.click(screen.getByText('How students are checked'));
-      fireEvent.click(screen.getByRole('radio', { name: 'Speak' }));
-      const button = screen.getByRole('button', { name: 'Assign' });
-      expect(button.hasAttribute('disabled')).toBe(true);
-      expect(button.getAttribute('title')).toBe(
-        'None of these cards can be spoken yet.'
-      );
-    });
-
     it('assigns a Speak check', async () => {
-      const { onAssign } = renderStepper({
-        v2: true,
-        canSpeak: true,
-        set: speakableSet(),
-      });
+      const { onAssign } = renderStepper({ v2: true, canSpeak: true });
       fireEvent.click(screen.getByText('How students are checked'));
       fireEvent.click(screen.getByRole('radio', { name: 'Speak' }));
       assign();

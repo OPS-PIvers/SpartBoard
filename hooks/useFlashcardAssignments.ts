@@ -18,6 +18,9 @@ import {
   buildSpeakStamp,
   speakCardsFor,
 } from '@/components/widgets/Flashcards/utils/flashcardAssign';
+import { attachSpeakReferences } from '@/components/widgets/Flashcards/speak/lookupSpeakReferences';
+import { speakLanguageOf } from '@/config/pronunciationGroups';
+import { isSpeakableCard } from '@/utils/flashcardSchedule';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import { audienceSessionFields } from '@/utils/staffAudience';
@@ -196,13 +199,31 @@ export const useFlashcardAssignments = (
           )
         : undefined;
       if (speakCheck && !speak) {
-        throw new Error('Speak is not available for this set');
+        throw new Error(
+          'Speak mode is unavailable. Speak is not set up for this language.'
+        );
       }
       const cardSelection =
         isCheck && input.cardSelection && input.cardSelection.mode !== 'all'
           ? input.cardSelection
           : undefined;
-      const cards = speakCardsFor(input.set.cards, speak);
+      const language = speakLanguageOf(input.set.termLanguage);
+      // A Speak check prepares any card that has no pronunciation yet.
+      const prepared =
+        speakCheck && speak && language
+          ? await attachSpeakReferences(
+              input.set.cards,
+              language,
+              speak.dialects,
+              {}
+            )
+          : input.set.cards;
+      if (speakCheck && !prepared.some(isSpeakableCard)) {
+        throw new Error(
+          'Speak mode is unavailable. These cards could not be set up for Speak. Try again in a minute.'
+        );
+      }
+      const cards = speakCardsFor(prepared, speak);
 
       const session: FlashcardSession = {
         id,

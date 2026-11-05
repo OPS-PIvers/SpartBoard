@@ -58,7 +58,6 @@ import {
   type FlashcardsSpeakValue,
 } from '@/components/common/library/assignStepper/flashcardsSpeakValue';
 import { speakLanguageOf } from '@/config/pronunciationGroups';
-import { isSpeakableCard } from '@/utils/flashcardSchedule';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { applyWhen } from '@/utils/assignAvailability';
 import {
@@ -163,23 +162,9 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       : check;
   const form = { ...effectiveCheck, collectSubmission: kind === 'work' };
   const useCardChoice = v2 && kind === 'work';
-  const speakCheck = kind === 'work' && effectiveCheck.checkMode === 'speak';
-  // A random Speak check draws only from cards that can be spoken.
-  const drawPool = useMemo(
-    () =>
-      speakCheck && cards.mode === 'random'
-        ? set.cards.filter(isSpeakableCard)
-        : set.cards,
-    [speakCheck, cards.mode, set.cards]
-  );
   const chosenCount = useCardChoice
-    ? selectedCardCount(cards, drawPool)
+    ? selectedCardCount(cards, set.cards)
     : cardCount;
-  const speakableChosen = !speakCheck
-    ? 1
-    : cards.mode === 'random'
-      ? drawPool.length
-      : resolveSelectedCards(cards, set.cards).filter(isSpeakableCard).length;
   const audienceState = useAssignAudience();
   const staff = audienceState.audience === 'staff';
   const pickedRosters = useMemo(
@@ -201,23 +186,16 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       ? 'Add cards to this set before assigning it.'
       : chosenCount === 0
         ? 'Choose at least one card.'
-        : speakableChosen === 0
-          ? 'None of these cards can be spoken yet.'
-          : formError === 'no-test-types'
-            ? 'Choose at least one question type.'
-            : !hasSsoClass && !staff
-              ? 'Choose at least one ClassLink class.'
-              : whenBackwards(
-                    when,
-                    pickedRosters,
-                    periodAccess?.bellWindow,
-                    kind
-                  )
-                ? t(
-                    'assignAvailability.closesBeforeOpens',
-                    'Closes before it opens.'
-                  )
-                : undefined;
+        : formError === 'no-test-types'
+          ? 'Choose at least one question type.'
+          : !hasSsoClass && !staff
+            ? 'Choose at least one ClassLink class.'
+            : whenBackwards(when, pickedRosters, periodAccess?.bellWindow, kind)
+              ? t(
+                  'assignAvailability.closesBeforeOpens',
+                  'Closes before it opens.'
+                )
+              : undefined;
 
   const ctx = { kind, speak: speakAvailable, flashcardsV2: v2 };
   const whenVariant = kind === 'resource' ? 'available' : 'when';
@@ -351,7 +329,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       }
     );
     const assignedSet = useCardChoice
-      ? { ...set, cards: resolveSelectedCards(cards, drawPool) }
+      ? { ...set, cards: resolveSelectedCards(cards, set.cards) }
       : set;
     const submission = buildFlashcardAssignSubmission({
       set: assignedSet,
