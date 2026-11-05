@@ -7027,6 +7027,10 @@ export interface QuizAssignment
   /** Join code for the student URL. Denormalized from the session doc for archive display. */
   code: string;
   status: QuizAssignmentStatus;
+  /** Assigned on paper: no live door; the card offers Import responses instead of Start. */
+  paper?: true;
+  /** The printed stack an on-paper assignment imports from (`users/{uid}/paper_batches`). */
+  paperBatchId?: string;
   /** Set by `importPaperResponsesV1`; publish then writes student pointers (plan Q34). */
   hasPaperResponses?: boolean;
   /** Set by import when any paper sheet carried a written answer box. */

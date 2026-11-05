@@ -235,6 +235,8 @@ export type SharedAssignmentImportMode = 'sync' | 'copy';
 export interface CreateAssignmentOptions extends AudienceSessionFields {
   /** Defaults to `'active'`. */
   initialStatus?: QuizAssignmentStatus;
+  /** Assigned on paper: marks the assignment and links the printed stack it imports from. */
+  paperBatchId?: string;
   /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
   widgetKind?: QuizWidgetKind;
   /** Review game length (plan D22); only written for `sessionMode: 'game'`. */
@@ -1443,6 +1445,7 @@ export const useQuizAssignments = (
         periodAccess,
         widgetKind,
         gameDurationMs,
+        paperBatchId,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
@@ -1548,6 +1551,7 @@ export const useQuizAssignments = (
           ? { resolvedDriveFileId: settings.resolvedDriveFileId }
           : {}),
         ...(perPeriod ? { accessMode, periodAccess } : {}),
+        ...(paperBatchId ? { paper: true as const, paperBatchId } : {}),
       };
 
       const mode = settings.sessionMode;

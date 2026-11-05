@@ -238,6 +238,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
     video: () => ruleDefs.get('video') ?? null,
     check: () => null,
     speak: () => null,
+    sheets: () => null,
   };
   const steps = getAssignSteps('video', ctx)
     .map((id) => bodies[id]())

@@ -7,7 +7,13 @@
  */
 
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -19,6 +25,30 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
+import {
+  getAssignStepTitle,
+  type AssignStepDef,
+} from '@/components/common/library/assignStepper/assignSteps';
+import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
+import {
+  EMPTY_ASSIGN_CLASSES_VALUE,
+  formatClassesValue,
+  type AssignClassesValue,
+} from '@/components/common/library/assignStepper/assignClassesValue';
+import { SharingStep } from '@/components/common/library/assignStepper/SharingStep';
+import {
+  formatSharingValue,
+  isSharingStepAvailable,
+  PICK_A_PLC,
+  sharingNeedsPlc,
+  type SharingStepValue,
+} from '@/components/common/library/assignStepper/SharingStep.format';
+import {
+  paperSelectedStudentIds,
+  paperStudentRef,
+} from '@/utils/paperAssignClasses';
 import { AiRetryLink } from '@/components/common/library/importer/AiRetryLink';
 import {
   TestAndKeyUploader,
@@ -37,6 +67,7 @@ import type {
   PaperBoxSize,
   PaperPageMap,
   PaperSheetStimulus,
+  Plc,
   QuizData,
   QuizQuestion,
   Student,
@@ -133,8 +164,26 @@ async function imagePixelSize(
   }
 }
 
+/** What Assign on paper records once the stack is saved. */
+export interface PaperAssignPicks {
+  batchId: string;
+  rosterIds: string[];
+  periodNames: string[];
+  /** Null when the teacher is in no PLC, so there was no Sharing step. */
+  sharing: SharingStepValue | null;
+}
+
+export interface PaperAssignOptions {
+  plcs: readonly Plc[];
+  initialSharing: SharingStepValue;
+  /** Creates the paper assignment; runs after the batch is saved and before the print. */
+  onCreateAssignment: (picks: PaperAssignPicks) => Promise<void>;
+}
+
 interface PaperPrintModalProps {
   quiz: QuizData;
+  /** Assign on paper: the stepper picks classes and the print makes a paper assignment. */
+  assign?: PaperAssignOptions;
   rosters: ClassRoster[];
   /** Persists the batch; the caller owns the Firestore write and its errors. */
   onSaveBatch: (batch: PaperBatch) => Promise<void>;
@@ -301,6 +350,7 @@ const studentSort = (a: Student, b: Student): number =>
 
 export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   quiz: savedQuiz,
+  assign,
   rosters,
   onSaveBatch,
   onCreateQuiz,
@@ -346,9 +396,30 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const isStub = isPaperStubAnalysis(analysis);
   const [stubTitle, setStubTitle] = useState(quiz.title);
 
-  const [selectedStudentIds, setSelectedStudentIds] = useState<
+  const [pickedStudentIds, setSelectedStudentIds] = useState<
     Record<string, Set<string>>
   >({});
+  const [classes, setClasses] = useState<AssignClassesValue>(
+    EMPTY_ASSIGN_CLASSES_VALUE
+  );
+  // Null until the teacher touches Sharing, so the default follows PLC data that loads late.
+  const [sharingPick, setSharingValue] = useState<SharingStepValue | null>(
+    null
+  );
+  const sharingValue: SharingStepValue = sharingPick ??
+    assign?.initialSharing ?? { plcMode: false, plcId: '' };
+  // Assign on paper: the stack (and then the assignment) already saved, so a retry only prints.
+  const committedRef = useRef<{
+    batch: PaperBatch;
+    sheets: ReturnType<typeof planPaperBatch>['sheets'];
+    assigned: boolean;
+    picks: string;
+  } | null>(null);
+  const selectedStudentIds = useMemo(
+    () =>
+      assign ? paperSelectedStudentIds(classes, rosters) : pickedStudentIds,
+    [assign, classes, rosters, pickedStudentIds]
+  );
   const [expandedRosterId, setExpandedRosterId] = useState<string | null>(null);
   const [stubQuestionCount, setStubQuestionCount] = useState(
     DEFAULT_STUB_QUESTIONS
@@ -818,6 +889,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     return order;
   };
 
+  const sharingStepShown =
+    !!assign && isSharingStepAvailable(assign.plcs, 'work');
+  const needsPlc =
+    !!assign && sharingStepShown && sharingNeedsPlc(sharingValue, assign.plcs);
+
   const handlePrint = async () => {
     // A stimulus that cannot be fetched would print as an empty box the
     // teacher only discovers at the copier, so it blocks the print instead.
@@ -874,8 +950,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         pageMaps = plan.pageMaps;
       }
 
-      const { batch, sheets } = planPaperBatch({
-        batchId: crypto.randomUUID(),
+      const unassigned =
+        assign && !committedRef.current?.assigned ? committedRef.current : null;
+      const planned = planPaperBatch({
+        // A replan before the assignment exists overwrites the stack it saved, so none is left behind.
+        batchId: unassigned?.batch.id ?? crypto.randomUUID(),
         quizId: quiz.id,
         selections: selectionsForPrint,
         questionCount,
@@ -898,17 +977,48 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(versionPlan ? { versions: versionPlan.records } : {}),
         createdAt: now,
       });
-      if (onCreateQuiz) await onCreateQuiz(printedQuiz);
-      // The stub carries them already; an authored quiz records them here, so
-      // the next print and every PLC copy start from the same sheet (D18).
-      // Only when they changed: an unchanged save would publish a new version
-      // to the PLC and tell every peer to pull a print they did not make.
-      else if (onSavePrintSetup && (sheetStimuliChanged || boxSizesChanged))
-        await onSavePrintSetup({
-          stimuli: sheetStimuli,
-          boxSizes: changedBoxSizes,
+      const picks = JSON.stringify([
+        selectionsForPrint.map((x) => [
+          x.roster.id,
+          x.students.map((st) => st.id),
+        ]),
+        spareCount,
+        includeKeySheet,
+        sheetStimuli,
+        boxSizes,
+        questionTextLayout,
+      ]);
+      const saved = assign ? committedRef.current : null;
+      // A saved stack is reused only for the same picks and setup, or once its assignment exists.
+      const committed =
+        saved && (saved.assigned || saved.picks === picks) ? saved : null;
+      const { batch, sheets } = committed ?? planned;
+      // A retry after the stack was saved reuses it rather than orphaning it.
+      if (!committed) {
+        if (onCreateQuiz) await onCreateQuiz(printedQuiz);
+        // The stub carries them already; an authored quiz records them here, so
+        // the next print and every PLC copy start from the same sheet (D18).
+        // Only when they changed: an unchanged save would publish a new version
+        // to the PLC and tell every peer to pull a print they did not make.
+        else if (onSavePrintSetup && (sheetStimuliChanged || boxSizesChanged))
+          await onSavePrintSetup({
+            stimuli: sheetStimuli,
+            boxSizes: changedBoxSizes,
+          });
+        await onSaveBatch(batch);
+        if (assign)
+          committedRef.current = { batch, sheets, assigned: false, picks };
+      }
+      if (assign && !committedRef.current?.assigned) {
+        const printed = rosters.filter((r) => batch.rosterIds.includes(r.id));
+        await assign.onCreateAssignment({
+          batchId: batch.id,
+          rosterIds: printed.map((r) => r.id),
+          periodNames: printed.map((r) => r.name),
+          sharing: sharingStepShown ? sharingValue : null,
         });
-      await onSaveBatch(batch);
+        committedRef.current = { batch, sheets, assigned: true, picks };
+      }
       print({
         batchId: batch.id,
         quizTitle: printedQuiz.title,
@@ -1282,430 +1392,362 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     );
   }
 
-  return (
-    <Modal
-      isOpen
-      onClose={onClose}
-      ariaLabel="Print response sheets"
-      maxWidth="max-w-2xl"
-      contentClassName=""
-      customHeader={
-        <div className="flex items-start justify-between border-b border-slate-100 px-5 pb-3 pt-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary">
-              <Printer className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Print response sheets
-              </h2>
-              <p className="mt-0.5 max-w-[24rem] truncate text-xs text-slate-500">
-                {onCreateQuiz
-                  ? 'New paper test'
-                  : quiz.title || 'Untitled paper test'}
+  const footerMessage = tooManyPages
+    ? tooManyPagesMessage(pagesPerSheet)
+    : sheetCount === 0
+      ? 'Pick at least one student or spare sheet.'
+      : null;
+
+  const setupBody = (
+    <div className={assign ? 'space-y-4' : 'space-y-4 px-5 pb-5 pt-4'}>
+      {analysis.exclusions.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-amber-900">
+                {analysis.exclusions.length} question
+                {analysis.exclusions.length === 1 ? '' : 's'} will not be on the
+                sheet
               </p>
+              <p className="mt-1 text-xs text-amber-800">
+                Only multiple-choice and true/false questions can be bubbled.
+              </p>
+              <ul className="mt-2 space-y-0.5 text-xs text-amber-800">
+                {analysis.exclusions.slice(0, 5).map((ex, i) => (
+                  <li key={i} className="truncate">
+                    • {ex.label}
+                  </li>
+                ))}
+                {analysis.exclusions.length > 5 && (
+                  <li>• and {analysis.exclusions.length - 5} more</li>
+                )}
+              </ul>
             </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            {...tourTypeAttr('quiz-print.close', 'quiz')}
-            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      }
-      footer={
-        <div className="flex items-center justify-between gap-3">
-          <p
-            className={`text-xs ${tooManyPages ? 'text-brand-red-primary' : 'text-slate-600'}`}
-          >
-            {tooManyPages
-              ? tooManyPagesMessage(pagesPerSheet)
-              : sheetCount === 0
-                ? 'Pick at least one student or spare sheet.'
-                : `${sheetCount} sheet${sheetCount === 1 ? '' : 's'} · ${
-                    sheetCount * pagesPerSheet
-                  } page${sheetCount * pagesPerSheet === 1 ? '' : 's'}${
-                    versionPlan && versionPlan.versions.length > 1
-                      ? ` · ${versionPlan.versions.length} versions`
-                      : ''
-                  }`}
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              {...tourTypeAttr('quiz-print.cancel', 'quiz')}
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handlePrintClick}
-              {...tourTypeAttr('quiz-print.print', 'quiz')}
-              disabled={!canPrint}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Printer className="h-4 w-4" />
-              {printing ? 'Preparing…' : 'Print'}
-            </button>
           </div>
         </div>
-      }
-    >
-      <div className="space-y-4 px-5 pb-5 pt-4">
-        {analysis.exclusions.length > 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-amber-900">
-                  {analysis.exclusions.length} question
-                  {analysis.exclusions.length === 1 ? '' : 's'} will not be on
-                  the sheet
-                </p>
-                <p className="mt-1 text-xs text-amber-800">
-                  Only multiple-choice and true/false questions can be bubbled.
-                </p>
-                <ul className="mt-2 space-y-0.5 text-xs text-amber-800">
-                  {analysis.exclusions.slice(0, 5).map((ex, i) => (
-                    <li key={i} className="truncate">
-                      • {ex.label}
-                    </li>
-                  ))}
-                  {analysis.exclusions.length > 5 && (
-                    <li>• and {analysis.exclusions.length - 5} more</li>
-                  )}
-                </ul>
-              </div>
+      )}
+
+      {analysis.writtenRefusals.length > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-brand-red-primary" />
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-red-900">
+                Written questions can&apos;t be in a choose section on paper
+              </p>
+              <ul className="mt-2 space-y-0.5 text-xs text-red-800">
+                {analysis.writtenRefusals.map((ex, i) => (
+                  <li key={i} className="truncate">
+                    • {ex.label}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {analysis.writtenRefusals.length > 0 && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-brand-red-primary" />
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-red-900">
-                  Written questions can&apos;t be in a choose section on paper
+      {onCreateQuiz && (
+        <label className="block">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Title
+          </span>
+          <input
+            type="text"
+            value={stubTitle}
+            onChange={(e) => setStubTitle(e.target.value)}
+            {...tourTypeAttr('quiz-print.stub-title', 'quiz')}
+            placeholder="Unit 3 Test"
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          />
+        </label>
+      )}
+
+      {onCreateQuiz && readDocument && (
+        <div className="space-y-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Import questions (optional)
+          </span>
+          {readDoc ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-800">
+                    {readDoc.fileName}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-600">
+                    {readDoc.questions.length} question
+                    {readDoc.questions.length === 1 ? '' : 's'} read.
+                    {readDoc.note ? ` ${readDoc.note}` : ''}
+                    {readDoc.aiRetry && (
+                      <>
+                        {' '}
+                        <AiRetryLink
+                          anchor={tourTypeAttr(
+                            'quiz-print.import-retry-with-ai',
+                            'quiz'
+                          )}
+                          disabled={readingDoc}
+                          onRetry={() => {
+                            if (readDoc.aiRetry)
+                              void readQuestionsFrom(readDoc.aiRetry, true);
+                          }}
+                        />
+                      </>
+                    )}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReadDoc(null)}
+                  {...tourTypeAttr('quiz-print.import-remove', 'quiz')}
+                  className="shrink-0 text-xs font-bold uppercase tracking-wide text-slate-500 transition-colors hover:text-brand-red-primary"
+                >
+                  Remove
+                </button>
+              </div>
+              <ol className="mt-2 max-h-36 space-y-1 overflow-y-auto pr-1">
+                {readDoc.questions.map((q) => (
+                  <li key={q.number} className="flex gap-2 text-xs">
+                    <span className="w-5 shrink-0 text-right font-semibold text-slate-500">
+                      {q.number}.
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-slate-700">
+                      {q.text}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              {unanswered > 0 && (
+                <p className="mt-2 text-xs text-amber-800">
+                  {unanswered} question{unanswered === 1 ? '' : 's'} came in
+                  without an answer. Bubble the ANSWER KEY sheet, or fill them
+                  in the quiz editor.
                 </p>
-                <ul className="mt-2 space-y-0.5 text-xs text-red-800">
-                  {analysis.writtenRefusals.map((ex, i) => (
-                    <li key={i} className="truncate">
-                      • {ex.label}
-                    </li>
+              )}
+              {readDoc.warnings.length > 0 && (
+                <ul className="mt-2 max-h-24 space-y-1 overflow-y-auto pr-1 text-xs text-amber-800">
+                  {readDoc.warnings.map((warning, i) => (
+                    <li key={i}>{warning}</li>
                   ))}
                 </ul>
-              </div>
+              )}
             </div>
-          </div>
-        )}
+          ) : (
+            <TestAndKeyUploader
+              keyBehindLink
+              anchor={tourTypeAttr('quiz-print.import-questions', 'quiz')}
+              pickFromDrive={pickDocument}
+              submitLabel="Import"
+              busy={readingDoc}
+              busyLabel="Importing…"
+              onSubmit={(selection) => void readQuestionsFrom(selection)}
+            />
+          )}
+        </div>
+      )}
 
-        {onCreateQuiz && (
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Title
-            </span>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Questions
+          </span>
+          {isStub ? (
             <input
-              type="text"
-              value={stubTitle}
-              onChange={(e) => setStubTitle(e.target.value)}
-              {...tourTypeAttr('quiz-print.stub-title', 'quiz')}
-              placeholder="Unit 3 Test"
+              type="number"
+              min={1}
+              max={500}
+              value={stubQuestionCount}
+              {...tourTypeAttr('quiz-print.stub-question-count', 'quiz')}
+              onChange={(e) =>
+                setStubQuestionCount(
+                  Math.max(1, Math.min(500, Number(e.target.value) || 1))
+                )
+              }
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
             />
-          </label>
-        )}
-
-        {onCreateQuiz && readDocument && (
-          <div className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Import questions (optional)
-            </span>
-            {readDoc ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-800">
-                      {readDoc.fileName}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-600">
-                      {readDoc.questions.length} question
-                      {readDoc.questions.length === 1 ? '' : 's'} read.
-                      {readDoc.note ? ` ${readDoc.note}` : ''}
-                      {readDoc.aiRetry && (
-                        <>
-                          {' '}
-                          <AiRetryLink
-                            anchor={tourTypeAttr(
-                              'quiz-print.import-retry-with-ai',
-                              'quiz'
-                            )}
-                            disabled={readingDoc}
-                            onRetry={() => {
-                              if (readDoc.aiRetry)
-                                void readQuestionsFrom(readDoc.aiRetry, true);
-                            }}
-                          />
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setReadDoc(null)}
-                    {...tourTypeAttr('quiz-print.import-remove', 'quiz')}
-                    className="shrink-0 text-xs font-bold uppercase tracking-wide text-slate-500 transition-colors hover:text-brand-red-primary"
-                  >
-                    Remove
-                  </button>
-                </div>
-                <ol className="mt-2 max-h-36 space-y-1 overflow-y-auto pr-1">
-                  {readDoc.questions.map((q) => (
-                    <li key={q.number} className="flex gap-2 text-xs">
-                      <span className="w-5 shrink-0 text-right font-semibold text-slate-500">
-                        {q.number}.
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-slate-700">
-                        {q.text}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-                {unanswered > 0 && (
-                  <p className="mt-2 text-xs text-amber-800">
-                    {unanswered} question{unanswered === 1 ? '' : 's'} came in
-                    without an answer. Bubble the ANSWER KEY sheet, or fill them
-                    in the quiz editor.
-                  </p>
-                )}
-                {readDoc.warnings.length > 0 && (
-                  <ul className="mt-2 max-h-24 space-y-1 overflow-y-auto pr-1 text-xs text-amber-800">
-                    {readDoc.warnings.map((warning, i) => (
-                      <li key={i}>{warning}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ) : (
-              <TestAndKeyUploader
-                keyBehindLink
-                anchor={tourTypeAttr('quiz-print.import-questions', 'quiz')}
-                pickFromDrive={pickDocument}
-                submitLabel="Import"
-                busy={readingDoc}
-                busyLabel="Importing…"
-                onSubmit={(selection) => void readQuestionsFrom(selection)}
-              />
-            )}
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Questions
-            </span>
-            {isStub ? (
-              <input
-                type="number"
-                min={1}
-                max={500}
-                value={stubQuestionCount}
-                {...tourTypeAttr('quiz-print.stub-question-count', 'quiz')}
-                onChange={(e) =>
-                  setStubQuestionCount(
-                    Math.max(1, Math.min(500, Number(e.target.value) || 1))
-                  )
-                }
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-            ) : (
-              <p className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                {questionCount + writtenCount} from this quiz
-              </p>
-            )}
-          </label>
-
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Choices per question
-            </span>
-            {isStub ? (
-              <select
-                value={stubChoiceCount}
-                {...tourTypeAttr('quiz-print.stub-choice-count', 'quiz')}
-                onChange={(e) => setStubChoiceCount(Number(e.target.value))}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              >
-                {Array.from(
-                  { length: MAX_CHOICE_COUNT - MIN_CHOICE_COUNT + 1 },
-                  (_, i) => MIN_CHOICE_COUNT + i
-                ).map((n) => (
-                  <option key={n} value={n}>
-                    {n}{' '}
-                    {n === 2 ? '(A–B, true/false)' : `(A–${'ABCDE'[n - 1]})`}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                {choiceCount} (A–{'ABCDE'[choiceCount - 1]})
-              </p>
-            )}
-          </label>
-        </div>
-
-        {isStub && writtenOn && (
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Written answers
+          ) : (
+            <p className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {questionCount + writtenCount} from this quiz
             </p>
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                type="number"
-                aria-label="Written question number"
-                {...tourTypeAttr('quiz-print.written-number', 'quiz')}
-                placeholder="#"
-                min={1}
-                max={stubQuestionCount}
-                value={writtenDraft}
-                onChange={(e) => setWrittenDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key !== 'Enter') return;
-                  e.preventDefault();
-                  addStubWritten();
-                }}
-                className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-sm"
-              />
-              <button
-                type="button"
-                disabled={writtenDraftNumber === null}
-                {...tourTypeAttr('quiz-print.written-add', 'quiz')}
-                onClick={addStubWritten}
-                className="rounded-lg border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-              >
-                Add
-              </button>
-            </div>
-            {stubWrittenCount > 0 && (
-              <ul className="mt-2 space-y-1.5">
-                {Object.entries(stubWrittenInRange)
-                  .sort(([a], [b]) => Number(a) - Number(b))
-                  .map(([key, w]) => {
-                    const n = Number(key);
-                    const update = (patch: Partial<StubWritten>) =>
-                      setStubWritten((prev) => ({
-                        ...prev,
-                        [n]: { ...w, ...patch },
-                      }));
-                    return (
-                      <li key={n} className="flex items-center gap-2">
-                        <span className="w-8 shrink-0 text-right text-sm font-semibold text-slate-700">
-                          {n}.
-                        </span>
-                        <BoxSizeSelect
-                          size={w.size}
-                          onChange={(size) => update({ size })}
-                          ariaLabel={`Question ${n} box size`}
-                          anchor={String(n)}
-                        />
-                        <input
-                          type="number"
-                          aria-label={`Question ${n} points`}
-                          {...tourFieldAttr(
-                            'quiz-print.written-points',
-                            'quiz',
-                            String(n)
-                          )}
-                          min={0}
-                          max={100}
-                          value={w.points}
-                          onChange={(e) =>
-                            update({
-                              points: Math.max(
-                                0,
-                                Math.min(100, Number(e.target.value) || 0)
-                              ),
-                            })
-                          }
-                          className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                        />
-                        <span className="text-xs text-slate-500">pts</span>
-                        <button
-                          type="button"
-                          aria-label={`Remove question ${n} written`}
-                          {...tourFieldAttr(
-                            'quiz-print.written-remove',
-                            'quiz',
-                            String(n)
-                          )}
-                          onClick={() =>
-                            setStubWritten((prev) => {
-                              const next = { ...prev };
-                              delete next[n];
-                              return next;
-                            })
-                          }
-                          className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                        >
-                          <X className="h-4 w-4" aria-hidden />
-                        </button>
-                      </li>
-                    );
-                  })}
-              </ul>
-            )}
-          </div>
-        )}
+          )}
+        </label>
 
-        {writtenOn && writtenRows.length > 0 && (
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Written answers
-            </p>
-            <ul className="mt-2 space-y-1.5">
-              {writtenRows.map((row) => (
-                <li key={row.questionId} className="flex items-start gap-2">
-                  {row.label && (
-                    <span className="w-8 shrink-0 pt-1 text-right text-sm font-semibold text-slate-700">
-                      {row.label}.
-                    </span>
-                  )}
-                  <span className="min-w-0 flex-1 pt-1 text-sm text-slate-700">
-                    {row.text || 'Untitled question'}
-                  </span>
-                  <BoxSizeSelect
-                    size={row.size}
-                    onChange={(size) =>
-                      setBoxSizes((prev) => ({
-                        ...prev,
-                        [row.questionId]: size,
-                      }))
-                    }
-                    ariaLabel={`${row.label ? `Question ${row.label}` : row.text} box size`}
-                    anchor={row.label ?? row.questionId}
-                  />
-                </li>
+        <label className="block">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Choices per question
+          </span>
+          {isStub ? (
+            <select
+              value={stubChoiceCount}
+              {...tourTypeAttr('quiz-print.stub-choice-count', 'quiz')}
+              onChange={(e) => setStubChoiceCount(Number(e.target.value))}
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            >
+              {Array.from(
+                { length: MAX_CHOICE_COUNT - MIN_CHOICE_COUNT + 1 },
+                (_, i) => MIN_CHOICE_COUNT + i
+              ).map((n) => (
+                <option key={n} value={n}>
+                  {n} {n === 2 ? '(A–B, true/false)' : `(A–${'ABCDE'[n - 1]})`}
+                </option>
               ))}
-            </ul>
-          </div>
-        )}
+            </select>
+          ) : (
+            <p className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {choiceCount} (A–{'ABCDE'[choiceCount - 1]})
+            </p>
+          )}
+        </label>
+      </div>
 
-        {analysis.shortRows.length > 0 && (
-          <p className="text-xs text-slate-500">
-            Question{analysis.shortRows.length === 1 ? ' ' : 's '}
-            {analysis.shortRows.join(', ')}{' '}
-            {analysis.shortRows.length === 1 ? 'has' : 'have'} fewer than{' '}
-            {choiceCount} choices, so students leave the extra bubbles blank.
+      {isStub && writtenOn && (
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Written answers
           </p>
-        )}
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="number"
+              aria-label="Written question number"
+              {...tourTypeAttr('quiz-print.written-number', 'quiz')}
+              placeholder="#"
+              min={1}
+              max={stubQuestionCount}
+              value={writtenDraft}
+              onChange={(e) => setWrittenDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                addStubWritten();
+              }}
+              className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+            />
+            <button
+              type="button"
+              disabled={writtenDraftNumber === null}
+              {...tourTypeAttr('quiz-print.written-add', 'quiz')}
+              onClick={addStubWritten}
+              className="rounded-lg border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+            >
+              Add
+            </button>
+          </div>
+          {stubWrittenCount > 0 && (
+            <ul className="mt-2 space-y-1.5">
+              {Object.entries(stubWrittenInRange)
+                .sort(([a], [b]) => Number(a) - Number(b))
+                .map(([key, w]) => {
+                  const n = Number(key);
+                  const update = (patch: Partial<StubWritten>) =>
+                    setStubWritten((prev) => ({
+                      ...prev,
+                      [n]: { ...w, ...patch },
+                    }));
+                  return (
+                    <li key={n} className="flex items-center gap-2">
+                      <span className="w-8 shrink-0 text-right text-sm font-semibold text-slate-700">
+                        {n}.
+                      </span>
+                      <BoxSizeSelect
+                        size={w.size}
+                        onChange={(size) => update({ size })}
+                        ariaLabel={`Question ${n} box size`}
+                        anchor={String(n)}
+                      />
+                      <input
+                        type="number"
+                        aria-label={`Question ${n} points`}
+                        {...tourFieldAttr(
+                          'quiz-print.written-points',
+                          'quiz',
+                          String(n)
+                        )}
+                        min={0}
+                        max={100}
+                        value={w.points}
+                        onChange={(e) =>
+                          update({
+                            points: Math.max(
+                              0,
+                              Math.min(100, Number(e.target.value) || 0)
+                            ),
+                          })
+                        }
+                        className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                      />
+                      <span className="text-xs text-slate-500">pts</span>
+                      <button
+                        type="button"
+                        aria-label={`Remove question ${n} written`}
+                        {...tourFieldAttr(
+                          'quiz-print.written-remove',
+                          'quiz',
+                          String(n)
+                        )}
+                        onClick={() =>
+                          setStubWritten((prev) => {
+                            const next = { ...prev };
+                            delete next[n];
+                            return next;
+                          })
+                        }
+                        className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <X className="h-4 w-4" aria-hidden />
+                      </button>
+                    </li>
+                  );
+                })}
+            </ul>
+          )}
+        </div>
+      )}
 
+      {writtenOn && writtenRows.length > 0 && (
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Written answers
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {writtenRows.map((row) => (
+              <li key={row.questionId} className="flex items-start gap-2">
+                {row.label && (
+                  <span className="w-8 shrink-0 pt-1 text-right text-sm font-semibold text-slate-700">
+                    {row.label}.
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 pt-1 text-sm text-slate-700">
+                  {row.text || 'Untitled question'}
+                </span>
+                <BoxSizeSelect
+                  size={row.size}
+                  onChange={(size) =>
+                    setBoxSizes((prev) => ({
+                      ...prev,
+                      [row.questionId]: size,
+                    }))
+                  }
+                  ariaLabel={`${row.label ? `Question ${row.label}` : row.text} box size`}
+                  anchor={row.label ?? row.questionId}
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {analysis.shortRows.length > 0 && (
+        <p className="text-xs text-slate-500">
+          Question{analysis.shortRows.length === 1 ? ' ' : 's '}
+          {analysis.shortRows.join(', ')}{' '}
+          {analysis.shortRows.length === 1 ? 'has' : 'have'} fewer than{' '}
+          {choiceCount} choices, so students leave the extra bubbles blank.
+        </p>
+      )}
+
+      {!assign && (
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Who gets a sheet
@@ -1818,75 +1860,217 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             })}
           </div>
         </div>
+      )}
 
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor="paper-spares" className="text-sm text-slate-700">
-            Blank spare sheets
-            <span className="ml-1 text-xs text-slate-500">
-              for walk-ins and make-ups
-            </span>
-          </label>
-          <input
-            id="paper-spares"
-            type="number"
-            min={0}
-            max={MAX_SPARES}
-            {...tourTypeAttr('quiz-print.spare-count', 'quiz')}
-            value={spareCount}
-            onChange={(e) =>
-              setSpareCount(
-                Math.max(0, Math.min(MAX_SPARES, Number(e.target.value) || 0))
-              )
-            }
-            className="w-20 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
-          />
-        </div>
-
-        <PaperSheetStimuliSection
-          stimuli={sheetStimuli}
-          onChange={setSheetStimuli}
-          quizImageStimuli={quizImageStimuli}
-          pageCount={pagesPerSheet}
-          imageSrc={sheetImages.src}
-          failed={sheetImages.failed}
-          unshared={sharing.unshared}
-          onUploadFile={uploadSheetImage}
-          onPickFromDrive={pickSheetImage}
-          busy={stimulusBusy}
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor="paper-spares" className="text-sm text-slate-700">
+          Blank spare sheets
+          <span className="ml-1 text-xs text-slate-500">
+            for walk-ins and make-ups
+          </span>
+        </label>
+        <input
+          id="paper-spares"
+          type="number"
+          min={0}
+          max={MAX_SPARES}
+          {...tourTypeAttr('quiz-print.spare-count', 'quiz')}
+          value={spareCount}
+          onChange={(e) =>
+            setSpareCount(
+              Math.max(0, Math.min(MAX_SPARES, Number(e.target.value) || 0))
+            )
+          }
+          className="w-20 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
         />
+      </div>
 
-        {!isStub && (
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-slate-700">Include question text</p>
-              {sheetStimuli.length > 0 && (
-                <p className="text-xs text-slate-500">
-                  Not available while the sheet has images or templates on it.
-                </p>
-              )}
-            </div>
-            <Toggle
-              checked={questionTextLayout}
-              onChange={setIncludeQuestionText}
-              disabled={sheetStimuli.length > 0}
-              label="Include question text"
-              anchor={tourTypeAttr('quiz-print.include-question-text', 'quiz')}
-              size="sm"
-            />
-          </div>
-        )}
+      <PaperSheetStimuliSection
+        stimuli={sheetStimuli}
+        onChange={setSheetStimuli}
+        quizImageStimuli={quizImageStimuli}
+        pageCount={pagesPerSheet}
+        imageSrc={sheetImages.src}
+        failed={sheetImages.failed}
+        unshared={sharing.unshared}
+        onUploadFile={uploadSheetImage}
+        onPickFromDrive={pickSheetImage}
+        busy={stimulusBusy}
+      />
 
+      {!isStub && (
         <div className="flex items-start justify-between gap-3">
-          <p className="text-sm text-slate-700">Include an answer key sheet</p>
+          <div>
+            <p className="text-sm text-slate-700">Include question text</p>
+            {sheetStimuli.length > 0 && (
+              <p className="text-xs text-slate-500">
+                Not available while the sheet has images or templates on it.
+              </p>
+            )}
+          </div>
           <Toggle
-            checked={includeKeySheet}
-            onChange={setIncludeKeySheet}
-            label="Include an answer key sheet"
-            anchor={tourTypeAttr('quiz-print.include-key-sheet', 'quiz')}
+            checked={questionTextLayout}
+            onChange={setIncludeQuestionText}
+            disabled={sheetStimuli.length > 0}
+            label="Include question text"
+            anchor={tourTypeAttr('quiz-print.include-question-text', 'quiz')}
             size="sm"
           />
         </div>
+      )}
+
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-slate-700">Include an answer key sheet</p>
+        <Toggle
+          checked={includeKeySheet}
+          onChange={setIncludeKeySheet}
+          label="Include an answer key sheet"
+          anchor={tourTypeAttr('quiz-print.include-key-sheet', 'quiz')}
+          size="sm"
+        />
       </div>
+    </div>
+  );
+
+  if (assign) {
+    const steps: AssignStepDef[] = [
+      {
+        id: 'classes',
+        title: getAssignStepTitle('classes', 'quiz', { kind: 'work' }),
+        value: formatClassesValue(classes, rosters),
+        body: (
+          <div className="space-y-3">
+            <ClassPickerMenu
+              rosters={rosters}
+              value={classes}
+              onChange={setClasses}
+            />
+            <StudentPickMenu
+              rosters={rosters.filter((r) => !r.loadError)}
+              value={classes}
+              onChange={setClasses}
+              refFor={paperStudentRef}
+            />
+          </div>
+        ),
+      },
+      {
+        id: 'sheets',
+        title: getAssignStepTitle('sheets', 'quiz', { kind: 'work' }),
+        value: `${sheetCount} sheet${sheetCount === 1 ? '' : 's'}`,
+        body: setupBody,
+      },
+      ...(sharingStepShown
+        ? [
+            {
+              id: 'sharing' as const,
+              title: getAssignStepTitle('sharing', 'quiz', { kind: 'work' }),
+              value: needsPlc
+                ? PICK_A_PLC
+                : formatSharingValue(sharingValue, { plcs: assign.plcs }),
+              body: (
+                <SharingStep
+                  value={sharingValue}
+                  onChange={setSharingValue}
+                  plcs={assign.plcs}
+                />
+              ),
+            },
+          ]
+        : []),
+    ];
+    return (
+      <AssignStepper
+        isOpen
+        onClose={onClose}
+        title={quiz.title || 'Untitled paper test'}
+        steps={steps}
+        submitLabel="Assign and print"
+        submitIcon={Printer}
+        onSubmit={handlePrintClick}
+        submitting={printing}
+        disabled={!canPrint || needsPlc}
+        disabledReason={needsPlc ? PICK_A_PLC : (footerMessage ?? undefined)}
+      />
+    );
+  }
+
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      ariaLabel="Print response sheets"
+      maxWidth="max-w-2xl"
+      contentClassName=""
+      customHeader={
+        <div className="flex items-start justify-between border-b border-slate-100 px-5 pb-3 pt-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary">
+              <Printer className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                Print response sheets
+              </h2>
+              <p className="mt-0.5 max-w-[24rem] truncate text-xs text-slate-500">
+                {onCreateQuiz
+                  ? 'New paper test'
+                  : quiz.title || 'Untitled paper test'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            {...tourTypeAttr('quiz-print.close', 'quiz')}
+            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      }
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          <p
+            className={`text-xs ${tooManyPages ? 'text-brand-red-primary' : 'text-slate-600'}`}
+          >
+            {tooManyPages
+              ? tooManyPagesMessage(pagesPerSheet)
+              : sheetCount === 0
+                ? 'Pick at least one student or spare sheet.'
+                : `${sheetCount} sheet${sheetCount === 1 ? '' : 's'} · ${
+                    sheetCount * pagesPerSheet
+                  } page${sheetCount * pagesPerSheet === 1 ? '' : 's'}${
+                    versionPlan && versionPlan.versions.length > 1
+                      ? ` · ${versionPlan.versions.length} versions`
+                      : ''
+                  }`}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              {...tourTypeAttr('quiz-print.cancel', 'quiz')}
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handlePrintClick}
+              {...tourTypeAttr('quiz-print.print', 'quiz')}
+              disabled={!canPrint}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Printer className="h-4 w-4" />
+              {printing ? 'Preparing…' : 'Print'}
+            </button>
+          </div>
+        </div>
+      }
+    >
+      {setupBody}
     </Modal>
   );
 };
