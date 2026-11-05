@@ -1598,6 +1598,81 @@ describe('useLinkedCollectionSync: only the link’s own shares and boards', () 
     expect(closeWallsToBoard).toHaveBeenCalledWith('me', 's1', new Set());
   });
 
+  it('host leaves a collaborator’s share when deleting it is denied', async () => {
+    shares.set('collab', share('collab', { originalAuthor: 'other' }));
+    const deps = makeDeps({
+      collections: [hostRoot],
+      dashboards: [board('a', 'week', live('L1_a', 'owner'))],
+    });
+    vi.mocked(deps.stopSharingBoard).mockImplementation((id: string) =>
+      id === 'collab'
+        ? Promise.reject(
+            Object.assign(new Error('denied'), { code: 'permission-denied' })
+          )
+        : Promise.resolve()
+    );
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        hostUid: 'me',
+        boards: [
+          { shareId: 'L1_a', name: 'A', order: 0 },
+          { shareId: 'collab', name: 'B', order: 1 },
+        ],
+      })
+    );
+    await act(async () => {
+      await result.current.stopSharingCollection('week');
+    });
+    expect(deps.leaveSharedBoard).toHaveBeenCalledTimes(1);
+    expect(deps.leaveSharedBoard).toHaveBeenCalledWith('collab');
+  });
+
+  it('host still tries to delete its own link’s ids when the read fails', async () => {
+    const deps = makeDeps({ collections: [hostRoot] });
+    vi.mocked(deps.loadSharedBoard).mockRejectedValue(new Error('read failed'));
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        hostUid: 'me',
+        boards: [
+          { shareId: 'L1_x', name: 'A', order: 0 },
+          { shareId: 'foreign', name: 'B', order: 1 },
+        ],
+      })
+    );
+    await act(async () => {
+      await result.current.stopSharingCollection('week');
+    });
+    expect(
+      vi.mocked(deps.stopSharingBoard).mock.calls.map((c) => c[0])
+    ).toEqual(['L1_x']);
+  });
+
+  it('judges who wrote a share from its doc, not from a local owner role', async () => {
+    shares.set('s9', share('s9', { originalAuthor: 'host' }));
+    const deps = makeDeps({
+      dashboards: [board('b', 'week', live('s9', 'owner'))],
+    });
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [{ shareId: 's9', name: 'A', order: 0 }] }));
+    await act(async () => {
+      await result.current.leaveSharedCollection('week');
+    });
+    expect(deps.leaveSharedBoard).toHaveBeenCalledWith('s9');
+  });
+
+  it('does not import a share a numbered copy already mirrors', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps({
+      dashboards: [board('linked-s1-2', 'week', live('s1', 'collaborator'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(deps.createBoard).not.toHaveBeenCalled();
+  });
+
   it('never replaces a board that already has the import id', async () => {
     shares.set('s1', share('s1'));
     const deps = makeDeps({

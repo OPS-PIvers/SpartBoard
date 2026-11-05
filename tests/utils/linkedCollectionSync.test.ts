@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  boardBelongsToShare,
   canEditLinkedCollection,
   linkedRootOf,
   linkedTreeCollectionIds,
@@ -72,6 +73,16 @@ const root = col('week', null, {
 });
 const mon = col('mon', 'week', { name: 'Monday', linkedSectionId: 'S-mon' });
 const other = col('other', null);
+
+describe('boardBelongsToShare', () => {
+  it('matches the import id, its numbered copies and the host share id', () => {
+    expect(boardBelongsToShare({ id: 'linked-s1' }, 's1', 'L1')).toBe(true);
+    expect(boardBelongsToShare({ id: 'linked-s1-2' }, 's1', 'L1')).toBe(true);
+    expect(boardBelongsToShare({ id: 'b' }, 'L1_b', 'L1')).toBe(true);
+    expect(boardBelongsToShare({ id: 'mine' }, 's1', 'L1')).toBe(false);
+    expect(boardBelongsToShare({ id: 'linked-s10' }, 's1', 'L1')).toBe(false);
+  });
+});
 
 describe('linkedTreeCollectionIds', () => {
   it('covers a live linked collection and its sub-collections only', () => {

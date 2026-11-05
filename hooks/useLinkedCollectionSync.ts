@@ -12,7 +12,6 @@ import i18n from '@/i18n';
 import { logError } from '@/utils/logError';
 import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
 import {
-  freeLinkedBoardId,
   linkedBoardFromShare,
   safeName,
   sharedBoardBelongsToLink,
@@ -168,7 +167,8 @@ const confirmLinkShares = async (
   uid: string,
   ids: Iterable<string>,
   created: ReadonlySet<string>,
-  ownIds: ReadonlySet<string>
+  ownIds: ReadonlySet<string>,
+  host = false
 ): Promise<LinkShare[]> => {
   const list = [...new Set(ids)].filter(Boolean);
   const found: LinkShare[] = [];
@@ -178,18 +178,23 @@ const confirmLinkShares = async (
         .slice(i, i + BATCH)
         .map(async (shareId): Promise<LinkShare | null> => {
           if (created.has(shareId)) return { shareId, mine: true };
-          const snap = await d.loadSharedBoard(shareId);
+          const ownPrefix = shareId.startsWith(`${linkId}_`);
+          let snap: SharedBoardSnapshot | null;
+          try {
+            snap = await d.loadSharedBoard(shareId);
+          } catch (err) {
+            // The host still tries its own link's ids; the rules limit the delete.
+            if (host && ownPrefix) {
+              return { shareId, mine: ownIds.has(shareId) };
+            }
+            throw err;
+          }
           // A gone doc still counts under this link's own id prefix.
           if (!snap) {
-            return shareId.startsWith(`${linkId}_`)
-              ? { shareId, mine: ownIds.has(shareId) }
-              : null;
+            return ownPrefix ? { shareId, mine: ownIds.has(shareId) } : null;
           }
           if (snap.linkedCollectionId !== linkId) return null;
-          return {
-            shareId,
-            mine: snap.originalAuthor === uid || ownIds.has(shareId),
-          };
+          return { shareId, mine: snap.originalAuthor === uid };
         })
     );
     results.forEach((r) => {
@@ -352,10 +357,7 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
             if (!snap || !sharedBoardBelongsToLink(snap, link)) return;
             // Read after the load: an import never replaces a board that already has the id.
             const current = depsRef.current.dashboards;
-            const holder = current.find(
-              (b) => b.id === freeLinkedBoardId(entry.shareId)
-            );
-            if (holder && liveShareIdOf(holder) === entry.shareId) return;
+            if (current.some((b) => liveShareIdOf(b) === entry.shareId)) return;
             const takenIds = new Set([...current.map((b) => b.id), ...claimed]);
             order += 1;
             const data = linkedBoardFromShare(entry, snap, {
@@ -810,20 +812,23 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
             ...created,
           ],
           created,
-          ownIds
+          ownIds,
+          host
         );
         // The host ends every listed board, including ones collaborators added; repeats are harmless.
         // Anyone else leaves the shares they joined, so they stop reading the others' walls.
         const act = shares.filter((s) => host || !s.mine);
         for (let i = 0; i < act.length; i += BATCH) {
           const results = await Promise.allSettled(
-            act
-              .slice(i, i + BATCH)
-              .map((s) =>
-                host
-                  ? d.stopSharingBoard(s.shareId)
-                  : d.leaveSharedBoard(s.shareId)
-              )
+            act.slice(i, i + BATCH).map((s) =>
+              host
+                ? d.stopSharingBoard(s.shareId).catch((err: unknown) => {
+                    if (s.mine || !isPermissionDenied(err)) throw err;
+                    // The author already left the link, so the host leaves the share instead.
+                    return d.leaveSharedBoard(s.shareId);
+                  })
+                : d.leaveSharedBoard(s.shareId)
+            )
           );
           results.forEach((r) => {
             if (
