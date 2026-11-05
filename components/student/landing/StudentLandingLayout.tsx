@@ -35,6 +35,8 @@ export interface StudentLandingLayoutProps {
   grades?: StudentGradesState;
   /** New marks for a gradebook with no stored copy (dev harness). */
   initialSeen?: SeenMarks;
+  /** Resources list on the Overview (`student-overview-resources`). */
+  overviewResources?: boolean;
   firstName: string | null;
   pseudonymUid: string | null;
   onSignOut: () => void;
@@ -78,6 +80,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
   gradesEnabled,
   grades,
   initialSeen,
+  overviewResources = false,
   firstName,
   pseudonymUid,
   onSignOut,
@@ -214,6 +217,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
                 firstName={firstName}
                 nowMs={nowMs}
                 pseudonymUid={pseudonymUid}
+                showResources={overviewResources}
               />
             )}
           </div>

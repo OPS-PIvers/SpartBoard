@@ -26,6 +26,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-rubric-visibility',
   'gradebook',
   'student-gradebook',
+  'student-overview-resources',
   'quiz-time-limit',
   'group-reminders',
   'guided-learning-ai',

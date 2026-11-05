@@ -267,10 +267,12 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   );
 };
 
-export const ResourceRow: React.FC<{ row: LandingRow; nowMs: number }> = ({
-  row,
-  nowMs,
-}) => {
+export const ResourceRow: React.FC<{
+  row: LandingRow;
+  nowMs: number;
+  /** Overview rows name their class. */
+  cls?: LandingClass;
+}> = ({ row, nowMs, cls }) => {
   const a = row.assignment;
   const upcoming = getWindowState(a, nowMs) === 'upcoming';
   const meta =
@@ -282,8 +284,16 @@ export const ResourceRow: React.FC<{ row: LandingRow; nowMs: number }> = ({
       <KindIcon kind={a.kind} />
       <span className="min-w-0 flex-1">
         <Title>{a.title}</Title>
-        <span className="mt-0.5 block truncate text-xs text-slate-500">
-          {kindLabel(a)} · {meta}
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
+          {cls && (
+            <>
+              <ClassMark cls={cls} />
+              <Dot />
+            </>
+          )}
+          <span>{kindLabel(a)}</span>
+          <Dot />
+          <span>{meta}</span>
         </span>
       </span>
     </>

@@ -17,7 +17,10 @@ import {
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { StudentPageShell } from './StudentPageShell';
-import { useStudentGradebookEnabled } from '@/hooks/useStudentGrades';
+import {
+  useStudentFeatureOpen,
+  useStudentGradebookEnabled,
+} from '@/hooks/useStudentGrades';
 import {
   myAssignmentsPath,
   parseMyAssignmentsPath,
@@ -72,6 +75,7 @@ const MyAssignmentsPage: React.FC = () => {
 
   // Rules deny grade reads to a PIN sign-in token.
   const gradesEnabled = useStudentGradebookEnabled() && !pinLogin;
+  const overviewResources = useStudentFeatureOpen('student-overview-resources');
   const [initialPath] = useState(() =>
     typeof window === 'undefined'
       ? parseMyAssignmentsPath('')
@@ -221,6 +225,7 @@ const MyAssignmentsPage: React.FC = () => {
       tab={landingTab}
       onTabChange={handleLandingTabChange}
       gradesEnabled={gradesEnabled}
+      overviewResources={overviewResources}
       onSignOut={handleDone}
       notice={
         hasErrors ? (
