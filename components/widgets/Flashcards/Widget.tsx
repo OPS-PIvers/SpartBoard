@@ -36,6 +36,7 @@ import { flashcardSetShareView } from '@/utils/bundleSubShareContent';
 import { SubLaunchPanel } from '@/components/subs/SubLaunchPanel';
 import {
   buildSetAssignmentTargetsPayload,
+  hasStudentPointers,
   payloadRequiresCall,
 } from '@/utils/studentTargetRef';
 import { buildMixedTargetsPayload } from '@/utils/assignTargets';
@@ -45,6 +46,8 @@ import {
   type FlashcardAssignExtras,
 } from './FlashcardAssignStepper';
 import { useFlashcardPlcSharing } from './useFlashcardPlcSharing';
+import { FlashcardAssignmentSettingsModal } from './FlashcardAssignmentSettingsModal';
+import type { FlashcardAssignmentSettingsPatch } from '@/hooks/useFlashcardAssignments';
 import {
   rosterHasSsoClass,
   type FlashcardAssignSubmission,
@@ -157,6 +160,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     deleteAssignment,
     publishScores,
     unpublishScores,
+    updateAssignmentSettings,
     setPlcShare,
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
   const plcSharing = useFlashcardPlcSharing({
@@ -192,6 +196,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const [sharingSet, setSharingSet] = useState<FlashcardSet | null>(null);
   const [assigningSet, setAssigningSet] = useState<FlashcardSet | null>(null);
   const [publishTarget, setPublishTarget] =
+    useState<FlashcardAssignment | null>(null);
+  const [settingsTarget, setSettingsTarget] =
     useState<FlashcardAssignment | null>(null);
   const openResults = useMemo(
     () =>
@@ -623,6 +629,46 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
+  const handleSaveSettings = async (
+    patch: FlashcardAssignmentSettingsPatch
+  ): Promise<void> => {
+    const target = settingsTarget;
+    if (!target) return;
+    try {
+      await updateAssignmentSettings(target.id, patch);
+      // Accommodated and skipped students read the window off their own pointer doc.
+      const window: SetAssignmentTargetsCallableInput['window'] = {};
+      if ('openAt' in patch) window.openAt = patch.openAt ?? null;
+      if ('closeAt' in patch) window.closeAt = patch.closeAt ?? null;
+      if ('dueAt' in patch) window.dueAt = patch.dueAt ?? null;
+      if (Object.keys(window).length > 0 && hasStudentPointers(target)) {
+        await httpsCallable<
+          SetAssignmentTargetsCallableInput,
+          SetAssignmentTargetsCallableResult
+        >(
+          functions,
+          'setAssignmentTargetsV1'
+        )({
+          assignmentId: target.id,
+          kind: 'flashcards',
+          sessionId: target.sessionId,
+          targetMode: target.targetMode,
+          add: [],
+          remove: [],
+          overridesBySourcedId: {},
+          window,
+        });
+      }
+      addToast('Assignment settings saved.', 'success');
+    } catch (err) {
+      addToast(
+        err instanceof Error ? err.message : 'Failed to save settings',
+        'error'
+      );
+      throw err;
+    }
+  };
+
   const handleUnpublishScores = async (
     assignment: FlashcardAssignment
   ): Promise<void> => {
@@ -783,6 +829,11 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 }
                 onAssignmentResults={showResults}
                 onAssignmentMonitor={showResults}
+                onAssignmentSettings={
+                  canAccessFeature('flashcards-assign-v2')
+                    ? setSettingsTarget
+                    : undefined
+                }
                 onBulkDelete={handleBulkDelete}
                 onAssignmentPublishScores={setPublishTarget}
                 onAssignmentUnpublishScores={(a) =>
@@ -852,6 +903,33 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
             );
             setPublishTarget(null);
           }}
+        />
+      )}
+
+      {settingsTarget && (
+        <FlashcardAssignmentSettingsModal
+          key={settingsTarget.id}
+          assignment={settingsTarget}
+          rosters={rosters}
+          plcs={plcSharing.enabled ? plcSharing.editablePlcs : []}
+          onClose={() => setSettingsTarget(null)}
+          onSave={handleSaveSettings}
+          onShareResults={
+            plcSharing.enabled && plcSharing.editablePlcs.length > 0
+              ? () => {
+                  plcSharing.shareResults(settingsTarget);
+                  setSettingsTarget(null);
+                }
+              : undefined
+          }
+          onStopSharing={
+            plcSharing.enabled
+              ? async () => {
+                  if (await plcSharing.stopSharingResults(settingsTarget))
+                    setSettingsTarget(null);
+                }
+              : undefined
+          }
         />
       )}
 

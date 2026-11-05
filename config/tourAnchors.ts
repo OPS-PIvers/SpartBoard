@@ -14373,6 +14373,18 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards-settings-modal.plc-results': {
+    label:
+      'Share results with PLC button in the Flashcards assignment Settings dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-settings-modal.stop-plc': {
+    label:
+      'Stop sharing with PLC button in the Flashcards assignment Settings dialog',
+    perWidgetType: true,
+    panel: true,
+  },
   'flashcards.stepper-kind-switch': {
     label:
       'Student work or Study resource switch in the Flashcards assign dialog',

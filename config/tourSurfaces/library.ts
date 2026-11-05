@@ -301,6 +301,17 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'library.flashcards',
     needs: ['student-data'],
   },
+  'library.flashcards.assignment-settings': {
+    label: 'Flashcards assignment Settings dialog',
+    kind: 'modal',
+    files: [
+      'components/widgets/Flashcards/FlashcardAssignmentSettingsModal.tsx',
+    ],
+    // On a live row the menu reads Results, then Settings.
+    opensWith: 'library-shell.archive-menu-item:flashcards#row-1-item-2',
+    parent: 'library.flashcards',
+    needs: ['library-item'],
+  },
   'library.flashcards.publish-scores': {
     label: 'Flashcards publish scores dialog',
     kind: 'modal',

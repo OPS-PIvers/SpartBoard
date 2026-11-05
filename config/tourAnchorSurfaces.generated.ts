@@ -3444,6 +3444,12 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'flashcards.stepper-class-picker': ['library.flashcards.assign'],
     'flashcards.stepper-class-row': ['library.flashcards.assign'],
     'flashcards.stepper-student-menu': ['library.flashcards.assign'],
+    'flashcards-settings-modal.plc-results': [
+      'library.flashcards.assignment-settings',
+    ],
+    'flashcards-settings-modal.stop-plc': [
+      'library.flashcards.assignment-settings',
+    ],
     'flashcards.stepper-kind-switch': ['library.flashcards.assign'],
     'flashcards.results-back': ['library.flashcards.results'],
     'flashcards.class-picker': ['library.flashcards.results'],

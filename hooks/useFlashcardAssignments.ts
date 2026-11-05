@@ -22,6 +22,16 @@ import { attachSpeakReferences } from '@/components/widgets/Flashcards/speak/loo
 import { speakLanguageOf } from '@/config/pronunciationGroups';
 import { isSpeakableCard } from '@/utils/flashcardSchedule';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
+import {
+  externalClassIds,
+  stageAssignmentClassEdit,
+  type AssignmentClassEdit,
+} from '@/utils/assignmentClassEdit';
+import {
+  batchUpdateWithPaths,
+  periodAccessWrites,
+} from '@/utils/periodAccessWrites';
+import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import { audienceSessionFields } from '@/utils/staffAudience';
 import {
@@ -77,6 +87,18 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   rules?: FlashcardCheckRules;
 }
 
+/** What the Settings modal changes on a launched assignment; absent keys stay as they are. */
+export interface FlashcardAssignmentSettingsPatch {
+  classEdit?: AssignmentClassEdit;
+  openAt?: number | null;
+  closeAt?: number | null;
+  dueAt?: number | null;
+  /** Window changes per `periodAccess` row key, written to both docs. */
+  periodAccessEdits?: PeriodAccessWindowEdits;
+  rules?: FlashcardCheckRules;
+  scoreVisibility?: FlashcardScoreVisibility;
+}
+
 export interface UseFlashcardAssignmentsResult {
   assignments: FlashcardAssignment[];
   loading: boolean;
@@ -95,6 +117,11 @@ export interface UseFlashcardAssignmentsResult {
   ) => Promise<void>;
   /** Hides released Check scores again. */
   unpublishScores: (assignmentId: string) => Promise<void>;
+  /** Saves the Settings modal's edits to the session and assignment docs in one batch. */
+  updateAssignmentSettings: (
+    assignmentId: string,
+    patch: FlashcardAssignmentSettingsPatch
+  ) => Promise<void>;
   /** Records (or clears) which PLC this assignment's results are shared with. */
   setPlcShare: (
     assignmentId: string,
@@ -460,6 +487,84 @@ export const useFlashcardAssignments = (
     [writeScorePatch]
   );
 
+  const updateAssignmentSettings = useCallback<
+    UseFlashcardAssignmentsResult['updateAssignmentSettings']
+  >(
+    async (assignmentId, patch) => {
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        FLASHCARD_ASSIGNMENTS_COLLECTION,
+        assignmentId
+      );
+      const sessionRef = doc(db, FLASHCARD_SESSIONS_COLLECTION, assignmentId);
+      const session = (await getDoc(sessionRef)).data() as
+        FlashcardSession | undefined;
+      if (!session) throw new Error('Assignment session not found');
+      const batch = writeBatch(db);
+      const { classEdit } = patch;
+      if (classEdit) {
+        stageAssignmentClassEdit(batch, {
+          assignmentRef,
+          sessionRef,
+          keepClassIds: externalClassIds(session.classIds),
+          currentSession: session,
+          edit: classEdit,
+          now,
+          assignmentPeriodNames: true,
+          sessionFields: ['classId', 'periodNames'],
+        });
+      }
+      // A row the class edit removes must not come back as a partial row.
+      const removedRows = new Set(
+        Object.entries(classEdit?.periodAccessRows ?? {})
+          .filter(([, row]) => row === null)
+          .map(([key]) => key)
+      );
+      const edits = Object.fromEntries(
+        Object.entries(patch.periodAccessEdits ?? {}).filter(
+          ([key]) => !removedRows.has(key)
+        )
+      );
+      const rowWrites = periodAccessWrites(undefined, edits);
+      const shared: Record<string, unknown> = {};
+      for (const key of ['openAt', 'closeAt', 'dueAt'] as const) {
+        if (key in patch) shared[key] = patch[key] ?? null;
+      }
+      if (patch.rules) shared.rules = patch.rules;
+      const assignmentOnly: Record<string, unknown> = classEdit
+        ? { classIds: classEdit.classIds }
+        : {};
+      if (patch.scoreVisibility) shared.scoreVisibility = patch.scoreVisibility;
+      const sessionPatch: Record<string, unknown> = { ...shared };
+      // Shuffle rides lockedSettings too, which is what the student page reads today.
+      if (patch.rules && session.lockedSettings) {
+        sessionPatch['lockedSettings.shuffle'] =
+          patch.rules.sessionOptions.shuffleQuestions === true;
+      }
+      if (
+        Object.keys(shared).length > 0 ||
+        Object.keys(assignmentOnly).length > 0 ||
+        rowWrites.length > 0
+      ) {
+        batchUpdateWithPaths(
+          batch,
+          assignmentRef,
+          { ...shared, ...assignmentOnly, updatedAt: now },
+          rowWrites
+        );
+      }
+      if (Object.keys(sessionPatch).length > 0 || rowWrites.length > 0) {
+        batchUpdateWithPaths(batch, sessionRef, sessionPatch, rowWrites);
+      }
+      await batch.commit();
+    },
+    [userId]
+  );
+
   const setPlcShare = useCallback<UseFlashcardAssignmentsResult['setPlcShare']>(
     async (assignmentId, plcShare) => {
       if (!userId) throw new Error('Not authenticated');
@@ -487,6 +592,7 @@ export const useFlashcardAssignments = (
     deleteAssignment,
     publishScores,
     unpublishScores,
+    updateAssignmentSettings,
     setPlcShare,
   };
 };
