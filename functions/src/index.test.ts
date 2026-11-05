@@ -3983,6 +3983,7 @@ describe('index barrel — deployed export set', () => {
     'focusReportV1',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
+    'syncConfigFromProdV1',
     'gradebookDemoV1',
     // Guided Learning Storage slide GC
     'gcGuidedLearningMedia',
