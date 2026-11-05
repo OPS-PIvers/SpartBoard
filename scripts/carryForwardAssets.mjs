@@ -10,7 +10,12 @@ export const FETCH_WORKERS = 32;
 const FETCH_TIMEOUT_MS = 30_000;
 
 /** Keeps previous builds deployed within KEEP_MS (newest first, capped at maxBuilds) and lists their files the new build lacks. */
-export function planCarryForward(previous, current, now, maxBuilds = MAX_BUILDS) {
+export function planCarryForward(
+  previous,
+  current,
+  now,
+  maxBuilds = MAX_BUILDS
+) {
   const prior = Array.isArray(previous?.builds) ? previous.builds : [];
   const kept = prior
     .filter(
