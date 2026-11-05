@@ -10785,6 +10785,8 @@ export type GlobalFeature =
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
+  /** Resources list on the student Overview in My Assignments. */
+  | 'student-overview-resources'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
   | 'quiz-time-limit'
   /** Routine Guide widget, the instructional routines redesign. */
