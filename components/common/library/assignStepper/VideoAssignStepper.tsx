@@ -13,7 +13,7 @@ import {
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
-import { applyWhen, manualStartAvailable } from '@/utils/assignAvailability';
+import { applyWhen } from '@/utils/assignAvailability';
 import type { AssignPeriodAccessContext } from '../AssignPeriodAccessSection';
 import { AssignStepper } from './AssignStepper';
 import { AssignTopSwitch } from './AssignTopSwitch';
@@ -133,12 +133,11 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
     classes.classIds.includes(r.id)
   );
 
-  const manualAvailable = manualStartAvailable(periodAccess?.bellWindow);
   const [when, setWhen] = useState<AssignWhenValue>(() =>
     defaultWhenValue({
       activity: 'video',
       bellAvailable: !!periodAccess,
-      manualAvailable,
+      manualAvailable: true,
     })
   );
   const [targeting, setTargeting] = useState<AssignTargetingValue>(
@@ -213,7 +212,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
       value: formatWhenValue(when, {
         variant,
         rosterCount: pickedRosters.length,
-        manualAvailable,
+        manualAvailable: true,
         t,
       }),
       body: (
@@ -223,6 +222,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
           variant={variant}
           rosters={pickedRosters}
           periodAccess={periodAccess}
+          manualAvailable
         />
       ),
     }),
@@ -251,8 +251,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
   const backwards =
     !live && whenBackwards(when, pickedRosters, periodAccess?.bellWindow);
   const submit = async () => {
-    const manualStart =
-      !live && !staff && when.mode === 'manual' && manualAvailable;
+    const manualStart = !live && !staff && when.mode === 'manual';
     const resolved = live
       ? EMPTY_ASSIGN_TARGETING_VALUE
       : staff
@@ -261,12 +260,18 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
               ...EMPTY_ASSIGN_TARGETING_VALUE,
               availability: when.availability,
             },
-            { mode: when.mode, rosters: [], bellWindow: undefined }
+            {
+              mode: when.mode,
+              manualAvailable: false,
+              rosters: [],
+              bellWindow: undefined,
+            }
           ).targeting
         : applyWhen(
             { ...targeting, availability: when.availability },
             {
               mode: when.mode,
+              manualAvailable: true,
               rosters: pickedRosters,
               bellWindow: periodAccess?.bellWindow,
             }

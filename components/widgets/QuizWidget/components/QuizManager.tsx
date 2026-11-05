@@ -130,7 +130,7 @@ import {
   useLibraryDeleteConfirm,
 } from '@/components/common/library';
 import { earliestDueAt } from '@/utils/perClassDueDates';
-import { applyWhen, manualStartAvailable } from '@/utils/assignAvailability';
+import { applyWhen } from '@/utils/assignAvailability';
 import { QuizAssignStepper } from './QuizAssignStepper';
 import { sharingNeedsPlc } from '@/components/common/library/assignStepper/SharingStep.format';
 import { defaultWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
@@ -914,7 +914,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         defaultWhenValue({
           activity: 'quiz',
           bellAvailable: !!periodAccess,
-          manualAvailable: manualStartAvailable(periodAccess?.bellWindow),
+          manualAvailable: true,
         })
       );
       // eslint-disable-next-line react-hooks/refs -- reset with the adjust-state-while-rendering block
@@ -1961,7 +1961,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         ...(assignToStaff ? EMPTY_ASSIGN_TARGETING_VALUE : assignTargeting),
         availability: assignWhen.availability,
       },
-      { mode: assignWhen.mode, rosters: validRosters, bellWindow }
+      {
+        mode: assignWhen.mode,
+        manualAvailable: true,
+        rosters: validRosters,
+        bellWindow,
+      }
     );
     const perClassDue = applied.dueAtByRosterId;
     const studentsByClass = Object.fromEntries(
@@ -1982,10 +1987,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       perClassDue,
       {
         classes: { classIds: validRosterIds, studentsByClass },
-        manualStart:
-          !assignToStaff &&
-          assignWhen.mode === 'manual' &&
-          manualStartAvailable(bellWindow),
+        manualStart: !assignToStaff && assignWhen.mode === 'manual',
         ...(assignToStaff ? { audience: 'staff' as const } : {}),
       }
     );

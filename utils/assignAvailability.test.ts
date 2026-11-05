@@ -9,7 +9,6 @@ import {
   closesBeforeOpens,
   closesInPast,
   defaultAvailability,
-  manualStartAvailable,
   periodAccessWindowEdits,
   resolveAvailability,
   type AssignAvailability,
@@ -604,14 +603,10 @@ describe('applyWhen', () => {
     dueAt: 3,
   };
 
-  it('needs bell periods for Manual', () => {
-    expect(manualStartAvailable(bellWindow)).toBe(true);
-    expect(manualStartAvailable(undefined)).toBe(false);
-  });
-
   it('writes Manual as closed per-period access with no window or due date', () => {
     const { targeting, dueAtByRosterId } = applyWhen(value, {
       mode: 'manual',
+      manualAvailable: true,
       rosters: [p3, p5],
       bellWindow,
     });
@@ -625,6 +620,7 @@ describe('applyWhen', () => {
   it('keeps Manual for a single class', () => {
     const { targeting } = applyWhen(value, {
       mode: 'manual',
+      manualAvailable: true,
       rosters: [p3],
       bellWindow,
     });
@@ -635,6 +631,7 @@ describe('applyWhen', () => {
   it('saves the work kind with Manual when the setting is on', () => {
     const { targeting } = applyWhen(value, {
       mode: 'manual',
+      manualAvailable: true,
       rosters: [p3],
       bellWindow,
       workKind: { default: 'work' },
@@ -642,9 +639,21 @@ describe('applyWhen', () => {
     expect(targeting.workKind).toBe('work');
   });
 
-  it('falls back to the dates without bell periods', () => {
+  it('keeps Manual without bell periods', () => {
     const { targeting } = applyWhen(value, {
       mode: 'manual',
+      manualAvailable: true,
+      rosters: [p3],
+      bellWindow: undefined,
+    });
+    expect(targeting.periodPlan).toEqual({ mode: 'assessment' });
+    expect(targeting.dueAt).toBeUndefined();
+  });
+
+  it('falls back to the dates where Manual is not offered', () => {
+    const { targeting } = applyWhen(value, {
+      mode: 'manual',
+      manualAvailable: false,
       rosters: [p3],
       bellWindow: undefined,
     });
@@ -656,6 +665,7 @@ describe('applyWhen', () => {
   it('resolves Scheduled like the availability section, with per-class rows', () => {
     const { targeting, dueAtByRosterId } = applyWhen(value, {
       mode: 'scheduled',
+      manualAvailable: true,
       rosters: [p3, p5],
       bellWindow,
     });
@@ -672,6 +682,7 @@ describe('applyWhen', () => {
   it('never makes a study resource manual', () => {
     const { targeting } = applyWhen(value, {
       mode: 'manual',
+      manualAvailable: true,
       rosters: [p3],
       bellWindow,
       workKind: { default: 'resource', locked: true },

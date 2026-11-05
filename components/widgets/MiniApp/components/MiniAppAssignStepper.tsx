@@ -84,12 +84,11 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
     classIds: initialClassIds.filter((id) => rosters.some((r) => r.id === id)),
     studentsByClass: {},
   }));
-  const manualAvailable = !!periodAccess;
   const [when, setWhen] = useState<AssignWhenValue>(() =>
     defaultWhenValue({
       activity: 'miniapp',
       bellAvailable: !!periodAccess,
-      manualAvailable,
+      manualAvailable: true,
     })
   );
   const [targeting, setTargeting] = useState<AssignTargetingValue>(
@@ -151,6 +150,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
         variant={variant}
         rosters={pickedRosters}
         periodAccess={periodAccess}
+        manualAvailable
       />
     ),
   };
@@ -159,7 +159,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
     when: formatWhenValue(when, {
       variant,
       rosterCount: pickedRosters.length,
-      manualAvailable,
+      manualAvailable: true,
       t,
     }),
   };

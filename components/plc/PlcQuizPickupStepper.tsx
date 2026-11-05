@@ -4,7 +4,6 @@ import type { QuizBehaviorSettings } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
-import { manualStartAvailable } from '@/utils/assignAvailability';
 import { toAssessmentBehavior } from '@/utils/quizBehavior';
 import type { AssignClassesValue } from '@/utils/assignTargets';
 import {
@@ -47,7 +46,7 @@ export const PlcQuizPickupStepper: React.FC<PlcQuizPickupStepperProps> = ({
     defaultWhenValue({
       activity: 'quiz',
       bellAvailable: !!periodAccess,
-      manualAvailable: manualStartAvailable(periodAccess?.bellWindow),
+      manualAvailable: true,
     });
   const [behavior, setBehavior] =
     useState<QuizBehaviorSettings>(initialBehavior);
