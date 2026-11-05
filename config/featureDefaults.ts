@@ -26,7 +26,6 @@ import {
   Library,
   Link2,
   ListChecks,
-  ListOrdered,
   Mic,
   Music,
   Music2,
@@ -56,7 +55,6 @@ import {
   Triangle,
   Workflow,
   Shuffle,
-  SquareDashedMousePointer,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -698,31 +696,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // docs/plans/shipped/AI_BOARDS.md D26: connector board tools and the new Magic Board engine.
-  'ai-boards': {
-    label: 'AI boards',
-    icon: LayoutDashboard,
-    description:
-      'Claude builds and edits boards from templates, and Magic Board uses the same layouts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    category: 'ai',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Arts & Letters Agenda: teachers pick Simple or Detailed, from the boxes admins build.
-  'agenda-versions': {
-    label: 'Agenda Simple and Detailed',
-    icon: ListOrdered,
-    description:
-      'A Simple or Detailed choice in Arts & Letters Agenda settings, using the boxes admins set for each building.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
   'claude-connector': {
     label: 'Claude connector',
@@ -759,20 +732,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
-  },
-  // Video Activity editor and assign rules on the Quiz versions (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md).
-  'va-quiz-alignment': {
-    label: 'Video Activity matches Quiz',
-    icon: ListChecks,
-    description: 'Video Activity questions and assign rules work like Quiz.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'video-activity',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: false,
-    missingDocPublic: false,
-    // Closed for admins too until LTI, Classroom and PLC assigns read the new rules (slices 6 and 7).
-    failClosedForAdmins: true,
   },
   // Quiz library "Student view": the real student player with focus-mode toggles, local-only.
   'quiz-student-view': {
@@ -880,18 +839,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Rubric visibility for students',
     icon: Eye,
     description: 'Rubrics stay hidden unless a question shows them.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Scoring-guide rubrics. Admin-only until Paul has tested them in prod.
-  'rubric-scoring-guides': {
-    label: 'Scoring-guide rubrics',
-    icon: ListChecks,
-    description:
-      'Rubrics with parts, scoring guidelines and example responses.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1081,12 +1028,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // SpartBoard creates the Schoology gradebook column (SCHOOLOGY_TOOL_COLUMNS.md D11).
-  'schoology-tool-columns': {
-    label: 'Schoology gradebook columns',
+  // Find each class's Schoology section by its ClassLink id (SCHOOLOGY_AUTO_LINK.md D3).
+  'schoology-auto-link': {
+    label: 'Find my Schoology courses',
     icon: GraduationCap,
-    description:
-      'Push scores to Schoology without adding the assignment there; SpartBoard makes the gradebook column.',
+    description: 'Links each class to its Schoology course in one step.',
     stage: 'preview',
     afterLaunch: 'retire',
     group: 'assigning',
@@ -1236,16 +1182,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'timer-starting-length': {
-    label: 'Timer starting length',
-    icon: Timer,
-    description: 'Teachers choose the length their new timers start at.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'music-my-songs': {
     label: 'My songs in Music',
     icon: Music,
@@ -1274,17 +1210,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Shuffle,
     description:
       'A Groups setting that keeps students apart from recent groupmates.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'board-multi-select': {
-    label: 'Drag to select widgets',
-    icon: SquareDashedMousePointer,
-    description:
-      'Hold Ctrl and drag across the board to select several widgets, then pin or group them.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

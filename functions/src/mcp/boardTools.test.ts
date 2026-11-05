@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -17,9 +17,7 @@ import {
   placeInZone,
 } from './boardEngine.gen';
 
-const archive = vi.hoisted(() => ({ granted: true }));
 vi.mock('../quizMediaArchive', () => ({
-  isGlobalFeatureGranted: vi.fn(() => Promise.resolve(archive.granted)),
   deriveTeacherTier: vi.fn(() => Promise.resolve('internal')),
   isBetaTeacher: vi.fn(() => Promise.resolve(false)),
   meetsMinTierServer: () => true,
@@ -216,10 +214,6 @@ function seed(): Record<string, Data> {
   };
 }
 
-beforeEach(() => {
-  archive.granted = true;
-});
-
 describe('list_boards', () => {
   it("lists the teacher's boards newest first with collection paths and counts", async () => {
     const call = await connect(fakeDb(seed()).db);
@@ -271,14 +265,6 @@ describe('list_boards', () => {
     })) as { boards: Data[]; next_cursor: string | null };
     expect(second.boards).toHaveLength(5);
     expect(second.next_cursor).toBeNull();
-  });
-
-  it('refuses when ai-boards is off for the teacher', async () => {
-    archive.granted = false;
-    const call = await connect(fakeDb(seed()).db);
-    expect(await call('list_boards')).toEqual({
-      error: 'Boards through Claude are not turned on for this account yet.',
-    });
   });
 });
 
@@ -354,12 +340,6 @@ describe('get_board', () => {
     ).toHaveProperty('error');
     expect(await call('get_board', { board_id: '..' })).toHaveProperty('error');
     expect(reads.every((p) => p.startsWith('users/u1/'))).toBe(true);
-  });
-
-  it('is refused when ai-boards is off', async () => {
-    archive.granted = false;
-    const call = await connect(fakeDb(seed()).db);
-    expect(await call('get_board', { board_id: 'b1' })).toHaveProperty('error');
   });
 });
 

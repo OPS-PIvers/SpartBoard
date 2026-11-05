@@ -505,7 +505,11 @@ export const SURFACES: TourSurfaceMap = {
   'board.schoology-link': {
     label: 'Link Schoology sections',
     kind: 'modal',
-    files: ['components/classes/LinkSchoologyModal.tsx'],
+    files: [
+      'components/classes/LinkSchoologyModal.tsx',
+      'components/classes/SchoologyLinkedCourses.tsx',
+      'components/classes/SchoologyFindCourses.tsx',
+    ],
     opensWith: 'classes.link-schoology',
   },
 

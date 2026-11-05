@@ -539,12 +539,8 @@ export const DashboardView: React.FC = () => {
     const flag = IMPORT_TARGET_FEATURES[target];
     return !!flag && canAccessFeature(flag);
   };
-  const boxSelectOn = canAccessFeature('board-multi-select');
   const boxSelectEnabled =
-    boxSelectOn &&
-    !annotationActive &&
-    !isActiveBoardReadOnly &&
-    !groupBuildMode;
+    !annotationActive && !isActiveBoardReadOnly && !groupBuildMode;
   const marqueeRect = useBoardMarqueeSelect({
     enabled: boxSelectEnabled,
     getSelectableIds: () =>
@@ -1842,7 +1838,7 @@ export const DashboardView: React.FC = () => {
           />,
           document.body
         )}
-      {boxSelectOn && !groupBuildMode && <BoxSelectionBar />}
+      {!groupBuildMode && <BoxSelectionBar />}
 
       {/* Group-building mode floating action bar */}
       {groupBuildMode &&

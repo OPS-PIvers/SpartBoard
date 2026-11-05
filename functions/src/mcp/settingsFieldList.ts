@@ -1200,27 +1200,7 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'custom',
     },
   ],
-  'video-activity': [
-    {
-      anchor: 'settings.group:video-activity#behavior',
-      label: 'Behavior',
-    },
-    {
-      anchor: 'settings.toggle:video-activity#autoPlay',
-      label: 'Auto-play video',
-      kind: 'toggle',
-    },
-    {
-      anchor: 'settings.toggle:video-activity#requireCorrectAnswer',
-      label: 'Require correct answers',
-      kind: 'toggle',
-    },
-    {
-      anchor: 'settings.toggle:video-activity#allowSkipping',
-      label: 'Allow skipping',
-      kind: 'toggle',
-    },
-  ],
+  'video-activity': [],
   'guided-learning': [
     {
       anchor: 'settings.group:guided-learning#behavior',

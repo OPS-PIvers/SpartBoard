@@ -78,10 +78,7 @@ import {
   defaultWhenValue,
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
-import {
-  getVideoActivityBehavior,
-  formatVideoActivityBehaviorSummary,
-} from '@/utils/videoActivityBehavior';
+import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { sessionSectionsFor } from '@/utils/quizSections';
 import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
@@ -192,11 +189,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // already-created attachment (no addOnToken in that iframe).
   const existingAttachmentId = params.get('attachmentId') ?? '';
 
-  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
-    useAuth();
-  // va-quiz-alignment: VA rules are edited here, prefilled from last-used else the activity (V3).
-  const vaRulesOn = canAccessFeature('va-quiz-alignment');
-  const lastVaRules = useLastVideoAssignSettings(user?.uid, vaRulesOn);
+  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  // VA rules are edited here, prefilled from last-used else the activity (V3).
+  const lastVaRules = useLastVideoAssignSettings(user?.uid, true);
   const [editedVaRules, setEditedVaRules] = useState<{
     activityId: string;
     rules: VideoAssignRules;
@@ -393,28 +388,15 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     () => activities.find((a) => a.id === selectedActivityId),
     [activities, selectedActivityId]
   );
-  const vaRules: VideoAssignRules | null =
-    vaRulesOn && selectedActivity
-      ? editedVaRules?.activityId === selectedActivity.id
-        ? editedVaRules.rules
-        : videoRulesPrefill(
-            getVideoActivityBehavior(selectedActivity),
-            lastVaRules.lastUsed,
-            VA_SESSION_SETTINGS
-          )
-      : null;
-
-  // Read-only summary of the configured behavior the attachment will inherit —
-  // surfaces the parity (the quiz/VA's own session mode, attempts, etc.) so the
-  // teacher can see what students will get before attaching.
-  const behaviorSummary = useMemo(() => {
-    if (kind === 'quiz' || vaRulesOn) return null;
-    return selectedActivity
-      ? formatVideoActivityBehaviorSummary(
-          getVideoActivityBehavior(selectedActivity)
+  const vaRules: VideoAssignRules | null = selectedActivity
+    ? editedVaRules?.activityId === selectedActivity.id
+      ? editedVaRules.rules
+      : videoRulesPrefill(
+          getVideoActivityBehavior(selectedActivity),
+          lastVaRules.lastUsed,
+          VA_SESSION_SETTINGS
         )
-      : null;
-  }, [kind, selectedActivity, vaRulesOn]);
+    : null;
 
   const signIn = useCallback(async () => {
     setBusy(true);
@@ -855,7 +837,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
     const windowTargeting = resolveWindow();
     const dueAt = windowOn ? (windowTargeting.dueAt ?? null) : null;
-    // The assignment's rules (va-quiz-alignment) replace the activity's behavior and the player defaults.
+    // The assignment's rules replace the activity's behavior and the player defaults.
     const fromRules = vaRules ? videoRulesSessionFields(vaRules) : null;
     const sessionOptions: VideoActivitySessionOptions = {
       ...(fromRules?.sessionOptions ?? {
@@ -1265,16 +1247,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                 Assignment settings
               </h2>
 
-              {behaviorSummary && (
-                <p className="text-xs text-slate-500">
-                  Inherits this {kind === 'quiz' ? 'quiz' : 'activity'}
-                  &rsquo;s settings:{' '}
-                  <span className="font-medium text-slate-700">
-                    {behaviorSummary}
-                  </span>
-                </p>
-              )}
-
               <div>
                 <label
                   htmlFor={teacherNameId}
@@ -1386,7 +1358,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
             disabled={
               !canAttach ||
               windowBackwards ||
-              (kind !== 'quiz' && vaRulesOn && !lastVaRules.loaded)
+              (kind !== 'quiz' && !lastVaRules.loaded)
             }
             title={windowBackwards ? 'Closes before it opens.' : undefined}
             icon={Paperclip}

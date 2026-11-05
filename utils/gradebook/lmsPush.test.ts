@@ -115,7 +115,7 @@ describe('readLmsLink', () => {
     expect(readLmsLink(null)).toBeNull();
   });
 
-  it('uses a tool column for a class linked to Schoology, only with the flag on', () => {
+  it('uses a tool column for a class linked to Schoology, only when linked targets are given', () => {
     const targets = schoologyLinkedTargets([
       { id: 'r1', ltiContextId: '123', classlinkClassId: 'cl-1' },
       { id: 'r2', classlinkClassId: 'cl-2' },

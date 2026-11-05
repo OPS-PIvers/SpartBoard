@@ -1,4 +1,4 @@
-// The Video Activity rule steps as stepper defs, in getAssignSteps order (va-quiz-alignment V4, V5).
+// The Video Activity rule steps as stepper defs, in getAssignSteps order (VA_QUIZ_ALIGNMENT V4, V5).
 import React from 'react';
 import type { AssignStepDef } from './assignSteps';
 import { getAssignStepTitle } from './assignSteps';

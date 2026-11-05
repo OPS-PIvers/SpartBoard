@@ -166,6 +166,33 @@ export function applyExamViewTypes(
   });
 }
 
+/** An AI read's items under a Matching heading that share one term list become one set (E6). */
+export function groupMatchingSets(
+  questions: readonly ExtractedQuestion[]
+): ExtractedQuestion[] {
+  let group = '';
+  let previous: ExtractedQuestion | undefined;
+  return questions.map((q) => {
+    const candidate =
+      !q.matchingGroup &&
+      (q.type === 'MC' || q.type === 'MA') &&
+      q.options.length > 1 &&
+      examViewKindOf(q.ref?.sectionName) === 'matching';
+    if (!candidate) {
+      previous = undefined;
+      return q;
+    }
+    const signature = q.options.map((o) => o.text).join('|');
+    const same =
+      previous?.ref?.section === q.ref?.section &&
+      previous?.options.map((o) => o.text).join('|') === signature;
+    if (!same) group = `m${q.number}`;
+    const kept = { ...q, matchingGroup: group };
+    previous = kept;
+    return kept;
+  });
+}
+
 /** The printed label of a question, for `nA`/`nB` and ranges. */
 const labelOf = (q: ExtractedQuestion): string =>
   q.sourceLabel ?? String(q.ref?.item ?? q.number);

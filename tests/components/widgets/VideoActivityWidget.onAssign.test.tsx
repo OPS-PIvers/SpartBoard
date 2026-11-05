@@ -464,7 +464,7 @@ describe('VideoActivityWidget onAssign — assign stepper', () => {
     ];
     const dialog = await openAssignModal();
     pickClass(dialog, 'Period 1');
-    fireEvent.click(within(dialog).getByRole('button', { name: /^3Sharing/ }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /^\dSharing/ }));
     fireEvent.click(
       within(dialog).getByRole('switch', { name: /Share results/ })
     );
@@ -487,32 +487,13 @@ describe('VideoActivityWidget onAssign — assign stepper', () => {
   });
 });
 
-describe('VideoActivityWidget onAssign — rules on the assignment (va-quiz-alignment)', () => {
+describe('VideoActivityWidget onAssign — rules on the assignment', () => {
   const sessionArgs = () => ({
     settings: createSession.mock.calls[0][3] as Record<string, unknown>,
     options: createSession.mock.calls[0][10] as Record<string, unknown>,
   });
 
-  it('flag off: keeps the activity behavior and board rules, no stamp', async () => {
-    const dialog = await openAssignModal();
-    expect(
-      within(dialog).queryByRole('button', { name: /^\dVideo/ })
-    ).toBeNull();
-    confirmAssign(dialog);
-
-    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
-    const { settings, options } = sessionArgs();
-    expect(options).not.toHaveProperty('answerRulesSet');
-    expect(options.showResultToStudent).toBe(false);
-    expect(settings).toEqual({
-      autoPlay: false,
-      requireCorrectAnswer: true,
-      allowSkipping: false,
-    });
-  });
-
-  it('flag on: writes the stepper rules, stamps the session and remembers them', async () => {
-    flags.add('va-quiz-alignment');
+  it('writes the stepper rules, stamps the session and remembers them', async () => {
     const dialog = await openAssignModal();
     fireEvent.click(within(dialog).getByRole('button', { name: /^\dVideo/ }));
     fireEvent.click(
@@ -548,8 +529,7 @@ describe('VideoActivityWidget onAssign — rules on the assignment (va-quiz-alig
     );
   });
 
-  it('flag on: prefills from the last-used rules once they load', async () => {
-    flags.add('va-quiz-alignment');
+  it('prefills from the last-used rules once they load', async () => {
     resetLastVideoAssignSettingsCache();
     vi.mocked(getDoc).mockResolvedValueOnce({
       exists: () => true,
@@ -586,8 +566,7 @@ describe('VideoActivityWidget onAssign — rules on the assignment (va-quiz-alig
     resetLastVideoAssignSettingsCache();
   });
 
-  it('flag on: rewind is written off when right and wrong is hidden', async () => {
-    flags.add('va-quiz-alignment');
+  it('rewind is written off when right and wrong is hidden', async () => {
     const dialog = await openAssignModal();
     fireEvent.click(
       within(dialog).getByRole('button', { name: /^\dWhat students see/ })
@@ -605,8 +584,7 @@ describe('VideoActivityWidget onAssign — rules on the assignment (va-quiz-alig
     expect(settings.requireCorrectAnswer).toBe(false);
   });
 
-  it('flag on: a live run keeps today’s rules and no stamp', async () => {
-    flags.add('va-quiz-alignment');
+  it('a live run keeps today’s rules and no stamp', async () => {
     flags.add('video-activity-live');
     const dialog = await openAssignModal();
     fireEvent.click(

@@ -2149,7 +2149,6 @@ const TeacherQuizWidget: React.FC<{
             importVersions: true,
             plainVersions: canAccessFeature('quiz-import-versions-plain'),
             saveVersionImport,
-            rubricScoringGuides: canAccessFeature('rubric-scoring-guides'),
             ...(canUseAiReader
               ? { aiExtractVersions: extractTestSetFromDocument }
               : {}),
@@ -3706,9 +3705,7 @@ const TeacherQuizWidget: React.FC<{
         }}
         onArchiveDelete={async (a) => {
           try {
-            const hadColumn =
-              canAccessFeature('schoology-tool-columns') &&
-              (await sessionHasToolColumn('quiz', a.id));
+            const hadColumn = await sessionHasToolColumn('quiz', a.id);
             await deleteAssignment(a.id);
             addToast('Assignment deleted.', 'success');
             if (hadColumn) {
@@ -4168,9 +4165,6 @@ const TeacherQuizWidget: React.FC<{
                 kind: 'quiz',
                 sessionId: target.id,
                 classroomFinalAttachments,
-                schoologyToolColumns: canAccessFeature(
-                  'schoology-tool-columns'
-                ),
                 classroomToken,
                 schoologyMaxPoints: pushMaxPoints,
                 buildClassroomGrades: (responses) => {

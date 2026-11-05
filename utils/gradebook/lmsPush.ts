@@ -51,7 +51,7 @@ export function schoologyLinkedTargets(
   return { rosterIds, classIds };
 }
 
-/** An assignment is a Classroom attachment, a Schoology launch, or (flag on) a tool column for a linked class. */
+/** An assignment is a Classroom attachment, a Schoology launch, or a tool column for a linked class. */
 export function readLmsLink(
   session: {
     classroomAttachments?: ClassroomAttachmentLink[] | null;

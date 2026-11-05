@@ -20,7 +20,7 @@ import {
 } from '@/utils/tabAwayLimit';
 import { isFocusLevel } from '@/utils/pageProtections';
 
-/** Profile field holding this teacher's last-used Video Activity rules (va-quiz-alignment V3). */
+/** Profile field holding this teacher's last-used Video Activity rules (VA_QUIZ_ALIGNMENT V3). */
 export const LAST_VIDEO_ASSIGN_SETTINGS_FIELD = 'lastVideoAssignSettings';
 
 const inRange = (v: unknown, min: number, max: number): v is number =>
