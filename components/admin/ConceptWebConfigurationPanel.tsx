@@ -9,6 +9,10 @@ import {
 import { BuildingSelector } from './BuildingSelector';
 import { HexColorField } from './HexColorField';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { DraftNumberField } from './DraftNumberField';
+
+const clampNodeSize = (n: number) => Math.max(5, Math.min(50, Math.round(n)));
+
 interface Props {
   config: Record<string, unknown>;
   onChange: (newConfig: Record<string, unknown>) => void;
@@ -65,8 +69,7 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
               <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
                 Width (%)
               </label>
-              <input
-                type="number"
+              <DraftNumberField
                 {...tourFieldAttr(
                   'admin.widget-config.field',
                   'concept-web',
@@ -75,14 +78,9 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
                 min="5"
                 max="50"
                 value={buildingConfig.defaultNodeWidth ?? 15}
-                onChange={(e) => {
-                  const value = e.target.valueAsNumber;
-                  updateBuildingConfig({
-                    defaultNodeWidth: Number.isFinite(value)
-                      ? Math.max(5, Math.min(50, Math.round(value)))
-                      : undefined,
-                  });
-                }}
+                onCommit={(n) =>
+                  updateBuildingConfig({ defaultNodeWidth: clampNodeSize(n) })
+                }
                 className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-hidden"
               />
             </div>
@@ -90,8 +88,7 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
               <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
                 Height (%)
               </label>
-              <input
-                type="number"
+              <DraftNumberField
                 {...tourFieldAttr(
                   'admin.widget-config.field',
                   'concept-web',
@@ -100,14 +97,9 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
                 min="5"
                 max="50"
                 value={buildingConfig.defaultNodeHeight ?? 15}
-                onChange={(e) => {
-                  const value = e.target.valueAsNumber;
-                  updateBuildingConfig({
-                    defaultNodeHeight: Number.isFinite(value)
-                      ? Math.max(5, Math.min(50, Math.round(value)))
-                      : undefined,
-                  });
-                }}
+                onCommit={(n) =>
+                  updateBuildingConfig({ defaultNodeHeight: clampNodeSize(n) })
+                }
                 className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-hidden"
               />
             </div>

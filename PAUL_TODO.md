@@ -13,7 +13,7 @@ Last audited 2026-11-01. Items removed as done: PT-73, PT-77, PT-81, PT-82, PT-8
 
 ## 1. Now: blocking a release or a person
 
-- [ ] **PT-126 🤖 Schoology section owner backfill, right after the next release** (security wave 3). Until it runs, Schoology sections launched before the release show "Student" instead of names and refuse course linking until a student relaunches. On the PC with the prod key:
+- [ ] **PT-126 🤖 Schoology section owner backfill, now due** (security wave 3, live since release #5189 on 2026-11-05). Until it runs, Schoology sections launched before the release show "Student" instead of names and refuse course linking until a student relaunches. On the PC with the prod key:
   > Run `node scripts/backfill-lti-context-owners.mjs` on prod as a dry run and show me the counts, then re-run with `--apply` after I say go.
 - [ ] **PT-1 🤖 Quiz join code backfill, run 2** (F78). Run 1 and the security release are done; run 2 is what lets the next release drop the old-client rule (AB-47). Turn on the PC with the prod key (OPS-z6wXCDG6PbO), then paste:
   > Run the post-release quiz join code backfill on prod: `node scripts/backfill-quiz-join-codes.mjs --all` as a dry run, show me the counts, then `--all --apply` after I say go.

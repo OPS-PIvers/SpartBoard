@@ -50,6 +50,7 @@ export const CommentNode: React.FC<CommentNodeProps> = ({
       </p>
       {canReply && (
         <button
+          // no-tour-anchor: reply toggle on a student wall comment, one per comment
           type="button"
           onClick={() => setReplyOpen((p) => !p)}
           className="mt-1 inline-flex items-center gap-1 rounded-sm text-[11px] font-semibold text-white/90 hover:text-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
