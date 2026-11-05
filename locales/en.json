@@ -1225,7 +1225,13 @@
       "bandCount": "{{count}} students · {{percent}}%",
       "scoredStudents": "{{count}} students scored",
       "distributionPending": "Chart updates in a few minutes.",
-      "distributionEmpty": "The chart fills in once teachers publish scores."
+      "distributionEmpty": "The chart fills in once teachers publish scores.",
+      "untitledCard": "Untitled card",
+      "cardAnswered": "{{count}} answered",
+      "sortCardOrder": "Card order",
+      "cardsHeading": "Cards",
+      "sortCards": "Sort cards",
+      "distributionEmptyCards": "The chart fills in as students finish a check. Mastery checks count who finished, with no score."
     },
     "learningTargets": {
       "heading": "Learning targets"

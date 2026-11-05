@@ -5,7 +5,11 @@
  * be heavily unit-tested without mocking.
  */
 
-import type { PlcAssessmentAggregate, PlcCommonAssessment } from '@/types';
+import type {
+  PlcAssessmentAggregate,
+  PlcAssessmentKind,
+  PlcCommonAssessment,
+} from '@/types';
 
 // ===========================================================================
 // AGGREGATE-DRIVEN view model (Wave 3 — Decisions 6.0 + 3.3 + 4.0c, §6.2)
@@ -45,7 +49,7 @@ export interface AssessmentDataCard {
   isDesignated: boolean;
   /** Kind (from the assessment when designated, else assumed quiz — the only
    *  shape that writes contributions today). */
-  kind: 'quiz' | 'video-activity';
+  kind: PlcAssessmentKind;
   /** The syncGroupId used to designate this group (assessment's, else id). */
   syncGroupId: string;
   /** The anonymized rollup this card renders. */

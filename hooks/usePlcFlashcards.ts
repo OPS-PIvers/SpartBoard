@@ -166,6 +166,15 @@ export function toPersonalFlashcardSet(
   };
 }
 
+/** The PLC result group a check pools into: the PLC's own set when the copy came from that PLC. */
+export function plcSyncGroupId(
+  set: Pick<FlashcardSet, 'plcOrigin'> | undefined,
+  setId: string,
+  plcId: string
+): string {
+  return set?.plcOrigin?.plcId === plcId ? set.plcOrigin.setId : setId;
+}
+
 function usePlcSubscription<T>(
   plcId: string | null,
   sub: string,

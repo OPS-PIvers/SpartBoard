@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  Layers,
   Loader2,
   Video,
 } from 'lucide-react';
@@ -73,10 +74,12 @@ function scoreToneClass(percent: number): string {
   return scoreColorClasses(percent).text;
 }
 
-const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
-  question,
-  index,
-}) => {
+const QuestionRow: React.FC<{
+  question: PerQuestion;
+  index: number;
+  /** Flashcards check rows: each one is a card answered right or wrong. */
+  card?: boolean;
+}> = ({ question, index, card = false }) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const scored = isQuestionScored(question);
@@ -102,9 +105,13 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
           <span className="text-sm text-slate-800 truncate">
             <span className="text-slate-400 mr-2">{index + 1}.</span>
             {question.text ||
-              t('plcDashboard.assessmentDetail.untitledQuestion', {
-                defaultValue: 'Untitled question',
-              })}
+              (card
+                ? t('plcDashboard.assessmentDetail.untitledCard', {
+                    defaultValue: 'Untitled card',
+                  })
+                : t('plcDashboard.assessmentDetail.untitledQuestion', {
+                    defaultValue: 'Untitled question',
+                  }))}
           </span>
           <span className="flex items-center gap-2 shrink-0">
             {scored ? (
@@ -141,13 +148,18 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
           />
         </div>
         <div className="mt-1.5 text-xs text-slate-500">
-          {t('plcDashboard.assessmentDetail.gradedOfAnswered', {
-            defaultValue:
-              '{{served}} served · {{graded}} graded · {{answered}} answered',
-            served: question.servedCount ?? answered,
-            graded: question.graded ?? 0,
-            answered,
-          })}
+          {card
+            ? t('plcDashboard.assessmentDetail.cardAnswered', {
+                defaultValue: '{{count}} answered',
+                count: answered,
+              })
+            : t('plcDashboard.assessmentDetail.gradedOfAnswered', {
+                defaultValue:
+                  '{{served}} served · {{graded}} graded · {{answered}} answered',
+                served: question.servedCount ?? answered,
+                graded: question.graded ?? 0,
+                answered,
+              })}
         </div>
       </button>
 
@@ -287,6 +299,10 @@ const QUESTION_SORTS: ReadonlyArray<[PlcQuestionSort, string, string]> = [
   ['order', 'sortQuizOrder', 'Quiz order'],
   ['missed', 'sortMostMissed', 'Most missed'],
 ];
+const CARD_SORTS: ReadonlyArray<[PlcQuestionSort, string, string]> = [
+  ['order', 'sortCardOrder', 'Card order'],
+  ['missed', 'sortMostMissed', 'Most missed'],
+];
 
 /** Pooled score bands in the teacher view's band order; counts only. */
 const ScoreDistributionChart: React.FC<{ bands: PlcAggregateScoreBand[] }> = ({
@@ -333,12 +349,14 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   assessmentId,
 }) => {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
+  const flashcards = canAccessFeature('flashcards-assign-v2');
   const { data: assessments, loading: assessmentsLoading } =
-    usePlcAssessmentsData();
-  const { data: aggregates, loading: aggregatesLoading } =
-    usePlcAggregatesData();
+    usePlcAssessmentsData({ flashcards });
+  const { data: aggregates, loading: aggregatesLoading } = usePlcAggregatesData(
+    { flashcards }
+  );
   const members = usePlcMembers();
   const memberUids = useMemo(
     () => new Set(members.map((m) => m.uid)),
@@ -430,7 +448,9 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
       defaultValue: 'Untitled assessment',
     });
   const kind = assessment?.kind ?? aggregate?.kind ?? 'quiz';
-  const KindIcon = kind === 'video-activity' ? Video : BookOpen;
+  const isCards = kind === 'flashcard-check';
+  const KindIcon =
+    kind === 'video-activity' ? Video : isCards ? Layers : BookOpen;
   const status = aggregateStatus(aggregate);
   const scored = hasTeamAverage(aggregate);
   const teacherCount = aggregate?.teacherCount ?? 0;
@@ -592,10 +612,18 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
                   ? t('plcDashboard.assessmentDetail.distributionPending', {
                       defaultValue: 'Chart updates in a few minutes.',
                     })
-                  : t('plcDashboard.assessmentDetail.distributionEmpty', {
-                      defaultValue:
-                        'The chart fills in once teachers publish scores.',
-                    })}
+                  : isCards
+                    ? t(
+                        'plcDashboard.assessmentDetail.distributionEmptyCards',
+                        {
+                          defaultValue:
+                            'The chart fills in as students finish a check. Mastery checks count who finished, with no score.',
+                        }
+                      )
+                    : t('plcDashboard.assessmentDetail.distributionEmpty', {
+                        defaultValue:
+                          'The chart fills in once teachers publish scores.',
+                      })}
               </p>
             )}
           </div>
@@ -654,43 +682,55 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
       <section>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">
-            {t('plcDashboard.assessmentDetail.questionsHeading', {
-              defaultValue: 'Questions',
-            })}
+            {isCards
+              ? t('plcDashboard.assessmentDetail.cardsHeading', {
+                  defaultValue: 'Cards',
+                })
+              : t('plcDashboard.assessmentDetail.questionsHeading', {
+                  defaultValue: 'Questions',
+                })}
           </h3>
           {questions.length > 1 && (
             <div
               role="group"
-              aria-label={t('plcDashboard.assessmentDetail.sortQuestions', {
-                defaultValue: 'Sort questions',
-              })}
+              aria-label={
+                isCards
+                  ? t('plcDashboard.assessmentDetail.sortCards', {
+                      defaultValue: 'Sort cards',
+                    })
+                  : t('plcDashboard.assessmentDetail.sortQuestions', {
+                      defaultValue: 'Sort questions',
+                    })
+              }
               className="flex flex-wrap gap-1"
             >
-              {QUESTION_SORTS.map(([value, key, label]) => {
-                const on = questionSort === value;
-                return (
-                  <button
-                    {...tourFieldAttr(
-                      'plc-assessments.detail-sort',
-                      'plc',
-                      value
-                    )}
-                    key={value}
-                    type="button"
-                    onClick={() => setQuestionSort(value)}
-                    aria-pressed={on}
-                    className={`rounded-full border px-3 py-0.5 text-xs transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
-                      on
-                        ? 'bg-brand-blue-lighter border-brand-blue-primary text-brand-blue-dark'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {t(`plcDashboard.assessmentDetail.${key}`, {
-                      defaultValue: label,
-                    })}
-                  </button>
-                );
-              })}
+              {(isCards ? CARD_SORTS : QUESTION_SORTS).map(
+                ([value, key, label]) => {
+                  const on = questionSort === value;
+                  return (
+                    <button
+                      {...tourFieldAttr(
+                        'plc-assessments.detail-sort',
+                        'plc',
+                        value
+                      )}
+                      key={value}
+                      type="button"
+                      onClick={() => setQuestionSort(value)}
+                      aria-pressed={on}
+                      className={`rounded-full border px-3 py-0.5 text-xs transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+                        on
+                          ? 'bg-brand-blue-lighter border-brand-blue-primary text-brand-blue-dark'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {t(`plcDashboard.assessmentDetail.${key}`, {
+                        defaultValue: label,
+                      })}
+                    </button>
+                  );
+                }
+              )}
             </div>
           )}
         </div>
@@ -707,6 +747,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
                 key={question.questionId}
                 question={question}
                 index={index}
+                card={isCards}
               />
             ))}
           </ul>

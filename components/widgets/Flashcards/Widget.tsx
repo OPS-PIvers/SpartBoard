@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { Layers, LogIn } from 'lucide-react';
-import { doc, setDoc } from 'firebase/firestore';
+import { deleteField, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type {
   FlashcardAssignment,
@@ -18,11 +18,15 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { useDialog } from '@/context/useDialog';
+import { plcSyncGroupId } from '@/hooks/usePlcFlashcards';
 import {
   FlashcardStudySyncError,
   useFlashcardSets,
 } from '@/hooks/useFlashcardSets';
-import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
+import {
+  FLASHCARD_SESSIONS_COLLECTION,
+  useFlashcardAssignments,
+} from '@/hooks/useFlashcardAssignments';
 import { useSubShareFlashcards } from './useSubShareFlashcards';
 import {
   useSharedBoardItem,
@@ -163,10 +167,27 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     updateAssignmentSettings,
     setPlcShare,
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
+  const quizStyle = canAccessFeature('flashcards-assign-v2');
   const plcSharing = useFlashcardPlcSharing({
     enabled: !inShare,
     addToast,
     setPlcShare,
+    linkCheck: quizStyle
+      ? (assignment, plc) =>
+          updateDoc(
+            doc(db, FLASHCARD_SESSIONS_COLLECTION, assignment.sessionId),
+            plc
+              ? {
+                  plcId: plc.id,
+                  syncGroupId: plcSyncGroupId(
+                    flashcardSets.sets.find((s) => s.id === assignment.setId),
+                    assignment.setId,
+                    plc.id
+                  ),
+                }
+              : { plcId: deleteField(), syncGroupId: deleteField() }
+          )
+      : undefined,
   });
   const folders = useFolders(inShare ? undefined : user?.uid, 'flashcards');
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(() => {
@@ -439,10 +460,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
               ...input,
               plcLink: {
                 plcId: sharePlc.id,
-                syncGroupId:
-                  set.plcOrigin?.plcId === sharePlc.id
-                    ? set.plcOrigin.setId
-                    : set.id,
+                syncGroupId: plcSyncGroupId(set, set.id, sharePlc.id),
               },
             }
           : input
@@ -521,6 +539,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
             setId: set.id,
             setTitle: set.title,
             periodNames: input.periodNames,
+            kind: input.kind,
           },
           sharePlc
         ))
@@ -779,7 +798,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onBack={showLibrary}
                 onPublishScores={publishScores}
                 onUnpublishScores={unpublishScores}
-                syncPlcShare={plcSharing.enabled}
+                syncPlcShare={
+                  plcSharing.enabled &&
+                  !(quizStyle && openResults.kind === 'check')
+                }
                 onEnd={() => endAssignment(openResults.id)}
                 screen={config.resultsScreen}
                 monitorPrefs={config}
@@ -879,7 +901,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                     ? (a) => void plcSharing.stopSharingResults(a)
                     : undefined
                 }
-                quizStyle={canAccessFeature('flashcards-assign-v2')}
+                quizStyle={quizStyle}
               />
             )}
           </div>
