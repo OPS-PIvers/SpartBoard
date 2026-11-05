@@ -59,7 +59,7 @@ interface UseFlashcardSetsResult {
   loading: boolean;
   error: string | null;
   /** Resolves with the number of open Study assignments rewritten with the new cards. */
-  /** `syncStudy: false` skips refreshing open Study assignments (editor autosave). */
+  /** `syncStudy: false` skips refreshing open Study assignments and the share link (editor autosave). */
   saveSet: (
     set: FlashcardSet,
     options?: { syncStudy?: boolean }
@@ -293,7 +293,8 @@ export function useFlashcardSets(
         doc(db, 'users', userId, SETS_COLLECTION, normalized.id),
         normalized
       );
-      if (normalized.publicShareId) {
+      // Editor autosave leaves share links and Study assignments for the write on Close.
+      if (normalized.publicShareId && syncStudy) {
         batch.set(
           doc(db, 'public_flashcard_sets', normalized.publicShareId),
           toPublicSnapshot(normalized, userId, adminConfig)

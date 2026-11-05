@@ -10,12 +10,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SPEAK_G2P_VERSION } from '@/utils/pronunciation/g2pVersion';
 import { AuthContext } from '@/context/AuthContextValue';
 import type { AuthContextType } from '@/context/AuthContextValue';
-import { DialogProvider } from '@/context/DialogContext';
 import type { FlashcardCardSpeak, FlashcardSet } from '@/types';
 import { defaultFlashcardsSpeakAdminConfig } from '@/config/flashcardsSpeakAdmin';
 import { FlashcardSetEditorModal } from './FlashcardSetEditorModal';
 import { flashcardSetIncompleteReason } from './useFlashcardEditorState';
 import type { SpeakLookupCall } from './speak/lookupSpeakReferences';
+
+const showConfirm = vi.hoisted(() =>
+  vi.fn<(message: string) => Promise<boolean>>(() => Promise.resolve(true))
+);
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm, showAlert: vi.fn() }),
+}));
 
 vi.mock('@/hooks/useFlashcardSets', () => ({
   readFlashcardsSpeakAdminConfig: vi.fn(() =>
@@ -72,16 +78,14 @@ const renderModal = (opts: {
   const onClose = vi.fn();
   render(
     <AuthContext.Provider value={auth(opts.speak ?? false)}>
-      <DialogProvider>
-        <FlashcardSetEditorModal
-          set={opts.set ?? baseSet()}
-          isNew={opts.isNew ?? false}
-          aiEnabled={false}
-          onPersist={onPersist}
-          onClose={onClose}
-          speakLookup={lookup}
-        />
-      </DialogProvider>
+      <FlashcardSetEditorModal
+        set={opts.set ?? baseSet()}
+        isNew={opts.isNew ?? false}
+        aiEnabled={false}
+        onPersist={onPersist}
+        onClose={onClose}
+        speakLookup={lookup}
+      />
     </AuthContext.Provider>
   );
   return { onPersist, onClose };
@@ -98,6 +102,7 @@ const clickClose = () => {
 afterEach(() => {
   vi.useRealTimers();
   lookup.mockClear();
+  showConfirm.mockClear();
 });
 
 describe('FlashcardSetEditorModal', () => {
@@ -133,6 +138,35 @@ describe('FlashcardSetEditorModal', () => {
     clickClose();
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onPersist).not.toHaveBeenCalled();
+  });
+
+  it('closes an untouched set with Speak on without a lookup or write', async () => {
+    const set = baseSet({
+      cards: [{ id: 'c1', term: 'gato', definition: 'cat' }],
+    });
+    const { onPersist, onClose } = renderModal({ set, speak: true });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    clickClose();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(lookup).not.toHaveBeenCalled();
+    expect(onPersist).not.toHaveBeenCalled();
+  });
+
+  it('asks before closing when the last write fails', async () => {
+    const { onPersist, onClose } = renderModal({
+      isNew: true,
+      set: baseSet({ title: '', updatedAt: 0 }),
+    });
+    onPersist.mockRejectedValue(new Error('offline'));
+    showConfirm.mockResolvedValueOnce(false);
+    clickClose();
+    await waitFor(() => expect(showConfirm).toHaveBeenCalledTimes(1));
+    await screen.findByText('Could not save your changes. Please try again.');
+    expect(onClose).not.toHaveBeenCalled();
+    clickClose();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   it('never writes an untouched blank new set', async () => {

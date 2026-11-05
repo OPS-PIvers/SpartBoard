@@ -14,6 +14,7 @@ import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { SortableList } from '@/components/common/SortableList';
 import { ImportAttributionLine } from '@/components/import/ImportAttributionLine';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useDialog } from '@/context/useDialog';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { speakLanguageOf } from '@/config/pronunciationGroups';
 import {
@@ -102,11 +103,18 @@ export const FlashcardSetEditorModal: React.FC<
   const termRef = useRef<HTMLTextAreaElement>(null);
   const persistedRef = useRef(false);
   const closingRef = useRef(false);
+  // Set once Close starts, so the unmount flush doesn't write the set a second time.
+  const finishingRef = useRef(false);
+  const { showConfirm } = useDialog();
 
   const ai = useFlashcardAiDraft({
     onDrafted: (drafted, draftTitle) => {
       appendCards(drafted);
-      if (!title.trim() && draftTitle) setTitle(draftTitle);
+      if (draftTitle) {
+        setTitle((current) =>
+          current.trim() ? current : draftTitle.slice(0, 120)
+        );
+      }
       if (drafted[0]) setSelectedId(drafted[0].id);
       setTab('cards');
     },
@@ -165,39 +173,55 @@ export const FlashcardSetEditorModal: React.FC<
 
   const incompleteNotice = flashcardSetIncompleteReason({ title, cards });
 
+  const hasContent = title.trim() !== '' || cleanFlashcards(cards).length > 0;
+
   // Persist only; Speak lookups wait for Close so typing never starts one.
   const persistDraft = async (): Promise<void> => {
+    // A new set is only written once it has a title or a card.
+    if (finishingRef.current || (isNew && !hasContent && !persistedRef.current))
+      return;
     setError(null);
     await onPersist(composeSet(cleanFlashcards(cards)), { final: false });
     persistedRef.current = true;
   };
 
-  const hasContent = title.trim() !== '' || cleanFlashcards(cards).length > 0;
-
   // The shell has already flushed autosave; this runs the lookups and the last write.
   const finishAndClose = async (): Promise<void> => {
     if (closingRef.current) return;
     const cleaned = cleanFlashcards(cards);
-    const lookupOwed = state.needsLookup(cleaned);
+    // An untouched set (even one missing Speak references) closes without a write.
     const prefilledNew = isNew && set.cards.length > 0 && hasContent;
-    if (!persistedRef.current && !lookupOwed && !prefilledNew) {
+    if (!persistedRef.current && !prefilledNew) {
       onClose();
       return;
     }
     closingRef.current = true;
+    finishingRef.current = true;
     try {
       const looked = await lookupReferences(cleaned);
       await onPersist(composeSet(looked), { final: true });
       onClose();
+      return;
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Could not save your changes. Please try again.'
-      );
+      console.error('Flashcard set final save failed.', err);
     } finally {
       closingRef.current = false;
     }
+    const leave = await showConfirm(
+      'Your latest changes could not be saved. Closing now will lose them.',
+      {
+        title: 'Close without saving?',
+        variant: 'warning',
+        confirmLabel: 'Close anyway',
+        cancelLabel: 'Keep editing',
+      }
+    );
+    if (leave) {
+      onClose();
+      return;
+    }
+    finishingRef.current = false;
+    setError('Could not save your changes. Please try again.');
   };
 
   const statusLine =
@@ -505,7 +529,11 @@ export const FlashcardSetEditorModal: React.FC<
       subtitle={subtitle}
       isDirty={false}
       onSave={persistDraft}
-      autosave={{ draftToken, resetKey: set.id, enabled: checkingCount === 0 }}
+      autosave={{
+        draftToken,
+        resetKey: set.id,
+        enabled: checkingCount === 0,
+      }}
       incompleteNotice={hasContent ? incompleteNotice : null}
       onClose={() => void finishAndClose()}
       footerExtras={footerExtras}
