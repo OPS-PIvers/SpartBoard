@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   authSaysStudent,
   isStudentPseudonym,
+  parseArgs,
   planCleanup,
   sessionOwner,
   sideIdRange,
@@ -71,5 +72,17 @@ describe('sideIdRange', () => {
     expect(inRange('va-10__x')).toBe(false);
     expect(inRange('va-1_x')).toBe(false);
     expect(inRange('va-2__x')).toBe(false);
+  });
+});
+
+describe('parseArgs', () => {
+  it('maps the dev and prod aliases and passes other project ids through', () => {
+    expect(parseArgs(['--project', 'dev']).project).toBe('spartboard-dev');
+    expect(parseArgs(['--project', 'prod', '--apply'])).toMatchObject({
+      project: 'spartboard',
+      apply: true,
+    });
+    expect(parseArgs(['--project', 'demo-x']).project).toBe('demo-x');
+    expect(parseArgs([]).project).toBeNull();
   });
 });

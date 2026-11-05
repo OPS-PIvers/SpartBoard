@@ -20,6 +20,7 @@ export const SESSION_COLLECTIONS = [
 ];
 
 const PAGE = 1000;
+const PROJECTS = { dev: 'spartboard-dev', prod: 'spartboard' };
 
 /** Student uids are hex HMAC-SHA256 pseudonyms; Firebase staff uids never take this shape. */
 export function isStudentPseudonym(uid) {
@@ -52,12 +53,15 @@ export function planCleanup(candidates, usersByUid) {
   return { remove, review };
 }
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const args = { apply: false, project: null, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--apply') args.apply = true;
-    else if (a === '--project') args.project = argv[++i] ?? null;
+    else if (a === '--project') {
+      const p = argv[++i] ?? null;
+      args.project = p ? (PROJECTS[p] ?? p) : null;
+    }
     else if (a === '--help' || a === '-h') args.help = true;
   }
   return args;
@@ -137,7 +141,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || !args.project) {
     console.log(
-      'Usage: node scripts/remove-student-authored-sessions.mjs --project <id> [--apply]'
+      'Usage: node scripts/remove-student-authored-sessions.mjs --project dev|prod|<id> [--apply]'
     );
     process.exit(args.help ? 0 : 1);
   }
