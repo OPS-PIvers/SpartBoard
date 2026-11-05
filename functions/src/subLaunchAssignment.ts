@@ -350,7 +350,7 @@ function imagesForLabels(
   if (!Array.isArray(images)) return undefined;
   const out = labels.map((label) => {
     const url = images.find(
-      (img) => typeof img.text === 'string' && img.text.trim() === label.trim()
+      (img) => typeof img?.text === 'string' && img.text.trim() === label.trim()
     )?.url;
     return typeof url === 'string' && url.startsWith('https://') ? url : '';
   });
