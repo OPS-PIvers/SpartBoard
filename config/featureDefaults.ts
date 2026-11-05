@@ -1207,6 +1207,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Draft with AI in the Quiz-style set editor. Admin-only until Paul has used it in prod.
+  'flashcards-ai': {
+    label: 'Flashcards: AI',
+    icon: Sparkles,
+    description: 'Drafts flashcards from a topic in the set editor.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Flashcards Test question bar. Admin-only until Paul has used it in prod.
   'flashcards-test-nav': {
     label: 'Flashcards: Test question bar',

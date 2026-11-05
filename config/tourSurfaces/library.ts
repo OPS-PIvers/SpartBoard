@@ -249,6 +249,8 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'editor',
     files: [
       'components/widgets/Flashcards/FlashcardEditor.tsx',
+      'components/widgets/Flashcards/FlashcardSetEditorModal.tsx',
+      'components/widgets/Flashcards/FlashcardAiOverlay.tsx',
       'components/widgets/Flashcards/FlashcardLanguageField.tsx',
       'components/widgets/Flashcards/speak/SpeakSettingsPanel.tsx',
       'components/widgets/Flashcards/speak/SpeakCardStatus.tsx',
