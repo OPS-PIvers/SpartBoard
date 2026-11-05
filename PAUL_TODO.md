@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-132.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-133.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -127,6 +127,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 - [ ] **PT-75 🤖 Prod CI to keyless deploys.**
   > Plan moving prod CI to Workload Identity Federation like dev, list the console steps I have to click, then delete the prod JSON key once it works.
 - [ ] **PT-76 You: Dependabot alerts** (F85, optional). Settings > Code security > Dependabot alerts > Enable.
+- [ ] **PT-132 You: raise the prod Cloud Run CPU quota.** Every prod release still hits about 10 "Quota Exceeded" waits while it updates ~231 functions, which adds 1-3 min and is the main way a deploy can still fail. In Google Cloud Console on project `spartboard`: IAM & Admin > Quotas & System Limits, filter "Total CPU allocation, per project per region" (service Cloud Run Admin API), tick the `us-central1` row, Edit quota, ask for double the current value, and give the reason "parallel Cloud Functions gen 2 deploys". Free; it only raises the ceiling. Then tell an agent "PT-132 done" and it checks the next prod deploy log for quota waits.
 - [ ] **PT-101 You: dev registrations for ClassLink, Spotify and LTI**, only when a feature needs them on spartboard-dev (they are placeholders there today).
 
 ## 5. District, IT, counsel and Google
