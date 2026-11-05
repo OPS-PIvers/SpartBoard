@@ -1,4 +1,4 @@
-// Rules tests for security batch 3G: a Mini App that hides correct answers keeps the graded
+// Rules tests for security batch 3G: a Mini App created with summaryHidden keeps the graded
 // summary teacher-only, and the student reads a score-free receipt instead.
 // Requires a running Firestore emulator; invoke via `pnpm run test:rules`.
 
@@ -117,7 +117,10 @@ beforeEach(async () => {
 
 describe('Mini App with correct answers hidden', () => {
   beforeEach(async () => {
-    await seed(sessionPath('hid'), sessionDoc({ showCorrectAnswers: false }));
+    await seed(
+      sessionPath('hid'),
+      sessionDoc({ showCorrectAnswers: false, summaryHidden: true })
+    );
     await seed(summaryPath('hid', 'pseudo-1'), summary(STUDENT_UID));
     await seed(summaryPath('hid', ANON_UID), summary(ANON_UID));
     await seed(receiptPath('hid', 'pseudo-1'), {
@@ -187,5 +190,46 @@ describe('Mini App with correct answers shown', () => {
       payload: { completed: true },
     });
     await assertSucceeds(getDoc(doc(asAnon(), summaryPath('v1', ANON_UID))));
+  });
+
+  it('keeps a hidden-answers session created without the marker readable', async () => {
+    await seed(sessionPath('old'), sessionDoc({ showCorrectAnswers: false }));
+    await seed(summaryPath('old', 'pseudo-1'), summary(STUDENT_UID));
+    await assertSucceeds(
+      getDoc(doc(asStudent(), summaryPath('old', 'pseudo-1')))
+    );
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), summaryPath('old', 'pseudo-1')))
+    );
+  });
+});
+
+describe('the summaryHidden marker', () => {
+  it('is set at create and never added or removed after', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), sessionPath('new')),
+        sessionDoc({ showCorrectAnswers: false, summaryHidden: true })
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asTeacher(), sessionPath('new')),
+        sessionDoc({ showCorrectAnswers: false })
+      )
+    );
+    await seed(sessionPath('plain'), sessionDoc({ showCorrectAnswers: false }));
+    await assertFails(
+      setDoc(
+        doc(asTeacher(), sessionPath('plain')),
+        sessionDoc({ showCorrectAnswers: false, summaryHidden: true })
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), sessionPath('plain')),
+        sessionDoc({ showCorrectAnswers: false, status: 'ended' })
+      )
+    );
   });
 });

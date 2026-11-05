@@ -76,39 +76,18 @@ export function submitErrorCode(err: unknown): string {
   return 'failed';
 }
 
-const receiptRebuilds = new Map<
-  string,
-  Promise<Record<string, unknown> | null>
->();
-
-/** One server rebuild per submission per page, so a failed read never loops the callable. */
-function rebuildReceipt(
-  sessionId: string,
-  docId: string
-): Promise<Record<string, unknown> | null> {
-  const key = `${sessionId}/${docId}`;
-  const cached = receiptRebuilds.get(key);
-  if (cached) return cached;
-  const call = httpsCallable<
-    { sessionId: string },
-    { receipt: Record<string, unknown> | null }
-  >(functions, 'ensureMiniAppReceiptV1');
-  const promise = call({ sessionId }).then((res) => res.data.receipt ?? null);
-  receiptRebuilds.set(key, promise);
-  return promise;
-}
-
-/** Test hook: forget earlier rebuilds. */
-export function resetReceiptRebuilds(): void {
-  receiptRebuilds.clear();
-}
+const isPermissionDenied = (err: unknown): boolean =>
+  typeof err === 'object' &&
+  err !== null &&
+  'code' in err &&
+  String(err.code).endsWith('permission-denied');
 
 /** A student's own submission summary, or their receipt when the summary is teacher-only; null when neither exists. */
 export async function readOwnMiniAppSubmission(
   sessionId: string,
   docId: string,
   /** The session, when the caller already has it; saves a read. */
-  knownSession?: { resultsVersion?: unknown; showCorrectAnswers?: unknown }
+  knownSession?: { summaryHidden?: unknown }
 ): Promise<Record<string, unknown> | null> {
   try {
     const snap = await getDoc(
@@ -116,19 +95,23 @@ export async function readOwnMiniAppSubmission(
     );
     return snap.exists() ? snap.data() : null;
   } catch (err) {
-    const receipt = await getDoc(
-      doc(db, 'mini_app_sessions', sessionId, 'receipts', docId)
-    ).catch(() => null);
-    if (receipt?.exists()) return receipt.data();
+    if (!isPermissionDenied(err)) throw err;
     const session =
       knownSession ??
       (await getDoc(doc(db, 'mini_app_sessions', sessionId))
         .then((s) => s.data())
         .catch(() => undefined));
-    // Only a hidden-answers session refuses the summary on purpose; anything else keeps today's error.
-    if (session?.resultsVersion !== 2 || session.showCorrectAnswers !== false)
-      throw err;
-    // Submitted before receipts existed: the server writes one from the summary.
-    return rebuildReceipt(sessionId, docId);
+    // Only a summaryHidden session refuses the summary on purpose; anything else keeps today's error.
+    if (session?.summaryHidden !== true) throw err;
+    try {
+      const receipt = await getDoc(
+        doc(db, 'mini_app_sessions', sessionId, 'receipts', docId)
+      );
+      return receipt.exists() ? receipt.data() : null;
+    } catch (receiptErr) {
+      // Every submit writes a receipt, so a refused (missing) one means nothing submitted.
+      if (isPermissionDenied(receiptErr)) return null;
+      throw receiptErr;
+    }
   }
 }

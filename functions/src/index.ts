@@ -160,10 +160,7 @@ export {
   recordFlashcardCheckRatingsV1,
   submitFlashcardCheckV1,
 } from './flashcardCheck';
-export {
-  ensureMiniAppReceiptV1,
-  submitMiniAppResultV1,
-} from './miniAppResults';
+export { submitMiniAppResultV1 } from './miniAppResults';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
 // ── Flashcards Speak reference lookup (docs/multilingual-pronunciation-engine.md S3) ─

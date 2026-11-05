@@ -607,3 +607,35 @@ describe('content/questions', () => {
     );
   });
 });
+
+describe('content/readAloud', () => {
+  const S = 'pa-read-aloud';
+  const raPath = `quiz_sessions/${S}/content/readAloud`;
+  const withState = (state: string) =>
+    seedSession(S, {
+      accessMode: 'assignment',
+      periodAccess: { [CLASS_A]: period({ state }) },
+    });
+
+  beforeEach(async () => {
+    await withState('open');
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), raPath), { files: {} });
+    });
+    await seedResponse(S, STUDENT_UID, {
+      studentUid: STUDENT_UID,
+      classId: CLASS_A,
+    });
+  });
+
+  it('follows the same period gate as the questions', async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), raPath)));
+    await assertSucceeds(setDoc(doc(asTeacher(), raPath), { files: {} }));
+    await assertFails(getDoc(doc(asStudent(), raPath)));
+    await seedSeat(S, STUDENT_UID, STUDENT_UID);
+    await assertSucceeds(getDoc(doc(asStudent(), raPath)));
+    await assertFails(setDoc(doc(asStudent(), raPath), { files: {} }));
+    await withState('closed');
+    await assertFails(getDoc(doc(asStudent(), raPath)));
+  });
+});

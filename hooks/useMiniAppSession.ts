@@ -172,6 +172,9 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
               resultsVersion: 2 as const,
               attemptLimit: results.attemptLimit,
               showCorrectAnswers: results.showCorrectAnswers,
+              ...(results.showCorrectAnswers
+                ? {}
+                : { summaryHidden: true as const }),
               ...(app.manifest ? { manifest: app.manifest } : {}),
             }
           : {}),

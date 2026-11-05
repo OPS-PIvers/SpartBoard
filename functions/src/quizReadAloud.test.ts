@@ -834,9 +834,10 @@ describe('per-period manifests', () => {
     return docs;
   };
   const CONTENT = 'quiz_sessions/s1/content/questions';
+  const RA = 'quiz_sessions/s1/content/readAloud';
   const pathFields = ['files', 'timings', 'stimulusChunks', 'localized'];
 
-  it('prepare keeps audio paths off the session doc and in the content doc', async () => {
+  it('prepare keeps audio paths off the session doc and in the read-aloud content doc', async () => {
     const docs = perPeriodDocs();
     const { deps } = makeDeps(docs);
     const res = await prepareQuizReadAloud(
@@ -848,12 +849,13 @@ describe('per-period manifests', () => {
     expect(manifest).toMatchObject({ status: 'ready', failedKeys: [] });
     for (const f of pathFields) expect(manifest).not.toHaveProperty(f);
     const { parts } = enumerateParts({ publicQuestions: QUESTIONS });
-    const hidden = docs[CONTENT].readAloud as Doc;
+    const hidden = docs[RA];
     expect(Object.keys(hidden.files as Doc).sort()).toEqual(
       parts.map((p) => p.key).sort()
     );
     expect(hidden.stimulusChunks).toBeDefined();
-    expect(docs[CONTENT].publicQuestions).toEqual(QUESTIONS);
+    // The questions doc every student listens to is left alone.
+    expect(docs[CONTENT]).toEqual({ publicQuestions: QUESTIONS });
   });
 
   it('prepare keeps paths on the session when its questions are inline too', async () => {
@@ -863,7 +865,7 @@ describe('per-period manifests', () => {
     const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
     expect(manifest.status).toBe('ready');
     expect(Object.keys(manifest.files as Doc).length).toBeGreaterThan(0);
-    expect(docs[CONTENT]).toBeUndefined();
+    expect(docs[RA]).toBeUndefined();
   });
 
   it('plays even when saving the new path fails', async () => {
@@ -914,7 +916,7 @@ describe('per-period manifests', () => {
     warn.mockRestore();
   });
 
-  it('the student fallback patches the content doc and clears old session paths', async () => {
+  it('the student fallback patches the read-aloud doc and moves old session paths there', async () => {
     const docs = perPeriodDocs();
     const { deps } = makeDeps(docs);
     const res = await synthesizeQuizAudio(
@@ -927,15 +929,18 @@ describe('per-period manifests', () => {
       classStudent,
       deps
     );
-    expect((docs[CONTENT].readAloud as Doc).files).toEqual({
+    // Paths prepared before the move keep playing from their new home.
+    expect(docs[RA].files).toEqual({
+      'q:old:question': 'quiz_tts_cache/v/old.mp3',
       'q:q1:question': res.path,
     });
+    expect(docs[CONTENT]).toEqual({ publicQuestions: QUESTIONS });
     const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
     expect(manifest.status).toBe('ready');
     for (const f of pathFields) expect(manifest).not.toHaveProperty(f);
   });
 
-  it('a stimulus fallback goes to the content doc too', async () => {
+  it('a stimulus fallback goes to the read-aloud doc too', async () => {
     const docs = perPeriodDocs();
     docs[CONTENT].readAloudTextByStimulusId = { 'stim-1': 'Passage one.' };
     const { deps } = makeDeps(docs);
@@ -949,7 +954,7 @@ describe('per-period manifests', () => {
       classStudent,
       deps
     );
-    expect((docs[CONTENT].readAloud as Doc).stimulusChunks).toEqual({
+    expect(docs[RA].stimulusChunks).toEqual({
       'stim-1': ['stim:stim-1:0'],
     });
     expect(docs['quiz_sessions/s1'].readAloud).not.toHaveProperty(

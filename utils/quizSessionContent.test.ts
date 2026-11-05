@@ -38,10 +38,11 @@ describe('mergeQuizSessionContent', () => {
       questionsInContent: true,
       readAloud: { status: 'ready', voice: 'v' },
     } as unknown as QuizSession;
-    const merged = mergeQuizSessionContent(session, {
-      publicQuestions: [],
-      readAloud: { files: { 'q:q1:question': 'quiz_tts_cache/v/h.mp3' } },
-    });
+    const merged = mergeQuizSessionContent(
+      session,
+      { publicQuestions: [] },
+      { files: { 'q:q1:question': 'quiz_tts_cache/v/h.mp3' } }
+    );
     expect(merged?.readAloud).toEqual({
       status: 'ready',
       voice: 'v',

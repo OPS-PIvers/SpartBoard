@@ -571,7 +571,7 @@ const AppViewer: React.FC<{
   // On mount, check Firestore for an existing submission so `hasSubmitted`
   // survives page refreshes. If the doc already exists we hide the "I'm Done"
   // button immediately without waiting for a user action.
-  const hidesAnswers = session.showCorrectAnswers === false;
+  const summaryHidden = session.summaryHidden === true;
   useEffect(() => {
     const checkExisting = async () => {
       const currentUser = auth.currentUser;
@@ -583,8 +583,7 @@ const AppViewer: React.FC<{
           ? await getCachedPseudonym(session.id, currentUser.uid)
           : currentUser.uid;
         const own = await readOwnMiniAppSubmission(session.id, docId, {
-          resultsVersion: isV2 ? 2 : undefined,
-          showCorrectAnswers: !hidesAnswers,
+          summaryHidden,
         });
         if (own) {
           const used = (own as Partial<MiniAppSubmission>).attemptCount;
@@ -599,7 +598,7 @@ const AppViewer: React.FC<{
       }
     };
     void checkExisting();
-  }, [session.id, isV2, hidesAnswers, attemptLimit]);
+  }, [session.id, isV2, summaryHidden, attemptLimit]);
 
   // Handshake: post SPART_MINIAPP_INIT into the iframe once it loads so the
   // app knows whether to reveal its [data-spart-submit] button. The app is

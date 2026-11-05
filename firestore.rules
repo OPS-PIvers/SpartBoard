@@ -6129,15 +6129,14 @@ service cloud.firestore {
 
         // Teacher + admins read all submissions; a student reads their own (the
         // /my-assignments completion badge). Identity is the studentUid field
-        // (works for both pseudonym and auth-uid doc ids). A v2 session that hides
-        // correct answers keeps the graded summary teacher-only; the student reads
-        // their receipt below instead.
+        // (works for both pseudonym and auth-uid doc ids). A session created with
+        // summaryHidden (immutable) keeps the summary teacher-only; the student
+        // reads their receipt below instead.
         allow read: if signedIn() && (
           isAdmin() ||
           maOwner() ||
           (existing().studentUid == authUid() &&
-            (maSessionData().get('resultsVersion', 1) != 2 ||
-             maSessionData().get('showCorrectAnswers', true) != false))
+            maSessionData().get('summaryHidden', false) != true)
         );
 
         // Any authed user (anon or studentRole) creates/updates their own submission while

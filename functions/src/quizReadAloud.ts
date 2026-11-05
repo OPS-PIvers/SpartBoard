@@ -906,10 +906,11 @@ function pathFieldsDeleted(): Record<string, unknown> {
   );
 }
 
-const contentRef = (
+/** `content/readAloud`: the manifest paths, behind the same period gate as the questions, apart from them so patches stay small. */
+export const readAloudDocRef = (
   sessionRef: admin.firestore.DocumentReference
 ): admin.firestore.DocumentReference =>
-  sessionRef.collection('content').doc('questions');
+  sessionRef.collection('content').doc('readAloud');
 
 // ── prepareQuizReadAloudV1 ─────────────────────────────────────────────────
 
@@ -1103,8 +1104,8 @@ export async function prepareQuizReadAloud(
   try {
     // Behind the content doc's period gate.
     if (gated)
-      await contentRef(sessionRef).set(
-        { readAloud: { voice: voices.neural2, ...paths } },
+      await readAloudDocRef(sessionRef).set(
+        { voice: voices.neural2, ...paths },
         { merge: true }
       );
     await sessionRef.set(
@@ -1342,15 +1343,26 @@ export async function synthesizeQuizAudio(
       );
       return;
     }
-    await contentRef(sessionRef).set(
-      { readAloud: { voice: sessionVoice, ...paths } },
+    const onSession = hasManifest
+      ? (session.readAloud as Record<string, unknown>)
+      : {};
+    // Paths prepared before they moved: carry them over so they keep playing, then clear them.
+    const stalePaths = Object.fromEntries(
+      READ_ALOUD_PATH_FIELDS.filter((f) => f in onSession).map((f) => [
+        f,
+        onSession[f],
+      ])
+    );
+    const stale = Object.keys(stalePaths).length > 0;
+    if (stale)
+      await readAloudDocRef(sessionRef).set(
+        { voice: sessionVoice, ...stalePaths },
+        { merge: true }
+      );
+    await readAloudDocRef(sessionRef).set(
+      { voice: sessionVoice, ...paths },
       { merge: true }
     );
-    const stale = hasManifest
-      ? READ_ALOUD_PATH_FIELDS.some(
-          (f) => f in (session.readAloud as Record<string, unknown>)
-        )
-      : false;
     if (stale)
       await sessionRef.set({ readAloud: pathFieldsDeleted() }, { merge: true });
   };

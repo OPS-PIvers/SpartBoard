@@ -111,6 +111,7 @@ import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
+  QUIZ_READ_ALOUD_DOC,
   type QuizSessionContent,
 } from '@/utils/quizSessionContent';
 import { isFreeResponseType } from '@/types';
@@ -1768,8 +1769,7 @@ export const useQuizAssignments = (
             : session,
           targetedLocaleCountByCode,
           SESSION_DOC_BYTE_BUDGET,
-          // A per-period session's manifest lives in that same content doc.
-          readAloudPlanned
+          readAloudPlanned && !perPeriod
             ? estimateReadAloudManifestBytes(
                 estimateReadAloudPartCount(session.publicQuestions),
                 readAloudLocales.length
@@ -2115,6 +2115,15 @@ export const useQuizAssignments = (
         typeof sessionCodeField === 'string' ? sessionCodeField : '';
       // Its own write, and it must land first: once the session goes, no rule can reach it.
       if (sessionSnap?.data()?.questionsInContent === true) {
+        await deleteDoc(
+          doc(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            assignmentId,
+            QUIZ_CONTENT_COLLECTION,
+            QUIZ_READ_ALOUD_DOC
+          )
+        );
         await deleteDoc(
           doc(
             db,
@@ -2944,16 +2953,13 @@ export const useQuizAssignments = (
         QUIZ_CONTENT_DOC
       );
       const inContent = rawSessionData?.questionsInContent === true;
-      const priorContent =
-        rawSessionData && inContent
-          ? ((await getDoc(contentRef)).data() as
-              QuizSessionContent | undefined)
-          : undefined;
-      const { readAloud: priorReadAloud, ...priorQuestions } =
-        priorContent ?? {};
       const sessionData =
         rawSessionData && inContent
-          ? { ...rawSessionData, ...priorQuestions }
+          ? {
+              ...rawSessionData,
+              ...((await getDoc(contentRef)).data() as
+                QuizSessionContent | undefined),
+            }
           : rawSessionData;
       // Exactly the locales already being served — a re-sync never widens coverage.
       const servedLocales = new Set<string>(
@@ -3230,8 +3236,6 @@ export const useQuizAssignments = (
           ...(Object.keys(canonicalReadAloudText).length > 0
             ? { readAloudTextByStimulusId: canonicalReadAloudText }
             : {}),
-          // Audio paths are content-hashed, so unchanged parts keep playing.
-          ...(priorReadAloud ? { readAloud: priorReadAloud } : {}),
         };
         firstBatch.set(contentRef, syncedContent);
       }
