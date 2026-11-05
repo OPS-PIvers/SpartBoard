@@ -723,7 +723,7 @@ describe('poll session discovery', () => {
     await assertFails(getDocs(sessions(asTeacher())));
   });
 
-  it('keeps pointers server-side and never lists them', async () => {
+  it('resolves a session by code pointer but never lists pointers', async () => {
     const pointer = {
       sessionId: `${TEACHER_UID}_ABCDE`,
       teacherUid: TEACHER_UID,
@@ -732,8 +732,11 @@ describe('poll session discovery', () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'poll_codes/ABCDE'), pointer);
     });
-    // resolvePollCodeV1 reads pointers; see securityBatch3A for session reads.
-    await assertFails(getDoc(doc(asAnonVoter(), 'poll_codes/ABCDE')));
+    await assertSucceeds(getDoc(doc(asAnonVoter(), 'poll_codes/ABCDE')));
+    await assertSucceeds(getDoc(doc(asTeacher(), 'poll_codes/ABCDE')));
+    await assertSucceeds(
+      getDoc(doc(asAnonVoter(), `poll_sessions/${ACTIVE_SESSION_ID}`))
+    );
     await assertFails(getDocs(collection(asAnonVoter(), 'poll_codes')));
     await assertFails(getDocs(collection(asTeacher(), 'poll_codes')));
   });

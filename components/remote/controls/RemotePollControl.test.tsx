@@ -30,7 +30,11 @@ let snapshotDocs: { id: string; data: Record<string, unknown> }[] = [];
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: mockUser, canAccessFeature: mockCanAccessFeature }),
 }));
-vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('@/config/firebase', () => ({
+  db: {},
+  functions: {},
+  isAuthBypass: false,
+}));
 // Codes are minted on the server; this stands in, resolving when the pointer read would have.
 vi.mock('firebase/functions', async () => {
   const { generatePollCode } =

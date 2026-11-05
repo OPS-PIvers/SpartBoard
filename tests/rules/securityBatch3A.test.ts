@@ -371,7 +371,8 @@ describe('building admin status changes stop at higher tiers', () => {
   });
 });
 
-describe('poll codes resolve on the server', () => {
+// Poll reads stay open this release so open tabs keep working; AB-113 closes them.
+describe('poll codes and sessions keep working for open tabs', () => {
   const session = {
     id: 'K3F9Q',
     teacherUid: TEACHER_UID,
@@ -390,55 +391,48 @@ describe('poll codes resolve on the server', () => {
     await seed(`poll_sessions/${POLL_SESSION_ID}`, session);
   });
 
-  it('denies an anonymous or student pointer read and any pointer list', async () => {
-    await assertFails(getDoc(doc(asAnon(), 'poll_codes/K3F9Q')));
-    await assertFails(getDoc(doc(asAnon(), 'poll_codes/ZZZZZ')));
-    await assertFails(getDoc(doc(asStudent(), 'poll_codes/K3F9Q')));
+  it('still lets an old student tab and an old teacher tab read a pointer by code', async () => {
+    await assertSucceeds(getDoc(doc(asAnon(), 'poll_codes/K3F9Q')));
+    await assertSucceeds(getDoc(doc(asTeacher(), 'poll_codes/ZZZZZ')));
     await assertFails(getDocs(collection(asAnon(), 'poll_codes')));
     await assertFails(getDocs(collection(asTeacher(), 'poll_codes')));
   });
 
-  it('lets an older teacher tab check a code until the compatibility date', async () => {
-    const compatOpen = Date.now() < Date.UTC(2026, 11, 1) - 60_000;
-    const read = getDoc(doc(asTeacher(), 'poll_codes/ZZZZZ'));
-    await (compatOpen ? assertSucceeds(read) : assertFails(read));
-  });
-
-  it('denies a session read by id until the server records a join', async () => {
-    const ref = `poll_sessions/${POLL_SESSION_ID}`;
-    await assertFails(getDoc(doc(asAnon(), ref)));
-    await assertFails(
-      getDoc(doc(asAnon(), `poll_sessions/${TEACHER_UID}_ZZZZZ`))
+  it('still lets a participant read the session and vote, and the owner read it', async () => {
+    await assertSucceeds(
+      getDoc(doc(asAnon(), `poll_sessions/${POLL_SESSION_ID}`))
     );
-    await seed(`poll_joins/${POLL_SESSION_ID}__${ANON_UID}`, {
-      sessionId: POLL_SESSION_ID,
-      uid: ANON_UID,
-    });
-    await assertSucceeds(getDoc(doc(asAnon(), ref)));
-    // Another device's join opens nothing for this one.
-    await assertFails(getDoc(doc(asAnon('anon-other'), ref)));
-  });
-
-  it("keeps the owner's read and leaves joins server-only", async () => {
     await assertSucceeds(
       getDoc(doc(asTeacher(), `poll_sessions/${POLL_SESSION_ID}`))
     );
+    await assertSucceeds(
+      setDoc(
+        doc(asAnon(), `poll_sessions/${POLL_SESSION_ID}/votes/0_${ANON_UID}`),
+        { questionIndex: 0, optionIndex: 1, votedAt: 1 }
+      )
+    );
+  });
+
+  it('leaves server-written pointers, joins and limits closed to clients', async () => {
     const join = `poll_joins/${POLL_SESSION_ID}__${ANON_UID}`;
     await assertFails(
       setDoc(doc(asAnon(), join), { sessionId: POLL_SESSION_ID, uid: ANON_UID })
     );
     await assertFails(getDoc(doc(asAnon(), join)));
     await assertFails(
-      setDoc(doc(asAnon(), `poll_code_limits/uid__${ANON_UID}`), { codes: [] })
+      getDoc(doc(asAnon(), `poll_code_limits/uid__${ANON_UID}__1`))
     );
-  });
-
-  it('still lets a joined participant vote', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asAnon(), `poll_sessions/${POLL_SESSION_ID}/votes/0_${ANON_UID}`),
-        { questionIndex: 0, optionIndex: 1, votedAt: 1 }
-      )
+    await assertFails(
+      setDoc(doc(asAnon(), `poll_code_limits/uid__${ANON_UID}__1`), {
+        codes: [],
+      })
+    );
+    await assertFails(
+      setDoc(doc(asTeacher(), 'poll_codes/NEWCD'), {
+        sessionId: `${TEACHER_UID}_NEWCD`,
+        teacherUid: TEACHER_UID,
+        updatedAt: 1,
+      })
     );
   });
 });

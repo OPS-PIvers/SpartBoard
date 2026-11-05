@@ -15,7 +15,11 @@ const { mockMint, mockResolve } = vi.hoisted(() => ({
   mockResolve: vi.fn(),
 }));
 
-vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('@/config/firebase', () => ({
+  db: {},
+  functions: {},
+  isAuthBypass: false,
+}));
 vi.mock('firebase/functions', () => ({
   httpsCallable: (_fns: unknown, name: string) =>
     name === 'mintPollCodeV1' ? mockMint : mockResolve,
@@ -170,10 +174,27 @@ describe('ensurePollJoinCode', () => {
     expect(mockGetDoc).not.toHaveBeenCalled();
   });
 
-  it('falls back to a local code only when offline', async () => {
-    mockMint.mockRejectedValueOnce({ code: 'functions/unavailable' });
-    mockGeneratePollCode.mockReturnValueOnce('LOCAL');
-    expect(await ensurePollJoinCode(baseConfig, 'teacher-1')).toBe('LOCAL');
+  it('falls back to the direct pointer check when the server is unreachable', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    for (const code of [
+      'functions/internal',
+      'functions/unavailable',
+      'functions/deadline-exceeded',
+    ]) {
+      mockMint.mockRejectedValueOnce({ code });
+      mockGeneratePollCode
+        .mockReturnValueOnce('TAKEN')
+        .mockReturnValueOnce('LOCAL');
+      mockGetDoc
+        .mockResolvedValueOnce({ exists: () => true })
+        .mockResolvedValueOnce({ exists: () => false });
+      expect(await ensurePollJoinCode(baseConfig, 'teacher-1')).toBe('LOCAL');
+    }
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('surfaces a refusal from the server', async () => {
     mockMint.mockRejectedValueOnce({ code: 'functions/permission-denied' });
     await expect(ensurePollJoinCode(baseConfig, 'teacher-1')).rejects.toEqual({
       code: 'functions/permission-denied',
@@ -349,6 +370,54 @@ describe('lookupPollSessionByCode', () => {
       await vi.runAllTimersAsync();
       expect((await lookup)?.sessionId).toBe('teacher-1_K3F9Q');
     } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries a failed call, then reads the pointer directly if the server never answered', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      mockResolve.mockRejectedValue({ code: 'functions/internal' });
+      mockGetDoc
+        .mockResolvedValueOnce({
+          exists: () => true,
+          data: () => ({ sessionId: 'teacher-1_K3F9Q' }),
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'teacher-1_K3F9Q',
+          data: () => ({ code: 'K3F9Q', active: true }),
+        });
+      const lookup = lookupPollSessionByCode('K3F9Q');
+      await vi.runAllTimersAsync();
+      expect((await lookup)?.sessionId).toBe('teacher-1_K3F9Q');
+      expect(mockResolve).toHaveBeenCalledTimes(3);
+      expect(mockDoc).toHaveBeenCalledWith({}, 'poll_codes', 'K3F9Q');
+    } finally {
+      warn.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('treats a failed retry like a miss once the server has answered', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      mockResolve
+        .mockRejectedValueOnce({ code: 'functions/internal' })
+        .mockResolvedValueOnce({ data: { sessionId: 'teacher-1_K3F9Q' } });
+      mockGetDoc.mockResolvedValueOnce({
+        exists: () => true,
+        id: 'teacher-1_K3F9Q',
+        data: () => ({ code: 'K3F9Q', active: true }),
+      });
+      const lookup = lookupPollSessionByCode('K3F9Q');
+      await vi.runAllTimersAsync();
+      expect((await lookup)?.sessionId).toBe('teacher-1_K3F9Q');
+      expect(mockDoc).not.toHaveBeenCalledWith({}, 'poll_codes', 'K3F9Q');
+    } finally {
+      warn.mockRestore();
       vi.useRealTimers();
     }
   });

@@ -6838,11 +6838,9 @@ service cloud.firestore {
       }
     }
 
-    // Poll join-code pointers, written only by the pollCodePointer trigger and read by resolvePollCodeV1.
+    // Poll join-code pointers, written only by the pollCodePointer trigger; a lookup needs the code.
     match /poll_codes/{code} {
-      // Older teacher tabs check a new code is free here until they reload.
-      allow get: if signedIn() && notAnon() && !isStudentRoleUser() &&
-                 request.time < timestamp.date(2026, 12, 1);
+      allow get: if signedIn();
       allow list, write: if false;
     }
 
@@ -6850,11 +6848,8 @@ service cloud.firestore {
     // sessionId is formatted as {teacherUid}_{pollSessionId}. The teacher owns
     // the session doc (UID prefix); participants write one uid-keyed vote each.
     match /poll_sessions/{sessionId} {
-      // A participant reads a session once resolvePollCodeV1 records their join; list is owner/admin only.
-      allow get: if signedIn() &&
-                 (sessionId.matches(authUid() + '_.*') ||
-                  exists(/databases/$(database)/documents/poll_joins/$(sessionId + '__' + authUid())) ||
-                  isAdmin());
+      // A participant reaches one session by get, via the poll_codes pointer; list is owner/admin only.
+      allow get: if signedIn();
       allow list: if signedIn() &&
                   (isAdmin() || existing().teacherUid == authUid());
       // Only a non-anonymous teacher whose uid prefixes the sessionId (or an
