@@ -9409,6 +9409,8 @@ export interface FlashcardSet {
   importedFrom?: ImportAttribution;
   /** The PLC set this copy came from, so teammates' checks pool into one PLC result. */
   plcOrigin?: { plcId: string; setId: string };
+  /** Set-level learning targets in Quiz's tag shape, for standards rollups across assessments. Absent = untagged. */
+  targets?: QuestionTargetTag[];
   createdAt: number;
   updatedAt: number;
 }

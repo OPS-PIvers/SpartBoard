@@ -25,6 +25,29 @@ describe('parseSubmittedFlashcardCheck', () => {
       answerLog: [{ cardId: 'c1', correct: true }],
     });
   });
+
+  it('counts a teacher-accepted flag as a right answer', () => {
+    expect(
+      parseSubmittedFlashcardCheck({
+        submittedAt: 1,
+        score: 2,
+        total: 2,
+        answerLog: [
+          { cardId: 'c1', correct: true },
+          { cardId: 'c2', correct: false },
+          { cardId: 'c3', correct: false },
+        ],
+        flags: [
+          { cardId: 'c2', response: 'x', accepted: true },
+          { cardId: 'c3', response: 'y' },
+        ],
+      })?.answerLog
+    ).toEqual([
+      { cardId: 'c1', correct: true },
+      { cardId: 'c2', correct: true },
+      { cardId: 'c3', correct: false },
+    ]);
+  });
 });
 
 describe('computeFlashcardAggregate', () => {

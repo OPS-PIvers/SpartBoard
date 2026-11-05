@@ -1,5 +1,6 @@
 // Teacher Drive access for Drive-backed content (quizzes, banks, video activities) via the stored offline grant.
 import { publicOrigin } from './config';
+import { DRIVE_APP_FOLDER } from '../devDriveWriteGuard';
 import { ToolError } from './activity';
 import { BoundedLruMap } from '../utils/boundedLruMap';
 
@@ -169,7 +170,7 @@ async function saveInFolder(
   extension: string,
   body: string
 ): Promise<string> {
-  const root = await findOrCreateFolder(token, 'SpartBoard');
+  const root = await findOrCreateFolder(token, DRIVE_APP_FOLDER);
   const folderId = await findOrCreateFolder(token, folderName, root);
   const fileName = `${sanitizeDriveFileName(content.title)}.${content.id.slice(0, 8)}.${extension}`;
   const q = `name = '${escapeQuery(fileName)}' and '${escapeQuery(folderId)}' in parents and trashed = false`;

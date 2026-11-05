@@ -19,7 +19,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { gradeAnswer, paperTranscriptFor } from '@/hooks/useQuizSession';
-import { APP_NAME } from '@/config/constants';
+import { DRIVE_APP_FOLDER } from '@/config/devProject';
 import { authError } from './driveAuthErrors';
 import {
   buildResultsSheetData as buildResultsSheetDataShared,
@@ -227,7 +227,7 @@ export class QuizDriveService {
   }
 
   private async getQuizFolderId(): Promise<string> {
-    const appFolderId = await this.getOrCreateFolder(APP_NAME);
+    const appFolderId = await this.getOrCreateFolder(DRIVE_APP_FOLDER);
     return this.getOrCreateFolder(QUIZ_FOLDER_NAME, appFolderId);
   }
 
