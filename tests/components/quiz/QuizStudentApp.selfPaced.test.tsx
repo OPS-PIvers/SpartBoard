@@ -538,6 +538,35 @@ describe('QuizStudentApp — self-paced flow', () => {
     }
   });
 
+  it.each(['MC', 'MA'] as const)(
+    'keeps each %s picture on its own option through the per-student shuffle',
+    async (type) => {
+      const six = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'];
+      hookState.session = buildSession({
+        publicQuestions: [
+          {
+            id: 'q1',
+            type,
+            text: 'What is 2 + 2?',
+            timeLimit: 0,
+            choices: six,
+            choiceImages: six.map((label) =>
+              label === 'charlie' ? 'https://img/charlie' : ''
+            ),
+          },
+        ],
+      });
+      hookState.myResponse = buildResponse({ studentUid: 'student-aaa' });
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+      const pictured = document.querySelectorAll(
+        'img[src="https://img/charlie"]'
+      );
+      expect(pictured).toHaveLength(1);
+      expect(pictured[0].closest('button')?.textContent).toContain('charlie');
+    }
+  );
+
   it('renders MC choices in a per-student order so neighbours diverge', async () => {
     // Use 6 choices so the chance of two random orders matching by accident
     // is small enough that this test won't flake (1/6! ≈ 0.14%).
