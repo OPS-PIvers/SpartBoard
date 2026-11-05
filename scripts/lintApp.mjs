@@ -14,7 +14,8 @@ export function partition(files, count, sizeOf) {
   let index = 0;
   let filled = 0;
   for (const file of sorted) {
-    while (index < count - 1 && filled >= (total * (index + 1)) / count) index++;
+    while (index < count - 1 && filled >= (total * (index + 1)) / count)
+      index++;
     slices[index].push(file);
     filled += sizeOf(file);
   }
@@ -25,7 +26,9 @@ export function parseShard(arg) {
   const match = /^--shard=(\d+)\/(\d+)$/.exec(arg);
   const [index, count] = match ? [Number(match[1]), Number(match[2])] : [0, 0];
   if (count < 1 || index < 1 || index > count) {
-    throw new Error(`Invalid shard ${arg}: expected --shard=I/N with 1 <= I <= N`);
+    throw new Error(
+      `Invalid shard ${arg}: expected --shard=I/N with 1 <= I <= N`
+    );
   }
   return { index, count };
 }
@@ -46,12 +49,18 @@ export async function lintableFiles() {
 
 async function main() {
   const args = process.argv.slice(2);
-  const shard = args[0]?.startsWith('--shard') ? parseShard(args.shift()) : null;
+  const shard = args[0]?.startsWith('--shard')
+    ? parseShard(args.shift())
+    : null;
   let targets = ['.'];
   if (shard) {
     const files = await lintableFiles();
-    targets = partition(files, shard.count, (f) => statSync(f).size)[shard.index - 1];
-    console.log(`Shard ${shard.index}/${shard.count}: ${targets.length} of ${files.length} files`);
+    targets = partition(files, shard.count, (f) => statSync(f).size)[
+      shard.index - 1
+    ];
+    console.log(
+      `Shard ${shard.index}/${shard.count}: ${targets.length} of ${files.length} files`
+    );
     if (targets.length === 0) return;
   }
   // `eslint/bin` is not in the package's exports map, so resolve it from the main entry (lib/api.js).
@@ -59,7 +68,14 @@ async function main() {
   const eslintBin = join(dirname(eslintApi), '../bin/eslint.js');
   const result = spawnSync(
     process.execPath,
-    ['--max-old-space-size=6144', eslintBin, ...targets, '--max-warnings', '0', ...args],
+    [
+      '--max-old-space-size=6144',
+      eslintBin,
+      ...targets,
+      '--max-warnings',
+      '0',
+      ...args,
+    ],
     { stdio: 'inherit' }
   );
   process.exitCode = result.status ?? 1;
