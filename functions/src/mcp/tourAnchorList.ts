@@ -46844,6 +46844,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.clear-hand",
+    "label": "Clear button on a raised hand in the Flashcards Check monitor",
+    "scope": "field",
+    "panel": true,
+    "persists": true
+  },
+  {
     "id": "flashcards.flag-accept",
     "label": "Accept button on a flagged answer in Flashcards results",
     "scope": "field",

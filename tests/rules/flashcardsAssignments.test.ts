@@ -667,6 +667,44 @@ describe('flashcard_sessions progress', () => {
     );
   });
 
+  it('lets a student stamp the time limit once, raise a hand and count tab switches up, never touch attempts', async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    const ref = doc(studentDb, progressPath);
+    const now = Date.now();
+    await assertFails(
+      setDoc(ref, progress({ attemptStartedAt: now + 10 * 60_000 }))
+    );
+    await assertSucceeds(setDoc(ref, progress({ attemptStartedAt: now })));
+    await assertFails(
+      setDoc(ref, { attemptStartedAt: now + 1000 }, { merge: true })
+    );
+    await assertFails(
+      setDoc(ref, { attemptStartedAt: deleteField() }, { merge: true })
+    );
+    await assertSucceeds(
+      setDoc(ref, { handRaisedAt: now, tabSwitchWarnings: 1 }, { merge: true })
+    );
+    await assertSucceeds(
+      setDoc(ref, { handRaisedAt: null, tabSwitchWarnings: 2 }, { merge: true })
+    );
+    await assertFails(setDoc(ref, { tabSwitchWarnings: 0 }, { merge: true }));
+    await assertFails(setDoc(ref, { handRaisedAt: 'up' }, { merge: true }));
+    await assertFails(setDoc(ref, { completedAttempts: 0 }, { merge: true }));
+    await assertFails(setDoc(ref, { forcedSubmit: 'time' }, { merge: true }));
+    // The teacher may lower the hand and nothing else.
+    await assertSucceeds(
+      updateDoc(doc(studentDb, progressPath), { handRaisedAt: now })
+    );
+    const teacherDb = asTeacher(TEACHER_UID);
+    await assertSucceeds(
+      updateDoc(doc(teacherDb, progressPath), { handRaisedAt: null })
+    );
+    await assertFails(
+      updateDoc(doc(teacherDb, progressPath), { tabSwitchWarnings: 0 })
+    );
+  });
+
   it('lets the session teacher unlock a student’s results', async () => {
     await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
     await seed(

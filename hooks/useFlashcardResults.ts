@@ -57,6 +57,10 @@ export interface UseFlashcardResultsResult {
   ) => Promise<void>;
   /** Lets a locked-out student back into their results; one more tab-away locks them again. */
   unlockResults: (studentUid: string) => Promise<void>;
+  /** Reopens a submitted Check so the student picks up with their saved answers. */
+  unlockAttempt: (studentUid: string) => Promise<void>;
+  /** Lowers a student's raised hand. */
+  clearHand: (studentUid: string) => Promise<void>;
 }
 
 // Firestore caps a batch at 500 writes.
@@ -252,6 +256,34 @@ export const useFlashcardResults = (
     [assignmentId]
   );
 
+  const unlockAttempt = useCallback(
+    async (studentUid: string) => {
+      if (!assignmentId) return;
+      await httpsCallable(
+        functions,
+        'reopenFlashcardCheckV1'
+      )({ assignmentId, studentUid });
+    },
+    [assignmentId]
+  );
+
+  const clearHand = useCallback(
+    async (studentUid: string) => {
+      if (!assignmentId) return;
+      await updateDoc(
+        doc(
+          db,
+          FLASHCARD_SESSIONS_COLLECTION,
+          assignmentId,
+          FLASHCARD_PROGRESS_SUBCOLLECTION,
+          studentUid
+        ),
+        { handRaisedAt: null }
+      );
+    },
+    [assignmentId]
+  );
+
   return {
     session,
     results,
@@ -261,5 +293,7 @@ export const useFlashcardResults = (
     resolveFlag,
     setResultsOverride,
     unlockResults,
+    unlockAttempt,
+    clearHand,
   };
 };

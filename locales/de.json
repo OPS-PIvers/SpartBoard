@@ -3515,7 +3515,20 @@
       "periodPausedTitle": "Für deine Klasse pausiert",
       "periodPausedBody": "Dein Fortschritt bleibt auf dieser Seite. Lass diesen Tab offen.",
       "notInPeriod": "Du bist in keiner Klasse, der dieses Set zugewiesen wurde. Frage deine Lehrkraft.",
-      "seatError": "Du konntest deiner Klasse nicht beitreten. Lade die Seite neu, um es noch einmal zu versuchen."
+      "seatError": "Du konntest deiner Klasse nicht beitreten. Lade die Seite neu, um es noch einmal zu versuchen.",
+      "tabTitle": "Tabwechsel erkannt",
+      "tabBody": "Du hast den Test verlassen. Deine Lehrkraft kann das sehen.",
+      "tabWarning": "Warnung {{count}}.",
+      "tabSubmits": "Bei wiederholtem Tabwechsel wird dein Test abgegeben.",
+      "tabReturn": "Verstanden, zurück zum Test",
+      "raiseHand": "Hand heben",
+      "handRaised": "Hand gehoben, Hilfe kommt",
+      "timeUpTitle": "Die Zeit ist um",
+      "tabSubmitTitle": "Du hast den Test zu oft verlassen",
+      "submittingAnswers": "Deine Antworten werden abgegeben…",
+      "forcedTab": "Du hast den Test zu oft verlassen, deshalb wurde er abgegeben.",
+      "tryAgain": "Erneut versuchen",
+      "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut."
     },
     "speak": {
       "player": {

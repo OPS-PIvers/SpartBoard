@@ -3515,7 +3515,20 @@
       "periodPausedTitle": "En pausa para tu clase",
       "periodPausedBody": "Tu progreso se queda en esta página. Mantén esta pestaña abierta.",
       "notInPeriod": "No estás en ninguna clase a la que se haya asignado este conjunto. Pregúntale a tu docente.",
-      "seatError": "No se pudo entrar a tu clase. Recarga la página para intentarlo de nuevo."
+      "seatError": "No se pudo entrar a tu clase. Recarga la página para intentarlo de nuevo.",
+      "tabTitle": "Cambio de pestaña detectado",
+      "tabBody": "Saliste de la prueba. Tu maestro puede verlo.",
+      "tabWarning": "Advertencia {{count}}.",
+      "tabSubmits": "Si cambias de pestaña varias veces, se entregará tu prueba.",
+      "tabReturn": "Entiendo, volver a la prueba",
+      "raiseHand": "Levantar la mano",
+      "handRaised": "Mano levantada, ya viene ayuda",
+      "timeUpTitle": "Se acabó el tiempo",
+      "tabSubmitTitle": "Saliste de la prueba demasiadas veces",
+      "submittingAnswers": "Entregando tus respuestas…",
+      "forcedTab": "Saliste de la prueba demasiadas veces, así que se entregó.",
+      "tryAgain": "Intentar de nuevo",
+      "tryAgainError": "No se pudo empezar un nuevo intento. Inténtalo de nuevo."
     },
     "speak": {
       "player": {

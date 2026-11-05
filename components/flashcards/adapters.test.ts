@@ -135,6 +135,20 @@ describe('TrackedFlashcardAdapter', () => {
     expect(writes).toHaveLength(1);
   });
 
+  it('writes attempt fields at once, with the base fields a new doc needs', async () => {
+    const { adapter, writes } = setup();
+    await adapter.writeAttemptFields({ attemptStartedAt: 500 });
+    expect(writes[0]).toMatchObject({
+      classId: 'class-a',
+      cards: {},
+      round: 1,
+      attemptStartedAt: 500,
+    });
+    await adapter.writeAttemptFields({ handRaisedAt: null });
+    expect(writes[1]).toMatchObject({ handRaisedAt: null });
+    expect(writes[1]).not.toHaveProperty('attemptStartedAt');
+  });
+
   it('holds writes while paused and sends them on resume', async () => {
     vi.useFakeTimers();
     const { adapter, writes } = setup();

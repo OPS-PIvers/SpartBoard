@@ -7231,11 +7231,21 @@ service cloud.firestore {
                    'classId', 'cards', 'starred', 'round', 'studyMs', 'modesUsed',
                    'tests', 'lastActiveAt', 'checkLog', 'speak', 'speakRound',
                    'speakSounds', 'staffEmail', 'staffName', 'resultsOverride',
-                   'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt'
+                   'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt',
+                   'completedAttempts', 'forcedSubmit', 'attemptStartedAt', 'handRaisedAt',
+                   'tabSwitchWarnings'
                  ])
                  // The teacher's results setting and the results tab-away guard ride through unchanged.
                  && fcKept(data, 'resultsOverride') && fcKept(data, 'resultsTabWarnings')
                  && fcKept(data, 'resultsLockedOut') && fcKept(data, 'resultsLockedOutAt')
+                 && fcKept(data, 'completedAttempts') && fcKept(data, 'forcedSubmit')
+                 // The time limit's start is stamped once per attempt, never later than now.
+                 && (fcKept(data, 'attemptStartedAt') ||
+                     ((resource == null || existing().get('attemptStartedAt', null) == null)
+                      && data.attemptStartedAt is int
+                      && data.attemptStartedAt <= request.time.toMillis() + 60000))
+                 && (data.get('handRaisedAt', null) == null || data.handRaisedAt is int)
+                 && data.get('tabSwitchWarnings', 0) >= (resource == null ? 0 : existing().get('tabSwitchWarnings', 0))
                  && data.classId is string
                  && fcCardsOk()
                  && data.starred is list
@@ -7276,7 +7286,7 @@ service cloud.firestore {
                       && resultsGuardWrite();
         // Show / Hide / Follow class and Unlock results for one student (flashcards-assign-v2).
         allow update: if fcIsSessionTeacher() && notDeactivated()
-                      && changedOnly(['resultsOverride', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt'])
+                      && changedOnly(['resultsOverride', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'handRaisedAt'])
                       && optMap(incoming(), 'resultsOverride');
         allow delete: if fcIsSessionTeacher() && notDeactivated();
       }

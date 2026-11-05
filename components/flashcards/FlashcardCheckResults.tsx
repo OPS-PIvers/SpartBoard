@@ -1,5 +1,12 @@
-import React from 'react';
-import { Check, CheckCircle2, Trophy, X as XIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Check,
+  CheckCircle2,
+  Loader2,
+  RotateCcw,
+  Trophy,
+  X as XIcon,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type {
   FlashcardAnswerLogEntry,
@@ -19,6 +26,8 @@ interface FlashcardCheckResultsProps {
   progress: FlashcardProgress;
   /** The student's own progress doc, for the results tab-away count. */
   progressDocPath?: string | null;
+  /** Starts another attempt; absent when none is left. */
+  onTryAgain?: () => Promise<void>;
 }
 
 const answered = (entry: FlashcardAnswerLogEntry): boolean =>
@@ -33,11 +42,70 @@ export const FlashcardCheckResults: React.FC<FlashcardCheckResultsProps> = (
     <LegacyResults {...props} />
   );
 
+/** Why the Check was submitted for the student, and Try again while attempts remain. */
+const AttemptActions: React.FC<{
+  forced: FlashcardProgress['forcedSubmit'];
+  onTryAgain?: () => Promise<void>;
+}> = ({ forced, onTryAgain }) => {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  if (!forced && !onTryAgain) return null;
+  const tryAgain = async () => {
+    if (!onTryAgain) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      await onTryAgain();
+    } catch (err) {
+      console.error('[FlashcardCheckResults] Try again failed:', err);
+      setFailed(true);
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mt-5 flex flex-col items-center gap-3 text-center">
+      {forced && (
+        <p
+          role="status"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900"
+        >
+          {forced === 'time'
+            ? t('quizTimeLimit.submitted')
+            : t('flashcards.assignment.forcedTab')}
+        </p>
+      )}
+      {onTryAgain && (
+        // no-tour-anchor: student page; live tours run in the teacher app
+        <button
+          type="button"
+          onClick={() => void tryAgain()}
+          disabled={busy}
+          className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rose-700 disabled:opacity-60"
+        >
+          {busy ? (
+            <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+          ) : (
+            <RotateCcw aria-hidden="true" className="h-4 w-4" />
+          )}
+          {t('flashcards.assignment.tryAgain')}
+        </button>
+      )}
+      {failed && (
+        <p role="alert" className="text-sm font-semibold text-rose-700">
+          {t('flashcards.assignment.tryAgainError')}
+        </p>
+      )}
+    </div>
+  );
+};
+
 /** flashcards-assign-v2: Quiz's submitted screen and full review, behind its results protection. */
 const QuizStyleResults: React.FC<FlashcardCheckResultsProps> = ({
   session,
   progress,
   progressDocPath = null,
+  onTryAgain,
 }) => {
   const { t } = useTranslation();
   const { visibility, protection, publishedAt } =
@@ -79,6 +147,10 @@ const QuizStyleResults: React.FC<FlashcardCheckResultsProps> = ({
           <p className="mt-5 text-sm font-bold text-slate-700">
             {t('flashcards.assignment.resultsHidden')}
           </p>
+          <AttemptActions
+            forced={progress.forcedSubmit}
+            onTryAgain={onTryAgain}
+          />
         </section>
       </div>
     );
@@ -115,7 +187,7 @@ const QuizStyleResults: React.FC<FlashcardCheckResultsProps> = ({
             )}
           </header>
           <section className="rounded-2xl border border-slate-200 bg-white p-6 text-center">
-            {session.checkMode === 'flashcards' ? (
+            {session.checkMode === 'flashcards' && !progress.forcedSubmit ? (
               <div className="text-sm font-bold text-slate-700">
                 <p>{t('flashcards.assignment.mastered')}</p>
                 <p className="mt-1 font-normal text-slate-600">
@@ -140,6 +212,10 @@ const QuizStyleResults: React.FC<FlashcardCheckResultsProps> = ({
                 </p>
               </>
             )}
+            <AttemptActions
+              forced={progress.forcedSubmit}
+              onTryAgain={onTryAgain}
+            />
           </section>
 
           {showResponses && log.length > 0 && (

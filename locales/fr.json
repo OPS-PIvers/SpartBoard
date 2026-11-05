@@ -3515,7 +3515,20 @@
       "periodPausedTitle": "En pause pour ta classe",
       "periodPausedBody": "Ta progression reste sur cette page. Garde cet onglet ouvert.",
       "notInPeriod": "Tu n’es dans aucune classe à laquelle cette série a été attribuée. Demande à ton enseignant.",
-      "seatError": "Impossible de rejoindre ta classe. Recharge la page pour réessayer."
+      "seatError": "Impossible de rejoindre ta classe. Recharge la page pour réessayer.",
+      "tabTitle": "Changement d'onglet détecté",
+      "tabBody": "Tu as quitté le contrôle. Ton enseignant peut le voir.",
+      "tabWarning": "Avertissement {{count}}.",
+      "tabSubmits": "Si tu changes d'onglet plusieurs fois, ton contrôle sera remis.",
+      "tabReturn": "J'ai compris, retourner au contrôle",
+      "raiseHand": "Lever la main",
+      "handRaised": "Main levée, de l'aide arrive",
+      "timeUpTitle": "Le temps est écoulé",
+      "tabSubmitTitle": "Tu as quitté le contrôle trop de fois",
+      "submittingAnswers": "Envoi de tes réponses…",
+      "forcedTab": "Tu as quitté le contrôle trop de fois, il a donc été remis.",
+      "tryAgain": "Réessayer",
+      "tryAgainError": "Impossible de commencer une nouvelle tentative. Réessaie."
     },
     "speak": {
       "player": {

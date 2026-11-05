@@ -10,19 +10,27 @@ import {
 import { formatQuizAttemptsValue } from './QuizRuleStepValues';
 
 describe('flashcardsRuleValues', () => {
-  it('maps the What students see switches to the legacy score visibility', () => {
-    for (const v of ['none', 'score', 'score-and-answers'] as const) {
-      expect(scoreVisibilityFromRules(rulesFromScoreVisibility(v))).toBe(v);
-    }
+  it("maps the What students see switches to Quiz's results levels", () => {
+    expect(scoreVisibilityFromRules(rulesFromScoreVisibility('none'))).toBe(
+      'none'
+    );
+    expect(scoreVisibilityFromRules(rulesFromScoreVisibility('score'))).toBe(
+      'score-only'
+    );
+    expect(
+      scoreVisibilityFromRules(rulesFromScoreVisibility('score-and-answers'))
+    ).toBe('score-responses-and-answers');
     const rightWrongOnly = rulesFromScoreVisibility('score');
     rightWrongOnly.sessionOptions.showResultToStudent = true;
-    expect(scoreVisibilityFromRules(rightWrongOnly)).toBe('score');
+    expect(scoreVisibilityFromRules(rightWrongOnly)).toBe(
+      'score-and-responses'
+    );
   });
 
   it('defaults to one attempt with the score shown, as Flashcards did', () => {
     expect(DEFAULT_FLASHCARD_CHECK_RULES.attemptLimit).toBe(1);
     expect(scoreVisibilityFromRules(DEFAULT_FLASHCARD_CHECK_RULES)).toBe(
-      'score'
+      'score-only'
     );
   });
 

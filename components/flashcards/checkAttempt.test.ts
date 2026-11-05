@@ -1,0 +1,85 @@
+import { describe, expect, it } from 'vitest';
+import type { FlashcardSession } from '@/types';
+import {
+  canTryAgain,
+  checkDeadline,
+  checkOptionsOf,
+  forcedCheckSubmission,
+} from './checkAttempt';
+
+const cards = [
+  { id: 'a', term: 'uno', definition: 'one' },
+  { id: 'b', term: 'dos', definition: 'two' },
+  { id: 'c', term: 'tres', definition: 'three' },
+];
+
+const check = (overrides: Partial<FlashcardSession> = {}) =>
+  ({
+    kind: 'check',
+    checkMode: 'write',
+    cards,
+    ...overrides,
+  }) as FlashcardSession;
+
+describe('checkAttempt', () => {
+  it('reads rules only from Checks that have them', () => {
+    const rules = {
+      attemptLimit: 2,
+      sessionOptions: { timeLimitMinutes: 10 },
+    };
+    expect(checkOptionsOf(check({ rules }))).toEqual(rules.sessionOptions);
+    expect(checkOptionsOf(check())).toBeNull();
+    expect(checkOptionsOf(check({ kind: 'study', rules }))).toBeNull();
+  });
+
+  it('works out the deadline from the stamped start', () => {
+    expect(checkDeadline({ timeLimitMinutes: 10 }, 1000)).toBe(601_000);
+    expect(checkDeadline({ timeLimitMinutes: 10 }, undefined)).toBeNull();
+    expect(checkDeadline({}, 1000)).toBeNull();
+    expect(checkDeadline(null, 1000)).toBeNull();
+  });
+
+  it('allows Try again while attempts remain', () => {
+    const limited = check({ rules: { attemptLimit: 2, sessionOptions: {} } });
+    expect(canTryAgain(limited, {})).toBe(true);
+    expect(canTryAgain(limited, { completedAttempts: 2 })).toBe(false);
+    const unlimited = check({
+      rules: { attemptLimit: null, sessionOptions: {} },
+    });
+    expect(canTryAgain(unlimited, { completedAttempts: 40 })).toBe(true);
+    expect(canTryAgain(check(), {})).toBe(false);
+  });
+
+  it('sends only what was answered when a submit is forced', () => {
+    const log = {
+      a: { response: 'one', attempts: 1, done: true, flagged: true },
+      b: { response: '', attempts: 0, done: false },
+      gone: { response: 'x', attempts: 1, done: true },
+    };
+    expect(forcedCheckSubmission(check(), log)).toEqual({
+      answerLog: [{ cardId: 'a', response: 'one', attempts: 1 }],
+      flags: [{ cardId: 'a', response: 'one' }],
+    });
+    const test = forcedCheckSubmission(
+      check({
+        checkMode: 'test',
+        lockedSettings: { testCount: 1 } as FlashcardSession['lockedSettings'],
+      }),
+      {
+        a: { response: 'one', attempts: 0, done: false },
+        b: { response: 'two', attempts: 0, done: false },
+      }
+    );
+    expect(test.answerLog).toEqual([{ cardId: 'a', response: 'one' }]);
+    const speak = forcedCheckSubmission(check({ checkMode: 'speak' }), {
+      a: { response: '', attempts: 2, done: true, passed: true },
+      b: { response: '', attempts: 1, done: false },
+    });
+    expect(speak.answerLog).toEqual([
+      { cardId: 'a', response: '', type: 'speak', attempts: 2, passed: true },
+    ]);
+    expect(
+      forcedCheckSubmission(check({ checkMode: 'flashcards' }), log).answerLog
+    ).toEqual([]);
+  });
+});

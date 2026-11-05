@@ -1,8 +1,8 @@
 // flashcards-assign-v2 slice 5: the submitted screen honors Quiz's three levels and per-student settings.
 import '@testing-library/jest-dom';
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type {
   FlashcardProgress,
   FlashcardPublishedVisibility,
@@ -142,6 +142,47 @@ describe('FlashcardCheckResults', () => {
       />
     );
     expect(container.querySelector('svg pattern')).not.toBeNull();
+  });
+
+  it('says why the Check was submitted and offers Try again', async () => {
+    const onTryAgain = vi.fn().mockRejectedValueOnce(new Error('offline'));
+    render(
+      <FlashcardCheckResults
+        session={{ ...session('none'), rules: RULES }}
+        progress={{ ...progress(), forcedSubmit: 'time' }}
+        onTryAgain={onTryAgain}
+      />
+    );
+    expect(
+      screen.getByText("Time's up. Your answers were submitted.")
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Couldn't start a new attempt. Try again.")
+      ).toBeInTheDocument()
+    );
+    expect(onTryAgain).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the score, not "mastered", on a flashcards-mode Check submitted for the student', () => {
+    render(
+      <FlashcardCheckResults
+        session={{
+          ...session('score-only'),
+          checkMode: 'flashcards',
+          rules: RULES,
+        }}
+        progress={{ ...progress(), forcedSubmit: 'tab' }}
+      />
+    );
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'You left the check too many times, so it was submitted.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
   });
 
   it('falls back to the class level once a student setting has ended', () => {

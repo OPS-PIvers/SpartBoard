@@ -2501,6 +2501,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'flashcards.language-code': ['library.flashcards.editor'],
     'flashcards.student-actions': ['library.flashcards.results'],
     'flashcards.student-menu-item': ['library.flashcards.results'],
+    'flashcards.clear-hand': ['library.flashcards.results'],
     'flashcards.flag-accept': ['library.flashcards.results'],
     'flashcards.flag-dismiss': ['library.flashcards.results'],
     'flashcards.let-in': ['library.flashcards.results'],

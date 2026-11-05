@@ -4,7 +4,9 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
-  firestore: vi.fn(),
+  firestore: Object.assign(vi.fn(), {
+    FieldValue: { delete: () => '__delete__' },
+  }),
 }));
 
 vi.mock('firebase-functions/v2/https', () => {
@@ -31,6 +33,7 @@ import {
   handleRecordFlashcardCheckRatings,
   type CardProgress,
   handleSubmitFlashcardCheck,
+  handleReopenFlashcardCheck,
   type FlashcardCheckCaller,
 } from './flashcardCheck';
 
@@ -65,6 +68,13 @@ function makeDb(docs: Record<string, Doc>) {
           d: Doc,
           o?: { merge?: boolean }
         ) => ref.set(d, o),
+        update: (ref: ReturnType<typeof refFor>, d: Doc) => {
+          const next: Doc = { ...(docs[ref.path] ?? {}) };
+          for (const [k, v] of Object.entries(d))
+            if (v === '__delete__') delete next[k];
+            else next[k] = v;
+          docs[ref.path] = next;
+        },
       }),
   } as unknown as Db;
 }
@@ -959,5 +969,157 @@ describe('handleSubmitFlashcardCheck speak mode', () => {
       ),
       'invalid-argument'
     );
+  });
+});
+
+describe('forced submissions', () => {
+  const timed = (over: Doc = {}) =>
+    session({
+      rules: { attemptLimit: 1, sessionOptions: { timeLimitMinutes: 10 } },
+      ...over,
+    });
+
+  it('counts unanswered cards as wrong when time runs out', async () => {
+    const docs: Record<string, Doc> = { [SESSION_PATH]: timed() };
+    const result = await handleSubmitFlashcardCheck(
+      makeDb(docs),
+      student,
+      {
+        assignmentId: 'a1',
+        answerLog: [{ cardId: 'c1', response: 'el perro' }],
+        forced: 'time',
+      },
+      NOW
+    );
+    expect(result).toEqual({ score: 1, total: 4, submittedAt: NOW });
+    expect(docs[PROGRESS_PATH]).toMatchObject({
+      forcedSubmit: 'time',
+      completedAttempts: 1,
+    });
+    expect(
+      (docs[PROGRESS_PATH].answerLog as Doc[]).map((e) => e.cardId)
+    ).toEqual(['c1', 'c2', 'c3', 'c4']);
+  });
+
+  it('pads a timed-out Test with the remaining questions, graded as typed', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: timed({
+        checkMode: 'test',
+        lockedSettings: {
+          showFirst: 'definition',
+          strict: false,
+          testTypes: ['mc'],
+          testCount: 3,
+        },
+      }),
+    };
+    const result = await handleSubmitFlashcardCheck(
+      makeDb(docs),
+      student,
+      {
+        assignmentId: 'a1',
+        answerLog: [{ cardId: 'c2', response: 'la canción' }],
+        forced: 'time',
+      },
+      NOW
+    );
+    expect(result).toEqual({ score: 1, total: 3, submittedAt: NOW });
+  });
+
+  it('refuses a forced submission without the rule that forces it', async () => {
+    const db = makeDb({ [SESSION_PATH]: session() });
+    await expectCode(
+      handleSubmitFlashcardCheck(
+        db,
+        student,
+        { assignmentId: 'a1', answerLog: [], forced: 'tab' },
+        NOW
+      ),
+      'failed-precondition'
+    );
+  });
+});
+
+describe('handleReopenFlashcardCheck', () => {
+  const submitted = (over: Doc = {}): Doc => ({
+    classId: 'class-1',
+    submittedAt: NOW - 1000,
+    score: 2,
+    total: 4,
+    answerLog: [],
+    flags: [],
+    completedAttempts: 1,
+    checkLog: { c1: { response: 'dog', attempts: 1, done: true } },
+    ...over,
+  });
+
+  it('gives a student another try within the attempts allowed', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: session({
+        rules: { attemptLimit: 2, sessionOptions: {} },
+      }),
+      [PROGRESS_PATH]: submitted(),
+    };
+    await handleReopenFlashcardCheck(
+      makeDb(docs),
+      student,
+      { assignmentId: 'a1' },
+      NOW
+    );
+    expect(docs[PROGRESS_PATH].submittedAt).toBeUndefined();
+    expect(docs[PROGRESS_PATH].checkLog).toBeUndefined();
+    expect(docs[PROGRESS_PATH].completedAttempts).toBe(1);
+  });
+
+  it('refuses another try once the attempts are used, and on older Checks', async () => {
+    for (const rules of [{ attemptLimit: 1, sessionOptions: {} }, undefined]) {
+      const docs: Record<string, Doc> = {
+        [SESSION_PATH]: session(rules ? { rules } : {}),
+        [PROGRESS_PATH]: submitted(),
+      };
+      await expectCode(
+        handleReopenFlashcardCheck(
+          makeDb(docs),
+          student,
+          { assignmentId: 'a1' },
+          NOW
+        ),
+        'failed-precondition'
+      );
+    }
+  });
+
+  it("lets the session teacher unlock an attempt with the student's answers kept", async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: session(),
+      [PROGRESS_PATH]: submitted(),
+    };
+    const teacher = { uid: 'teacher-1', studentRole: false, classIds: [] };
+    await expectCode(
+      handleReopenFlashcardCheck(
+        makeDb(docs),
+        { ...teacher, uid: 'teacher-2' },
+        { assignmentId: 'a1', studentUid: UID },
+        NOW
+      ),
+      'permission-denied'
+    );
+    await expectCode(
+      handleReopenFlashcardCheck(
+        makeDb(docs),
+        student,
+        { assignmentId: 'a1', studentUid: UID },
+        NOW
+      ),
+      'permission-denied'
+    );
+    await handleReopenFlashcardCheck(
+      makeDb(docs),
+      teacher,
+      { assignmentId: 'a1', studentUid: UID },
+      NOW
+    );
+    expect(docs[PROGRESS_PATH].submittedAt).toBeUndefined();
+    expect(docs[PROGRESS_PATH].checkLog).toBeDefined();
   });
 });

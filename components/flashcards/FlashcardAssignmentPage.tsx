@@ -1,8 +1,15 @@
-import React, { useEffect, useReducer, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useEffectEvent,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
   CalendarClock,
+  Hand,
   Info,
   Layers3,
   Loader2,
@@ -41,6 +48,22 @@ import {
   sanitizeFlashcardStudyState,
 } from './adapters';
 import { FlashcardCheckResults } from './FlashcardCheckResults';
+import { CheckTabWarning } from './CheckTabWarning';
+import {
+  canTryAgain,
+  checkDeadline,
+  checkOptionsOf,
+  forcedCheckSubmission,
+} from './checkAttempt';
+import { QuizTimeLimitClock } from '@/components/quiz/QuizTimeLimitClock';
+import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
+import { effectivePageProtections } from '@/utils/pageProtections';
+import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
+import {
+  getEffectiveTabWarningThreshold,
+  hasReachedTabWarningThreshold,
+} from '@/utils/tabWarningThreshold';
+import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
 import { isFramedWindow } from './speak/micAccess';
 import {
   FlashcardPlayer,
@@ -61,6 +84,8 @@ import {
 } from './flashcardStudentView';
 
 const PROGRESS_SUBCOLLECTION = 'progress';
+// A forced submit that failed waits this long before trying again.
+const FORCED_RETRY_MS = 5000;
 // setTimeout overflows past ~24.8 days, so a far-off boundary re-arms instead.
 const MAX_TIMEOUT_MS = 2_147_483_647;
 
@@ -131,7 +156,7 @@ const createTrackedAdapter = (
         : undefined,
   });
 
-const TrackedPlayer: React.FC<{
+export const TrackedPlayer: React.FC<{
   session: FlashcardSession;
   progress: FlashcardProgress | null;
   studentUid: string;
@@ -162,6 +187,8 @@ const TrackedPlayer: React.FC<{
       staff
     ),
     resetCount,
+    // This attempt's start, until the stamped one arrives.
+    startedAt: Math.round(getServerNow()),
   }));
   const { adapter } = tracked;
   useEffect(() => {
@@ -172,6 +199,7 @@ const TrackedPlayer: React.FC<{
     setTracked({
       adapter: createTrackedAdapter(session, studentUid, classId, null, staff),
       resetCount,
+      startedAt: Math.round(getServerNow()),
     });
   }, [resetCount, tracked, session, studentUid, classId, staff]);
   const [submitState, dispatchSubmit] = useReducer(
@@ -183,8 +211,16 @@ const TrackedPlayer: React.FC<{
     adapter.setPaused(paused);
   }, [adapter, paused]);
 
-  const submit = async (submission: FlashcardCheckSubmission) => {
-    if (paused) return;
+  const inFlightRef = useRef(false);
+  const [forced, setForced] = useState<'time' | 'tab' | null>(null);
+  const forcedTriedAtRef = useRef(0);
+  const submit = async (
+    submission: FlashcardCheckSubmission,
+    forcedBy?: 'time' | 'tab'
+  ) => {
+    if (paused || inFlightRef.current) return;
+    inFlightRef.current = true;
+    if (forcedBy) setForced(forcedBy);
     dispatchSubmit({ type: 'submitStarted' });
     try {
       await adapter.flush();
@@ -196,11 +232,100 @@ const TrackedPlayer: React.FC<{
         assignmentId: session.id,
         answerLog: submission.answerLog,
         flags: submission.flags,
+        ...(forcedBy ? { forced: forcedBy } : {}),
       });
     } catch (submitError) {
       console.error('[FlashcardAssignmentPage] Submit failed:', submitError);
       dispatchSubmit({ type: 'submitFailed' });
+    } finally {
+      inFlightRef.current = false;
     }
+  };
+
+  // flashcards-assign-v2 rules: time limit, tab warnings, page protections and raise hand.
+  const options = isCheck ? checkOptionsOf(session) : null;
+  const timeLimited = checkDeadline(options, 0) !== null;
+  const stampedStart = progress?.attemptStartedAt;
+  const deadline = checkDeadline(options, stampedStart ?? tracked.startedAt);
+  useEffect(() => {
+    if (!timeLimited || paused || stampedStart !== undefined) return;
+    void adapter.writeAttemptFields({ attemptStartedAt: tracked.startedAt });
+  }, [adapter, timeLimited, paused, stampedStart, tracked.startedAt]);
+
+  const submitForced = (by: 'time' | 'tab') => {
+    const now = Date.now();
+    if (now - forcedTriedAtRef.current < FORCED_RETRY_MS) return;
+    forcedTriedAtRef.current = now;
+    void submit(forcedCheckSubmission(session, adapter.loadCheckLog()), by);
+  };
+  const onTimeUp = useEffectEvent(() => submitForced('time'));
+  useEffect(() => {
+    if (deadline === null || paused) return undefined;
+    const check = () => {
+      if (getServerNow() >= deadline) onTimeUp();
+    };
+    check();
+    const id = window.setInterval(check, 1000);
+    return () => window.clearInterval(id);
+  }, [deadline, paused]);
+
+  // A forced submit that failed (offline, say) keeps trying.
+  const onForcedRetry = useEffectEvent(() => {
+    if (forced) submitForced(forced);
+  });
+  const forcedFailed = forced !== null && submitState.kind === 'failed';
+  useEffect(() => {
+    if (!forcedFailed) return undefined;
+    const id = window.setInterval(onForcedRetry, FORCED_RETRY_MS);
+    return () => window.clearInterval(id);
+  }, [forcedFailed]);
+
+  const tabOn = options?.tabWarningsEnabled === true;
+  const tabThreshold = getEffectiveTabWarningThreshold(
+    options?.tabWarningThreshold
+  );
+  const tabRule = options ? getEffectiveTabAwayRule(options) : null;
+  const [tabWarnings, setTabWarnings] = useState(
+    progress?.tabSwitchWarnings ?? 0
+  );
+  const [warningOpen, setWarningOpen] = useState(false);
+  const tabTracker = useTabAwayTracker({
+    enabled: tabOn && !paused && forced === null,
+    sessionActive: session.status === 'active',
+    ready: true,
+    serverExits: undefined,
+    attempt: progress?.completedAttempts ?? 0,
+    getPosition: () => ({}),
+    onLeave: async () => {
+      const next = tabWarnings + 1;
+      setTabWarnings(next);
+      setWarningOpen(true);
+      await adapter.writeAttemptFields({ tabSwitchWarnings: next });
+      if (!hasReachedTabWarningThreshold(next, tabThreshold)) return false;
+      submitForced('tab');
+      return true;
+    },
+    saveExits: undefined,
+    limitMs: tabRule?.limitMs ?? null,
+    autoSubmit: tabRule?.autoSubmit ?? false,
+    onAwayTooLong: () => {
+      setWarningOpen(true);
+      submitForced('tab');
+    },
+  });
+  const protections = options ? effectivePageProtections(options) : null;
+
+  const handOn = options?.handRaiseEnabled === true;
+  const [handPending, setHandPending] = useState<boolean | null>(null);
+  const handRaised = handPending ?? progress?.handRaisedAt != null;
+  const toggleHand = () => {
+    const raise = !handRaised;
+    setHandPending(raise);
+    void adapter
+      .writeAttemptFields({
+        handRaisedAt: raise ? Math.round(getServerNow()) : null,
+      })
+      .finally(() => setHandPending(null));
   };
 
   const speakCheck = isCheck && session.checkMode === 'speak';
@@ -233,15 +358,79 @@ const TrackedPlayer: React.FC<{
                   : null,
               onCheckWrite: (cardId, entry) =>
                 adapter.recordCheckWrite(cardId, entry),
-              onSubmit: (submission) => void submit(submission),
+              onSubmit: (submission) => {
+                forcedTriedAtRef.current = 0;
+                void submit(submission);
+              },
             }
           : undefined
       }
     />
   );
   return (
-    <div className="relative h-full">
-      {player}
+    <div className="relative flex h-full flex-col">
+      {(deadline !== null || handOn) && (
+        <div className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2">
+          {deadline !== null && (
+            <QuizTimeLimitClock deadline={deadline} light />
+          )}
+          {handOn && (
+            // no-tour-anchor: student page; live tours run in the teacher app
+            <button
+              type="button"
+              onClick={toggleHand}
+              aria-pressed={handRaised}
+              className={`ml-auto inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-bold transition-colors ${
+                handRaised
+                  ? 'border-brand-red-primary bg-brand-red-primary text-white'
+                  : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Hand aria-hidden="true" className="h-4 w-4" />
+              {t(
+                handRaised
+                  ? 'flashcards.assignment.handRaised'
+                  : 'flashcards.assignment.raiseHand'
+              )}
+            </button>
+          )}
+        </div>
+      )}
+      <div className="min-h-0 flex-1">{player}</div>
+      {protections && (
+        <PageProtectionGuards protections={protections} wholePage />
+      )}
+      {warningOpen && forced === null && (
+        <CheckTabWarning
+          count={tabWarnings}
+          submits={tabThreshold !== 'off'}
+          away={tabTracker.away}
+          rule={tabRule}
+          onDismiss={() => {
+            setWarningOpen(false);
+            tabTracker.release();
+          }}
+        />
+      )}
+      {forced !== null && (
+        <div
+          role="status"
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/95 p-6 text-center"
+        >
+          <h2 className="mb-2 text-2xl font-black text-slate-900">
+            {t(
+              forced === 'time'
+                ? 'flashcards.assignment.timeUpTitle'
+                : 'flashcards.assignment.tabSubmitTitle'
+            )}
+          </h2>
+          <p className="max-w-sm text-sm text-slate-600">
+            {submitState.kind === 'failed'
+              ? t('flashcards.assignment.submitError')
+              : t('flashcards.assignment.submittingAnswers')}
+          </p>
+        </div>
+      )}
       {paused && (
         <div
           role="status"
@@ -502,6 +691,16 @@ export const FlashcardAssignmentPage: React.FC<{
           session={session}
           progress={view.progress}
           progressDocPath={`flashcard_sessions/${session.id}/${PROGRESS_SUBCOLLECTION}/${pseudonymUid}`}
+          onTryAgain={
+            view.open && canTryAgain(session, view.progress)
+              ? async () => {
+                  await httpsCallable(
+                    functions,
+                    'reopenFlashcardCheckV1'
+                  )({ assignmentId: session.id });
+                }
+              : undefined
+          }
         />
       );
       break;

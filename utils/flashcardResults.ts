@@ -51,6 +51,9 @@ export interface FlashcardResultRecord {
   /** Times the student left their protected results, and whether that locked them out. */
   resultsTabWarnings?: number;
   resultsLockedOut?: boolean;
+  completedAttempts?: number;
+  forcedSubmit?: 'time' | 'tab';
+  handRaisedAt?: number | null;
   /** Check answers the student's device saved before submitting. */
   checkLog?: Record<
     string,
