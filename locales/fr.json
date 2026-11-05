@@ -3510,7 +3510,7 @@
       "resultsTitle": "Tes résultats",
       "correctOf": "{{correct}} sur {{total}} justes",
       "answersTitle": "Tes réponses",
-      "noResponse": "— pas de réponse",
+      "noResponse": "Pas de réponse",
       "periodClosedBody": "Garde cet onglet ouvert. La série apparaîtra ici dès que ton enseignant ouvrira l’accès à ta classe.",
       "periodPausedTitle": "En pause pour ta classe",
       "periodPausedBody": "Ta progression reste sur cette page. Garde cet onglet ouvert.",

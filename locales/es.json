@@ -3510,7 +3510,7 @@
       "resultsTitle": "Tus resultados",
       "correctOf": "{{correct}} de {{total}} correctas",
       "answersTitle": "Tus respuestas",
-      "noResponse": "— sin respuesta",
+      "noResponse": "Sin respuesta",
       "periodClosedBody": "Mantén esta pestaña abierta. El conjunto aparecerá aquí en cuanto tu docente dé acceso a tu clase.",
       "periodPausedTitle": "En pausa para tu clase",
       "periodPausedBody": "Tu progreso se queda en esta página. Mantén esta pestaña abierta.",

@@ -3510,7 +3510,7 @@
       "resultsTitle": "Deine Ergebnisse",
       "correctOf": "{{correct}} von {{total}} richtig",
       "answersTitle": "Deine Antworten",
-      "noResponse": "— keine Antwort",
+      "noResponse": "Keine Antwort",
       "periodClosedBody": "Lass diesen Tab geöffnet. Das Set erscheint hier, sobald deine Lehrkraft deine Klasse freigibt.",
       "periodPausedTitle": "Für deine Klasse pausiert",
       "periodPausedBody": "Dein Fortschritt bleibt auf dieser Seite. Lass diesen Tab offen.",

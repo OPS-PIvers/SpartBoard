@@ -4817,7 +4817,7 @@
       "resultsTitle": "Your Results",
       "correctOf": "{{correct}} of {{total}} correct",
       "answersTitle": "Your Answers",
-      "noResponse": "— no response",
+      "noResponse": "No response",
       "periodClosedBody": "Keep this tab open. The set appears here as soon as your teacher lets your class in.",
       "periodPausedTitle": "Paused for your class",
       "periodPausedBody": "Your progress stays on this page. Keep this tab open.",
