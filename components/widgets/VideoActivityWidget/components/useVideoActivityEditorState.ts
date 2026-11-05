@@ -83,7 +83,7 @@ export interface VideoActivityEditorController {
   reorderQuestions: (next: VideoActivityQuestion[], movedId?: string) => void;
   /** Recently-reordered question id (for a transient inline hint). null when no hint shown. */
   reorderHintFor: string | null;
-  // Quiz-layout list (va-quiz-alignment): checkboxes, bulk actions, duplicate
+  // Quiz-layout list: checkboxes, bulk actions, duplicate
   duplicateQuestion: (id: string) => void;
   checkedIds: ReadonlySet<string>;
   /** `range` (shift-click) checks every row between the last toggled one and `id`. */

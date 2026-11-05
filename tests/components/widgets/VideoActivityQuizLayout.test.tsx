@@ -6,14 +6,12 @@ import { VideoActivityEditorModal } from '@/components/widgets/VideoActivityWidg
 import type { TimelineProps } from '@/components/widgets/VideoActivityWidget/components/Timeline';
 import type { VideoActivityData, VideoActivityQuestion } from '@/types';
 
-const flags = vi.hoisted(() => ({ quizLayout: true }));
 const seekTo = vi.hoisted(() => vi.fn());
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-test' },
-    canAccessFeature: (id: string) =>
-      id === 'va-quiz-alignment' ? flags.quizLayout : false,
+    canAccessFeature: () => false,
   }),
 }));
 
@@ -92,18 +90,10 @@ const saved = async (
 
 describe('Video Activity editor on the Quiz layout', () => {
   beforeEach(() => {
-    flags.quizLayout = true;
     seekTo.mockClear();
   });
 
-  it('keeps the old editor when the flag is off', () => {
-    flags.quizLayout = false;
-    renderEditor([mc()]);
-    expect(screen.getByText('Drag to reorder · click to edit')).toBeTruthy();
-    expect(screen.queryByText('Time in video')).toBeNull();
-  });
-
-  it('drops the Settings tab with the flag on and keeps the saved behavior', async () => {
+  it('has no Settings tab and keeps the saved behavior', async () => {
     const behavior = {
       sessionMode: 'student' as const,
       sessionOptions: { tabWarningsEnabled: false },
@@ -124,12 +114,6 @@ describe('Video Activity editor on the Quiz layout', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Activity' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0][1]).toEqual(behavior);
-  });
-
-  it('keeps the Settings tab with the flag off', () => {
-    flags.quizLayout = false;
-    renderEditor([mc()]);
-    expect(screen.getByRole('button', { name: 'Settings' })).toBeTruthy();
   });
 
   it('lists questions with their time and shows the Quiz fields without Time Limit', () => {

@@ -71,13 +71,7 @@ import {
 import { isAdmin } from './glTools';
 import { registerMeetingTools } from './meetingTools';
 import { registerStandardsTools } from './standardsTools';
-import {
-  BOARD_TOOLS,
-  assertBoardAccess,
-  boardsOn,
-  editResultOf,
-  registerBoardTools,
-} from './boardTools';
+import { editResultOf, registerBoardTools } from './boardTools';
 import { restoreBoard } from './boardWrite';
 import { resolveBoardScreen } from './boardStore';
 
@@ -281,11 +275,10 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
         const granted = (id: string) =>
           isGlobalFeatureGranted(db, id, ctx.email, uid).catch(() => false);
-        const [resultsOn, gl, meetings, boards, adminUser] = await Promise.all([
+        const [resultsOn, gl, meetings, adminUser] = await Promise.all([
           miniAppResultsOn(ctx).catch(() => false),
           granted(GL_FEATURE_ID),
           granted(MEETING_AI_FEATURE_ID),
-          boardsOn(ctx).catch(() => false),
           isAdmin(ctx).catch(() => false),
         ]);
         return {
@@ -300,7 +293,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             'activity_walls',
             'mini_apps',
             ...(gl ? ['guided_learning'] : []),
-            ...(boards ? ['boards'] : []),
+            'boards',
             ...(meetings ? ['meeting_notes'] : []),
             ...(adminUser ? ['live_tours', 'web_tours'] : []),
           ],
@@ -316,7 +309,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           ],
           cannot: ['delete', 'assign to students', 'share', 'see student data'],
           daily_change_limit: DAILY_WRITE_LIMIT,
-          ...(boards ? { daily_board_change_limit: DAILY_BOARD_OP_LIMIT } : {}),
+          daily_board_change_limit: DAILY_BOARD_OP_LIMIT,
         };
       })
   );
@@ -706,7 +699,6 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         if (itemType === 'guided_learning')
           return restoreGuidedLearningRevision(ctx, rev);
         if (itemType === 'board') {
-          await assertBoardAccess(ctx);
           const edit = await restoreBoard(ctx, rev);
           return editResultOf(edit, await resolveBoardScreen(ctx)).result;
         }
@@ -754,14 +746,12 @@ const RESULTS_ONLY_TOOLS = ['get_mini_app_results_summary'] as const;
 export async function hiddenToolsFor(
   ctx: ToolContext
 ): Promise<ReadonlySet<string>> {
-  const [admin, resultsOn, boards] = await Promise.all([
+  const [admin, resultsOn] = await Promise.all([
     isAdmin(ctx).catch(() => false),
     miniAppResultsOn(ctx).catch(() => false),
-    boardsOn(ctx).catch(() => false),
   ]);
   return new Set([
     ...(admin ? [] : [...ADMIN_ONLY_TOOLS, ...WEB_TOUR_TOOLS]),
     ...(resultsOn ? [] : RESULTS_ONLY_TOOLS),
-    ...(boards ? [] : BOARD_TOOLS),
   ]);
 }

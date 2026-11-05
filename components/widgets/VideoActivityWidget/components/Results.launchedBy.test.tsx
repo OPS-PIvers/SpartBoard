@@ -17,7 +17,7 @@ vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn() }),
 }));
 vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({ addToast: vi.fn() }),
+  useDashboard: () => ({ addToast: vi.fn(), rosters: [] }),
 }));
 vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
   useAssignmentPseudonymsMulti: () => ({ byStudentUid: new Map() }),

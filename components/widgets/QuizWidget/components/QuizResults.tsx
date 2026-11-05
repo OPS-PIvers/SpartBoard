@@ -2066,13 +2066,24 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     return buildQuizClassroomGradeEntries(
       completed,
       quiz.questions,
-      quizMaxPoints(quiz.questions, session?.sections),
+      quizMaxPoints(quiz.questions, session?.sections, session?.bankSlots),
       fibGrading
     );
-  }, [ltiAttachment, completed, quiz.questions, fibGrading, session?.sections]);
+  }, [
+    ltiAttachment,
+    completed,
+    quiz.questions,
+    fibGrading,
+    session?.sections,
+    session?.bankSlots,
+  ]);
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment || !session?.id) return;
-    const maxPoints = quizMaxPoints(quiz.questions, session?.sections);
+    const maxPoints = quizMaxPoints(
+      quiz.questions,
+      session?.sections,
+      session?.bankSlots
+    );
     const grades = withFinalScores(
       buildQuizClassroomGradeEntries(
         completed,
@@ -2153,10 +2164,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     !isReview &&
     classroomAttachments.length > 0 &&
     canAccessFeature('google-classroom');
-  const toolColumnsOn = canAccessFeature('schoology-tool-columns');
   const schoologyTargets = useMemo(
-    () => (toolColumnsOn ? schoologyLinkedTargets(rosters) : null),
-    [toolColumnsOn, rosters]
+    () => schoologyLinkedTargets(rosters),
+    [rosters]
   );
   const lmsLink = readLmsLink(session ?? null, schoologyTargets);
   // SpartBoard makes the Schoology column itself (SCHOOLOGY_TOOL_COLUMNS.md D9).
@@ -2167,7 +2177,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     kind: 'quiz',
     title: quiz.title,
     buildPayload: async () => {
-      const maxPoints = quizMaxPoints(quiz.questions, session?.sections);
+      const maxPoints = quizMaxPoints(
+        quiz.questions,
+        session?.sections,
+        session?.bankSlots
+      );
       const scored = withFinalScores(
         buildQuizClassroomGradeEntries(
           completed,
@@ -4170,7 +4184,11 @@ const StudentsScreen: React.FC<{
     useState<ResponseDocKey | null>(null);
   const [deletingKey, setDeletingKey] = useState<ResponseDocKey | null>(null);
   const [unlockingKey, setUnlockingKey] = useState<ResponseDocKey | null>(null);
-  const maxPoints = quizMaxPoints(questions, session?.sections);
+  const maxPoints = quizMaxPoints(
+    questions,
+    session?.sections,
+    session?.bankSlots
+  );
   const gamified = resultsInPoints(session);
   const isGame = isGameSession(session);
   const showPoints = view.display === 'points' && !gamified;

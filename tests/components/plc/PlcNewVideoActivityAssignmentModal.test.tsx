@@ -19,7 +19,7 @@ import {
   act,
   waitFor,
 } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { PlcNewVideoActivityAssignmentModal } from '@/components/plc/PlcNewVideoActivityAssignmentModal';
 import type { Plc, ClassRoster, VideoActivityMetadata } from '@/types';
@@ -106,11 +106,10 @@ vi.mock('@/context/useAuth', () => ({
     // Path B: sheet auto-create now gates on ensureGoogleScope. Resolve null to
     // preserve the "no token → skip sheet creation" behavior these tests assert.
     ensureGoogleScope: vi.fn().mockResolvedValue(null),
-    canAccessFeature: (id: string) => id === 'va-quiz-alignment' && vaFlag,
+    canAccessFeature: () => false,
   })),
 }));
 
-let vaFlag = false;
 let mockLastVa: unknown = null;
 const mockSaveLastVa = vi.fn();
 vi.mock('@/hooks/useLastVideoAssignSettings', () => ({
@@ -254,7 +253,7 @@ describe('PlcNewVideoActivityAssignmentModal — assign stepper', () => {
     expect(screen.getByRole('button', { name: /^1Classes/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /^2When/ })).toBeTruthy();
     expect(
-      screen.getByRole('button', { name: /^3SharingShared with Grade 6/ })
+      screen.getByRole('button', { name: /^7SharingShared with Grade 6/ })
     ).toBeTruthy();
     expect(screen.queryByPlaceholderText(/assignment name/i)).toBeNull();
   });
@@ -342,9 +341,8 @@ describe('PlcNewVideoActivityAssignmentModal — assign stepper', () => {
   });
 });
 
-describe('PlcNewVideoActivityAssignmentModal — rule steps (va-quiz-alignment)', () => {
+describe('PlcNewVideoActivityAssignmentModal — rule steps', () => {
   beforeEach(() => {
-    vaFlag = true;
     mockLastVa = null;
     mockSaveLastVa.mockClear();
     mockCreateAssignment.mockReset();
@@ -356,10 +354,6 @@ describe('PlcNewVideoActivityAssignmentModal — rule steps (va-quiz-alignment)'
       questions: [],
     });
   });
-  afterEach(() => {
-    vaFlag = false;
-  });
-
   it('adds the rule steps before Sharing', async () => {
     await renderAndPickActivity();
     expect(

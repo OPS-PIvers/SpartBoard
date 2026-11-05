@@ -41,6 +41,7 @@ const renderStepper = (props: Partial<VideoAssignStepperProps> = {}) => {
       canAssignLive={false}
       lastPacing={null}
       initialClassIds={['c1', 'c2']}
+      initialRules={RULES}
       onSubmit={onSubmit}
       {...props}
     />
@@ -159,15 +160,7 @@ describe('initialClassesValue', () => {
     expect(rows).toEqual({ classIds: [], studentsByClass: {} });
   });
 
-  describe('rule steps (va-quiz-alignment)', () => {
-    it('leaves the rule steps out and submits no rules without a prefill', async () => {
-      const { onSubmit } = renderStepper();
-      expect(screen.queryByText('Attempts and order')).toBeNull();
-      assign();
-      await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
-      expect(onSubmit.mock.calls[0][0].rules).toBeNull();
-    });
-
+  describe('rule steps', () => {
     it('adds the rule steps in order and submits the edited rules', async () => {
       const { onSubmit } = renderStepper({ initialRules: RULES });
       expect(stepHeader('Attempts and order')).toBeInTheDocument();

@@ -1450,15 +1450,6 @@ export const TOUR_ANCHORS = {
     label: 'Warnings before lockout box in the Publish scores window',
     panel: true,
   },
-  'assign-video-behavior.scoring': {
-    label: 'Scoring section header in the Video Activity assign settings',
-    panel: true,
-  },
-  'assign-video-behavior.score-visibility': {
-    label: 'Score visibility option in the Video Activity assign settings',
-    perField: true,
-    panel: true,
-  },
   'view-only-share.close': {
     label: 'Close button in the Share link window',
     panel: true,
@@ -5028,6 +5019,25 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'schoology-link.find': {
+    label: 'Find my Schoology courses button in the Link Schoology dialog',
+    panel: true,
+  },
+  'schoology-link.found-row': {
+    label: 'Checkbox on a found Schoology course row',
+    perField: true,
+    panel: true,
+  },
+  'schoology-link.link-selected': {
+    label: 'Link selected button for found Schoology courses',
+    persists: true,
+    panel: true,
+  },
+  'schoology-link.unlink': {
+    label: 'Unlink button on a linked Schoology course',
+    perField: true,
+    panel: true,
+  },
   'schoology-link.cancel': {
     label: 'Done/close button in the Link Schoology dialog',
     panel: true,
@@ -5616,12 +5626,7 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
-  // PLC deferred controls: drag handles, option toggles, invite email, gradebook classes
-  'plc-assign.option-toggle': {
-    label: 'Option switch in the PLC assign dialog',
-    perField: true,
-    panel: true,
-  },
+  // PLC deferred controls: drag handles, invite email, gradebook classes
   'plc-settings.gradebook-classes': {
     label: 'Use in my gradebook classes select in the PLC settings tab',
     persists: true,
@@ -7473,6 +7478,12 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'widget.annotate-toolbar.colors': {
+    label: 'Pen colors in the widget annotate toolbar',
+    perWidget: true,
+    panel: true,
+  },
+
   'widget.annotate-toolbar.eraser': {
     label: 'Eraser button in the widget annotate toolbar',
     perWidget: true,
@@ -10822,19 +10833,8 @@ export const TOUR_ANCHORS = {
     persists: true,
     sandboxed: true,
   },
-  'video-activity.editor-question-type': {
-    label: 'Question type button in the video activity editor',
-    perField: true,
-    persists: true,
-    sandboxed: true,
-  },
   'video-activity.editor-question-timestamp': {
     label: 'Question timestamp box in the video activity editor',
-    persists: true,
-    sandboxed: true,
-  },
-  'video-activity.editor-question-time-limit': {
-    label: 'Question time limit box in the video activity editor',
     persists: true,
     sandboxed: true,
   },
@@ -10851,41 +10851,8 @@ export const TOUR_ANCHORS = {
     label: 'More questions button for a type in the AI drafter',
     perField: true,
   },
-  'video-activity.editor-correct-answer': {
-    label: 'Correct answer box for a multiple choice question',
-    persists: true,
-    sandboxed: true,
-  },
-  'video-activity.editor-incorrect-answer': {
-    label: 'Incorrect answer box for a multiple choice question',
-    perField: true,
-    persists: true,
-    sandboxed: true,
-  },
   'video-activity.editor-fib-answer': {
     label: 'Canonical answer box for a fill in the blank question',
-    persists: true,
-    sandboxed: true,
-  },
-  'video-activity.editor-fib-variants': {
-    label: 'Acceptable variants box for a fill in the blank question',
-    persists: true,
-    sandboxed: true,
-  },
-  'video-activity.editor-option-correct': {
-    label: 'Correct toggle on a multi-answer option',
-    perField: true,
-    persists: true,
-    sandboxed: true,
-  },
-  'video-activity.editor-option-text': {
-    label: 'Text box on a multi-answer option',
-    perField: true,
-    persists: true,
-    sandboxed: true,
-  },
-  'video-activity.editor-partial-credit': {
-    label: 'Allow partial credit checkbox in the video activity editor',
     persists: true,
     sandboxed: true,
   },
@@ -10931,10 +10898,6 @@ export const TOUR_ANCHORS = {
     label: 'Use current time button for a video activity question',
     persists: true,
     sandboxed: true,
-  },
-  'video-activity.editor-tab': {
-    label: 'Questions and Settings tabs in the video activity editor',
-    perField: true,
   },
   'video-activity.live-start': {
     label: 'Start button in the live video activity waiting room',
@@ -11058,12 +11021,6 @@ export const TOUR_ANCHORS = {
   'video-activity.archive-settings': {
     label: 'Settings item in a video activity assignment row menu',
     panel: true,
-  },
-  'video-activity.settings-score-visibility': {
-    label: 'Score visibility option in video activity behavior settings',
-    perField: true,
-    persists: true,
-    sandboxed: true,
   },
   'video-activity.admin-tab': {
     label: 'List and Settings tabs in the video activity admin modal',

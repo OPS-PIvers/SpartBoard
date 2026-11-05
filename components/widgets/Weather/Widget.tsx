@@ -20,12 +20,30 @@ import { STATION_CONFIG } from './constants';
 import { buildDetailRows } from './details';
 import { useWeatherDetailsAllowed } from './useWeatherDetailsAllowed';
 import { WeatherDetailsLayout } from './WeatherDetailsPanel';
+import { RecessGearFace } from './RecessGearFace';
+import { resolveBaseTextScale } from '@/config/widgetAppearance';
+
+/** Drops markup from a message template; the text only sizes the headline and is never rendered as HTML. */
+const plainText = (text: string): string => {
+  let out = '';
+  let tag: string | null = null;
+  for (const ch of text) {
+    if (ch === '<') {
+      if (tag !== null) out += tag;
+      tag = '';
+    } else if (ch === '>' && tag !== null) tag = null;
+    else if (tag !== null) tag += ch;
+    else if (ch !== '>') out += ch;
+  }
+  // An unclosed '<' was not a tag: keep the text after it.
+  return tag === null ? out : out + tag;
+};
 
 export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t, i18n } = useTranslation();
   const { updateWidget, activeDashboard, setBackground } = useDashboard();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
-  const { featurePermissions } = useAuth();
+  const { featurePermissions, canAccessFeature } = useAuth();
   const config = widget.config as WeatherConfig;
   const {
     temp = 72,
@@ -259,6 +277,10 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   };
 
   const clothing = getClothing();
+  const gearLayout = canAccessFeature('weather-gear-layout');
+  const accentClass = gearLayout
+    ? 'text-brand-blue-primary'
+    : 'text-indigo-600';
 
   // Custom Message/Image Logic
   let displayMessage: React.ReactNode = (
@@ -271,13 +293,22 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         clothing: clothing.label,
       }}
       components={{
-        cond: <span className="text-indigo-600 uppercase" />,
-        cloth: <span className="text-indigo-600" />,
+        cond: <span className={`${accentClass} uppercase`} />,
+        cloth: <span className={accentClass} />,
         br: <br />,
       }}
     />
   );
-  let displayImage = <span>{clothing.icon}</span>;
+  let displayText = t('widgets.weather.messageTemplate', {
+    condition: t(`widgets.weather.conditions.${condition.toLowerCase()}`, {
+      defaultValue: condition,
+    }),
+    clothing: clothing.label,
+  })
+    .replace(/<cond>(.*?)<\/cond>/g, (_, c: string) => c.toUpperCase())
+    .replace(/<br\s*\/?>/g, '\n');
+  displayText = plainText(displayText);
+  let imageUrl: string | undefined;
 
   if (globalConfig?.temperatureRanges) {
     const match = globalConfig.temperatureRanges.find((r) => {
@@ -287,15 +318,8 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     });
     if (match) {
       displayMessage = match.message;
-      if (match.imageUrl) {
-        displayImage = (
-          <img
-            src={match.imageUrl}
-            alt={t('widgets.weather.weatherImageAlt')}
-            className="w-full h-full object-cover rounded-lg"
-          />
-        );
-      }
+      displayText = match.message;
+      if (match.imageUrl) imageUrl = match.imageUrl;
     }
   }
 
@@ -327,8 +351,74 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Details replace the recess gear card but keep its sizing, since they share the space.
   const hasDetails = detailRows.length > 0;
   const noGear = hideClothing === true && !hasDetails;
+  const showGear = gearLayout && !noGear && !hasDetails;
+  const legacyImage = imageUrl ? (
+    <img
+      src={imageUrl}
+      alt={t('widgets.weather.weatherImageAlt')}
+      className="w-full h-full object-cover rounded-lg"
+    />
+  ) : (
+    <span>{clothing.icon}</span>
+  );
 
-  const face = (
+  // In the gear layout the temperature gets its own region, sized like the no-gear face.
+  const temperatureBlock = (
+    <div
+      className="flex flex-col items-center justify-center w-full"
+      style={{ gap: '0.5cqh' }}
+    >
+      <div
+        className="flex items-center justify-center w-full"
+        style={{ gap: 'min(4cqh, 2cqw)' }}
+      >
+        <div style={{ fontSize: 'min(65cqh, 30cqw)' }}>{getIcon('1em')}</div>
+        <div
+          className="font-black tabular-nums leading-none"
+          style={{
+            fontSize: `min(75cqh, 40cqw, calc(68cqw / ${tempWidthEm}))`,
+            color: fontColor,
+          }}
+        >
+          {tempText}
+        </div>
+      </div>
+
+      {((showFeelsLike && !staleFeelsLike) || shownFeelsLike !== undefined) && (
+        <div
+          className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
+          style={{
+            fontSize: 'min(12cqh, 10cqw)',
+            marginTop: '1cqh',
+            color: secondaryColor ?? fontColor,
+            opacity: secondaryColor ? 1 : 0.8,
+          }}
+        >
+          {showFeelsLike
+            ? `${t('widgets.weather.actual')} ${Math.round(temp)}°`
+            : `${t('widgets.weather.feelsLike')} ${Math.round(shownFeelsLike ?? temp)}°`}
+        </div>
+      )}
+    </div>
+  );
+
+  const gearFace = (
+    <RecessGearFace
+      temperature={temperatureBlock}
+      message={displayMessage}
+      messageText={displayText}
+      imageUrl={imageUrl}
+      imageAlt={t('widgets.weather.weatherImageAlt')}
+      emoji={clothing.icon}
+      fontColor={fontColor}
+      textScale={resolveBaseTextScale(widget.baseTextSize)}
+      fallbackWidth={widget.w}
+      fallbackHeight={widget.h}
+      className={fontClass}
+    />
+  );
+
+  const legacyFace = (
     <div
       className={`flex flex-col items-center justify-center h-full w-full ${fontClass}`}
       style={{
@@ -412,7 +502,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               height: 'min(64px, 15cqmin)',
             }}
           >
-            {displayImage}
+            {legacyImage}
           </div>
           <div
             className="font-bold leading-tight"
@@ -424,6 +514,8 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       )}
     </div>
   );
+
+  const face = showGear ? gearFace : legacyFace;
 
   return (
     <WidgetLayout

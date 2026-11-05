@@ -2,7 +2,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { ToolError, type ToolContext } from './activity';
+import type { ToolContext } from './activity';
 import { PAGE_SIZE, publicOrigin } from './config';
 import { BOARD_TEMPLATES, SNAP_ZONE_LAYOUTS } from './boardEngine.gen';
 import { loadWidgetAccessContext, canUseWidget } from './boardConfig';
@@ -42,36 +42,7 @@ import {
   type EditResult,
 } from './boardWrite';
 
-/** GlobalFeature id gating every board tool (D26). */
-export const AI_BOARDS_FEATURE_ID = 'ai-boards';
-
-export const BOARD_TOOLS: ReadonlySet<string> = new Set([
-  'list_boards',
-  'get_board',
-  'get_board_guide',
-  'create_board',
-  'edit_board',
-  'tidy_board',
-]);
-
 const MAX_GUIDE_WIDGETS = 8;
-
-export async function boardsOn(ctx: ToolContext): Promise<boolean> {
-  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
-  return isGlobalFeatureGranted(
-    ctx.db,
-    AI_BOARDS_FEATURE_ID,
-    ctx.email,
-    ctx.uid
-  );
-}
-
-export async function assertBoardAccess(ctx: ToolContext): Promise<void> {
-  if (!(await boardsOn(ctx)))
-    throw new ToolError(
-      'Boards through Claude are not turned on for this account yet.'
-    );
-}
 
 const screenInput = z
   .object({
@@ -467,7 +438,6 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
     },
     ({ search, collection_id, cursor }) =>
       run('list_boards', ctx, async () => {
-        await assertBoardAccess(ctx);
         // Newest changed plus newest created, so boards saved before updatedAt existed still list.
         const newest = (field: string) =>
           db
@@ -557,7 +527,6 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
     async ({ board_id, screen }) => {
       let png: Buffer | null = null;
       const result = await run('get_board', ctx, async () => {
-        await assertBoardAccess(ctx);
         assertBoardId(board_id);
         const board = await liveBoardView(ctx, await readBoard(ctx, board_id));
         const shape = await resolveBoardScreen(ctx, screen);
@@ -625,7 +594,6 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
     },
     ({ widget_types }) =>
       run('get_board_guide', ctx, async () => {
-        await assertBoardAccess(ctx);
         return buildBoardGuide(ctx, widget_types ?? []);
       })
   );
@@ -674,7 +642,6 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
     async ({ boards, screen }) => {
       const pngs: Buffer[] = [];
       const result = await run('create_board', ctx, async () => {
-        await assertBoardAccess(ctx);
         const shape = await resolveBoardScreen(ctx, screen);
         const created = await createBoards(ctx, boards, shape);
         const out = created.boards.map((board) => {
@@ -707,7 +674,6 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
     async ({ board_id, changes, screen }) => {
       let png: Buffer | null = null;
       const result = await run('edit_board', ctx, async () => {
-        await assertBoardAccess(ctx);
         assertBoardId(board_id);
         const shape = await resolveBoardScreen(ctx, screen);
         const edit = await editBoard(ctx, board_id, changes, shape);
@@ -735,7 +701,6 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
     async ({ board_id, screen }) => {
       let png: Buffer | null = null;
       const result = await run('tidy_board', ctx, async () => {
-        await assertBoardAccess(ctx);
         assertBoardId(board_id);
         const shape = await resolveBoardScreen(ctx, screen);
         const edit = await tidyBoard(ctx, board_id, shape);

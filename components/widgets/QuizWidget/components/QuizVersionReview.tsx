@@ -84,9 +84,12 @@ export const QuizVersionReview: React.FC<Props> = ({ set, plan, onChange }) => {
   const mismatch = countMismatchFlag(pairing);
   // Flags only; the rubrics themselves are built again when the import saves (V16).
   const flagsByUnit = new Map(
-    planImportedRubrics(rubricSourceFor(set, plan), pairing, set.fileTitle, {
-      scoringGuides: false,
-    }).map((p) => [p.unitIndex, p.flags])
+    planImportedRubrics(
+      rubricSourceFor(set, plan),
+      pairing,
+      set.fileTitle,
+      {}
+    ).map((p) => [p.unitIndex, p.flags])
   );
   const NO_RUBRIC = 'none';
 

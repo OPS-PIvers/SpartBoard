@@ -4440,6 +4440,8 @@ export interface QuizQuestion {
   blankAlternates?: { answers: string[] }[];
   /** MC/MA: editor-only display order over `[right options..., incorrectAnswers...]`; students still get a shuffle. */
   optionOrder?: number[];
+  /** MC from the teacher's own test paper: answer sheets letter options in the editor order above, never shuffled. */
+  paperOwnTest?: boolean;
   /**
    * Set by a document import that read the question but not its key
    * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D5). The question saves and prints
@@ -7647,7 +7649,7 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   dueAt?: number | null;
   /** Whether `dueAt` encodes a chosen time-of-day vs a legacy date-only epoch. */
   dueAtHasTime?: boolean;
-  /** Stamped by va-quiz-alignment assigns; only then does the player honor shuffle, right/wrong and reveal answer. */
+  /** Stamped by assigns that carry their own rules; only then does the player honor shuffle, right/wrong and reveal answer. */
   answerRulesSet?: boolean;
 }
 
@@ -10393,7 +10395,7 @@ export interface UserProfile {
   alignmentGuidesEnabled?: boolean;
   /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
   spellCheckEnabled?: boolean;
-  /** Starting length in seconds for the teacher's new timers, where `timer-starting-length` allows; 0 or absent means the building default. */
+  /** Starting length in seconds for the teacher's new timers. 0 or absent means the building default. */
   timeToolStartSeconds?: number;
   /**
    * The user's dock layout (tools + folders, ordered). Synced across devices.
@@ -10727,8 +10729,6 @@ export type GlobalFeature =
   | 'quiz-import-versions-plain'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
-  /** Claude builds and edits boards through the connector, and Magic Board uses the shared layout engine (docs/plans/shipped/AI_BOARDS.md). */
-  | 'ai-boards'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -10749,8 +10749,6 @@ export type GlobalFeature =
   | 'claude-connector-guided-learning'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
-  /** Video Activity questions and assign rules work like Quiz (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md). */
-  | 'va-quiz-alignment'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
@@ -10760,8 +10758,6 @@ export type GlobalFeature =
   | 'quiz-spell-check-toggle'
   /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
   | 'quiz-rubric-visibility'
-  /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */
-  | 'rubric-scoring-guides'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -10792,14 +10788,12 @@ export type GlobalFeature =
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/shipped/GOOGLE_TASKS_ACTION_ITEMS.md). */
   | 'google-tasks-sync'
-  /** Simple/Detailed choice in Arts & Letters Agenda settings. */
-  | 'agenda-versions'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/shipped/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md D11). */
-  | 'schoology-tool-columns'
+  /** Find my Schoology courses: link each class to its Schoology section by SIS id (docs/plans/shipped/SCHOOLOGY_AUTO_LINK.md). */
+  | 'schoology-auto-link'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */
@@ -10808,6 +10802,8 @@ export type GlobalFeature =
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
+  /** Weather: recess gear redesign that fills the widget and stays readable at small sizes. */
+  | 'weather-gear-layout'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
@@ -10822,15 +10818,12 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
-  | 'timer-starting-length'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
   | 'widget-connections'
   /** Randomizer groups setting that splits up students grouped together lately. */
   | 'random-avoid-repeats'
-  /** Ctrl+drag on the board draws a box that selects widgets to pin or group together. */
-  | 'board-multi-select'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */

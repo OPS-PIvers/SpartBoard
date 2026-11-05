@@ -1,26 +1,7 @@
 /**
- * Tests for VideoActivityEditorModal — Task 8: Questions/Settings tab.
- *
- * Key assertions:
- *   - Editor renders a "Questions" and a "Settings" toggle in the chrome.
- *   - Switching to "Settings" renders VideoActivityBehaviorSettingsPanel
- *     (asserted via a mode button being present).
- *   - Switching back to "Questions" renders the question list.
- *   - Editing a behavior control and saving calls onSave with the updated
- *     behavior as the 2nd argument.
- *   - Saving without touching settings calls onSave with DEFAULT_VA_BEHAVIOR
- *     (or the seeded behavior from the `behavior` prop).
- *   - When a `behavior` prop is provided, it seeds the panel.
- *   - Behavior changes flip isDirty (Save button is enabled).
- *   - Re-using the modal for a different activity re-seeds originalBehavior —
- *     no false dirty.
- *
- * Mocking strategy:
- *   - useAuth: returns a stub user without gemini access.
- *   - EditorWorkspace: renders contextPane + detailPane + a Save button that
- *     calls onSave; exposes isDirty via data attribute.
- *   - VideoActivityAiOverlay: not relevant — mocked to null.
- *   - VideoActivityBehaviorSettingsPanel: NOT mocked — real panel asserted.
+ * Tests for VideoActivityEditorModal's saved behavior: the editor has no
+ * Settings tab, so it hands the seeded behavior (or DEFAULT_VA_BEHAVIOR) back
+ * on save and re-seeds it per activity without marking the editor dirty.
  */
 
 import React from 'react';
@@ -90,6 +71,11 @@ vi.mock(
   }
 );
 
+// The YouTube player can't load in jsdom.
+vi.mock('@/components/widgets/VideoActivityWidget/components/Timeline', () => ({
+  Timeline: () => <div data-testid="timeline" />,
+}));
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -136,19 +122,20 @@ const fakeActivity2: VideoActivityData = {
 // Tests
 // ---------------------------------------------------------------------------
 
-const focusModeSwitch = (): HTMLElement => {
-  const row = screen.getByText('Focus mode').closest('div');
-  const el = row?.querySelector('[role="switch"]');
-  if (!el) throw new Error('Focus mode switch not found');
-  return el as HTMLElement;
+const customBehavior: VideoActivityBehaviorSettings = {
+  ...DEFAULT_VA_BEHAVIOR,
+  sessionOptions: {
+    ...DEFAULT_VA_BEHAVIOR.sessionOptions,
+    tabWarningsEnabled: false,
+  },
 };
 
-describe('VideoActivityEditorModal — Questions/Settings tab', () => {
+describe('VideoActivityEditorModal — saved behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders a "Questions" tab button in the context pane', () => {
+  it('has no Questions or Settings tabs', () => {
     render(
       <VideoActivityEditorModal
         isOpen
@@ -158,53 +145,14 @@ describe('VideoActivityEditorModal — Questions/Settings tab', () => {
       />
     );
     expect(
-      screen.getByRole('button', { name: /questions/i })
-    ).toBeInTheDocument();
-  });
-
-  it('renders a "Settings" tab button in the context pane', () => {
-    render(
-      <VideoActivityEditorModal
-        isOpen
-        activity={fakeActivity}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
+      screen.queryByRole('button', { name: /^settings$/i })
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /settings/i })
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: /^questions$/i })
+    ).not.toBeInTheDocument();
   });
 
-  it('switching to Settings tab renders the behavior panel', () => {
-    render(
-      <VideoActivityEditorModal
-        isOpen
-        activity={fakeActivity}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    expect(screen.getByText('Focus mode')).toBeInTheDocument();
-    expect(screen.queryByText('Teacher-paced')).not.toBeInTheDocument();
-  });
-
-  it('switching back to Questions hides the behavior panel', () => {
-    render(
-      <VideoActivityEditorModal
-        isOpen
-        activity={fakeActivity}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /^settings$/i }));
-    fireEvent.click(screen.getAllByRole('button', { name: /^questions$/i })[0]);
-    expect(screen.queryByText('Focus mode')).not.toBeInTheDocument();
-  });
-
-  it('saving without changing settings calls onSave with DEFAULT_VA_BEHAVIOR as 2nd arg', async () => {
+  it('saves DEFAULT_VA_BEHAVIOR as the 2nd arg without a behavior prop', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
       <VideoActivityEditorModal
@@ -216,106 +164,34 @@ describe('VideoActivityEditorModal — Questions/Settings tab', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Save Activity' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
-    const [_updatedActivity, behavior] = onSave.mock.calls[0];
-    expect(behavior).toMatchObject({
-      sessionMode: DEFAULT_VA_BEHAVIOR.sessionMode,
-    });
+    expect(onSave.mock.calls[0][1]).toEqual(DEFAULT_VA_BEHAVIOR);
   });
 
-  it('when a behavior prop is provided, it seeds the panel', () => {
-    const customBehavior: VideoActivityBehaviorSettings = {
-      ...DEFAULT_VA_BEHAVIOR,
-      sessionOptions: {
-        ...DEFAULT_VA_BEHAVIOR.sessionOptions,
-        tabWarningsEnabled: false,
-      },
-    };
-    render(
-      <VideoActivityEditorModal
-        isOpen
-        activity={fakeActivity}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-        behavior={customBehavior}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    expect(focusModeSwitch()).toHaveAttribute('aria-checked', 'false');
-  });
-
-  it('editing a behavior control and saving passes updated behavior as 2nd arg', async () => {
+  it('re-seeds the behavior for a different activity with no false dirty', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    render(
-      <VideoActivityEditorModal
-        isOpen
-        activity={fakeActivity}
-        onClose={vi.fn()}
-        onSave={onSave}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    fireEvent.click(focusModeSwitch());
-
-    // Save
-    fireEvent.click(screen.getByRole('button', { name: 'Save Activity' }));
-    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
-    const behavior = onSave.mock.calls[0][1] as VideoActivityBehaviorSettings;
-    expect(behavior.sessionOptions).toMatchObject({
-      tabWarningsEnabled: false,
-    });
-  });
-
-  it('changing behavior marks the editor as dirty', () => {
-    render(
-      <VideoActivityEditorModal
-        isOpen
-        activity={fakeActivity}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-    const workspace = screen.getByTestId('editor-workspace');
-    expect(workspace).toHaveAttribute('data-is-dirty', 'false');
-
-    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    fireEvent.click(focusModeSwitch());
-    expect(workspace).toHaveAttribute('data-is-dirty', 'true');
-  });
-
-  it('reusing the modal for a different activity resets originalBehavior — no false dirty', () => {
-    const customBehavior: VideoActivityBehaviorSettings = {
-      ...DEFAULT_VA_BEHAVIOR,
-      sessionOptions: {
-        ...DEFAULT_VA_BEHAVIOR.sessionOptions,
-        tabWarningsEnabled: false,
-      },
-    };
-
     const { rerender } = render(
       <VideoActivityEditorModal
         isOpen
         activity={fakeActivity}
         onClose={vi.fn()}
-        onSave={vi.fn()}
+        onSave={onSave}
         behavior={customBehavior}
       />
     );
-
-    // Rerender with activity B and DEFAULT behavior (no behavior prop = default).
     rerender(
       <VideoActivityEditorModal
         isOpen
         activity={fakeActivity2}
         onClose={vi.fn()}
-        onSave={vi.fn()}
+        onSave={onSave}
       />
     );
-
-    // After switching to a new activity, the editor should NOT be dirty.
-    const workspace = screen.getByTestId('editor-workspace');
-    expect(workspace).toHaveAttribute('data-is-dirty', 'false');
-
-    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    expect(focusModeSwitch()).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('editor-workspace')).toHaveAttribute(
+      'data-is-dirty',
+      'false'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save Activity' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+    expect(onSave.mock.calls[0][1]).toEqual(DEFAULT_VA_BEHAVIOR);
   });
 });

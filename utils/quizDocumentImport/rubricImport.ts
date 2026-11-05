@@ -22,8 +22,6 @@ export interface RubricSource {
 type SourceVersion = RubricSource['versions'][number];
 
 export interface RubricImportOptions {
-  /** False when `rubric-scoring-guides` is off for the teacher: guide text goes in a plain criterion (V26). */
-  scoringGuides: boolean;
   newId?: () => string;
   now?: number;
 }
@@ -82,7 +80,7 @@ export const criterionMaxLevel = (points: number): number =>
 /** One criterion per letter, levels 0..points (V2). */
 export function toRubricCriterion(
   c: AiRubricCriterion,
-  opts: Pick<RubricImportOptions, 'scoringGuides' | 'newId'>
+  opts: Pick<RubricImportOptions, 'newId'>
 ): RubricCriterion {
   const newId = opts.newId ?? (() => crypto.randomUUID());
   const levels = guideLevels(criterionMaxLevel(c.points)).map((l) => ({
@@ -95,7 +93,7 @@ export function toRubricCriterion(
     name: criterionTitle(c),
     ...(description ? { description } : {}),
     levels,
-    ...(opts.scoringGuides ? { guide: { examples: [] } } : {}),
+    guide: { examples: [] },
   };
 }
 

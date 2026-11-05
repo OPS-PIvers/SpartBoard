@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { tourAttr } from '@/config/tourAnchors';
 import type { Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 import { claudeBadgeFor } from '@/utils/claudeBoardActivity';
 import { hexToRgba, pickReadableForeground } from '@/utils/collectionColor';
 import { BoardThumbnail } from './BoardThumbnail';
@@ -49,11 +48,8 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   onShare,
 }) => {
   const { unpinBoard, pinBoard } = useDashboard();
-  const { canAccessFeature } = useAuth();
   const { t } = useTranslation();
-  // Optional call: many useAuth test doubles leave canAccessFeature out.
-  const claudeBadge =
-    canAccessFeature?.('ai-boards') === true ? claudeBadgeFor(board) : null;
+  const claudeBadge = claudeBadgeFor(board);
 
   const dndId = `board:${board.id}`;
   const {

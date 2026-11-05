@@ -18,6 +18,46 @@ const store = (q: FriendlyQuestion, existing?: StoredQuestion) =>
   toStoredQuestion(q, 1, existing, newId);
 
 describe('toStoredQuestion', () => {
+  it("keeps the teacher's printed lettering when an edit keeps the same options", () => {
+    const existing: StoredQuestion = {
+      id: 'q1',
+      timeLimit: 0,
+      text: 'Protien',
+      type: 'MC',
+      correctAnswer: 'Rennin',
+      incorrectAnswers: ['Protease', 'Aribinose', 'mRNA'],
+      optionOrder: [1, 2, 0, 3],
+      paperOwnTest: true,
+    };
+    const edited = store(
+      {
+        type: 'multiple_choice',
+        text: 'Protein',
+        correct_answer: 'Rennin',
+        incorrect_answers: ['mRNA', 'Protease', 'Aribinose'],
+      },
+      existing
+    );
+    const rows = [edited.correctAnswer, ...edited.incorrectAnswers];
+    expect(edited.paperOwnTest).toBe(true);
+    expect(edited.optionOrder?.map((i) => rows[i])).toEqual([
+      'Protease',
+      'Aribinose',
+      'Rennin',
+      'mRNA',
+    ]);
+    const changed = store(
+      {
+        type: 'multiple_choice',
+        text: 'Protein',
+        correct_answer: 'Rennin',
+        incorrect_answers: ['Lipase', 'Aribinose', 'mRNA'],
+      },
+      existing
+    );
+    expect(changed.paperOwnTest).toBeUndefined();
+  });
+
   it('stores fill_in_blank blanks as a multi-blank key and reads them back', () => {
     const stored = store({
       type: 'fill_in_blank',

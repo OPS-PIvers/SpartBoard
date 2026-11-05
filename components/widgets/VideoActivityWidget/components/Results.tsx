@@ -628,10 +628,9 @@ export const Results: React.FC<ResultsProps> = ({
   // gating conditions/handlers as before — only the placement changes.
   const showClassroomPush =
     classroomAttachments.length > 0 && canAccessFeature('google-classroom');
-  const toolColumnsOn = canAccessFeature('schoology-tool-columns');
   const schoologyTargets = useMemo(
-    () => (toolColumnsOn ? schoologyLinkedTargets(rosters) : null),
-    [toolColumnsOn, rosters]
+    () => schoologyLinkedTargets(rosters),
+    [rosters]
   );
   const lmsLink = readLmsLink(session, schoologyTargets);
   // SpartBoard makes the Schoology column itself (SCHOOLOGY_TOOL_COLUMNS.md D9).

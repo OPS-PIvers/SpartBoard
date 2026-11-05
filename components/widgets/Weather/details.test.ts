@@ -6,6 +6,7 @@ import {
   moonPhase,
   parseEarthNetworksDetails,
   parseEpaUvHours,
+  readStationTemperature,
   sunTimes,
 } from './details';
 
@@ -158,5 +159,25 @@ describe('weather details', () => {
     ]);
     expect(uvHours?.date).toBe('2026-10-27');
     expect(uvHours?.values[7]).toBe(1);
+  });
+});
+
+describe('readStationTemperature', () => {
+  it('returns null when the station sends no temperature', () => {
+    expect(readStationTemperature({ t: null, fl: null, ic: 264 })).toBeNull();
+  });
+
+  it('falls back to the air temperature when feels-like is missing', () => {
+    expect(readStationTemperature({ t: 41.2, fl: null, ic: 1 })).toEqual({
+      temp: 41.2,
+      feelsLike: 41.2,
+    });
+  });
+
+  it('keeps a real 0° reading', () => {
+    expect(readStationTemperature({ t: 0, fl: -7, ic: 1 })).toEqual({
+      temp: 0,
+      feelsLike: -7,
+    });
   });
 });

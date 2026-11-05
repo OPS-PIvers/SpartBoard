@@ -1,4 +1,4 @@
-// Values and collapsed summaries for the Video Activity rule steps (va-quiz-alignment V4, V5).
+// Values and collapsed summaries for the Video Activity rule steps (VA_QUIZ_ALIGNMENT V4, V5).
 import type {
   VideoActivityBehaviorSettings,
   VideoActivitySessionOptions,

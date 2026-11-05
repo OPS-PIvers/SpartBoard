@@ -1,4 +1,4 @@
-// Video Activity rule step bodies: only rows the VA player honors (va-quiz-alignment V4, V5).
+// Video Activity rule step bodies: only rows the VA player honors (VA_QUIZ_ALIGNMENT V4, V5).
 import React from 'react';
 import { AttemptLimitRow } from '../AssignmentSettingsToggleGroup';
 import { BlockCopyPasteRow, FocusModeRows } from './QuizIntegrityStep';

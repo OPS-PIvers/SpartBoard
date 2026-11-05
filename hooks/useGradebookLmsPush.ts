@@ -65,10 +65,9 @@ export function useGradebookLmsPush(
 ): GradebookLmsPush {
   const { user, canAccessFeature } = useAuth();
   const { rosters } = useDashboard();
-  const toolColumnsOn = canAccessFeature('schoology-tool-columns');
   const linkedTargets = useMemo(
-    () => (toolColumnsOn ? schoologyLinkedTargets(rosters) : null),
-    [toolColumnsOn, rosters]
+    () => schoologyLinkedTargets(rosters),
+    [rosters]
   );
   const pushable = isGradebookPushKind(column.kind);
   const [loaded, setLoaded] = useState<{

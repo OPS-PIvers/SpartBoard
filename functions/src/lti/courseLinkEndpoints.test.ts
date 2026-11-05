@@ -63,6 +63,7 @@ let ownedTestClasses: string[] = [];
 // The caller's own seen-section docs, keyed by contextId.
 const seenSections = new Map<string, { sessionId: string }>();
 const courseLinks = new Map<string, Record<string, unknown>>();
+const linkQuery = { fail: false };
 
 vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
@@ -82,7 +83,36 @@ vi.mock('../firebaseAdmin', () => ({
         };
       }
       if (name === 'lti_course_links') {
-        return { doc: (ctx: string) => ({ _ctx: ctx }) };
+        return {
+          doc: (ctx: string) => ({
+            _ctx: ctx,
+            get: async () => ({
+              exists: courseLinks.has(ctx),
+              data: () => courseLinks.get(ctx),
+            }),
+            delete: async () => {
+              courseLinks.delete(ctx);
+            },
+          }),
+          where: (field: string, _op: string, value: string) => {
+            const q = {
+              limit: () => q,
+              get: async () => {
+                if (linkQuery.fail) throw new Error('query failed');
+                return {
+                  docs: [...courseLinks]
+                    .filter(([, v]) => v[field] === value)
+                    .map(([id, v]) => ({
+                      id,
+                      data: () => v,
+                      ref: { _ctx: id },
+                    })),
+                };
+              },
+            };
+            return q;
+          },
+        };
       }
       if (name === 'users') {
         return {
@@ -113,6 +143,10 @@ vi.mock('../firebaseAdmin', () => ({
       }
       throw new Error(`unexpected collection ${name}`);
     },
+    batch: () => ({
+      delete: (ref: { _ctx: string }) => courseLinks.delete(ref._ctx),
+      commit: async () => undefined,
+    }),
     runTransaction: async (
       fn: (tx: {
         get: (ref: { _ctx: string }) => Promise<{
@@ -128,10 +162,13 @@ vi.mock('../firebaseAdmin', () => ({
       }) => Promise<unknown>
     ) =>
       fn({
-        get: async (ref) => ({
-          exists: courseLinks.has(ref._ctx),
-          data: () => courseLinks.get(ref._ctx),
-        }),
+        get: async (ref) =>
+          '_ctx' in ref
+            ? {
+                exists: courseLinks.has(ref._ctx),
+                data: () => courseLinks.get(ref._ctx),
+              }
+            : (ref as unknown as { get: () => Promise<never> }).get(),
         set: (ref, data) =>
           courseLinks.set(ref._ctx, {
             ...(courseLinks.get(ref._ctx) ?? {}),
@@ -176,6 +213,7 @@ vi.mock('../classroomAddonAuth', () => ({
 import {
   linkLtiCourseV1,
   ltiSuggestClassLinkMatchV1,
+  ltiUnlinkSectionV1,
 } from './courseLinkEndpoints';
 
 type Req = {
@@ -183,6 +221,9 @@ type Req = {
   data: unknown;
 };
 const callLink = linkLtiCourseV1 as unknown as (r: Req) => Promise<unknown>;
+const callUnlink = ltiUnlinkSectionV1 as unknown as (
+  r: Req
+) => Promise<unknown>;
 const callSuggest = ltiSuggestClassLinkMatchV1 as unknown as (
   r: Req
 ) => Promise<{
@@ -191,6 +232,9 @@ const callSuggest = ltiSuggestClassLinkMatchV1 as unknown as (
   ambiguous?: boolean;
 }>;
 
+const INSTRUCTOR =
+  'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor';
+const LEARNER = 'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner';
 const TEACHER = {
   uid: 'teacher-1',
   token: { email: 't@orono.k12.mn.us', email_verified: true },
@@ -295,6 +339,8 @@ describe('linkLtiCourseV1', () => {
     await expect(callLink({ auth: TEACHER, data: base })).resolves.toEqual({
       ok: true,
       contextId: 'ctx-1',
+      replaced: [],
+      replacedIds: [],
     });
   });
 
@@ -320,7 +366,12 @@ describe('linkLtiCourseV1', () => {
         rosterId: 'r-test',
       },
     });
-    expect(res).toEqual({ ok: true, contextId: 'ctx-1' });
+    expect(res).toEqual({
+      ok: true,
+      contextId: 'ctx-1',
+      replaced: [],
+      replacedIds: [],
+    });
     expect(courseLinks.get('ctx-1')).toMatchObject({
       classlinkClassId: null,
       testClassId: 'mock-p1',
@@ -355,7 +406,12 @@ describe('linkLtiCourseV1', () => {
       ok: boolean;
       contextId: string;
     };
-    expect(res).toEqual({ ok: true, contextId: 'ctx-1' });
+    expect(res).toEqual({
+      ok: true,
+      contextId: 'ctx-1',
+      replaced: [],
+      replacedIds: [],
+    });
     const link = courseLinks.get('ctx-1')!;
     expect(link).toMatchObject({
       teacherUid: 'teacher-1',
@@ -388,18 +444,98 @@ describe('linkLtiCourseV1', () => {
     seenSession();
     dropLinkedSectionPeriodMock.mockRejectedValueOnce(new Error('boom'));
     const res = await callLink({ auth: TEACHER, data: base });
-    expect(res).toEqual({ ok: true, contextId: 'ctx-1' });
+    expect(res).toEqual({
+      ok: true,
+      contextId: 'ctx-1',
+      replaced: [],
+      replacedIds: [],
+    });
     expect(courseLinks.has('ctx-1')).toBe(true);
   });
 
-  it('refuses to hijack a link owned by another teacher', async () => {
+  it('refuses a link another teacher made when Schoology does not list the caller as a teacher', async () => {
     seenSession();
     courseLinks.set('ctx-1', { teacherUid: 'other', classlinkClassId: 'cl-x' });
+    fetchNrpsMembersMock.mockResolvedValue([
+      { email: 't@orono.k12.mn.us', roles: [LEARNER], status: 'Active' },
+    ]);
     await expect(callLink({ auth: TEACHER, data: base })).rejects.toThrow(
       /already linked by another teacher/
     );
-    // The prior link is untouched.
-    expect(courseLinks.get('ctx-1')).toMatchObject({ teacherUid: 'other' });
+    expect(courseLinks.get('ctx-1')).toEqual({
+      teacherUid: 'other',
+      classlinkClassId: 'cl-x',
+    });
+    expect(courseLinks.has('ctx-1~teacher-1')).toBe(false);
+    fetchNrpsMembersMock.mockRejectedValue(new Error('nrps down'));
+    await expect(callLink({ auth: TEACHER, data: base })).rejects.toThrow(
+      /already linked by another teacher/
+    );
+  });
+
+  it("gives a co-teacher their own link, leaving the other teacher's alone", async () => {
+    seenSession();
+    courseLinks.set('ctx-1', {
+      teacherUid: 'other',
+      contextId: 'ctx-1',
+      classlinkClassId: 'cl-x',
+      contextTitle: 'Algebra 1 · P1',
+    });
+    fetchNrpsMembersMock.mockResolvedValue([
+      { email: 't@orono.k12.mn.us', roles: [INSTRUCTOR], status: 'Active' },
+    ]);
+    await callLink({ auth: TEACHER, data: base });
+    expect(fetchNrpsMembersMock).toHaveBeenCalledWith(
+      'https://lms/ctx/members',
+      'nrps-token'
+    );
+    expect(courseLinks.get('ctx-1')).toMatchObject({
+      teacherUid: 'other',
+      classlinkClassId: 'cl-x',
+    });
+    expect(courseLinks.get('ctx-1~teacher-1')).toMatchObject({
+      teacherUid: 'teacher-1',
+      contextId: 'ctx-1',
+      classlinkClassId: 'cl-1',
+      rosterId: 'r-1',
+    });
+  });
+
+  it("drops the caller's co-teacher link on another section of the same class, and promotes nothing of theirs", async () => {
+    seenSession();
+    courseLinks.set('ctx-old', {
+      teacherUid: 'other',
+      contextId: 'ctx-old',
+      classlinkClassId: 'cl-x',
+    });
+    courseLinks.set('ctx-old~teacher-1', {
+      teacherUid: 'teacher-1',
+      contextId: 'ctx-old',
+      classlinkClassId: 'cl-1',
+      contextTitle: 'Old',
+    });
+    const res = await callLink({ auth: TEACHER, data: base });
+    expect(res).toMatchObject({ replaced: ['Old'], replacedIds: ['ctx-old'] });
+    expect(courseLinks.has('ctx-old~teacher-1')).toBe(false);
+    expect(courseLinks.get('ctx-old')).toMatchObject({ teacherUid: 'other' });
+  });
+
+  it('folds a leftover co-teacher link into the section doc once the caller holds it', async () => {
+    seenSession();
+    courseLinks.set('ctx-1~teacher-1', {
+      teacherUid: 'teacher-1',
+      contextId: 'ctx-1',
+    });
+    await callLink({ auth: TEACHER, data: base });
+    expect(courseLinks.get('ctx-1')).toMatchObject({ teacherUid: 'teacher-1' });
+    expect(courseLinks.has('ctx-1~teacher-1')).toBe(false);
+  });
+
+  it('skips the NRPS check when the section is free or already the caller’s', async () => {
+    seenSession();
+    await callLink({ auth: TEACHER, data: base });
+    expect(courseLinks.get('ctx-1')).toMatchObject({ teacherUid: 'teacher-1' });
+    expect(fetchNrpsMembersMock).not.toHaveBeenCalled();
   });
 
   it('lets the SAME teacher re-point their own link', async () => {
@@ -417,6 +553,46 @@ describe('linkLtiCourseV1', () => {
       teacherUid: 'teacher-1',
       classlinkClassId: 'cl-new',
     });
+  });
+
+  it("replaces the class's other section links, leaving other classes and teachers alone", async () => {
+    seenSession();
+    courseLinks.set('ctx-s2', {
+      teacherUid: 'teacher-1',
+      rosterId: 'r-1',
+      classlinkClassId: 'cl-1',
+      contextTitle: 'Biology B (S2)',
+    });
+    courseLinks.set('ctx-other-class', {
+      teacherUid: 'teacher-1',
+      rosterId: 'r-2',
+      classlinkClassId: 'cl-2',
+    });
+    courseLinks.set('ctx-other-teacher', {
+      teacherUid: 'other',
+      rosterId: 'r-1',
+      classlinkClassId: 'cl-1',
+    });
+    const res = await callLink({ auth: TEACHER, data: base });
+    expect(res).toMatchObject({
+      replaced: ['Biology B (S2)'],
+      replacedIds: ['ctx-s2'],
+    });
+    expect(courseLinks.has('ctx-s2')).toBe(false);
+    expect(courseLinks.has('ctx-1')).toBe(true);
+    expect(courseLinks.has('ctx-other-class')).toBe(true);
+    expect(courseLinks.has('ctx-other-teacher')).toBe(true);
+  });
+
+  it('still reports the link when dropping old links fails', async () => {
+    seenSession();
+    courseLinks.set('ctx-s2', { teacherUid: 'teacher-1', rosterId: 'r-1' });
+    linkQuery.fail = true;
+    const res = await callLink({ auth: TEACHER, data: base });
+    linkQuery.fail = false;
+    expect(res).toMatchObject({ ok: true, replaced: [], replacedIds: [] });
+    expect(courseLinks.has('ctx-1')).toBe(true);
+    expect(dropLinkedSectionPeriodMock).toHaveBeenCalled();
   });
 
   it('preserves a stored contextTitle when a privacy-stripped relaunch yields null (#null-clobber)', async () => {
@@ -445,6 +621,76 @@ describe('linkLtiCourseV1', () => {
       classlinkClassId: 'cl-new',
       contextTitle: 'Algebra 1 · P1',
     });
+  });
+});
+
+describe('ltiUnlinkSectionV1', () => {
+  it('lets the owner remove their own link', async () => {
+    courseLinks.set('ctx-1', { teacherUid: 'teacher-1', rosterId: 'r-1' });
+    await expect(
+      callUnlink({ auth: TEACHER, data: { contextId: 'ctx-1' } })
+    ).resolves.toEqual({ ok: true, contextId: 'ctx-1' });
+    expect(courseLinks.has('ctx-1')).toBe(false);
+  });
+
+  it("removes only a co-teacher's own link", async () => {
+    courseLinks.set('ctx-1', { teacherUid: 'other', contextId: 'ctx-1' });
+    courseLinks.set('ctx-1~teacher-1', {
+      teacherUid: 'teacher-1',
+      contextId: 'ctx-1',
+    });
+    await callUnlink({ auth: TEACHER, data: { contextId: 'ctx-1' } });
+    expect(courseLinks.has('ctx-1~teacher-1')).toBe(false);
+    expect(courseLinks.get('ctx-1')).toMatchObject({ teacherUid: 'other' });
+  });
+
+  it("moves a co-teacher's link into the section doc when the first teacher unlinks", async () => {
+    courseLinks.set('ctx-1', { teacherUid: 'teacher-1', contextId: 'ctx-1' });
+    courseLinks.set('ctx-1~co', {
+      teacherUid: 'co',
+      contextId: 'ctx-1',
+      rosterId: 'co-roster',
+    });
+    await callUnlink({ auth: TEACHER, data: { contextId: 'ctx-1' } });
+    expect(courseLinks.get('ctx-1')).toEqual({
+      teacherUid: 'co',
+      contextId: 'ctx-1',
+      rosterId: 'co-roster',
+    });
+    expect(courseLinks.has('ctx-1~co')).toBe(false);
+  });
+
+  it("a repeated unlink never removes the co-teacher's promoted link", async () => {
+    courseLinks.set('ctx-1', { teacherUid: 'teacher-1', contextId: 'ctx-1' });
+    courseLinks.set('ctx-1~co', { teacherUid: 'co', contextId: 'ctx-1' });
+    await callUnlink({ auth: TEACHER, data: { contextId: 'ctx-1' } });
+    await expect(
+      callUnlink({ auth: TEACHER, data: { contextId: 'ctx-1' } })
+    ).rejects.toThrow(/Only the teacher who linked/);
+    expect(courseLinks.get('ctx-1')).toMatchObject({ teacherUid: 'co' });
+  });
+
+  it("never removes another teacher's link", async () => {
+    courseLinks.set('ctx-1', { teacherUid: 'other' });
+    await expect(
+      callUnlink({ auth: TEACHER, data: { contextId: 'ctx-1' } })
+    ).rejects.toThrow(/Only the teacher who linked/);
+    expect(courseLinks.has('ctx-1')).toBe(true);
+  });
+
+  it('is a no-op for a missing link and rejects a bad id or student', async () => {
+    await expect(
+      callUnlink({ auth: TEACHER, data: { contextId: 'gone' } })
+    ).resolves.toEqual({ ok: true, contextId: 'gone' });
+    await expect(
+      callUnlink({ auth: TEACHER, data: { contextId: 'a/b' } })
+    ).rejects.toThrow(/contextId is required/);
+    await expect(
+      callUnlink({
+        auth: { uid: 's', token: { studentRole: true } },
+        data: { contextId: 'ctx-1' },
+      })
+    ).rejects.toBeDefined();
   });
 });
 

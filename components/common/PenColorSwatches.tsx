@@ -55,6 +55,8 @@ interface PenColorSwatchesProps {
   variant: PenColorVariant;
   className?: string;
   anchor?: TourAnchorAttrs;
+  /** Called after a preset swatch click, e.g. to close a popover. */
+  onPresetPick?: () => void;
 }
 
 /** The teacher's 5 pen presets + a custom color picker; right-click or long-press a preset to change it. */
@@ -64,6 +66,7 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
   variant,
   className = '',
   anchor,
+  onPresetPick,
 }) => {
   const { t } = useTranslation();
   const { colors, canEdit, isCustomized, replaceColor, resetColors } =
@@ -275,6 +278,7 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
                 return;
               }
               onSelect(c);
+              onPresetPick?.();
             }}
             className={`relative shrink-0 select-none transition-transform focus-visible:outline-hidden ${styles.swatch} ${
               currentHex === c ? styles.active : styles.inactive

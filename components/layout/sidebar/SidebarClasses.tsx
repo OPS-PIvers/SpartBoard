@@ -152,10 +152,10 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   const unlinkedSchoologyCount = seenSchoologySections.filter(
     (s) => !rosters.some((r) => r.ltiContextId === s.contextId)
   ).length;
-  // With tool columns on, a course link can be pasted, so the CTA needs no seen section.
-  const schoologyPasteLink =
-    canAccessFeature('schoology-tool-columns') &&
-    rosters.some((r) => !!r.classlinkClassId || !!r.testClassId);
+  // A course link can be pasted, so the CTA needs no seen section.
+  const schoologyPasteLink = rosters.some(
+    (r) => !!r.classlinkClassId || !!r.testClassId
+  );
 
   // ── "Link to Google Classroom" modal state ──────────────────────────────
   // The roster currently being linked (null = modal closed).
@@ -628,6 +628,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
         addToast={addToast}
         updateRoster={updateRoster}
         pasteLinkEnabled={schoologyPasteLink}
+        findCoursesEnabled={canAccessFeature('schoology-auto-link')}
       />
 
       {linkingRoster && (

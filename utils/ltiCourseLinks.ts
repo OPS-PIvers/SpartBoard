@@ -10,9 +10,8 @@
  * launch + session ownership IS the proof.
  *
  * Per-class link state is read from the roster's mirrored `ltiContextId` (set on
- * link), so there is no client reverse-lookup here; and a mis-link is corrected
- * by re-linking (the server lets the same teacher re-point their own link), so
- * there is no unlink wrapper.
+ * link). Linking a class replaces its other section links server-side, and the
+ * owner can remove a link with `unlinkLtiSection`.
  */
 import { httpsCallable, type Functions } from 'firebase/functions';
 
@@ -64,10 +63,10 @@ export interface SuggestLtiMatchResult {
 export async function linkLtiCourse(
   functions: Functions,
   args: LinkLtiCourseArgs
-): Promise<{ ok: boolean; contextId: string }> {
+): Promise<{ ok: boolean; contextId: string } & ReplacedLinks> {
   const callable = httpsCallable<
     LinkLtiCourseArgs,
-    { ok: boolean; contextId: string }
+    { ok: boolean; contextId: string } & ReplacedLinks
   >(functions, 'linkLtiCourseV1');
   const { data } = await callable(args);
   return data;
@@ -121,11 +120,92 @@ export async function linkLtiSectionByUrl(
   functions: Functions,
   url: string,
   rosterId: string
-): Promise<{ ok: boolean; contextId: string; contextTitle: string | null }> {
+): Promise<LinkByUrlResult> {
   const callable = httpsCallable<
     { url: string; rosterId: string },
-    { ok: boolean; contextId: string; contextTitle: string | null }
+    LinkByUrlResult
   >(functions, 'ltiLinkSectionByUrlV1');
   const { data } = await callable({ url, rosterId });
   return data;
+}
+
+/** The class's earlier section links that a link replaced: titles and section ids. */
+export interface ReplacedLinks {
+  replaced?: string[];
+  replacedIds?: string[];
+}
+
+interface LinkByUrlResult extends ReplacedLinks {
+  ok: boolean;
+  contextId: string;
+  contextTitle: string | null;
+}
+
+/** Remove one of the caller's own Schoology section links. */
+export async function unlinkLtiSection(
+  functions: Functions,
+  contextId: string
+): Promise<{ ok: boolean; contextId: string }> {
+  const callable = httpsCallable<
+    { contextId: string },
+    { ok: boolean; contextId: string }
+  >(functions, 'ltiUnlinkSectionV1');
+  const { data } = await callable({ contextId });
+  return data;
+}
+
+/** " Replaced …" for a link toast, or "" when nothing was replaced. */
+export function replacedNote(replaced: string[] | undefined): string {
+  if (!replaced || replaced.length === 0) return '';
+  return ` Replaced ${replaced.map((t) => `“${t}”`).join(', ')}.`;
+}
+
+/** How a class stands against the Schoology section its SIS id points at. */
+export type FoundSectionStatus =
+  'ready' | 'linked' | 'none' | 'taken' | 'not-teacher' | 'error';
+
+/** One of the caller's ClassLink classes and its Schoology section. */
+export interface FoundSectionRow extends ReplacedLinks {
+  rosterId: string;
+  status: FoundSectionStatus;
+  contextId?: string;
+  contextTitle?: string | null;
+  periodTitle?: string | null;
+  /** The section a link would replace for this class. */
+  replacesTitle?: string | null;
+  /** The caller's other roster this section is linked to now; linking moves it here. */
+  movesFromRosterId?: string | null;
+  error?: string;
+}
+
+/** Above the callable's 120 s limit; the client default of 70 s would cut off its 90 s budget. */
+export const FIND_TIMEOUT_MS = 125_000;
+
+/** Find the Schoology section for each of the caller's ClassLink classes. */
+export async function findSchoologySections(
+  functions: Functions
+): Promise<FoundSectionRow[]> {
+  const callable = httpsCallable<
+    Record<string, never>,
+    { rows: FoundSectionRow[] }
+  >(functions, 'ltiFindSchoologySectionsV1', {
+    timeout: FIND_TIMEOUT_MS,
+  });
+  const { data } = await callable({});
+  return data.rows;
+}
+
+/** Link these classes to the sections found for them; returns each class's outcome. */
+export async function linkFoundSchoologySections(
+  functions: Functions,
+  rosterIds: string[]
+): Promise<FoundSectionRow[]> {
+  const callable = httpsCallable<
+    { rosterIds: string[] },
+    { rows: FoundSectionRow[] }
+  >(functions, 'ltiFindSchoologySectionsV1', {
+    timeout: FIND_TIMEOUT_MS,
+  });
+  const { data } = await callable({ rosterIds });
+  return data.rows;
 }

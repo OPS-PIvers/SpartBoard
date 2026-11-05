@@ -4,15 +4,8 @@ import { DndContext } from '@dnd-kit/core';
 import { BoardCard } from '@/components/boardsModal/BoardCard';
 import type { Dashboard } from '@/types';
 
-const flag = vi.hoisted(() => ({ on: true }));
-
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ pinBoard: vi.fn(), unpinBoard: vi.fn() }),
-}));
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({
-    canAccessFeature: (id: string) => id === 'ai-boards' && flag.on,
-  }),
 }));
 
 const renderCard = (extra: Partial<Dashboard>) =>
@@ -41,26 +34,17 @@ const renderCard = (extra: Partial<Dashboard>) =>
 
 describe('BoardCard Claude badge', () => {
   it('says Made with Claude on a new unopened board', () => {
-    flag.on = true;
     renderCard({ claudeAction: 'created', claudeUnseen: true });
     expect(screen.getByText('Made with Claude')).toBeTruthy();
   });
 
   it('says Edited by Claude on an edited unopened board', () => {
-    flag.on = true;
     renderCard({ claudeAction: 'edited', claudeUnseen: true });
     expect(screen.getByText('Edited by Claude')).toBeTruthy();
   });
 
   it('goes away once the board is opened', () => {
-    flag.on = true;
     renderCard({ claudeAction: 'edited' });
     expect(screen.queryByText('Edited by Claude')).toBeNull();
-  });
-
-  it('stays hidden with the flag off', () => {
-    flag.on = false;
-    renderCard({ claudeAction: 'created', claudeUnseen: true });
-    expect(screen.queryByText('Made with Claude')).toBeNull();
   });
 });

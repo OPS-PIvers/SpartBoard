@@ -1310,13 +1310,14 @@ service cloud.firestore {
     }
 
     // Schoology section (LTI context) -> ClassLink class link; LTI analogue of
-    // classroom_course_links, keyed by LTI `context_id`. READ open to any authed user
-    // (teacher monitor + SidebarClasses resolve link state). WRITES are SERVER-ONLY:
+    // classroom_course_links, keyed by LTI `context_id` (a co-teacher's own link is
+    // `{contextId}~{uid}`). READ: only the teacher a link belongs to (the link dialog
+    // queries teacherUid == their uid). WRITES are SERVER-ONLY:
     // linkLtiCourseV1 verifies the caller owns a session that SAW this context before
     // writing via Admin SDK. Rules can't validate an LTI launch, so a client write
     // would let any authed user squat any context_id.
     match /lti_course_links/{contextId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && existing().teacherUid == authUid();
     }
 
     // PII-free grade-sync keys (pseudonym sub -> resourceLink). Written and read only

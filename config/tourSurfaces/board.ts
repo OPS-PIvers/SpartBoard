@@ -101,6 +101,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'widget',
     files: [
       'components/common/DraggableWindow.tsx',
+      'components/common/WidgetAnnotateToolbar.tsx',
       'components/connections/WidgetConnectionControls.tsx',
     ],
     needs: ['widget-on-stage'],
@@ -114,6 +115,7 @@ export const SURFACES: TourSurfaceMap = {
       'widget.connection-edit': 'widget.connection-badge',
       'widget.close-confirm.cancel': 'widget.close',
       'widget.close-confirm.confirm': 'widget.close',
+      'widget.annotate-toolbar.colors': 'widget.annotate',
       'widget.annotate-toolbar.eraser': 'widget.annotate',
       'widget.annotate-toolbar.undo': 'widget.annotate',
       'widget.annotate-toolbar.clear-all': 'widget.annotate',
@@ -503,7 +505,11 @@ export const SURFACES: TourSurfaceMap = {
   'board.schoology-link': {
     label: 'Link Schoology sections',
     kind: 'modal',
-    files: ['components/classes/LinkSchoologyModal.tsx'],
+    files: [
+      'components/classes/LinkSchoologyModal.tsx',
+      'components/classes/SchoologyLinkedCourses.tsx',
+      'components/classes/SchoologyFindCourses.tsx',
+    ],
     opensWith: 'classes.link-schoology',
   },
 
