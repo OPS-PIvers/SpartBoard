@@ -6012,12 +6012,14 @@ service cloud.firestore {
              incoming().get('unlocked', false) == false) &&
             isList('answers') &&
             // Append-only on answers, except a rejoin-reset (prior completedAt
-            // non-null → null) may clear answers to []. Otherwise no rollback.
+            // non-null → null) may clear answers to []. Otherwise no rollback,
+            // and earlier entries keep their order, so the scored first answer stays first.
             ((existing().get('completedAt', null) != null &&
               incoming().get('completedAt', null) == null &&
               incoming().answers.size() == 0) ||
-             (incoming().answers.size() >= existing().answers.size() &&
-              incoming().answers.hasAll(existing().answers))) &&
+             (existing().answers.size() == 0 ||
+              (incoming().answers.size() >= existing().answers.size() &&
+               incoming().answers[0:existing().answers.size()] == existing().answers))) &&
             notDecreased('tabSwitchWarnings') &&
             notDecreased('completedAttempts') &&
             // Attempt-cap enforcement — last line of defense behind the

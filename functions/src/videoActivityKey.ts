@@ -116,6 +116,49 @@ export function allEarlierAnswered(
   );
 }
 
+const asRecord = (v: unknown): Record<string, unknown> =>
+  typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {};
+
+/** Response field holding what this callable recorded, which the student rule can't write. */
+export const CHECKED_ANSWERS_FIELD = 'checkedAnswers';
+const NO_VERDICT: CheckVideoActivityAnswerResult = {
+  isCorrect: null,
+  correctAnswer: '',
+};
+
+type AnswerEntry = {
+  questionId?: unknown;
+  answer?: unknown;
+  isCorrect?: unknown;
+};
+const answerList = (data: Record<string, unknown>): AnswerEntry[] =>
+  Array.isArray(data.answers) ? (data.answers as AnswerEntry[]) : [];
+const attemptOf = (data: Record<string, unknown>): number =>
+  typeof data.completedAttempts === 'number' ? data.completedAttempts : 0;
+
+/** The answer this callable recorded for the question in this attempt, while it is still the scored one. */
+export function serverRecordedAnswer(
+  data: Record<string, unknown>,
+  questionId: string
+): string | null {
+  const rec = asRecord(asRecord(data[CHECKED_ANSWERS_FIELD])[questionId]);
+  if (typeof rec.answer !== 'string' || rec.attempt !== attemptOf(data))
+    return null;
+  const first = answerList(data).find((a) => a?.questionId === questionId);
+  return first?.answer === rec.answer ? rec.answer : null;
+}
+
+// Docs the scrub trigger has not reached yet still embed the key.
+const sessionKeyQuestions = (
+  keySnap: { exists: boolean; data: () => Record<string, unknown> | undefined },
+  session: Record<string, unknown>
+): VaKeyQuestion[] =>
+  keySnap.exists
+    ? keyQuestions(keySnap.data()?.questions)
+    : hasEmbeddedKey(session.questions)
+      ? keyQuestions(session.questions)
+      : [];
+
 export async function handleCheckVideoActivityAnswer(
   db: admin.firestore.Firestore,
   callerUid: string | null,
@@ -143,12 +186,7 @@ export async function handleCheckVideoActivityAnswer(
   if (responseSnap.empty && !isTeacher && !isViewOnly)
     throw new HttpsError('permission-denied', 'Join the activity first.');
 
-  // Docs the scrub trigger has not reached yet still embed the key.
-  const questions = keySnap.exists
-    ? keyQuestions(keySnap.data()?.questions)
-    : hasEmbeddedKey(session.questions)
-      ? keyQuestions(session.questions)
-      : [];
+  const questions = sessionKeyQuestions(keySnap, session);
   const question = questions.find((q) => q.id === input.questionId);
   if (!question)
     throw new HttpsError('not-found', 'Question not found in this activity.');
@@ -160,11 +198,15 @@ export async function handleCheckVideoActivityAnswer(
   const responseDoc = responseSnap.docs[0];
   const isLive = session.sessionMode === 'teacher';
   const isStudent = !isTeacher && !isViewOnly && !!responseDoc;
+  // PIN joins and share views cost nothing to repeat; a uid-keyed response belongs to a signed-in student.
+  const freeIdentity = !isTeacher && responseDoc?.id !== callerUid;
   // A live student waits for the board's reveal, and a hidden answer never leaves the server.
   const withholdKey =
     (isLive && isStudent) || (!isTeacher && !rules.revealAnswer);
-  // Hidden right and wrong never leaves the server either, so the key can't be probed one answer at a time.
-  const withholdResult = !isTeacher && !isLive && !rules.showResult;
+  // Right and wrong waits for the reveal too, and a hidden key's verdicts never go to a free identity.
+  const withholdResult =
+    !isTeacher &&
+    (isLive || !rules.showResult || (!rules.revealAnswer && freeIdentity));
   const shortAnswer = isVaShortAnswer(question);
   if (shortAnswer && input.answer.trim().length === 0)
     throw new HttpsError('invalid-argument', 'Type an answer first.');
@@ -194,40 +236,95 @@ export async function handleCheckVideoActivityAnswer(
       'failed-precondition',
       'Answer the earlier questions first.'
     );
-  // Require-correct mode only ever records correct answers, so revealing the key can't change a score.
-  if (!isLive && rules.requireCorrectAnswer) return result(input.answer);
-  // Otherwise the checked answer is the graded one: record it first, so probing spends the attempt.
   const closeAt: unknown = session.closeAt;
+  // A finished or closed response takes no new answer, so it gets no verdict either.
+  const shut = (data: Record<string, unknown>) =>
+    data.completedAt != null ||
+    (typeof closeAt === 'number' &&
+      nowMs > closeAt + CLOSE_GRACE_MS &&
+      data.unlocked !== true);
+  // Require-correct mode only ever records correct answers, so revealing the key can't change a score.
+  if (!isLive && rules.requireCorrectAnswer)
+    return shut(responseDoc.data()) ? NO_VERDICT : result(input.answer);
+  // Otherwise the checked answer is the graded one: record it first, so probing spends the attempt.
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(responseDoc.ref);
     const data = snap.data() ?? {};
-    const answers = Array.isArray(data.answers)
-      ? (data.answers as { questionId?: unknown; answer?: unknown }[])
-      : [];
-    const recorded = answers.find((a) => a?.questionId === question.id);
-    if (recorded)
-      return result(typeof recorded.answer === 'string' ? recorded.answer : '');
-    const closed =
-      typeof closeAt === 'number' &&
-      nowMs > closeAt + CLOSE_GRACE_MS &&
-      data.unlocked !== true;
-    if (data.completedAt == null && !closed)
-      tx.update(responseDoc.ref, {
-        answers: [
-          ...answers,
-          {
-            questionId: question.id,
-            answer: input.answer,
-            answeredAt: nowMs,
-            // The student can read their own response, so a hidden verdict stays off it until Publish re-grades.
-            ...(withholdResult || shortAnswer
-              ? {}
-              : { isCorrect: gradeVaAnswer(question, input.answer) }),
-          },
-        ],
-      });
+    const recorded = serverRecordedAnswer(data, question.id);
+    if (recorded !== null) return result(recorded);
+    const answers = answerList(data);
+    // Only an answer this callable recorded is ever graded for a student.
+    if (answers.some((a) => a?.questionId === question.id) || shut(data))
+      return NO_VERDICT;
+    tx.update(responseDoc.ref, {
+      answers: [
+        ...answers,
+        {
+          questionId: question.id,
+          answer: input.answer,
+          answeredAt: nowMs,
+          // The student can read their own response, so a hidden verdict stays off it until Publish re-grades.
+          ...(withholdResult || shortAnswer
+            ? {}
+            : { isCorrect: gradeVaAnswer(question, input.answer) }),
+        },
+      ],
+      [CHECKED_ANSWERS_FIELD]: {
+        ...asRecord(data[CHECKED_ANSWERS_FIELD]),
+        [question.id]: { answer: input.answer, attempt: attemptOf(data) },
+      },
+    });
     return result(input.answer);
   });
+}
+
+/** Once the board reveals a live question, stamps each response's verdict for it. */
+export async function stampRevealedVerdicts(
+  db: admin.firestore.Firestore,
+  sessionId: string,
+  after: Record<string, unknown> | null,
+  before: Record<string, unknown> | null = null
+): Promise<number> {
+  const live = asRecord(after?.live);
+  const questionId = live.currentQuestionId;
+  if (
+    !after ||
+    after.sessionMode !== 'teacher' ||
+    live.answerRevealed !== true ||
+    typeof questionId !== 'string'
+  )
+    return 0;
+  const prev = asRecord(before?.live);
+  if (prev.answerRevealed === true && prev.currentQuestionId === questionId)
+    return 0;
+  const [keySnap, responses] = await Promise.all([
+    keyRef(db, sessionId).get(),
+    db.collection(SESSIONS).doc(sessionId).collection('responses').get(),
+  ]);
+  const question = sessionKeyQuestions(keySnap, after).find(
+    (q) => q.id === questionId
+  );
+  if (!question || isVaShortAnswer(question)) return 0;
+  const stamped = await Promise.all(
+    responses.docs.map((doc) =>
+      db.runTransaction(async (tx) => {
+        const snap = await tx.get(doc.ref);
+        const answers = [...answerList(snap.data() ?? {})];
+        const i = answers.findIndex((a) => a?.questionId === questionId);
+        if (i < 0) return false;
+        const entry = answers[i];
+        const isCorrect = gradeVaAnswer(
+          question,
+          typeof entry.answer === 'string' ? entry.answer : ''
+        );
+        if (entry.isCorrect === isCorrect) return false;
+        answers[i] = { ...entry, isCorrect };
+        tx.update(doc.ref, { answers });
+        return true;
+      })
+    )
+  );
+  return stamped.filter(Boolean).length;
 }
 
 export const checkVideoActivityAnswerV1 = onCall(
@@ -303,12 +400,13 @@ export const scrubVideoActivitySessionKeyV1 = onDocumentWritten(
     const { sessionId } = event.params;
     if (!event.data) return;
     const { after, before } = event.data;
-    const result = await scrubVideoActivitySessionKey(
-      admin.firestore(),
-      sessionId,
-      after.exists ? (after.data() ?? {}) : null,
-      before.exists ? (before.data() ?? {}) : null
-    );
+    const afterData = after.exists ? (after.data() ?? {}) : null;
+    const beforeData = before.exists ? (before.data() ?? {}) : null;
+    const db = admin.firestore();
+    const [result] = await Promise.all([
+      scrubVideoActivitySessionKey(db, sessionId, afterData, beforeData),
+      stampRevealedVerdicts(db, sessionId, afterData, beforeData),
+    ]);
     if (result === 'scrubbed')
       logger.info('scrubVideoActivitySessionKeyV1: moved embedded key', {
         sessionId,

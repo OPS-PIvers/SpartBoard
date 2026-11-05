@@ -30,6 +30,7 @@ vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 import {
   handleCheckVideoActivityAnswer,
   scrubVideoActivitySessionKey,
+  stampRevealedVerdicts,
 } from './videoActivityKey';
 
 type Doc = Record<string, unknown>;
@@ -49,22 +50,28 @@ function makeDb(docs: Record<string, Doc>) {
     },
     collection: (sub: string) => collectionRef(`${path}/${sub}`),
   });
+  const childDocs = (path: string) =>
+    Object.entries(docs).filter(
+      ([p]) =>
+        p.startsWith(`${path}/`) && !p.slice(path.length + 1).includes('/')
+    );
+  const querySnap = (matches: [string, Doc][]) => ({
+    empty: matches.length === 0,
+    docs: matches.map(([p, d]) => ({
+      id: p.split('/').pop(),
+      data: () => d,
+      ref: docRef(p),
+    })),
+  });
   const collectionRef = (path: string) => ({
     doc: (id: string) => docRef(`${path}/${id}`),
+    get: () => Promise.resolve(querySnap(childDocs(path))),
     where: (field: string, _op: string, value: unknown) => ({
       limit: () => ({
-        get: () => {
-          const matches = Object.entries(docs).filter(
-            ([p, d]) =>
-              p.startsWith(`${path}/`) &&
-              !p.slice(path.length + 1).includes('/') &&
-              d[field] === value
-          );
-          return Promise.resolve({
-            empty: matches.length === 0,
-            docs: matches.map(([p, d]) => ({ data: () => d, ref: docRef(p) })),
-          });
-        },
+        get: () =>
+          Promise.resolve(
+            querySnap(childDocs(path).filter(([, d]) => d[field] === value))
+          ),
       }),
     }),
   });
@@ -345,16 +352,45 @@ describe('handleCheckVideoActivityAnswer with assign answer rules', () => {
   });
 
   it('keeps the answer on the server when reveal is off, except for the teacher', async () => {
-    const { db } = setup({
+    const { docs, db } = setup({
       answerRulesSet: true,
       showCorrectAnswerToStudent: false,
     });
+    docs[`${SESSION}/responses/sso`] = {
+      studentUid: 'sso',
+      answers: [],
+      completedAt: null,
+    };
     await expect(
-      handleCheckVideoActivityAnswer(db, 'stu', input('Rome'))
+      handleCheckVideoActivityAnswer(db, 'sso', input('Rome'), 1000)
     ).resolves.toEqual({ isCorrect: false, correctAnswer: '' });
     await expect(
       handleCheckVideoActivityAnswer(db, 't1', input('Rome'))
     ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
+  });
+
+  it('gives a PIN joiner no verdict and stores none while the key is hidden', async () => {
+    const { docs, db } = setup({
+      answerRulesSet: true,
+      showCorrectAnswerToStudent: false,
+    });
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', input('Paris'), 1000)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+    expect(docs[RESPONSE].answers).toEqual([
+      { questionId: 'q1', answer: 'Paris', answeredAt: 1000 },
+    ]);
+  });
+
+  it('gives a view-only viewer no verdict while the key is hidden', async () => {
+    const { docs, db } = setup({
+      answerRulesSet: true,
+      showCorrectAnswerToStudent: false,
+    });
+    docs[SESSION].mode = 'view-only';
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'viewer', input('Paris'))
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
   });
 
   it('records the answer without a verdict when right and wrong is hidden, even in require-correct', async () => {
@@ -418,17 +454,35 @@ describe('handleCheckVideoActivityAnswer in a teacher-paced session', () => {
     answer,
   });
 
-  it('grades and records an answer to the open question, even out of order', async () => {
+  it('records an answer to the open question, even out of order, with no verdict before the reveal', async () => {
     const { docs, db } = setup({
       currentQuestionId: 'q2',
       questionPhase: 'open',
     });
     await expect(
       handleCheckVideoActivityAnswer(db, 'stu', q2('Blue'), 1000)
-    ).resolves.toEqual({ isCorrect: true, correctAnswer: '' });
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
     expect(docs[RESPONSE].answers).toEqual([
-      { questionId: 'q2', answer: 'Blue', answeredAt: 1000, isCorrect: true },
+      { questionId: 'q2', answer: 'Blue', answeredAt: 1000 },
     ]);
+  });
+
+  it('withholds the verdict from a signed-in student before the reveal too', async () => {
+    const { docs, db } = setup({
+      currentQuestionId: 'q2',
+      questionPhase: 'open',
+    });
+    docs[`${SESSION}/responses/sso`] = {
+      studentUid: 'sso',
+      answers: [],
+      completedAt: null,
+    };
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'sso', q2('blue'), 1000)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+    expect(JSON.stringify(docs[`${SESSION}/responses/sso`])).not.toContain(
+      'isCorrect'
+    );
   });
 
   it('rejects a question that is not open with a question-closed reason', async () => {
@@ -451,14 +505,17 @@ describe('handleCheckVideoActivityAnswer in a teacher-paced session', () => {
   });
 
   it('keeps the first answer locked when a student answers again', async () => {
-    const { docs, db } = setup(
-      { currentQuestionId: 'q2', questionPhase: 'open' },
-      [{ questionId: 'q2', answer: 'red', answeredAt: 1, isCorrect: false }]
-    );
+    const { docs, db } = setup({
+      currentQuestionId: 'q2',
+      questionPhase: 'open',
+    });
+    await handleCheckVideoActivityAnswer(db, 'stu', q2('red'), 1000);
     await expect(
-      handleCheckVideoActivityAnswer(db, 'stu', q2('blue'), 1000)
-    ).resolves.toMatchObject({ isCorrect: false });
-    expect(docs[RESPONSE].answers).toHaveLength(1);
+      handleCheckVideoActivityAnswer(db, 'stu', q2('blue'), 2000)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+    expect(docs[RESPONSE].answers).toEqual([
+      { questionId: 'q2', answer: 'red', answeredAt: 1000 },
+    ]);
   });
 
   it('lets the owning teacher check any question', async () => {
@@ -622,5 +679,167 @@ describe('handleCheckVideoActivityAnswer for a short answer', () => {
     await expect(
       handleCheckVideoActivityAnswer(db, 't1', saInput('x'))
     ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+  });
+});
+
+describe('handleCheckVideoActivityAnswer grades only what it recorded', () => {
+  const RESPONSE = `${SESSION}/responses/sso`;
+  const setup = (response: Doc = {}, settings: Doc = {}) => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: {
+        teacherUid: 't1',
+        questions: [],
+        settings: { requireCorrectAnswer: false, ...settings },
+      },
+      [KEY]: { questions: KEYED },
+      [RESPONSE]: {
+        studentUid: 'sso',
+        answers: [],
+        completedAt: null,
+        ...response,
+      },
+    };
+    return { docs, db: makeDb(docs) };
+  };
+
+  it('grades the recorded answer again, never the new text', async () => {
+    const { db } = setup();
+    await handleCheckVideoActivityAnswer(db, 'sso', input('Rome'), 1000);
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'sso', input('Paris'), 2000)
+    ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
+  });
+
+  it('gives no verdict for an entry the student wrote themselves', async () => {
+    const { docs, db } = setup({
+      answers: [{ questionId: 'q1', answer: 'Paris', answeredAt: 1 }],
+    });
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'sso', input('Paris'), 1000)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+    expect(docs[RESPONSE].answers).toHaveLength(1);
+  });
+
+  it('gives no verdict once a student entry is put ahead of the recorded one', async () => {
+    const { docs, db } = setup();
+    await handleCheckVideoActivityAnswer(db, 'sso', input('Rome'), 1000);
+    const recorded = docs[RESPONSE].answers as Doc[];
+    docs[RESPONSE].answers = [
+      { questionId: 'q1', answer: 'Paris', answeredAt: 1000 },
+      ...recorded,
+    ];
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'sso', input('Paris'), 2000)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+  });
+
+  it('records afresh on a retake instead of reusing the last attempt', async () => {
+    const { docs, db } = setup();
+    await handleCheckVideoActivityAnswer(db, 'sso', input('Rome'), 1000);
+    Object.assign(docs[RESPONSE], { answers: [], completedAttempts: 1 });
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'sso', input('Paris'), 2000)
+    ).resolves.toEqual({ isCorrect: true, correctAnswer: 'Paris' });
+    expect(docs[RESPONSE].answers).toEqual([
+      { questionId: 'q1', answer: 'Paris', answeredAt: 2000, isCorrect: true },
+    ]);
+  });
+
+  it('gives no verdict for a guess after the student finished', async () => {
+    const done = setup({ completedAt: 5 });
+    await expect(
+      handleCheckVideoActivityAnswer(done.db, 'sso', input('Paris'), 1000)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+    expect(done.docs[RESPONSE].answers).toEqual([]);
+    const rc = setup({ completedAt: 5 }, { requireCorrectAnswer: true });
+    await expect(
+      handleCheckVideoActivityAnswer(rc.db, 'sso', input('Paris'), 1000)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+  });
+
+  it('gives no verdict for a guess after the window closed', async () => {
+    const { docs, db } = setup();
+    docs[SESSION].closeAt = 0;
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'sso', input('Paris'), 1e9)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+  });
+
+  it('still answers a finished student about the answer it recorded', async () => {
+    const { docs, db } = setup();
+    await handleCheckVideoActivityAnswer(db, 'sso', input('Rome'), 1000);
+    docs[RESPONSE].completedAt = 3000;
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'sso', input('Paris'), 4000)
+    ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
+  });
+
+  it('keeps require-correct feedback for a student still answering', async () => {
+    const { docs, db } = setup({}, { requireCorrectAnswer: true });
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'sso', input('Rome'), 1000)
+    ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'sso', input('Paris'), 2000)
+    ).resolves.toEqual({ isCorrect: true, correctAnswer: 'Paris' });
+    expect(docs[RESPONSE].answers).toEqual([]);
+  });
+});
+
+describe('stampRevealedVerdicts', () => {
+  const live = (over: Doc = {}) => ({
+    teacherUid: 't1',
+    sessionMode: 'teacher',
+    questions: [],
+    live: { currentQuestionId: 'q1', questionPhase: 'open', ...over },
+  });
+  const setup = () => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: live({ answerRevealed: true }),
+      [KEY]: { questions: KEYED },
+      [`${SESSION}/responses/a`]: {
+        studentUid: 'a',
+        answers: [{ questionId: 'q1', answer: 'Paris', answeredAt: 1 }],
+      },
+      [`${SESSION}/responses/b`]: {
+        studentUid: 'b',
+        answers: [
+          { questionId: 'q1', answer: 'Rome', answeredAt: 1, isCorrect: true },
+        ],
+      },
+      [`${SESSION}/responses/c`]: { studentUid: 'c', answers: [] },
+    };
+    return { docs, db: makeDb(docs) };
+  };
+
+  it('stamps each answer to the revealed question with its real verdict', async () => {
+    const { docs, db } = setup();
+    await expect(
+      stampRevealedVerdicts(db, 's1', live({ answerRevealed: true }), live())
+    ).resolves.toBe(2);
+    expect(docs[`${SESSION}/responses/a`].answers).toEqual([
+      { questionId: 'q1', answer: 'Paris', answeredAt: 1, isCorrect: true },
+    ]);
+    expect(docs[`${SESSION}/responses/b`].answers).toEqual([
+      { questionId: 'q1', answer: 'Rome', answeredAt: 1, isCorrect: false },
+    ]);
+    expect(docs[`${SESSION}/responses/c`].answers).toEqual([]);
+  });
+
+  it('does nothing before the reveal, on a repeat write, or off a live run', async () => {
+    const { docs, db } = setup();
+    const revealed = live({ answerRevealed: true });
+    await expect(stampRevealedVerdicts(db, 's1', live(), null)).resolves.toBe(
+      0
+    );
+    await expect(
+      stampRevealedVerdicts(db, 's1', revealed, revealed)
+    ).resolves.toBe(0);
+    await expect(
+      stampRevealedVerdicts(db, 's1', { ...revealed, sessionMode: 'student' })
+    ).resolves.toBe(0);
+    expect(JSON.stringify(docs[`${SESSION}/responses/a`])).not.toContain(
+      'isCorrect'
+    );
   });
 });
