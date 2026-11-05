@@ -11,16 +11,34 @@ export function useAnswerImagePicker(
   const [uploadingKey, setUploadingKey] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const pickKeyRef = React.useRef<string | null>(null);
+  // An upload outlives the render that started it, so it reports to the latest one.
+  const onUploadedRef = React.useRef(onUploaded);
+  const mountedRef = React.useRef(true);
+  const queueRef = React.useRef<Promise<void>>(Promise.resolve());
+  React.useLayoutEffect(() => {
+    onUploadedRef.current = onUploaded;
+  });
+  React.useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
-  const send = async (key: string, file: File) => {
+  // One at a time, so each share prompt stays tied to its own picture.
+  const send = (key: string, file: File) => {
     if (!upload) return;
-    setUploadingKey(key);
-    try {
-      const url = await upload(file);
-      if (url) onUploaded(key, url);
-    } finally {
-      setUploadingKey(null);
-    }
+    queueRef.current = queueRef.current.then(async () => {
+      if (!mountedRef.current) return;
+      setUploadingKey(key);
+      try {
+        const url = await upload(file);
+        // A gone editor could write stale answers over a retyped question.
+        if (url && mountedRef.current) onUploadedRef.current(key, url);
+      } finally {
+        setUploadingKey(null);
+      }
+    });
   };
 
   const pick = (key: string) => {
@@ -35,7 +53,7 @@ export function useAnswerImagePicker(
       const file = pastedImage(e.clipboardData);
       if (!file) return;
       e.preventDefault();
-      if (uploadingKey === null) void send(key, file);
+      send(key, file);
     };
 
   const fileInput = upload ? (
@@ -50,7 +68,7 @@ export function useAnswerImagePicker(
         const key = pickKeyRef.current;
         e.target.value = '';
         pickKeyRef.current = null;
-        if (file && key) void send(key, file);
+        if (file && key) send(key, file);
       }}
     />
   ) : null;

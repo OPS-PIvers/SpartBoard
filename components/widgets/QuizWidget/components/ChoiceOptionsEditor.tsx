@@ -34,7 +34,7 @@ type ChoiceUpdates = Partial<
 interface ChoiceOptionsEditorProps {
   question: QuizQuestion;
   onChange: (updates: ChoiceUpdates) => void;
-  /** Uploads one picture and resolves to its URL; absent hides the picture buttons. */
+  /** Uploads one picture and resolves to its URL; absent leaves only removing a saved one. */
   onUploadImage?: UploadAnswerImage;
 }
 
@@ -233,7 +233,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                       : ''
                   } ${row.image && !row.text.trim() ? 'border-amber-500' : ''}`}
                 />
-                {onUploadImage && (
+                {(onUploadImage ?? row.image) && (
                   <AnswerImageControl
                     image={row.image}
                     uploading={images.uploadingKey === row.id}

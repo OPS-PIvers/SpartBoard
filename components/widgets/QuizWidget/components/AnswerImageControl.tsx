@@ -48,7 +48,7 @@ export const AnswerImageControl: React.FC<{
       type="button"
       onClick={onPick}
       disabled={disabled}
-      className="flex items-center justify-center w-9 h-9 shrink-0 rounded-lg text-slate-500 hover:text-brand-blue-primary hover:bg-slate-100 transition-colors disabled:opacity-40"
+      className="flex items-center justify-center w-9 h-9 shrink-0 rounded-lg text-slate-500 hover:text-brand-blue-primary hover:bg-slate-100 transition-colors disabled:opacity-40 touch-target-expand"
       aria-label={`Add image to ${name}`}
       title="Add image, or paste one into the text box"
       {...addAttrs}

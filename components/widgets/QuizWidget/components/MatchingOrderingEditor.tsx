@@ -255,7 +255,7 @@ export interface MatchingAnswerEditorProps {
     answerImages: QuizAnswerImage[] | undefined;
     matchingTermImages: QuizAnswerImage[] | undefined;
   }) => void;
-  /** Uploads one picture and resolves to its URL; absent hides the picture buttons. */
+  /** Uploads one picture and resolves to its URL; absent leaves only removing a saved one. */
   onUploadImage?: UploadAnswerImage;
 }
 
@@ -389,7 +389,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
     addAttrs: TourAnchorAttrs,
     removeAttrs: TourAnchorAttrs
   ) =>
-    onUploadImage ? (
+    onUploadImage || image ? (
       <AnswerImageControl
         image={image}
         uploading={images.uploadingKey === key}
@@ -708,7 +708,7 @@ export interface OrderingAnswerEditorProps {
     correctAnswer: string,
     orderingImages: string[] | undefined
   ) => void;
-  /** Uploads one image and resolves to its URL; absent hides the image buttons. */
+  /** Uploads one image and resolves to its URL; absent leaves only removing a saved one. */
   onUploadImage?: UploadAnswerImage;
 }
 
@@ -858,7 +858,7 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
                       )}
                       className="flex-1 px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 shadow-xs text-sm"
                     />
-                    {onUploadImage && (
+                    {(onUploadImage ?? row.image) && (
                       <AnswerImageControl
                         image={row.image}
                         uploading={images.uploadingKey === row.id}
