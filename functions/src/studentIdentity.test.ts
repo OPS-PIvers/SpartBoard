@@ -300,6 +300,7 @@ import {
   getStudentClassDirectoryV1,
   commitRosterPinIndexV1,
   pinLoginV1,
+  loadTeacherClassIds,
   PIN_LOGIN_MAX_CALLERS_PER_STUDENT,
   PIN_LOGIN_SESSION_MAX_FAILURES,
   PIN_LOGIN_SESSION_MAX_DAILY_FAILURES,
@@ -2484,5 +2485,46 @@ describe('studentFirstName', () => {
     expect(studentFirstName(undefined, undefined)).toBe('Student');
     expect(studentFirstName('  ', '  ')).toBe('Student');
     expect(studentFirstName('x'.repeat(61), 'Sam')).toBe('Student');
+  });
+});
+
+describe('loadTeacherClassIds paging', () => {
+  const creds = {
+    classlinkClientId: 'cl-id',
+    classlinkClientSecret: 'cl-secret',
+    tenantUrl: 'https://tenant.example.com',
+  };
+  const classes = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({ sourcedId: `class-${i}` }));
+  const serve = (total: number) => {
+    h.axiosGet = async (url: string, cfg?: unknown) => {
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'T1', role: 'teacher' }] } };
+      const params = (cfg as { params?: { offset?: string; limit?: string } })
+        .params;
+      const offset = Number(params?.offset ?? 0);
+      const limit = Number(params?.limit ?? total);
+      return {
+        data: { classes: classes(total).slice(offset, offset + limit) },
+      };
+    };
+  };
+
+  it('reads a class list longer than one page', async () => {
+    serve(250);
+    const ids = await loadTeacherClassIds('teacher@school.org', creds);
+    expect(ids?.size).toBe(250);
+    expect(ids?.has('class-249')).toBe(true);
+  });
+
+  it('fails as unavailable, never with part of the list, at the page cap', async () => {
+    h.axiosGet = async (url: string) => {
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'T1', role: 'teacher' }] } };
+      return { data: { classes: classes(200) } };
+    };
+    await expect(
+      loadTeacherClassIds('teacher@school.org', creds)
+    ).rejects.toMatchObject({ code: 'unavailable' });
   });
 });

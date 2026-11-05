@@ -10,6 +10,7 @@ import {
 import {
   ALLOWED_ORIGINS,
   computeStudentUid,
+  CLASSLINK_TOTAL_BUDGET_MS,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
 } from './classlinkShared';
@@ -231,6 +232,7 @@ async function taughtStudentIds(
     tenantUrl: CLASSLINK_TENANT_URL.value(),
   };
   // Group payloads are client-written, so ClassLink decides which students the caller may place.
+  const started = Date.now();
   const taught = await loadTeacherClassIds(email, creds);
   if (!taught) return new Set();
   // Never place against part of the caller's classes: past the ceiling the commit fails.
@@ -240,6 +242,9 @@ async function taughtStudentIds(
   const enrolled = new Set<string>();
   const classIds = [...taught];
   for (let i = 0; i < classIds.length; i += 10) {
+    if (Date.now() - started > CLASSLINK_TOTAL_BUDGET_MS) {
+      throw new HttpsError('unavailable', 'Roster service unavailable.');
+    }
     const lists = await Promise.all(
       classIds
         .slice(i, i + 10)
@@ -254,6 +259,7 @@ async function taughtStudentIds(
 export const commitProjectGroupsV1 = onCall(
   {
     memory: '256MiB',
+    timeoutSeconds: 120,
     secrets: [
       STUDENT_PSEUDONYM_HMAC_SECRET,
       CLASSLINK_CLIENT_ID,

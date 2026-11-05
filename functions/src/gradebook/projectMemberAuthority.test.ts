@@ -36,6 +36,7 @@ vi.mock('firebase-functions/logger', () => ({
   error: vi.fn(),
 }));
 
+import * as logger from 'firebase-functions/logger';
 import { computeStudentUid } from '../classlinkShared';
 import {
   __resetClassLinkSweepCache,
@@ -66,6 +67,8 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ classlinkClassIds: [], testClassIds: [] });
   loadTestClassMembership.mockReset().mockResolvedValue(noTestClasses);
+  vi.mocked(logger.warn).mockClear();
+  vi.mocked(logger.error).mockClear();
 });
 
 describe('loadClassStudentUids', () => {
@@ -373,7 +376,7 @@ describe('drainDirtySessions when the class roster is unavailable', () => {
     expect(stub.has('grade_index_sessions/projects__old0')).toBe(true);
   });
 
-  it('drops the entry, with a log, after a day of failed retries', async () => {
+  it('keeps an entry queued at the longest backoff, and logs an error, after a day of outage', async () => {
     loadClassLinkMembership.mockRejectedValue(new Error('503'));
     const stub = makeStubFirestore({
       ...project,
@@ -381,17 +384,22 @@ describe('drainDirtySessions when the class roster is unavailable', () => {
         kind: 'projects',
         sessionId: 't1_p1',
         dirtyAt: 1,
-        unavailable: 25,
+        unavailable: 30,
       },
     });
     const typed = stub.db as unknown as Parameters<
       typeof drainDirtySessions
     >[0];
+    const before = Date.now();
     await drainDirtySessions(typed);
-    expect(stub.has('grade_index_sessions/projects__t1_p1')).toBe(false);
+    const queued = stub.get('grade_index_sessions/projects__t1_p1');
+    expect(queued?.unavailable).toBe(31);
+    expect(queued?.retryAt).toBeGreaterThanOrEqual(before + 60 * 60_000);
+    expect(queued?.retryAt).toBeLessThanOrEqual(Date.now() + 60 * 60_000);
+    expect(logger.error).toHaveBeenCalled();
   });
 
-  it('keeps retrying an entry one attempt short of the cap', async () => {
+  it('only warns while the outage is younger than a day', async () => {
     loadClassLinkMembership.mockRejectedValue(new Error('503'));
     const stub = makeStubFirestore({
       ...project,
@@ -409,6 +417,8 @@ describe('drainDirtySessions when the class roster is unavailable', () => {
     expect(stub.get('grade_index_sessions/projects__t1_p1')?.unavailable).toBe(
       25
     );
+    expect(logger.warn).toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('skips an entry still backing off, and drains it once the roster answers', async () => {

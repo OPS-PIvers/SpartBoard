@@ -2414,6 +2414,8 @@ describe('setAssignmentTargetsV1 onCall wrapper — caller identity verification
   });
 });
 
+type PagedConfig = { params?: { offset?: string; limit?: string } };
+
 describe('loadClassLinkMembership', () => {
   const route = (users: unknown[]) =>
     axiosGet.mockImplementation((url: string) => {
@@ -2526,20 +2528,24 @@ describe('loadClassLinkMembership', () => {
     ).rejects.toThrow('page cap');
   });
 
-  const manyClasses = (count: number) => {
-    axiosGet.mockImplementation((url: string) => {
+  const manyClasses = (count: number, onStudents?: () => void) => {
+    axiosGet.mockImplementation((url: string, config?: PagedConfig) => {
       if (url.endsWith('/users'))
         return Promise.resolve({
           data: { users: [{ sourcedId: 'T1', role: 'teacher' }] },
         });
-      if (url.endsWith('/classes'))
+      if (url.endsWith('/classes')) {
+        const offset = Number(config?.params?.offset ?? 0);
+        const limit = Number(config?.params?.limit ?? count);
         return Promise.resolve({
           data: {
             classes: Array.from({ length: count }, (_, i) => ({
               sourcedId: `class-${i}`,
-            })),
+            })).slice(offset, offset + limit),
           },
         });
+      }
+      if (/\/students$/.test(url)) onStudents?.();
       const classId = /\/classes\/([^/]+)\/students$/.exec(url)?.[1] ?? '';
       return Promise.resolve({
         data: { users: [{ sourcedId: `kid-of-${classId}` }] },
@@ -2558,6 +2564,40 @@ describe('loadClassLinkMembership', () => {
     );
     expect(out.size).toBe(120);
     expect(out.get('kid-of-class-119')).toBe('class-119');
+  });
+
+  it('pages the teacher class list, so a class on page two is still authorized', async () => {
+    manyClasses(250);
+    const out = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      ['class-230'],
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(out.get('kid-of-class-230')).toBe('class-230');
+    const classCalls = (axiosGet.mock.calls as unknown[][]).filter((c) =>
+      String(c[0]).endsWith('/classes')
+    );
+    expect(classCalls).toHaveLength(2);
+  });
+
+  it('fails loudly when reading every class runs past the time budget', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      manyClasses(30, () => vi.setSystemTime(Date.now() + 100_000));
+      await expect(
+        loadClassLinkMembership(
+          'teacher@orono.k12.mn.us',
+          null,
+          'id',
+          'secret',
+          'https://tenant.example'
+        )
+      ).rejects.toThrow('time budget');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('fails loudly, never with a partial set, past the taught-class ceiling', async () => {

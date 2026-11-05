@@ -88,6 +88,7 @@ import {
 import {
   ALLOWED_ORIGINS,
   CLASSLINK_TIMEOUT_MS,
+  CLASSLINK_TOTAL_BUDGET_MS,
   ONEROSTER_BASE,
   computeStudentUid,
   getOAuthHeaders,
@@ -1511,6 +1512,36 @@ export async function loadTestClassMembership(
   return { membership: out, authorized: true };
 }
 
+/** Every page of a OneRoster list; a full page at the page cap throws rather than return part of it. */
+async function fetchClassLinkPages<T>(
+  url: string,
+  key: string,
+  clientId: string,
+  clientSecret: string,
+  label: string
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let page = 0; ; page += 1) {
+    // OneRoster signs the query string, so the same params go to both.
+    const params = {
+      limit: String(ONEROSTER_PAGE_LIMIT),
+      offset: String(page * ONEROSTER_PAGE_LIMIT),
+    };
+    const headers = getOAuthHeaders(url, params, 'GET', clientId, clientSecret);
+    const resp = await axios.get<Record<string, T[] | undefined>>(url, {
+      params,
+      headers: { ...headers },
+      timeout: CLASSLINK_TIMEOUT_MS,
+    });
+    const batch = resp.data[key] ?? [];
+    out.push(...batch);
+    if (batch.length < ONEROSTER_PAGE_LIMIT) return out;
+    if (page + 1 >= ONEROSTER_MAX_PAGES) {
+      throw new Error(`ClassLink ${label} exceeds the page cap`);
+    }
+  }
+}
+
 export async function loadClassLinkMembership(
   teacherEmail: string,
   /** `null` means every class the teacher teaches; more than `MAX_TAUGHT_CLASSES` throws. */
@@ -1545,20 +1576,15 @@ export async function loadClassLinkMembership(
   const teacher = (userResp.data.users ?? []).find(isOneRosterStaff);
   if (!teacher) return out;
 
-  const classesUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacher.sourcedId}/classes`;
-  const classesHeaders = getOAuthHeaders(
-    classesUrl,
-    {},
-    'GET',
+  const classes = await fetchClassLinkPages<ClassLinkClass>(
+    `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacher.sourcedId}/classes`,
+    'classes',
     classlinkClientId,
-    classlinkClientSecret
-  );
-  const classesResp = await axios.get<{ classes: ClassLinkClass[] }>(
-    classesUrl,
-    { headers: { ...classesHeaders }, timeout: CLASSLINK_TIMEOUT_MS }
+    classlinkClientSecret,
+    'class list'
   );
   const taught = new Set(
-    (classesResp.data.classes ?? [])
+    classes
       .map((c) => c.sourcedId)
       .filter((id): id is string => typeof id === 'string')
   );
@@ -1570,41 +1596,26 @@ export async function loadClassLinkMembership(
     throw new Error('ClassLink teacher has too many classes to read in full');
   }
 
+  const started = Date.now();
   const rosters: { classId: string; students: ClassLinkStudent[] }[] = [];
   for (let i = 0; i < authorized.length; i += CLASS_FETCH_CONCURRENCY) {
+    // Fail loudly rather than run into the function deadline with part of the roster.
+    if (Date.now() - started > CLASSLINK_TOTAL_BUDGET_MS) {
+      throw new Error('ClassLink read exceeded its time budget');
+    }
     const group = authorized.slice(i, i + CLASS_FETCH_CONCURRENCY);
     rosters.push(
       ...(await Promise.all(
-        group.map(async (classId) => {
-          const studentsUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/classes/${classId}/students`;
-          const students: ClassLinkStudent[] = [];
-          for (let page = 0; ; page += 1) {
-            // OneRoster signs the query string, so the same params go to both.
-            const params = {
-              limit: String(ONEROSTER_PAGE_LIMIT),
-              offset: String(page * ONEROSTER_PAGE_LIMIT),
-            };
-            const headers = getOAuthHeaders(
-              studentsUrl,
-              params,
-              'GET',
-              classlinkClientId,
-              classlinkClientSecret
-            );
-            const resp = await axios.get<{ users: ClassLinkStudent[] }>(
-              studentsUrl,
-              { params, headers: { ...headers }, timeout: CLASSLINK_TIMEOUT_MS }
-            );
-            const batch = resp.data.users ?? [];
-            students.push(...batch);
-            // A short page is the end; a full page at the cap means students may be missing.
-            if (batch.length < ONEROSTER_PAGE_LIMIT) break;
-            if (page + 1 >= ONEROSTER_MAX_PAGES) {
-              throw new Error('ClassLink class roster exceeds the page cap');
-            }
-          }
-          return { classId, students };
-        })
+        group.map(async (classId) => ({
+          classId,
+          students: await fetchClassLinkPages<ClassLinkStudent>(
+            `${cleanTenantUrl}${ONEROSTER_BASE}/classes/${classId}/students`,
+            'users',
+            classlinkClientId,
+            classlinkClientSecret,
+            'class roster'
+          ),
+        }))
       ))
     );
   }

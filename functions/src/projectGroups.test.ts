@@ -38,6 +38,7 @@ const h = vi.hoisted(() => ({
   teacherLookups: [] as string[],
   taught: null as Set<string> | null,
   enrollmentDown: false,
+  onEnrollmentLookup: null as null | (() => void),
 }));
 
 vi.mock('./functionsInit', () => ({}));
@@ -57,6 +58,7 @@ vi.mock('./studentIdentity', () => ({
   },
   loadClassStudentIds: async (classId: string) => {
     h.enrollmentLookups.push({ classId });
+    h.onEnrollmentLookup?.();
     return h.enrollment.get(classId) ?? new Set<string>();
   },
 }));
@@ -219,6 +221,7 @@ beforeEach(() => {
   h.teacherLookups.length = 0;
   h.taught = new Set(['class-a', 'class-b']);
   h.enrollmentDown = false;
+  h.onEnrollmentLookup = null;
   h.docStore.set(RUN_PATH, {
     id: RUN_ID,
     teacherUid: TEACHER,
@@ -550,6 +553,21 @@ describe('commitProjectGroupsV1 ClassLink check', () => {
     ).rejects.toThrow('Roster service unavailable.');
     expect(h.enrollmentLookups).toEqual([]);
     expectNothingWritten();
+  });
+
+  it('fails the commit with the existing message, without writing, when ClassLink is too slow', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      h.taught = new Set(Array.from({ length: 30 }, (_, i) => `slow-${i}`));
+      h.onEnrollmentLookup = () => vi.setSystemTime(Date.now() + 100_000);
+      await expect(
+        call({ runId: RUN_ID, groups: [groupEntry()] })
+      ).rejects.toThrow('Roster service unavailable.');
+      expect(h.enrollmentLookups.length).toBeLessThan(30);
+      expectNothingWritten();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('asks ClassLink once per commit with the caller email, then once per taught class', async () => {
