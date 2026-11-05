@@ -184,8 +184,9 @@ const speakFitsLanguage = (
   return speak.refs.every((ref) => ref.dialect.split('-')[0] === primary);
 };
 
-const normalizeSet = (set: FlashcardSet): FlashcardSet => ({
+const normalizeSet = ({ targets, ...set }: FlashcardSet): FlashcardSet => ({
   ...withoutClaudeReview(set),
+  ...(targets && targets.length > 0 ? { targets } : {}),
   title: set.title.trim(),
   description: set.description?.trim() ?? '',
   termLanguage: set.termLanguage.trim() || 'en-US',
