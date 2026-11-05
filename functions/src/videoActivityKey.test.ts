@@ -23,7 +23,7 @@ vi.mock('firebase-functions/v2/https', () => {
 vi.mock('firebase-functions/v2/firestore', () => ({
   onDocumentWritten: (_opts: unknown, handler: unknown) => handler,
 }));
-vi.mock('firebase-functions/logger', () => ({ info: vi.fn() }));
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), error: vi.fn() }));
 vi.mock('./functionsInit', () => ({}));
 vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 
@@ -504,6 +504,25 @@ describe('handleCheckVideoActivityAnswer in a teacher-paced session', () => {
     }
   });
 
+  it('refuses an answer the board revealed while it was being checked', async () => {
+    const { docs, db } = setup({
+      currentQuestionId: 'q2',
+      questionPhase: 'open',
+    });
+    const raw = db as unknown as {
+      runTransaction: (fn: (tx: unknown) => Promise<unknown>) => unknown;
+    };
+    const run = raw.runTransaction;
+    raw.runTransaction = (fn) => {
+      (docs[SESSION].live as Doc).answerRevealed = true;
+      return run(fn);
+    };
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', q2('blue'), 1000)
+    ).rejects.toMatchObject({ details: { reason: 'question-closed' } });
+    expect(docs[RESPONSE].answers).toEqual([]);
+  });
+
   it('keeps the first answer locked when a student answers again', async () => {
     const { docs, db } = setup({
       currentQuestionId: 'q2',
@@ -757,6 +776,20 @@ describe('handleCheckVideoActivityAnswer grades only what it recorded', () => {
     ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
   });
 
+  it('gives no verdict after the run ended, unless the teacher unlocked the student', async () => {
+    const ended = setup();
+    Object.assign(ended.docs[SESSION], { status: 'ended', endedAt: 0 });
+    await expect(
+      handleCheckVideoActivityAnswer(ended.db, 'sso', input('Paris'), 1e9)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+    expect(ended.docs[RESPONSE].answers).toEqual([]);
+    const unlocked = setup({ unlocked: true });
+    Object.assign(unlocked.docs[SESSION], { status: 'ended', endedAt: 0 });
+    await expect(
+      handleCheckVideoActivityAnswer(unlocked.db, 'sso', input('Paris'), 1e9)
+    ).resolves.toEqual({ isCorrect: true, correctAnswer: 'Paris' });
+  });
+
   it('gives no verdict for a guess after the window closed', async () => {
     const { docs, db } = setup();
     docs[SESSION].closeAt = 0;
@@ -824,6 +857,24 @@ describe('stampRevealedVerdicts', () => {
       { questionId: 'q1', answer: 'Rome', answeredAt: 1, isCorrect: false },
     ]);
     expect(docs[`${SESSION}/responses/c`].answers).toEqual([]);
+  });
+
+  it('opens no transaction for settled responses and keeps going past a failed one', async () => {
+    const { docs, db } = setup();
+    const raw = db as unknown as {
+      runTransaction: (fn: (tx: unknown) => Promise<unknown>) => unknown;
+    };
+    const run = raw.runTransaction;
+    let calls = 0;
+    raw.runTransaction = (fn) =>
+      ++calls === 1 ? Promise.reject(new Error('contention')) : run(fn);
+    await expect(
+      stampRevealedVerdicts(db, 's1', live({ answerRevealed: true }), live())
+    ).resolves.toBe(1);
+    expect(calls).toBe(2);
+    expect(docs[`${SESSION}/responses/b`].answers).toEqual([
+      { questionId: 'q1', answer: 'Rome', answeredAt: 1, isCorrect: false },
+    ]);
   });
 
   it('does nothing before the reveal, on a repeat write, or off a live run', async () => {

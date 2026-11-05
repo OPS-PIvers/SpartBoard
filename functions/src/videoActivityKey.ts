@@ -223,10 +223,12 @@ export async function handleCheckVideoActivityAnswer(
       'failed-precondition',
       "Your class period isn't open right now."
     );
-  if (isLive && !isLiveQuestionOpen(session, question.id))
-    throw new HttpsError('failed-precondition', 'Question closed.', {
+  const questionClosed = () =>
+    new HttpsError('failed-precondition', 'Question closed.', {
       reason: QUESTION_CLOSED_REASON,
     });
+  if (isLive && !isLiveQuestionOpen(session, question.id))
+    throw questionClosed();
   if (
     !isLive &&
     settings.allowSkipping !== true &&
@@ -238,20 +240,28 @@ export async function handleCheckVideoActivityAnswer(
     );
   const closeAt: unknown = session.closeAt;
   // A finished or closed response takes no new answer, so it gets no verdict either.
+  const endedAt = typeof session.endedAt === 'number' ? session.endedAt : 0;
+  // Mirrors the rules' beforeClose and runOpen, with the same unlock exemption.
   const shut = (data: Record<string, unknown>) =>
     data.completedAt != null ||
-    (typeof closeAt === 'number' &&
-      nowMs > closeAt + CLOSE_GRACE_MS &&
-      data.unlocked !== true);
+    (data.unlocked !== true &&
+      ((typeof closeAt === 'number' && nowMs > closeAt + CLOSE_GRACE_MS) ||
+        (session.status === 'ended' && nowMs >= endedAt + CLOSE_GRACE_MS)));
   // Require-correct mode only ever records correct answers, so revealing the key can't change a score.
   if (!isLive && rules.requireCorrectAnswer)
     return shut(responseDoc.data()) ? NO_VERDICT : result(input.answer);
   // Otherwise the checked answer is the graded one: record it first, so probing spends the attempt.
   return db.runTransaction(async (tx) => {
-    const snap = await tx.get(responseDoc.ref);
+    const [snap, liveSnap] = await Promise.all([
+      tx.get(responseDoc.ref),
+      isLive ? tx.get(sessionRef) : null,
+    ]);
     const data = snap.data() ?? {};
     const recorded = serverRecordedAnswer(data, question.id);
     if (recorded !== null) return result(recorded);
+    // Re-read here, so an answer lands before the reveal (and is stamped) or is refused.
+    if (liveSnap && !isLiveQuestionOpen(liveSnap.data() ?? {}, question.id))
+      throw questionClosed();
     const answers = answerList(data);
     // Only an answer this callable recorded is ever graded for a student.
     if (answers.some((a) => a?.questionId === question.id) || shut(data))
@@ -305,26 +315,40 @@ export async function stampRevealedVerdicts(
     (q) => q.id === questionId
   );
   if (!question || isVaShortAnswer(question)) return 0;
-  const stamped = await Promise.all(
-    responses.docs.map((doc) =>
-      db.runTransaction(async (tx) => {
-        const snap = await tx.get(doc.ref);
-        const answers = [...answerList(snap.data() ?? {})];
-        const i = answers.findIndex((a) => a?.questionId === questionId);
-        if (i < 0) return false;
-        const entry = answers[i];
-        const isCorrect = gradeVaAnswer(
-          question,
-          typeof entry.answer === 'string' ? entry.answer : ''
-        );
-        if (entry.isCorrect === isCorrect) return false;
-        answers[i] = { ...entry, isCorrect };
-        tx.update(doc.ref, { answers });
-        return true;
-      })
-    )
+  // The first answer to the question and its verdict, or null when it is already stamped right.
+  const pendingStamp = (data: Record<string, unknown>) => {
+    const answers = [...answerList(data)];
+    const i = answers.findIndex((a) => a?.questionId === questionId);
+    if (i < 0) return null;
+    const entry = answers[i];
+    const isCorrect = gradeVaAnswer(
+      question,
+      typeof entry.answer === 'string' ? entry.answer : ''
+    );
+    if (entry.isCorrect === isCorrect) return null;
+    answers[i] = { ...entry, isCorrect };
+    return answers;
+  };
+  const stamped = await Promise.allSettled(
+    responses.docs
+      .filter((doc) => pendingStamp(doc.data() ?? {}) !== null)
+      .map((doc) =>
+        db.runTransaction(async (tx) => {
+          const snap = await tx.get(doc.ref);
+          const answers = pendingStamp(snap.data() ?? {});
+          if (!answers) return false;
+          tx.update(doc.ref, { answers });
+          return true;
+        })
+      )
   );
-  return stamped.filter(Boolean).length;
+  const failed = stamped.filter((r) => r.status === 'rejected').length;
+  if (failed > 0)
+    logger.error('stampRevealedVerdicts: responses left unstamped', {
+      sessionId,
+      failed,
+    });
+  return stamped.filter((r) => r.status === 'fulfilled' && r.value).length;
 }
 
 export const checkVideoActivityAnswerV1 = onCall(
@@ -403,11 +427,17 @@ export const scrubVideoActivitySessionKeyV1 = onDocumentWritten(
     const afterData = after.exists ? (after.data() ?? {}) : null;
     const beforeData = before.exists ? (before.data() ?? {}) : null;
     const db = admin.firestore();
-    const [result] = await Promise.all([
+    const [scrub, stamp] = await Promise.allSettled([
       scrubVideoActivitySessionKey(db, sessionId, afterData, beforeData),
       stampRevealedVerdicts(db, sessionId, afterData, beforeData),
     ]);
-    if (result === 'scrubbed')
+    if (stamp.status === 'rejected')
+      logger.error('stampRevealedVerdicts failed', {
+        sessionId,
+        error: String(stamp.reason),
+      });
+    if (scrub.status === 'rejected') throw scrub.reason;
+    if (scrub.value === 'scrubbed')
       logger.info('scrubVideoActivitySessionKeyV1: moved embedded key', {
         sessionId,
       });
