@@ -292,7 +292,9 @@ async function syncOneRoster(
   if (!taught?.has(classId)) {
     summary.skippedNotTeacher += 1;
     // Sidecar only: no ClassLink fetch, Drive write or roster-doc update.
-    await deps.reconcilePinIndex(rosterSnap.ref, data, [], new Set());
+    if (!settings.dryRun) {
+      await deps.reconcilePinIndex(rosterSnap.ref, data, [], new Set());
+    }
     console.warn(
       `[classlinkRosterSync] ${rosterSnap.ref.path}: ClassLink did not confirm the owner teaches this class; skipping`
     );
