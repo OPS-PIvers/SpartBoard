@@ -41,6 +41,7 @@ import {
   RosterToolbar,
 } from '@/components/widgets/QuizWidget/components/monitor/RosterParts';
 import type { MonitorRosterPrefs } from '@/components/widgets/QuizWidget/components/monitor/rosterStyles';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { FlashcardCheckRoster } from './FlashcardCheckRoster';
 import {
   FLASHCARD_TOOLBAR_ANCHORS,
@@ -91,6 +92,8 @@ interface FlashcardMonitorProps {
 type Screen = 'home' | 'cards' | 'speaking';
 
 const NO_PREFS: MonitorRosterPrefs = {};
+// Same header colour as the Flashcards library, so the widget reads as one piece.
+const FLASHCARDS_ACCENT = LIBRARY_HEADER_ACCENTS.flashcards ?? '#be185d';
 const noop = () => undefined;
 
 const flagAcceptTourId = 'flashcards.flag-accept' as const;
@@ -612,8 +615,9 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   return (
     <div className="relative flex h-full w-full flex-col bg-white text-brand-gray-dark">
       <div
-        className="flex shrink-0 items-center bg-brand-blue-primary text-white"
+        className="flex shrink-0 items-center text-white"
         style={{
+          backgroundColor: FLASHCARDS_ACCENT,
           gap: 'min(8px, 2cqmin)',
           padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
         }}
@@ -644,11 +648,10 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
         </p>
         <span
           className={`shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider ${
-            ended
-              ? 'bg-white/20 text-white'
-              : 'bg-white text-brand-blue-primary'
+            ended ? 'bg-white/20 text-white' : 'bg-white'
           }`}
           style={{
+            color: ended ? undefined : FLASHCARDS_ACCENT,
             fontSize: 'min(10px, 3.5cqmin)',
             padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
           }}
