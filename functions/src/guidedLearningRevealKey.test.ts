@@ -46,6 +46,7 @@ function world(over: { session?: Doc; assignment?: Doc } = {}) {
     [ASSIGNMENT]: {
       scoreVisibility: 'score-responses-and-answers',
       revealedAnswers: KEY,
+      lateRevealIds: ['u1'],
       ...over.assignment,
     },
     [RESPONSE]: { completedAt: 5, answers: [] },
@@ -68,6 +69,16 @@ describe('applyLateRevealKey', () => {
       world({ session: { scoreVisibility: 'score-and-responses' } }),
       world({ session: { scoreVisibility: undefined } }),
       world({ assignment: { revealedAnswers: undefined } }),
+    ]) {
+      await expect(turnIn(docs)).resolves.toBe(false);
+      expect(docs[RESPONSE]).not.toHaveProperty('revealedAnswers');
+    }
+  });
+
+  it('withholds the key from a response not started before the publish', async () => {
+    for (const docs of [
+      world({ assignment: { lateRevealIds: ['someone-else'] } }),
+      world({ assignment: { lateRevealIds: undefined } }),
     ]) {
       await expect(turnIn(docs)).resolves.toBe(false);
       expect(docs[RESPONSE]).not.toHaveProperty('revealedAnswers');
