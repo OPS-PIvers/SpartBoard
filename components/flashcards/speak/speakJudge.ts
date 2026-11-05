@@ -290,6 +290,10 @@ export const judgedRef = (
   judgement: SpeakJudgement
 ): FlashcardSpeakReference | undefined =>
   // Marks from a voice reference are already placed on its dialect's espeak reference.
+  (judgement.refIndex !== undefined &&
+  refs[judgement.refIndex]?.dialect === judgement.dialect
+    ? refs[judgement.refIndex]
+    : undefined) ??
   refs.find(
     (ref) =>
       ref.dialect === judgement.dialect &&

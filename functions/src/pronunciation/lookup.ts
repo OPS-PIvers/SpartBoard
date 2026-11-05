@@ -19,6 +19,12 @@ import {
 } from './stressReference';
 import { tokenizeIpa, type TokenizeSuccess } from './tokenizeIpa';
 import {
+  MAX_IPA_READINGS,
+  filledIpaReadings,
+  ipaReadingsOf,
+  ipaValueOf,
+} from './ipaReadings';
+import {
   createVoiceReader,
   voiceReference,
   VoiceServiceError,
@@ -93,12 +99,18 @@ export function parseLookupInput(raw: unknown): SpeakLookupInput {
     if (ipaOverride === undefined) return { cardId, term };
     if (!isRecord(ipaOverride)) return bad('ipaOverride must be an object.');
     const override: Partial<Record<SpeakDialect, string>> = {};
-    for (const [d, ipa] of Object.entries(ipaOverride)) {
+    for (const [d, value] of Object.entries(ipaOverride)) {
       if (!allowed.includes(d as SpeakDialect))
         return bad('ipaOverride has a dialect outside the language.');
-      if (typeof ipa !== 'string' || ipa.length > MAX_IPA_LENGTH)
+      const readings = typeof value === 'string' ? ipaReadingsOf(value) : null;
+      if (
+        !readings ||
+        readings.length > MAX_IPA_READINGS ||
+        readings.some((ipa) => ipa.length > MAX_IPA_LENGTH)
+      )
         return bad('ipaOverride values must be short strings.');
-      if (ipa.trim()) override[d as SpeakDialect] = ipa;
+      const kept = ipaValueOf(filledIpaReadings(value));
+      if (kept !== undefined) override[d as SpeakDialect] = kept;
     }
     return Object.keys(override).length > 0
       ? { cardId, term, ipaOverride: override }
@@ -349,9 +361,13 @@ function lookupCard(
   const refs: FlashcardSpeakReference[] = [];
   const reasons = new Set<FlashcardSpeakReason>();
   for (const dialect of input.dialects) {
-    const override = card.ipaOverride?.[dialect];
+    const overrides = filledIpaReadings(card.ipaOverride?.[dialect]);
     // A teacher's IPA stands for the card in that accent, so its other variants aren't looked up there.
-    for (const text of override === undefined ? fitting : fitting.slice(0, 1)) {
+    const reads: Array<{ text: string; override?: string }> =
+      overrides.length === 0
+        ? fitting.map((text) => ({ text }))
+        : overrides.map((override) => ({ text: fitting[0], override }));
+    for (const { text, override } of reads) {
       const result = lookupDialect(
         phonemizer,
         input.language,

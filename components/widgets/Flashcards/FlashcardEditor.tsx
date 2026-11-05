@@ -56,6 +56,7 @@ import {
   type SpeakIpaDrafts,
 } from './speak/speakEditorState';
 import { useVoiceFillProgress } from './speak/speakVoiceFill';
+import type { SpeakIpaOverride } from '@/utils/pronunciation/ipaReadings';
 
 interface FlashcardEditorProps {
   initialSet: FlashcardSet;
@@ -69,10 +70,7 @@ interface FlashcardEditorProps {
 interface SpeakRowProps {
   dialects: readonly SpeakDialect[];
   ipaDrafts: SpeakIpaDrafts;
-  onIpaChange: (
-    cardId: string,
-    ipa: Partial<Record<SpeakDialect, string>>
-  ) => void;
+  onIpaChange: (cardId: string, ipa: SpeakIpaOverride) => void;
   onConfirm: (cardId: string) => void;
 }
 

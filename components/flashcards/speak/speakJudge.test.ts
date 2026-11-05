@@ -166,6 +166,17 @@ describe('phrase variants', () => {
     expect(refText(guia, ref)).toBe('la guía');
   });
 
+  it('marks letters on the teacher reading the student said', () => {
+    const first: FlashcardSpeakReference = {
+      dialect: 'es-419',
+      tokens: ['p', 'e', 'r', 'o'],
+      stress: [0],
+    };
+    const second: FlashcardSpeakReference = { ...first, stress: [1] };
+    const judgement = { dialect: 'es-419', refIndex: 1 } as SpeakJudgement;
+    expect(judgedRef([first, second], judgement)).toBe(second);
+  });
+
   it('falls back to the first variant for a reference without text', () => {
     expect(refText(card(), perroRef)).toBe('perro');
   });

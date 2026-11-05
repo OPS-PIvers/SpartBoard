@@ -54,6 +54,13 @@ const PERRO = ['p', 'e', 'r', 'o'];
 const PERO = ['p', 'e', 'ɾ', 'o'];
 const kinds = (r: ReturnType<typeof judge>) => r.entries.map((e) => e.kind);
 
+describe('matched reference', () => {
+  it('names the reading the student matched among same-dialect refs', () => {
+    expect(judge([ref(PERRO), ref(PERO)], PERO).refIndex).toBe(1);
+    expect(judge([ref(PERRO), ref(PERO)], PERRO).refIndex).toBe(0);
+  });
+});
+
 describe('§4.1 classification rows', () => {
   it('a matching take is Exact', () => {
     const r = judge([ref(PERRO)], PERRO);

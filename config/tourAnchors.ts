@@ -10455,6 +10455,21 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards-speak-editor.ipa-hear-it': {
+    label: 'Hear it button beside a pronunciation box in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.ipa-add': {
+    label: 'Add another pronunciation link in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.ipa-remove': {
+    label: 'Remove pronunciation button in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
   'flashcards.add-card': {
     label: 'Add card button in the Flashcards editor',
     perWidgetType: true,

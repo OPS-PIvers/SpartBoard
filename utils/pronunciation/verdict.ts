@@ -72,6 +72,8 @@ export interface SpeakJudgement {
   tally: SpeakSoundTally;
   /** The matched reference's `text`, when it isn't the term's first variant. */
   text?: string;
+  /** Index in the judged refs of the reference the marks sit on (several teacher readings share a dialect). */
+  refIndex?: number;
 }
 
 const VERDICT_RANK: Record<Exclude<SpeakVerdict, 'unclear'>, number> = {
@@ -270,9 +272,19 @@ export function judgeSpeech(input: SpeakJudgeInput): SpeakJudgement {
       : top
   );
   const result = onLetterRef(best.ref, best.result, input.refs);
+  const markRef =
+    best.ref.source === 'voice'
+      ? (input.refs.find(
+          (r) =>
+            r.dialect === best.ref.dialect &&
+            r.text === best.ref.text &&
+            r.source !== 'voice'
+        ) ?? best.ref)
+      : best.ref;
+  const withRef = { ...result, refIndex: input.refs.indexOf(markRef) };
   return best.ref.text === undefined
-    ? result
-    : { ...result, text: best.ref.text };
+    ? withRef
+    : { ...withRef, text: best.ref.text };
 }
 
 // A voice reference has no letter spans, so its marks move onto the dialect's espeak reference.

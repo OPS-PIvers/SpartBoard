@@ -30,6 +30,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   listQuizMediaForOrgAdmin: 'read',
   listSpeakWordsToCheckV1: 'read',
   lookupSpeakReferencesV1: 'read',
+  hearSpeakIpaV1: 'read',
   ltiResolveNamesForAssignmentV1: 'read',
   ltiSuggestClassLinkMatchV1: 'read',
   ltiToolColumnCategoriesV1: 'read',

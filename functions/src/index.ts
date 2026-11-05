@@ -165,6 +165,7 @@ export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
 // ── Flashcards Speak reference lookup (docs/multilingual-pronunciation-engine.md S3) ─
 export { lookupSpeakReferencesV1 } from './pronunciation/lookup';
+export { hearSpeakIpaV1 } from './pronunciation/hearIpa';
 export { listSpeakWordsToCheckV1 } from './pronunciation/wordsToCheck';
 
 // ── Video Activity answer key (server-graded; key kept off session docs) ────

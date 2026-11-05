@@ -9485,7 +9485,7 @@ export interface FlashcardCardSpeak {
   dialects?: SpeakDialect[];
   /** Teacher confirmed a needs-review card. */
   confirmedAt?: number;
-  /** Advanced panel. */
+  /** Advanced panel: per accent, one IPA reading or several joined by "|". */
   ipaOverride?: Partial<Record<SpeakDialect, string>>;
 }
 
