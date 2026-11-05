@@ -40,8 +40,7 @@ export const FlashcardCheckRoster: React.FC<{
   onUpdatePrefs: (updates: Partial<MonitorRosterPrefs>) => void;
   letInFor: (studentUid: string) => (() => void) | undefined;
   onRemove: (studentUid: string) => void;
-  /** Flashcards-only lines under a row, e.g. flagged answers to accept or dismiss. */
-  /** Lines a student has below the row, so anchor numbering is worked out up front. */
+  /** Flagged answers a student has, so anchor numbering is worked out up front. */
   belowCount: (studentUid: string) => number;
   renderBelow: (studentUid: string, firstIndex: number) => React.ReactNode;
 }> = ({
@@ -60,7 +59,11 @@ export const FlashcardCheckRoster: React.FC<{
   const showScores = (prefs.monitorShowScores ?? false) && bucket === 'done';
   const showProf = (prefs.monitorShowProficiency ?? false) && bucket === 'done';
   const rows = orderFlashcardRoster(students, nameFor, prefs, showToolbar);
-  const total = session.cards.length;
+  const testCount = session.lockedSettings?.testCount;
+  const total =
+    session.checkMode === 'test' && typeof testCount === 'number'
+      ? Math.min(testCount, session.cards.length)
+      : session.cards.length;
   const firstBelow = rows.reduce<number[]>(
     (starts, s, i) => [
       ...starts,

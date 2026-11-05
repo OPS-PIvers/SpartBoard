@@ -4,7 +4,10 @@ import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { FlashcardAssignment, FlashcardSession } from '@/types';
-import type { FlashcardResultRecord } from '@/utils/flashcardResults';
+import {
+  checkCardsDone,
+  type FlashcardResultRecord,
+} from '@/utils/flashcardResults';
 import type { MonitorRosterPrefs } from '@/components/widgets/QuizWidget/components/monitor/rosterStyles';
 import { FlashcardMonitor } from './FlashcardMonitor';
 
@@ -226,5 +229,35 @@ describe('FlashcardMonitor quiz style', () => {
         'Correct answers appear in results after the session ends.'
       )
     ).not.toBeInTheDocument();
+  });
+
+  it('puts students with flagged answers first under the name sort', () => {
+    show();
+    fireEvent.click(bucket('Done'));
+    const order = screen
+      .getAllByText(/^(Ana Zed|Ben Young)$/)
+      .map((n) => n.textContent);
+    expect(order).toEqual(['Ben Young', 'Ana Zed']);
+  });
+
+  it('keeps per-card pass rates for Speak checks', () => {
+    show({ session: session({ checkMode: 'speak' }) });
+    fireEvent.click(screen.getByRole('button', { name: /Card results/ }));
+    expect(screen.queryByText('Card 1')).not.toBeInTheDocument();
+    expect(screen.getByText(/2 of 2 correct/)).toBeInTheDocument();
+  });
+});
+
+describe('checkCardsDone', () => {
+  it('counts Test answers that never set done', () => {
+    expect(
+      checkCardsDone({
+        studentUid: 'x',
+        checkLog: {
+          c1: { response: 'one', attempts: 0, done: false },
+          c2: { response: '', attempts: 0, done: false },
+        },
+      })
+    ).toBe(1);
   });
 });

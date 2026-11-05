@@ -30,16 +30,22 @@ export interface FlashcardRosterStudent {
   score: number | null;
   /** Cards finished so far, for "Q3" in the In progress list. */
   cardsDone: number;
+  /** Flagged answers waiting for Accept or Dismiss. */
+  openFlags?: number;
 }
 
-/** Sorts and filters by the toolbar, as the Quiz monitor does. */
+/** Sorts and filters by the toolbar, as the Quiz monitor does; flagged students lead the name sort. */
 export const orderFlashcardRoster = <T extends FlashcardRosterStudent>(
   students: readonly T[],
   nameFor: (studentUid: string) => string,
   prefs: MonitorRosterPrefs,
   applyToolbar: boolean
-): T[] =>
-  orderRoster(
+): T[] => {
+  const sortBy = applyToolbar ? (prefs.monitorSortBy ?? 'first') : 'first';
+  // Flashcards never tracks tab switches, so a stored "tabs" filter shows everyone.
+  const filterBy =
+    prefs.monitorFilterBy === 'tabs' ? 'all' : (prefs.monitorFilterBy ?? 'all');
+  const ordered = orderRoster(
     students,
     (s) => ({
       name: nameFor(s.studentUid),
@@ -47,10 +53,14 @@ export const orderFlashcardRoster = <T extends FlashcardRosterStudent>(
       score: s.score === null ? null : Math.round(s.score),
       tabWarnings: 0,
     }),
-    prefs.monitorSortBy ?? 'first',
-    prefs.monitorFilterBy ?? 'all',
+    sortBy,
+    filterBy,
     applyToolbar
   );
+  return sortBy === 'first'
+    ? ordered.sort((a, b) => (b.openFlags ?? 0) - (a.openFlags ?? 0))
+    : ordered;
+};
 
 /** Let in now and Remove student, as in the Quiz monitor's student menu. */
 export const flashcardMenuItems = (

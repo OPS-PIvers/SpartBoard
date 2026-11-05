@@ -46,7 +46,10 @@ export interface FlashcardResultRecord {
   }>;
   flags?: Array<{ cardId: string; response: string; accepted?: boolean }>;
   /** Check answers the student's device saved before submitting. */
-  checkLog?: Record<string, { response: string; done: boolean }>;
+  checkLog?: Record<
+    string,
+    { response: string; attempts?: number; done: boolean }
+  >;
   speak?: Record<string, FlashcardSpeakProgress>;
   speakSounds?: Record<string, { n: number; m: number; f: number }>;
 }
@@ -277,11 +280,19 @@ export const checkCardAccuracy = (
     .sort((a, b) => a.percent - b.percent);
 };
 
-/** Cards a Check student has finished, from the submitted log or the live one. */
+// Test answers never set done and Write sets it only once right, so any try counts as answered.
+const answeredLive = (entry: {
+  response: string;
+  attempts?: number;
+  done: boolean;
+}): boolean =>
+  entry.done || (entry.attempts ?? 0) > 0 || entry.response.trim() !== '';
+
+/** Cards a Check student has answered, from the submitted log or the live one. */
 export const checkCardsDone = (result: FlashcardResultRecord): number =>
   typeof result.submittedAt === 'number' && result.answerLog
     ? result.answerLog.length
-    : Object.values(result.checkLog ?? {}).filter((entry) => entry.done).length;
+    : Object.values(result.checkLog ?? {}).filter(answeredLive).length;
 
 /** One student's answer to one card: the graded one once submitted, else the saved one. */
 const checkAnswerFor = (
@@ -300,7 +311,9 @@ const checkAnswerFor = (
     };
   }
   const saved = result.checkLog?.[cardId];
-  return saved?.done ? { response: saved.response, correct: false } : null;
+  return saved && answeredLive(saved)
+    ? { response: saved.response, correct: false }
+    : null;
 };
 
 export interface FlashcardAnswerGroup {

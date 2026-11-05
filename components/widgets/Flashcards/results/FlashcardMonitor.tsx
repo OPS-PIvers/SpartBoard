@@ -211,6 +211,8 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   const [busyFlag, setBusyFlag] = useState<string | null>(null);
   const [ending, setEnding] = useState(false);
   const isCheck = session.kind === 'check';
+  // Speak answers have no typed text, so Speak checks keep the per-card pass rates.
+  const quizCards = quizStyle && isCheck && session.checkMode !== 'speak';
   const ended = session.status === 'ended' || assignment.status === 'ended';
 
   const studyRows = useMemo(
@@ -581,6 +583,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
           bucket: key,
           score: row.percent,
           cardsDone: result ? checkCardsDone(result) : 0,
+          openFlags: row.openFlags,
         });
       }
     return out;
@@ -764,7 +767,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
           </div>
         )}
 
-        {screen === 'cards' && quizStyle && isCheck && cardIndex === null && (
+        {screen === 'cards' && quizCards && cardIndex === null && (
           <FlashcardCardList
             session={session}
             results={results}
@@ -772,7 +775,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
             onOpen={setCardIndex}
           />
         )}
-        {screen === 'cards' && quizStyle && isCheck && cardIndex !== null && (
+        {screen === 'cards' && quizCards && cardIndex !== null && (
           <FlashcardCardDetail
             session={session}
             results={results}
@@ -781,7 +784,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
           />
         )}
 
-        {screen === 'cards' && !(quizStyle && isCheck) && (
+        {screen === 'cards' && !quizCards && (
           <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
             {isCheck ? (
               accuracy.length === 0 ? (
