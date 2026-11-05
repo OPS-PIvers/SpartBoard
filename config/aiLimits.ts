@@ -21,6 +21,7 @@ export const PROMPT_LIMITED_INTEGRATIONS: readonly string[] = [
   'dashboard-layout',
   'instructional-routine',
   'quiz',
+  'flashcards',
   'ocr',
   'blooms-ai',
   'video-activity-recommend',

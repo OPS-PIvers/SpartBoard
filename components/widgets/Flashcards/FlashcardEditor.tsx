@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useRef, useState } from 'react';
+import { AuthContext } from '@/context/AuthContextValue';
 import { ImportAttributionLine } from '@/components/import/ImportAttributionLine';
 import { useTranslation } from 'react-i18next';
 import {
@@ -26,38 +27,23 @@ import {
   Save,
   Trash2,
 } from 'lucide-react';
-import type {
-  FlashcardCard,
-  FlashcardSet,
-  FlashcardSpeakSettings,
-  FlashcardsSpeakAdminConfig,
-  SpeakDialect,
-  SpeakLanguage,
-} from '@/types';
+import type { FlashcardCard, FlashcardSet } from '@/types';
 import { FlashcardSetTargetsField } from './FlashcardSetTargetsField';
 import { FlashcardLanguageField } from './FlashcardLanguageField';
 import { PasteImportDrawer } from './PasteImportDrawer';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import { AuthContext } from '@/context/AuthContextValue';
 import { speakLanguageOf } from '@/config/pronunciationGroups';
-import { readFlashcardsSpeakAdminConfig } from '@/hooks/useFlashcardSets';
 import { SpeakSettingsPanel } from './speak/SpeakSettingsPanel';
 import { SpeakCardRow } from './speak/SpeakCardStatus';
 import { SpeakReviewList } from './speak/SpeakReviewList';
+import type { SpeakLookupCall } from './speak/lookupSpeakReferences';
+import { ipaDraftFor } from './speak/speakEditorState';
 import {
-  attachSpeakReferences,
-  cardsNeedingLookup,
-  type SpeakLookupCall,
-} from './speak/lookupSpeakReferences';
-import {
-  initialSpeakSettings,
-  ipaDraftFor,
-  settingsFitLanguage,
-  speakForTerm,
-  type SpeakIpaDrafts,
-} from './speak/speakEditorState';
-import { useVoiceFillProgress } from './speak/speakVoiceFill';
-import type { SpeakIpaOverride } from '@/utils/pronunciation/ipaReadings';
+  MAX_FLASHCARDS_PER_SET,
+  cleanFlashcards,
+  useFlashcardEditorState,
+  type SpeakRowProps,
+} from './useFlashcardEditorState';
 
 interface FlashcardEditorProps {
   initialSet: FlashcardSet;
@@ -66,13 +52,6 @@ interface FlashcardEditorProps {
   onSave: (set: FlashcardSet) => Promise<void>;
   /** Tests inject the reference lookup. */
   speakLookup?: SpeakLookupCall;
-}
-
-interface SpeakRowProps {
-  dialects: readonly SpeakDialect[];
-  ipaDrafts: SpeakIpaDrafts;
-  onIpaChange: (cardId: string, ipa: SpeakIpaOverride) => void;
-  onConfirm: (cardId: string) => void;
 }
 
 interface SortableCardRowProps {
@@ -84,7 +63,7 @@ interface SortableCardRowProps {
   speak: SpeakRowProps | null;
 }
 
-const SortableCardRow: React.FC<SortableCardRowProps> = ({
+export const SortableCardRow: React.FC<SortableCardRowProps> = ({
   card,
   index,
   onChange,
@@ -226,12 +205,6 @@ const SortableCardRow: React.FC<SortableCardRowProps> = ({
   );
 };
 
-const newCard = (): FlashcardCard => ({
-  id: crypto.randomUUID(),
-  term: '',
-  definition: '',
-});
-
 export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
   initialSet,
   saving,
@@ -240,74 +213,42 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
   speakLookup,
 }) => {
   const { t } = useTranslation();
-  const auth = useContext(AuthContext);
-  const canSpeak = auth?.canAccessFeature('flashcards-speak') ?? false;
-  const canTag = auth?.canAccessFeature('flashcards-assign-v2') ?? false;
-  const [title, setTitle] = useState(initialSet.title);
-  const [description, setDescription] = useState(initialSet.description ?? '');
-  const [targets, setTargets] = useState(initialSet.targets);
-  const [termLanguage, setTermLanguage] = useState(initialSet.termLanguage);
-  const [definitionLanguage, setDefinitionLanguage] = useState(
-    initialSet.definitionLanguage
-  );
-  const [cards, setCards] = useState<FlashcardCard[]>(
-    initialSet.cards.length > 0 ? initialSet.cards : [newCard(), newCard()]
-  );
+  const state = useFlashcardEditorState(initialSet, speakLookup);
+  const canTag =
+    useContext(AuthContext)?.canAccessFeature('flashcards-assign-v2') ?? false;
+  const {
+    canSpeak,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    targets,
+    setTargets,
+    termLanguage,
+    setTermLanguage,
+    definitionLanguage,
+    setDefinitionLanguage,
+    cards,
+    setCards,
+    error,
+    setError,
+    notice,
+    speakSettings,
+    setSpeakSettings,
+    speakOn,
+    speakRow,
+    confirmSpeakCard,
+    checkingCount,
+    voiceFill,
+    updateCard,
+    insertCardAfter,
+    removeCard,
+    appendCards,
+    lookupReferences,
+    composeSet,
+  } = state;
   const [pasteOpen, setPasteOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [speakAdmin, setSpeakAdmin] =
-    useState<FlashcardsSpeakAdminConfig | null>(null);
-  // Speak settings the teacher has touched, keyed by the language they were made for.
-  const [speakEdit, setSpeakEdit] = useState<{
-    language: SpeakLanguage;
-    settings: FlashcardSpeakSettings;
-  } | null>(null);
-  const [ipaDrafts, setIpaDrafts] = useState<SpeakIpaDrafts>({});
-  const [checkingCount, setCheckingCount] = useState(0);
   const savingRef = useRef(false);
-
-  const speakLanguage = canSpeak ? speakLanguageOf(termLanguage) : null;
-  const voiceFill = useVoiceFillProgress().get(initialSet.id);
-
-  useEffect(() => {
-    if (!canSpeak) return;
-    let cancelled = false;
-    void readFlashcardsSpeakAdminConfig().then((config) => {
-      if (!cancelled) setSpeakAdmin(config);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [canSpeak]);
-
-  const savedSpeak =
-    speakLanguage && settingsFitLanguage(initialSet.speak, speakLanguage)
-      ? initialSet.speak
-      : undefined;
-  const speakSettings: FlashcardSpeakSettings | null = !speakLanguage
-    ? null
-    : speakEdit?.language === speakLanguage
-      ? speakEdit.settings
-      : speakAdmin
-        ? initialSpeakSettings(termLanguage, savedSpeak, speakAdmin)
-        : null;
-  const speakOn = speakLanguage !== null && speakSettings !== null;
-
-  const setSpeakSettings = (settings: FlashcardSpeakSettings): void => {
-    if (speakLanguage) setSpeakEdit({ language: speakLanguage, settings });
-  };
-
-  const confirmSpeakCard = (id: string): void => {
-    setCards((current) =>
-      current.map((card) => {
-        const speak = speakForTerm(card);
-        return card.id === id && speak
-          ? { ...card, speak: { ...speak, confirmedAt: Date.now() } }
-          : card;
-      })
-    );
-  };
 
   const jumpToCard = (id: string): void => {
     const row = document.querySelector<HTMLElement>(`[data-card-id="${id}"]`);
@@ -317,44 +258,14 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
     });
   };
 
-  const speakRow: SpeakRowProps | null =
-    speakOn && speakSettings
-      ? {
-          dialects: speakSettings.dialects,
-          ipaDrafts,
-          onIpaChange: (cardId, ipa) => {
-            const term = cards.find((card) => card.id === cardId)?.term ?? '';
-            setIpaDrafts((current) => ({
-              ...current,
-              [cardId]: { term: term.trim(), ipa },
-            }));
-          },
-          onConfirm: confirmSpeakCard,
-        }
-      : null;
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const updateCard = (id: string, updates: Partial<FlashcardCard>): void => {
-    setCards((current) =>
-      current.map((card) => (card.id === id ? { ...card, ...updates } : card))
-    );
-  };
-
   const addCardAfter = (index: number): void => {
-    if (cards.length >= 500) {
-      setNotice('A set can contain up to 500 cards.');
-      return;
-    }
-    const card = newCard();
-    setCards((current) => [
-      ...current.slice(0, index + 1),
-      card,
-      ...current.slice(index + 1),
-    ]);
+    const card = insertCardAfter(index);
+    if (!card) return;
     requestAnimationFrame(() => {
       const input = document.querySelector<HTMLTextAreaElement>(
         `[data-card-id="${card.id}"] textarea`
@@ -384,15 +295,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
   };
 
   const saveSet = async (): Promise<void> => {
-    const cleaned = cards
-      .map((card) => {
-        const term = card.term.trim();
-        const next = { ...card, term, definition: card.definition.trim() };
-        // References belong to the term they were computed for.
-        if (next.speak && next.speak.term !== term) delete next.speak;
-        return next;
-      })
-      .filter((card) => card.term !== '' || card.definition !== '');
+    const cleaned = cleanFlashcards(cards);
     if (!title.trim()) {
       setError('Give this set a title.');
       return;
@@ -406,52 +309,10 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
       return;
     }
     setError(null);
-    let savedCards = cleaned.slice(0, 500);
-    if (speakOn && speakLanguage && speakSettings) {
-      const pending = cardsNeedingLookup(
-        savedCards,
-        speakSettings.dialects,
-        ipaDrafts
-      ).length;
-      if (pending > 0) {
-        setCheckingCount(pending);
-        try {
-          savedCards = await attachSpeakReferences(
-            savedCards,
-            speakLanguage,
-            speakSettings.dialects,
-            ipaDrafts,
-            speakLookup
-          );
-        } finally {
-          setCheckingCount(0);
-        }
-        setCards(savedCards);
-        setIpaDrafts({});
-      }
-    }
-    // F22: a set keeps the district defaults until its own Speak settings are first changed.
-    const speak = !speakOn
-      ? initialSet.speak
-      : speakSettings && (speakEdit?.language === speakLanguage || savedSpeak)
-        ? speakSettings
-        : undefined;
-    const {
-      speak: _previousSpeak,
-      targets: _previousTargets,
-      ...rest
-    } = initialSet;
-    await onSave({
-      ...rest,
-      ...(speak ? { speak } : {}),
-      ...(targets?.length ? { targets } : {}),
-      title: title.trim(),
-      description: description.trim(),
-      termLanguage: termLanguage.trim() || 'en-US',
-      definitionLanguage: definitionLanguage.trim() || 'en-US',
-      cards: savedCards,
-      updatedAt: Date.now(),
-    });
+    const savedCards = await lookupReferences(
+      cleaned.slice(0, MAX_FLASHCARDS_PER_SET)
+    );
+    await onSave(composeSet(savedCards));
   };
 
   return (
@@ -697,13 +558,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                       card={card}
                       index={index}
                       onChange={updateCard}
-                      onRemove={(id) =>
-                        setCards((current) =>
-                          current.length === 1
-                            ? [{ ...current[0], term: '', definition: '' }]
-                            : current.filter((entry) => entry.id !== id)
-                        )
-                      }
+                      onRemove={removeCard}
                       onAddAfter={addCardAfter}
                       speak={speakRow}
                     />
@@ -739,20 +594,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
       {pasteOpen && (
         <PasteImportDrawer
           onClose={() => setPasteOpen(false)}
-          onImport={(importedCards) => {
-            setCards((current) => {
-              const withoutEmptyStarter = current.every(
-                (card) => !card.term && !card.definition
-              )
-                ? []
-                : current;
-              const combined = [...withoutEmptyStarter, ...importedCards];
-              if (combined.length > 500) {
-                setNotice('Only the first 500 cards were kept.');
-              }
-              return combined.slice(0, 500);
-            });
-          }}
+          onImport={appendCards}
         />
       )}
     </div>

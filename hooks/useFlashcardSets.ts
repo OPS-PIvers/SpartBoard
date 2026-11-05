@@ -59,7 +59,11 @@ interface UseFlashcardSetsResult {
   loading: boolean;
   error: string | null;
   /** Resolves with the number of open Study assignments rewritten with the new cards. */
-  saveSet: (set: FlashcardSet) => Promise<number>;
+  /** `syncStudy: false` skips refreshing open Study assignments (editor autosave). */
+  saveSet: (
+    set: FlashcardSet,
+    options?: { syncStudy?: boolean }
+  ) => Promise<number>;
   deleteSet: (setId: string) => Promise<void>;
   publishSet: (set: FlashcardSet) => Promise<string>;
   revokeShare: (set: FlashcardSet) => Promise<void>;
@@ -275,7 +279,8 @@ export function useFlashcardSets(
 
   const writeSet = useCallback(
     async (
-      set: FlashcardSet
+      set: FlashcardSet,
+      syncStudy = true
     ): Promise<{ saved: FlashcardSet; rewritten: number }> => {
       if (!userId) throw new Error('Sign in to save flashcard sets.');
       const normalized = fitSpeakToDoc(
@@ -295,6 +300,7 @@ export function useFlashcardSets(
         );
       }
       await batch.commit();
+      if (!syncStudy) return { saved: normalized, rewritten: 0 };
       try {
         return {
           saved: normalized,
@@ -358,11 +364,14 @@ export function useFlashcardSets(
   );
 
   const saveSet = useCallback(
-    (set: FlashcardSet): Promise<number> =>
+    (set: FlashcardSet, options?: { syncStudy?: boolean }): Promise<number> =>
       oneWriteAtATime(`${userId}/${set.id}`, async () => {
         let result: { saved: FlashcardSet; rewritten: number };
         try {
-          result = await writeSet(applyVoiceResults(set));
+          result = await writeSet(
+            applyVoiceResults(set),
+            options?.syncStudy ?? true
+          );
         } catch (err) {
           if (err instanceof FlashcardStudySyncError && canSpeak) {
             startVoiceFill(applyVoiceResults(set), patchVoices(set.id));

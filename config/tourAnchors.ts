@@ -10457,6 +10457,71 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'flashcards-editor.tab-cards': {
+    label: 'Cards tab in the Flashcards set editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.tab-languages': {
+    label: 'Languages tab in the Flashcards set editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.draft-ai': {
+    label: 'Draft with AI (list header) in the Flashcards set editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.footer-draft-ai': {
+    label: 'Draft with AI (footer) in the Flashcards set editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.add-menu': {
+    label: 'More ways to add menu in the Flashcards set editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.add-blank': {
+    label: 'Add-menu item: Blank card in the Flashcards set editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-prompt': {
+    label: 'Topic box in the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-count-dec': {
+    label: 'Fewer cards button in the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-count-inc': {
+    label: 'More cards button in the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-attach-file': {
+    label: 'Attach file in the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-generate': {
+    label: 'Generate Cards button in the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-close': {
+    label: 'Close button on the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.card-row': {
+    label: 'A card in the Flashcards set editor list',
+    perField: true,
+    panel: true,
+  },
   'flashcards.editor-description': {
     label: 'Description box in the Flashcards editor',
     perWidgetType: true,

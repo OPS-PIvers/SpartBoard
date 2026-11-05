@@ -31,6 +31,11 @@ import {
 } from './aiModelConfig';
 import { generateAi, type AiPart } from './aiRouter';
 import { isAiIntegrationId } from './aiIntegrations';
+import {
+  buildFlashcardsPrompt,
+  flashcardDraftCount,
+  validateFlashcardDrafts,
+} from './flashcardsDraftAi';
 import { DEFAULT_MAX_INPUT_CHARS, maxInputCharsFor } from './aiLimits';
 import {
   normalizeTemplateLayout,
@@ -47,6 +52,7 @@ interface AIData {
     | 'ocr'
     | 'quiz'
     | 'blooms-ai'
+    | 'flashcards'
     | 'video-activity-recommend';
   prompt?: string;
   image?: string; // base64 data
@@ -56,6 +62,8 @@ interface AIData {
    * requested. Unspecified types are treated as zero.
    */
   typeCounts?: Partial<Record<QuizGenType, number>>;
+  /** `flashcards` only: how many cards to draft. */
+  count?: number;
   /** Calling widget for shared types (`mini-app`, `ocr`), so each widget has its own admin switch. */
   source?: string;
   /** `mini-app` only: the current code, which turns the request into an edit of it. */
@@ -352,6 +360,8 @@ export function specificFeatureIdFor(
       return 'smart-poll';
     case 'video-activity-recommend':
       return 'video-activity-ai';
+    case 'flashcards':
+      return 'flashcards-ai';
     case 'quiz':
     case 'blooms-ai':
     case 'dashboard-layout':
@@ -1072,6 +1082,10 @@ Worked example (flashcards app with a "Done" button):
             userPrompt: '',
           };
         },
+        flashcards: () => ({
+          systemPrompt: buildFlashcardsPrompt(flashcardDraftCount(data?.count)),
+          userPrompt: `Topic: <topic>${sanitizedUserInput}</topic>`,
+        }),
         'blooms-ai': () => ({
           systemPrompt: `
           You are an expert instructional designer specializing in Bloom's Taxonomy.
@@ -1201,6 +1215,24 @@ Output JSON ONLY in this exact shape:
               ? parsed.title
               : 'AI-generated quiz',
           questions: validatedQuestions,
+          _modelConfigUsedFallback: geminiConfig.usedFallback,
+        };
+      }
+
+      if (genType === 'flashcards') {
+        const cards = validateFlashcardDrafts(
+          parsed.cards,
+          flashcardDraftCount(data?.count)
+        );
+        if (cards.length === 0) {
+          throw new HttpsError(
+            'internal',
+            'The AI did not produce any usable cards. Try a more specific topic.'
+          );
+        }
+        return {
+          title: typeof parsed.title === 'string' ? parsed.title.trim() : '',
+          cards,
           _modelConfigUsedFallback: geminiConfig.usedFallback,
         };
       }
