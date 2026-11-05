@@ -52,6 +52,22 @@ vi.mock('firebase/firestore', () => ({
   increment: (n: number) => ({ __increment: n }),
 }));
 
+// Codes are minted on the server; this stands in, resolving when the pointer read would have.
+vi.mock('firebase/functions', async () => {
+  const { generatePollCode } =
+    await vi.importActual<typeof import('@/utils/pollCode')>(
+      '@/utils/pollCode'
+    );
+  const firestore = await import('firebase/firestore');
+  return {
+    httpsCallable: () => async () => {
+      const code = generatePollCode();
+      await firestore.getDoc({} as never);
+      return { data: { code } };
+    },
+  };
+});
+
 const dialog = vi.hoisted(() => ({
   showConfirm: vi.fn((..._args: unknown[]) => Promise.resolve(true)),
   showPrompt: vi.fn((..._args: unknown[]) =>

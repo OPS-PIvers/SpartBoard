@@ -40,7 +40,7 @@ import {
 } from './classlinkRosterReconcile';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
-  loadTaughtClassEnrollment,
+  loadTeacherClassIds,
   reconcileRosterPinIndex,
   PIN_INDEX_MAX_ENTRIES,
 } from './studentIdentity';
@@ -79,6 +79,8 @@ export interface SyncSettings {
 
 export interface ClassLinkSyncDeps {
   getAccessToken: (uid: string) => Promise<string>;
+  /** Classes ClassLink says the roster owner teaches; null when the owner is not a verified non-student teacher. */
+  getTaughtClassIds: (ownerUid: string) => Promise<ReadonlySet<string> | null>;
   /**
    * `complete: false` means the upstream list may be truncated. Because this
    * job REMOVES students absent from the response, a partial page must never
@@ -100,7 +102,8 @@ export interface ClassLinkSyncDeps {
   reconcilePinIndex: (
     rosterRef: admin.firestore.DocumentReference,
     rosterData: admin.firestore.DocumentData,
-    students: readonly SyncStudent[]
+    students: readonly SyncStudent[],
+    enrolled: ReadonlySet<string>
   ) => Promise<void>;
   now: () => number;
 }
@@ -114,6 +117,7 @@ export interface SyncSummary {
   skippedNoGrant: number;
   skippedNoFile: number;
   skippedTruncated: number;
+  skippedNotTeacher: number;
   blocked: Record<ReconcileBlock, number>;
   conflicts: number;
   errors: number;
@@ -129,6 +133,7 @@ const emptySummary = (): SyncSummary => ({
   skippedNoGrant: 0,
   skippedNoFile: 0,
   skippedTruncated: 0,
+  skippedNotTeacher: 0,
   blocked: { 'empty-upstream': 0, 'mass-removal': 0 },
   conflicts: 0,
   errors: 0,
@@ -202,6 +207,8 @@ export async function runClassLinkRosterSync(
   // uid -> token, or null once we know this teacher has no grant. Keeps a
   // 40-roster teacher from costing 40 identical refresh attempts.
   const tokenCache = new Map<string, string | null>();
+  // uid -> classes ClassLink says they teach (null: not a verified teacher); outages are not cached.
+  const taughtCache = new Map<string, ReadonlySet<string> | null>();
 
   let cursor: admin.firestore.QueryDocumentSnapshot | undefined;
 
@@ -228,7 +235,14 @@ export async function runClassLinkRosterSync(
       }
       summary.scanned += 1;
       try {
-        await syncOneRoster(rosterSnap, deps, settings, summary, tokenCache);
+        await syncOneRoster(
+          rosterSnap,
+          deps,
+          settings,
+          summary,
+          tokenCache,
+          taughtCache
+        );
       } catch (err) {
         summary.errors += 1;
         console.error(
@@ -249,7 +263,8 @@ async function syncOneRoster(
   deps: ClassLinkSyncDeps,
   settings: SyncSettings,
   summary: SyncSummary,
-  tokenCache: Map<string, string | null>
+  tokenCache: Map<string, string | null>,
+  taughtCache: Map<string, ReadonlySet<string> | null>
 ): Promise<void> {
   const data = rosterSnap.data();
   // `DocumentData` values are `any`; keep them opaque until the guards below.
@@ -265,6 +280,24 @@ async function syncOneRoster(
     // Roster was never written to Drive (Drive was down at import time).
     // There are no student names to reconcile against.
     summary.skippedNoFile += 1;
+    return;
+  }
+
+  // The roster doc is client-written, so ClassLink must confirm its owner teaches the class before any fetch.
+  let taught = taughtCache.get(uid);
+  if (taught === undefined) {
+    taught = await deps.getTaughtClassIds(uid);
+    taughtCache.set(uid, taught);
+  }
+  if (!taught?.has(classId)) {
+    summary.skippedNotTeacher += 1;
+    // Sidecar only: no ClassLink fetch, Drive write or roster-doc update.
+    if (!settings.dryRun) {
+      await deps.reconcilePinIndex(rosterSnap.ref, data, [], new Set());
+    }
+    console.warn(
+      `[classlinkRosterSync] ${rosterSnap.ref.path}: ClassLink did not confirm the owner teaches this class; skipping`
+    );
     return;
   }
 
@@ -343,7 +376,12 @@ async function syncOneRoster(
   // Sidecar before Drive and the stamp: a removed student keeping their pin_index
   // entry would still pass the PIN→SSO gate, and a failure here must leave the
   // roster changed so the next run retries it.
-  await deps.reconcilePinIndex(rosterSnap.ref, data, result.students);
+  const enrolled = new Set(
+    upstream.students
+      .map((u) => u.sourcedId)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+  );
+  await deps.reconcilePinIndex(rosterSnap.ref, data, result.students, enrolled);
 
   const describe = (c: { firstName: string; lastName: string }): string =>
     `${c.firstName} ${c.lastName}`.trim();
@@ -497,42 +535,30 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
 
     getDriveVersion: driveGetVersion,
 
-    reconcilePinIndex: async (rosterRef, rosterData, students) => {
-      // The roster doc is owner-written, so ClassLink must confirm the owner teaches the class.
-      const ownerUid = rosterRef.parent.parent?.id ?? '';
-      const owner = ownerUid
-        ? await admin
-            .auth()
-            .getUser(ownerUid)
-            .catch((err: unknown) => {
-              // Only a missing owner prunes; a transient Auth error must not wipe the index.
-              if ((err as { code?: string })?.code === 'auth/user-not-found') {
-                return null;
-              }
-              throw err;
-            })
-        : null;
-      const enrolled =
-        owner?.email && owner.emailVerified
-          ? await loadTaughtClassEnrollment(
-              owner.email,
-              String(rosterData.classlinkClassId ?? ''),
-              {
-                classlinkClientId: clientId,
-                classlinkClientSecret: clientSecret,
-                tenantUrl,
-              }
-            )
-          : null;
-      if (!enrolled) {
-        console.warn(
-          `[classlinkRosterSync] ${rosterRef.path}: ClassLink did not confirm the owner teaches this class; clearing its PIN index`
-        );
-      }
+    getTaughtClassIds: async (ownerUid) => {
+      const owner = await admin
+        .auth()
+        .getUser(ownerUid)
+        .catch((err: unknown) => {
+          // Only a missing owner is a verdict; a transient Auth error must not skip or wipe anything.
+          if ((err as { code?: string })?.code === 'auth/user-not-found') {
+            return null;
+          }
+          throw err;
+        });
+      if (!owner?.email || !owner.emailVerified) return null;
+      return loadTeacherClassIds(owner.email, {
+        classlinkClientId: clientId,
+        classlinkClientSecret: clientSecret,
+        tenantUrl,
+      });
+    },
+
+    reconcilePinIndex: async (rosterRef, rosterData, students, enrolled) => {
       const entries = students
         .filter(
           (s) =>
-            s.classLinkSourcedId && s.pin && enrolled?.has(s.classLinkSourcedId)
+            s.classLinkSourcedId && s.pin && enrolled.has(s.classLinkSourcedId)
         )
         .slice(0, PIN_INDEX_MAX_ENTRIES)
         .map((s) => ({
@@ -591,6 +617,7 @@ export const classlinkRosterSync = onSchedule(
         `unchanged=${summary.unchanged} +${summary.added}/-${summary.removed} ` +
         `noGrant=${summary.skippedNoGrant} noFile=${summary.skippedNoFile} ` +
         `truncated=${summary.skippedTruncated} ` +
+        `notTeacher=${summary.skippedNotTeacher} ` +
         `blocked=${JSON.stringify(summary.blocked)} ` +
         `conflicts=${summary.conflicts} errors=${summary.errors} ` +
         `budgetExhausted=${summary.budgetExhausted}`

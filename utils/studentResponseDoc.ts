@@ -1,6 +1,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
+import { readOwnMiniAppSubmission } from '@/utils/miniAppResults';
 import {
   KIND_CONFIG,
   type AssignmentSummary,
@@ -101,6 +102,8 @@ export async function readStudentResponseDoc(
     strategy === 'assignment-pseudonym'
       ? await getCachedPseudonym(assignment.sessionId, pseudonymUid)
       : pseudonymUid;
+  if (assignment.kind === 'mini-app')
+    return readOwnMiniAppSubmission(assignment.sessionId, docId);
   const snap = await getDoc(
     doc(
       db,

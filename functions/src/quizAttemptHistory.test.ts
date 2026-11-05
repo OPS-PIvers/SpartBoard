@@ -418,7 +418,7 @@ describe('applyAttemptGradeWrite', () => {
   it('rescores the Gradebook row’s copy of an earlier attempt too', async () => {
     const stub = await rescoreEarlierAttempt(true);
     expect(stub.get(ROW)?.attempts).toEqual(stub.get(SCORES)?.attempts);
-    expect(stub.get('grade_index_sessions/qs1')).toMatchObject({
+    expect(stub.get('grade_index_sessions/quiz__qs1')).toMatchObject({
       kind: 'quiz',
     });
   });
@@ -426,7 +426,7 @@ describe('applyAttemptGradeWrite', () => {
   it("never writes quiz scores into another kind's row at the same id", async () => {
     const stub = await rescoreEarlierAttempt(true, 'projects');
     expect(stub.get(ROW)?.attempts).toEqual(ROW_ATTEMPTS);
-    expect(stub.get('grade_index_sessions/qs1')).toMatchObject({
+    expect(stub.get('grade_index_sessions/quiz__qs1')).toMatchObject({
       kind: 'quiz',
     });
   });
@@ -434,7 +434,7 @@ describe('applyAttemptGradeWrite', () => {
   it('leaves the Gradebook row alone while the index is off', async () => {
     const stub = await rescoreEarlierAttempt(false);
     expect(stub.get(ROW)?.attempts).toEqual(ROW_ATTEMPTS);
-    expect(stub.get('grade_index_sessions/qs1')).toBeUndefined();
+    expect(stub.get('grade_index_sessions/quiz__qs1')).toBeUndefined();
   });
 
   it('ignores open copies and writes that leave grading alone', async () => {

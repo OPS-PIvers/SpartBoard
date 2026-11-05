@@ -138,6 +138,7 @@ function world(
 describe('handleScoreQuizOnSubmit', () => {
   it('scores a completed attempt and marks each answer', async () => {
     const docs = world({
+      session: { scoreVisibility: 'score-and-responses' },
       response: {
         answers: [
           { questionId: 'q1', answer: 'Rome', answeredAt: 1 },
@@ -154,6 +155,56 @@ describe('handleScoreQuizOnSubmit', () => {
         (a) => a.isCorrect
       )
     ).toEqual([false, true]);
+  });
+
+  it.each([undefined, 'none', 'score-only'])(
+    'stores the score with no right/wrong when results are at %s',
+    async (level) => {
+      const docs = world({
+        session: level ? { scoreVisibility: level } : {},
+        response: {
+          answers: [
+            {
+              questionId: 'q1',
+              answer: 'Rome',
+              answeredAt: 1,
+              isCorrect: true,
+            },
+            { questionId: 'q2', answer: 'Azure', answeredAt: 2 },
+          ],
+        },
+      });
+      await expect(
+        handleScoreQuizOnSubmit(makeDb(docs), 'stu', { sessionId: 's1' })
+      ).resolves.toEqual({ score: 50 });
+      expect(docs[RESPONSE].score).toBe(50);
+      for (const a of docs[RESPONSE].answers as Doc[])
+        expect(a).not.toHaveProperty('isCorrect');
+    }
+  );
+
+  it('follows a per-student override over the class level', async () => {
+    const shown = world({
+      response: {
+        resultsOverride: {
+          mode: 'shown',
+          visibility: 'score-responses-and-answers',
+        },
+      },
+    });
+    await handleScoreQuizOnSubmit(makeDb(shown), 'stu', { sessionId: 's1' });
+    expect((shown[RESPONSE].answers as Doc[]).map((a) => a.isCorrect)).toEqual([
+      true,
+      true,
+    ]);
+
+    const hidden = world({
+      session: { scoreVisibility: 'score-responses-and-answers' },
+      response: { resultsOverride: { mode: 'hidden' } },
+    });
+    await handleScoreQuizOnSubmit(makeDb(hidden), 'stu', { sessionId: 's1' });
+    for (const a of hidden[RESPONSE].answers as Doc[])
+      expect(a).not.toHaveProperty('isCorrect');
   });
 
   it('does nothing when the setting is off', async () => {

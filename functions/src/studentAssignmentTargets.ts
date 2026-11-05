@@ -87,6 +87,8 @@ import {
 } from './studentEmailIdentity';
 import {
   ALLOWED_ORIGINS,
+  CLASSLINK_TIMEOUT_MS,
+  CLASSLINK_TOTAL_BUDGET_MS,
   ONEROSTER_BASE,
   computeStudentUid,
   getOAuthHeaders,
@@ -145,10 +147,17 @@ export const MAX_TARGET_REFS = 250;
  */
 export const MAX_STORED_TARGET_REFS = 2000;
 export const MAX_OWNED_CLASSES = 20;
+/** Safety ceiling when every class a teacher teaches is read; past it the read fails rather than return part of the roster. */
+export const MAX_TAUGHT_CLASSES = 200;
+/** Classes whose students are fetched at once. */
+const CLASS_FETCH_CONCURRENCY = 10;
 /** Narrowed classes per call; far above any real class list. */
 export const MAX_STUDENT_TARGET_CLASSES = 100;
 const ROSTER_SCAN_LIMIT = 100;
-const BATCH_OP_LIMIT = 400;
+const POINTER_TX_CHUNK = 200;
+/** OneRoster page size and ceiling (25 x 200 students) when listing a class. */
+const ONEROSTER_PAGE_LIMIT = 200;
+const ONEROSTER_MAX_PAGES = 25;
 const GET_ALL_CHUNK = 100;
 
 export type StudentTargetRef =
@@ -716,14 +725,64 @@ export function computeSessionCloseAt(
   return max;
 }
 
-async function chunkedCommit(
+/** One pointer write (`payload`) or delete, applied only against what the transaction re-reads. */
+interface PointerOp {
+  uid: string;
+  ref: admin.firestore.DocumentReference;
+  payload?: Record<string, unknown>;
+  /** A refresh edits a pointer that still exists; it never creates one. */
+  requireExisting?: boolean;
+}
+
+/** Re-reads each pointer in a transaction; the uids whose pointer another teacher owns are returned untouched. */
+async function commitPointerOps(
   db: admin.firestore.Firestore,
-  ops: ((batch: admin.firestore.WriteBatch) => void)[]
+  ops: PointerOp[],
+  callerUid: string,
+  kind: AssignmentKind
+): Promise<Set<string>> {
+  const conflicts = new Set<string>();
+  for (let i = 0; i < ops.length; i += POINTER_TX_CHUNK) {
+    const chunk = ops.slice(i, i + POINTER_TX_CHUNK);
+    const found = await db.runTransaction(async (tx) => {
+      const snaps = await Promise.all(chunk.map((op) => tx.get(op.ref)));
+      const lost = new Set<string>();
+      chunk.forEach((op, index) => {
+        const snap = snaps[index];
+        if (snap.exists) {
+          const foreign =
+            snap.get('teacherUid') !== callerUid ||
+            (typeof snap.get('kind') === 'string' && snap.get('kind') !== kind);
+          if (foreign) {
+            lost.add(op.uid);
+            return;
+          }
+        }
+        if (!op.payload) {
+          if (snap.exists) tx.delete(op.ref);
+        } else if (snap.exists || !op.requireExisting) {
+          tx.set(op.ref, op.payload, { merge: true });
+        }
+      });
+      return lost;
+    });
+    for (const uid of found) conflicts.add(uid);
+  }
+  return conflicts;
+}
+
+/** Reads pointer docs into `into`, keyed by the student uid in each path. */
+async function readPointers(
+  db: admin.firestore.Firestore,
+  refs: admin.firestore.DocumentReference[],
+  into: Map<string, Record<string, unknown>>
 ): Promise<void> {
-  for (let i = 0; i < ops.length; i += BATCH_OP_LIMIT) {
-    const batch = db.batch();
-    for (const op of ops.slice(i, i + BATCH_OP_LIMIT)) op(batch);
-    await batch.commit();
+  for (let i = 0; i < refs.length; i += GET_ALL_CHUNK) {
+    const snaps = await db.getAll(...refs.slice(i, i + GET_ALL_CHUNK));
+    for (const snap of snaps) {
+      const data = snap.data();
+      if (data) into.set(snap.ref.parent.parent?.id ?? '', data);
+    }
   }
 }
 
@@ -794,12 +853,12 @@ export async function handleSetAssignmentTargets(
   // Absent `excludedTargets` ⇒ an empty set ⇒ byte-identical behaviour to a
   // client that never sends the field.
   const excludedKeys = new Set((input.excludedTargets ?? []).map(refKey));
-  const excludedResult = resolveTargets(
+  const excludedResolved = resolveTargets(
     input.excludedTargets ?? [],
     ctx,
     hmacSecret
   );
-  const addResult = resolveTargets(
+  const addResolved = resolveTargets(
     input.add.filter((ref) => !excludedKeys.has(refKey(ref))),
     ctx,
     hmacSecret
@@ -811,6 +870,42 @@ export async function handleSetAssignmentTargets(
       .doc(uid)
       .collection(STUDENT_ASSIGNMENT_ITEMS)
       .doc(input.assignmentId);
+
+  // Pointers are keyed by assignment id alone, so a same-id assignment of another teacher may hold one.
+  const pointerByUid = new Map<string, Record<string, unknown>>();
+  const pointerReads = [
+    ...new Set([
+      ...addResolved.resolved.map((t) => t.uid),
+      ...excludedResolved.resolved.map((t) => t.uid),
+      ...input.remove.map((ref) => uidForRef(ref, hmacSecret)),
+    ]),
+  ].map(itemsPath);
+  await readPointers(db, pointerReads, pointerByUid);
+  const isForeign = (uid: string): boolean => {
+    const pointer = pointerByUid.get(uid);
+    if (!pointer) return false;
+    return (
+      pointer.teacherUid !== callerUid ||
+      (typeof pointer.kind === 'string' && pointer.kind !== input.kind)
+    );
+  };
+  const withoutForeign = (r: {
+    resolved: ResolvedTarget[];
+    skipped: SetAssignmentTargetsResult['skipped'];
+  }) => ({
+    resolved: r.resolved.filter((t) => !isForeign(t.uid)),
+    skipped: [
+      ...r.skipped,
+      ...r.resolved
+        .filter((t) => isForeign(t.uid))
+        .map((t) => ({
+          ref: t.ref,
+          reason: 'not-in-teacher-classes' as const,
+        })),
+    ],
+  });
+  const addResult = withoutForeign(addResolved);
+  const excludedResult = withoutForeign(excludedResolved);
 
   // The authoritative post-call target set: what the doc already recorded,
   // minus this call's removals, plus the refs that resolved. This — not the
@@ -849,6 +944,8 @@ export async function handleSetAssignmentTargets(
   const removeUids = [
     ...new Set(input.remove.map((ref) => uidForRef(ref, hmacSecret))),
   ].filter((uid) => !addedUids.has(uid) && !excludedUids.has(uid));
+  // Only a pointer this caller fanned out is deleted; another teacher's survives.
+  const deletableRemoveUids = removeUids.filter((uid) => !isForeign(uid));
 
   // F1: an already-targeted student never appears in `add` (the client sends a
   // strict diff), so an override edit or a window change would otherwise never
@@ -1025,20 +1122,14 @@ export async function handleSetAssignmentTargets(
     Record<string, unknown> & { override?: StudentOverride | null }
   >();
   const existingExcludedByUid = new Map<string, Record<string, unknown>>();
-  const readRefs = [
-    ...admitted,
-    ...refreshTargets,
-    ...excludedResult.resolved,
-  ].map((t) => itemsPath(t.uid));
-  for (let i = 0; i < readRefs.length; i += GET_ALL_CHUNK) {
-    const snaps = await db.getAll(...readRefs.slice(i, i + GET_ALL_CHUNK));
-    for (const snap of snaps) {
-      const data = snap.data();
-      if (!data) continue;
-      const uid = snap.ref.parent.parent?.id ?? '';
-      existingByUid.set(uid, data);
-      if (excludedUids.has(uid)) existingExcludedByUid.set(uid, data);
-    }
+  const readRefs = [...admitted, ...refreshTargets, ...excludedResult.resolved]
+    .filter((t) => !pointerByUid.has(t.uid))
+    .map((t) => itemsPath(t.uid));
+  const latestByUid = new Map(pointerByUid);
+  await readPointers(db, readRefs, latestByUid);
+  for (const [uid, data] of latestByUid) {
+    existingByUid.set(uid, data);
+    if (excludedUids.has(uid)) existingExcludedByUid.set(uid, data);
   }
 
   /** The mutable half of a pointer write, shared by adds and refreshes. */
@@ -1071,7 +1162,7 @@ export async function handleSetAssignmentTargets(
   };
 
   const now = Date.now();
-  const ops: ((batch: admin.firestore.WriteBatch) => void)[] = [];
+  const ops: PointerOp[] = [];
   for (const target of admitted) {
     const storedCreatedAt = existingByUid.get(target.uid)?.createdAt;
     const payload: Record<string, unknown> = {
@@ -1085,8 +1176,7 @@ export async function handleSetAssignmentTargets(
       excluded: admin.firestore.FieldValue.delete(),
       ...mutableFields(target.key, target.uid),
     };
-    const ref = itemsPath(target.uid);
-    ops.push((batch) => batch.set(ref, payload, { merge: true }));
+    ops.push({ uid: target.uid, ref: itemsPath(target.uid), payload });
   }
   // Skipped students: a pointer doc whose only job is to hide the session from
   // the class channel for this one student. Writing it keeps `targetMode` on
@@ -1108,8 +1198,7 @@ export async function handleSetAssignmentTargets(
       createdAt: typeof storedCreatedAt === 'number' ? storedCreatedAt : now,
       updatedAt: now,
     };
-    const ref = itemsPath(target.uid);
-    ops.push((batch) => batch.set(ref, payload, { merge: true }));
+    ops.push({ uid: target.uid, ref: itemsPath(target.uid), payload });
   }
   // A refresh only ever edits a pointer this caller already fanned out — it
   // never creates one, so a ref forged onto `targetStudents` reaches nothing.
@@ -1119,16 +1208,30 @@ export async function handleSetAssignmentTargets(
     if (!existing || existing.teacherUid !== callerUid) continue;
     const fields = mutableFields(target.key, target.uid);
     if (Object.keys(fields).length === 0) continue;
-    const ref = itemsPath(target.uid);
     const payload = { ...fields, updatedAt: now };
     updated += 1;
-    ops.push((batch) => batch.set(ref, payload, { merge: true }));
+    ops.push({
+      uid: target.uid,
+      ref: itemsPath(target.uid),
+      payload,
+      requireExisting: true,
+    });
   }
-  for (const uid of removeUids) {
-    const ref = itemsPath(uid);
-    ops.push((batch) => batch.delete(ref));
+  for (const uid of deletableRemoveUids) {
+    ops.push({ uid, ref: itemsPath(uid) });
   }
-  await chunkedCommit(db, ops);
+  // A pointer another teacher took since the first read is left alone and reported as skipped.
+  const conflicts = await commitPointerOps(db, ops, callerUid, input.kind);
+  const landed = admitted.filter((t) => !conflicts.has(t.uid));
+  const landedExcluded = excludedResult.resolved.filter(
+    (t) => !conflicts.has(t.uid)
+  );
+  const conflictSkips: SetAssignmentTargetsResult['skipped'] = [
+    ...admitted,
+    ...excludedResult.resolved,
+  ]
+    .filter((t) => conflicts.has(t.uid))
+    .map((t) => ({ ref: t.ref, reason: 'not-in-teacher-classes' as const }));
 
   // Pseudonym-uid mirror of the per-student overrides, so teacher-side scoring
   // can match a response doc (keyed by the same uid) to its served subset.
@@ -1139,6 +1242,7 @@ export async function handleSetAssignmentTargets(
     StudentOverride | admin.firestore.FieldValue
   > = {};
   for (const [uid, value] of overrideChangesByUid) {
+    if (conflicts.has(uid)) continue;
     overridesByStudentUid[uid] =
       value === null ? admin.firestore.FieldValue.delete() : value;
   }
@@ -1167,9 +1271,7 @@ export async function handleSetAssignmentTargets(
     ...input.add.map(refKey),
     ...input.remove.map(refKey),
   ]);
-  const resolvedExcludedKeys = new Set(
-    excludedResult.resolved.map((t) => t.key)
-  );
+  const resolvedExcludedKeys = new Set(landedExcluded.map((t) => t.key));
   const resolveFinalExcluded = (
     freshData: Record<string, unknown> | undefined
   ): StudentTargetRef[] => {
@@ -1180,8 +1282,7 @@ export async function handleSetAssignmentTargets(
         continue;
       byKey.set(key, ref);
     }
-    for (const target of excludedResult.resolved)
-      byKey.set(target.key, target.ref);
+    for (const target of landedExcluded) byKey.set(target.key, target.ref);
     return [...byKey.values()];
   };
 
@@ -1194,7 +1295,7 @@ export async function handleSetAssignmentTargets(
     }
     // A concurrent add lands in `fresh` and is kept even past MAX_TARGET_REFS:
     // its pointer doc exists, so dropping the ref would strand it.
-    for (const target of admitted) byKey.set(target.key, target.ref);
+    for (const target of landed) byKey.set(target.key, target.ref);
     const refs = [...byKey.values()];
     tx.set(
       assignmentRef,
@@ -1257,13 +1358,14 @@ export async function handleSetAssignmentTargets(
   }
 
   return {
-    written: admitted.length,
+    written: landed.length,
     updated,
-    removed: removeUids.length,
+    removed: deletableRemoveUids.filter((uid) => !conflicts.has(uid)).length,
     skipped: [
       ...preSkipped,
       ...addResult.skipped,
       ...excludedResult.skipped,
+      ...conflictSkips,
       ...overLimit,
     ],
     ...(excludedResult.skipped.length > 0
@@ -1410,16 +1512,47 @@ export async function loadTestClassMembership(
   return { membership: out, authorized: true };
 }
 
+/** Every page of a OneRoster list; a full page at the page cap throws rather than return part of it. */
+async function fetchClassLinkPages<T>(
+  url: string,
+  key: string,
+  clientId: string,
+  clientSecret: string,
+  label: string
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let page = 0; ; page += 1) {
+    // OneRoster signs the query string, so the same params go to both.
+    const params = {
+      limit: String(ONEROSTER_PAGE_LIMIT),
+      offset: String(page * ONEROSTER_PAGE_LIMIT),
+    };
+    const headers = getOAuthHeaders(url, params, 'GET', clientId, clientSecret);
+    const resp = await axios.get<Record<string, T[] | undefined>>(url, {
+      params,
+      headers: { ...headers },
+      timeout: CLASSLINK_TIMEOUT_MS,
+    });
+    const batch = resp.data[key] ?? [];
+    out.push(...batch);
+    if (batch.length < ONEROSTER_PAGE_LIMIT) return out;
+    if (page + 1 >= ONEROSTER_MAX_PAGES) {
+      throw new Error(`ClassLink ${label} exceeds the page cap`);
+    }
+  }
+}
+
 export async function loadClassLinkMembership(
   teacherEmail: string,
-  ownedClassIds: readonly string[],
+  /** `null` means every class the teacher teaches; more than `MAX_TAUGHT_CLASSES` throws. */
+  ownedClassIds: readonly string[] | null,
   classlinkClientId: string,
   classlinkClientSecret: string,
   tenantUrl: string,
   names?: Map<string, TargetDirectoryName>
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-  if (ownedClassIds.length === 0) return out;
+  if (ownedClassIds?.length === 0) return out;
   if (!isSafeEmailForOneRosterFilter(teacherEmail)) return out;
 
   const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
@@ -1434,49 +1567,58 @@ export async function loadClassLinkMembership(
   );
   const userResp = await axios.get<{ users: OneRosterUserWithRole[] }>(
     usersUrl,
-    { params: userParams, headers: { ...userHeaders } }
+    {
+      params: userParams,
+      headers: { ...userHeaders },
+      timeout: CLASSLINK_TIMEOUT_MS,
+    }
   );
   const teacher = (userResp.data.users ?? []).find(isOneRosterStaff);
   if (!teacher) return out;
 
-  const classesUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacher.sourcedId}/classes`;
-  const classesHeaders = getOAuthHeaders(
-    classesUrl,
-    {},
-    'GET',
+  const classes = await fetchClassLinkPages<ClassLinkClass>(
+    `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacher.sourcedId}/classes`,
+    'classes',
     classlinkClientId,
-    classlinkClientSecret
-  );
-  const classesResp = await axios.get<{ classes: ClassLinkClass[] }>(
-    classesUrl,
-    { headers: { ...classesHeaders } }
+    classlinkClientSecret,
+    'class list'
   );
   const taught = new Set(
-    (classesResp.data.classes ?? [])
+    classes
       .map((c) => c.sourcedId)
       .filter((id): id is string => typeof id === 'string')
   );
   // Intersection: on the caller's roster AND actually taught by them.
   const authorized = ownedClassIds
-    .filter((id) => taught.has(id))
-    .slice(0, MAX_OWNED_CLASSES);
+    ? ownedClassIds.filter((id) => taught.has(id)).slice(0, MAX_OWNED_CLASSES)
+    : [...taught];
+  if (authorized.length > MAX_TAUGHT_CLASSES) {
+    throw new Error('ClassLink teacher has too many classes to read in full');
+  }
 
-  const rosters = await Promise.all(
-    authorized.map(async (classId) => {
-      const studentsUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/classes/${classId}/students`;
-      const headers = getOAuthHeaders(
-        studentsUrl,
-        {},
-        'GET',
-        classlinkClientId,
-        classlinkClientSecret
-      );
-      const resp = await axios.get<{ users: ClassLinkStudent[] }>(studentsUrl, {
-        headers: { ...headers },
-      });
-      return { classId, students: resp.data.users ?? [] };
-    })
-  );
+  const started = Date.now();
+  const rosters: { classId: string; students: ClassLinkStudent[] }[] = [];
+  for (let i = 0; i < authorized.length; i += CLASS_FETCH_CONCURRENCY) {
+    // Fail loudly rather than run into the function deadline with part of the roster.
+    if (Date.now() - started > CLASSLINK_TOTAL_BUDGET_MS) {
+      throw new Error('ClassLink read exceeded its time budget');
+    }
+    const group = authorized.slice(i, i + CLASS_FETCH_CONCURRENCY);
+    rosters.push(
+      ...(await Promise.all(
+        group.map(async (classId) => ({
+          classId,
+          students: await fetchClassLinkPages<ClassLinkStudent>(
+            `${cleanTenantUrl}${ONEROSTER_BASE}/classes/${classId}/students`,
+            'users',
+            classlinkClientId,
+            classlinkClientSecret,
+            'class roster'
+          ),
+        }))
+      ))
+    );
+  }
   for (const { classId, students } of rosters) {
     for (const student of students) {
       if (student.sourcedId && !out.has(student.sourcedId)) {

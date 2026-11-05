@@ -32,6 +32,13 @@ const h = vi.hoisted(() => ({
     data?: any;
   }>,
   recursiveDeletes: [] as string[],
+  // classId -> sourcedIds ClassLink enrolls; absent = the caller does not teach it.
+  enrollment: new Map<string, Set<string>>(),
+  enrollmentLookups: [] as Array<{ classId: string }>,
+  teacherLookups: [] as string[],
+  taught: null as Set<string> | null,
+  enrollmentDown: false,
+  onEnrollmentLookup: null as null | (() => void),
 }));
 
 vi.mock('./functionsInit', () => ({}));
@@ -41,6 +48,19 @@ vi.mock('./secrets', () => ({
   CLASSLINK_CLIENT_ID: { value: () => '' },
   CLASSLINK_CLIENT_SECRET: { value: () => '' },
   CLASSLINK_TENANT_URL: { value: () => '' },
+}));
+
+vi.mock('./studentIdentity', () => ({
+  loadTeacherClassIds: async (email: string) => {
+    h.teacherLookups.push(email);
+    if (h.enrollmentDown) throw new Error('classlink down');
+    return h.taught;
+  },
+  loadClassStudentIds: async (classId: string) => {
+    h.enrollmentLookups.push({ classId });
+    h.onEnrollmentLookup?.();
+    return h.enrollment.get(classId) ?? new Set<string>();
+  },
 }));
 
 vi.mock('firebase-functions/v2/https', () => {
@@ -147,12 +167,18 @@ vi.mock('./firebaseAdmin', () => {
 });
 
 import { commitProjectGroupsV1 } from './projectGroups';
+import { MAX_TAUGHT_CLASSES } from './studentAssignmentTargets';
 
 const TEACHER = 'teacher-1';
 const RUN_ID = `${TEACHER}_project-1`;
 const RUN_PATH = `project_runs/${RUN_ID}`;
 
-const call = (data: unknown, auth: unknown = { uid: TEACHER, token: {} }) =>
+const TEACHER_AUTH = {
+  uid: TEACHER,
+  token: { email: 'teacher@school.org', email_verified: true },
+};
+
+const call = (data: unknown, auth: unknown = TEACHER_AUTH) =>
   (commitProjectGroupsV1 as unknown as (req: unknown) => Promise<any>)({
     data,
     auth,
@@ -184,6 +210,18 @@ beforeEach(() => {
   h.writes.length = 0;
   h.recursiveDeletes.length = 0;
   h.hmacSecret = 'test-hmac-secret';
+  h.enrollment.clear();
+  for (const classId of ['class-a', 'class-b']) {
+    h.enrollment.set(
+      classId,
+      new Set(Array.from({ length: 60 }, (_, i) => `SID-${i}`))
+    );
+  }
+  h.enrollmentLookups.length = 0;
+  h.teacherLookups.length = 0;
+  h.taught = new Set(['class-a', 'class-b']);
+  h.enrollmentDown = false;
+  h.onEnrollmentLookup = null;
   h.docStore.set(RUN_PATH, {
     id: RUN_ID,
     teacherUid: TEACHER,
@@ -413,6 +451,153 @@ describe('commitProjectGroupsV1 writes', () => {
     await expect(
       call({ runId: RUN_ID, groups: [groupEntry()] })
     ).rejects.toMatchObject({ code: 'internal' });
+  });
+});
+
+describe('commitProjectGroupsV1 ClassLink check', () => {
+  const expectNothingWritten = () => {
+    expect(h.writes).toEqual([]);
+    expect(h.docStore.has(`${RUN_PATH}/groups/g1`)).toBe(false);
+  };
+
+  it('mints no uid, and still saves the group, when the caller teaches no ClassLink class', async () => {
+    h.taught = null;
+    const result = await call({ runId: RUN_ID, groups: [groupEntry()] });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
+    expect(result.membersResolved).toBe(0);
+  });
+
+  it('mints a uid for a student of any taught class, whatever class id the group carries', async () => {
+    h.enrollment.set('class-b', new Set(['SID-merged']));
+    const result = await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({
+          classId: 'local:roster-1',
+          classLinkSourcedIds: ['SID-1', 'SID-merged'],
+        }),
+      ],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      expectedUid('SID-1'),
+      expectedUid('SID-merged'),
+    ]);
+    expect(result.membersResolved).toBe(2);
+  });
+
+  it('drops only the sourcedIds the caller teaches none of', async () => {
+    h.enrollment.set('class-a', new Set(['SID-1']));
+    h.enrollment.set('class-b', new Set());
+    h.enrollment.set('class-other', new Set(['SID-foreign']));
+    const result = await call({
+      runId: RUN_ID,
+      groups: [groupEntry({ classLinkSourcedIds: ['SID-1', 'SID-foreign'] })],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      expectedUid('SID-1'),
+    ]);
+    expect(result.membersResolved).toBe(1);
+  });
+
+  it.each([
+    ['an unverified email', { email: 't@school.org', email_verified: false }],
+    ['no email', {}],
+    [
+      'a students domain address',
+      { email: 'kid@students.school.org', email_verified: true },
+    ],
+    [
+      'an anonymous sign-in',
+      {
+        email: 't@school.org',
+        email_verified: true,
+        firebase: { sign_in_provider: 'anonymous' },
+      },
+    ],
+  ])('refuses sourcedIds from a caller with %s', async (_label, token) => {
+    await expect(
+      call({ runId: RUN_ID, groups: [groupEntry()] }, { uid: TEACHER, token })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(h.teacherLookups).toEqual([]);
+    expectNothingWritten();
+  });
+
+  it('fails the commit, without writing, when ClassLink cannot answer', async () => {
+    h.enrollmentDown = true;
+    await expect(
+      call({ runId: RUN_ID, groups: [groupEntry()] })
+    ).rejects.toThrow('classlink down');
+    expectNothingWritten();
+  });
+
+  it('places a student from the last of 150 taught classes, past the old 60-class cap', async () => {
+    h.taught = new Set(Array.from({ length: 150 }, (_, i) => `many-${i}`));
+    h.enrollment.set('many-149', new Set(['SID-late']));
+    const result = await call({
+      runId: RUN_ID,
+      groups: [groupEntry({ classLinkSourcedIds: ['SID-late'] })],
+    });
+    expect(h.enrollmentLookups).toHaveLength(150);
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      expectedUid('SID-late'),
+    ]);
+    expect(result.membersResolved).toBe(1);
+  });
+
+  it('fails the commit, without writing, for a caller with more classes than can be read in full', async () => {
+    h.taught = new Set(
+      Array.from({ length: MAX_TAUGHT_CLASSES + 1 }, (_, i) => `many-${i}`)
+    );
+    await expect(
+      call({ runId: RUN_ID, groups: [groupEntry()] })
+    ).rejects.toThrow('Roster service unavailable.');
+    expect(h.enrollmentLookups).toEqual([]);
+    expectNothingWritten();
+  });
+
+  it('fails the commit with the existing message, without writing, when ClassLink is too slow', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      h.taught = new Set(Array.from({ length: 30 }, (_, i) => `slow-${i}`));
+      h.onEnrollmentLookup = () => vi.setSystemTime(Date.now() + 100_000);
+      await expect(
+        call({ runId: RUN_ID, groups: [groupEntry()] })
+      ).rejects.toThrow('Roster service unavailable.');
+      expect(h.enrollmentLookups.length).toBeLessThan(30);
+      expectNothingWritten();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('asks ClassLink once per commit with the caller email, then once per taught class', async () => {
+    await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({ id: 'g1' }),
+        groupEntry({ id: 'g2', classLinkSourcedIds: ['SID-3'] }),
+        groupEntry({
+          id: 'g3',
+          classId: 'class-b',
+          classLinkSourcedIds: ['SID-9'],
+        }),
+      ],
+    });
+    expect(h.teacherLookups).toEqual(['teacher@school.org']);
+    expect(h.enrollmentLookups.map((l) => l.classId).sort()).toEqual([
+      'class-a',
+      'class-b',
+    ]);
+  });
+
+  it('needs no ClassLink check when a group imports no students', async () => {
+    h.taught = null;
+    await call({
+      runId: RUN_ID,
+      groups: [groupEntry({ classLinkSourcedIds: [] })],
+    });
+    expect(h.teacherLookups).toEqual([]);
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
   });
 });
 

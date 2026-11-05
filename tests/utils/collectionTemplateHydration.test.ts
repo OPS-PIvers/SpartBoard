@@ -134,4 +134,19 @@ describe('hydrateCollectionTemplate', () => {
     ]);
     expect(out.boardInputs[1]).not.toHaveProperty('connections');
   });
+
+  it('never carries a stored Drive file id or share linkage into a new board', () => {
+    const tpl = template();
+    Object.assign(tpl.boardSnapshots[0], {
+      driveFileId: 'victim-drive-file',
+      linkedShareId: 'host-share',
+      linkedShareRole: 'owner',
+    });
+    const out = hydrateCollectionTemplate(tpl, { existingMaxOrder: 0 });
+    for (const board of out.boardInputs) {
+      expect(board).not.toHaveProperty('driveFileId');
+      expect(board).not.toHaveProperty('linkedShareId');
+      expect(board).not.toHaveProperty('linkedShareRole');
+    }
+  });
 });

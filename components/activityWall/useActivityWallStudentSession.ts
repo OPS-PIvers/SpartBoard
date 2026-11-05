@@ -73,9 +73,10 @@ const readSsoFirstName = (): string => {
 const participantLabelFor = (
   isStudent: boolean,
   isAnonymous: boolean,
-  displayName: string | null
+  displayName: string | null,
+  tokenFirstName: string
 ): string => {
-  if (isStudent) return readSsoFirstName();
+  if (isStudent) return tokenFirstName || readSsoFirstName();
   const firstWord = displayName?.trim().split(/\s+/)[0];
   if (!isAnonymous && firstWord) return firstWord;
   return 'Guest';
@@ -102,6 +103,7 @@ export function useActivityWallStudentSession(
   const [claims, setClaims] = useState<{
     uid: string;
     isStudent: boolean;
+    firstName: string;
   } | null>(null);
   const [myPosts, setMyPosts] = useState<ActivityWallSubmission[]>([]);
   const [approvedPosts, setApprovedPosts] = useState<ActivityWallSubmission[]>(
@@ -158,10 +160,15 @@ export function useActivityWallStudentSession(
           setClaims({
             uid: probedUid,
             isStudent: token.claims?.studentRole === true,
+            firstName:
+              typeof token.claims?.firstName === 'string'
+                ? token.claims.firstName
+                : '',
           });
       })
       .catch(() => {
-        if (!cancelled) setClaims({ uid: probedUid, isStudent: false });
+        if (!cancelled)
+          setClaims({ uid: probedUid, isStudent: false, firstName: '' });
       });
     return () => {
       cancelled = true;
@@ -249,7 +256,8 @@ export function useActivityWallStudentSession(
     participantLabel: participantLabelFor(
       isStudent,
       user.isAnonymous,
-      user.displayName
+      user.displayName,
+      resolvedClaims.firstName
     ),
     myPosts,
     posts: wallVisible ? mergeWallPosts(approvedPosts, myPosts) : myPosts,

@@ -282,6 +282,40 @@ describe('handleSubmitMiniAppResult grading and attempts', () => {
     });
   });
 
+  it('writes a score-free receipt the student reads on a summaryHidden session', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: session({ showCorrectAnswers: false, summaryHidden: true }),
+      [`${SESSION}/private/key`]: KEY,
+    };
+    const RECEIPT = `${SESSION}/receipts/${pseudonym('stu-1', 's1')}`;
+    await submit(docs, result('B', false));
+    expect(docs[RECEIPT]).toEqual({
+      studentUid: 'stu-1',
+      submittedAt: NOW,
+      attemptCount: 1,
+    });
+    // The teacher-only summary still carries the best attempt for results and the gradebook.
+    expect(docs[SUMMARY]).toMatchObject({
+      attemptCount: 1,
+      best: { score: 1, maxScore: 2, attemptNo: 1 },
+    });
+    await submit(docs, { sessionId: 's1', kind: 'done', payload: null });
+    expect(docs[RECEIPT]).toMatchObject({ attemptCount: 1 });
+    await submit(docs, result('B', true));
+    expect(docs[RECEIPT]).toMatchObject({ attemptCount: 2 });
+  });
+
+  it('writes no receipt without the summaryHidden marker', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: session({ showCorrectAnswers: false }),
+      [`${SESSION}/private/key`]: KEY,
+    };
+    await submit(docs, result('B', true));
+    expect(
+      Object.keys(docs).some((p) => p.startsWith(`${SESSION}/receipts/`))
+    ).toBe(false);
+  });
+
   it('strips names and emails before saving', async () => {
     const docs: Record<string, Doc> = {
       [SESSION]: session({ manifest: undefined }),

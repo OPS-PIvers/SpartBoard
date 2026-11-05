@@ -10,6 +10,7 @@ export type AssignStepId =
   | 'video'
   | 'check'
   | 'speak'
+  | 'sheets'
   | 'sharing';
 
 export type AssignActivity = 'quiz' | 'video' | 'gl' | 'flashcards' | 'miniapp';
@@ -72,6 +73,7 @@ const TITLES: Record<AssignStepId, string> = {
   video: 'Video',
   check: 'How students are checked',
   speak: 'Speak',
+  sheets: 'Answer sheets',
   sharing: 'Sharing',
 };
 

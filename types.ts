@@ -3907,6 +3907,8 @@ export interface MiniAppSession
   attemptLimit?: number | null;
   /** v2 only: students see per-question correctness after submitting (D9). */
   showCorrectAnswers?: boolean;
+  /** Set at create when answers are hidden; rules then keep the summary teacher-only and students read a receipt. */
+  summaryHidden?: true;
   /** v2 only: frozen copy of the app's manifest at assign. */
   manifest?: MiniAppManifest;
 }
@@ -4706,6 +4708,8 @@ export interface QuizBankSlot {
   bankId: string;
   /** Resolve from `/synced_question_banks/{syncGroupId}` when set. */
   syncGroupId?: string;
+  /** Uid of the sharer who owns the synced doc; a doc owned by anyone else is refused. Absent on older slots. */
+  syncOwnerUid?: string;
   bankTitle: string;
   mode: 'selected' | 'random';
   /** selected mode: the picks; random mode: draws only from these ids (absent = whole bank) */
@@ -7027,6 +7031,10 @@ export interface QuizAssignment
   /** Join code for the student URL. Denormalized from the session doc for archive display. */
   code: string;
   status: QuizAssignmentStatus;
+  /** Assigned on paper: no live door; the card offers Import responses instead of Start. */
+  paper?: true;
+  /** The printed stack an on-paper assignment imports from (`users/{uid}/paper_batches`). */
+  paperBatchId?: string;
   /** Set by `importPaperResponsesV1`; publish then writes student pointers (plan Q34). */
   hasPaperResponses?: boolean;
   /** Set by import when any paper sheet carried a written answer box. */

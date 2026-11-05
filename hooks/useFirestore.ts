@@ -709,6 +709,7 @@ export const useFirestore = (userId: string | null) => {
         return mockSharedStore.add(
           {
             ...dashboard,
+            originalAuthor: userId,
             ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
             ...(intendedMode ? { intendedMode } : {}),
             ...(plcId ? { plcId } : {}),
@@ -748,7 +749,20 @@ export const useFirestore = (userId: string | null) => {
       if (shareId) {
         const ref = doc(shareRef, shareId);
         await runTransaction(db, async (tx) => {
-          if (!(await tx.get(ref)).exists()) tx.set(ref, payload);
+          const existing = await tx.get(ref);
+          if (!existing.exists()) {
+            tx.set(ref, payload);
+            return;
+          }
+          // A doc someone else wrote at this id is never adopted as this user's share.
+          if (existing.data()?.originalAuthor !== userId) {
+            throw Object.assign(
+              new Error('Missing or insufficient permissions.'),
+              {
+                code: 'permission-denied',
+              }
+            );
+          }
         });
         return shareId;
       }
@@ -796,6 +810,7 @@ export const useFirestore = (userId: string | null) => {
       if (isAuthBypass) {
         return mockSharedStore.add({
           ...dashboard,
+          originalAuthor: userId,
           ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
           intendedMode: 'substitute',
           ...(sharedRosters?.length ? { sharedRosters } : {}),

@@ -1008,6 +1008,10 @@ export const TOUR_ANCHORS = {
     label: 'Speak step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.sheets': {
+    label: 'Answer sheets step header in the Assign on paper dialog',
+    panel: true,
+  },
   'assign-step.sharing': {
     label: 'Sharing step header in the Assign dialog',
     panel: true,
@@ -2732,6 +2736,21 @@ export const TOUR_ANCHORS = {
   'quiz-print.cancel': {
     label: 'Print sheets Cancel in the Quiz widget',
     perWidgetType: true,
+    panel: true,
+  },
+  'quiz-reprint.cancel': {
+    label: 'Print response sheets again Cancel in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-reprint.print': {
+    label: 'Print response sheets again Print button in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-reprint.student': {
+    label: 'Student checkbox when printing response sheets again',
+    perField: true,
     panel: true,
   },
   'quiz-print.close': {
@@ -15835,8 +15854,24 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   // Quiz library kebab items that open dialogs.
+  'quiz-library.assign-paper': {
+    label: 'Assign on paper item in a quiz card menu',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-library.import-responses': {
-    label: 'Import responses item in a quiz card menu',
+    label: 'Import responses button on a paper assignment card',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.import-stack': {
+    label:
+      'Import responses item in a quiz card menu, for a stack with no paper assignment',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.reprint-sheets': {
+    label: 'Print response sheets item in a paper assignment menu',
     perWidgetType: true,
     panel: true,
   },

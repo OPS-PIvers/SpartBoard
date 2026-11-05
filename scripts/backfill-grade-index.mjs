@@ -106,7 +106,7 @@ for (const [kind, collection] of Object.entries(SESSION_COLLECTION)) {
     if (kind === 'quiz' && isReviewSession(doc.data())) continue;
     count++;
     if (!apply) continue;
-    batch.set(db.collection('grade_index_sessions').doc(doc.id), {
+    batch.set(db.collection('grade_index_sessions').doc(`${kind}__${doc.id}`), {
       kind,
       sessionId: doc.id,
       dirtyAt: base + queued,
