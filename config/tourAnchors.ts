@@ -1004,6 +1004,10 @@ export const TOUR_ANCHORS = {
     label: 'Check step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.cards': {
+    label: 'Cards step header in the Assign dialog',
+    panel: true,
+  },
   'assign-step.speak': {
     label: 'Speak step header in the Assign dialog',
     panel: true,
@@ -1182,6 +1186,31 @@ export const TOUR_ANCHORS = {
   },
   'flashcards-speak.lock': {
     label: 'Lock Speak settings switch in the Assign dialog Speak step',
+    panel: true,
+  },
+  'flashcards-cards.mode': {
+    label:
+      'All, random or chosen cards switch in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'flashcards-cards.count': {
+    label: 'Number of cards box in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'flashcards-cards.search': {
+    label: 'Search cards box in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'flashcards-cards.select-all': {
+    label: 'Select all button in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'flashcards-cards.clear': {
+    label: 'Clear button in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'flashcards-cards.list': {
+    label: 'Card list in the Flashcards assign Cards step',
     panel: true,
   },
   'flashcards-check.score-visibility': {
@@ -1901,6 +1930,17 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.order-remove': {
     label: 'Remove ordering item in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.order-image': {
+    label: 'Add image to ordering item in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.order-image-remove': {
+    label: 'Remove ordering item image in the Quiz editor',
     perField: true,
     destructive: true,
     panel: true,
@@ -10426,6 +10466,21 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards-speak-editor.ipa-hear-it': {
+    label: 'Hear it button beside a pronunciation box in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.ipa-add': {
+    label: 'Add another pronunciation link in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.ipa-remove': {
+    label: 'Remove pronunciation button in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
   'flashcards.add-card': {
     label: 'Add card button in the Flashcards editor',
     perWidgetType: true,
@@ -14329,6 +14384,18 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards-settings-modal.plc-results': {
+    label:
+      'Share results with PLC button in the Flashcards assignment Settings dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-settings-modal.stop-plc': {
+    label:
+      'Stop sharing with PLC button in the Flashcards assignment Settings dialog',
+    perWidgetType: true,
+    panel: true,
+  },
   'flashcards.stepper-kind-switch': {
     label:
       'Student work or Study resource switch in the Flashcards assign dialog',
@@ -14382,6 +14449,167 @@ export const TOUR_ANCHORS = {
     label: 'Close all button in the Flashcards monitor',
     perWidgetType: true,
     destructive: true,
+    panel: true,
+  },
+  'flashcards.roster-scores': {
+    label: 'Scores toggle chip in the Flashcards monitor student list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.roster-proficiency': {
+    label:
+      'Proficiency colors toggle chip in the Flashcards monitor student list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.roster-sort': {
+    label: 'Sort students select in the Flashcards monitor student list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.roster-filter': {
+    label: 'Filter students select in the Flashcards monitor student list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.card-result': {
+    label: 'Card row in the Flashcards monitor Card results',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-print': {
+    label: 'Print results button in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-hide-names': {
+    label: 'Hide student names button in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-drill': {
+    label:
+      'Card results, Students or Speaking row in the Flashcards Results screen',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-student': {
+    label: 'Student row in the Flashcards Results screen',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-student-print': {
+    label:
+      'Print report button for one student in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-students-sort': {
+    label: 'Score or Last name sort in the Flashcards Results screen',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-show': {
+    label: 'Show results… in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-hide': {
+    label: 'Hide results in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-follow-class': {
+    label: 'Follow class in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-copy-names': {
+    label: 'Copy names in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-print': {
+    label: 'Print selected in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-clear': {
+    label: 'Clear selection in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-student-menu': {
+    label:
+      'Results options menu button for a student in Flashcards Results, by row',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-student-menu-item': {
+    label: 'Item in a results options menu in Flashcards Results, by item',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-student-show': {
+    label: 'Show results button in an open student row in Flashcards Results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-student-hide': {
+    label: 'Hide button in an open student row in Flashcards Results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-student-follow-class': {
+    label: 'Follow class button in an open student row in Flashcards Results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-show-level': {
+    label:
+      'What they see option in the Flashcards Show results dialog, by level',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-show-expiry': {
+    label:
+      'Stop showing option in the Flashcards Show results dialog, by option',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-show-cancel': {
+    label: 'Cancel in the Flashcards Show results dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-show-confirm': {
+    label: 'Show results button in the Flashcards Show results dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-students-select-all': {
+    label: 'Select all checkbox on the Flashcards Results Students list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-student-select': {
+    label: 'Select checkbox for one student in the Flashcards Results screen',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-export': {
+    label: 'Export to Sheets button in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-open-sheet': {
+    label: 'Open Sheet link in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-sheet-refresh': {
+    label: 'Re-export sheet button in the Flashcards Results screen',
+    perWidgetType: true,
     panel: true,
   },
   'mini-app.stepper-class-picker': {
@@ -15073,6 +15301,10 @@ export const TOUR_ANCHORS = {
   // Folder and preview controls for the other library widgets.
   'flashcards.folder-new': {
     label: 'New folder button in the Flashcards library',
+    panel: true,
+  },
+  'flashcards.select-mode': {
+    label: 'Select button in the Flashcards library toolbar',
     panel: true,
   },
   'flashcards.folder-root': {
@@ -15892,11 +16124,6 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.archive-plc-results': {
     label: 'Share results with PLC item in a quiz assignment row menu',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-library.archive-copy-link': {
-    label: 'Copy Student Link item in a quiz In Progress row menu',
     perWidgetType: true,
     panel: true,
   },

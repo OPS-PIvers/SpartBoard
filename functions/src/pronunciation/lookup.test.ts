@@ -219,6 +219,17 @@ describe('computeSpeakReferences', () => {
     expect(card.refs[0].stress).toEqual([1]);
   });
 
+  it('accepts every reading when a teacher gives several', async () => {
+    const card = await lookup('en', 'record', {
+      'en-US': 'ɹᵻkˈoːɹd|ɹˈɛkɚd',
+    });
+    expect(card.status).toBe('ready');
+    expect(card.refs.map((r) => r.tokens.join(' '))).toEqual([
+      'ɹ ᵻ k oːɹ d',
+      'ɹ ɛ k ɚ d',
+    ]);
+  });
+
   it('marks an override the model cannot spell untokenizable', async () => {
     expect(await lookup('en', 'cat', { 'en-US': 'kæ§t' })).toMatchObject({
       refs: [],
@@ -319,6 +330,40 @@ describe('parseLookupInput', () => {
     ],
   ])('rejects %s', (_label, raw) => {
     expect(() => parseLookupInput(raw)).toThrow();
+  });
+
+  it('keeps several readings and drops blank ones', () => {
+    expect(
+      parseLookupInput({
+        ...ok,
+        terms: [
+          {
+            cardId: 'a',
+            term: 'perro',
+            ipaOverride: { 'es-419': 'pero| | pe.ro ' },
+          },
+        ],
+      }).terms[0]
+    ).toEqual({
+      cardId: 'a',
+      term: 'perro',
+      ipaOverride: { 'es-419': 'pero|pe.ro' },
+    });
+  });
+
+  it('rejects more than four readings for one accent', () => {
+    expect(() =>
+      parseLookupInput({
+        ...ok,
+        terms: [
+          {
+            cardId: 'a',
+            term: 'perro',
+            ipaOverride: { 'es-419': 'a|b|c|d|e' },
+          },
+        ],
+      })
+    ).toThrow();
   });
 
   it('drops blank overrides', () => {

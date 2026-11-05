@@ -1,7 +1,7 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ClassRoster, FlashcardSet } from '@/types';
+import type { ClassRoster, FlashcardSet, Plc } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { DEFAULT_FLASHCARD_ASSIGN_FORM } from './utils/flashcardAssign';
@@ -84,19 +84,26 @@ const renderStepper = ({
   rosterIds = ['r1'],
   periodAccess,
   canSpeak = false,
+  v2 = false,
   set = makeSet(),
+  plcs,
 }: {
   rosterIds?: string[];
   periodAccess?: AssignPeriodAccessContext;
   canSpeak?: boolean;
+  v2?: boolean;
   set?: FlashcardSet;
+  plcs?: Plc[];
 } = {}) => {
-  const onAssign = vi.fn((_submission: FlashcardAssignSubmission) =>
-    Promise.resolve(true)
+  const onAssign = vi.fn(
+    (_submission: FlashcardAssignSubmission, _extras?: { sharePlc?: Plc }) =>
+      Promise.resolve(true)
   );
   const auth = {
     user: { uid: 'teacher-1' },
-    canAccessFeature: (id: string) => canSpeak && id === 'flashcards-speak',
+    canAccessFeature: (id: string) =>
+      (canSpeak && id === 'flashcards-speak') ||
+      (v2 && id === 'flashcards-assign-v2'),
   } as unknown as React.ContextType<typeof AuthContext>;
   render(
     <AuthContext.Provider value={auth}>
@@ -108,6 +115,7 @@ const renderStepper = ({
         onClose={vi.fn()}
         onAssign={onAssign}
         periodAccess={periodAccess}
+        plcs={plcs}
       />
     </AuthContext.Provider>
   );
@@ -308,5 +316,127 @@ describe('FlashcardAssignStepper', () => {
       'disabled',
       true
     );
+  });
+
+  describe('with flashcards-assign-v2', () => {
+    it('shows the Cards and What students see steps', () => {
+      renderStepper({ v2: true });
+      expect(screen.getByText('Cards')).toBeTruthy();
+      expect(screen.getByText('All 12 cards')).toBeTruthy();
+      expect(screen.getByText('What students see')).toBeTruthy();
+      fireEvent.click(screen.getByRole('radio', { name: /Study resource/ }));
+      expect(screen.queryByText('Cards')).toBeNull();
+    });
+
+    it('assigns a random draw of the asked-for size', async () => {
+      const { onAssign } = renderStepper({ v2: true });
+      fireEvent.click(screen.getByText('Cards'));
+      fireEvent.click(screen.getByRole('radio', { name: 'Random cards' }));
+      fireEvent.change(screen.getByLabelText('Number of cards'), {
+        target: { value: '4' },
+      });
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      const { input } = lastSubmission(onAssign);
+      expect(input.set.cards).toHaveLength(4);
+      expect(input.cardSelection).toEqual({ mode: 'random', count: 4 });
+      expect(input.lockedSettings?.testCount).toBe('all');
+    });
+
+    it('assigns only the chosen cards and blocks an empty pick', async () => {
+      const { onAssign } = renderStepper({ v2: true });
+      fireEvent.click(screen.getByText('Cards'));
+      fireEvent.click(screen.getByRole('radio', { name: 'Choose cards' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+      expect(
+        screen.getByRole('button', { name: 'Assign' }).hasAttribute('disabled')
+      ).toBe(true);
+      fireEvent.click(screen.getByRole('checkbox', { name: /term 2/ }));
+      fireEvent.click(screen.getByRole('checkbox', { name: /term 7/ }));
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      const { input } = lastSubmission(onAssign);
+      expect(input.set.cards.map((c) => c.id)).toEqual(['c2', 'c7']);
+      expect(input.cardSelection).toEqual({
+        mode: 'pick',
+        cardIds: ['c2', 'c7'],
+      });
+    });
+
+    it('uses the Quiz rule steps and stamps their rules', async () => {
+      const { onAssign } = renderStepper({ v2: true });
+      expect(screen.getByText('Attempts and order')).toBeTruthy();
+      expect(screen.getByText('Integrity')).toBeTruthy();
+      fireEvent.click(screen.getByText('Attempts and order'));
+      expect(screen.queryByText('Shuffle answer options')).toBeNull();
+      fireEvent.click(screen.getByRole('switch', { name: 'Shuffle cards' }));
+      fireEvent.click(screen.getByText('What students see'));
+      expect(screen.queryByText('Group results by learning target')).toBeNull();
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Show right and wrong to students' })
+      );
+      fireEvent.click(
+        screen.getByRole('switch', {
+          name: 'Reveal correct answer to students',
+        })
+      );
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      const { input } = lastSubmission(onAssign);
+      expect(input.rules?.attemptLimit).toBe(1);
+      expect(input.rules?.sessionOptions.shuffleQuestions).toBe(true);
+      expect(input.rules?.sessionOptions).not.toHaveProperty(
+        'timeLimitMinutes'
+      );
+      expect(input.lockedSettings?.shuffle).toBe(true);
+      expect(input.scoreVisibility).toBe('score-and-answers');
+      expect(lastUsed.save).toHaveBeenCalledWith(
+        expect.objectContaining({ rules: input.rules })
+      );
+    });
+
+    it('turns last-used score visibility into the What students see switches', async () => {
+      lastUsed.value = {
+        ...DEFAULT_FLASHCARD_ASSIGN_FORM,
+        scoreVisibility: 'none',
+      };
+      const { onAssign } = renderStepper({ v2: true });
+      expect(screen.getByText('Nothing until I release results')).toBeTruthy();
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      expect(lastSubmission(onAssign).input.scoreVisibility).toBe('none');
+    });
+
+    it('shares results with the PLC picked in the Sharing step', async () => {
+      const plc = { id: 'plc-1', name: 'Spanish PLC' } as Plc;
+      const { onAssign } = renderStepper({ v2: true, plcs: [plc] });
+      fireEvent.click(screen.getByText('Sharing'));
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Share results with Spanish PLC' })
+      );
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      expect(onAssign.mock.calls[0][1]).toEqual({ sharePlc: plc });
+      fireEvent.click(screen.getByRole('radio', { name: /Study resource/ }));
+      expect(screen.queryByText('Sharing')).toBeNull();
+    });
+
+    it('offers Speak as a check mode only when Speak is available', () => {
+      renderStepper({ v2: true });
+      fireEvent.click(screen.getByText('How students are checked'));
+      expect(screen.queryByRole('radio', { name: 'Speak' })).toBeNull();
+    });
+
+    it('assigns a Speak check', async () => {
+      const { onAssign } = renderStepper({ v2: true, canSpeak: true });
+      fireEvent.click(screen.getByText('How students are checked'));
+      fireEvent.click(screen.getByRole('radio', { name: 'Speak' }));
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      const { input } = lastSubmission(onAssign);
+      expect(input.kind).toBe('check');
+      expect(input.checkMode).toBe('speak');
+      expect(input.cardSelection).toBeUndefined();
+    });
   });
 });

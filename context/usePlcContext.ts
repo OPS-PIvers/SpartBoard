@@ -490,14 +490,41 @@ export function usePlcDocsData(): PlcSlice<PlcDoc[]> {
   return usePlcSelector((s) => s.docs) ?? EMPTY_DOCS_SLICE;
 }
 
+/** Drops Flashcards check results unless the caller opts in (flashcards-assign-v2). */
+function useWithoutFlashcardChecks<T extends { kind?: string }>(
+  slice: PlcSlice<T[]>,
+  flashcards: boolean
+): PlcSlice<T[]> {
+  return useMemo(
+    () =>
+      flashcards || !slice.data.some((x) => x.kind === 'flashcard-check')
+        ? slice
+        : {
+            ...slice,
+            data: slice.data.filter((x) => x.kind !== 'flashcard-check'),
+          },
+    [slice, flashcards]
+  );
+}
+
 /** Common-assessments slice (data/loading/error) — Decision 4.0c, §3.6. */
-export function usePlcAssessmentsData(): PlcSlice<PlcCommonAssessment[]> {
-  return usePlcSelector((s) => s.assessments) ?? EMPTY_ASSESSMENTS_SLICE;
+export function usePlcAssessmentsData({
+  flashcards = false,
+}: { flashcards?: boolean } = {}): PlcSlice<PlcCommonAssessment[]> {
+  return useWithoutFlashcardChecks(
+    usePlcSelector((s) => s.assessments) ?? EMPTY_ASSESSMENTS_SLICE,
+    flashcards
+  );
 }
 
 /** Anonymized assessment-aggregates slice (data/loading/error) — Decisions 6.0 + 3.3. */
-export function usePlcAggregatesData(): PlcSlice<PlcAssessmentAggregate[]> {
-  return usePlcSelector((s) => s.aggregates) ?? EMPTY_AGGREGATES_SLICE;
+export function usePlcAggregatesData({
+  flashcards = false,
+}: { flashcards?: boolean } = {}): PlcSlice<PlcAssessmentAggregate[]> {
+  return useWithoutFlashcardChecks(
+    usePlcSelector((s) => s.aggregates) ?? EMPTY_AGGREGATES_SLICE,
+    flashcards
+  );
 }
 
 /** Meeting-records slice (data/loading/error) — Decisions 4.0 / 4.0b, §3.7. */

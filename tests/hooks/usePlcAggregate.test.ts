@@ -89,6 +89,13 @@ beforeEach(() => {
 });
 
 describe('parsePlcAggregate — tolerant parsing', () => {
+  it('carries the Flashcards check kind', () => {
+    expect(
+      parsePlcAggregate('a', validAggregateData({ kind: 'flashcard-check' }))
+        ?.kind
+    ).toBe('flashcard-check');
+  });
+
   it('parses a fully valid doc and keys assessmentId off the doc id', () => {
     const parsed = parsePlcAggregate('assess-7', validAggregateData());
     expect(parsed).not.toBeNull();
@@ -302,6 +309,18 @@ describe('usePlcAggregate — listener wiring + selectors', () => {
     ]);
     expect(result.current.aggregatesById['alpha']?.assessmentId).toBe('alpha');
     expect(result.current.loading).toBe(false);
+  });
+
+  it('leaves out Flashcards check aggregates by default', () => {
+    const { result, emit } = renderWithCapturedSnapshot();
+    emit([
+      { id: 'quiz', data: validAggregateData() },
+      { id: 'cards', data: validAggregateData({ kind: 'flashcard-check' }) },
+    ]);
+    expect(result.current.aggregates.map((a) => a.assessmentId)).toEqual([
+      'quiz',
+    ]);
+    expect(result.current.aggregatesById.cards).toBeUndefined();
   });
 
   it('drops malformed docs but keeps valid siblings', () => {

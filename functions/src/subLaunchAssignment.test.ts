@@ -1135,6 +1135,23 @@ describe('publicQuestionFromKey', () => {
       'Two',
     ]);
 
+    const pictured = publicQuestionFromKey({
+      id: 'q5b',
+      type: 'Ordering',
+      text: 'Sequence',
+      correctAnswer: 'One|Two|Three',
+      orderingImages: ['https://img/1', 'http://img/2', ''],
+    });
+    const want: Record<string, string> = {
+      One: 'https://img/1',
+      Two: '',
+      Three: '',
+    };
+    (pictured.orderingItems as string[]).forEach((item, i) =>
+      expect((pictured.orderingImages as string[])[i]).toBe(want[item])
+    );
+    expect('orderingImages' in ordering).toBe(false);
+
     const fr = publicQuestionFromKey({
       id: 'q6',
       type: 'free-response',

@@ -16,21 +16,19 @@ import type {
 import type { QuizAssignmentSettingsPatch } from '@/hooks/useQuizAssignments';
 import { AssignAvailabilitySection } from '@/components/common/library/AssignAvailabilitySection';
 import {
-  availabilityFromStored,
-  changedWindow,
-  closesBeforeOpens,
-  periodAccessWindowEdits,
-  type PeriodAccessWindowEdits,
   resolveAvailability,
-  specForRoster,
   type AssignAvailability,
 } from '@/utils/assignAvailability';
+import {
+  assignmentWindowEdit,
+  windowBackwards,
+  windowBaselineFor,
+} from '@/utils/assignmentWindowEdit';
 import {
   AssignModal,
   CollapsibleSection,
   QuizBehaviorSettingsPanel,
 } from '@/components/common/library';
-import { earliestDueAt } from '@/utils/perClassDueDates';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -178,75 +176,39 @@ export const QuizAssignmentSettingsModal: React.FC<
     assignment.accessMode === 'assignment' &&
     Object.keys(assignment.periodAccess ?? {}).length > 0;
   const selectedRostersForDue = resolveSelectedRosters(options.picker, rosters);
-  // The window as saved, resolved the same way as the edit so unchanged fields are never rewritten.
-  const [availabilityBaseline] = useState(() => {
-    const ids = selectedRostersForDue.map((r) => r.id);
-    const value = availabilityFromStored(assignment, ids);
-    return {
-      value,
-      resolved: resolveAvailability(value, selectedRostersForDue, undefined),
-    };
-  });
+  const [availabilityBaseline] = useState(() =>
+    windowBaselineFor(assignment, selectedRostersForDue)
+  );
   const [availability, setAvailability] = useState<AssignAvailability>(
     availabilityBaseline.value
   );
-  const availabilityBackwards =
-    selectedRostersForDue.length > 1 && availability.byRoster
-      ? selectedRostersForDue.some((r) =>
-          closesBeforeOpens(specForRoster(availability, r.id), [r], undefined)
-        )
-      : closesBeforeOpens(availability.all, selectedRostersForDue, undefined);
-  // Down to one class there is no per-class plan, so the shared window moves the kept rows.
-  const singleClassRowEdits = (
-    changed: ReturnType<typeof changedWindow>
-  ): PeriodAccessWindowEdits => {
-    const edit: PeriodAccessWindowEdits[string] = {};
-    if ('openAt' in changed) edit.openAt = changed.openAt ?? null;
-    if ('closeAt' in changed) edit.closeAt = changed.closeAt ?? null;
-    if (Object.keys(edit).length === 0) return {};
-    const out: PeriodAccessWindowEdits = {};
-    for (const [key, row] of Object.entries(assignment.periodAccess ?? {})) {
-      if (selectedRostersForDue.some((r) => r.id === row.rosterId))
-        out[key] = edit;
-    }
-    return out;
-  };
+  const availabilityBackwards = windowBackwards(
+    availability,
+    selectedRostersForDue
+  );
   const windowFields = (): QuizAssignmentSettingsPatch => {
-    const resolved = resolveAvailability(
+    const w = assignmentWindowEdit({
+      periodAccess: assignment.periodAccess,
+      perPeriod,
+      baseline: availabilityBaseline,
       availability,
-      selectedRostersForDue,
-      undefined
-    );
-    const changed = changedWindow(availabilityBaseline.resolved, resolved);
-    const dueChanged = 'dueAt' in changed || 'dueAtByRosterId' in changed;
-    const rowEdits = !perPeriod
-      ? {}
-      : resolved.periodPlan
-        ? periodAccessWindowEdits(
-            assignment.periodAccess ?? {},
-            availabilityBaseline.resolved,
-            resolved
-          )
-        : singleClassRowEdits(changed);
-    // A per-class session gates on its rows; a shared window would add a second gate.
-    const edit: QuizAssignmentSettingsPatch = perPeriod
-      ? Object.keys(rowEdits).length > 0
-        ? { periodAccessEdits: rowEdits }
-        : {}
-      : {
-          ...('openAt' in changed ? { openAt: changed.openAt } : {}),
-          ...('closeAt' in changed ? { closeAt: changed.closeAt } : {}),
-        };
-    if (!dueChanged) return edit;
-    const perClass: Record<string, number> | undefined =
-      resolved.dueAtByRosterId;
-    const dueAt = perClass ? earliestDueAt(perClass) : (resolved.dueAt ?? null);
+      rosters: selectedRostersForDue,
+    });
+    const edit: QuizAssignmentSettingsPatch = {
+      ...('openAt' in w ? { openAt: w.openAt } : {}),
+      ...('closeAt' in w ? { closeAt: w.closeAt } : {}),
+      ...(w.periodAccessEdits
+        ? { periodAccessEdits: w.periodAccessEdits }
+        : {}),
+    };
+    if (!w.due) return edit;
     const out: QuizAssignmentSettingsPatch = {
       ...edit,
-      dueAt,
-      dueAtHasTime: dueAt != null,
+      dueAt: w.due.dueAt,
+      dueAtHasTime: w.due.dueAt != null,
     };
-    if (perClass || assignment.dueAtByRosterId) out.dueAtByRosterId = perClass;
+    if (w.due.perClass || assignment.dueAtByRosterId)
+      out.dueAtByRosterId = w.due.perClass;
     return out;
   };
 

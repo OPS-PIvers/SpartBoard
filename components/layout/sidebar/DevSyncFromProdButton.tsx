@@ -11,7 +11,7 @@ export const isDevProject =
 
 type SyncResult = { copied: Record<string, number> };
 
-// Dev-only: replaces this account's dev materials with a fresh copy of its prod ones.
+// Dev-only: replaces this account's dev materials and the shared admin config with a fresh copy from prod.
 export const DevSyncFromProdButton: React.FC = () => {
   const { t } = useTranslation();
   const { isAdmin } = useAuth();
@@ -25,13 +25,21 @@ export const DevSyncFromProdButton: React.FC = () => {
     setConfirming(false);
     setSyncing(true);
     try {
-      const sync = httpsCallable<void, SyncResult>(
+      const syncMine = httpsCallable<void, SyncResult>(
         functions,
         'syncMyMaterialsFromProdV1',
         { timeout: 300_000 }
       );
-      const { data } = await sync();
-      const total = Object.values(data.copied).reduce((a, b) => a + b, 0);
+      const syncConfig = httpsCallable<void, SyncResult>(
+        functions,
+        'syncConfigFromProdV1',
+        { timeout: 540_000 }
+      );
+      const mine = await syncMine();
+      const config = await syncConfig();
+      const total = [mine.data, config.data]
+        .flatMap((d) => Object.values(d.copied))
+        .reduce((a, b) => a + b, 0);
       addToast(
         t('sidebar.devSync.done', {
           defaultValue: 'Copied {{count}} items from prod. Reloading…',
@@ -82,7 +90,7 @@ export const DevSyncFromProdButton: React.FC = () => {
       disabled={syncing}
       title={t('sidebar.devSync.tooltip', {
         defaultValue:
-          'Replace your boards, quizzes and other materials here with a fresh copy from spartboard.web.app. Rosters are not copied.',
+          'Replace your boards, classes, settings and other materials here, and all admin settings, with a fresh copy from spartboard.web.app.',
       })}
       className="flex items-center gap-1 text-xxs font-bold text-brand-blue-primary hover:underline disabled:opacity-50"
     >

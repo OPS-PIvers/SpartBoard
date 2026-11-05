@@ -10,7 +10,7 @@ import { dirname, join } from 'path';
 const SOURCE_PROJECT = 'spartboard';
 const TARGET_PROJECT = 'spartboard-dev';
 
-// Top-level docs only: subcollections are never followed, so a student-writable one (e.g. announcements/*/pollVotes) cannot leak in.
+// Keep in step with CONFIG_COLLECTIONS in functions/src/devSyncFromProd.ts. Top-level docs only: subcollections are never followed, so a student-writable one (e.g. announcements/*/pollVotes) cannot leak in.
 const CONFIG_COLLECTIONS = [
   'admins',
   'admin_settings',
@@ -29,6 +29,13 @@ const CONFIG_COLLECTIONS = [
   'announcements',
   'standards_catalog',
   'building_guided_learning',
+  'building_guided_learning_index',
+  'building_guided_learning_tours',
+  'building_web_tours',
+  'custom_widgets',
+  'gradebook_district_configs',
+  'grading_period_sets',
+  'lunch_menus',
 ];
 
 // Organization subcollections copied whole; `members` is filtered to admins below.

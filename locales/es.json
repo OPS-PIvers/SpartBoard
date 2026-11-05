@@ -1221,7 +1221,13 @@
       "bandCount": "{{count}} estudiantes · {{percent}} %",
       "scoredStudents": "{{count}} estudiantes calificados",
       "distributionPending": "El gráfico se actualiza en unos minutos.",
-      "distributionEmpty": "El gráfico se completa cuando los docentes publican las puntuaciones."
+      "distributionEmpty": "El gráfico se completa cuando los docentes publican las puntuaciones.",
+      "untitledCard": "Tarjeta sin título",
+      "cardAnswered": "{{count}} respondieron",
+      "sortCardOrder": "Orden de las tarjetas",
+      "cardsHeading": "Tarjetas",
+      "sortCards": "Ordenar tarjetas",
+      "distributionEmptyCards": "El gráfico se completa a medida que los estudiantes terminan una comprobación. Las comprobaciones de dominio cuentan quién terminó, sin puntuación."
     },
     "learningTargets": {
       "heading": "Objetivos de aprendizaje"
@@ -3446,7 +3452,17 @@
       "nav": "Preguntas de la prueba",
       "goTo": "Ir a la pregunta {{number}}",
       "numberType": "{{number}}. {{type}}",
-      "submit": "Enviar prueba"
+      "submit": "Enviar prueba",
+      "questionOf": "Pregunta {{number}} de {{total}}",
+      "answeredCount": "{{count}} de {{total}} respondidas",
+      "allQuestions": "Todas las preguntas",
+      "nextUnanswered": "Siguiente sin responder",
+      "answered": "Respondida",
+      "notAnswered": "Sin responder",
+      "previous": "Pregunta anterior",
+      "next": "Pregunta siguiente",
+      "back": "Atrás",
+      "nextButton": "Siguiente"
     },
     "characters": {
       "uppercase": "Usar mayúsculas",
@@ -3457,6 +3473,7 @@
       "readyTitle": "Lista para entregar",
       "readyFlashcards": "Todas las tarjetas alcanzaron la meta de tu docente. Entrega para terminar esta evaluación.",
       "readyWrite": "Respondiste bien todas las tarjetas. Entrega para terminar esta evaluación.",
+      "readySpeak": "Ya dijiste todas las tarjetas. Entrega para terminar esta evaluación.",
       "flagged_one": "{{count}} respuesta marcada para tu docente",
       "flagged_other": "{{count}} respuestas marcadas para tu docente",
       "submit": "Entregar",
@@ -3635,6 +3652,9 @@
         "confirm": "Se ve bien",
         "ipaLabel": "Pronunciación (AFI), {{dialect}}",
         "ipaInvalid": "Algunos de estos símbolos no se reconocen.",
+        "addIpa": "Agregar otra",
+        "removeIpa": "Quitar pronunciación",
+        "hearIpaFailed": "No se pudo reproducir esta pronunciación.",
         "checkingCards_one": "Revisando cómo se dice {{count}} tarjeta…",
         "checkingCards_other": "Revisando cómo se dicen {{count}} tarjetas…",
         "finishingCards": "Terminando Speak: {{done}} de {{total}} tarjetas",

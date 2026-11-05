@@ -28,6 +28,13 @@ export function reindexChoiceArray(
     ...q,
     [field]: indices.map((i) => source[i]),
   };
+  // Item images ride with their items so a reorder never pairs a picture with the wrong item.
+  if (field === 'orderingItems' && q.orderingImages) {
+    const images = q.orderingImages;
+    if (images.length === source.length)
+      next.orderingImages = indices.map((i) => images[i]);
+    else delete next.orderingImages;
+  }
   if (!q.localized) return next;
   const localized: Record<string, LocalizedQuestionStrings> = {};
   for (const [locale, strings] of Object.entries(q.localized)) {

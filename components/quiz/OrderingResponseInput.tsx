@@ -50,15 +50,39 @@ function shuffle<T>(arr: T[]): T[] {
   return out;
 }
 
+/** Item image beside its label; draggable chips must not start a native image drag. */
+const ItemImage: React.FC<{ src: string }> = ({ src }) => (
+  <img
+    src={src}
+    alt=""
+    draggable={false}
+    className="w-14 h-14 rounded-lg object-cover bg-white shrink-0 pointer-events-none"
+  />
+);
+
+const ItemLabel: React.FC<{ label: string; image?: string }> = ({
+  label,
+  image,
+}) =>
+  image ? (
+    <span className="flex items-center gap-2">
+      <ItemImage src={image} />
+      <span>{label}</span>
+    </span>
+  ) : (
+    <>{label}</>
+  );
+
 const DraggableChip: React.FC<{
   id: string;
   label: string;
+  image?: string;
   selected: boolean;
   disabled?: boolean;
   onTap: () => void;
   ariaLabel?: string;
   light?: boolean;
-}> = ({ id, label, selected, disabled, onTap, ariaLabel, light }) => {
+}> = ({ id, label, image, selected, disabled, onTap, ariaLabel, light }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id, disabled });
   const style: React.CSSProperties = transform
@@ -90,7 +114,7 @@ const DraggableChip: React.FC<{
       aria-label={ariaLabel ?? label}
       title={label}
     >
-      {label}
+      <ItemLabel label={label} image={image} />
     </button>
   );
 };
@@ -99,6 +123,7 @@ const Slot: React.FC<{
   id: string;
   index: number;
   filledLabel: string | null;
+  filledImage?: string;
   selectedHere: boolean;
   onTapEmpty: () => void;
   onChipTap: () => void;
@@ -113,6 +138,7 @@ const Slot: React.FC<{
   id,
   index,
   filledLabel,
+  filledImage,
   selectedHere,
   onTapEmpty,
   onChipTap,
@@ -175,7 +201,7 @@ const Slot: React.FC<{
           aria-label={`${filledLabel}, ${slotPosition}`}
           aria-pressed={selectedHere}
         >
-          {filledLabel}
+          <ItemLabel label={filledLabel} image={filledImage} />
         </button>
       ) : (
         <button
@@ -250,6 +276,10 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
     () => question.orderingItems ?? [],
     [question.orderingItems]
   );
+  const images =
+    question.orderingImages?.length === items.length
+      ? question.orderingImages
+      : undefined;
 
   // Slot state: each slot holds either an item index (into `items`) or null.
   // Bank holds the rest, in shuffled order. Per-attempt re-shuffle on
@@ -457,6 +487,11 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
                 id={`slot-${i}`}
                 index={i}
                 filledLabel={label}
+                filledImage={
+                  slot !== null && slot !== undefined
+                    ? images?.[slot]
+                    : undefined
+                }
                 selectedHere={selectedHere}
                 onTapEmpty={() => handleEmptySlotTap(i)}
                 onChipTap={() => handleSlotChipTap(i)}
@@ -509,6 +544,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
                   <DraggableChip
                     id={`bank-${itemIndex}`}
                     label={items[itemIndex]}
+                    image={images?.[itemIndex]}
                     selected={selected}
                     disabled={disabled}
                     onTap={() => handleBankChipTap(itemIndex)}

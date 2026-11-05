@@ -423,6 +423,22 @@ describe('scoreFlashcardProgress', () => {
       published: true,
     });
   });
+
+  it("follows one student's Show or Hide over the class publish", () => {
+    const done = { submittedAt: 4, score: 9, total: 12 };
+    expect(
+      scoreFlashcardProgress(
+        {},
+        { ...done, resultsOverride: { mode: 'shown', publishedAt: 5 } }
+      ).published
+    ).toBe(true);
+    expect(
+      scoreFlashcardProgress(
+        { scorePublishedAt: 1 },
+        { ...done, resultsOverride: { mode: 'hidden', publishedAt: 5 } }
+      ).published
+    ).toBe(false);
+  });
 });
 
 describe('scoreProjectMember', () => {

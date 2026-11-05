@@ -102,10 +102,7 @@ import {
   ScorePill,
   LaunchedBySubTag,
 } from '@/components/common/sessionViews';
-import {
-  SCORE_DISTRIBUTION_BANDS,
-  scoreColorClasses,
-} from '@/utils/scoreColor';
+import { scoreColorClasses } from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { FreeResponseGrader } from './FreeResponseGrader';
 import {
@@ -120,6 +117,12 @@ import {
 } from './results/StudentResultsControl';
 import { StudentResultsBulkBar } from './results/StudentResultsBulkBar';
 import { DrilldownNameList } from './results/DrilldownNameList';
+import {
+  ResultsDrillRow,
+  ResultsSummaryCard,
+  ScoreDistributionBars,
+} from './results/ResultsHome';
+import { SegmentedToggle } from './results/SegmentedToggle';
 import { useFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
 import {
   applyFinalScoresToEntries,
@@ -2441,46 +2444,33 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 </div>
               )}
 
-              {/* Summary card — the Blue Lighter hero face */}
-              <div
-                className="bg-brand-blue-lighter rounded-lg"
-                style={{ padding: 'min(12px, 3cqmin)' }}
-              >
-                <p
-                  className="font-sans font-semibold text-brand-blue-primary uppercase tracking-wider"
-                  style={{ fontSize: 'min(10px, 3.5cqmin)' }}
-                >
-                  {isGame ? 'First-attempt accuracy' : 'Class average'}
-                </p>
-                <p
-                  className="font-sans font-bold text-brand-blue-dark tabular-nums"
-                  style={{ fontSize: 'min(26px, 10cqmin)', lineHeight: 1.15 }}
-                >
-                  {isGame
+              <ResultsSummaryCard
+                label={isGame ? 'First-attempt accuracy' : 'Class average'}
+                value={
+                  isGame
                     ? firstTryAccuracy !== null
                       ? `${firstTryAccuracy}%`
                       : '—'
                     : filteredAvgScore !== null
                       ? `${filteredAvgScore}${getScoreSuffix(session)}`
-                      : '—'}
-                </p>
-                <p
-                  className="text-brand-blue-dark/70"
-                  style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-                >
-                  {isGame
+                      : '—'
+                }
+                detail={
+                  isGame
                     ? `${filteredCompleted.length} student${filteredCompleted.length === 1 ? '' : 's'} played`
-                    : `${filteredCompleted.length} of ${filteredResponses.length} students finished`}
-                </p>
-                {filteredAvgScore !== null && avgIsProvisional && (
-                  <p
-                    className="font-sans font-semibold text-amber-800"
-                    style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-                  >
-                    Provisional. Written answers need grading.
-                  </p>
-                )}
-              </div>
+                    : `${filteredCompleted.length} of ${filteredResponses.length} students finished`
+                }
+                note={
+                  filteredAvgScore !== null && avgIsProvisional ? (
+                    <p
+                      className="font-sans font-semibold text-amber-800"
+                      style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+                    >
+                      Provisional. Written answers need grading.
+                    </p>
+                  ) : undefined
+                }
+              />
 
               {!isReview && (
                 <ScoreDistribution
@@ -2496,14 +2486,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 className="flex flex-col"
                 style={{ gap: 'min(6px, 1.5cqmin)' }}
               >
-                <DrillRow
+                <ResultsDrillRow
                   label={questionsLabel}
                   detail={`${quiz.questions.length} question${quiz.questions.length === 1 ? '' : 's'}`}
                   onClick={() => setScreen('questions')}
                   anchor={tourTypeAttr('quiz-results.drill-questions', 'quiz')}
                 />
                 {hasTargetResults && (
-                  <DrillRow
+                  <ResultsDrillRow
                     label="Targets"
                     detail={`${targetStats.targets.filter((row) => row.servedCount > 0).length} target${
                       targetStats.targets.filter((row) => row.servedCount > 0)
@@ -2515,7 +2505,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                     anchor={tourTypeAttr('quiz-results.drill-targets', 'quiz')}
                   />
                 )}
-                <DrillRow
+                <ResultsDrillRow
                   label="Students"
                   detail={`${filteredResponses.length} student${filteredResponses.length === 1 ? '' : 's'}`}
                   onClick={() => setScreen('students')}
@@ -2952,44 +2942,6 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
 
 // ─── Screens ──────────────────────────────────────────────────────────────────
 
-const DrillRow: React.FC<{
-  label: string;
-  detail: string;
-  onClick: () => void;
-  anchor?: Record<string, string>;
-}> = ({ label, detail, onClick, anchor }) => (
-  <button
-    onClick={onClick}
-    {...anchor}
-    className="flex items-center justify-between bg-white border border-brand-gray-lighter rounded-lg hover:border-brand-blue-light transition-colors text-left"
-    style={{
-      padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
-      gap: 'min(8px, 2cqmin)',
-    }}
-  >
-    <p
-      className="font-sans font-semibold text-brand-gray-dark truncate"
-      style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-    >
-      {label}
-    </p>
-    <span
-      className="flex items-center shrink-0 text-brand-gray-primary"
-      style={{ gap: 'min(6px, 1.5cqmin)', fontSize: 'min(11px, 3.8cqmin)' }}
-    >
-      {detail}
-      <ChevronRight
-        className="text-brand-gray-light"
-        aria-hidden
-        style={{
-          width: 'min(14px, 4.5cqmin)',
-          height: 'min(14px, 4.5cqmin)',
-        }}
-      />
-    </span>
-  </button>
-);
-
 const ReviewRanking: React.FC<{
   rows: ReviewRankRow[];
   resolveName: (response: QuizResponse) => string;
@@ -3047,63 +2999,8 @@ const ScoreDistribution: React.FC<{
       .map((r) => getResponseScore(r, questions, session, fibGrading));
   }, [completed, questions, session, fibGrading]);
 
-  return (
-    <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
-      <p
-        className="font-sans font-semibold text-brand-blue-primary uppercase tracking-wider"
-        style={{ fontSize: 'min(10px, 3.5cqmin)' }}
-      >
-        Score distribution
-      </p>
-      {SCORE_DISTRIBUTION_BANDS.map((b) => {
-        const count = completedScores.filter(
-          (s) => s >= b.min && s <= b.max
-        ).length;
-        // Denominator is the SCOREABLE population (what completedScores
-        // counts), not all completed responses — otherwise unscoreable
-        // responses (answer key still loading / id drift) inflate the
-        // denominator so the buckets under-sum and read as all-0% next to a
-        // non-zero "finished" count. See canScoreResponse / completedScores.
-        const pct =
-          completedScores.length > 0
-            ? Math.round((count / completedScores.length) * 100)
-            : 0;
-        return (
-          <div key={b.label}>
-            <div
-              className="flex items-center justify-between"
-              style={{
-                gap: 'min(8px, 2cqmin)',
-                marginBottom: 'min(2px, 0.5cqmin)',
-              }}
-            >
-              <span
-                className="font-sans text-brand-gray-dark"
-                style={{ fontSize: 'min(12px, 4cqmin)' }}
-              >
-                {b.label}
-              </span>
-              <span
-                className="text-brand-gray-primary tabular-nums shrink-0"
-                style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-              >
-                {count} · {pct}%
-              </span>
-            </div>
-            <div
-              className="bg-brand-gray-lightest rounded-full overflow-hidden"
-              style={{ height: 'min(8px, 2cqmin)' }}
-            >
-              <div
-                className={`h-full rounded-full ${b.color}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+  // Denominator is the scoreable population, so unscoreable responses can't make the buckets under-sum.
+  return <ScoreDistributionBars scores={completedScores} />;
 };
 
 const EMPTY_QUESTION_STAT: QuestionStat = {
@@ -4053,52 +3950,6 @@ const collator = new Intl.Collator(undefined, {
   sensitivity: 'base',
   numeric: true,
 });
-
-function SegmentedToggle<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-  anchor,
-}: {
-  label: string;
-  value: T;
-  options: ReadonlyArray<readonly [T, string]>;
-  onChange: (value: T) => void;
-  anchor?: (value: T) => Record<string, string>;
-}) {
-  return (
-    <div
-      role="group"
-      aria-label={label}
-      className="inline-flex overflow-hidden rounded-md border border-brand-gray-lighter"
-    >
-      {options.map(([v, text], i) => {
-        const on = v === value;
-        return (
-          <button
-            key={v}
-            type="button"
-            onClick={() => onChange(v)}
-            aria-pressed={on}
-            {...anchor?.(v)}
-            className={`font-sans font-semibold transition-colors ${i > 0 ? 'border-l border-brand-gray-lighter' : ''} ${
-              on
-                ? 'bg-brand-blue-lighter text-brand-blue-dark'
-                : 'bg-white text-brand-gray-primary hover:text-brand-gray-dark'
-            }`}
-            style={{
-              fontSize: 'min(11px, 3.5cqmin)',
-              padding: 'min(3px, 0.8cqmin) min(8px, 2cqmin)',
-            }}
-          >
-            {text}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 const StudentsScreen: React.FC<{
   quizTitle: string;

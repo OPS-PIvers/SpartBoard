@@ -1,17 +1,13 @@
-import React, { useState } from 'react';
-import type { TourAnchorAttrs } from '@/config/tourAnchors';
+import React from 'react';
 import {
   AlertTriangle,
-  Clock,
   Timer,
   Hand,
   ImageOff,
   Lock,
-  MoreVertical,
   Unlock,
 } from 'lucide-react';
 import { QuizSession, QuizConfig, StudentOverride } from '@/types';
-import { useClickOutside } from '@/hooks/useClickOutside';
 import {
   AwayNowChip,
   TabExitsPopover,
@@ -22,13 +18,21 @@ import { studentCanEnter } from '@/utils/periodAccess';
 import { canTeacherSubmit } from '@/utils/quizTeacherSubmit';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
+import { MonitorFilterBy, MonitorSortBy, orderRoster } from './monitorUtils';
 import {
-  MonitorFilterBy,
-  MonitorSortBy,
-  ProficiencyBand,
-  compareStudents,
-  matchesFilter,
-} from './monitorUtils';
+  BAND_TINT,
+  rosterFieldStyle as fieldStyle,
+  rosterIconSize as iconSize,
+} from './rosterStyles';
+import {
+  RosterIdleChip,
+  RosterOnQuestion,
+  RosterRow,
+  RosterRowMenu,
+  RosterScorePill,
+  RosterToolbar,
+  type RosterMenuItem,
+} from './RosterParts';
 import {
   QUIZ_TIME_LIMIT_WARN_MS,
   formatTimeLeft,
@@ -66,44 +70,6 @@ interface RosterListProps {
    *  above against `overridesBySourcedId`. */
   targetRefKeyByStudentUid?: Map<string, string> | null;
 }
-
-const BAND_TINT: Record<ProficiencyBand, string> = {
-  hi: 'bg-emerald-50',
-  mid: 'bg-amber-50',
-  low: 'bg-orange-50',
-  crit: 'bg-rose-50',
-};
-
-const fieldStyle = {
-  fontSize: 'min(11px, 3.8cqmin)',
-  padding: 'min(4px, 1cqmin) min(6px, 1.5cqmin)',
-};
-
-const ToggleChip: React.FC<{
-  label: string;
-  on: boolean;
-  onToggle: () => void;
-  anchor?: TourAnchorAttrs;
-}> = ({ label, on, onToggle, anchor }) => (
-  <button
-    {...anchor}
-    onClick={onToggle}
-    aria-pressed={on}
-    className={`rounded-md border font-sans font-medium transition-colors ${
-      on
-        ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
-        : 'bg-white border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light'
-    }`}
-    style={fieldStyle}
-  >
-    {label}
-  </button>
-);
-
-const iconSize = {
-  width: 'min(12px, 4cqmin)',
-  height: 'min(12px, 4cqmin)',
-};
 
 /** Time left on a student's overall quiz time limit; ticks on its own so the list doesn't. */
 const TimeLeft: React.FC<{ deadline: number }> = ({ deadline }) => {
@@ -152,14 +118,6 @@ const RowMenu: React.FC<{
   overridesBySourcedId,
   targetRefKeyByStudentUid,
 }) => {
-  const [open, setOpen] = useState(false);
-  const [confirmRemove, setConfirmRemove] = useState(false);
-  const menuRef = React.useRef<HTMLDivElement | null>(null);
-  useClickOutside(menuRef, () => {
-    setOpen(false);
-    setConfirmRemove(false);
-  });
-
   const r = student.response;
   const attemptLimit = session.attemptLimit;
   const tabThreshold = resolveStudentTabWarningThreshold(
@@ -176,12 +134,7 @@ const RowMenu: React.FC<{
         attemptLimit > 0 &&
         (r.completedAttempts ?? 0) >= attemptLimit));
 
-  const items: {
-    label: string;
-    danger?: boolean;
-    tour: ReturnType<typeof tourTypeAttr>;
-    onClick: () => void;
-  }[] = [];
+  const items: RosterMenuItem[] = [];
   if (
     onLetIn &&
     r.studentUid &&
@@ -190,21 +143,17 @@ const RowMenu: React.FC<{
   )
     items.push({
       label: 'Let in now',
+      closes: true,
       tour: tourTypeAttr('quiz-monitor.student-let-in', 'quiz'),
-      onClick: () => {
-        onLetIn(r.studentUid);
-        setOpen(false);
-      },
+      onClick: () => onLetIn(r.studentUid),
     });
   if (onOpenPart && isResponseWaiting(session, r)) {
     const part = partsDoneOf(r) + 1;
     items.push({
       label: `Open Part ${part}`,
+      closes: true,
       tour: tourTypeAttr('quiz-monitor.student-open-part', 'quiz'),
-      onClick: () => {
-        onOpenPart(student.key, part);
-        setOpen(false);
-      },
+      onClick: () => onOpenPart(student.key, part),
     });
   }
   if (locked && onUnlockAttempt)
@@ -216,11 +165,9 @@ const RowMenu: React.FC<{
   if (onSubmitForStudent && canTeacherSubmit(r))
     items.push({
       label: 'Submit for student',
+      closes: true,
       tour: tourTypeAttr('quiz-monitor.student-submit', 'quiz'),
-      onClick: () => {
-        onSubmitForStudent(student.key);
-        setOpen(false);
-      },
+      onClick: () => onSubmitForStudent(student.key),
     });
   if (r.resultsLockedOut && onUnlockResults)
     items.push({
@@ -230,70 +177,23 @@ const RowMenu: React.FC<{
     });
   if (onRemove)
     items.push({
-      label: confirmRemove ? 'Confirm remove' : 'Remove student',
+      label: 'Remove student',
+      confirmLabel: 'Confirm remove',
       danger: true,
       tour: tourTypeAttr('quiz-monitor.student-remove', 'quiz'),
-      onClick: () => {
-        if (!confirmRemove) {
-          setConfirmRemove(true);
-          return;
-        }
-        onRemove(student.key);
-        setOpen(false);
-        setConfirmRemove(false);
-      },
+      onClick: () => onRemove(student.key),
     });
-  if (items.length === 0) return null;
 
   return (
-    <div ref={menuRef} className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={`Actions for ${student.name}`}
-        {...tourFieldAttr(
-          'quiz-monitor.roster-row-actions',
-          'quiz',
-          student.key
-        )}
-        className="rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark transition-colors"
-        style={{ padding: 'min(4px, 1cqmin)' }}
-      >
-        <MoreVertical
-          style={{
-            width: 'min(14px, 4.5cqmin)',
-            height: 'min(14px, 4.5cqmin)',
-          }}
-        />
-      </button>
-      {open && (
-        <div
-          className="absolute right-0 top-full z-30 bg-white border border-brand-gray-lighter rounded-lg shadow-lg overflow-hidden"
-          style={{
-            marginTop: 'min(4px, 1cqmin)',
-            minWidth: 'min(160px, 55cqw)',
-          }}
-        >
-          {items.map((item) => (
-            <button
-              key={item.label}
-              onClick={item.onClick}
-              {...item.tour}
-              className={`block w-full text-left font-sans transition-colors ${
-                item.danger
-                  ? 'text-brand-red-primary hover:bg-red-50'
-                  : 'text-brand-gray-dark hover:bg-brand-blue-lighter'
-              }`}
-              style={{
-                fontSize: 'min(12px, 4cqmin)',
-                padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+    <RosterRowMenu
+      ariaLabel={`Actions for ${student.name}`}
+      triggerAnchor={tourFieldAttr(
+        'quiz-monitor.roster-row-actions',
+        'quiz',
+        student.key
       )}
-    </div>
+      items={items}
+    />
   );
 };
 
@@ -332,38 +232,18 @@ export const RosterList: React.FC<RosterListProps> = ({
   const hands =
     showFlags && handRaiseOn ? students.filter((s) => s.hand != null) : [];
   const handKeys = new Set(hands.map((s) => s.key));
-  const rest = students
-    .filter((s) => !handKeys.has(s.key))
-    .filter((s) =>
-      showToolbar
-        ? matchesFilter(
-            {
-              name: s.name,
-              status: s.response.status,
-              score: s.bandScore,
-              tabWarnings: s.tabWarnings,
-            },
-            filterBy
-          )
-        : true
-    )
-    .sort((a, b) =>
-      compareStudents(
-        {
-          name: a.name,
-          status: a.response.status,
-          score: a.bandScore,
-          tabWarnings: a.tabWarnings,
-        },
-        {
-          name: b.name,
-          status: b.response.status,
-          score: b.bandScore,
-          tabWarnings: b.tabWarnings,
-        },
-        showToolbar ? sortBy : 'first'
-      )
-    );
+  const rest = orderRoster(
+    students.filter((s) => !handKeys.has(s.key)),
+    (s) => ({
+      name: s.name,
+      status: s.response.status,
+      score: s.bandScore,
+      tabWarnings: s.tabWarnings,
+    }),
+    sortBy,
+    filterBy,
+    showToolbar
+  );
 
   return (
     <div
@@ -371,84 +251,12 @@ export const RosterList: React.FC<RosterListProps> = ({
       style={{ gap: 'min(8px, 2cqmin)' }}
     >
       {showToolbar && (
-        <div
-          className="flex flex-wrap items-center"
-          style={{ gap: 'min(6px, 1.5cqmin)' }}
-        >
-          {bucket === 'done' && (
-            <ToggleChip
-              label="Scores"
-              anchor={tourTypeAttr('quiz-monitor.roster-scores', 'quiz')}
-              on={config.monitorShowScores ?? false}
-              onToggle={() =>
-                onUpdateConfig({
-                  monitorShowScores: !(config.monitorShowScores ?? false),
-                })
-              }
-            />
-          )}
-          {tabWarningsAllowed && (
-            <ToggleChip
-              label="Tab warnings"
-              anchor={tourTypeAttr('quiz-monitor.roster-tab-warnings', 'quiz')}
-              on={config.monitorShowTabWarnings ?? false}
-              onToggle={() =>
-                onUpdateConfig({
-                  monitorShowTabWarnings: !(
-                    config.monitorShowTabWarnings ?? false
-                  ),
-                })
-              }
-            />
-          )}
-          {bucket === 'done' && (
-            <ToggleChip
-              label="Proficiency colors"
-              anchor={tourTypeAttr('quiz-monitor.roster-proficiency', 'quiz')}
-              on={config.monitorShowProficiency ?? false}
-              onToggle={() =>
-                onUpdateConfig({
-                  monitorShowProficiency: !(
-                    config.monitorShowProficiency ?? false
-                  ),
-                })
-              }
-            />
-          )}
-          <select
-            value={sortBy}
-            onChange={(e) =>
-              onUpdateConfig({ monitorSortBy: e.target.value as MonitorSortBy })
-            }
-            aria-label="Sort students"
-            {...tourTypeAttr('quiz-monitor.roster-sort', 'quiz')}
-            className="rounded-md border border-brand-gray-lighter bg-white text-brand-gray-dark font-sans"
-            style={fieldStyle}
-          >
-            <option value="first">First name</option>
-            <option value="last">Last name</option>
-            <option value="status">Status</option>
-            <option value="score">Score</option>
-          </select>
-          <select
-            value={filterBy}
-            onChange={(e) =>
-              onUpdateConfig({
-                monitorFilterBy: e.target.value as MonitorFilterBy,
-              })
-            }
-            aria-label="Filter students"
-            {...tourTypeAttr('quiz-monitor.roster-filter', 'quiz')}
-            className="rounded-md border border-brand-gray-lighter bg-white text-brand-gray-dark font-sans"
-            style={fieldStyle}
-          >
-            <option value="all">Everyone</option>
-            <option value="hi">Score 80%+</option>
-            <option value="mid">Score 60–79%</option>
-            <option value="low">Below 60%</option>
-            <option value="tabs">Left quiz tab</option>
-          </select>
-        </div>
+        <RosterToolbar
+          bucket={bucket}
+          prefs={config}
+          onUpdate={onUpdateConfig}
+          tabWarningsAllowed={tabWarningsAllowed}
+        />
       )}
 
       {hands.map((s) => (
@@ -543,25 +351,12 @@ export const RosterList: React.FC<RosterListProps> = ({
               session.attemptLimit > 0 &&
               (r.completedAttempts ?? 0) >= session.attemptLimit));
         return (
-          <div
+          <RosterRow
             key={s.key}
-            className={`flex items-center justify-between rounded-lg border border-brand-gray-lightest ${tint}`}
-            style={{
-              padding: 'min(7px, 1.8cqmin) min(10px, 2.5cqmin)',
-              gap: 'min(8px, 2cqmin)',
-            }}
-          >
-            <div
-              className="flex items-center min-w-0"
-              style={{ gap: 'min(6px, 1.5cqmin)' }}
-            >
-              <p
-                className="font-sans font-medium text-brand-gray-dark truncate"
-                style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-              >
-                {s.name}
-              </p>
-              {s.duplicate && (
+            name={s.name}
+            tint={tint}
+            nameNote={
+              s.duplicate && (
                 <span
                   className="shrink-0 text-brand-red-primary font-sans"
                   title="Possible duplicate identity"
@@ -569,168 +364,115 @@ export const RosterList: React.FC<RosterListProps> = ({
                 >
                   duplicate?
                 </span>
-              )}
-            </div>
-            <div
-              className="flex items-center shrink-0"
-              style={{ gap: 'min(6px, 1.5cqmin)' }}
-            >
-              {bucket === 'inProgress' && (
+              )
+            }
+          >
+            {bucket === 'inProgress' && (
+              <RosterOnQuestion index={s.onQuestion} />
+            )}
+            {r.status !== 'completed' && deadline != null && (
+              <TimeLeft deadline={deadline} />
+            )}
+            {bucket === 'done' && r.timeUp && (
+              <span
+                className="inline-flex items-center text-brand-gray-primary font-sans"
+                title="Submitted when time ran out"
+                style={{
+                  gap: 'min(2px, 0.5cqmin)',
+                  fontSize: 'min(11px, 3.8cqmin)',
+                }}
+              >
+                <Timer aria-hidden style={iconSize} />
+                Time up
+              </span>
+            )}
+            {showFlags && s.idle != null && <RosterIdleChip minutes={s.idle} />}
+            {Object.keys(r.stimulusErrors ?? {}).length > 0 && (
+              <ImageOff
+                className="text-amber-600"
+                aria-label="Stimulus failed to load for this student"
+                style={{
+                  width: 'min(12px, 4cqmin)',
+                  height: 'min(12px, 4cqmin)',
+                }}
+              />
+            )}
+            {showTabs && (
+              <AwayNowChip
+                exits={r.tabExits}
+                completed={r.status === 'completed'}
+                sessionActive={session.status === 'active'}
+                style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+              />
+            )}
+            {showTabs && s.tabWarnings > 0 && (
+              <TabExitsPopover
+                exits={r.tabExits}
+                warnings={s.tabWarnings}
+                studentName={s.name}
+                completed={r.status === 'completed'}
+                sessionEnded={session.status === 'ended'}
+              >
                 <span
-                  className="text-brand-gray-primary tabular-nums"
-                  style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-                >
-                  Q{s.onQuestion}
-                </span>
-              )}
-              {r.status !== 'completed' && deadline != null && (
-                <TimeLeft deadline={deadline} />
-              )}
-              {bucket === 'done' && r.timeUp && (
-                <span
-                  className="inline-flex items-center text-brand-gray-primary font-sans"
-                  title="Submitted when time ran out"
+                  className="inline-flex items-center text-brand-red-primary font-sans font-semibold tabular-nums"
+                  title={`${s.tabWarnings} tab-switch warning${s.tabWarnings === 1 ? '' : 's'}`}
                   style={{
                     gap: 'min(2px, 0.5cqmin)',
                     fontSize: 'min(11px, 3.8cqmin)',
                   }}
                 >
-                  <Timer aria-hidden style={iconSize} />
-                  Time up
-                </span>
-              )}
-              {showFlags && s.idle != null && (
-                <span
-                  className="inline-flex items-center text-amber-700 font-sans tabular-nums"
-                  title={`No answer for ${s.idle} min`}
-                  aria-label={`Idle ${s.idle} min`}
-                  style={{
-                    gap: 'min(2px, 0.5cqmin)',
-                    fontSize: 'min(11px, 3.8cqmin)',
-                  }}
-                >
-                  <Clock
+                  <AlertTriangle
                     aria-hidden
                     style={{
                       width: 'min(12px, 4cqmin)',
                       height: 'min(12px, 4cqmin)',
                     }}
                   />
-                  {s.idle} min
+                  {s.tabWarnings}
                 </span>
-              )}
-              {Object.keys(r.stimulusErrors ?? {}).length > 0 && (
-                <ImageOff
-                  className="text-amber-600"
-                  aria-label="Stimulus failed to load for this student"
-                  style={{
-                    width: 'min(12px, 4cqmin)',
-                    height: 'min(12px, 4cqmin)',
-                  }}
-                />
-              )}
-              {showTabs && (
-                <AwayNowChip
-                  exits={r.tabExits}
-                  completed={r.status === 'completed'}
-                  sessionActive={session.status === 'active'}
-                  style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-                />
-              )}
-              {showTabs && s.tabWarnings > 0 && (
-                <TabExitsPopover
-                  exits={r.tabExits}
-                  warnings={s.tabWarnings}
-                  studentName={s.name}
-                  completed={r.status === 'completed'}
-                  sessionEnded={session.status === 'ended'}
-                >
-                  <span
-                    className="inline-flex items-center text-brand-red-primary font-sans font-semibold tabular-nums"
-                    title={`${s.tabWarnings} tab-switch warning${s.tabWarnings === 1 ? '' : 's'}`}
-                    style={{
-                      gap: 'min(2px, 0.5cqmin)',
-                      fontSize: 'min(11px, 3.8cqmin)',
-                    }}
-                  >
-                    <AlertTriangle
-                      aria-hidden
-                      style={{
-                        width: 'min(12px, 4cqmin)',
-                        height: 'min(12px, 4cqmin)',
-                      }}
-                    />
-                    {s.tabWarnings}
-                  </span>
-                </TabExitsPopover>
-              )}
-              {locked && (
-                <Lock
-                  className="text-brand-gray-primary"
-                  aria-label="Locked"
-                  style={{
-                    width: 'min(12px, 4cqmin)',
-                    height: 'min(12px, 4cqmin)',
-                  }}
-                />
-              )}
-              {r.unlocked && r.status !== 'completed' && (
-                <Unlock
-                  className="text-emerald-600"
-                  aria-label="Resumed after unlock"
-                  style={{
-                    width: 'min(12px, 4cqmin)',
-                    height: 'min(12px, 4cqmin)',
-                  }}
-                />
-              )}
-              {showScores &&
-                (s.displayScore != null ? (
-                  <span
-                    className={`rounded-full font-sans font-semibold tabular-nums ${
-                      s.awaitingGrade
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-brand-blue-lighter text-brand-blue-dark'
-                    }`}
-                    title={
-                      s.awaitingGrade
-                        ? 'Provisional — a written response is still ungraded, so this total will change.'
-                        : undefined
-                    }
-                    style={{
-                      fontSize: 'min(11px, 3.8cqmin)',
-                      padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-                    }}
-                  >
-                    {s.displayScore}
-                    {isGamified ? ' pts' : '%'}
-                    {s.awaitingGrade && (
-                      <span aria-label="provisional, not fully graded">*</span>
-                    )}
-                  </span>
-                ) : (
-                  <span
-                    className="text-brand-gray-light"
-                    style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-                  >
-                    —
-                  </span>
-                ))}
-              <RowMenu
-                student={s}
-                session={session}
-                now={now}
-                onLetIn={onLetIn}
-                onOpenPart={onOpenPart}
-                onRemove={onRemove}
-                onUnlockAttempt={onUnlockAttempt}
-                onSubmitForStudent={onSubmitForStudent}
-                onUnlockResults={onUnlockResults}
-                overridesBySourcedId={overridesBySourcedId}
-                targetRefKeyByStudentUid={targetRefKeyByStudentUid}
+              </TabExitsPopover>
+            )}
+            {locked && (
+              <Lock
+                className="text-brand-gray-primary"
+                aria-label="Locked"
+                style={{
+                  width: 'min(12px, 4cqmin)',
+                  height: 'min(12px, 4cqmin)',
+                }}
               />
-            </div>
-          </div>
+            )}
+            {r.unlocked && r.status !== 'completed' && (
+              <Unlock
+                className="text-emerald-600"
+                aria-label="Resumed after unlock"
+                style={{
+                  width: 'min(12px, 4cqmin)',
+                  height: 'min(12px, 4cqmin)',
+                }}
+              />
+            )}
+            {showScores && (
+              <RosterScorePill
+                score={s.displayScore}
+                suffix={isGamified ? ' pts' : '%'}
+                awaitingGrade={s.awaitingGrade}
+              />
+            )}
+            <RowMenu
+              student={s}
+              session={session}
+              now={now}
+              onLetIn={onLetIn}
+              onOpenPart={onOpenPart}
+              onRemove={onRemove}
+              onUnlockAttempt={onUnlockAttempt}
+              onSubmitForStudent={onSubmitForStudent}
+              onUnlockResults={onUnlockResults}
+              overridesBySourcedId={overridesBySourcedId}
+              targetRefKeyByStudentUid={targetRefKeyByStudentUid}
+            />
+          </RosterRow>
         );
       })}
     </div>

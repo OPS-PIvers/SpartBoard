@@ -10,10 +10,8 @@ import {
 import type { StudentGradesData } from '@/utils/gradebook/studentGrades';
 import type { GlobalFeaturePermission } from '@/types';
 
-const STUDENT_GRADEBOOK_FEATURE = 'student-gradebook';
-
-/** Students pass the `student-gradebook` gate only once it is Public (D38); a missing doc is off. */
-export function isStudentGradebookOpen(
+/** Students pass a student-page gate only once it is Public with no buildings (D38); a missing doc is off. */
+export function isStudentFeatureOpen(
   permission: Partial<GlobalFeaturePermission> | undefined
 ): boolean {
   return (
@@ -23,23 +21,28 @@ export function isStudentGradebookOpen(
   );
 }
 
-export function useStudentGradebookEnabled(): boolean {
+export function useStudentFeatureOpen(
+  featureId: 'student-gradebook' | 'student-overview-resources'
+): boolean {
   const [enabled, setEnabled] = useState(false);
   useEffect(() => {
     if (isAuthBypass) return;
     return onSnapshot(
-      doc(db, 'global_permissions', STUDENT_GRADEBOOK_FEATURE),
+      doc(db, 'global_permissions', featureId),
       (snap) =>
         setEnabled(
-          isStudentGradebookOpen(
+          isStudentFeatureOpen(
             snap.data() as Partial<GlobalFeaturePermission> | undefined
           )
         ),
       () => setEnabled(false)
     );
-  }, []);
+  }, [featureId]);
   return enabled;
 }
+
+export const useStudentGradebookEnabled = (): boolean =>
+  useStudentFeatureOpen('student-gradebook');
 
 export type StudentGradesState =
   | { status: 'loading' }

@@ -34,7 +34,7 @@ import {
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
-import { applyWhen, manualStartAvailable } from '@/utils/assignAvailability';
+import { applyWhen } from '@/utils/assignAvailability';
 import {
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
@@ -84,12 +84,11 @@ export const GuidedLearningAssignStepper: React.FC<{
     EMPTY_ASSIGN_TARGETING_VALUE
   );
   const bellWindow = periodAccess?.bellWindow;
-  const manualAvailable = manualStartAvailable(bellWindow);
   const [when, setWhen] = useState<AssignWhenValue>(() =>
     defaultWhenValue({
       activity: 'gl',
       bellAvailable: !!bellWindow,
-      manualAvailable,
+      manualAvailable: true,
     })
   );
   const [modificationsOpen, setModificationsOpen] = useState(false);
@@ -108,6 +107,7 @@ export const GuidedLearningAssignStepper: React.FC<{
       { ...targeting, availability: when.availability },
       {
         mode: when.mode,
+        manualAvailable: !staff,
         rosters: picked,
         bellWindow,
         workKind: { default: kind, locked: true },
@@ -116,8 +116,7 @@ export const GuidedLearningAssignStepper: React.FC<{
     await onAssign({
       classes: staff ? { classIds: [], studentsByClass: {} } : classes,
       targeting: staff ? { ...resolved, periodPlan: undefined } : resolved,
-      manualStart:
-        !staff && kind === 'work' && when.mode === 'manual' && manualAvailable,
+      manualStart: !staff && kind === 'work' && when.mode === 'manual',
       audience: audienceState.audience,
     });
   };
@@ -162,7 +161,7 @@ export const GuidedLearningAssignStepper: React.FC<{
       value: formatWhenValue(when, {
         variant: whenVariant,
         rosterCount: picked.length,
-        manualAvailable,
+        manualAvailable: !staff,
         t,
       }),
       body: (
@@ -172,6 +171,7 @@ export const GuidedLearningAssignStepper: React.FC<{
           variant={whenVariant}
           rosters={picked}
           periodAccess={periodAccess}
+          manualAvailable={!staff}
         />
       ),
     };

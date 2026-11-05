@@ -7147,6 +7147,13 @@ service cloud.firestore {
                && sessionClassIds.hasAny(request.auth.token.classIds);
       }
 
+      // Same gate as quiz_sessions: only a member may point a check at a PLC's results.
+      function fcPlcLinkOk() {
+        return isStr('plcId') && incoming().plcId.size() > 0
+          && isStr('syncGroupId') && incoming().syncGroupId.size() > 0
+          && plcMember(incoming().plcId);
+      }
+
       allow get: if signedIn() && (
         existing().teacherUid == authUid() ||
         isSubMonitor(existing()) ||
@@ -7170,7 +7177,8 @@ service cloud.firestore {
                     && isList('classIds')
                     && isList('cards')
                     && (incoming().cards.size() > 0 || incoming().get('cardsInContent', false) == true)
-                    && incoming().cards.size() <= 500;
+                    && incoming().cards.size() <= 500
+                    && (!('plcId' in incoming()) || fcPlcLinkOk());
       allow update: if fcTeacherSignedIn()
                     && existing().teacherUid == authUid()
                     && subMonitorStampUnchanged()
@@ -7178,7 +7186,8 @@ service cloud.firestore {
                     && unchanged('kind')
                     // Audience is fixed at create, so live joiners' progress writes keep passing.
                     && incoming().get('audience', '') == existing().get('audience', '')
-                    && incoming().status in ['active', 'ended'];
+                    && incoming().status in ['active', 'ended']
+                    && (incoming().get('plcId', null) == null || !changed(['plcId', 'syncGroupId']) || fcPlcLinkOk());
       allow delete: if fcTeacherSignedIn() && existing().teacherUid == authUid();
 
       function fcSession() {
@@ -7218,8 +7227,10 @@ service cloud.firestore {
           return data.keys().hasOnly([
                    'classId', 'cards', 'starred', 'round', 'studyMs', 'modesUsed',
                    'tests', 'lastActiveAt', 'checkLog', 'speak', 'speakRound',
-                   'speakSounds', 'staffEmail', 'staffName'
+                   'speakSounds', 'staffEmail', 'staffName', 'resultsOverride'
                  ])
+                 // The teacher's per-student results setting is never the student's to write.
+                 && data.get('resultsOverride', null) == (resource == null ? null : existing().get('resultsOverride', null))
                  && data.classId is string
                  && fcCardsOk()
                  && data.starred is list
@@ -7254,6 +7265,10 @@ service cloud.firestore {
                               && fcWithinWindow() && fcOpen()
                               && (resource == null || !('submittedAt' in existing()))
                               && fcValidProgress();
+        // Show / Hide / Follow class for one student (flashcards-assign-v2): that one field only.
+        allow update: if fcIsSessionTeacher() && notDeactivated()
+                      && changedOnly(['resultsOverride'])
+                      && optMap(incoming(), 'resultsOverride');
         allow delete: if fcIsSessionTeacher() && notDeactivated();
       }
     }

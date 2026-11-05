@@ -9,6 +9,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-import-versions',
   'quiz-import-versions-plain',
   'paper-answer-sheets',
+  'flashcards-assign-v2',
   'roster-groups',
   'quiz-document-import',
   'tab-away-timer',
@@ -26,6 +27,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-rubric-visibility',
   'gradebook',
   'student-gradebook',
+  'student-overview-resources',
   'quiz-time-limit',
   'group-reminders',
   'guided-learning-ai',
@@ -42,6 +44,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-stimulus-quotes',
   'quiz-cross-out',
   'quiz-submit-for-student',
+  'quiz-ordering-images',
   'quiz-calculator-stimulus',
   'lunch-count-redesign',
   'weather-details',
@@ -75,6 +78,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'import-schoology-course',
   'video-activity-stops',
   'video-import-ai',
+  'flashcards-test-nav',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

@@ -81,6 +81,7 @@ const addToast = vi.fn();
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-alice' },
+    canAccessFeature: () => true,
   }),
 }));
 vi.mock('@/context/useDashboard', () => ({
@@ -480,6 +481,15 @@ describe('PlcAssessmentDetail', () => {
   it('skips the norming section for a video activity', () => {
     mockAssessmentsSlice.data = [{ ...assessment, kind: 'video-activity' }];
     render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    expect(screen.queryByTestId('norming-section')).toBeNull();
+  });
+
+  it('names cards and skips norming for a Flashcards check', () => {
+    mockAssessmentsSlice.data = [{ ...assessment, kind: 'flashcard-check' }];
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    expect(screen.getByText('Cards')).toBeInTheDocument();
+    expect(screen.getByText('Card order')).toBeInTheDocument();
+    expect(screen.queryByText('Questions')).toBeNull();
     expect(screen.queryByTestId('norming-section')).toBeNull();
   });
 });

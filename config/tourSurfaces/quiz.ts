@@ -28,7 +28,6 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-library.archive-settings': 'library-shell.archive-menu:quiz#row-1',
       'quiz-library.archive-plc-results':
         'library-shell.archive-menu:quiz#row-1',
-      'quiz-library.archive-copy-link': 'library-shell.archive-menu:quiz#row-1',
       'quiz-library.archive-results': 'library-shell.archive-menu:quiz#row-1',
       'quiz-library.archive-share': 'library-shell.archive-menu:quiz#row-1',
       'quiz-library.archive-pause': 'library-shell.archive-menu:quiz#row-1',

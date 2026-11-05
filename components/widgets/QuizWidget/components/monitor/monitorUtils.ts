@@ -118,3 +118,20 @@ export const joinCodesAllowedForBuildings = (
   const allowed = new Set(canonicalizeBuildingIds(permission.buildings));
   return selectedBuildings.some((b) => allowed.has(b));
 };
+
+/** Filters (when the toolbar shows) and sorts roster rows by the toolbar's choices. */
+export function orderRoster<T>(
+  items: readonly T[],
+  sortable: (item: T) => SortableStudent,
+  sortBy: MonitorSortBy,
+  filterBy: MonitorFilterBy,
+  applyToolbar: boolean
+): T[] {
+  return items
+    .filter((item) =>
+      applyToolbar ? matchesFilter(sortable(item), filterBy) : true
+    )
+    .sort((a, b) =>
+      compareStudents(sortable(a), sortable(b), applyToolbar ? sortBy : 'first')
+    );
+}

@@ -165,7 +165,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
 };
 
 interface CheckSubmitPanelProps {
-  mode: 'flashcards' | 'write';
+  mode: 'flashcards' | 'write' | 'speak';
   dark: boolean;
   submitting: boolean;
   error?: string | null;
@@ -206,7 +206,9 @@ export const CheckSubmitPanel: React.FC<CheckSubmitPanelProps> = ({
           {t(
             mode === 'flashcards'
               ? 'flashcards.check.readyFlashcards'
-              : 'flashcards.check.readyWrite'
+              : mode === 'speak'
+                ? 'flashcards.check.readySpeak'
+                : 'flashcards.check.readyWrite'
           )}
         </p>
         {flaggedCount > 0 && (

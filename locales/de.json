@@ -1221,7 +1221,13 @@
       "bandCount": "{{count}} Schüler · {{percent}} %",
       "scoredStudents": "{{count}} Schüler bewertet",
       "distributionPending": "Das Diagramm aktualisiert sich in wenigen Minuten.",
-      "distributionEmpty": "Das Diagramm füllt sich, sobald Lehrkräfte Ergebnisse veröffentlichen."
+      "distributionEmpty": "Das Diagramm füllt sich, sobald Lehrkräfte Ergebnisse veröffentlichen.",
+      "untitledCard": "Karte ohne Titel",
+      "cardAnswered": "{{count}} beantwortet",
+      "sortCardOrder": "Kartenreihenfolge",
+      "cardsHeading": "Karten",
+      "sortCards": "Karten sortieren",
+      "distributionEmptyCards": "Das Diagramm füllt sich, sobald Schüler eine Überprüfung abschließen. Beherrschungsüberprüfungen zählen, wer fertig ist, ohne Punktzahl."
     },
     "learningTargets": {
       "heading": "Lernziele"
@@ -3446,7 +3452,17 @@
       "nav": "Testfragen",
       "goTo": "Zu Frage {{number}}",
       "numberType": "{{number}}. {{type}}",
-      "submit": "Test abgeben"
+      "submit": "Test abgeben",
+      "questionOf": "Frage {{number}} von {{total}}",
+      "answeredCount": "{{count}} von {{total}} beantwortet",
+      "allQuestions": "Alle Fragen",
+      "nextUnanswered": "Nächste unbeantwortete",
+      "answered": "Beantwortet",
+      "notAnswered": "Nicht beantwortet",
+      "previous": "Vorherige Frage",
+      "next": "Nächste Frage",
+      "back": "Zurück",
+      "nextButton": "Weiter"
     },
     "characters": {
       "uppercase": "Großbuchstaben verwenden",
@@ -3457,6 +3473,7 @@
       "readyTitle": "Bereit zum Abgeben",
       "readyFlashcards": "Alle Karten haben das Ziel deiner Lehrkraft erreicht. Gib ab, um diese Überprüfung abzuschließen.",
       "readyWrite": "Du hast alle Karten richtig beantwortet. Gib ab, um diese Überprüfung abzuschließen.",
+      "readySpeak": "Du hast jede Karte gesagt. Gib ab, um diese Überprüfung abzuschließen.",
       "flagged_one": "{{count}} Antwort für deine Lehrkraft markiert",
       "flagged_other": "{{count}} Antworten für deine Lehrkraft markiert",
       "submit": "Abgeben",
@@ -3635,6 +3652,9 @@
         "confirm": "Sieht richtig aus",
         "ipaLabel": "Aussprache (IPA), {{dialect}}",
         "ipaInvalid": "Einige dieser Zeichen werden nicht erkannt.",
+        "addIpa": "Weitere hinzufügen",
+        "removeIpa": "Aussprache entfernen",
+        "hearIpaFailed": "Diese Aussprache konnte nicht abgespielt werden.",
         "checkingCards_one": "Aussprache von {{count}} Karte wird geprüft…",
         "checkingCards_other": "Aussprache von {{count}} Karten wird geprüft…",
         "finishingCards": "Speak wird fertiggestellt: {{done}} von {{total}} Karten",

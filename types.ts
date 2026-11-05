@@ -1434,12 +1434,14 @@ export interface PlcUnreadState {
  * `synced_video_activities` group); it is immutable on update. `createdBy` and
  * `id` are likewise identity fields. Soft-deletable via `deletedAt`.
  */
+export type PlcAssessmentKind = 'quiz' | 'video-activity' | 'flashcard-check';
+
 export interface PlcCommonAssessment {
   id: string;
   /** Team-facing assessment title (e.g. "Unit 4 CFA"). */
   title: string;
-  /** Which authoring surface backs this assessment. */
-  kind: 'quiz' | 'video-activity';
+  /** Which authoring surface backs this assessment; the server creates `flashcard-check` ones. */
+  kind: PlcAssessmentKind;
   /**
    * Canonical content group id — the `synced_quizzes` /
    * `synced_video_activities` group whose results roll up to this assessment.
@@ -1527,7 +1529,7 @@ export interface PlcAssessmentAggregate {
   schemaVersion: number;
   /** Assessment title snapshot (schema 2+). */
   title?: string;
-  kind?: 'quiz' | 'video-activity';
+  kind?: PlcAssessmentKind;
   /** Number of teachers who have contributed results. */
   teacherCount: number;
   /** Total students across all contributing teachers' classes. */
@@ -4462,6 +4464,8 @@ export interface QuizQuestion {
    * be mistakenly read as correct pairs.
    */
   matchingDistractors?: string[];
+  /** Ordering only: image URL per item, index-aligned with `correctAnswer.split('|')`; '' = no image. */
+  orderingImages?: string[];
   /**
    * Per-question opt-in for partial credit on Matching/Ordering/MA. Ignored
    * for MC/FIB/free-response. Defaults to false.
@@ -5206,6 +5210,8 @@ export interface QuizPublicQuestion {
   matchingRight?: string[];
   /** Ordering only: items to sequence, pre-shuffled */
   orderingItems?: string[];
+  /** Ordering only: image URL per item, index-aligned with `orderingItems`; '' = no image. */
+  orderingImages?: string[];
   /** Free Response only: optional editor placeholder */
   placeholder?: string;
   /** Free Response only: optional lower word bound shown in the editor */
@@ -9401,6 +9407,8 @@ export interface FlashcardSet {
   speak?: FlashcardSpeakSettings;
   /** Where Import got this set (IMPORT.md D7); never copied to the public snapshot. */
   importedFrom?: ImportAttribution;
+  /** The PLC set this copy came from, so teammates' checks pool into one PLC result. */
+  plcOrigin?: { plcId: string; setId: string };
   createdAt: number;
   updatedAt: number;
 }
@@ -9485,7 +9493,7 @@ export interface FlashcardCardSpeak {
   dialects?: SpeakDialect[];
   /** Teacher confirmed a needs-review card. */
   confirmedAt?: number;
-  /** Advanced panel. */
+  /** Advanced panel: per accent, one IPA reading or several joined by "|". */
   ipaOverride?: Partial<Record<SpeakDialect, string>>;
 }
 
@@ -9547,15 +9555,50 @@ export interface FlashcardStudyState {
 }
 
 export type FlashcardAssignmentKind = 'check' | 'study';
+/** Which cards a Check uses; `random` is drawn once at assign time. */
+export type FlashcardCardSelection =
+  | { mode: 'all' }
+  | { mode: 'random'; count: number }
+  | { mode: 'pick'; cardIds: string[] };
 export type FlashcardMasteryThreshold = 2 | 3 | 4;
 export type FlashcardScoreVisibility = 'none' | 'score' | 'score-and-answers';
+
+/** A published Check level: today's assign-time values, or Quiz's levels from Publish scores (flashcards-assign-v2). */
+export type FlashcardPublishedVisibility =
+  FlashcardScoreVisibility | QuizScoreVisibility;
+
+/** Quiz session options a flashcards-assign-v2 Check stamps, under Quiz's own names. */
+export type FlashcardCheckSessionOptions = Pick<
+  QuizSessionOptions,
+  | 'timeLimitMinutes'
+  | 'shuffleQuestions'
+  | 'tabWarningsEnabled'
+  | 'tabWarningThreshold'
+  | 'tabAwayLimitSeconds'
+  | 'tabAwayAutoSubmit'
+  | 'focusLevel'
+  | 'blockCopyPaste'
+  | 'blockPrint'
+  | 'showScoreOnSubmit'
+  | 'showResultToStudent'
+  | 'showCorrectAnswerToStudent'
+>;
+
+/** Check rules from the Quiz-style assign steps; absent on older sessions (one attempt, no limits). */
+export interface FlashcardCheckRules {
+  /** null = unlimited. */
+  attemptLimit: number | null;
+  sessionOptions: FlashcardCheckSessionOptions;
+}
 
 /** One graded item in a Check submission; `correct` is written by the server. */
 export interface FlashcardAnswerLogEntry {
   cardId: string;
   response: string;
-  type?: FlashcardTestType;
+  /** `speak` entries carry the device's verdict in `passed` and an empty response. */
+  type?: FlashcardTestType | 'speak';
   attempts?: number;
+  passed?: boolean;
   correct?: boolean;
 }
 
@@ -9572,6 +9615,8 @@ export interface FlashcardCheckWriteEntry {
   attempts: number;
   done: boolean;
   flagged?: boolean;
+  /** Speak checks: the device's verdict once the card is decided. */
+  passed?: boolean;
 }
 
 /** `flashcard_sessions/{assignmentId}`: what assigned students load. */
@@ -9592,6 +9637,15 @@ export interface FlashcardSession
   speak?: FlashcardSpeakStudentSettings & { locked: boolean };
   /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
   speakOff?: true;
+  /** Check: how the set's cards were narrowed at assign time; absent means all. */
+  cardSelection?: FlashcardCardSelection;
+  /** Check: attempts, time limit, shuffle, integrity and What students see (flashcards-assign-v2). */
+  rules?: FlashcardCheckRules;
+  /** Check shared with a PLC: pools into `plcs/{plcId}/assessments/{syncGroupId}`. */
+  plcId?: string;
+  syncGroupId?: string;
+  /** Assigned by a teacher with the flashcards-test-nav flag: students get the Test question bar. */
+  testNavBar?: true;
   masteryThreshold?: FlashcardMasteryThreshold;
   termLanguage: string;
   definitionLanguage: string;
@@ -9606,8 +9660,10 @@ export interface FlashcardSession
   openAt?: number | null;
   dueAt?: number | null;
   closeAt?: number | null;
-  scoreVisibility?: FlashcardScoreVisibility;
+  scoreVisibility?: FlashcardPublishedVisibility;
   scorePublishedAt?: number;
+  /** Results watermark and tab lockout from Publish scores (flashcards-assign-v2). */
+  protection?: ResultsProtection;
   individualTargeting?: boolean;
   createdAt: number;
   endedAt?: number;
@@ -9634,7 +9690,12 @@ export interface FlashcardAssignment
   rosterIds?: string[];
   classIds?: string[];
   periodNames?: string[];
-  scoreVisibility?: FlashcardScoreVisibility;
+  scoreVisibility?: FlashcardPublishedVisibility;
+  protection?: ResultsProtection;
+  /** Check: how the set's cards were narrowed at assign time; absent means all. */
+  cardSelection?: FlashcardCardSelection;
+  /** Check: the session's rules, kept here for the edit modal. */
+  rules?: FlashcardCheckRules;
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
   targetGroupIds?: string[];
@@ -9670,6 +9731,8 @@ export interface FlashcardProgress
   total?: number;
   answerLog?: FlashcardAnswerLogEntry[];
   flags?: FlashcardFlag[];
+  /** Teacher-written: this student's results setting, overriding the class one. */
+  resultsOverride?: QuizResultsOverride;
 }
 
 /** `plcs/{plcId}/flashcard_sets/{setId}`: a set shared with a PLC, payload inline. */
@@ -9719,6 +9782,8 @@ export interface FlashcardsConfig {
   libraryTab?: 'library' | 'active' | 'archive';
   /** Assignment whose teacher results are open in the `results` view. */
   activeAssignmentId?: string;
+  /** Which screen the `results` view shows a Check on: the live monitor or the Results screen. */
+  resultsScreen?: 'monitor' | 'results';
   presentSetId?: string;
   /** Whose library the presented set is in, so other members of a shared board can find it. */
   presentSetOwnerUid?: string | null;
@@ -9727,6 +9792,12 @@ export interface FlashcardsConfig {
   lastRosterIdsBySetId?: Record<string, string[]>;
   /** In-memory pasted cards (Flashcards/utils/pastedDrafts.ts) the editor opens with. */
   pasteDraftId?: string;
+  /** Monitor student list, as in Quiz: score pills, tab warnings, proficiency tint, sort and filter. */
+  monitorShowScores?: boolean;
+  monitorShowTabWarnings?: boolean;
+  monitorShowProficiency?: boolean;
+  monitorSortBy?: 'first' | 'last' | 'status' | 'score';
+  monitorFilterBy?: 'all' | 'hi' | 'mid' | 'low' | 'tabs';
 }
 
 // --- PROJECTS WIDGET TYPES (docs/plans/shipped/PROJECTS_WIDGET.md) ---
@@ -10770,6 +10841,8 @@ export type GlobalFeature =
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
+  /** Resources list on the student Overview in My Assignments. */
+  | 'student-overview-resources'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
   | 'quiz-time-limit'
   /** Routine Guide widget, the instructional routines redesign. */
@@ -10806,6 +10879,8 @@ export type GlobalFeature =
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */
   | 'quiz-submit-for-student'
+  /** Quiz Ordering questions: an image on each item. */
+  | 'quiz-ordering-images'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
@@ -10824,8 +10899,12 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
+  /** Flashcards submission assignments: card choice, Speak checks and Quiz-style In progress and Completed tabs. */
+  | 'flashcards-assign-v2'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
+  /** Flashcards Test: Question N of M bar with an All questions grid instead of the number strip. */
+  | 'flashcards-test-nav'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */

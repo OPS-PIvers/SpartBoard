@@ -129,7 +129,7 @@ F-numbers from the 2026-10-19 redirect are kept. **F6 is superseded by §4** (st
 
 ### 3.3 Teacher side
 
-- **F9 — Not a grade.** Speak progress is client-written with no recording behind it, so it is an indicator only.
+- **F9 — Not a grade.** Speak progress is client-written with no recording behind it, so it is an indicator only. Superseded for submissions by Paul (2026-11-05): with `flashcards-assign-v2`, a Speak-mode Check scores each card the device judged said correctly, out of the cards the student was asked to say.
 - **F10 — Study results.** A **Speaking** view beside recall:
   - **Per student:** words mastered aloud, in progress, not started, and the top three missed sounds by plain name. A student whose device never ran Speak shows "—", not 0.
   - **Per class:**

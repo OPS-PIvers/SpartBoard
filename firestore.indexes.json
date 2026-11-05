@@ -619,6 +619,25 @@
       "density": "SPARSE_ALL"
     },
     {
+      "collectionGroup": "flashcard_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "plcId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "syncGroupId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
       "collectionGroup": "quiz_sessions",
       "queryScope": "COLLECTION",
       "fields": [

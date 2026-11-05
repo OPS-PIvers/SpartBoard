@@ -315,6 +315,7 @@ interface KeyQuestion {
   correctAnswer?: string;
   incorrectAnswers?: string[];
   matchingDistractors?: string[];
+  orderingImages?: string[];
   points?: number;
   placeholder?: string;
   minWords?: number;
@@ -373,7 +374,16 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
       ...(q.matchingDistractors ?? []).filter(Boolean),
     ]);
   } else if (q.type === 'Ordering') {
-    base.orderingItems = shuffled((q.correctAnswer ?? '').split('|'));
+    const items = (q.correctAnswer ?? '').split('|');
+    const order = shuffled(items.map((_, i) => i));
+    base.orderingItems = order.map((i) => items[i]);
+    // Mirrors utils/quizOrderingImages alignedOrderingImages: https only, padded, absent when empty.
+    const rawImages = Array.isArray(q.orderingImages) ? q.orderingImages : [];
+    const images = order.map((i) => {
+      const url: unknown = rawImages[i];
+      return typeof url === 'string' && url.startsWith('https://') ? url : '';
+    });
+    if (images.some(Boolean)) base.orderingImages = images;
   } else if (q.type === 'free-response') {
     if (q.placeholder) base.placeholder = q.placeholder;
     if (q.minWords && q.minWords > 0) base.minWords = q.minWords;

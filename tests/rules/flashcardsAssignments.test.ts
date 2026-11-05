@@ -20,6 +20,8 @@ import {
   orderBy,
   query,
   setDoc,
+  updateDoc,
+  deleteField,
   where,
 } from 'firebase/firestore';
 
@@ -550,5 +552,151 @@ describe('flashcard_sessions progress', () => {
       )
     );
     await assertSucceeds(deleteDoc(doc(teacherDb, progressPath)));
+  });
+
+  it("lets only the session teacher set one student's results, and nothing else", async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    await seed(
+      progressPath,
+      progress({ submittedAt: 5, score: 1, total: 1, answerLog: [] })
+    );
+    const shown = {
+      mode: 'shown',
+      visibility: 'score-only',
+      publishedAt: 9,
+      expiresAt: null,
+    };
+    const teacherDb = asTeacher(TEACHER_UID);
+    await assertSucceeds(
+      updateDoc(doc(teacherDb, progressPath), { resultsOverride: shown })
+    );
+    await assertSucceeds(
+      updateDoc(doc(teacherDb, progressPath), {
+        resultsOverride: deleteField(),
+      })
+    );
+    await assertFails(
+      updateDoc(doc(teacherDb, progressPath), { resultsOverride: 'shown' })
+    );
+    await assertFails(
+      updateDoc(doc(teacherDb, progressPath), {
+        resultsOverride: shown,
+        score: 1,
+        total: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), progressPath), {
+        resultsOverride: shown,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT_UID, [CLASS_A]), progressPath), {
+        resultsOverride: shown,
+      })
+    );
+  });
+
+  it("keeps a student's writes from touching the teacher's results setting", async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    await assertFails(
+      setDoc(
+        doc(studentDb, progressPath),
+        progress({ resultsOverride: { mode: 'hidden', publishedAt: 1 } })
+      )
+    );
+    await seed(
+      progressPath,
+      progress({ resultsOverride: { mode: 'hidden', publishedAt: 1 } })
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(studentDb, progressPath),
+        { round: 2, lastActiveAt: 2 },
+        { merge: true }
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(studentDb, progressPath),
+        { lastActiveAt: 3, resultsOverride: deleteField() },
+        { merge: true }
+      )
+    );
+  });
+});
+
+describe('flashcard_sessions PLC link', () => {
+  const linked = { kind: 'check', plcId: 'plc-1', syncGroupId: 'set-1' };
+  beforeEach(() =>
+    seed('plcs/plc-1', { name: 'Spanish PLC', memberUids: [TEACHER_UID] })
+  );
+
+  it('lets a PLC member link a check and read it back', async () => {
+    const db = asTeacher(TEACHER_UID);
+    await assertSucceeds(setDoc(doc(db, SESSION_PATH), session(linked)));
+    const snap = await assertSucceeds(getDoc(doc(db, SESSION_PATH)));
+    expect(snap.data()?.syncGroupId).toBe('set-1');
+    await assertSucceeds(
+      setDoc(doc(db, SESSION_PATH), { status: 'ended' }, { merge: true })
+    );
+  });
+
+  it('refuses a link to a PLC the teacher is not in', async () => {
+    await assertFails(
+      setDoc(
+        doc(asTeacher(OTHER_TEACHER_UID), 'flashcard_sessions/session-2'),
+        session({ ...linked, id: 'session-2', teacherUid: OTHER_TEACHER_UID })
+      )
+    );
+    await seed(
+      'flashcard_sessions/session-3',
+      session({ id: 'session-3', kind: 'check', teacherUid: OTHER_TEACHER_UID })
+    );
+    await assertFails(
+      setDoc(
+        doc(asTeacher(OTHER_TEACHER_UID), 'flashcard_sessions/session-3'),
+        { plcId: 'plc-1', syncGroupId: 'set-1' },
+        { merge: true }
+      )
+    );
+  });
+
+  it('refuses a new syncGroupId from a teacher who left', async () => {
+    await seed(
+      SESSION_PATH,
+      session({ ...linked, teacherUid: OTHER_TEACHER_UID })
+    );
+    await assertFails(
+      setDoc(
+        doc(asTeacher(OTHER_TEACHER_UID), SESSION_PATH),
+        { syncGroupId: 'other-set' },
+        { merge: true }
+      )
+    );
+  });
+
+  it('refuses a link with no syncGroupId', async () => {
+    await assertFails(
+      setDoc(
+        doc(asTeacher(TEACHER_UID), SESSION_PATH),
+        session({ kind: 'check', plcId: 'plc-1' })
+      )
+    );
+  });
+
+  it('lets a teacher who left still edit and unlink their check', async () => {
+    await seed(
+      SESSION_PATH,
+      session({ ...linked, teacherUid: OTHER_TEACHER_UID })
+    );
+    const db = asTeacher(OTHER_TEACHER_UID);
+    await assertSucceeds(
+      setDoc(doc(db, SESSION_PATH), { status: 'ended' }, { merge: true })
+    );
+    await assertSucceeds(
+      setDoc(doc(db, SESSION_PATH), { plcId: null }, { merge: true })
+    );
   });
 });

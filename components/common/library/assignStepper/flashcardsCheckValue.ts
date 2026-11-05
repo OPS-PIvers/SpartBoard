@@ -24,3 +24,17 @@ export const formatFlashcardsCheckValue = (
   );
   return `${optionLabel(FLASHCARD_MODE_OPTIONS, value.checkMode)}, ${score.charAt(0).toLowerCase()}${score.slice(1)}`;
 };
+
+/** v2 summary for How students are checked: the mode alone (Speak included). */
+export const formatFlashcardsModeValue = (
+  value: FlashcardsCheckValue
+): string =>
+  value.checkMode === 'speak'
+    ? 'Speak'
+    : optionLabel(FLASHCARD_MODE_OPTIONS, value.checkMode);
+
+/** v2 summary for What students see. */
+export const formatFlashcardsFeedbackValue = (
+  value: FlashcardsCheckValue
+): string =>
+  optionLabel(FLASHCARD_SCORE_VISIBILITY_OPTIONS, value.scoreVisibility);

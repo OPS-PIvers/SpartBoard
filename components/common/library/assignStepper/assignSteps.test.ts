@@ -90,6 +90,31 @@ describe('getAssignSteps (D4)', () => {
     );
   });
 
+  it('gives a flashcards-assign-v2 Check the Quiz rule steps and Sharing in a PLC', () => {
+    const ctx = { kind: 'work' as const, flashcardsV2: true };
+    expect(getAssignSteps('flashcards', { ...ctx, inPlc: true })).toEqual([
+      'classes',
+      'when',
+      'cards',
+      'check',
+      'attempts',
+      'integrity',
+      'feedback',
+      'sharing',
+    ]);
+    expect(getAssignSteps('flashcards', ctx)).not.toContain('sharing');
+    expect(
+      getAssignSteps('flashcards', {
+        kind: 'resource',
+        flashcardsV2: true,
+        inPlc: true,
+      })
+    ).toEqual(['classes', 'when']);
+    expect(getAssignStepTitle('integrity', 'flashcards', ctx)).toBe(
+      'Integrity'
+    );
+  });
+
   it('removes every step after When for a study resource', () => {
     expect(getAssignSteps('gl', { kind: 'resource' })).toEqual([
       'classes',

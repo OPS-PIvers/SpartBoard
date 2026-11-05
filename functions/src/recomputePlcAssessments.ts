@@ -8,12 +8,20 @@ import {
   AGGREGATE_SCHEMA_VERSION,
   computeAssessmentAggregate,
   resolveGroupQuestions,
+  type AggregatePayload,
   type CompletedResponse,
   type ManualGrade,
   type RawAnswer,
   type SessionInput,
 } from './plcAssessmentMath';
 import { withQuizSessionContent } from './quizSessionContent';
+import {
+  computeFlashcardAggregate,
+  parseFlashcardCheckCards,
+  parseSubmittedFlashcardCheck,
+  type FlashcardCheckSessionInput,
+  type SubmittedFlashcardCheck,
+} from './plcFlashcardAggregate';
 import { activePlcMemberUids } from './plcActiveMembers';
 import { sessionClassPredicate } from './sessionClassFilter';
 
@@ -206,6 +214,55 @@ async function clearDirtyIfUnchanged(
   });
 }
 
+/** Pools every active member's linked Flashcards check sessions; staff-audience sessions never count. */
+async function flashcardAggregateFor(
+  db: Firestore,
+  plcRef: admin.firestore.DocumentReference,
+  plcId: string,
+  assessmentId: string,
+  title: string,
+  syncGroupId: string
+): Promise<AggregatePayload> {
+  const [sessionsSnap, plcSnap] = await Promise.all([
+    db
+      .collection('flashcard_sessions')
+      .where('plcId', '==', plcId)
+      .where('syncGroupId', '==', syncGroupId)
+      .get(),
+    plcRef.get(),
+  ]);
+  const teacherNames = teacherNamesFromPlc(plcSnap.data());
+  const activeMembers = activePlcMemberUids(plcSnap.data());
+  const sessions: FlashcardCheckSessionInput[] = [];
+  for (const sessionDoc of sessionsSnap.docs) {
+    const s = sessionDoc.data();
+    const teacherUid = asString(s.teacherUid);
+    if (!activeMembers.has(teacherUid)) continue;
+    if (s.kind !== 'check' || s.audience === 'staff') continue;
+    const [progressSnap, contentSnap] = await Promise.all([
+      sessionDoc.ref.collection('progress').get(),
+      s.cardsInContent === true
+        ? sessionDoc.ref.collection('content').doc('cards').get()
+        : Promise.resolve(null),
+    ]);
+    const keepClass = sessionClassPredicate(s);
+    sessions.push({
+      id: sessionDoc.id,
+      teacherUid,
+      teacherName: teacherNames.get(teacherUid) ?? '',
+      checkMode: asString(s.checkMode),
+      cards: parseFlashcardCheckCards(
+        contentSnap ? contentSnap.data()?.cards : s.cards
+      ),
+      submissions: progressSnap.docs
+        .filter((d) => keepClass(d.data()))
+        .map((d) => parseSubmittedFlashcardCheck(d.data()))
+        .filter((p): p is SubmittedFlashcardCheck => p !== null),
+    });
+  }
+  return computeFlashcardAggregate({ assessmentId, title, sessions });
+}
+
 /** Recompute one assessment's aggregate; tombstoned assessments drop their aggregate instead. */
 export async function recomputeOnePlcAssessment(
   db: Firestore,
@@ -227,6 +284,22 @@ export async function recomputeOnePlcAssessment(
 
   if (assessment.deletedAt != null || syncGroupId.length === 0) {
     await aggregateRef.delete();
+    await clearDirtyIfUnchanged(db, assessmentRef, dirtyAtRead);
+    return;
+  }
+  if (assessment.kind === 'flashcard-check') {
+    const payload = await flashcardAggregateFor(
+      db,
+      plcRef,
+      plcId,
+      assessmentId,
+      asString(assessment.title),
+      syncGroupId
+    );
+    await aggregateRef.set({
+      ...payload,
+      ranAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
     await clearDirtyIfUnchanged(db, assessmentRef, dirtyAtRead);
     return;
   }

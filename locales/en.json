@@ -1225,7 +1225,13 @@
       "bandCount": "{{count}} students · {{percent}}%",
       "scoredStudents": "{{count}} students scored",
       "distributionPending": "Chart updates in a few minutes.",
-      "distributionEmpty": "The chart fills in once teachers publish scores."
+      "distributionEmpty": "The chart fills in once teachers publish scores.",
+      "untitledCard": "Untitled card",
+      "cardAnswered": "{{count}} answered",
+      "sortCardOrder": "Card order",
+      "cardsHeading": "Cards",
+      "sortCards": "Sort cards",
+      "distributionEmptyCards": "The chart fills in as students finish a check. Mastery checks count who finished, with no score."
     },
     "learningTargets": {
       "heading": "Learning targets"
@@ -4753,7 +4759,17 @@
       "nav": "Test questions",
       "goTo": "Go to question {{number}}",
       "numberType": "{{number}}. {{type}}",
-      "submit": "Submit test"
+      "submit": "Submit test",
+      "questionOf": "Question {{number}} of {{total}}",
+      "answeredCount": "{{count}} of {{total}} answered",
+      "allQuestions": "All questions",
+      "nextUnanswered": "Next unanswered",
+      "answered": "Answered",
+      "notAnswered": "Not answered",
+      "previous": "Previous question",
+      "next": "Next question",
+      "back": "Back",
+      "nextButton": "Next"
     },
     "characters": {
       "uppercase": "Use uppercase characters",
@@ -4764,6 +4780,7 @@
       "readyTitle": "Ready to submit",
       "readyFlashcards": "Every card has reached your teacher's goal. Submit to finish this check.",
       "readyWrite": "You've answered every card correctly. Submit to finish this check.",
+      "readySpeak": "You've said every card. Submit to finish this check.",
       "flagged_one": "{{count}} answer flagged for your teacher",
       "flagged_other": "{{count}} answers flagged for your teacher",
       "submit": "Submit",
@@ -4942,6 +4959,9 @@
         "confirm": "Looks right",
         "ipaLabel": "Pronunciation (IPA), {{dialect}}",
         "ipaInvalid": "Some of these symbols aren't recognized.",
+        "addIpa": "Add another",
+        "removeIpa": "Remove pronunciation",
+        "hearIpaFailed": "Could not play this pronunciation.",
         "checkingCards_one": "Checking how to say {{count}} card…",
         "checkingCards_other": "Checking how to say {{count}} cards…",
         "finishingCards": "Finishing Speak: {{done}} of {{total}} cards",

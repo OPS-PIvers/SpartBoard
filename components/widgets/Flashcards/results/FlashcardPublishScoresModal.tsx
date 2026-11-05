@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
-import type { FlashcardScoreVisibility } from '@/types';
+import type {
+  FlashcardPublishedVisibility,
+  FlashcardScoreVisibility,
+} from '@/types';
+import { flashcardClassVisibility } from '@/utils/flashcardResultsVisibility';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 export type PublishableFlashcardVisibility = Exclude<
@@ -27,7 +31,7 @@ const OPTIONS: {
 
 interface FlashcardPublishScoresModalProps {
   assignmentTitle: string;
-  currentVisibility: FlashcardScoreVisibility | undefined;
+  currentVisibility: FlashcardPublishedVisibility | undefined;
   onClose: () => void;
   onConfirm: (visibility: PublishableFlashcardVisibility) => Promise<void>;
 }
@@ -35,9 +39,11 @@ interface FlashcardPublishScoresModalProps {
 export const FlashcardPublishScoresModal: React.FC<
   FlashcardPublishScoresModalProps
 > = ({ assignmentTitle, currentVisibility, onClose, onConfirm }) => {
+  // A level picked in Quiz's dialog opens on the closest of these two.
   const [visibility, setVisibility] = useState<PublishableFlashcardVisibility>(
-    currentVisibility && currentVisibility !== 'none'
-      ? currentVisibility
+    flashcardClassVisibility(currentVisibility) ===
+      'score-responses-and-answers'
+      ? 'score-and-answers'
       : 'score'
   );
   const [saving, setSaving] = useState(false);

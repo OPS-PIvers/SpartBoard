@@ -21,6 +21,7 @@ import {
 } from '@/components/widgets/QuizWidget/components/monitor/StatusBuckets';
 import {
   buildCheckRows,
+  checkCardsDone,
   buildFlagRows,
   buildStudyRows,
   checkCardAccuracy,
@@ -34,6 +35,26 @@ import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { BucketBar, BucketSummary } from './FlashcardStudyResults';
 import { FlashcardSpeakResults } from './FlashcardSpeakResults';
 import { relativeTime } from './resultsFormat';
+import { STUCK_THRESHOLD_MS } from '@/components/widgets/QuizWidget/components/monitor/monitorUtils';
+import {
+  RosterRowMenu,
+  RosterToolbar,
+} from '@/components/widgets/QuizWidget/components/monitor/RosterParts';
+import type { MonitorRosterPrefs } from '@/components/widgets/QuizWidget/components/monitor/rosterStyles';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
+import { FlashcardCheckRoster } from './FlashcardCheckRoster';
+import {
+  FLASHCARD_TOOLBAR_ANCHORS,
+  cardLabel,
+  flashcardMenuItems,
+  orderFlashcardRoster,
+  type FlashcardRosterStudent,
+} from './flashcardRoster';
+import {
+  FlashcardCardAccuracyList,
+  FlashcardCardDetail,
+  FlashcardCardList,
+} from './FlashcardCardResults';
 
 const STUDY_BUCKET_LABELS: Partial<Record<BucketKey, string>> = {
   done: 'Mastered',
@@ -66,9 +87,18 @@ interface FlashcardMonitorProps {
   /** Class picker row, or null with a single class. */
   classControls: React.ReactNode;
   launchedBy: React.ReactNode;
+  /** flashcards-assign-v2: the Quiz monitor's student list, row menu, footer and card results. */
+  quizStyle?: boolean;
+  prefs?: MonitorRosterPrefs;
+  onUpdatePrefs?: (updates: Partial<MonitorRosterPrefs>) => void;
 }
 
 type Screen = 'home' | 'cards' | 'speaking';
+
+const NO_PREFS: MonitorRosterPrefs = {};
+// Same header colour as the Flashcards library, so the widget reads as one piece.
+const FLASHCARDS_ACCENT = LIBRARY_HEADER_ACCENTS.flashcards ?? '#be185d';
+const noop = () => undefined;
 
 const flagAcceptTourId = 'flashcards.flag-accept' as const;
 const flagDismissTourId = 'flashcards.flag-dismiss' as const;
@@ -174,13 +204,19 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   onEnd,
   classControls,
   launchedBy,
+  quizStyle = false,
+  prefs = NO_PREFS,
+  onUpdatePrefs = noop,
 }) => {
   const [screen, setScreen] = useState<Screen>('home');
+  const [cardIndex, setCardIndex] = useState<number | null>(null);
   const [openBucket, setOpenBucket] = useState<BucketKey | null>(null);
   const [openStudent, setOpenStudent] = useState<string | null>(null);
   const [busyFlag, setBusyFlag] = useState<string | null>(null);
   const [ending, setEnding] = useState(false);
   const isCheck = session.kind === 'check';
+  // Speak answers have no typed text, so Speak checks keep the per-card pass rates.
+  const quizCards = quizStyle && isCheck && session.checkMode !== 'speak';
   const ended = session.status === 'ended' || assignment.status === 'ended';
 
   const studyRows = useMemo(
@@ -226,6 +262,19 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
     return out;
   }, [checkRows, results]);
   const byBucket = isCheck ? checkByBucket : studyByBucket;
+  // As in Quiz: an In progress Check student with no saved answer for 2 minutes.
+  const idleCount = useMemo(() => {
+    if (!quizStyle || !isCheck) return 0;
+    const inProgress = new Set(
+      checkByBucket.inProgress.map((row) => row.studentUid)
+    );
+    return results.filter(
+      (r) =>
+        inProgress.has(r.studentUid) &&
+        typeof r.lastActiveAt === 'number' &&
+        now - r.lastActiveAt > STUCK_THRESHOLD_MS
+    ).length;
+  }, [checkByBucket, isCheck, now, quizStyle, results]);
   const counts = {
     notStarted: byBucket.notStarted.length,
     inProgress: byBucket.inProgress.length,
@@ -266,11 +315,13 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   };
 
   const title =
-    screen === 'cards'
-      ? 'Card results'
-      : screen === 'speaking'
-        ? 'Speaking'
-        : assignment.setTitle || 'Untitled set';
+    screen === 'cards' && cardIndex !== null
+      ? `${cardLabel(cardIndex)} results`
+      : screen === 'cards'
+        ? 'Card results'
+        : screen === 'speaking'
+          ? 'Speaking'
+          : assignment.setTitle || 'Untitled set';
 
   const renderStudyRow = (row: FlashcardStudyRow, rowIndex: number) => {
     const open = openStudent === row.studentUid;
@@ -324,16 +375,30 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
             style={{ gap: 'min(6px, 1.5cqmin)' }}
           >
             <PercentPill percent={row.masteredPercent} />
-            <RowMenu
-              name={name}
-              anchor={tourFieldAttr(
-                'flashcards.student-actions',
-                'flashcards',
-                `row-${rowIndex + 1}`
-              )}
-              letIn={letInFor(row.studentUid)}
-              onReset={() => onResetStudent(row.studentUid)}
-            />
+            {quizStyle ? (
+              <RosterRowMenu
+                ariaLabel={`Actions for ${name}`}
+                triggerAnchor={tourFieldAttr(
+                  'flashcards.student-actions',
+                  'flashcards',
+                  `row-${rowIndex + 1}`
+                )}
+                items={flashcardMenuItems(letInFor(row.studentUid), () =>
+                  onResetStudent(row.studentUid)
+                )}
+              />
+            ) : (
+              <RowMenu
+                name={name}
+                anchor={tourFieldAttr(
+                  'flashcards.student-actions',
+                  'flashcards',
+                  `row-${rowIndex + 1}`
+                )}
+                letIn={letInFor(row.studentUid)}
+                onReset={() => onResetStudent(row.studentUid)}
+              />
+            )}
           </div>
         </div>
         {open && (
@@ -510,18 +575,69 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
 
   const openList = openBucket ? byBucket[openBucket] : [];
 
+  const checkRoster = useMemo(() => {
+    const byUid = new Map(results.map((r) => [r.studentUid, r]));
+    const out = emptyBuckets<FlashcardRosterStudent>();
+    if (!quizStyle) return out;
+    for (const key of ['notStarted', 'inProgress', 'done'] as const)
+      for (const row of checkByBucket[key]) {
+        const result = byUid.get(row.studentUid);
+        out[key].push({
+          studentUid: row.studentUid,
+          bucket: key,
+          score: row.percent,
+          cardsDone: result ? checkCardsDone(result) : 0,
+          openFlags: row.openFlags,
+        });
+      }
+    return out;
+  }, [checkByBucket, quizStyle, results]);
+
+  const openStudyRows =
+    quizStyle && !isCheck && openBucket
+      ? orderFlashcardRoster(
+          studyByBucket[openBucket].map((row) => ({
+            ...row,
+            bucket: openBucket,
+            score: row.masteredPercent,
+            cardsDone: row.mastered,
+          })),
+          nameFor,
+          prefs,
+          openBucket !== 'notStarted'
+        )
+      : [];
+
+  const flagCountFor = (studentUid: string): number =>
+    flagsByStudent.get(studentUid)?.length ?? 0;
+  const renderFlagsFor = (
+    studentUid: string,
+    firstIndex: number
+  ): React.ReactNode => {
+    const flags = flagsByStudent.get(studentUid) ?? [];
+    if (flags.length === 0) return null;
+    return flags.map((flag, i) => renderFlag(flag, firstIndex + i));
+  };
+
   return (
     <div className="relative flex h-full w-full flex-col bg-white text-brand-gray-dark">
       <div
-        className="flex shrink-0 items-center bg-brand-blue-primary text-white"
+        className="flex shrink-0 items-center text-white"
         style={{
+          backgroundColor: FLASHCARDS_ACCENT,
           gap: 'min(8px, 2cqmin)',
           padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
         }}
       >
         <button
           type="button"
-          onClick={() => (screen === 'home' ? onBack() : setScreen('home'))}
+          onClick={() =>
+            screen === 'home'
+              ? onBack()
+              : screen === 'cards' && cardIndex !== null
+                ? setCardIndex(null)
+                : setScreen('home')
+          }
           aria-label="Back"
           {...tourTypeAttr('flashcards.results-back', 'flashcards')}
           className="touch-target-expand relative rounded-md transition-colors hover:bg-white/15"
@@ -539,11 +655,10 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
         </p>
         <span
           className={`shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider ${
-            ended
-              ? 'bg-white/20 text-white'
-              : 'bg-white text-brand-blue-primary'
+            ended ? 'bg-white/20 text-white' : 'bg-white'
           }`}
           style={{
+            color: ended ? undefined : FLASHCARDS_ACCENT,
             fontSize: 'min(10px, 3.5cqmin)',
             padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
           }}
@@ -563,12 +678,18 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
             <StatusBuckets
               counts={counts}
               handCount={0}
-              idleCount={0}
+              idleCount={idleCount}
               openBucket={openBucket}
               onToggle={(key) =>
                 setOpenBucket((cur) => (cur === key ? null : key))
               }
-              labels={isCheck ? CHECK_BUCKET_LABELS : STUDY_BUCKET_LABELS}
+              labels={
+                isCheck
+                  ? quizStyle
+                    ? undefined
+                    : CHECK_BUCKET_LABELS
+                  : STUDY_BUCKET_LABELS
+              }
               notes={
                 isCheck && openFlagCount > 0
                   ? {
@@ -590,7 +711,50 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                 tourFieldAttr('flashcards.status-bucket', 'flashcards', key)
               }
             />
-            {openBucket && (
+            {openBucket && quizStyle && isCheck && (
+              <FlashcardCheckRoster
+                bucket={openBucket}
+                students={checkRoster[openBucket]}
+                session={session}
+                nameFor={nameFor}
+                prefs={prefs}
+                onUpdatePrefs={onUpdatePrefs}
+                letInFor={letInFor}
+                onRemove={onResetStudent}
+                belowCount={flagCountFor}
+                renderBelow={renderFlagsFor}
+              />
+            )}
+            {openBucket && quizStyle && !isCheck && (
+              <div
+                className="flex flex-col animate-in fade-in slide-in-from-top-1 duration-200"
+                style={{ gap: 'min(8px, 2cqmin)' }}
+              >
+                {openBucket !== 'notStarted' && (
+                  <RosterToolbar
+                    bucket={openBucket}
+                    prefs={prefs}
+                    onUpdate={onUpdatePrefs}
+                    tabWarningsAllowed={false}
+                    tabsFilter={false}
+                    scoreSwitches={false}
+                    anchors={FLASHCARD_TOOLBAR_ANCHORS}
+                  />
+                )}
+                {openStudyRows.length === 0 ? (
+                  <EmptyLine
+                    message={
+                      openList.length === 0
+                        ? 'No students here yet.'
+                        : 'No students match this filter.'
+                    }
+                  />
+                ) : (
+                  openStudyRows.map(renderStudyRow)
+                )}
+              </div>
+            )}
+            {openBucket && !quizStyle && (
               <div
                 className="flex flex-col animate-in fade-in slide-in-from-top-1 duration-200"
                 style={{ gap: 'min(8px, 2cqmin)' }}
@@ -607,37 +771,27 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
           </div>
         )}
 
-        {screen === 'cards' && (
+        {screen === 'cards' && quizCards && cardIndex === null && (
+          <FlashcardCardList
+            session={session}
+            results={results}
+            ended={ended}
+            onOpen={setCardIndex}
+          />
+        )}
+        {screen === 'cards' && quizCards && cardIndex !== null && (
+          <FlashcardCardDetail
+            session={session}
+            results={results}
+            index={cardIndex}
+            ended={ended}
+          />
+        )}
+
+        {screen === 'cards' && !quizCards && (
           <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
             {isCheck ? (
-              accuracy.length === 0 ? (
-                <EmptyLine message="Accuracy appears once students submit." />
-              ) : (
-                accuracy.map((entry) => (
-                  <div
-                    key={entry.card.id}
-                    className={rowClass}
-                    style={rowStyle}
-                  >
-                    <div className="min-w-0">
-                      <p
-                        className="truncate font-sans font-medium text-brand-gray-dark"
-                        style={text.name}
-                      >
-                        {entry.card.term}
-                      </p>
-                      <p
-                        className="wrap-break-word font-sans text-brand-gray-primary"
-                        style={text.sub}
-                      >
-                        {entry.correct} of {entry.answered} correct ·{' '}
-                        {entry.card.definition}
-                      </p>
-                    </div>
-                    <PercentPill percent={entry.percent} />
-                  </div>
-                ))
-              )
+              <FlashcardCardAccuracyList accuracy={accuracy} />
             ) : hardest.length === 0 ? (
               <EmptyLine message="No misses recorded yet." />
             ) : (
@@ -688,7 +842,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
             padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
           }}
         >
-          {isCheck && (
+          {isCheck && !quizStyle && (
             <button
               type="button"
               onClick={onPublish}

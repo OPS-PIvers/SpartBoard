@@ -135,6 +135,27 @@ describe('hasTeamAverage', () => {
 });
 
 describe('buildAssessmentRows', () => {
+  it('lists a Flashcards check without borrowing a Quiz library entry', () => {
+    const rows = buildAssessmentRows({
+      assessments: [
+        makeAssessment({ kind: 'flashcard-check', syncGroupId: 'g-lib' }),
+        makeAssessment({ id: 'v1', kind: 'video-activity' }),
+      ],
+      aggregates: [makeAggregate({ kind: 'flashcard-check' })],
+      libraryEntries: [makeEntry()],
+      memberUids: ['u1'],
+    });
+    const card = rows.find((r) => r.id === 'a1');
+    expect(card).toMatchObject({
+      kind: 'flashcard-check',
+      plcQuizId: null,
+      questionCount: null,
+      sharedByName: null,
+    });
+    expect(rows.some((r) => r.id === 'v1')).toBe(false);
+    expect(rows.some((r) => r.id === 'library:g-lib')).toBe(true);
+  });
+
   it('joins assessments to aggregates and library entries', () => {
     const rows = buildAssessmentRows({
       assessments: [makeAssessment()],
