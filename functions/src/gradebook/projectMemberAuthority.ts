@@ -9,16 +9,20 @@ import {
 } from '../secrets';
 import { computeStudentUid } from '../classlinkShared';
 import { loadTaughtClassEnrollment } from '../studentIdentity';
-import { loadTestClassMembership } from '../studentAssignmentTargets';
+import {
+  loadTargetDirectory,
+  loadTestClassMembership,
+} from '../studentAssignmentTargets';
 
-/** Pseudonym uids of every student in `classId`, or empty when `ownerUid` does not teach it. */
+/** Pseudonym uids of every student in `classId`, or empty when `ownerUid` does not teach it. A missing or `local:` class id means any class the owner teaches. */
 export async function loadClassStudentUids(
   db: admin.firestore.Firestore,
   ownerUid: string,
   classId: string
 ): Promise<Set<string>> {
   const uids = new Set<string>();
-  if (!ownerUid || !classId || classId.startsWith('local:')) return uids;
+  if (!ownerUid) return uids;
+  const anyClass = !classId || classId.startsWith('local:');
   const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
   if (!hmacSecret) {
     throw new HttpsError('internal', 'Server configuration missing.');
@@ -38,6 +42,23 @@ export async function loadClassStudentUids(
     classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
     tenantUrl: CLASSLINK_TENANT_URL.value(),
   };
+  if (anyClass) {
+    const { ctx } = await loadTargetDirectory(
+      db,
+      ownerUid,
+      owner.email,
+      creds,
+      (err) => {
+        throw err;
+      }
+    );
+    for (const sourcedId of ctx.classIdBySourcedId.keys())
+      uids.add(computeStudentUid(sourcedId, hmacSecret));
+    if (ctx.testClassAuthorized)
+      for (const email of ctx.classIdByTestEmail.keys())
+        uids.add(computeStudentUid(`test:${email}`, hmacSecret));
+    return uids;
+  }
   if (
     creds.classlinkClientId &&
     creds.classlinkClientSecret &&

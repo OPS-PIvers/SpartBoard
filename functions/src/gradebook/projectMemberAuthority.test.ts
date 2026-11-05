@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { getUser, loadTaughtClassEnrollment, loadTestClassMembership, secret } =
-  vi.hoisted(() => ({
-    getUser: vi.fn(),
-    loadTaughtClassEnrollment: vi.fn(),
-    loadTestClassMembership: vi.fn(),
-    secret: { hmac: 'hmac' },
-  }));
+const {
+  getUser,
+  loadTaughtClassEnrollment,
+  loadTestClassMembership,
+  loadTargetDirectory,
+  secret,
+} = vi.hoisted(() => ({
+  loadTargetDirectory: vi.fn(),
+  getUser: vi.fn(),
+  loadTaughtClassEnrollment: vi.fn(),
+  loadTestClassMembership: vi.fn(),
+  secret: { hmac: 'hmac' },
+}));
 vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
@@ -20,7 +26,10 @@ vi.mock('../secrets', () => ({
   STUDENT_PSEUDONYM_HMAC_SECRET: { value: () => secret.hmac },
 }));
 vi.mock('../studentIdentity', () => ({ loadTaughtClassEnrollment }));
-vi.mock('../studentAssignmentTargets', () => ({ loadTestClassMembership }));
+vi.mock('../studentAssignmentTargets', () => ({
+  loadTestClassMembership,
+  loadTargetDirectory,
+}));
 
 import { computeStudentUid } from '../classlinkShared';
 import { loadClassStudentUids } from './projectMemberAuthority';
@@ -33,6 +42,13 @@ const db = {} as never;
 const teacher = { email: 't@school.edu', emailVerified: true };
 
 beforeEach(() => {
+  loadTargetDirectory.mockReset().mockResolvedValue({
+    ctx: {
+      classIdBySourcedId: new Map(),
+      classIdByTestEmail: new Map(),
+      testClassAuthorized: false,
+    },
+  });
   __resetProjectRosterCache();
   secret.hmac = 'hmac';
   getUser.mockReset().mockResolvedValue(teacher);
@@ -92,10 +108,43 @@ describe('loadClassStudentUids', () => {
     expect((await loadClassStudentUids(db, 'owner', 'class-1')).size).toBe(0);
     getUser.mockRejectedValue({ code: 'auth/user-not-found' });
     expect((await loadClassStudentUids(db, 'gone', 'class-1')).size).toBe(0);
-    getUser.mockResolvedValue(teacher);
-    expect((await loadClassStudentUids(db, 'owner', '')).size).toBe(0);
-    expect((await loadClassStudentUids(db, 'owner', 'local:r1')).size).toBe(0);
     expect(loadTaughtClassEnrollment).not.toHaveBeenCalled();
+  });
+
+  it('for a missing or local class id, vouches for students in any class the owner teaches', async () => {
+    loadTargetDirectory.mockResolvedValue({
+      ctx: {
+        classIdBySourcedId: new Map([['s1', 'class-1']]),
+        classIdByTestEmail: new Map([['kid@school.edu', 'slug']]),
+        testClassAuthorized: true,
+      },
+    });
+    const expected = new Set([
+      computeStudentUid('s1', 'hmac'),
+      computeStudentUid('test:kid@school.edu', 'hmac'),
+    ]);
+    expect(await loadClassStudentUids(db, 'owner', '')).toEqual(expected);
+    expect(await loadClassStudentUids(db, 'owner', 'local:r1')).toEqual(
+      expected
+    );
+    expect(loadTargetDirectory).toHaveBeenCalledWith(
+      db,
+      'owner',
+      't@school.edu',
+      expect.objectContaining({ tenantUrl: 'https://tenant.example' }),
+      expect.any(Function)
+    );
+  });
+
+  it('leaves out test-class students when the owner is not a test class authority', async () => {
+    loadTargetDirectory.mockResolvedValue({
+      ctx: {
+        classIdBySourcedId: new Map(),
+        classIdByTestEmail: new Map([['kid@school.edu', 'slug']]),
+        testClassAuthorized: false,
+      },
+    });
+    expect((await loadClassStudentUids(db, 'owner', '')).size).toBe(0);
   });
 
   it('throws, rather than returning no students, when the HMAC secret is missing', async () => {
@@ -123,7 +172,6 @@ describe('defaultProjectMemberAuthority', () => {
     expect(first).toEqual(new Set([s1]));
     expect(second).toEqual(new Set([s1]));
     expect(loadTaughtClassEnrollment).toHaveBeenCalledTimes(1);
-    expect((await authority('owner', '', [s1])).size).toBe(0);
   });
 
   it('asks again after a failed lookup', async () => {
@@ -133,6 +181,21 @@ describe('defaultProjectMemberAuthority', () => {
     loadTaughtClassEnrollment.mockResolvedValue(new Set(['s1']));
     const s1 = computeStudentUid('s1', 'hmac');
     expect(await authority('owner', 'class-1', [s1])).toEqual(new Set([s1]));
+  });
+
+  it('shares one any-class lookup between groups with no class id and local roster ids', async () => {
+    loadTargetDirectory.mockResolvedValue({
+      ctx: {
+        classIdBySourcedId: new Map([['s1', 'class-1']]),
+        classIdByTestEmail: new Map(),
+        testClassAuthorized: false,
+      },
+    });
+    const authority = defaultProjectMemberAuthority(db);
+    const s1 = computeStudentUid('s1', 'hmac');
+    expect(await authority('owner', '', [s1])).toEqual(new Set([s1]));
+    expect(await authority('owner', 'local:r1', [s1])).toEqual(new Set([s1]));
+    expect(loadTargetDirectory).toHaveBeenCalledTimes(1);
   });
 
   it('does not cache an empty roster, so a new class or student is not denied for 90 seconds', async () => {

@@ -442,13 +442,14 @@ export function defaultProjectMemberAuthority(
   db: Firestore
 ): ProjectMemberAuthority {
   return async (ownerUid, classId, memberUids) => {
-    if (!classId || memberUids.length === 0) return new Set();
-    const key = `${ownerUid}\n${classId}`;
+    if (memberUids.length === 0) return new Set();
+    const scope = classId.startsWith('local:') ? '' : classId;
+    const key = `${ownerUid}\n${scope}`;
     const now = Date.now();
     let entry = rosterCache.get(key);
     if (!entry || now - entry.at > ROSTER_CACHE_MS) {
       const students = import('./projectMemberAuthority').then((m) =>
-        m.loadClassStudentUids(db, ownerUid, classId)
+        m.loadClassStudentUids(db, ownerUid, scope)
       );
       entry = { at: now, students };
       rosterCache.set(key, entry);
