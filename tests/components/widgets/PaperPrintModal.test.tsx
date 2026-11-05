@@ -1527,6 +1527,32 @@ describe('PaperPrintModal on the Assign on paper stepper', () => {
     );
   });
 
+  it('saves a new stack when the picks change before a retry', async () => {
+    const onCreateAssignment = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(undefined);
+    const { print, onError, onSaveBatch } = assignSetup({
+      onCreateAssignment,
+    });
+    pickPeriod1();
+    const submit = screen.getByRole('button', { name: /Assign and print/ });
+    fireEvent.click(submit);
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('offline'));
+    fireEvent.click(screen.getByText('Answer sheets'));
+    fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
+      target: { value: '5' },
+    });
+    fireEvent.click(submit);
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    expect(onSaveBatch).toHaveBeenCalledTimes(2);
+    const batch = onSaveBatch.mock.calls[1][0];
+    expect(batch.spareSeats).toHaveLength(5);
+    expect(onCreateAssignment).toHaveBeenLastCalledWith(
+      expect.objectContaining({ batchId: batch.id, rosterIds: ['r1'] })
+    );
+  });
+
   it('passes the Sharing choice when the quiz syncs with a PLC', async () => {
     const plc = { id: 'plc-1', name: 'Science PLC' } as Plc;
     const { onCreateAssignment, print } = assignSetup({

@@ -48,7 +48,6 @@ import {
 import {
   paperSelectedStudentIds,
   paperStudentRef,
-  pickedPaperRosters,
 } from '@/utils/paperAssignClasses';
 import { AiRetryLink } from '@/components/common/library/importer/AiRetryLink';
 import {
@@ -414,6 +413,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     batch: PaperBatch;
     sheets: ReturnType<typeof planPaperBatch>['sheets'];
     assigned: boolean;
+    picks: string;
   } | null>(null);
   const selectedStudentIds = useMemo(
     () =>
@@ -974,7 +974,18 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(versionPlan ? { versions: versionPlan.records } : {}),
         createdAt: now,
       });
-      const committed = assign ? committedRef.current : null;
+      const picks = JSON.stringify([
+        selectionsForPrint.map((x) => [
+          x.roster.id,
+          x.students.map((st) => st.id),
+        ]),
+        spareCount,
+        includeKeySheet,
+      ]);
+      const saved = assign ? committedRef.current : null;
+      // A saved stack is reused only for the same picks, or once its assignment exists.
+      const committed =
+        saved && (saved.assigned || saved.picks === picks) ? saved : null;
       const { batch, sheets } = committed ?? planned;
       // A retry after the stack was saved reuses it rather than orphaning it.
       if (!committed) {
@@ -989,17 +1000,18 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             boxSizes: changedBoxSizes,
           });
         await onSaveBatch(batch);
-        if (assign) committedRef.current = { batch, sheets, assigned: false };
+        if (assign)
+          committedRef.current = { batch, sheets, assigned: false, picks };
       }
       if (assign && !committedRef.current?.assigned) {
-        const picked = pickedPaperRosters(classes, rosters);
+        const printed = rosters.filter((r) => batch.rosterIds.includes(r.id));
         await assign.onCreateAssignment({
           batchId: batch.id,
-          rosterIds: picked.map((r) => r.id),
-          periodNames: picked.map((r) => r.name),
+          rosterIds: printed.map((r) => r.id),
+          periodNames: printed.map((r) => r.name),
           sharing: sharingStepShown ? sharingValue : null,
         });
-        committedRef.current = { batch, sheets, assigned: true };
+        committedRef.current = { batch, sheets, assigned: true, picks };
       }
       print({
         batchId: batch.id,
