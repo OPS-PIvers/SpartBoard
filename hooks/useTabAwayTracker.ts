@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TAB_EXITS_MAX, type TabExit, type TabExitOutcome } from '@/types';
 import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
+import {
+  enterFullscreen,
+  fullscreenSupported,
+  isFullscreenNow,
+} from '@/hooks/usePageProtections';
 import { logError } from '@/utils/logError';
 
 /** The exit the overlay shows: live while `outcome` is null, frozen once it closes. */
@@ -30,6 +35,8 @@ export interface UseTabAwayTrackerArgs {
   /** Submit when the limit passes; otherwise the exit is logged over-limit. */
   autoSubmit: boolean;
   onAwayTooLong: () => void;
+  /** The page requires fullscreen: leaving it counts as an exit, which stays open until fullscreen is back. */
+  fullscreenRequired?: boolean;
 }
 
 interface OpenExit {
@@ -57,7 +64,19 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
   const openRef = useRef<OpenExit | null>(null);
   // The log as this client last wrote it; the snapshot can lag behind.
   const localExitsRef = useRef<TabExit[] | null>(null);
+  // Set once the student has been in fullscreen, so the first Start cover isn't an exit.
+  const seenFullscreenRef = useRef(false);
   const [away, setAway] = useState<TabAwayState | null>(null);
+
+  const watchesFullscreen = useCallback(
+    () => argsRef.current.fullscreenRequired === true && fullscreenSupported(),
+    []
+  );
+  const fullscreenOk = useCallback(
+    () =>
+      !watchesFullscreen() || !seenFullscreenRef.current || isFullscreenNow(),
+    [watchesFullscreen]
+  );
 
   const currentExits = useCallback((): TabExit[] => {
     const server = argsRef.current.serverExits ?? [];
@@ -105,7 +124,12 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
     const now = Date.now();
     // Debounce the blur + visibilitychange pair one exit fires.
     if (now - lastLeaveRef.current < 1000) return;
-    if (document.visibilityState !== 'hidden' && document.hasFocus()) return;
+    if (
+      document.visibilityState !== 'hidden' &&
+      document.hasFocus() &&
+      fullscreenOk()
+    )
+      return;
     lastLeaveRef.current = now;
     guardRef.current = true;
 
@@ -129,7 +153,7 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
     if (ends && openRef.current === open) {
       closeOpen('auto-submitted', performance.now() - open.leftAtPerf);
     }
-  }, [closeOpen, currentExits, persist]);
+  }, [closeOpen, currentExits, fullscreenOk, persist]);
 
   useEffect(() => {
     if (!args.enabled) return;
@@ -146,6 +170,19 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
       window.removeEventListener('blur', onEvent);
     };
   }, [args.enabled, handleLeave]);
+
+  // Leaving required fullscreen (Esc, or a tab switch out of it) is an exit too.
+  const watchFullscreen = args.enabled && args.fullscreenRequired === true;
+  useEffect(() => {
+    if (!watchFullscreen || !fullscreenSupported()) return;
+    const onChange = () => {
+      if (isFullscreenNow()) seenFullscreenRef.current = true;
+      else if (seenFullscreenRef.current) void handleLeave();
+    };
+    if (isFullscreenNow()) seenFullscreenRef.current = true;
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, [watchFullscreen, handleLeave]);
 
   // Chrome fires no window blur for the URL bar or browser menus.
   useFocusLossPoll({
@@ -169,20 +206,23 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
         closeOpen('session-ended', ms);
       } else if (
         document.visibilityState === 'visible' &&
-        document.hasFocus()
+        document.hasFocus() &&
+        fullscreenOk()
       ) {
         closeOpen(outcomeFor(ms, a.limitMs), ms);
       }
     };
     const id = window.setInterval(tick, 250);
     document.addEventListener('visibilitychange', tick);
+    document.addEventListener('fullscreenchange', tick);
     window.addEventListener('focus', tick);
     return () => {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', tick);
+      document.removeEventListener('fullscreenchange', tick);
       window.removeEventListener('focus', tick);
     };
-  }, [awayOpen, closeOpen]);
+  }, [awayOpen, closeOpen, fullscreenOk]);
 
   // Reopen check: an exit left open by a closed tab or a sleeping device.
   useEffect(() => {
@@ -218,5 +258,11 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
     guardRef.current = false;
   }, []);
 
-  return { away, release };
+  /** The warning's dismiss button: re-arms detection and reopens fullscreen when the page requires it. */
+  const resume = useCallback(() => {
+    guardRef.current = false;
+    if (watchesFullscreen() && !isFullscreenNow()) void enterFullscreen();
+  }, [watchesFullscreen]);
+
+  return { away, release, resume };
 }

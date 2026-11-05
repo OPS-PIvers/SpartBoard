@@ -1,10 +1,6 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import {
+  enterFullscreen,
   fullscreenSupported,
   isFullscreenNow,
   subscribeFullscreen,
@@ -25,15 +21,14 @@ export const FullscreenCover: React.FC<{ required: boolean }> = ({
   );
   const [started, setStarted] = useState(false);
   const [failed, setFailed] = useState(false);
-  const enteredRef = useRef(false);
+  // The tab warning's button can also open fullscreen, so watch for it instead of the Start click.
+  if (required && isFullscreen && !started) setStarted(true);
 
-  // Leave the fullscreen we opened once it's no longer required (submitted, ended).
+  // Leave the page fullscreen once it's no longer required (submitted, ended).
   useEffect(() => {
     if (!required) return;
     return () => {
-      if (!enteredRef.current) return;
-      enteredRef.current = false;
-      if (document.fullscreenElement)
+      if (document.fullscreenElement === document.documentElement)
         document.exitFullscreen().catch(() => undefined);
     };
   }, [required]);
@@ -42,13 +37,7 @@ export const FullscreenCover: React.FC<{ required: boolean }> = ({
 
   const enter = () => {
     setFailed(false);
-    document.documentElement
-      .requestFullscreen()
-      .then(() => {
-        enteredRef.current = true;
-        setStarted(true);
-      })
-      .catch(() => setFailed(true));
+    void enterFullscreen().then((ok) => setFailed(!ok));
   };
 
   return (
