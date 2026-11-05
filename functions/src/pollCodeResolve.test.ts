@@ -25,6 +25,7 @@ vi.mock('firebase-functions/v2/https', () => ({
 }));
 
 vi.mock('firebase-functions/logger', () => ({ warn: vi.fn() }));
+import * as logger from 'firebase-functions/logger';
 
 import {
   mintPollCode,
@@ -36,6 +37,8 @@ import {
   GLOBAL_WINDOW_MS,
   POLL_CODE_CALLER_MAX_MISSES,
   POLL_CODE_GLOBAL_MAX_MISSES,
+  POLL_CODE_MINT_MAX_PER_HOUR,
+  RESERVATION_TTL_MS,
 } from './pollCodeResolve';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
 
@@ -113,10 +116,14 @@ describe('resolvePollCode', () => {
     expect(stub.get(GLOBAL_DOC)?.misses).toBe(1);
   });
 
-  it('stops resolving for a caller after the miss cap, even a live code', async () => {
+  it('refuses a capped caller with resource-exhausted, even for a live code', async () => {
     const { resolve } = setup();
     await fillCaller(resolve, 'sweeper', POLL_CODE_CALLER_MAX_MISSES);
-    expect(await resolve('sweeper', 'K3F9Q')).toBeNull();
+    await expect(resolve('sweeper', 'K3F9Q')).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    // A retry of a code it already missed is still answered.
+    expect(await resolve('sweeper', 'MISS0')).toBeNull();
     expect(await resolve('anon2', 'K3F9Q')).toBe('t1_K3F9Q');
   });
 
@@ -128,27 +135,16 @@ describe('resolvePollCode', () => {
     );
   });
 
-  it('once the shared cap trips, blocks only callers already missing', async () => {
+  it('never refuses a valid code over the shared count, and warns once', async () => {
     const { resolve } = setup({
       ...live,
       [GLOBAL_DOC]: { misses: POLL_CODE_GLOBAL_MAX_MISSES },
       [CALLER_DOC('missing')]: { codes: ['ZZZZZ'] },
     });
-    // A caller with no misses still joins, and so does a retry of an earlier code.
     expect(await resolve('fresh-uid', 'K3F9Q')).toBe('t1_K3F9Q');
-    expect(await resolve('missing', 'ZZZZZ')).toBeNull();
-    expect(await resolve('missing', 'K3F9Q')).toBeNull();
-  });
-
-  it('frees the shared cap in the next 10-minute window', async () => {
-    const { resolve } = setup({
-      ...live,
-      [GLOBAL_DOC]: { misses: POLL_CODE_GLOBAL_MAX_MISSES },
-      [CALLER_DOC('missing')]: { codes: ['ZZZZZ'] },
-    });
-    expect(await resolve('missing', 'K3F9Q', NOW + GLOBAL_WINDOW_MS)).toBe(
-      't1_K3F9Q'
-    );
+    expect(await resolve('missing', 'K3F9Q')).toBe('t1_K3F9Q');
+    expect(await resolve('missing', 'YYYYY')).toBeNull();
+    expect(logger.warn).toHaveBeenCalledTimes(1);
   });
 
   it('never fails the call when a counter write fails', async () => {
@@ -187,6 +183,7 @@ describe('mintPollCode', () => {
       sessionId: 't1_CCCCC',
       teacherUid: 't1',
       updatedAt: NOW,
+      reservedAt: NOW,
     });
     expect(stub.get('poll_codes/AAAAA')).toEqual({ sessionId: 'x_AAAAA' });
   });
@@ -198,6 +195,32 @@ describe('mintPollCode', () => {
     await expect(mintPollCode(db, 't2', NOW, () => 0)).rejects.toThrow(
       'Could not generate a unique poll join code.'
     );
+  });
+
+  it('reclaims only a stale reservation whose session never appeared', async () => {
+    const old = NOW - RESERVATION_TTL_MS - 1;
+    const { db } = setup({
+      'poll_codes/AAAAA': { sessionId: 'x_AAAAA', reservedAt: NOW - 1000 },
+      'poll_codes/CCCCC': { sessionId: 'x_CCCCC', updatedAt: old },
+      'poll_sessions/x_CCCCC': { teacherUid: 'x' },
+      'poll_codes/DDDDD': { sessionId: 'x_DDDDD', reservedAt: old },
+    });
+    const picks = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2];
+    expect(await mintPollCode(db, 't1', NOW, () => picks.shift() ?? 0)).toBe(
+      'DDDDD'
+    );
+  });
+
+  it('refuses past the per-teacher mint cap', async () => {
+    const { db } = setup({
+      [`poll_code_limits/mint__t1__${Math.floor(NOW / CALLER_WINDOW_MS)}`]: {
+        count: POLL_CODE_MINT_MAX_PER_HOUR,
+      },
+    });
+    await expect(mintPollCode(db, 't1', NOW, () => 0)).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    expect(await mintPollCode(db, 't2', NOW, () => 0)).toBe('AAAAA');
   });
 
   it('makes a code resolve as soon as it is minted and its session written', async () => {

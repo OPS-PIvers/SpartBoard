@@ -75,7 +75,7 @@ const recordMissWithIncrements: RecordMiss = async (
 
 let warnedGlobalBucket = -1;
 
-/** The session a code opens for `uid` (recording the join), or null on a miss or a cap. */
+/** The session a code opens for `uid` (recording the join), or null on a miss; throws resource-exhausted when capped. */
 export async function resolvePollCode(
   db: Firestore,
   uid: string,
@@ -98,22 +98,20 @@ export async function resolvePollCode(
     ? rawCodes.filter((c): c is string => typeof c === 'string')
     : [];
   const repeat = codes.includes(code);
-  if (!repeat && codes.length >= POLL_CODE_CALLER_MAX_MISSES) return null;
+  if (!repeat && codes.length >= POLL_CODE_CALLER_MAX_MISSES) {
+    throw new HttpsError('resource-exhausted', 'Too many poll code lookups.');
+  }
   const globalMisses: unknown = globalSnap.data()?.misses;
-  // The shared cap only stops callers already missing, so a fresh join always resolves.
+  // The shared count only warns for now; it never stops a lookup.
   if (
-    !repeat &&
-    codes.length > 0 &&
     typeof globalMisses === 'number' &&
-    globalMisses >= POLL_CODE_GLOBAL_MAX_MISSES
+    globalMisses >= POLL_CODE_GLOBAL_MAX_MISSES &&
+    warnedGlobalBucket !== globalBucket
   ) {
-    if (warnedGlobalBucket !== globalBucket) {
-      warnedGlobalBucket = globalBucket;
-      logger.warn('[resolvePollCodeV1] global miss cap reached', {
-        misses: globalMisses,
-      });
-    }
-    return null;
+    warnedGlobalBucket = globalBucket;
+    logger.warn('[resolvePollCodeV1] global miss count over threshold', {
+      misses: globalMisses,
+    });
   }
   const pointer = await db.collection('poll_codes').doc(code).get();
   const sessionId: unknown = pointer.data()?.sessionId;
@@ -145,6 +143,10 @@ export async function resolvePollCode(
   return sessionId;
 }
 
+export const POLL_CODE_MINT_MAX_PER_HOUR = 30;
+// A reservation whose session never appeared frees up after this long.
+export const RESERVATION_TTL_MS = 15 * MINUTE_MS;
+
 /** Reserve a random free code for `teacherUid`, pointing it at their session id as pollCodePointer would. */
 export async function mintPollCode(
   db: Firestore,
@@ -152,16 +154,45 @@ export async function mintPollCode(
   now: number = Date.now(),
   pick: () => number = () => randomInt(ALPHABET.length)
 ): Promise<string> {
+  const capRef = db
+    .collection(LIMITS)
+    .doc(`mint__${teacherUid}__${Math.floor(now / CALLER_WINDOW_MS)}`);
+  const minted: unknown = (await capRef.get()).data()?.count;
+  if (typeof minted === 'number' && minted >= POLL_CODE_MINT_MAX_PER_HOUR) {
+    throw new HttpsError('resource-exhausted', 'Too many poll codes minted.');
+  }
+  try {
+    await capRef.set(
+      {
+        count: admin.firestore.FieldValue.increment(1),
+        expireAt: expireAt(now + 2 * CALLER_WINDOW_MS),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    logger.warn('[mintPollCodeV1] mint counter write failed', err);
+  }
   for (let attempt = 0; attempt < MINT_TRIES; attempt += 1) {
     let code = '';
     while (code.length < CODE_LENGTH) code += ALPHABET[pick()];
     const ref = db.collection('poll_codes').doc(code);
     const reserved = await db.runTransaction(async (tx) => {
-      if ((await tx.get(ref)).exists) return false;
-      tx.create(ref, {
+      const pointer = await tx.get(ref);
+      if (pointer.exists) {
+        const data = pointer.data() ?? {};
+        const sid: unknown = data.sessionId;
+        const at: unknown = data.reservedAt ?? data.updatedAt;
+        const stale = typeof at === 'number' && now - at > RESERVATION_TTL_MS;
+        if (!stale || typeof sid !== 'string' || !sid) return false;
+        if ((await tx.get(db.collection('poll_sessions').doc(sid))).exists) {
+          return false;
+        }
+      }
+      tx.set(ref, {
         sessionId: `${teacherUid}_${code}`,
         teacherUid,
         updatedAt: now,
+        reservedAt: now,
       });
       return true;
     });

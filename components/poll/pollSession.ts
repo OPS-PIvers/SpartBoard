@@ -134,13 +134,20 @@ export const toSessionResultsState = (
   };
 };
 
-// Callable failures that mean the server couldn't be reached, not that it refused.
-const UNREACHABLE = ['internal', 'unavailable', 'deadline-exceeded'];
-const isUnreachable = (err: unknown): boolean => {
+// The direct-read fallbacks below are deleted together with the AB-113 rules tightening.
+const CALL_TIMEOUT = { timeout: 8000 };
+// Callable failures where the direct path takes over: the server is unreachable, or it capped this caller.
+const FALL_BACK_ON = [
+  'internal',
+  'unavailable',
+  'deadline-exceeded',
+  'resource-exhausted',
+];
+const shouldFallBack = (err: unknown): boolean => {
   const code = (err as { code?: unknown } | null)?.code;
   return (
     typeof code === 'string' &&
-    UNREACHABLE.includes(code.replace(/^functions\//, ''))
+    FALL_BACK_ON.includes(code.replace(/^functions\//, ''))
   );
 };
 
@@ -171,15 +178,13 @@ const mintUniquePollCode = async (): Promise<string> => {
       { code: string }
     >(
       functions,
-      'mintPollCodeV1'
+      'mintPollCodeV1',
+      CALL_TIMEOUT
     )({});
     return data.code;
   } catch (err: unknown) {
-    if (!isUnreachable(err)) throw err;
-    console.warn(
-      '[pollSession] mint server unreachable; checking locally',
-      err
-    );
+    if (!shouldFallBack(err)) throw err;
+    console.warn('[pollSession] mint unavailable; checking locally', err);
     return mintPollCodeDirect();
   }
 };
@@ -240,7 +245,7 @@ export const ensurePollJoinCode = async (
 
 const POINTER_RETRY_MS = [1500, 3000];
 
-// undefined when the call failed, null when the server found no session.
+// undefined when the call failed some other way, null when no session was found.
 const resolveCode = async (
   code: string
 ): Promise<string | null | undefined> => {
@@ -248,16 +253,17 @@ const resolveCode = async (
     return (
       await httpsCallable<{ code: string }, { sessionId: string | null }>(
         functions,
-        'resolvePollCodeV1'
+        'resolvePollCodeV1',
+        CALL_TIMEOUT
       )({ code })
     ).data.sessionId;
   } catch (err: unknown) {
     console.warn('[pollSession] code lookup failed', err);
-    return undefined;
+    return shouldFallBack(err) ? resolveCodeDirect(code) : undefined;
   }
 };
 
-/** The pre-callable lookup, for when the server can't be reached at all. */
+/** The pre-callable lookup, for when the server can't answer. */
 const resolveCodeDirect = async (code: string): Promise<string | null> => {
   const pointer = await getDoc(doc(db, POLL_CODES, code));
   if (!pointer.exists()) return null;

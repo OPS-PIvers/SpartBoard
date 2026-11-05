@@ -180,6 +180,7 @@ describe('ensurePollJoinCode', () => {
       'functions/internal',
       'functions/unavailable',
       'functions/deadline-exceeded',
+      'functions/resource-exhausted',
     ]) {
       mockMint.mockRejectedValueOnce({ code });
       mockGeneratePollCode
@@ -374,11 +375,39 @@ describe('lookupPollSessionByCode', () => {
     }
   });
 
-  it('retries a failed call, then reads the pointer directly if the server never answered', async () => {
+  it('reads the pointer directly when the server is unreachable or caps the caller', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      for (const code of [
+        'functions/internal',
+        'functions/resource-exhausted',
+      ]) {
+        mockResolve.mockRejectedValueOnce({ code });
+        mockGetDoc
+          .mockResolvedValueOnce({
+            exists: () => true,
+            data: () => ({ sessionId: 'teacher-1_K3F9Q' }),
+          })
+          .mockResolvedValueOnce({
+            exists: () => true,
+            id: 'teacher-1_K3F9Q',
+            data: () => ({ code: 'K3F9Q', active: true }),
+          });
+        expect((await lookupPollSessionByCode('K3F9Q'))?.sessionId).toBe(
+          'teacher-1_K3F9Q'
+        );
+      }
+      expect(mockResolve).toHaveBeenCalledTimes(2);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('retries another failure, then reads the pointer directly if the server never answered', async () => {
     vi.useFakeTimers();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     try {
-      mockResolve.mockRejectedValue({ code: 'functions/internal' });
+      mockResolve.mockRejectedValue({ code: 'functions/permission-denied' });
       mockGetDoc
         .mockResolvedValueOnce({
           exists: () => true,
@@ -405,7 +434,7 @@ describe('lookupPollSessionByCode', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     try {
       mockResolve
-        .mockRejectedValueOnce({ code: 'functions/internal' })
+        .mockRejectedValueOnce({ code: 'functions/permission-denied' })
         .mockResolvedValueOnce({ data: { sessionId: 'teacher-1_K3F9Q' } });
       mockGetDoc.mockResolvedValueOnce({
         exists: () => true,

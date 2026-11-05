@@ -46,6 +46,7 @@ import type {
 import { withDerivedUserCounts } from './lib/buildingUserCounts';
 import { resolveActorBuildingIds } from './lib/actorBuildingScope';
 import { filterVisibleSections } from './lib/sectionVisibility';
+import { withoutProtectedMembers } from './lib/protectedMembers';
 import { AllOrganizationsView } from './views/AllOrganizationsView';
 import { OverviewView } from './views/OverviewView';
 import { DomainsView } from './views/DomainsView';
@@ -432,13 +433,9 @@ export const OrganizationPanel: React.FC = () => {
     if (!writesEnabled) return comingSoon('Update user');
     run('Update user', () => updateMember(id, patch));
   };
-  // Rules refuse a domain admin's role/status change or removal of a super admin, which would fail the whole batch.
+  // Rules refuse changing or removing a higher tier (super admin; domain admin too for a building admin), which would fail the whole batch.
   const withoutSuperAdmins = (ids: string[]) =>
-    actorRole === 'super_admin'
-      ? ids
-      : ids.filter(
-          (id) => users.find((u) => u.id === id)?.role !== 'super_admin'
-        );
+    withoutProtectedMembers(ids, users, actorRole);
   // Rules also refuse a non-super admin's change to their own role/status.
   const withoutSelf = (ids: string[]) =>
     actorRole === 'super_admin'
