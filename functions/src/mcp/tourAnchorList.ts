@@ -67513,6 +67513,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.select-mode",
+    "label": "Select button in the Flashcards library toolbar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards",
+        "kind": "widget",
+        "widget_type": "flashcards",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.folder-root",
     "label": "Library root folder in the Flashcards library",
     "scope": "board",
@@ -70768,29 +70785,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-library.archive-plc-results",
     "label": "Share results with PLC item in a quiz assignment row menu",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [
-          "library-shell.archive-menu:quiz#row-1"
-        ],
-        "reveal": "library-shell.archive-menu:quiz#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-library.archive-copy-link",
-    "label": "Copy Student Link item in a quiz In Progress row menu",
     "scope": "widget type",
     "panel": true,
     "keys": [

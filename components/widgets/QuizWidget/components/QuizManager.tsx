@@ -51,7 +51,6 @@ import {
   Inbox,
   Loader2,
   AlertCircle,
-  CheckSquare,
   Cloud,
   CloudOff,
   Users2,
@@ -100,6 +99,8 @@ import {
 import {
   LibraryShell,
   LibraryToolbar,
+  LibraryRowSubtitle,
+  LibrarySelectToggle,
   LibraryGrid,
   LibraryItemCard,
   LibraryPreviewPane,
@@ -892,7 +893,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const { rubrics: assignRubrics } = useRubrics(userId);
   const handRaiseMode = useQuizHandRaiseMode();
   const translationAllowed = canAccessFeature(QUIZ_TRANSLATION_FEATURE);
-  const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   // §10 assign advisory: coverage comes from the in-memory index; Generate reuses the editor hook.
   const assignTranslations = useQuizTranslations(assignQuizData, assignTarget);
 
@@ -1614,16 +1614,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             onClick: () => void (onArchiveStart ?? noop)(a),
           };
 
-      if (canOfferAnonymousJoin) {
-        secondaries.push({
-          id: 'copy-url',
-          label: 'Copy Student Link',
-          icon: Link2,
-          anchor: tourTypeAttr('quiz-library.archive-copy-link', 'quiz'),
-          onClick: () => (onArchiveCopyUrl ?? noop)(a),
-          disabled: !urlLive,
-        });
-      }
       if (isActive) {
         secondaries.push({
           id: 'monitor',
@@ -2162,27 +2152,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       0
     );
     return (
-      <span className="flex items-center gap-2">
-        <span
-          className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded-sm uppercase"
-          style={{
-            paddingInline: 'min(6px, 1.5cqmin)',
-            fontSize: 'min(10px, 3.5cqmin)',
-          }}
-        >
-          {quiz.questionCount} Qs
-        </span>
-        <span>
-          Updated{' '}
-          {new Date(quiz.updatedAt || quiz.createdAt).toLocaleDateString()}
-        </span>
-        {lastAssignedAt > 0 && (
-          <span className="hidden [@container(min-width:600px)]:inline">
-            · {isViewOnly ? 'Last shared' : 'Last assigned'}{' '}
-            {new Date(lastAssignedAt).toLocaleDateString()}
-          </span>
-        )}
-      </span>
+      <LibraryRowSubtitle
+        countLabel={`${quiz.questionCount} Qs`}
+        status={`Updated ${new Date(quiz.updatedAt || quiz.createdAt).toLocaleDateString()}`}
+        lastAssignedAt={lastAssignedAt}
+        lastAssignedLabel={isViewOnly ? 'Last shared' : 'Last assigned'}
+      />
     );
   };
 
@@ -2396,40 +2371,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   defaultValue: 'Targets',
                 })}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectionMode) {
-                    selection.clear();
-                    setSelectionMode(false);
-                  } else {
-                    setSelectionMode(true);
-                  }
+              <LibrarySelectToggle
+                selectionMode={selectionMode}
+                onChange={(next) => {
+                  if (!next) selection.clear();
+                  setSelectionMode(next);
                 }}
-                {...tourAttr('quiz.select-mode', widgetId, 'quiz')}
-                className={`inline-flex items-center rounded-lg font-bold uppercase tracking-wider transition-colors ${
-                  selectionMode
-                    ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
-                    : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
-                }`}
-                style={{
-                  gap: 'min(6px, 1.5cqmin)',
-                  padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                  fontSize: 'min(11px, 4cqmin)',
-                }}
-                aria-pressed={selectionMode}
-                title={
-                  selectionMode ? 'Exit selection mode' : 'Enter selection mode'
-                }
-              >
-                <CheckSquare
-                  style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
-                  }}
-                />
-                {selectionMode ? 'Cancel' : 'Select'}
-              </button>
+                anchor={tourAttr('quiz.select-mode', widgetId, 'quiz')}
+              />
             </>
           ) : undefined
         }

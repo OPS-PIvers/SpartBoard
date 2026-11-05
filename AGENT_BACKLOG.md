@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-119**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-120**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -177,6 +177,7 @@ Each names what unblocks it. When the blocker clears, move the item to Ready.
 - **AB-56 Web tour list cost** (M). Blocked on firestore.rules size headroom. Store each tour's start host and step count at publish so `webToursListV1` stops reading every step.
 - **AB-57 Starred class PR 4** (S). Blocked on Paul opening the per-widget class flag (after AB-41 PR 2-3). Remove the star UI, `activeRosterId`/`setActiveRoster`, the localStorage key and the Classes widget catalog entry.
 - **AB-58 One student assignment query** (M). Blocked on AB-13's prod run. Collapse `useStudentAssignments` to a single `classIds` query with a regression test.
+- **AB-119 Flashcards v2 assignment Settings** (S). Blocked on Flashcards and Quiz alignment slice 2 (assign modal with an edit mode). Wire `onAssignmentSettings` in `components/widgets/Flashcards/Widget.tsx` so the In Progress and Completed Settings item reopens the assign modal on the assignment, as Quiz's `QuizAssignmentSettingsModal` does, and point Results at slice 4's Results screen once it lands (today Results and Monitor open the same view). Plan: /mnt/project-files/flashcards-quiz-alignment/SLICES.md, slice 1 item 10.
 
 ## Reference
 
