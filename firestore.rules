@@ -716,7 +716,8 @@ service cloud.firestore {
           // config/buildings.ts.
           (isBuildingAdmin(orgId) &&
            emailLower != request.auth.token.email.lower() &&
-           existing().get('roleId', '') != 'super_admin' &&
+           // Never a higher tier, in either direction.
+           !(existing().get('roleId', '') in ['super_admin', 'domain_admin']) &&
            buildingListsOverlap(existing().get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
            changedOnly(['status'])) ||
           // Self-write: a user may stamp `lastActive` on their own member doc.
@@ -6080,10 +6081,13 @@ service cloud.firestore {
       // Only authenticated (non-anonymous) teachers can create sessions they own
       allow create: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
+        notDeactivated() &&
         incoming().teacherUid == authUid();
       // Teachers can rename, end, re-window or re-period their own sessions
       allow update: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
         existing().teacherUid == authUid() &&
         changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind', 'openAt', 'closeAt', 'dueAt', 'classIds', 'rosterIds', 'removedClasses']) &&
         incoming().status in ['active', 'ended'];
@@ -6095,14 +6099,18 @@ service cloud.firestore {
       function maSessionData() {
         return get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data;
       }
+      // Student tokens never count as the owner.
+      function maOwner() {
+        return maSessionData().teacherUid == authUid() && !isStudentRoleUser();
+      }
       function maOpen() {
         return seatOpen('mini_app_sessions', sessionId, maSessionData());
       }
       // Per-period sessions keep their app here until the period opens.
       match /content/{docId} {
         allow read: if signedIn() && (isAdmin() ||
-          maSessionData().teacherUid == authUid() || maOpen());
-        allow write: if contentWriteOk('mini_app_sessions', sessionId);
+          maOwner() || maOpen());
+        allow write: if !isStudentRoleUser() && contentWriteOk('mini_app_sessions', sessionId);
       }
       match /seats/{uid} {
         allow read: if signedIn() && authUid() == uid;
@@ -6124,7 +6132,7 @@ service cloud.firestore {
         // (works for both pseudonym and auth-uid doc ids).
         allow read: if signedIn() && (
           isAdmin() ||
-          maSessionData().teacherUid == authUid() ||
+          maOwner() ||
           existing().studentUid == authUid()
         );
 
@@ -6163,14 +6171,14 @@ service cloud.firestore {
         // used when a teacher wipes an assignment.
         allow delete: if signedIn() && (
           isAdmin() ||
-          maSessionData().teacherUid == authUid()
+          maOwner()
         );
 
         // v2 attempt history, written only by submitMiniAppResultV1.
         match /attempts/{attemptId} {
           allow read, delete: if signedIn() && (
             isAdmin() ||
-            maSessionData().teacherUid == authUid()
+            maOwner()
           );
           allow create, update: if false;
         }
@@ -6180,9 +6188,9 @@ service cloud.firestore {
       match /private/{docId} {
         allow read: if signedIn() && (
           isAdmin() ||
-          maSessionData().teacherUid == authUid()
+          maOwner()
         );
-        allow create, update: if contentWriteOk('mini_app_sessions', sessionId);
+        allow create, update: if !isStudentRoleUser() && contentWriteOk('mini_app_sessions', sessionId);
         allow delete: if false;
       }
 
@@ -6191,7 +6199,7 @@ service cloud.firestore {
       match /views/{viewId} {
         allow read: if signedIn() && (
           isAdmin() ||
-          get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data.teacherUid == authUid()
+          maOwner()
         );
         allow create: if signedIn() &&
           incoming().keys().hasOnly(['viewedAt']) &&
@@ -6229,16 +6237,18 @@ service cloud.firestore {
       // Only authenticated (non-anonymous) teachers can create sessions; they must own it
       allow create: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
+        notDeactivated() &&
         subMonitorStampAbsent() &&
         incoming().teacherUid == authUid();
       // Owning teacher (or admin) may update (publishAssignmentScores mirrors
       // scoreVisibility + revealedAnswers onto the session so the student listener
       // can gate review without teacher-owned docs; mirrors Quiz sessions) and
       // delete (GL "Delete permanently" cleanup).
-      allow update: if signedIn() &&
+      allow update: if signedIn() && !isStudentRoleUser() &&
         (existing().teacherUid == authUid() || isAdmin()) &&
         subMonitorStampUnchanged();
-      allow delete: if signedIn() &&
+      allow delete: if signedIn() && !isStudentRoleUser() &&
         (existing().teacherUid == authUid() || isAdmin());
 
       // The session doc, named once: the full path repeated a dozen times in
@@ -6251,7 +6261,7 @@ service cloud.firestore {
         return passesStudentClassGateCompat(glSession().get('classIds', []), glSession().get('classId', ''));
       }
       function glIsTeacher() {
-        return isAdmin() || glSession().teacherUid == authUid();
+        return isAdmin() || (glSession().teacherUid == authUid() && !isStudentRoleUser());
       }
       // GL stores assignment mode under `assignmentMode` (its `mode` is
       // play-mode: structured/guided/explore); other widgets use `mode`.
@@ -6352,7 +6362,7 @@ service cloud.firestore {
         allow read: if signedIn() &&
           (glIsTeacher() || isSubMonitor(glSession()) || glOpen() ||
            exists(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)/responses/$(authUid())));
-        allow write: if contentWriteOk('guided_learning_sessions', sessionId);
+        allow write: if !isStudentRoleUser() && contentWriteOk('guided_learning_sessions', sessionId);
       }
       match /seats/{uid} {
         allow read: if signedIn() && authUid() == uid;
@@ -7085,15 +7095,18 @@ service cloud.firestore {
       allow get: if true;
       allow list: if false;
       allow create: if signedIn()
+                    && notAnon()
                     && !isStudentRoleUser()
                     && notDeactivated()
                     && validPublicFlashcardSnapshot();
       allow update: if signedIn()
+                    && notAnon()
                     && !isStudentRoleUser()
                     && notDeactivated()
                     && existing().teacherUid == authUid()
                     && validPublicFlashcardSnapshot();
       allow delete: if signedIn()
+                    && notAnon()
                     && !isStudentRoleUser()
                     && notDeactivated()
                     && existing().teacherUid == authUid();

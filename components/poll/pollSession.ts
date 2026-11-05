@@ -7,7 +7,8 @@
  */
 
 import { arrayUnion, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions, isAuthBypass } from '@/config/firebase';
 import type {
   PollConfig,
   PollQuestion,
@@ -133,8 +134,25 @@ export const toSessionResultsState = (
   };
 };
 
-/** Mint a code no other session is already using. */
-const mintUniquePollCode = async (): Promise<string> => {
+// The direct-read fallbacks below are deleted together with the AB-113 rules tightening.
+const CALL_TIMEOUT = { timeout: 8000 };
+// Callable failures where the direct path takes over: the server is unreachable, or it capped this caller.
+const FALL_BACK_ON = [
+  'internal',
+  'unavailable',
+  'deadline-exceeded',
+  'resource-exhausted',
+];
+const shouldFallBack = (err: unknown): boolean => {
+  const code = (err as { code?: unknown } | null)?.code;
+  return (
+    typeof code === 'string' &&
+    FALL_BACK_ON.includes(code.replace(/^functions\//, ''))
+  );
+};
+
+/** The pre-callable mint: a local code checked against its pointer. */
+const mintPollCodeDirect = async (): Promise<string> => {
   for (let attempt = 0; attempt < CODE_MINT_RETRIES; attempt += 1) {
     const candidate = generatePollCode();
     const taken = await getDoc(doc(db, POLL_CODES, candidate)).then(
@@ -148,6 +166,27 @@ const mintUniquePollCode = async (): Promise<string> => {
     if (!taken) return candidate;
   }
   throw new Error('Could not generate a unique poll join code.');
+};
+
+/** Mint a code no other session is already using; the server picks and reserves it. */
+const mintUniquePollCode = async (): Promise<string> => {
+  // The auth-bypass harness has no real token or functions backend.
+  if (isAuthBypass) return mintPollCodeDirect();
+  try {
+    const { data } = await httpsCallable<
+      Record<string, never>,
+      { code: string }
+    >(
+      functions,
+      'mintPollCodeV1',
+      CALL_TIMEOUT
+    )({});
+    return data.code;
+  } catch (err: unknown) {
+    if (!shouldFallBack(err)) throw err;
+    console.warn('[pollSession] mint unavailable; checking locally', err);
+    return mintPollCodeDirect();
+  }
 };
 
 const writeSessionDoc = async (
@@ -206,25 +245,58 @@ export const ensurePollJoinCode = async (
 
 const POINTER_RETRY_MS = [1500, 3000];
 
+// undefined when the call failed some other way, null when no session was found.
+const resolveCode = async (
+  code: string
+): Promise<string | null | undefined> => {
+  try {
+    return (
+      await httpsCallable<{ code: string }, { sessionId: string | null }>(
+        functions,
+        'resolvePollCodeV1',
+        CALL_TIMEOUT
+      )({ code })
+    ).data.sessionId;
+  } catch (err: unknown) {
+    console.warn('[pollSession] code lookup failed', err);
+    return shouldFallBack(err) ? resolveCodeDirect(code) : undefined;
+  }
+};
+
+/** The pre-callable lookup, for when the server can't answer. */
+const resolveCodeDirect = async (code: string): Promise<string | null> => {
+  const pointer = await getDoc(doc(db, POLL_CODES, code));
+  if (!pointer.exists()) return null;
+  return (pointer.data() as { sessionId?: string }).sessionId ?? null;
+};
+
+const readSession = async (
+  sessionId: string | null | undefined
+): Promise<{ sessionId: string; data: PollSessionDoc } | null> => {
+  if (!sessionId) return null;
+  const snap = await getDoc(doc(db, POLL_SESSIONS, sessionId));
+  if (!snap.exists()) return null;
+  return { sessionId: snap.id, data: snap.data() as PollSessionDoc };
+};
+
 /** Resolve a participant-entered code to its session doc. */
 export const lookupPollSessionByCode = async (
   rawCode: string
 ): Promise<{ sessionId: string; data: PollSessionDoc } | null> => {
   const code = normalizePollCode(rawCode);
   if (!code) return null;
-  let pointer = await getDoc(doc(db, POLL_CODES, code));
-  // The server writes the pointer just after Start, so a quick scan can beat it.
+  if (isAuthBypass) return readSession(await resolveCodeDirect(code));
+  let sessionId = await resolveCode(code);
+  let reached = sessionId !== undefined;
+  // The pointer lands just after Start, so a quick scan can beat it.
   for (const wait of POINTER_RETRY_MS) {
-    if (pointer.exists()) break;
+    if (sessionId) break;
     await new Promise((resolve) => setTimeout(resolve, wait));
-    pointer = await getDoc(doc(db, POLL_CODES, code));
+    sessionId = await resolveCode(code);
+    if (sessionId !== undefined) reached = true;
   }
-  if (!pointer.exists()) return null;
-  const sessionId = (pointer.data() as { sessionId?: string }).sessionId;
-  if (!sessionId) return null;
-  const snap = await getDoc(doc(db, POLL_SESSIONS, sessionId));
-  if (!snap.exists()) return null;
-  return { sessionId: snap.id, data: snap.data() as PollSessionDoc };
+  if (!sessionId && !reached) sessionId = await resolveCodeDirect(code);
+  return readSession(sessionId);
 };
 
 /** Blank an abandoned session's questions (roster-derived labels); the server then drops its code pointer. */
