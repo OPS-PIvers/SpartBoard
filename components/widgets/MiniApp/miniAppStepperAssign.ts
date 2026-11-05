@@ -3,11 +3,7 @@ import type { AssignmentAudience, ClassRoster } from '@/types';
 import type { AssignClassesValue } from '@/components/common/library/assignStepper/assignClassesValue';
 import type { AssignWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 import type { AssignKind } from '@/components/common/library/assignStepper/assignSteps';
-import {
-  applyWhen,
-  manualStartAvailable,
-  type BellWindowFn,
-} from '@/utils/assignAvailability';
+import { applyWhen, type BellWindowFn } from '@/utils/assignAvailability';
 import { buildPeriodGate } from '@/utils/periodPlan';
 import {
   buildMixedTargetsPayload,
@@ -58,6 +54,7 @@ export function planMiniAppStepperAssign(
     { ...targeting, availability: when.availability, workKind: kind },
     {
       mode: when.mode,
+      manualAvailable: choices.audience !== 'staff',
       rosters: selectedRosters,
       bellWindow,
       workKind: { default: kind, locked: true },
@@ -69,10 +66,7 @@ export function planMiniAppStepperAssign(
     rosters: selectedRosters,
     sharedWindow: saved,
     bellWindow,
-    manualStart:
-      when.mode === 'manual' &&
-      kind === 'work' &&
-      manualStartAvailable(bellWindow),
+    manualStart: when.mode === 'manual' && kind === 'work',
   });
   const mixed = expandMixedTargeting(
     saved,

@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { QuizAssignStepper } from '@/components/widgets/QuizWidget/components/QuizAssignStepper';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
-import { manualStartAvailable } from '@/utils/assignAvailability';
 import type { AssignPeriodAccessContext } from '../AssignPeriodAccessSection';
 import { defaultWhenValue } from './assignWhenValue';
 import { SAMPLE_ROSTERS } from './assignStepperTestRosters';
@@ -33,7 +32,7 @@ const Preview: React.FC = () => {
     defaultWhenValue({
       activity: 'quiz',
       bellAvailable: true,
-      manualAvailable: manualStartAvailable(CTX.bellWindow),
+      manualAvailable: true,
     })
   );
   const [behavior, setBehavior] = useState(() => getQuizAssignPrefill(null));

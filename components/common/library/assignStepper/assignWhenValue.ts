@@ -2,7 +2,6 @@ import type { TFunction } from 'i18next';
 import {
   availabilityBackwards,
   defaultAvailability,
-  manualStartAvailable,
   type AssignAvailability,
   type AssignWhenMode,
   type BellWindowFn,
@@ -19,7 +18,7 @@ export interface AssignWhenValue {
   availability: AssignAvailability;
 }
 
-/** Quiz starts on Manual when it can; everything else is Scheduled. */
+/** Quiz starts on Manual when its classes have bell periods; everything else is Scheduled. */
 export function defaultWhenValue({
   activity,
   now = new Date(),
@@ -32,7 +31,10 @@ export function defaultWhenValue({
   manualAvailable: boolean;
 }): AssignWhenValue {
   return {
-    mode: activity === 'quiz' && manualAvailable ? 'manual' : 'scheduled',
+    mode:
+      activity === 'quiz' && manualAvailable && bellAvailable
+        ? 'manual'
+        : 'scheduled',
     availability: defaultAvailability(now, bellAvailable),
   };
 }
@@ -118,12 +120,7 @@ export function whenBackwards(
   bellWindow: BellWindowFn | undefined,
   workKind?: WorkKind
 ): boolean {
-  if (
-    when.mode === 'manual' &&
-    workKind !== 'resource' &&
-    manualStartAvailable(bellWindow)
-  )
-    return false;
+  if (when.mode === 'manual' && workKind !== 'resource') return false;
   return availabilityBackwards(
     { availability: when.availability, workKind },
     rosters,

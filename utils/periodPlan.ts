@@ -116,7 +116,8 @@ export function buildPeriodGate({
   | { accessMode: AccessMode; periodAccess: Record<string, PeriodAccess> }
   | undefined {
   const minPeriods = manualStart ? 1 : 2;
-  if (!bellWindow || rosters.length < minPeriods) return undefined;
+  if ((!bellWindow && !manualStart) || rosters.length < minPeriods)
+    return undefined;
   const resolved: PeriodPlan = manualStart
     ? { mode: 'assessment' }
     : (plan ?? DEFAULT_PERIOD_PLAN);
@@ -125,7 +126,7 @@ export function buildPeriodGate({
     rosters,
     sharedWindow,
     bellWindow: (roster) =>
-      bellWindow(roster, new Date(sharedWindow.openAt ?? Date.now())),
+      bellWindow?.(roster, new Date(sharedWindow.openAt ?? Date.now())) ?? null,
   });
   // Two rosters on one class id share a gate, so they are one period.
   return Object.keys(periodAccess).length >= minPeriods
