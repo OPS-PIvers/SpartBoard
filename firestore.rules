@@ -5551,9 +5551,10 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource == null ||
         authUid() == existing().studentUid ||
-        authUid() == existing().teacherUid ||
         isAdmin() ||
-        authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid
+        (!isStudentRoleUser() &&
+         (authUid() == existing().teacherUid ||
+          authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid))
       );
       allow create: if signedIn() &&
         ledgerCreateOk(ledgerId, ledgerS('video_activity_sessions', ledgerId), 'activityId');
@@ -5568,7 +5569,8 @@ service cloud.firestore {
         ||
         // Teacher reset/refund branch (see quiz_attempt_ledger): may only DECREASE
         // completedAttempts (removeStudent reset + unlockStudentAttempt refund).
-        (((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
+        (!isStudentRoleUser() &&
+         ((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
           authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid) &&
          unchanged('studentUid') &&
          unchanged('activityId') &&
@@ -5584,8 +5586,10 @@ service cloud.firestore {
       // ledgers symmetric.
       allow delete: if signedIn() && (
         resource == null ||
-        (authUid() == existing().teacherUid && authUid() != existing().studentUid) || isAdmin() ||
-        authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid
+        isAdmin() ||
+        (!isStudentRoleUser() &&
+         ((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
+          authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid))
       );
     }
 
@@ -5847,8 +5851,9 @@ service cloud.firestore {
       function vaS() {
         return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data;
       }
+      // Student tokens are non-anonymous, so they never count as the owner.
       function vaOwner(s) {
-        return signedIn() && (s.teacherUid == authUid() || isAdmin());
+        return signedIn() && ((s.teacherUid == authUid() && !isStudentRoleUser()) || isAdmin());
       }
       // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
       // caller can't enumerate every teacher's sessions.
@@ -5857,6 +5862,8 @@ service cloud.firestore {
       // Non-anonymous teachers create only sessions they own.
       allow create: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
+        notDeactivated() &&
         subMonitorStampAbsent() &&
         incoming().teacherUid == authUid() &&
         !('ltiAttachment' in incoming());
@@ -5866,6 +5873,7 @@ service cloud.firestore {
       // hasOnly). The student response rule below stays tight.
       allow update: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
         existing().teacherUid == authUid() &&
         subMonitorStampUnchanged() &&
         sameId() &&
@@ -5900,7 +5908,7 @@ service cloud.firestore {
           vaS().status == 'ended' ||
           periodOpen(vaS(), seatedClassId('video_activity_sessions', sessionId))
         );
-        allow write: if contentWriteOk('video_activity_sessions', sessionId);
+        allow write: if !isStudentRoleUser() && contentWriteOk('video_activity_sessions', sessionId);
       }
       match /seats/{uid} {
         allow read: if signedIn() && authUid() == uid;
