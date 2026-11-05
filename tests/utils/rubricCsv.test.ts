@@ -173,4 +173,16 @@ describe('parseRubricCsv', () => {
       { line: 0, reason: expect.stringContaining('empty') },
     ]);
   });
+
+  it('reports physical line numbers after a multi-line quoted cell', () => {
+    const csv = [
+      'Criterion,Level 1 Label,Level 1 Points,Level 2 Label,Level 2 Points',
+      '"Thesis\nspans lines",Low,1,High,2',
+      ',Low,1,High,2',
+    ].join('\n');
+    const result = parseRubricCsv(csv);
+    expect(result.errors).toEqual([
+      { line: 4, reason: 'Missing Criterion name.' },
+    ]);
+  });
 });
