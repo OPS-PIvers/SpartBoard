@@ -46358,48 +46358,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "flashcards-editor.tab-cards",
-    "label": "Cards tab in the Flashcards set editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-editor.tab-languages",
-    "label": "Languages tab in the Flashcards set editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "flashcards-editor.draft-ai",
     "label": "Draft with AI (list header) in the Flashcards set editor",
     "scope": "widget type",

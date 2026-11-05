@@ -2476,8 +2476,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'flashcards.editor-back': ['library.flashcards.editor'],
     'flashcards.editor-paste': ['library.flashcards.editor'],
     'flashcards.editor-save': ['library.flashcards.editor'],
-    'flashcards-editor.tab-cards': ['library.flashcards.editor'],
-    'flashcards-editor.tab-languages': ['library.flashcards.editor'],
     'flashcards-editor.draft-ai': ['library.flashcards.editor'],
     'flashcards-editor.footer-draft-ai': ['library.flashcards.editor'],
     'flashcards-editor.add-menu': ['library.flashcards.editor'],

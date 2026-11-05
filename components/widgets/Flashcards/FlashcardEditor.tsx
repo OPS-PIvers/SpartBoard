@@ -115,7 +115,7 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
         />
       </button>
       <span
-        className="pt-2 font-black tabular-nums text-slate-300"
+        className="min-w-[3ch] pt-2 text-right font-black tabular-nums text-slate-300"
         style={{ fontSize: 'min(12px, 3.8cqmin)' }}
       >
         {index + 1}

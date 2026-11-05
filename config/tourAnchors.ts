@@ -10457,16 +10457,6 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
-  'flashcards-editor.tab-cards': {
-    label: 'Cards tab in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.tab-languages': {
-    label: 'Languages tab in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
   'flashcards-editor.draft-ai': {
     label: 'Draft with AI (list header) in the Flashcards set editor',
     perWidgetType: true,

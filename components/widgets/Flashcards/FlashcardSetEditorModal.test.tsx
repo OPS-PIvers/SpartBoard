@@ -192,6 +192,34 @@ describe('FlashcardSetEditorModal', () => {
     );
   });
 
+  it('guesses a new column language from its words, unless the teacher picked one', async () => {
+    const korean = ['하나', '둘', '셋', '넷', '다섯'];
+    const set = baseSet({
+      title: '',
+      termLanguage: 'en-US',
+      updatedAt: 0,
+      cards: korean.map((term, i) => ({
+        id: `k${i}`,
+        term: i === 4 ? '' : term,
+        definition: 'x',
+      })),
+    });
+    renderModal({ isNew: true, set });
+    const termLanguage = screen.getByLabelText('Term language');
+    fireEvent.change(screen.getByLabelText('Term 5'), {
+      target: { value: korean[4] },
+    });
+    await waitFor(() => expect(termLanguage).toHaveProperty('value', 'ko-KR'), {
+      timeout: 2000,
+    });
+    fireEvent.change(termLanguage, { target: { value: 'fr-FR' } });
+    fireEvent.change(screen.getByLabelText('Term 5'), {
+      target: { value: '여섯' },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(termLanguage).toHaveProperty('value', 'fr-FR');
+  });
+
   it('adds the next card on Enter in Definition', () => {
     renderModal({});
     fireEvent.keyDown(screen.getByLabelText('Definition 1'), { key: 'Enter' });

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -19,7 +19,9 @@ import {
   AlertCircle,
   ChevronDown,
   ClipboardPaste,
+  GripVertical,
   Plus,
+  Trash2,
   Wand2,
 } from 'lucide-react';
 import type { FlashcardSet } from '@/types';
@@ -35,6 +37,8 @@ import {
 } from '@/components/widgets/QuizWidget/components/quizEditorFieldStyles';
 import { FlashcardLanguageField } from './FlashcardLanguageField';
 import { FlashcardSetTargetsField } from './FlashcardSetTargetsField';
+import { detectFlashcardLanguage } from './utils/detectFlashcardLanguage';
+import { DEFAULT_QUIZ_LANGUAGE } from '@/config/quizReadAloud';
 import { PasteImportDrawer } from './PasteImportDrawer';
 import { SpeakReviewList } from './speak/SpeakReviewList';
 import { SortableCardRow } from './FlashcardEditor';
@@ -48,13 +52,6 @@ import {
 import { FlashcardAiOverlay } from './FlashcardAiOverlay';
 import { useFlashcardAiDraft } from './useFlashcardAiDraft';
 
-const EDITOR_TAB_ANCHORS = {
-  cards: tourTypeAttr('flashcards-editor.tab-cards', 'flashcards'),
-  languages: tourTypeAttr('flashcards-editor.tab-languages', 'flashcards'),
-} as const;
-
-type EditorTab = keyof typeof EDITOR_TAB_ANCHORS;
-
 interface FlashcardSetEditorModalProps {
   set: FlashcardSet;
   /** Not saved yet: an untouched new set is never written, a prefilled one (paste, import) is. */
@@ -67,6 +64,13 @@ interface FlashcardSetEditorModalProps {
   /** Tests inject the reference lookup. */
   speakLookup?: SpeakLookupCall;
 }
+
+const DETECT_DELAY_MS = 800;
+
+const COLUMN_ICON = {
+  width: 'min(17px, 4.5cqmin)',
+  height: 'min(17px, 4.5cqmin)',
+} as const;
 
 /** The Flashcards set editor in Quiz's dialog: inline term and definition rows, saved as you type. */
 export const FlashcardSetEditorModal: React.FC<
@@ -102,11 +106,60 @@ export const FlashcardSetEditorModal: React.FC<
     lookupReferences,
     composeSet,
   } = state;
-  const [tab, setTab] = useState<EditorTab>('cards');
+  // A column the teacher set by hand is never auto-detected again.
+  const [pickedLanguage, setPickedLanguage] = useState({
+    term: false,
+    definition: false,
+  });
   const [pasteOpen, setPasteOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
   useClickOutside(addMenuRef, () => setAddMenuOpen(false));
+  const termTexts = cards.map((card) => card.term).join('\n');
+  const definitionTexts = cards.map((card) => card.definition).join('\n');
+  const initialTerms = useMemo(
+    () => set.cards.map((card) => card.term).join('\n'),
+    [set.cards]
+  );
+  const initialDefinitions = useMemo(
+    () => set.cards.map((card) => card.definition).join('\n'),
+    [set.cards]
+  );
+  // Only a new set, or one still on the default language, is guessed, and only once its words change.
+  const detectTerm =
+    !pickedLanguage.term &&
+    (isNew || set.termLanguage === DEFAULT_QUIZ_LANGUAGE) &&
+    termTexts !== initialTerms;
+  const detectDefinition =
+    !pickedLanguage.definition &&
+    (isNew || set.definitionLanguage === DEFAULT_QUIZ_LANGUAGE) &&
+    definitionTexts !== initialDefinitions;
+  useEffect(() => {
+    if (!detectTerm) return undefined;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void detectFlashcardLanguage(termTexts.split('\n')).then((tag) => {
+        if (!cancelled && tag) setTermLanguage(tag);
+      });
+    }, DETECT_DELAY_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [detectTerm, termTexts, setTermLanguage]);
+  useEffect(() => {
+    if (!detectDefinition) return undefined;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void detectFlashcardLanguage(definitionTexts.split('\n')).then((tag) => {
+        if (!cancelled && tag) setDefinitionLanguage(tag);
+      });
+    }, DETECT_DELAY_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [detectDefinition, definitionTexts, setDefinitionLanguage]);
   const persistedRef = useRef(false);
   const closingRef = useRef(false);
   // Set once Close starts, so the unmount flush doesn't write the set a second time.
@@ -121,7 +174,6 @@ export const FlashcardSetEditorModal: React.FC<
           current.trim() ? current : draftTitle.slice(0, 120)
         );
       }
-      setTab('cards');
     },
   });
 
@@ -143,12 +195,10 @@ export const FlashcardSetEditorModal: React.FC<
   const addCardAfter = (index: number): void => {
     const card = insertCardAfter(index);
     if (!card) return;
-    setTab('cards');
     focusCard(card.id);
   };
 
   const jumpToCard = (id: string): void => {
-    setTab('cards');
     focusCard(id);
   };
 
@@ -268,26 +318,6 @@ export const FlashcardSetEditorModal: React.FC<
       Draft with AI
     </button>
   ) : null;
-
-  const tabs = (
-    <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
-      {(Object.keys(EDITOR_TAB_ANCHORS) as EditorTab[]).map((key) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => setTab(key)}
-          {...EDITOR_TAB_ANCHORS[key]}
-          className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
-            tab === key
-              ? 'bg-brand-blue-primary text-white'
-              : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
-          }`}
-        >
-          {key === 'cards' ? 'Cards' : t('quizTranslation.editor.tab')}
-        </button>
-      ))}
-    </div>
-  );
 
   const banner = (error ?? notice) && (
     <div
@@ -415,6 +445,53 @@ export const FlashcardSetEditorModal: React.FC<
       )}
       <div>
         {listHeader}
+        <div
+          className="grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-end border border-transparent"
+          style={{
+            gap: 'min(8px, 2cqmin)',
+            padding: '0 min(10px, 2.5cqmin) min(6px, 1.5cqmin)',
+          }}
+        >
+          <span
+            aria-hidden
+            className="invisible"
+            style={{ padding: 'min(6px, 1.5cqmin)' }}
+          >
+            <GripVertical style={COLUMN_ICON} />
+          </span>
+          <span
+            aria-hidden
+            className="invisible min-w-[3ch] font-black tabular-nums"
+            style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+          >
+            0
+          </span>
+          <FlashcardLanguageField
+            label="Term language"
+            value={termLanguage}
+            onChange={(tag) => {
+              setPickedLanguage((p) => ({ ...p, term: true }));
+              setTermLanguage(tag);
+            }}
+            tourField="term"
+          />
+          <FlashcardLanguageField
+            label="Definition language"
+            value={definitionLanguage}
+            onChange={(tag) => {
+              setPickedLanguage((p) => ({ ...p, definition: true }));
+              setDefinitionLanguage(tag);
+            }}
+            tourField="definition"
+          />
+          <span
+            aria-hidden
+            className="invisible"
+            style={{ padding: 'min(6px, 1.5cqmin)' }}
+          >
+            <Trash2 style={COLUMN_ICON} />
+          </span>
+        </div>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -443,25 +520,6 @@ export const FlashcardSetEditorModal: React.FC<
     </div>
   );
 
-  const languagesPane = (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FlashcardLanguageField
-          label="Term language"
-          value={termLanguage}
-          onChange={setTermLanguage}
-          tourField="term"
-        />
-        <FlashcardLanguageField
-          label="Definition language"
-          value={definitionLanguage}
-          onChange={setDefinitionLanguage}
-          tourField="definition"
-        />
-      </div>
-    </div>
-  );
-
   return (
     <EditorModalShell
       isOpen
@@ -479,16 +537,13 @@ export const FlashcardSetEditorModal: React.FC<
       bodyClassName="p-0! overflow-hidden! relative flex flex-col"
       headerAccent={LIBRARY_HEADER_ACCENTS.flashcards}
     >
-      {tabs}
       <div
         className="min-h-0 flex-1 overflow-y-auto custom-scrollbar bg-slate-50 pb-6"
         // Edits made during the lookup would be overwritten by its result.
         inert={checkingCount > 0}
         style={{ containerType: 'inline-size' }}
       >
-        <div className="mx-auto w-full max-w-4xl px-5 pt-4">
-          {tab === 'cards' ? cardsPane : languagesPane}
-        </div>
+        <div className="mx-auto w-full max-w-4xl px-5 pt-4">{cardsPane}</div>
       </div>
       <FlashcardAiOverlay draft={ai} />
       {pasteOpen && (
