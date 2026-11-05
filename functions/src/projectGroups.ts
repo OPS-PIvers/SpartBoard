@@ -16,7 +16,7 @@ import {
 import { isTestClassAuthority } from './studentAssignmentTargets';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isTeacherShapedToken, type AiCallerToken } from './aiCallerGate';
-import { loadTaughtClassEnrollment } from './studentIdentity';
+import { loadClassStudentIds, loadTeacherClassIds } from './studentIdentity';
 
 // Projects widget group import: client posts sourcedIds, server applies the HMAC (D8).
 
@@ -208,23 +208,17 @@ async function allowedTestEmails(
   return allowed;
 }
 
+const MAX_TAUGHT_CLASSES = 60;
+
 /**
- * Sourced ids ClassLink enrolls, per class named by a group that imports students.
- * Throws unless the caller is a verified non-student teacher of every such class.
+ * Sourced ids ClassLink enrolls in any class the caller teaches; empty when the caller teaches none.
+ * Throws unless the caller is a verified non-student teacher.
  */
-async function enrolledByClass(
+async function taughtStudentIds(
   token: AiCallerToken,
   groups: CommitProjectGroupEntry[]
-): Promise<Map<string, ReadonlySet<string>>> {
-  const classIds = Array.from(
-    new Set(
-      groups
-        .filter((g) => g.classLinkSourcedIds.length > 0)
-        .map((g) => g.classId)
-    )
-  );
-  const out = new Map<string, ReadonlySet<string>>();
-  if (classIds.length === 0) return out;
+): Promise<ReadonlySet<string>> {
+  if (!groups.some((g) => g.classLinkSourcedIds.length > 0)) return new Set();
   const email = asString(token.email);
   const domain = normalizeEmailDomain(email.toLowerCase()) ?? '';
   if (!isTeacherShapedToken(token) || domain.startsWith('@students.')) {
@@ -235,20 +229,15 @@ async function enrolledByClass(
     classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
     tenantUrl: CLASSLINK_TENANT_URL.value(),
   };
-  await Promise.all(
-    classIds.map(async (classId) => {
-      // Group payloads are client-written, so ClassLink must confirm the caller teaches the class.
-      const enrolled = await loadTaughtClassEnrollment(email, classId, creds);
-      if (!enrolled) {
-        throw new HttpsError(
-          'permission-denied',
-          'Not a teacher of this class.'
-        );
-      }
-      out.set(classId, enrolled);
-    })
+  // Group payloads are client-written, so ClassLink decides which students the caller may place.
+  const taught = await loadTeacherClassIds(email, creds);
+  if (!taught) return new Set();
+  const lists = await Promise.all(
+    [...taught]
+      .slice(0, MAX_TAUGHT_CLASSES)
+      .map((classId) => loadClassStudentIds(classId, creds))
   );
-  return out;
+  return new Set(lists.flatMap((list) => [...list]));
 }
 
 /** Teacher-only. Writes the groups it was handed and deletes only the ids named in `deleteGroupIds` (D9). */
@@ -333,7 +322,7 @@ export const commitProjectGroupsV1 = onCall(
         .map((snap) => [snap.id, new Set(stringList(snap.data()?.memberUids))])
     );
 
-    const enrolledIds = await enrolledByClass(request.auth.token, groups);
+    const enrolledIds = await taughtStudentIds(request.auth.token, groups);
     const testMembers = await allowedTestEmails(
       db,
       asString(request.auth.token.email).toLowerCase(),
@@ -347,7 +336,7 @@ export const commitProjectGroupsV1 = onCall(
       const inTestClass = testMembers.get(group.classId);
       const minted = [
         ...group.classLinkSourcedIds
-          .filter((sourcedId) => enrolledIds.get(group.classId)?.has(sourcedId))
+          .filter((sourcedId) => enrolledIds.has(sourcedId))
           .map((sourcedId) => computeStudentUid(sourcedId, hmacSecret)),
         // Matches the uid studentLoginV1 mints for a test-class sign-in.
         ...group.testEmails

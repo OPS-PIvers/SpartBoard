@@ -42,6 +42,7 @@ import {
   resolveOrgIdForDomain,
 } from '../classlinkShared';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import { studentFirstName } from '../studentFirstName';
 import {
   bindingIdFor,
   hashBindingId,
@@ -472,6 +473,7 @@ export const ltiExchange = onCall(
         studentRole: true,
         ...(orgId ? { orgId } : {}),
         classIds,
+        firstName: studentFirstName(undefined, launch.name),
       });
     } catch (err) {
       console.error('[ltiExchange] createCustomToken failed', err);

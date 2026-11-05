@@ -51,6 +51,7 @@ const h = vi.hoisted(() => ({
   lastCustomToken: null as null | { uid: string; claims: unknown },
   failCustomToken: false,
   authDown: false,
+  getUsersCalls: [] as string[][],
   batchOps: [] as Array<{ type: 'set' | 'delete'; path: string; data?: any }>,
   // 'ok' | 'throw' | 'no-payload'
   verify: {
@@ -175,6 +176,10 @@ vi.mock('./firebaseAdmin', () => {
         makeQuery(items, [...filters, { f, op, v }], limitN),
       limit: (n: number) => makeQuery(items, filters, n),
       select: () => makeQuery(items, filters, limitN),
+      startAfter: (last: { ref: { path: string } }) => {
+        const at = items.findIndex((it) => it.path === last.ref.path);
+        return makeQuery(items.slice(at + 1), filters, limitN);
+      },
       get: async () => {
         let res = items.filter((it) =>
           filters.every((fl) => matches(it.data, fl))
@@ -257,6 +262,16 @@ vi.mock('./firebaseAdmin', () => {
         if (h.failCustomToken) throw new Error('token-fail');
         return 'ct:' + uid;
       },
+      getUsers: async (ids: Array<{ uid: string }>) => {
+        if (h.authDown) throw new Error('auth outage');
+        h.getUsersCalls.push(ids.map((i) => i.uid));
+        return {
+          users: ids
+            .filter((i) => h.authUsers.has(i.uid))
+            .map((i) => ({ uid: i.uid, ...h.authUsers.get(i.uid) })),
+          notFound: ids.filter((i) => !h.authUsers.has(i.uid)),
+        };
+      },
       getUser: async (uid: string) => {
         if (h.authDown) throw new Error('auth outage');
         const u = h.authUsers.get(uid);
@@ -283,8 +298,8 @@ import {
   PIN_LOGIN_SESSION_MAX_FAILURES,
   PIN_LOGIN_SESSION_MAX_DAILY_FAILURES,
   __resetRosterOwnerCache,
-  studentFirstName,
 } from './studentIdentity';
+import { studentFirstName } from './studentFirstName';
 import { computeStudentUid } from './classlinkShared';
 import * as admin from './firebaseAdmin';
 import { __resetAiCallerGateCache } from './aiCallerGate';
@@ -356,6 +371,7 @@ beforeEach(() => {
   h.lastCustomToken = null;
   h.failCustomToken = false;
   h.authDown = false;
+  h.getUsersCalls = [];
   h.secretValues = {
     classlinkClientId: 'cl-id',
     classlinkClientSecret: 'cl-secret',
@@ -863,6 +879,43 @@ describe('getStudentClassDirectoryV1', () => {
         code: undefined,
       },
     ]);
+  });
+
+  it('finds the real roster behind a flood of unverified ones, in one Auth batch per page', async () => {
+    for (let i = 0; i < 150; i++) {
+      h.docStore.set(`users/flood${i}/rosters/r`, {
+        classlinkClassId: 'CL7',
+        name: 'Fake',
+      });
+      h.authUsers.set(`flood${i}`, {});
+    }
+    h.docStore.set('users/real7/rosters/r', {
+      classlinkClassId: 'CL7',
+      name: 'Real Class',
+    });
+    seedTeacher('real7', 'Ms. Seven');
+    const res = await callDirectory({ auth: studentAuth(['CL7']) });
+    expect(res.classes.map((c) => c.name)).toEqual(['Real Class']);
+    expect(h.getUsersCalls.length).toBeLessThanOrEqual(2);
+    expect(h.getUsersCalls.every((c) => c.length <= 100)).toBe(true);
+  });
+
+  it('stops scanning a class at the cap', async () => {
+    for (let i = 0; i < 600; i++) {
+      h.docStore.set(`users/flood${i}/rosters/r`, {
+        classlinkClassId: 'CL8',
+        name: 'Fake',
+      });
+      h.authUsers.set(`flood${i}`, {});
+    }
+    h.docStore.set('users/real8/rosters/r', {
+      classlinkClassId: 'CL8',
+      name: 'Hidden',
+    });
+    seedTeacher('real8');
+    const res = await callDirectory({ auth: studentAuth(['CL8']) });
+    expect(res.classes).toEqual([]);
+    expect(h.getUsersCalls.flat().length).toBeLessThanOrEqual(500);
   });
 
   it('fails the call, rather than dropping classes, when Auth is down', async () => {

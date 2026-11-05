@@ -295,7 +295,14 @@ describe('runClassLinkRosterSync', () => {
     expect(harness.upstreamFetches).toEqual([]);
     expect(harness.written.size).toBe(0);
     expect(harness.updated.size).toBe(0);
-    expect(harness.pinIndexCalls).toEqual([]);
+    // Only the sidecar is cleared, as before the check existed.
+    expect(harness.pinIndexCalls).toEqual([
+      {
+        path: 'users/attacker/rosters/r1',
+        students: [],
+        enrolled: new Set(),
+      },
+    ]);
   });
 
   it('skips a roster whose owner is not a verified teacher at all', async () => {
@@ -314,6 +321,22 @@ describe('runClassLinkRosterSync', () => {
     expect(out.skippedNotTeacher).toBe(1);
     expect(harness.upstreamFetches).toEqual([]);
     expect(harness.written.size).toBe(0);
+    expect(harness.pinIndexCalls).toHaveLength(1);
+  });
+
+  it('checks the owner before asking for a Drive token', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/anon/rosters/r1',
+        'anon',
+        [student('Ada', '01', 's1')],
+        [up('s1', 'Ada')]
+      ),
+    ]);
+    harness.taught.set('anon', null);
+    const tokenAsks = vi.spyOn(harness.deps, 'getAccessToken');
+    await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+    expect(tokenAsks).not.toHaveBeenCalled();
   });
 
   it('counts an unconfirmable teaching check as an error and writes nothing', async () => {

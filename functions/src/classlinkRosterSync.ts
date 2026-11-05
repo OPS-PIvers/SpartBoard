@@ -283,6 +283,22 @@ async function syncOneRoster(
     return;
   }
 
+  // The roster doc is client-written, so ClassLink must confirm its owner teaches the class before any fetch.
+  let taught = taughtCache.get(uid);
+  if (taught === undefined) {
+    taught = await deps.getTaughtClassIds(uid);
+    taughtCache.set(uid, taught);
+  }
+  if (!taught?.has(classId)) {
+    summary.skippedNotTeacher += 1;
+    // Sidecar only: no ClassLink fetch, Drive write or roster-doc update.
+    await deps.reconcilePinIndex(rosterSnap.ref, data, [], new Set());
+    console.warn(
+      `[classlinkRosterSync] ${rosterSnap.ref.path}: ClassLink did not confirm the owner teaches this class; skipping`
+    );
+    return;
+  }
+
   let token = tokenCache.get(uid);
   if (token === undefined) {
     try {
@@ -295,20 +311,6 @@ async function syncOneRoster(
   }
   if (token === null) {
     summary.skippedNoGrant += 1;
-    return;
-  }
-
-  // The roster doc is client-written, so ClassLink must confirm its owner teaches the class before any fetch.
-  let taught = taughtCache.get(uid);
-  if (taught === undefined) {
-    taught = await deps.getTaughtClassIds(uid);
-    taughtCache.set(uid, taught);
-  }
-  if (!taught?.has(classId)) {
-    summary.skippedNotTeacher += 1;
-    console.warn(
-      `[classlinkRosterSync] ${rosterSnap.ref.path}: ClassLink did not confirm the owner teaches this class; skipping`
-    );
     return;
   }
 

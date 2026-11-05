@@ -1,5 +1,5 @@
 // Security batch 3E: a wall post or comment from a student whose token carries a first name must
-// show that name; guests, teachers and tokens minted before the claim existed are unaffected.
+// show that name or 'Student'; guests, teachers and tokens minted before the claim existed are unaffected.
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -144,6 +144,15 @@ describe('activity wall — student name on posts', () => {
     );
   });
 
+  it("allows a post under the generic 'Student' label (a tab without the saved name)", async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent({ firstName: 'Sam' }), submissionPath('sub-1')),
+        post(STUDENT_UID, { participantLabel: 'Student' })
+      )
+    );
+  });
+
   it('allows a post with no label, which names nobody', async () => {
     const { participantLabel: _omit, ...noLabel } = post(STUDENT_UID);
     await assertSucceeds(
@@ -187,6 +196,15 @@ describe('activity wall — student name on comments', () => {
     );
   });
 
+  it("allows a comment under the generic 'Student' label", async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent({ firstName: 'Sam' }), commentPath('c-1')),
+        comment(STUDENT_UID, { participantLabel: 'Student' })
+      )
+    );
+  });
+
   it('denies a comment under another name', async () => {
     await assertFails(
       setDoc(
@@ -210,6 +228,76 @@ describe('activity wall — student name on comments', () => {
       setDoc(
         doc(asGuest(), commentPath('c-1')),
         comment('guest-uid', { participantLabel: 'Visitor' })
+      )
+    );
+  });
+});
+
+describe('shared activity wall gallery — student name on comments', () => {
+  const SHARE_ID = 'share-1';
+  const sharePath = `shared_activity_walls/${SHARE_ID}`;
+  const galleryComment = (overrides: Record<string, unknown> = {}) => ({
+    id: 'g-1',
+    submissionId: 'sub-1',
+    parentCommentId: null,
+    content: 'Nice work',
+    participantLabel: 'Sam',
+    authorUid: STUDENT_UID,
+    createdAt: 1_700_000,
+    ...overrides,
+  });
+
+  beforeEach(async () => {
+    await seed(sharePath, {
+      id: SHARE_ID,
+      sessionId: SESSION_ID,
+      originalAuthor: TEACHER_UID,
+      title: 'Wall',
+      prompt: 'p',
+      mode: 'text',
+      identificationMode: 'name',
+      allowComments: true,
+      allowCommentResponses: false,
+      allowLikes: true,
+      expiresAt: null,
+      createdAt: 1_000_000,
+    });
+  });
+
+  const path = `${sharePath}/comments/g-1`;
+
+  it('allows the first name on the token, and the generic label', async () => {
+    await assertSucceeds(
+      setDoc(doc(asStudent({ firstName: 'Sam' }), path), galleryComment())
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent({ firstName: 'Sam' }), `${sharePath}/comments/g-2`),
+        galleryComment({ id: 'g-2', participantLabel: 'Student' })
+      )
+    );
+  });
+
+  it('denies a classmate name', async () => {
+    await assertFails(
+      setDoc(
+        doc(asStudent({ firstName: 'Sam' }), path),
+        galleryComment({ participantLabel: 'Riley' })
+      )
+    );
+  });
+
+  it('leaves guests and unclaimed tokens alone', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asGuest(), path),
+        galleryComment({ authorUid: 'guest-uid', participantLabel: 'Visitor' })
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent(), `${sharePath}/comments/g-3`),
+        galleryComment({ id: 'g-3', participantLabel: 'Riley' })
       )
     );
   });

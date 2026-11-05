@@ -34,7 +34,9 @@ const h = vi.hoisted(() => ({
   recursiveDeletes: [] as string[],
   // classId -> sourcedIds ClassLink enrolls; absent = the caller does not teach it.
   enrollment: new Map<string, Set<string>>(),
-  enrollmentLookups: [] as Array<{ email: string; classId: string }>,
+  enrollmentLookups: [] as Array<{ classId: string }>,
+  teacherLookups: [] as string[],
+  taught: null as Set<string> | null,
   enrollmentDown: false,
 }));
 
@@ -48,10 +50,14 @@ vi.mock('./secrets', () => ({
 }));
 
 vi.mock('./studentIdentity', () => ({
-  loadTaughtClassEnrollment: async (email: string, classId: string) => {
-    h.enrollmentLookups.push({ email, classId });
+  loadTeacherClassIds: async (email: string) => {
+    h.teacherLookups.push(email);
     if (h.enrollmentDown) throw new Error('classlink down');
-    return h.enrollment.get(classId) ?? null;
+    return h.taught;
+  },
+  loadClassStudentIds: async (classId: string) => {
+    h.enrollmentLookups.push({ classId });
+    return h.enrollment.get(classId) ?? new Set<string>();
   },
 }));
 
@@ -209,6 +215,8 @@ beforeEach(() => {
     );
   }
   h.enrollmentLookups.length = 0;
+  h.teacherLookups.length = 0;
+  h.taught = new Set(['class-a', 'class-b']);
   h.enrollmentDown = false;
   h.docStore.set(RUN_PATH, {
     id: RUN_ID,
@@ -448,16 +456,35 @@ describe('commitProjectGroupsV1 ClassLink check', () => {
     expect(h.docStore.has(`${RUN_PATH}/groups/g1`)).toBe(false);
   };
 
-  it('mints no uid for a class the caller does not teach', async () => {
-    h.enrollment.clear();
-    await expect(
-      call({ runId: RUN_ID, groups: [groupEntry()] })
-    ).rejects.toMatchObject({ code: 'permission-denied' });
-    expectNothingWritten();
+  it('mints no uid, and still saves the group, when the caller teaches no ClassLink class', async () => {
+    h.taught = null;
+    const result = await call({ runId: RUN_ID, groups: [groupEntry()] });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
+    expect(result.membersResolved).toBe(0);
   });
 
-  it('mints no uid for a sourcedId the class does not enroll', async () => {
+  it('mints a uid for a student of any taught class, whatever class id the group carries', async () => {
+    h.enrollment.set('class-b', new Set(['SID-merged']));
+    const result = await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({
+          classId: 'local:roster-1',
+          classLinkSourcedIds: ['SID-1', 'SID-merged'],
+        }),
+      ],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      expectedUid('SID-1'),
+      expectedUid('SID-merged'),
+    ]);
+    expect(result.membersResolved).toBe(2);
+  });
+
+  it('drops only the sourcedIds the caller teaches none of', async () => {
     h.enrollment.set('class-a', new Set(['SID-1']));
+    h.enrollment.set('class-b', new Set());
+    h.enrollment.set('class-other', new Set(['SID-foreign']));
     const result = await call({
       runId: RUN_ID,
       groups: [groupEntry({ classLinkSourcedIds: ['SID-1', 'SID-foreign'] })],
@@ -487,7 +514,7 @@ describe('commitProjectGroupsV1 ClassLink check', () => {
     await expect(
       call({ runId: RUN_ID, groups: [groupEntry()] }, { uid: TEACHER, token })
     ).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(h.enrollmentLookups).toEqual([]);
+    expect(h.teacherLookups).toEqual([]);
     expectNothingWritten();
   });
 
@@ -499,7 +526,7 @@ describe('commitProjectGroupsV1 ClassLink check', () => {
     expectNothingWritten();
   });
 
-  it('checks each class once with the caller email', async () => {
+  it('asks ClassLink once per commit with the caller email, then once per taught class', async () => {
     await call({
       runId: RUN_ID,
       groups: [
@@ -512,20 +539,20 @@ describe('commitProjectGroupsV1 ClassLink check', () => {
         }),
       ],
     });
+    expect(h.teacherLookups).toEqual(['teacher@school.org']);
     expect(h.enrollmentLookups.map((l) => l.classId).sort()).toEqual([
       'class-a',
       'class-b',
     ]);
-    expect(h.enrollmentLookups[0].email).toBe('teacher@school.org');
   });
 
   it('needs no ClassLink check when a group imports no students', async () => {
-    h.enrollment.clear();
+    h.taught = null;
     await call({
       runId: RUN_ID,
       groups: [groupEntry({ classLinkSourcedIds: [] })],
     });
-    expect(h.enrollmentLookups).toEqual([]);
+    expect(h.teacherLookups).toEqual([]);
     expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
   });
 });
