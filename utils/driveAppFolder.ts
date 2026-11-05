@@ -1,4 +1,5 @@
 import { APP_NAME } from '@/config/constants';
+import { DRIVE_APP_FOLDER } from '@/config/devProject';
 
 /** The parts of a Drive file's metadata the folder check reads. */
 export interface DriveParentMeta {
@@ -11,7 +12,7 @@ export type GetDriveParentMeta = (
   fileId: string
 ) => Promise<DriveParentMeta | null>;
 
-const APP_FOLDER_NAMES = new Set([APP_NAME, 'SPART Board']);
+const APP_FOLDER_NAMES = new Set([APP_NAME, DRIVE_APP_FOLDER, 'SPART Board']);
 const DRIVE_ID = /^[A-Za-z0-9_-]{10,200}$/;
 
 /** True for a string shaped like a Drive file id, so it can't reach another API path. */

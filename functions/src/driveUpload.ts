@@ -1,9 +1,11 @@
 // Drive folder and upload mechanics for archiving into a teacher's own Drive under `SpartBoard/`.
+import { DRIVE_APP_FOLDER } from './devDriveWriteGuard';
+
+export const APP_DRIVE_FOLDER = DRIVE_APP_FOLDER;
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
-export const APP_DRIVE_FOLDER = 'SpartBoard';
 
 interface DriveMeta {
   id?: string;

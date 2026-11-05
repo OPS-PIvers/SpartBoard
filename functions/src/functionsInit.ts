@@ -14,6 +14,8 @@
  */
 import { setGlobalOptions } from 'firebase-functions/v2';
 import * as admin from './firebaseAdmin';
+// Dev only: refuses Drive writes to prod files (no-op in prod).
+import './devDriveWriteGuard';
 
 setGlobalOptions({ region: 'us-central1' });
 
