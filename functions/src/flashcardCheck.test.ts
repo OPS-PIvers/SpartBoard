@@ -620,6 +620,35 @@ describe('handleSubmitFlashcardCheck card subset', () => {
     );
   });
 
+  it('takes typed answers when the subset is too small for multiple choice', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: session({
+        rules,
+        checkMode: 'test',
+        lockedSettings: {
+          showFirst: 'definition',
+          strict: false,
+          testTypes: ['mc'],
+          testCount: 'all',
+        },
+      }),
+      [POINTER_PATH]: subsetPointer(['c1', 'c3']),
+    };
+    const result = await handleSubmitFlashcardCheck(
+      makeDb(docs),
+      student,
+      {
+        assignmentId: 'a1',
+        answerLog: [
+          { cardId: 'c1', response: 'el perro', type: 'fib' },
+          { cardId: 'c3', response: 'el gato', type: 'fib' },
+        ],
+      },
+      NOW
+    );
+    expect(result).toEqual({ score: 2, total: 2, submittedAt: NOW });
+  });
+
   it('ignores the subset on a Check without rules, or when no card matches', async () => {
     for (const [over, ids] of [
       [{}, ['c1']],
