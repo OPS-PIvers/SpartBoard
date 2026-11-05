@@ -6,9 +6,16 @@ import path from 'node:path';
 export const MANIFEST_FILE = 'asset-manifest.json';
 export const KEEP_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_BUILDS = 40;
+export const FETCH_WORKERS = 32;
+const FETCH_TIMEOUT_MS = 30_000;
 
 /** Keeps previous builds deployed within KEEP_MS (newest first, capped at maxBuilds) and lists their files the new build lacks. */
-export function planCarryForward(previous, current, now, maxBuilds = MAX_BUILDS) {
+export function planCarryForward(
+  previous,
+  current,
+  now,
+  maxBuilds = MAX_BUILDS
+) {
   const prior = Array.isArray(previous?.builds) ? previous.builds : [];
   const kept = prior
     .filter(
@@ -62,7 +69,9 @@ async function fetchPreviousManifest(siteUrl) {
 }
 
 async function fetchAsset(siteUrl, name, assetsDir) {
-  const res = await fetch(`${siteUrl}/assets/${name}`);
+  const res = await fetch(`${siteUrl}/assets/${name}`, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   const type = res.headers.get('content-type') ?? '';
   // Firebase's SPA rewrite answers a missing file with index.html, not a 404.
   if (!res.ok || type.includes('text/html')) return false;
@@ -101,11 +110,15 @@ async function main() {
   const queue = toFetch.filter(isSafeAssetName);
   const worker = async () => {
     for (let name = queue.shift(); name; name = queue.shift()) {
-      const ok = await fetchAsset(siteUrl, name, assetsDir).catch(() => false);
+      // One retry, so a dropped connection under load doesn't strand an asset.
+      let ok = false;
+      for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+        ok = await fetchAsset(siteUrl, name, assetsDir).catch(() => false);
+      }
       if (!ok) missing.push(name);
     }
   };
-  await Promise.all(Array.from({ length: 8 }, worker));
+  await Promise.all(Array.from({ length: FETCH_WORKERS }, worker));
 
   writeFileSync(path.join(dist, MANIFEST_FILE), JSON.stringify(manifest));
   console.log(

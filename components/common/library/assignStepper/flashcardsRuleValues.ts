@@ -3,8 +3,8 @@ import type {
   FlashcardCheckRules,
   FlashcardCheckSessionOptions,
   FlashcardPublishedVisibility,
-  FlashcardScoreVisibility,
   QuizBehaviorSettings,
+  QuizScoreVisibility,
 } from '@/types';
 import {
   QUIZ_TIME_LIMIT_MAX_MINUTES,
@@ -30,6 +30,7 @@ const BOOLEAN_KEYS = [
   'showScoreOnSubmit',
   'showResultToStudent',
   'showCorrectAnswerToStudent',
+  'handRaiseEnabled',
 ] as const satisfies readonly (keyof FlashcardCheckSessionOptions)[];
 
 /** Quiz's defaults, with the score shown on submit as Flashcards always did. */
@@ -113,15 +114,16 @@ export function rulesFromScoreVisibility(
   };
 }
 
-/** The legacy score visibility today's student page reads, from the What students see switches. */
+/** The class results level the What students see switches stand for, in Quiz's terms. */
 export function scoreVisibilityFromRules(
   rules: FlashcardCheckRules
-): FlashcardScoreVisibility {
+): QuizScoreVisibility {
   const o = rules.sessionOptions;
   if (!o.showScoreOnSubmit) return 'none';
-  return o.showResultToStudent && o.showCorrectAnswerToStudent
-    ? 'score-and-answers'
-    : 'score';
+  if (!o.showResultToStudent) return 'score-only';
+  return o.showCorrectAnswerToStudent
+    ? 'score-responses-and-answers'
+    : 'score-and-responses';
 }
 
 /** The rules as Quiz's behavior shape, so Quiz's rule steps edit them directly. */

@@ -49,3 +49,10 @@ export const fullscreenSupported = (): boolean =>
   typeof document !== 'undefined' &&
   document.fullscreenEnabled === true &&
   typeof document.documentElement.requestFullscreen === 'function';
+
+/** Opens page fullscreen; must run inside a click. Resolves false when the browser refuses. */
+export const enterFullscreen = (): Promise<boolean> =>
+  document.documentElement.requestFullscreen().then(
+    () => true,
+    () => false
+  );

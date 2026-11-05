@@ -625,6 +625,133 @@ describe('flashcard_sessions progress', () => {
       )
     );
   });
+
+  it('lets a submitted student raise their results tab-away count and lock, never lower or unlock', async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    // Before submitting, the guard fields are not the student's to write.
+    await seed(progressPath, progress());
+    await assertFails(
+      updateDoc(doc(studentDb, progressPath), { resultsTabWarnings: 1 })
+    );
+    await seed(
+      progressPath,
+      progress({ submittedAt: 5, score: 1, total: 2, resultsTabWarnings: 1 })
+    );
+    await assertSucceeds(
+      updateDoc(doc(studentDb, progressPath), { resultsTabWarnings: 2 })
+    );
+    await assertSucceeds(
+      updateDoc(doc(studentDb, progressPath), {
+        resultsTabWarnings: 3,
+        resultsLockedOut: true,
+        resultsLockedOutAt: 9,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(studentDb, progressPath), { resultsTabWarnings: 0 })
+    );
+    await assertFails(
+      updateDoc(doc(studentDb, progressPath), { resultsLockedOut: false })
+    );
+    await assertFails(
+      updateDoc(doc(studentDb, progressPath), {
+        resultsTabWarnings: 4,
+        score: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent('other-student', [CLASS_A]), progressPath), {
+        resultsTabWarnings: 4,
+      })
+    );
+  });
+
+  it('lets a student stamp the time limit once, raise a hand and count tab switches up, never touch attempts', async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    const ref = doc(studentDb, progressPath);
+    const now = Date.now();
+    await assertFails(
+      setDoc(ref, progress({ attemptStartedAt: now + 10 * 60_000 }))
+    );
+    await assertSucceeds(setDoc(ref, progress({ attemptStartedAt: now })));
+    await assertFails(
+      setDoc(ref, { attemptStartedAt: now + 1000 }, { merge: true })
+    );
+    await assertFails(
+      setDoc(ref, { attemptStartedAt: deleteField() }, { merge: true })
+    );
+    await assertSucceeds(
+      setDoc(ref, { handRaisedAt: now, tabSwitchWarnings: 1 }, { merge: true })
+    );
+    await assertSucceeds(
+      setDoc(ref, { handRaisedAt: null, tabSwitchWarnings: 2 }, { merge: true })
+    );
+    await assertFails(setDoc(ref, { tabSwitchWarnings: 0 }, { merge: true }));
+    await assertFails(setDoc(ref, { handRaisedAt: 'up' }, { merge: true }));
+    await assertFails(setDoc(ref, { completedAttempts: 0 }, { merge: true }));
+    await assertFails(setDoc(ref, { forcedSubmit: 'time' }, { merge: true }));
+    // The teacher may lower the hand and nothing else.
+    await assertSucceeds(
+      updateDoc(doc(studentDb, progressPath), { handRaisedAt: now })
+    );
+    const teacherDb = asTeacher(TEACHER_UID);
+    await assertSucceeds(
+      updateDoc(doc(teacherDb, progressPath), { handRaisedAt: null })
+    );
+    await assertFails(
+      updateDoc(doc(teacherDb, progressPath), { tabSwitchWarnings: 0 })
+    );
+  });
+
+  it('lets a student copy only their own pointer card subset onto progress', async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    const ref = doc(studentDb, progressPath);
+    // No pointer subset: a subset can't be invented, but clearing is fine.
+    await assertFails(setDoc(ref, progress({ cardSubset: ['card-1'] })));
+    await assertSucceeds(setDoc(ref, progress({ cardSubset: null })));
+    await seed(`student_assignments/${STUDENT_UID}/items/session-1`, {
+      kind: 'flashcards',
+      sessionId: 'session-1',
+      teacherUid: TEACHER_UID,
+      classId: CLASS_A,
+      override: { questionIds: ['card-1', 'card-2'] },
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await assertFails(setDoc(ref, { cardSubset: ['card-1'] }, { merge: true }));
+    await assertSucceeds(
+      setDoc(ref, { cardSubset: ['card-1', 'card-2'] }, { merge: true })
+    );
+    // Later writes carry it through unchanged.
+    await assertSucceeds(setDoc(ref, { studyMs: 5 }, { merge: true }));
+  });
+
+  it('lets the session teacher unlock a student’s results', async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    await seed(
+      progressPath,
+      progress({
+        submittedAt: 5,
+        resultsTabWarnings: 3,
+        resultsLockedOut: true,
+        resultsLockedOutAt: 9,
+      })
+    );
+    const unlock = {
+      resultsTabWarnings: 2,
+      resultsLockedOut: false,
+      resultsLockedOutAt: deleteField(),
+    };
+    await assertFails(
+      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), progressPath), unlock)
+    );
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), progressPath), unlock)
+    );
+  });
 });
 
 describe('flashcard_sessions PLC link', () => {

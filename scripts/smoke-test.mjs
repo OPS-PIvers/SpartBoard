@@ -78,7 +78,10 @@ const rootHasContent = (page) =>
   );
 
 await checkVersion();
-const browser = await chromium.launch();
+// CI sets SMOKE_BROWSER_CHANNEL=chrome to use the runner's preinstalled Chrome.
+const browser = await chromium.launch({
+  channel: process.env.SMOKE_BROWSER_CHANNEL || undefined,
+});
 try {
   await checkPage(browser, '/', (page) =>
     page

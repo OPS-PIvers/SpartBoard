@@ -32,6 +32,7 @@ import {
   isFlashcardPublished,
 } from '@/utils/flashcardResultsVisibility';
 import type { StudentResultsActions } from '@/components/widgets/QuizWidget/components/results/studentResultsSelection';
+import { canTryAgain } from '@/components/flashcards/checkAttempt';
 import { FlashcardMonitor } from './FlashcardMonitor';
 import { FlashcardResultsScreen } from './FlashcardResultsScreen';
 import { useSyncPlcFlashcardResult } from './useSyncPlcFlashcardResult';
@@ -81,6 +82,9 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     resetStudent,
     resolveFlag,
     setResultsOverride,
+    unlockResults,
+    unlockAttempt,
+    clearHand,
   } = useFlashcardResults(assignment.sessionId);
   useSyncPlcFlashcardResult(
     assignment,
@@ -232,6 +236,29 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
       logError('FlashcardResultsView.remove', removeError);
       addToast('Could not remove the student. Try again.', 'error');
     }
+  };
+
+  // Quiz's Unlock attempt: the student picks up with their saved answers.
+  const handleUnlockAttempt = async (studentUid: string): Promise<void> => {
+    const ok = await showConfirm(
+      "Unlock this student's attempt so they can resume? Their answers are preserved.",
+      { title: 'Unlock attempt?', variant: 'warning', confirmLabel: 'Unlock' }
+    );
+    if (!ok) return;
+    try {
+      await unlockAttempt(studentUid);
+      addToast('Attempt unlocked.', 'success');
+    } catch (unlockError) {
+      logError('FlashcardResultsView.unlockAttempt', unlockError);
+      addToast('Could not unlock the attempt. Try again.', 'error');
+    }
+  };
+
+  const handleClearHand = (studentUid: string): void => {
+    clearHand(studentUid).catch((handError: unknown) => {
+      logError('FlashcardResultsView.clearHand', handError);
+      addToast('Could not clear the hand. Try again.', 'error');
+    });
   };
 
   const handleResolveFlag = async (
@@ -415,6 +442,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         launchedBy={launchedBy}
         addToast={addToast}
         studentResultsActions={studentResultsActions}
+        onUnlockResults={unlockResults}
         classVisibility={flashcardClassVisibility(
           session.scoreVisibility ?? assignment.scoreVisibility
         )}
@@ -471,6 +499,30 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
           onResetStudent={(uid) =>
             void (quizStyle ? handleRemove(uid) : handleReset(uid))
           }
+          unlockFor={(uid) =>
+            results.some((r) => r.studentUid === uid && r.resultsLockedOut)
+              ? () =>
+                  void unlockResults(uid)
+                    .then(() => addToast('Results unlocked.', 'success'))
+                    .catch((unlockError: unknown) => {
+                      logError(
+                        'FlashcardResultsView.unlockResults',
+                        unlockError
+                      );
+                      addToast('Could not unlock results. Try again.', 'error');
+                    })
+              : undefined
+          }
+          unlockAttemptFor={(uid) => {
+            const r = results.find((x) => x.studentUid === uid);
+            return quizStyle &&
+              session.rules &&
+              typeof r?.submittedAt === 'number' &&
+              (r.forcedSubmit === 'tab' || !canTryAgain(session, r))
+              ? () => void handleUnlockAttempt(uid)
+              : undefined;
+          }}
+          onClearHand={quizStyle ? handleClearHand : undefined}
           quizStyle={quizStyle}
           prefs={monitorPrefs}
           onUpdatePrefs={onUpdateMonitorPrefs}

@@ -561,6 +561,21 @@ describe('guided learning responses', () => {
     );
   });
 
+  it('takes a response created already turned in (older tabs), and the start then turn-in', async () => {
+    await seedGl();
+    await assertSucceeds(
+      setDoc(glResponse(asAnon()), glStart({ answers: [], completedAt: 5 }))
+    );
+  });
+
+  it('takes the start and then the turn-in', async () => {
+    await seedGl();
+    await assertSucceeds(
+      setDoc(glResponse(asAnon()), glStart({ answers: [] }))
+    );
+    await assertSucceeds(updateDoc(glResponse(asAnon()), { completedAt: 5 }));
+  });
+
   it('turns in once with a number and then keeps the work', async () => {
     await seedGl();
     await seed(`${GL}/responses/${ANON_UID}`, glStart());

@@ -1,6 +1,7 @@
 import type {
   FlashcardProgress,
   FlashcardPublishedVisibility,
+  FlashcardScoreVisibility,
   FlashcardSession,
   QuizScoreVisibility,
 } from '@/types';
@@ -47,3 +48,29 @@ export const resolveFlashcardResultsVisibility = (
     { resultsOverride: progress?.resultsOverride },
     now
   );
+
+const QUIZ_LEVELS: readonly string[] = [
+  'score-only',
+  'score-and-responses',
+  'score-responses-and-answers',
+];
+
+/** Assigned or published with flashcards-assign-v2: only those fields come from it. */
+export const isFlashcardV2Check = (
+  session: Pick<FlashcardSession, 'rules' | 'scoreVisibility' | 'protection'>
+): boolean =>
+  session.rules !== undefined ||
+  session.protection !== undefined ||
+  QUIZ_LEVELS.includes(session.scoreVisibility ?? '');
+
+/** The flag-off form's three choices, nearest to a Quiz level. */
+export const legacyFlashcardVisibility = (
+  visibility: FlashcardPublishedVisibility | undefined
+): FlashcardScoreVisibility => {
+  const level = flashcardClassVisibility(visibility);
+  return level === 'none'
+    ? 'none'
+    : level === 'score-responses-and-answers'
+      ? 'score-and-answers'
+      : 'score';
+};

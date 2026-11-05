@@ -10457,6 +10457,56 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'flashcards-editor.draft-ai': {
+    label: 'Draft with AI (list header) in the Flashcards set editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.footer-draft-ai': {
+    label: 'Draft with AI (footer) in the Flashcards set editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.add-menu': {
+    label: 'More ways to add menu in the Flashcards set editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.add-blank': {
+    label: 'Add-menu item: Blank card in the Flashcards set editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-prompt': {
+    label: 'Topic box in the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-count-dec': {
+    label: 'Fewer cards button in the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-count-inc': {
+    label: 'More cards button in the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-attach-file': {
+    label: 'Attach file in the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-generate': {
+    label: 'Generate Cards button in the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-editor.ai-close': {
+    label: 'Close button on the Flashcards Draft with AI panel',
+    perWidgetType: true,
+    panel: true,
+  },
   'flashcards.editor-description': {
     label: 'Description box in the Flashcards editor',
     perWidgetType: true,
@@ -10581,6 +10631,12 @@ export const TOUR_ANCHORS = {
     label: 'Item in a student actions menu in Flashcards Check results',
     perField: true,
     destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.clear-hand': {
+    label: 'Clear button on a raised hand in the Flashcards Check monitor',
+    perField: true,
     persists: true,
     panel: true,
   },
@@ -12945,6 +13001,10 @@ export const TOUR_ANCHORS = {
   },
   'override-row.copy-paste-print': {
     label: 'Copy, paste and print choice in the override editor',
+    panel: true,
+  },
+  'override-row.answer-choices': {
+    label: 'Answer choices choice in the Flashcards override editor',
     panel: true,
   },
   'override-row.language': {

@@ -470,3 +470,87 @@ describe('OverrideEditorRow', () => {
     expect(screen.queryByText('No accommodations')).not.toBeInTheDocument();
   });
 });
+
+describe('OverrideEditorRow flashcards mode', () => {
+  const cards: OverrideEditorQuestion[] = [
+    { id: 'c1', label: 'el perro' },
+    { id: 'c2', label: 'el gato' },
+    { id: 'c3', label: 'la casa' },
+  ];
+
+  it('offers the card subset and tab rules, not the Quiz-only controls', () => {
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={vi.fn()}
+        flashcardsMode
+        questions={cards}
+        readAloudAvailable
+        defaultExpanded
+      />
+    );
+    expect(screen.getByText('Card subset')).toBeInTheDocument();
+    expect(screen.queryByText('Question subset')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Tab-warning threshold')).toBeInTheDocument();
+    expect(screen.queryByText('Read aloud')).not.toBeInTheDocument();
+    expect(screen.queryByText('Answer choices')).not.toBeInTheDocument();
+  });
+
+  it('drops a card and shows it as a cards chip', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={onChange}
+        flashcardsMode
+        questions={cards}
+        defaultExpanded
+      />
+    );
+    fireEvent.click(screen.getByLabelText('el gato'));
+    expect(onChange).toHaveBeenCalledWith({ questionIds: ['c1', 'c3'] });
+    rerender(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ questionIds: ['c1', 'c3'] }}
+        onChange={onChange}
+        flashcardsMode
+        questions={cards}
+      />
+    );
+    expect(screen.getByText('2/3 cards')).toBeInTheDocument();
+  });
+
+  it('sets fewer answer choices and back to the default 4', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={onChange}
+        flashcardsMode
+        answerChoicesAvailable
+        questions={cards}
+        defaultExpanded
+      />
+    );
+    fireEvent.click(screen.getByRole('tab', { name: '2' }));
+    expect(onChange).toHaveBeenLastCalledWith({ answerChoices: 2 });
+    rerender(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ answerChoices: 2 }}
+        onChange={onChange}
+        flashcardsMode
+        answerChoicesAvailable
+        questions={cards}
+        defaultExpanded
+      />
+    );
+    expect(screen.getByText('2 answer choices')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: '4' }));
+    expect(onChange).toHaveBeenLastCalledWith({ answerChoices: undefined });
+  });
+});

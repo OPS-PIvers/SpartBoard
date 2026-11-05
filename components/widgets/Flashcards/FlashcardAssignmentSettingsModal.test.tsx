@@ -102,7 +102,7 @@ describe('FlashcardAssignmentSettingsModal', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const patch = savedPatch(onSave);
     expect(patch.rules?.sessionOptions.shuffleQuestions).toBe(true);
-    expect(patch.scoreVisibility).toBe('score-and-answers');
+    expect(patch.scoreVisibility).toBe('score-responses-and-answers');
     expect(patch.classEdit).toBeUndefined();
   });
 

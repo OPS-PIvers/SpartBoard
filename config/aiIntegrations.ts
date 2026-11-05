@@ -148,6 +148,14 @@ export const AI_INTEGRATIONS: readonly AiIntegration[] = [
     inputs: ['text'],
   },
   {
+    id: 'flashcards',
+    label: 'Flashcards generation',
+    description: 'Drafts flashcards from a topic in the set editor.',
+    group: 'Import',
+    tier: 'standard',
+    inputs: ['text'],
+  },
+  {
     id: 'flashcards-import',
     label: 'Flashcards from an import',
     description: 'Makes flashcards from an imported page or document.',

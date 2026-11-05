@@ -54,6 +54,19 @@ describe('useGuidedLearningSessionStudent.submitResponse', () => {
     expect((setDoc as Mock).mock.calls[0]).toHaveLength(2);
   });
 
+  it('creates un-submitted first, then turns in, when the first write is the submit', async () => {
+    const { result } = renderHook(() =>
+      useGuidedLearningSessionStudent('sess-1', 'stu-1')
+    );
+    await result.current.submitResponse(response({ completedAt: 500 }));
+    const calls = (setDoc as Mock).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0][1]).toMatchObject({ completedAt: null, startedAt: 100 });
+    expect(calls[0]).toHaveLength(2);
+    expect(calls[1][1]).toMatchObject({ completedAt: 500 });
+    expect(calls[1][2]).toEqual({ merge: true });
+  });
+
   it('merges only answers and pin while the student is still working', async () => {
     const { result } = renderHook(() =>
       useGuidedLearningSessionStudent('sess-1', 'stu-1')

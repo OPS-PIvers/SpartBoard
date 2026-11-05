@@ -30,8 +30,12 @@ export interface FlashcardRosterStudent {
   score: number | null;
   /** Cards finished so far, for "Q3" in the In progress list. */
   cardsDone: number;
+  /** This student's card count when they work on a subset. */
+  cardTotal?: number;
   /** Flagged answers waiting for Accept or Dismiss. */
   openFlags?: number;
+  /** A raised hand while working. */
+  hand?: boolean;
 }
 
 /** Sorts and filters by the toolbar, as the Quiz monitor does; flagged students lead the name sort. */
@@ -62,10 +66,12 @@ export const orderFlashcardRoster = <T extends FlashcardRosterStudent>(
     : ordered;
 };
 
-/** Let in now and Remove student, as in the Quiz monitor's student menu. */
+/** Let in now, Unlock attempt, Unlock results and Remove student, as in the Quiz monitor's student menu. */
 export const flashcardMenuItems = (
   letIn: (() => void) | undefined,
-  onRemove: () => void
+  onRemove: () => void,
+  unlockResults?: () => void,
+  unlockAttempt?: () => void
 ): RosterMenuItem[] => [
   ...(letIn
     ? [
@@ -78,6 +84,32 @@ export const flashcardMenuItems = (
             'let-in'
           ),
           onClick: letIn,
+        },
+      ]
+    : []),
+  ...(unlockAttempt
+    ? [
+        {
+          label: 'Unlock attempt',
+          tour: tourFieldAttr(
+            'flashcards.student-menu-item',
+            'flashcards',
+            'unlock-attempt'
+          ),
+          onClick: unlockAttempt,
+        },
+      ]
+    : []),
+  ...(unlockResults
+    ? [
+        {
+          label: 'Unlock results',
+          tour: tourFieldAttr(
+            'flashcards.student-menu-item',
+            'flashcards',
+            'unlock-results'
+          ),
+          onClick: unlockResults,
         },
       ]
     : []),

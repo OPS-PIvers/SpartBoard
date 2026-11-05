@@ -7,7 +7,7 @@ import { languageNativeLabel } from './languageNativeLabel';
 export const summarizeOverride = (
   override: StudentOverride,
   t: TFunction,
-  opts: { totalQuestions?: number } = {}
+  opts: { totalQuestions?: number; subsetOf?: 'questions' | 'cards' } = {}
 ): string[] => {
   const chips: string[] = [];
   if (override.timeMultiplier === 'unlimited')
@@ -26,13 +26,26 @@ export const summarizeOverride = (
   if (override.questionIds) {
     const total = opts.totalQuestions ?? override.questionIds.length;
     chips.push(
-      t('studentOverride.chip.questionSubset', {
-        selected: override.questionIds.length,
-        total,
-        defaultValue: '{{selected}}/{{total}} Qs',
-      })
+      opts.subsetOf === 'cards'
+        ? t('studentOverride.chip.cardSubset', {
+            selected: override.questionIds.length,
+            total,
+            defaultValue: '{{selected}}/{{total}} cards',
+          })
+        : t('studentOverride.chip.questionSubset', {
+            selected: override.questionIds.length,
+            total,
+            defaultValue: '{{selected}}/{{total}} Qs',
+          })
     );
   }
+  if (override.answerChoices)
+    chips.push(
+      t('studentOverride.chip.answerChoices', {
+        count: override.answerChoices,
+        defaultValue: '{{count}} answer choices',
+      })
+    );
   const hiddenCount = Object.values(
     override.hiddenOptionIdsByQuestion ?? {}
   ).reduce((sum, ids) => sum + ids.length, 0);

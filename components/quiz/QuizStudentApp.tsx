@@ -1686,6 +1686,7 @@ const QuizJoinFlow: React.FC<{
               pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
               override={myOverride}
               drawIds={drawIds}
+              fullscreenRequired={protections.fullscreen && !isViewOnly}
               effectiveCloseAt={myEffectiveWindow.closeAt}
               readAloudRequested={
                 isStudentRole &&
@@ -1850,6 +1851,8 @@ export const ActiveQuiz: React.FC<{
   effectiveCloseAt?: number;
   /** SSO student flagged for read-aloud (override or `readAloudAll`); the light shell decides the rest. */
   readAloudRequested?: boolean;
+  /** The page requires fullscreen, so leaving fullscreen counts as a tab exit. */
+  fullscreenRequired?: boolean;
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -1879,6 +1882,7 @@ export const ActiveQuiz: React.FC<{
   drawIds,
   effectiveCloseAt,
   readAloudRequested,
+  fullscreenRequired = false,
 }) => {
   const { showAlert, showConfirm } = useDialog();
   const { t } = useTranslation();
@@ -2167,6 +2171,7 @@ export const ActiveQuiz: React.FC<{
         )
         .finally(tabTracker.release);
     },
+    fullscreenRequired,
   });
 
   // Per-student answer shuffle. The session-level `publicQuestions` was
@@ -3833,7 +3838,7 @@ export const ActiveQuiz: React.FC<{
           <button
             onClick={() => {
               setShowCheatWarning(false);
-              tabTracker.release();
+              tabTracker.resume();
             }}
             className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
           >

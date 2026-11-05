@@ -18,7 +18,12 @@ import {
   formatGradeLabel,
   formatLunchTime,
   formatTeacherName,
+  getCentralDayKey,
   getCentralTimestamp,
+  hasSubmittedToday,
+  reportClassKey,
+  submittedClassKey,
+  submittedMarker,
 } from './lunchCountFormat';
 
 export interface LunchStudent {
@@ -112,6 +117,14 @@ export function useLunchCountModel(widget: WidgetData) {
     rosterPoolGroupId,
     rosterGroupsEnabled,
   ]);
+  const sentClass = submittedClassKey(
+    formatLunchTime(lunchTimeHour, lunchTimeMinute),
+    formatGradeLabel(gradeLevel),
+    rosterMode === 'custom'
+      ? null
+      : ((rosters.find((r) => r.id === activeRosterId) ?? rosters[0])?.id ??
+          null)
+  );
 
   const groupedStudents = useMemo(() => {
     const hot: LunchStudent[] = [];
@@ -252,7 +265,8 @@ export function useLunchCountModel(widget: WidgetData) {
     const gradeLabel = formatGradeLabel(gradeLevel);
     const lunchTime = formatLunchTime(lunchTimeHour, lunchTimeMinute);
     const timestamp = getCentralTimestamp();
-    const label = `${lunchTime || '??:??'} - ${gradeLabel || 'Grade ?'} - ${teacherName}`;
+    const label = `${reportClassKey(lunchTime, gradeLabel)} - ${teacherName}`;
+    const dayKey = getCentralDayKey();
     const isIntermediate = schoolSite === 'orono-intermediate-school';
 
     setIsSubmitting(true);
@@ -284,6 +298,9 @@ export function useLunchCountModel(widget: WidgetData) {
         throw new Error(result);
       }
 
+      updateWidget(widget.id, {
+        config: submittedMarker(config, widget.id, dayKey, sentClass),
+      });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
     } catch (err) {
@@ -388,6 +405,7 @@ export function useLunchCountModel(widget: WidgetData) {
     setIsMissingInfoOpen,
     isSubmitting,
     reportData,
+    alreadySubmitted: hasSubmittedToday(config, widget.id, sentClass),
   };
 }
 

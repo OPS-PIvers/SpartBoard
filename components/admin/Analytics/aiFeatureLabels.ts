@@ -6,6 +6,7 @@ export const AI_FEATURE_LABELS: Record<string, string> = {
   quiz: 'Quiz Generation',
   ocr: 'OCR',
   'blooms-ai': "Bloom's AI",
+  'flashcards-ai': 'Flashcards AI',
   'video-activity-recommend': 'Video Recommendations',
   'dashboard-layout': 'Dashboard Layout AI',
   'instructional-routine': 'Instructional Routines AI',

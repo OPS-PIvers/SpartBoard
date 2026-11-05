@@ -426,6 +426,10 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
         { ref: refDone, data: () => ({ ...base, completedAt: 2 }) },
         { ref: refWorking, data: () => ({ ...base, completedAt: null }) },
         {
+          ref: { id: 'r-empty' },
+          data: () => ({ ...base, answers: [], completedAt: null }),
+        },
+        {
           ref: refHidden,
           data: () => ({
             ...base,
@@ -491,7 +495,11 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
         typeof ref === 'string' &&
         ref.startsWith(`users/${TEACHER_UID}/guided_learning_assignments/`)
     );
-    expect(assignmentCall?.[1]).toMatchObject({ revealedAnswers: key });
+    // Only responses started before this publish may get the key on a later turn-in.
+    expect(assignmentCall?.[1]).toMatchObject({
+      revealedAnswers: key,
+      lateRevealIds: ['r-working'],
+    });
   });
 
   it('drops the teacher-only key copy below the answers level and on unpublish', async () => {

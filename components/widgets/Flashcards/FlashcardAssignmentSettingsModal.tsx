@@ -22,6 +22,7 @@ import {
   type AssignClassesValue,
 } from '@/components/common/library/assignStepper/assignClassesValue';
 import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
+import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
 import {
   behaviorToFlashcardRules,
@@ -44,6 +45,7 @@ import {
   planAssignmentClassEdit,
 } from '@/utils/assignmentClassEdit';
 import { hasPeriodAccess } from '@/utils/periodAccess';
+import { flashcardClassVisibility } from '@/utils/flashcardResultsVisibility';
 import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface FlashcardAssignmentSettingsModalProps {
@@ -75,6 +77,7 @@ export const FlashcardAssignmentSettingsModal: React.FC<
 }) => {
   const { t } = useTranslation();
   const gates = useQuizRuleGates();
+  const handRaiseMode = useQuizHandRaiseMode();
   const isCheck = assignment.kind === 'check';
   const staff = assignment.audience === 'staff';
   // No rosters yet means none could show as checked, and a save would drop the rest.
@@ -153,11 +156,11 @@ export const FlashcardAssignmentSettingsModal: React.FC<
         : {}),
       ...(w.due ? { dueAt: w.due.dueAt } : {}),
       ...(isCheck && rulesChanged ? { rules } : {}),
-      // What students see maps to the legacy score visibility, unless Publish or Unpublish changed it since.
+      // What students see sets the class results level, unless Publish or Unpublish changed it since.
       ...(isCheck &&
       rulesChanged &&
       visibility !== scoreVisibilityFromRules(initialRules) &&
-      (assignment.scoreVisibility ?? 'none') ===
+      flashcardClassVisibility(assignment.scoreVisibility) ===
         scoreVisibilityFromRules(initialRules)
         ? { scoreVisibility: visibility }
         : {}),
@@ -234,7 +237,7 @@ export const FlashcardAssignmentSettingsModal: React.FC<
         value: flashcardRulesToBehavior(rules),
         onChange: (next) => setRules(behaviorToFlashcardRules(next)),
         gates,
-        handRaiseMode: 'force-off',
+        handRaiseMode,
         flashcards: true,
       })
     : [];

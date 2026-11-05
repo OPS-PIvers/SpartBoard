@@ -129,7 +129,13 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
               ? makeStopQuizSession('active')
               : state === 'sq-cross-out'
                 ? { ...makeTimedQuizSession('active'), allowCrossOut: true }
-                : makeTimedQuizSession('active'),
+                : state === 'sq-fullscreen'
+                  ? {
+                      ...makeTimedQuizSession('active'),
+                      tabAwayLimitSeconds: 30,
+                      tabAwayAutoSubmit: true,
+                    }
+                  : makeTimedQuizSession('active'),
     [state]
   );
   if (state === 'sq-attempts' || state === 'sq-attempts-live') {
@@ -194,6 +200,7 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
         warningCount={0}
         onRecordStimulusPlay={noop}
         onReportStimulusError={noop}
+        fullscreenRequired={state === 'sq-fullscreen'}
       />
     </div>
   );

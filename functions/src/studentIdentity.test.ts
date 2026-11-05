@@ -143,7 +143,17 @@ vi.mock('./firebaseAdmin', () => {
     return out;
   }
 
-  // Every doc living in any collection named `name` (collectionGroup).
+  // Firestore orders documents by path, one segment at a time.
+  const comparePaths = (a: string, b: string) => {
+    const sa = seg(a);
+    const sb = seg(b);
+    for (let i = 0; i < Math.min(sa.length, sb.length); i++) {
+      if (sa[i] !== sb[i]) return sa[i] < sb[i] ? -1 : 1;
+    }
+    return sa.length - sb.length;
+  };
+
+  // Every doc living in any collection named `name` (collectionGroup), in path order.
   function groupDocs(name: string): Array<{ path: string; data: any }> {
     const out: Array<{ path: string; data: any }> = [];
     for (const [p, data] of h.docStore) {
@@ -151,7 +161,7 @@ vi.mock('./firebaseAdmin', () => {
       if (s.length >= 2 && s[s.length - 2] === name)
         out.push({ path: p, data });
     }
-    return out;
+    return out.sort((a, b) => comparePaths(a.path, b.path));
   }
 
   function makeSnap(path: string, data: any) {
@@ -182,9 +192,14 @@ vi.mock('./firebaseAdmin', () => {
         makeQuery(items, [...filters, { f, op, v }], limitN),
       limit: (n: number) => makeQuery(items, filters, n),
       select: () => makeQuery(items, filters, limitN),
-      startAfter: (last: { ref: { path: string } }) => {
-        const at = items.findIndex((it) => it.path === last.ref.path);
-        return makeQuery(items.slice(at + 1), filters, limitN);
+      orderBy: () => makeQuery(items, filters, limitN),
+      startAfter: (last: { path?: string; ref?: { path: string } }) => {
+        const after = last.ref?.path ?? last.path ?? '';
+        return makeQuery(
+          items.filter((it) => comparePaths(it.path, after) > 0),
+          filters,
+          limitN
+        );
       },
       get: async () => {
         let res = items.filter((it) =>
@@ -261,6 +276,7 @@ vi.mock('./firebaseAdmin', () => {
     initializeApp: () => {},
     firestore: Object.assign(() => db, {
       Timestamp: { fromMillis: (ms: number) => ({ ms }) },
+      FieldPath: { documentId: () => '__name__' },
     }),
     auth: () => ({
       createCustomToken: async (uid: string, claims: unknown) => {
@@ -585,6 +601,25 @@ describe('studentLoginV1', () => {
         return {
           data: { classes: [{ sourcedId: 'ENG' }, { sourcedId: 'BIO' }] },
         };
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'SID-1', role: 'student' }] } };
+      throw new Error('unexpected url: ' + url);
+    };
+    await callStudentLogin({ data: { idToken: 'x' } });
+    expect((h.lastCustomToken?.claims as any).classIds).toEqual(['ENG']);
+  });
+
+  it('keeps a class whose real roster sorts after a doc flood', async () => {
+    seedDomain('org-orono', '@orono.k12.mn.us');
+    for (let i = 0; i < 600; i++) {
+      h.docStore.set(`users/0anon/rosters/r${i}`, { classlinkClassId: 'ENG' });
+    }
+    h.authUsers.set('0anon', {});
+    h.docStore.set('users/real/rosters/r1', { classlinkClassId: 'ENG' });
+    seedTeacher('real');
+    h.axiosGet = async (url: string) => {
+      if (url.includes('/classes'))
+        return { data: { classes: [{ sourcedId: 'ENG' }] } };
       if (url.endsWith('/users'))
         return { data: { users: [{ sourcedId: 'SID-1', role: 'student' }] } };
       throw new Error('unexpected url: ' + url);
@@ -1002,13 +1037,33 @@ describe('getStudentClassDirectoryV1', () => {
     expect(h.getUsersCalls.every((c) => c.length <= 100)).toBe(true);
   });
 
-  it('stops scanning a class at the cap', async () => {
+  it('finds the real roster behind a doc flood under one low-sorting uid', async () => {
     for (let i = 0; i < 600; i++) {
-      h.docStore.set(`users/flood${i}/rosters/r`, {
+      h.docStore.set(`users/0anon/rosters/r${i}`, {
         classlinkClassId: 'CL8',
         name: 'Fake',
       });
-      h.authUsers.set(`flood${i}`, {});
+    }
+    h.authUsers.set('0anon', {});
+    h.docStore.set('users/real8/rosters/r', {
+      classlinkClassId: 'CL8',
+      name: 'Real Class',
+    });
+    seedTeacher('real8');
+    const res = await callDirectory({ auth: studentAuth(['CL8']) });
+    expect(res.classes.map((c) => c.name)).toEqual(['Real Class']);
+    expect(h.getUsersCalls.flat().sort()).toEqual(['0anon', 'real8']);
+  });
+
+  it('stops scanning a class at the page cap', async () => {
+    for (let o = 0; o < 60; o++) {
+      for (let i = 0; i < 100; i++) {
+        h.docStore.set(`users/flood${o}/rosters/r${i}`, {
+          classlinkClassId: 'CL8',
+          name: 'Fake',
+        });
+      }
+      h.authUsers.set(`flood${o}`, {});
     }
     h.docStore.set('users/real8/rosters/r', {
       classlinkClassId: 'CL8',
@@ -1017,7 +1072,7 @@ describe('getStudentClassDirectoryV1', () => {
     seedTeacher('real8');
     const res = await callDirectory({ auth: studentAuth(['CL8']) });
     expect(res.classes).toEqual([]);
-    expect(h.getUsersCalls.flat().length).toBeLessThanOrEqual(500);
+    expect(h.getUsersCalls.flat()).not.toContain('real8');
   });
 
   it('fails the call, rather than dropping classes, when Auth is down', async () => {
@@ -1182,6 +1237,21 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
   });
 
   it('re-mints a narrower claim when a claimed section lost its roster', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['A', 'GONE'],
+    });
+    const res = await callDirectory({ auth: studentAuth(['A', 'GONE']) });
+    expect((h.lastCustomToken?.claims as any).classIds).toEqual(['A']);
+    expect(res.classes.map((c) => c.classId)).toEqual(['A']);
+  });
+
+  it('keeps a flooded section in a re-minted claim', async () => {
+    for (let i = 0; i < 600; i++) {
+      h.docStore.set(`users/0anon/rosters/r${i}`, { classlinkClassId: 'A' });
+    }
+    h.authUsers.set('0anon', {});
     h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
     h.docStore.set('student_sections/stu', {
       orgId: 'org-orono',

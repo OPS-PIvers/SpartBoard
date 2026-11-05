@@ -132,7 +132,12 @@ export type FlashcardStudentView =
   | (ReadyView &
       (
         | { kind: 'upcoming'; openAt: number }
-        | { kind: 'submitted'; progress: FlashcardProgress }
+        | {
+            kind: 'submitted';
+            progress: FlashcardProgress;
+            /** Still open, so another attempt could start. */
+            open: boolean;
+          }
         | { kind: 'checkClosed' }
         /** Study goes on untracked; `closeAt` is null when the banner says the assignment ended. */
         | { kind: 'closed'; closeAt: number | null }
@@ -187,7 +192,12 @@ export function deriveFlashcardStudentView(
     return { ...ready, kind: 'upcoming', openAt: effectiveWindow.openAt };
   }
   if (isCheck && typeof progress?.submittedAt === 'number') {
-    return { ...ready, kind: 'submitted', progress };
+    return {
+      ...ready,
+      kind: 'submitted',
+      progress,
+      open: windowState !== 'closed',
+    };
   }
   if (isCheck && windowState === 'closed') {
     return { ...ready, kind: 'checkClosed' };

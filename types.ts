@@ -3623,6 +3623,12 @@ export interface LunchCountConfig {
   lunchTimeMinute?: string;
   /** Selected grade level (K, 1, 2, MAC for Schumann; 3, 4, 5 for Intermediate) */
   gradeLevel?: string;
+  /** Central-time day (YYYY-MM-DD) of the last submitted report */
+  lastSubmittedDate?: string;
+  /** Widget that sent it, so a duplicated widget can still submit */
+  lastSubmittedWidgetId?: string;
+  /** Classes (lunch time and grade) it sent that day, so another class can still submit */
+  lastSubmittedClasses?: string[];
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
@@ -6918,13 +6924,15 @@ export type RubricSnapshot = Rubric;
 /** Per-student accommodation override. Never stored on session docs (spec §2a). */
 export interface StudentOverride {
   timeMultiplier?: 1.5 | 2 | 'unlimited';
-  questionIds?: string[]; // quiz only: subset to serve
+  questionIds?: string[]; // quiz question ids, or Flashcards Check card ids: subset to serve
   /** Quiz only. Values are option TEXT, not ids (teacher-side translated; never the correct answer). */
   hiddenOptionIdsByQuestion?: Record<string, string[]>;
   // quiz only; 'points' means grade this question by raw points, ignoring any rubric
   rubricOverrideByQuestion?: Record<string, RubricSnapshot | 'points'>;
-  tabWarningThreshold?: number | 'off'; // quiz only (during-taking system)
-  tabAwayLimit?: number | 'off'; // quiz only; seconds to auto-submit at, or 'off' for no auto-submit
+  tabWarningThreshold?: number | 'off'; // quiz and Flashcards Check
+  tabAwayLimit?: number | 'off'; // quiz and Flashcards Check; seconds to auto-submit at, or 'off' for no auto-submit
+  /** Flashcards Check only: multiple choice shows this many answers instead of 4. */
+  answerChoices?: 2 | 3;
   readAloud?: boolean; // quiz only; signed-in students, needs 'quiz-read-aloud'
   /** Block (true) or allow (false) copy, paste and print for this student; absent = the session's rule. */
   blockCopyPaste?: boolean;
@@ -7026,7 +7034,8 @@ export interface QuizAssignment
   extends
     QuizAssignmentSettings,
     SubLaunchedSessionFields,
-    PeriodAccessSessionFields {
+    PeriodAccessSessionFields,
+    AudienceSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
   /** Owning widget, written on create. */
@@ -9606,6 +9615,7 @@ export type FlashcardCheckSessionOptions = Pick<
   | 'showScoreOnSubmit'
   | 'showResultToStudent'
   | 'showCorrectAnswerToStudent'
+  | 'handRaiseEnabled'
 >;
 
 /** Check rules from the Quiz-style assign steps; absent on older sessions (one attempt, no limits). */
@@ -9759,6 +9769,21 @@ export interface FlashcardProgress
   flags?: FlashcardFlag[];
   /** Teacher-written: this student's results setting, overriding the class one. */
   resultsOverride?: QuizResultsOverride;
+  /** Times the student left their published results; the teacher's Unlock lowers it. */
+  resultsTabWarnings?: number;
+  resultsLockedOut?: boolean;
+  resultsLockedOutAt?: number;
+  /** Server-written: submissions so far, against `rules.attemptLimit`. */
+  completedAttempts?: number;
+  /** Server-written: submitted for the student when time ran out or they left the tab too often. */
+  forcedSubmit?: 'time' | 'tab';
+  /** When this attempt's time limit started (ms). */
+  attemptStartedAt?: number;
+  handRaisedAt?: number | null;
+  /** Times the student left the Check's tab this attempt. */
+  tabSwitchWarnings?: number;
+  /** The student's card subset copied from their pointer (rules check it), so teacher counts use it. */
+  cardSubset?: string[] | null;
 }
 
 /** `plcs/{plcId}/flashcard_sets/{setId}`: a set shared with a PLC, payload inline. */
@@ -10883,6 +10908,7 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
+  | 'flashcards-ai'
   | 'blooms-question-starters'
   | 'dashboard-layout'
   | 'instructional-routine'

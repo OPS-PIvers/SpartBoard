@@ -46358,6 +46358,216 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards-editor.draft-ai",
+    "label": "Draft with AI (list header) in the Flashcards set editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-editor.footer-draft-ai",
+    "label": "Draft with AI (footer) in the Flashcards set editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-editor.add-menu",
+    "label": "More ways to add menu in the Flashcards set editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-editor.add-blank",
+    "label": "Add-menu item: Blank card in the Flashcards set editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-editor.ai-prompt",
+    "label": "Topic box in the Flashcards Draft with AI panel",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-editor.ai-count-dec",
+    "label": "Fewer cards button in the Flashcards Draft with AI panel",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-editor.ai-count-inc",
+    "label": "More cards button in the Flashcards Draft with AI panel",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-editor.ai-attach-file",
+    "label": "Attach file in the Flashcards Draft with AI panel",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-editor.ai-generate",
+    "label": "Generate Cards button in the Flashcards Draft with AI panel",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-editor.ai-close",
+    "label": "Close button on the Flashcards Draft with AI panel",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.editor-description",
     "label": "Description box in the Flashcards editor",
     "scope": "widget type",
@@ -46827,6 +47037,27 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.clear-hand",
+    "label": "Clear button on a raised hand in the Flashcards Check monitor",
+    "scope": "field",
+    "panel": true,
     "persists": true,
     "routes": [
       {
@@ -58233,6 +58464,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "override-row.copy-paste-print",
     "label": "Copy, paste and print choice in the override editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.override-row",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "override-row.answer-choices",
+    "label": "Answer choices choice in the Flashcards override editor",
     "scope": "board",
     "panel": true,
     "routes": [

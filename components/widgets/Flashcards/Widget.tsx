@@ -76,6 +76,8 @@ import {
   useLibraryDeleteConfirm,
 } from '@/components/common/library/useLibraryDeleteConfirm';
 import { FlashcardEditor } from './FlashcardEditor';
+import { FlashcardSetEditorModal } from './FlashcardSetEditorModal';
+import { flashcardSetIncompleteReason } from './useFlashcardEditorState';
 import {
   clearPastedFlashcards,
   peekPastedFlashcards,
@@ -393,6 +395,36 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  const editorV2 = canAccessFeature('flashcards-assign-v2');
+  const editorAiEnabled =
+    canAccessFeature('gemini-functions') && canAccessFeature('flashcards-ai');
+  const editingIsNew =
+    !!editingSet && !flashcardSets.sets.some((s) => s.id === editingSet.id);
+
+  // Autosave also refreshes share links and Study assignments once the set is complete.
+  const persistSet = async (
+    set: FlashcardSet,
+    { final }: { final: boolean }
+  ): Promise<void> => {
+    try {
+      const rewritten = await flashcardSets.saveSet(set, {
+        syncStudy: final || flashcardSetIncompleteReason(set) === null,
+      });
+      if (final && rewritten > 0) {
+        addToast(
+          `“${set.title}” saved. ${rewritten} open Study assignment${rewritten === 1 ? '' : 's'} updated.`,
+          'success'
+        );
+      }
+    } catch (error) {
+      if (!(error instanceof FlashcardStudySyncError)) throw error;
+      addToast(
+        `“${set.title}” saved, but open Study assignments still show the old cards.`,
+        'error'
+      );
+    }
+  };
+
   const handleDelete = async (set: FlashcardSet): Promise<void> => {
     const confirmed = await confirmDelete({
       titles: [set.title],
@@ -439,6 +471,11 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const handleAssign = (set: FlashcardSet): void => {
     if (set.cards.length === 0) {
       addToast('Add cards to this set before assigning it.', 'error');
+      return;
+    }
+    const incomplete = editorV2 ? flashcardSetIncompleteReason(set) : null;
+    if (incomplete) {
+      addToast(`Not ready to use yet: ${incomplete}`, 'error');
       return;
     }
     if (!rosters.some(rosterHasSsoClass)) {
@@ -848,7 +885,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
               ) : (
                 presentPlayer
               )
-            ) : editingSet ? (
+            ) : editingSet && !editorV2 ? (
               <FlashcardEditor
                 key={editingSet.id}
                 initialSet={editingSet}
@@ -946,6 +983,16 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         }}
       />
 
+      {editingSet && editorV2 && (
+        <FlashcardSetEditorModal
+          key={editingSet.id}
+          set={editingSet}
+          isNew={editingIsNew}
+          aiEnabled={editorAiEnabled}
+          onPersist={persistSet}
+          onClose={closeEditor}
+        />
+      )}
       <FlashcardShareModal
         isOpen={sharingSet !== null}
         set={sharingSet}

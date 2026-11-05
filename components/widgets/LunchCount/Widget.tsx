@@ -30,6 +30,13 @@ import type { LunchInfo } from './MissingInfoModal';
 import { useNutrislice } from './useNutrislice';
 import { DragChip } from './components/DragChip';
 import { useMultiDrag } from './useMultiDrag';
+import {
+  getCentralDayKey,
+  hasSubmittedToday,
+  reportClassKey,
+  submittedClassKey,
+  submittedMarker,
+} from './redesign/lunchCountFormat';
 import { logError } from '@/utils/logError';
 import { toLunchCountSchoolSite } from '@/config/buildings';
 
@@ -379,6 +386,14 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     rosterPoolGroupId,
     rosterGroupsEnabled,
   ]);
+  const sentClass = submittedClassKey(
+    formatLunchTime(lunchTimeHour, lunchTimeMinute),
+    formatGradeLabel(gradeLevel),
+    rosterMode === 'custom'
+      ? null
+      : ((rosters.find((r) => r.id === activeRosterId) ?? rosters[0])?.id ??
+          null)
+  );
 
   const groupedStudents = useMemo(() => {
     const hot: { id: string; name: string }[] = [];
@@ -536,7 +551,8 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     const timestamp = getCentralTimestamp();
     // Column B: [Lunch Time] - [Grade] - [Teacher]
     // We use placeholders if some data is missing to ensure the format is consistent
-    const label = `${lunchTime || '??:??'} - ${gradeLabel || 'Grade ?'} - ${teacherName}`;
+    const label = `${reportClassKey(lunchTime, gradeLabel)} - ${teacherName}`;
+    const dayKey = getCentralDayKey();
 
     // Columns C-F mapped for each school:
     //   Schumann:     C=hotLunch, D=bentoBox, E=(blank), F=notes
@@ -572,6 +588,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         throw new Error(result);
       }
 
+      updateWidget(widget.id, {
+        config: submittedMarker(config, widget.id, dayKey, sentClass),
+      });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
     } catch (err) {
@@ -1207,6 +1226,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             .join(' - '),
         }}
         isSubmitting={isSubmitting}
+        alreadySubmitted={hasSubmittedToday(config, widget.id, sentClass)}
       />
       <Modal
         isOpen={!!peekedItem}
