@@ -341,6 +341,36 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
   const allSelected =
     allKeys.length > 0 &&
     allKeys.every((k) => selection?.selectedResponseKeys.has(k));
+  const anySelected = allKeys.some((k) =>
+    selection?.selectedResponseKeys.has(k)
+  );
+  const selectAllBox = (withLabel: boolean) => (
+    <label
+      className="flex items-center font-sans text-brand-gray-primary cursor-pointer"
+      style={{ gap: 'min(6px, 1.5cqmin)', fontSize: 'min(11px, 3.5cqmin)' }}
+    >
+      <input
+        type="checkbox"
+        checked={allSelected}
+        ref={(el) => {
+          if (el) el.indeterminate = anySelected && !allSelected;
+        }}
+        aria-label={withLabel ? undefined : 'Select all'}
+        onChange={() =>
+          allSelected
+            ? selection?.clearSelection()
+            : selection?.addToSelection(allKeys)
+        }
+        {...tourTypeAttr(
+          'flashcards.results-students-select-all',
+          'flashcards'
+        )}
+        className="accent-brand-blue-primary"
+        style={checkboxStyle}
+      />
+      {withLabel && 'Select all'}
+    </label>
+  );
 
   const goBack = (): void => {
     if (screen === 'home') onBack();
@@ -712,7 +742,7 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
               className="flex flex-col"
               style={{ gap: 'min(6px, 1.5cqmin)' }}
             >
-              {selection && resultsActions && (
+              {selection && resultsActions && anySelected ? (
                 <StudentResultsBulkBar
                   responses={responses}
                   selection={selection}
@@ -722,60 +752,38 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
                   addToast={addToast}
                   onPrint={(keys) => setPrintSelection(keys)}
                   anchors={BULK_ANCHORS}
+                  variant="inline"
+                  leading={selectAllBox(false)}
                 />
-              )}
-              <div
-                className="flex flex-wrap items-center"
-                style={{
-                  gap: 'min(8px, 2cqmin)',
-                  paddingLeft: 'min(10px, 2.5cqmin)',
-                }}
-              >
-                {selection && resultsActions && (
-                  <label
-                    className="flex items-center font-sans text-brand-gray-primary cursor-pointer"
-                    style={{
-                      gap: 'min(6px, 1.5cqmin)',
-                      fontSize: 'min(11px, 3.5cqmin)',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={() =>
-                        allSelected
-                          ? selection.clearSelection()
-                          : selection.addToSelection(allKeys)
+              ) : (
+                <div
+                  className="flex flex-wrap items-center"
+                  style={{
+                    gap: 'min(8px, 2cqmin)',
+                    paddingLeft: 'min(10px, 2.5cqmin)',
+                  }}
+                >
+                  {selection && resultsActions && selectAllBox(true)}
+                  <div className="ml-auto flex items-center">
+                    <SegmentedToggle
+                      label="Sort students"
+                      value={sort}
+                      options={[
+                        ['score', 'Score'],
+                        ['lastName', 'Last name'],
+                      ]}
+                      onChange={setSort}
+                      anchor={(v) =>
+                        tourFieldAttr(
+                          'flashcards.results-students-sort',
+                          'flashcards',
+                          v
+                        )
                       }
-                      {...tourTypeAttr(
-                        'flashcards.results-students-select-all',
-                        'flashcards'
-                      )}
-                      className="accent-brand-blue-primary"
-                      style={checkboxStyle}
                     />
-                    Select all
-                  </label>
-                )}
-                <div className="ml-auto flex items-center">
-                  <SegmentedToggle
-                    label="Sort students"
-                    value={sort}
-                    options={[
-                      ['score', 'Score'],
-                      ['lastName', 'Last name'],
-                    ]}
-                    onChange={setSort}
-                    anchor={(v) =>
-                      tourFieldAttr(
-                        'flashcards.results-students-sort',
-                        'flashcards',
-                        v
-                      )
-                    }
-                  />
+                  </div>
                 </div>
-              </div>
+              )}
               {studentRows.map((row, i) => renderStudent(row.studentUid, i))}
             </div>
           )}
