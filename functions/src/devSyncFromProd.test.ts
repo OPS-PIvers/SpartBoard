@@ -45,6 +45,7 @@ import {
   fromRestFields,
   readProdConfig,
   readProdTree,
+  stripInlinePii,
   SYNCED_USER_COLLECTIONS,
   syncConfigFromProdV1,
   syncMyMaterialsFromProdV1,
@@ -116,6 +117,20 @@ describe('SYNCED_USER_COLLECTIONS', () => {
     ]) {
       expect(SYNCED_USER_COLLECTIONS).toContain(name);
     }
+  });
+});
+
+describe('stripInlinePii', () => {
+  it('drops inline students from roster docs only', () => {
+    const fields = {
+      name: { stringValue: 'P3' },
+      students: { arrayValue: { values: [{ stringValue: 'Kid' }] } },
+    };
+    expect(Object.keys(stripInlinePii('rosters', fields))).toEqual(['name']);
+    expect(Object.keys(stripInlinePii('quizzes', fields))).toEqual([
+      'name',
+      'students',
+    ]);
   });
 });
 

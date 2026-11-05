@@ -47,6 +47,17 @@ export const SYNCED_USER_COLLECTIONS = [
   'video_activity_folders',
 ] as const;
 
+// Legacy roster docs that predate the Drive migration can still hold students[] inline; it never leaves prod.
+export function stripInlinePii(
+  collection: string,
+  fields: Record<string, RestValue>
+): Record<string, RestValue> {
+  if (collection !== 'rosters') return fields;
+  return Object.fromEntries(
+    Object.entries(fields).filter(([key]) => key !== 'students')
+  );
+}
+
 // Nested subcollections copied under a synced doc: Drawing widget canvases live at dashboards/{id}/drawings/{widgetId}/pages/{pageId}/objects/{objectId}.
 export const NESTED_COLLECTIONS: Record<string, string[]> = {
   dashboards: ['drawings'],
@@ -318,7 +329,10 @@ export const syncMyMaterialsFromProdV1 = onCall(
       try {
         for (const e of devEntries) {
           if (e.fields)
-            void writer.set(db.doc(e.path), fromRestFields(e.fields, swapUid));
+            void writer.set(
+              db.doc(e.path),
+              fromRestFields(stripInlinePii(name, e.fields), swapUid)
+            );
         }
       } finally {
         await writer.close();
