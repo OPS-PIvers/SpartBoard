@@ -93,6 +93,7 @@ import {
   dockItemId,
   isDockItemVisible as isDockItemVisibleHelper,
 } from './dock/folderPermissions';
+import { strandedMinimizedTypes } from './dock/strandedMinimized';
 import { tourAttr } from '@/config/tourAnchors';
 import {
   useDockPosition,
@@ -886,6 +887,13 @@ export const Dock: React.FC = () => {
     return acc;
   }, [activeDashboard, tourHidden]);
 
+  // Minimized widgets whose type has no dock button get a temporary slot so the same instance (and its connections) can come back.
+  const strandedTypes = strandedMinimizedTypes(
+    minimizedWidgetsByType,
+    new Set([...topLevelTypes, ...pinnedTools.map((tool) => tool.type)]),
+    canAccessTool
+  );
+
   // Minimized custom-widget instances (not in the static TOOLS list so
   // they need a separate restore path in the dock).
   const minimizedCustomWidgets = useMemo(
@@ -1653,6 +1661,45 @@ export const Dock: React.FC = () => {
                     ))}
                   </>
                 )}
+              </>
+            )}
+
+            {strandedTypes.length > 0 && (
+              <>
+                <div
+                  className={`bg-slate-200 shrink-0 ${
+                    isVerticalDock ? 'h-px w-8 my-1' : 'w-px h-8 mx-1'
+                  }`}
+                />
+                {strandedTypes.map((type) => {
+                  const tool = TOOLS.find((x) => x.type === type);
+                  if (!tool) return null;
+                  const minimizedWidgets = minimizedWidgetsByType[type];
+                  return (
+                    <ToolDockItem
+                      key={`minimized-${type}`}
+                      tool={tool}
+                      minimizedWidgets={minimizedWidgets}
+                      onAdd={() => {
+                        if (type === 'classes') openClassEditor();
+                        else if (type === 'catalyst')
+                          handleToggleCatalystPicker();
+                        else addWidget(type, getBuildingAwareOverrides(type));
+                      }}
+                      onRestore={(id) => updateWidget(id, { minimized: false })}
+                      onDelete={(id) => removeWidget(id)}
+                      onDeleteAll={() =>
+                        removeWidgets(minimizedWidgets.map((w) => w.id))
+                      }
+                      onRemoveFromDock={() => undefined}
+                      isEditMode={false}
+                      onLongPress={() => undefined}
+                      globalStyle={globalStyle}
+                      customLabel={getToolLabel(type)}
+                      dockPosition={dockPosition}
+                    />
+                  );
+                })}
               </>
             )}
 
