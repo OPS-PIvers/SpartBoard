@@ -33,6 +33,7 @@ import { useMultiDrag } from './useMultiDrag';
 import {
   getCentralDayKey,
   hasSubmittedToday,
+  reportRowLabel,
 } from './redesign/lunchCountFormat';
 import { logError } from '@/utils/logError';
 import { toLunchCountSchoolSite } from '@/config/buildings';
@@ -540,7 +541,8 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     const timestamp = getCentralTimestamp();
     // Column B: [Lunch Time] - [Grade] - [Teacher]
     // We use placeholders if some data is missing to ensure the format is consistent
-    const label = `${lunchTime || '??:??'} - ${gradeLabel || 'Grade ?'} - ${teacherName}`;
+    const label = reportRowLabel(lunchTime, gradeLabel, teacherName);
+    const dayKey = getCentralDayKey();
 
     // Columns C-F mapped for each school:
     //   Schumann:     C=hotLunch, D=bentoBox, E=(blank), F=notes
@@ -578,8 +580,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
 
       updateWidget(widget.id, {
         config: {
-          lastSubmittedDate: getCentralDayKey(),
+          lastSubmittedDate: dayKey,
           lastSubmittedWidgetId: widget.id,
+          lastSubmittedLabel: label,
         },
       });
       addToast('Lunch report submitted successfully!', 'success');
@@ -1217,7 +1220,15 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             .join(' - '),
         }}
         isSubmitting={isSubmitting}
-        alreadySubmitted={hasSubmittedToday(config, widget.id)}
+        alreadySubmitted={hasSubmittedToday(
+          config,
+          widget.id,
+          reportRowLabel(
+            formatLunchTime(lunchTimeHour, lunchTimeMinute),
+            formatGradeLabel(gradeLevel),
+            formatTeacherName(reportName)
+          )
+        )}
       />
       <Modal
         isOpen={!!peekedItem}

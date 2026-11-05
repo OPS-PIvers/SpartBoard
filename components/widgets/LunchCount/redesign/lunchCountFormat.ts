@@ -64,14 +64,30 @@ export function getCentralDayKey(): string {
   }
 }
 
-/** True only for the widget that sent today's report, so copies can still submit. */
+/** The sheet's column B label: [Lunch Time] - [Grade] - [Teacher]. */
+export function reportRowLabel(
+  lunchTime: string,
+  gradeLabel: string,
+  teacherName: string
+): string {
+  return `${lunchTime || '??:??'} - ${gradeLabel || 'Grade ?'} - ${teacherName}`;
+}
+
+/** True only when this widget already sent this same row today, so other classes and copies can still submit. */
 export function hasSubmittedToday(
-  config: { lastSubmittedDate?: string; lastSubmittedWidgetId?: string },
-  widgetId: string
+  config: {
+    lastSubmittedDate?: string;
+    lastSubmittedWidgetId?: string;
+    lastSubmittedLabel?: string;
+  },
+  widgetId: string,
+  label: string
 ): boolean {
   return (
     config.lastSubmittedDate === getCentralDayKey() &&
-    config.lastSubmittedWidgetId === widgetId
+    config.lastSubmittedWidgetId === widgetId &&
+    (config.lastSubmittedLabel === undefined ||
+      config.lastSubmittedLabel === label)
   );
 }
 
