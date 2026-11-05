@@ -9762,6 +9762,8 @@ export interface FlashcardsConfig {
   libraryTab?: 'library' | 'active' | 'archive';
   /** Assignment whose teacher results are open in the `results` view. */
   activeAssignmentId?: string;
+  /** Which screen the `results` view shows a Check on: the live monitor or the Results screen. */
+  resultsScreen?: 'monitor' | 'results';
   presentSetId?: string;
   /** Whose library the presented set is in, so other members of a shared board can find it. */
   presentSetOwnerUid?: string | null;

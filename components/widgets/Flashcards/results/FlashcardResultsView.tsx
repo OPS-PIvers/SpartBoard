@@ -28,6 +28,7 @@ import {
 import type { MonitorRosterPrefs } from '@/components/widgets/QuizWidget/components/monitor/rosterStyles';
 import { logError } from '@/utils/logError';
 import { FlashcardMonitor } from './FlashcardMonitor';
+import { FlashcardResultsScreen } from './FlashcardResultsScreen';
 import { useSyncPlcFlashcardResult } from './useSyncPlcFlashcardResult';
 import {
   FlashcardPublishScoresModal,
@@ -49,6 +50,8 @@ interface FlashcardResultsViewProps {
   /** Student list switches, sort and filter, kept in widget config like Quiz's. */
   monitorPrefs?: MonitorRosterPrefs;
   onUpdateMonitorPrefs?: (updates: Partial<MonitorRosterPrefs>) => void;
+  /** flashcards-assign-v2: Results opens a Check's Results screen; Monitor opens the live monitor. */
+  screen?: 'monitor' | 'results';
 }
 
 const isPublished = (
@@ -64,6 +67,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   onEnd,
   monitorPrefs,
   onUpdateMonitorPrefs,
+  screen = 'monitor',
 }) => {
   const { orgId, canAccessFeature } = useAuth();
   const { rosters, addToast } = useDashboard();
@@ -166,6 +170,23 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
       (formatStudentName(byStudentUid.get(studentUid)) ||
         `Student ${studentUid.slice(0, 6)}`);
   }, [byStudentUid, results]);
+
+  const sortNameFor = useMemo(
+    () =>
+      (studentUid: string): string => {
+        const name = byStudentUid.get(studentUid);
+        return name && (name.familyName || name.givenName)
+          ? `${name.familyName} ${name.givenName}`.trim()
+          : nameFor(studentUid);
+      },
+    [byStudentUid, nameFor]
+  );
+  const classLabelFor = useMemo(
+    () =>
+      (classId: string): string =>
+        classLabels[classId] ?? classId,
+    [classLabels]
+  );
 
   const testsByStudent = useMemo(() => {
     const map: Record<string, { at: number; count: number; score: number }[]> =
@@ -310,6 +331,54 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         />
       </div>
     );
+  if (
+    !error &&
+    session &&
+    quizStyle &&
+    session.kind === 'check' &&
+    screen === 'results'
+  ) {
+    const launchedBy = assignment.launchedBy ? (
+      <LaunchedBySubTag
+        launchedBy={assignment.launchedBy}
+        at={assignment.createdAt}
+      />
+    ) : null;
+    return (
+      <FlashcardResultsScreen
+        assignment={assignment}
+        session={session}
+        results={visibleResults}
+        nameFor={nameFor}
+        sortNameFor={sortNameFor}
+        classLabelFor={classLabelFor}
+        exportNames={byStudentUid}
+        speakLanguage={speakLanguage}
+        onBack={onBack}
+        classControls={
+          presentClassIds.length > 1 ? (
+            <ClassPicker
+              names={presentClassIds}
+              labelFor={classLabelFor}
+              selected={activeFilter ?? ''}
+              onSelect={(id) => setClassFilter(id || null)}
+              status={
+                session.status === 'ended' || assignment.status === 'ended'
+                  ? 'ended'
+                  : 'active'
+              }
+              selectAnchor={tourTypeAttr(
+                'flashcards.class-picker',
+                'flashcards'
+              )}
+            />
+          ) : null
+        }
+        launchedBy={launchedBy}
+        addToast={addToast}
+      />
+    );
+  }
   if (!error && session) {
     const classControls =
       perPeriod && session.periodAccess ? (

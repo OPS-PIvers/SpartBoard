@@ -14466,6 +14466,53 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.results-print': {
+    label: 'Print results button in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-hide-names': {
+    label: 'Hide student names button in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-drill': {
+    label:
+      'Card results, Students or Speaking row in the Flashcards Results screen',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-student': {
+    label: 'Student row in the Flashcards Results screen',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-student-print': {
+    label:
+      'Print report button for one student in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-students-sort': {
+    label: 'Score or Last name sort in the Flashcards Results screen',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-export': {
+    label: 'Export to Sheets button in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-open-sheet': {
+    label: 'Open Sheet link in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-sheet-refresh': {
+    label: 'Re-export sheet button in the Flashcards Results screen',
+    perWidgetType: true,
+    panel: true,
+  },
   'mini-app.stepper-class-picker': {
     label: 'Class picker in the Mini App assign dialog',
     perWidgetType: true,
