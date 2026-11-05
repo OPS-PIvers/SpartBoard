@@ -49,7 +49,6 @@ export async function getPaperBatch(
   return snap.exists() ? (snap.data() as PaperBatch) : null;
 }
 
-/** Every batch printed for one quiz, newest first. */
 /** Every stack this teacher has, newest first; the library uses it to spot stacks with no Paper card. */
 export async function listPaperBatches(userId: string): Promise<PaperBatch[]> {
   const snap = await getDocs(batchesRef(userId));
@@ -58,6 +57,7 @@ export async function listPaperBatches(userId: string): Promise<PaperBatch[]> {
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
+/** Every batch printed for one quiz, newest first. */
 export async function listPaperBatchesForQuiz(
   userId: string,
   quizId: string
