@@ -130,6 +130,7 @@ const KEY_FIELDS = [
   'blankAlternates',
   'optionOrder',
   'matchingDistractors',
+  'orderingImages',
   'allowPartialCredit',
   'placeholder',
   'minWords',

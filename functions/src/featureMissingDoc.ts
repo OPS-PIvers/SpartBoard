@@ -44,6 +44,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-stimulus-quotes',
   'quiz-cross-out',
   'quiz-submit-for-student',
+  'quiz-ordering-images',
   'quiz-calculator-stimulus',
   'lunch-count-redesign',
   'weather-details',

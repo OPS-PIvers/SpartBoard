@@ -4462,6 +4462,8 @@ export interface QuizQuestion {
    * be mistakenly read as correct pairs.
    */
   matchingDistractors?: string[];
+  /** Ordering only: image URL per item, index-aligned with `correctAnswer.split('|')`; '' = no image. */
+  orderingImages?: string[];
   /**
    * Per-question opt-in for partial credit on Matching/Ordering/MA. Ignored
    * for MC/FIB/free-response. Defaults to false.
@@ -5206,6 +5208,8 @@ export interface QuizPublicQuestion {
   matchingRight?: string[];
   /** Ordering only: items to sequence, pre-shuffled */
   orderingItems?: string[];
+  /** Ordering only: image URL per item, index-aligned with `orderingItems`; '' = no image. */
+  orderingImages?: string[];
   /** Free Response only: optional editor placeholder */
   placeholder?: string;
   /** Free Response only: optional lower word bound shown in the editor */
@@ -10864,6 +10868,8 @@ export type GlobalFeature =
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */
   | 'quiz-submit-for-student'
+  /** Quiz Ordering questions: an image on each item. */
+  | 'quiz-ordering-images'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */

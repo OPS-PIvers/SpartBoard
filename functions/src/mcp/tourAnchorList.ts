@@ -7889,6 +7889,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.order-image",
+    "label": "Add image to ordering item in the Quiz editor",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "quiz-editor.order-image-remove",
+    "label": "Remove ordering item image in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
+  },
+  {
     "id": "quiz-editor.order-add",
     "label": "Add ordering item in the Quiz editor",
     "scope": "widget type",

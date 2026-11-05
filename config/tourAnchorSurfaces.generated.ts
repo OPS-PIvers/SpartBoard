@@ -432,6 +432,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-editor.order-up': ['quiz.editor'],
     'quiz-editor.order-down': ['quiz.editor'],
     'quiz-editor.order-remove': ['quiz.editor'],
+    'quiz-editor.order-image': ['quiz.editor'],
+    'quiz-editor.order-image-remove': ['quiz.editor'],
     'quiz-editor.order-add': ['quiz.editor'],
     'quiz-editor.recording-prep': ['quiz.editor'],
     'quiz-editor.recording-limit': ['quiz.editor'],

@@ -8,7 +8,15 @@
  */
 
 import React from 'react';
-import { AlertCircle, GripVertical, Plus, Trash2 } from 'lucide-react';
+import {
+  AlertCircle,
+  GripVertical,
+  ImagePlus,
+  Loader2,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import {
   DndContext,
   PointerSensor,
@@ -41,6 +49,8 @@ interface PairRow {
 interface OrderRow {
   id: string;
   text: string;
+  /** Image URL; '' or absent = none. */
+  image?: string;
 }
 
 const newId = () =>
@@ -115,7 +125,10 @@ function findDuplicateTermRowIds(rows: PairRow[]): Set<string> {
   return duplicateIds;
 }
 
-function parseOrderItems(correctAnswer: string): OrderRow[] {
+function parseOrderItems(
+  correctAnswer: string,
+  images: readonly string[] = []
+): OrderRow[] {
   if (!correctAnswer.trim()) {
     return [
       { id: newId(), text: '' },
@@ -123,7 +136,9 @@ function parseOrderItems(correctAnswer: string): OrderRow[] {
       { id: newId(), text: '' },
     ];
   }
-  const rows = correctAnswer.split('|').map((text) => ({ id: newId(), text }));
+  const rows: OrderRow[] = correctAnswer
+    .split('|')
+    .map((text, i) => ({ id: newId(), text, image: images[i] ?? '' }));
   while (rows.length < 2) rows.push({ id: newId(), text: '' });
   return rows;
 }
@@ -134,6 +149,19 @@ function serializeOrderItems(rows: OrderRow[]): string {
     .map((r) => r.text)
     .join('|');
 }
+
+/** Images aligned with the serialized items, or undefined when none is set. */
+function serializeOrderImages(rows: OrderRow[]): string[] | undefined {
+  const images = rows.filter((r) => r.text.trim()).map((r) => r.image ?? '');
+  return images.some(Boolean) ? images : undefined;
+}
+
+const sameImages = (
+  a: readonly string[] | undefined,
+  b: readonly string[] | undefined
+): boolean =>
+  (a ?? []).length === (b ?? []).length &&
+  (a ?? []).every((v, i) => v === (b ?? [])[i]);
 
 // ─── Sortable row primitive ─────────────────────────────────────────────────
 
@@ -496,23 +524,49 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
 
 export interface OrderingAnswerEditorProps {
   correctAnswer: string;
-  onChange: (correctAnswer: string) => void;
+  /** Index-aligned with the items in `correctAnswer`; keep the reference stable. */
+  orderingImages?: string[];
+  onChange: (
+    correctAnswer: string,
+    orderingImages: string[] | undefined
+  ) => void;
+  /** Uploads one image and resolves to its URL; absent hides the image buttons. */
+  onUploadImage?: (file: File) => Promise<string | null>;
 }
 
-// Plain React.memo: both props are a string and a (parent-stable) callback,
-// so shallow comparison already skips re-renders on prompt keystrokes.
+const NO_IMAGES: string[] = [];
+
+// Plain React.memo: props are strings, a stable array and parent-stable
+// callbacks, so shallow comparison already skips re-renders on prompt keystrokes.
 export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
   correctAnswer,
+  orderingImages = NO_IMAGES,
   onChange,
+  onUploadImage,
 }: OrderingAnswerEditorProps) {
   const [rows, setRows] = React.useState<OrderRow[]>(() =>
-    parseOrderItems(correctAnswer)
+    parseOrderItems(correctAnswer, orderingImages)
   );
-  useResetOnChange(correctAnswer, (next) => {
-    if (serializeOrderItems(rows) !== next) {
-      setRows(parseOrderItems(next));
+  const [uploadingId, setUploadingId] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const pickForRowRef = React.useRef<string | null>(null);
+  const resetKey = `${correctAnswer}\u0000${orderingImages.join('\u0001')}`;
+  useResetOnChange(resetKey, () => {
+    const nextImages = orderingImages.some(Boolean)
+      ? orderingImages
+      : undefined;
+    if (
+      serializeOrderItems(rows) !== correctAnswer ||
+      !sameImages(serializeOrderImages(rows), nextImages)
+    ) {
+      setRows(parseOrderItems(correctAnswer, orderingImages));
     }
   });
+  // Latest rows for the async upload callback, which resolves after later edits.
+  const rowsRef = React.useRef(rows);
+  React.useLayoutEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -521,7 +575,37 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
     })
   );
 
-  const emit = (next: OrderRow[]) => onChange(serializeOrderItems(next));
+  const emit = (next: OrderRow[]) =>
+    onChange(serializeOrderItems(next), serializeOrderImages(next));
+
+  const setRowImage = (id: string, image: string) => {
+    const next = rowsRef.current.map((r) =>
+      r.id === id ? { ...r, image } : r
+    );
+    rowsRef.current = next;
+    setRows(next);
+    emit(next);
+  };
+
+  const pickImage = (id: string) => {
+    pickForRowRef.current = id;
+    fileInputRef.current?.click();
+  };
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const id = pickForRowRef.current;
+    e.target.value = '';
+    pickForRowRef.current = null;
+    if (!file || !id || !onUploadImage) return;
+    setUploadingId(id);
+    try {
+      const url = await onUploadImage(file);
+      if (url) setRowImage(id, url);
+    } finally {
+      setUploadingId(null);
+    }
+  };
 
   const updateRow = (id: string, text: string) => {
     const next = rows.map((r) => (r.id === id ? { ...r, text } : r));
@@ -611,6 +695,50 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
                       )}
                       className="flex-1 px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 shadow-xs text-sm"
                     />
+                    {onUploadImage &&
+                      (row.image ? (
+                        <div className="relative shrink-0">
+                          <img
+                            src={row.image}
+                            alt=""
+                            className="w-9 h-9 rounded-lg object-cover border border-slate-200 bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setRowImage(row.id, '')}
+                            className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-slate-700 text-white hover:bg-brand-red-primary transition-colors"
+                            aria-label={`Remove image from item ${i + 1}`}
+                            title="Remove image"
+                            {...tourFieldAttr(
+                              'quiz-editor.order-image-remove',
+                              'quiz',
+                              String(i + 1)
+                            )}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => pickImage(row.id)}
+                          disabled={uploadingId !== null}
+                          className="flex items-center justify-center w-9 h-9 shrink-0 rounded-lg text-emerald-700 hover:bg-emerald-50 transition-colors disabled:opacity-40"
+                          aria-label={`Add image to item ${i + 1}`}
+                          title="Add image"
+                          {...tourFieldAttr(
+                            'quiz-editor.order-image',
+                            'quiz',
+                            String(i + 1)
+                          )}
+                        >
+                          {uploadingId === row.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ImagePlus className="w-4 h-4" />
+                          )}
+                        </button>
+                      ))}
                     <div className="flex items-center">
                       <button
                         type="button"
@@ -671,6 +799,16 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
         <Plus className="w-3.5 h-3.5" />
         Add Row
       </button>
+      {onUploadImage && (
+        <input
+          // no-tour-anchor: hidden file input opened by the Add image button
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => void handleFile(e)}
+        />
+      )}
     </div>
   );
 });

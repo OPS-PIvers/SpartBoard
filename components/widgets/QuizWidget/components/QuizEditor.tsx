@@ -66,6 +66,7 @@ import {
   SpokenResponseSettings,
 } from './ResponseFormatSection';
 import { useWhiteboardImageUpload } from './useWhiteboardImageUpload';
+import { driveImageUrl } from '@/utils/quizStimuli';
 import { canAccessQuizWhiteboardResponse } from '@/utils/quizMediaAccess';
 
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
@@ -799,9 +800,9 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     [selectedQuestionId, updateQuestion]
   );
   const handleOrderingChange = useCallback(
-    (correctAnswer: string) => {
+    (correctAnswer: string, orderingImages: string[] | undefined) => {
       if (selectedQuestionId)
-        updateQuestion(selectedQuestionId, { correctAnswer });
+        updateQuestion(selectedQuestionId, { correctAnswer, orderingImages });
     },
     [selectedQuestionId, updateQuestion]
   );
@@ -815,6 +816,14 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     canAccessFeature,
   });
   const uploadWhiteboardImage = useWhiteboardImageUpload();
+  const orderingImagesOn = canAccessFeature('quiz-ordering-images');
+  const uploadOrderingImage = useCallback(
+    async (file: File): Promise<string | null> => {
+      const uploaded = await uploadWhiteboardImage(file);
+      return uploaded ? driveImageUrl(uploaded.driveFileId) : null;
+    },
+    [uploadWhiteboardImage]
+  );
   const rubricVisibilityOn = canAccessFeature('quiz-rubric-visibility');
   const spellCheckToggleOn = canAccessFeature('quiz-spell-check-toggle');
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -1128,7 +1137,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         ) : q.type === 'Ordering' ? (
           <OrderingAnswerEditor
             correctAnswer={q.correctAnswer}
+            orderingImages={q.orderingImages}
             onChange={handleOrderingChange}
+            onUploadImage={
+              orderingImagesOn || q.orderingImages?.some(Boolean)
+                ? uploadOrderingImage
+                : undefined
+            }
           />
         ) : isFreeResponseType(q.type) ? (
           <div className="space-y-3">

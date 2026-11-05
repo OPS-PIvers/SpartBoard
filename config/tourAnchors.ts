@@ -1934,6 +1934,17 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-editor.order-image': {
+    label: 'Add image to ordering item in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.order-image-remove': {
+    label: 'Remove ordering item image in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
   'quiz-editor.order-add': {
     label: 'Add ordering item in the Quiz editor',
     perWidgetType: true,
