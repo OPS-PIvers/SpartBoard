@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClassRoster, Plc, QuizBehaviorSettings } from '@/types';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
-import { manualStartAvailable } from '@/utils/assignAvailability';
 import type { QuizHandRaiseMode } from '@/utils/quizHandRaise';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
@@ -139,7 +138,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       value: formatWhenValue(when, {
         variant: 'when',
         rosterCount: picked.length,
-        manualAvailable: manualStartAvailable(periodAccess?.bellWindow),
+        manualAvailable: !staff,
         t,
       }),
       body: (
@@ -149,6 +148,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           variant="when"
           rosters={picked}
           periodAccess={periodAccess}
+          manualAvailable={!staff}
           // Per-class due dates save without bells; only a period gate saves per-class opens.
           perClass
           sharedOpens={!periodAccess}

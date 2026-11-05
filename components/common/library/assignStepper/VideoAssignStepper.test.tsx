@@ -129,10 +129,17 @@ describe('VideoAssignStepper', () => {
     expect(result.targeting.dueAt).toBeUndefined();
   });
 
-  it('hides Manual without bell periods', () => {
-    renderStepper();
+  it('offers Manual without bell periods, starting on Scheduled', async () => {
+    const { onSubmit } = renderStepper();
     fireEvent.click(stepHeader('When'));
-    expect(screen.queryByRole('radio', { name: 'Manual' })).toBeNull();
+    const manual = screen.getByRole('radio', { name: 'Manual' });
+    expect(manual).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(manual);
+    assign();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    const result = onSubmit.mock.calls[0][0];
+    expect(result.manualStart).toBe(true);
+    expect(result.targeting.periodPlan).toEqual({ mode: 'assessment' });
   });
 });
 

@@ -421,24 +421,20 @@ export function applyWindowEdit(
 /** The assign stepper's When choice: Manual starts paused, Scheduled follows the dates. */
 export type AssignWhenMode = 'manual' | 'scheduled';
 
-/** Manual needs bell periods: without them there is no class to start or pause. */
-export function manualStartAvailable(
-  bellWindow: BellWindowFn | undefined
-): boolean {
-  return !!bellWindow;
-}
-
 /** The stepper's saved targeting: Manual closes every class with no window or due date, Scheduled resolves the dates. */
 export function applyWhen(
   value: AssignTargetingValue,
   {
     mode,
+    manualAvailable,
     rosters,
     bellWindow,
     workKind: workKindSetting,
     now = new Date(),
   }: {
     mode: AssignWhenMode;
+    /** The surface offers Manual; staff and edit flows that can't start a class pass false. */
+    manualAvailable: boolean;
     rosters: readonly PeriodRoster[];
     bellWindow: BellWindowFn | undefined;
     workKind?: WorkKindSetting;
@@ -450,9 +446,7 @@ export function applyWhen(
 } {
   const workKind = chosenWorkKind(value, workKindSetting);
   const manual =
-    mode === 'manual' &&
-    workKind !== 'resource' &&
-    manualStartAvailable(bellWindow);
+    mode === 'manual' && workKind !== 'resource' && manualAvailable;
   if (manual) {
     const {
       availability: _availability,

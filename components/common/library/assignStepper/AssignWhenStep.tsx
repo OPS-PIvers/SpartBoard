@@ -34,8 +34,10 @@ export const AssignWhenStep: React.FC<{
   variant: AssignWhenVariant;
   /** The checked classes. */
   rosters: ClassRoster[];
-  /** Bell periods; absent hides the class bell times and Manual. */
+  /** Bell periods; absent hides the class bell times. */
   periodAccess?: AssignPeriodAccessContext;
+  /** Offers Manual; defaults to on only with bell periods. */
+  manualAvailable?: boolean;
   /** Each class keeps one Opens for all classes, where only one open time can be saved. */
   sharedOpens?: boolean;
   /** Offers a window per class; defaults to on only with bell periods, since only a period gate saves one. */
@@ -46,6 +48,7 @@ export const AssignWhenStep: React.FC<{
   variant,
   rosters,
   periodAccess,
+  manualAvailable: manualOffered = !!periodAccess,
   sharedOpens,
   perClass = !!periodAccess,
 }) => {
@@ -62,7 +65,7 @@ export const AssignWhenStep: React.FC<{
     );
 
   const available = variant === 'available';
-  const manualAvailable = !available && !!periodAccess;
+  const manualAvailable = !available && manualOffered;
   const manual = manualAvailable && value.mode === 'manual';
   const { availability } = value;
   const bellAvailable = !!periodAccess && rosters.length > 0;
