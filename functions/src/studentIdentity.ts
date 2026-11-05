@@ -23,6 +23,8 @@ import {
   type ClassLinkStudent,
   pinIndexKey,
   isBridgeablePin,
+  normalizeEmailDomain,
+  resolveOrgIdForDomain,
 } from './classlinkShared';
 import { normalizeQuizCode } from './quizCode';
 import { quizJoinCodeOwner } from './quizJoinCodeOwner';
@@ -40,8 +42,8 @@ import {
   targetRefsFromAssignment,
 } from './studentAssignmentTargets';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { isAiTeacherCaller } from './aiCallerGate';
 import { isTestClassAuthority } from './studentAssignmentTargets';
+import { isAiTeacherCaller } from './aiCallerGate';
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { studentFirstName } from './studentFirstName';
 
@@ -87,73 +89,155 @@ const ROSTER_DIRECTORY_FIELDS = [
   'createdAt',
 ] as const;
 const ROSTER_OWNER_TTL_MS = 5 * 60 * 1000;
-const rosterOwnerCache = new BoundedLruMap<string, { ok: boolean; at: number }>(
-  2000
-);
+
+// staff: accepted for any section. candidate: accepted only for sections ClassLink says they teach.
+type RosterOwnerKind =
+  | { kind: 'staff' }
+  | { kind: 'candidate'; email: string }
+  | { kind: 'rejected' };
+const rosterOwnerCache = new BoundedLruMap<
+  string,
+  { owner: RosterOwnerKind; at: number }
+>(2000);
+// Classes ClassLink says a candidate teaches; null when it is not a teacher or ClassLink could not answer.
+const rosterTaughtCache = new BoundedLruMap<
+  string,
+  { ids: ReadonlySet<string> | null; at: number }
+>(2000);
 
 /** Test-only: forget cached roster-owner checks. */
 export function __resetRosterOwnerCache(): void {
   rosterOwnerCache.clear();
+  rosterTaughtCache.clear();
 }
 
-/** The uids (of `uids`) whose Auth account is a verified district staff member or admin; Auth is read 100 at a time. */
-async function verifiedRosterOwners(
+/** Each owner's standing, with Auth read 100 at a time. An Auth outage throws; it must not read as "not a teacher". */
+async function rosterOwnerKinds(
   db: FirebaseFirestore.Firestore,
   uids: Iterable<string>
-): Promise<Set<string>> {
-  const verified = new Set<string>();
+): Promise<Map<string, RosterOwnerKind>> {
+  const out = new Map<string, RosterOwnerKind>();
   const unknown: string[] = [];
   const now = Date.now();
   for (const uid of new Set(uids)) {
     const cached = rosterOwnerCache.get(uid);
     if (cached && now - cached.at < ROSTER_OWNER_TTL_MS) {
-      if (cached.ok) verified.add(uid);
+      out.set(uid, cached.owner);
     } else {
       unknown.push(uid);
     }
   }
-  // An Auth outage throws: it must not read as "not a teacher".
+  const orgByDomain = new Map<string, Promise<string | null>>();
+  const orgFor = (domain: string): Promise<string | null> => {
+    let org = orgByDomain.get(domain);
+    if (!org) {
+      org = resolveOrgIdForDomain(db, domain);
+      orgByDomain.set(domain, org);
+    }
+    return org;
+  };
   await Promise.all(
     chunk(unknown, AUTH_GET_USERS_MAX).map(async (uidChunk) => {
       const res = await admin.auth().getUsers(uidChunk.map((uid) => ({ uid })));
-      const verdicts = new Map<string, boolean>(
-        uidChunk.map((uid): [string, boolean] => [uid, false])
+      // No account, no verified email, a disabled, student or PIN account: not a teacher.
+      const kinds = new Map<string, RosterOwnerKind>(
+        uidChunk.map((uid): [string, RosterOwnerKind] => [
+          uid,
+          { kind: 'rejected' },
+        ])
       );
       await Promise.all(
         res.users.map(async (user) => {
-          verdicts.set(
+          const claims = (user.customClaims ?? {}) as Record<string, unknown>;
+          const email = (user.email ?? '').trim().toLowerCase();
+          const domain = normalizeEmailDomain(email);
+          if (
+            !email ||
+            !domain ||
+            user.emailVerified !== true ||
+            user.disabled === true ||
+            claims.studentRole === true ||
+            claims.pinLogin === true
+          ) {
+            return;
+          }
+          const orgId = await orgFor(domain);
+          const member = orgId
+            ? await db.doc(`organizations/${orgId}/members/${email}`).get()
+            : null;
+          if (member?.data()?.roleId === 'student') return;
+          const staff = await isAiTeacherCaller(db, {
+            email,
+            email_verified: true,
+          });
+          kinds.set(
             user.uid,
-            !!user.email &&
-              (await isAiTeacherCaller(db, {
-                email: user.email,
-                email_verified: user.emailVerified === true,
-              }))
+            staff ? { kind: 'staff' } : { kind: 'candidate', email }
           );
         })
       );
-      for (const [uid, ok] of verdicts) {
-        rosterOwnerCache.set(uid, { ok, at: Date.now() });
-        if (ok) verified.add(uid);
+      for (const [uid, owner] of kinds) {
+        rosterOwnerCache.set(uid, { owner, at: Date.now() });
+        out.set(uid, owner);
       }
     })
   );
-  return verified;
+  return out;
 }
 
-/** Roster docs owned by verified teachers whose `classlinkClassId` is in `ids`, grouped by that id. */
+/** Classes ClassLink says a candidate owner teaches; null (reject) when it can't confirm, never a throw. */
+async function candidateTaughtClasses(
+  uid: string,
+  email: string
+): Promise<ReadonlySet<string> | null> {
+  const cached = rosterTaughtCache.get(uid);
+  if (cached && Date.now() - cached.at < ROSTER_OWNER_TTL_MS) return cached.ids;
+  let ids: ReadonlySet<string> | null = null;
+  try {
+    ids = await loadTeacherClassIds(email, {
+      classlinkClientId: CLASSLINK_CLIENT_ID.value(),
+      classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
+      tenantUrl: CLASSLINK_TENANT_URL.value(),
+    });
+  } catch {
+    // Already logged by the ClassLink helper; an unconfirmed owner is rejected.
+  }
+  rosterTaughtCache.set(uid, { ids, at: Date.now() });
+  return ids;
+}
+
+/** Roster docs whose owner is staff, or is confirmed by ClassLink to teach the section, grouped by `classlinkClassId`. */
 async function lookupRostersBySection(
   db: FirebaseFirestore.Firestore,
   ids: readonly string[]
 ): Promise<Map<string, RosterSnap[]>> {
   const out = new Map<string, RosterSnap[]>();
   const ownerOf = (doc: RosterSnap): string => doc.ref.parent.parent?.id ?? '';
+  // One Auth batch per page; ClassLink is asked only about non-staff owners, once each.
+  const prepareOwners = async (docs: readonly RosterSnap[]) => {
+    const kinds = await rosterOwnerKinds(db, docs.map(ownerOf));
+    const taught = new Map<string, ReadonlySet<string> | null>();
+    await Promise.all(
+      [...kinds].map(async ([uid, owner]) => {
+        if (owner.kind === 'candidate') {
+          taught.set(uid, await candidateTaughtClasses(uid, owner.email));
+        }
+      })
+    );
+    return { kinds, taught };
+  };
   const keepVerified = async (
     classId: string,
     docs: readonly RosterSnap[]
   ): Promise<void> => {
-    const verified = await verifiedRosterOwners(db, docs.map(ownerOf));
+    const { kinds, taught } = await prepareOwners(docs);
     for (const doc of docs) {
-      if (!verified.has(ownerOf(doc))) continue;
+      const owner = kinds.get(ownerOf(doc));
+      const ok =
+        owner?.kind === 'staff' ||
+        (owner?.kind === 'candidate' &&
+          taught.get(ownerOf(doc))?.has(classId) === true);
+      if (!ok) continue;
       const value: unknown = doc.get('classlinkClassId');
       if (typeof value !== 'string' || value !== classId) continue;
       const list = out.get(value);
@@ -175,7 +259,7 @@ async function lookupRostersBySection(
     classIds.map((classId) => pageQuery(classId).get())
   );
   // One Auth batch for every class's first page.
-  await verifiedRosterOwners(
+  await rosterOwnerKinds(
     db,
     firstPages.flatMap((page) => page.docs.map(ownerOf))
   );
@@ -525,6 +609,12 @@ export const getAssignmentPseudonymV1 = onCall(
 export const getStudentClassDirectoryV1 = onCall(
   {
     memory: '256MiB',
+    // ClassLink confirms roster owners who are not staff.
+    secrets: [
+      CLASSLINK_CLIENT_ID,
+      CLASSLINK_CLIENT_SECRET,
+      CLASSLINK_TENANT_URL,
+    ],
     invoker: 'public',
     cors: ALLOWED_ORIGINS,
   },

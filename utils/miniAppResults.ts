@@ -75,3 +75,43 @@ export function submitErrorCode(err: unknown): string {
   if (code.endsWith('permission-denied')) return 'not-allowed';
   return 'failed';
 }
+
+const isPermissionDenied = (err: unknown): boolean =>
+  typeof err === 'object' &&
+  err !== null &&
+  'code' in err &&
+  String(err.code).endsWith('permission-denied');
+
+/** A student's own submission summary, or their receipt when the summary is teacher-only; null when neither exists. */
+export async function readOwnMiniAppSubmission(
+  sessionId: string,
+  docId: string,
+  /** The session, when the caller already has it; saves a read. */
+  knownSession?: { summaryHidden?: unknown }
+): Promise<Record<string, unknown> | null> {
+  try {
+    const snap = await getDoc(
+      doc(db, 'mini_app_sessions', sessionId, 'submissions', docId)
+    );
+    return snap.exists() ? snap.data() : null;
+  } catch (err) {
+    if (!isPermissionDenied(err)) throw err;
+    const session =
+      knownSession ??
+      (await getDoc(doc(db, 'mini_app_sessions', sessionId))
+        .then((s) => s.data())
+        .catch(() => undefined));
+    // Only a summaryHidden session refuses the summary on purpose; anything else keeps today's error.
+    if (session?.summaryHidden !== true) throw err;
+    try {
+      const receipt = await getDoc(
+        doc(db, 'mini_app_sessions', sessionId, 'receipts', docId)
+      );
+      return receipt.exists() ? receipt.data() : null;
+    } catch (receiptErr) {
+      // Every submit writes a receipt, so a refused (missing) one means nothing submitted.
+      if (isPermissionDenied(receiptErr)) return null;
+      throw receiptErr;
+    }
+  }
+}

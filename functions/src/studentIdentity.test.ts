@@ -46,7 +46,13 @@ const h = vi.hoisted(() => ({
   docStore: new Map<string, any>(),
   authUsers: new Map<
     string,
-    { displayName?: string; email?: string; emailVerified?: boolean }
+    {
+      displayName?: string;
+      email?: string;
+      emailVerified?: boolean;
+      disabled?: boolean;
+      customClaims?: Record<string, unknown>;
+    }
   >(),
   lastCustomToken: null as null | { uid: string; claims: unknown },
   failCustomToken: false,
@@ -840,19 +846,114 @@ describe('getStudentClassDirectoryV1', () => {
     expect(res.classes).toEqual([]);
   });
 
-  it('ignores a roster owned by an account with a verified email but no staff record', async () => {
-    h.docStore.set('users/kid/rosters/r1', {
-      classlinkClassId: 'CL4',
-      name: 'Fake Class',
-      bellPeriod: { buildingId: 'oms', periodId: '1' },
+  describe('roster owners with a verified email', () => {
+    const seedOwner = (
+      uid: string,
+      member: Record<string, unknown> | null,
+      extra: Record<string, unknown> = {}
+    ) => {
+      const email = `${uid}@orono.k12.mn.us`;
+      h.docStore.set(`users/${uid}/rosters/r1`, {
+        classlinkClassId: 'CL4',
+        name: `Class of ${uid}`,
+      });
+      seedDomain('org-orono', '@orono.k12.mn.us');
+      h.authUsers.set(uid, { email, emailVerified: true, ...extra });
+      if (member) {
+        h.docStore.set(`organizations/org-orono/members/${email}`, member);
+      }
+    };
+    const names = async () =>
+      (await callDirectory({ auth: studentAuth(['CL4']) })).classes.map(
+        (c) => c.name
+      );
+
+    it('ignores a Google-signed-in student with a student member doc', async () => {
+      seedOwner('kid', { roleId: 'student', status: 'active' });
+      expect(await names()).toEqual([]);
     });
-    seedDomain('org-orono', '@orono.k12.mn.us');
-    h.authUsers.set('kid', {
-      email: 'kid@orono.k12.mn.us',
-      emailVerified: true,
+
+    // ClassLink stub: any user lookup is a teacher who teaches `taught`.
+    const stubClassLink = (taught: string[], calls: string[] = []) => {
+      h.axiosGet = async (url: string) => {
+        calls.push(url);
+        if (url.endsWith('/users'))
+          return { data: { users: [{ sourcedId: 'T-1', role: 'teacher' }] } };
+        if (url.endsWith('/users/T-1/classes'))
+          return {
+            data: { classes: taught.map((sourcedId) => ({ sourcedId })) },
+          };
+        throw new Error('unexpected url: ' + url);
+      };
+    };
+
+    it('keeps a non-staff owner with no member doc when ClassLink confirms the section', async () => {
+      seedOwner('nodoc', null);
+      stubClassLink(['CL4']);
+      expect(await names()).toEqual(['Class of nodoc']);
     });
-    const res = await callDirectory({ auth: studentAuth(['CL4']) });
-    expect(res.classes).toEqual([]);
+
+    it('keeps a non-staff owner with an inactive member doc or an unmapped domain when ClassLink confirms', async () => {
+      seedOwner('inactive', { roleId: 'teacher', status: 'inactive' });
+      h.docStore.set('users/elsewhere/rosters/r1', {
+        classlinkClassId: 'CL4B',
+        name: 'Class of elsewhere',
+      });
+      h.authUsers.set('elsewhere', {
+        email: 'elsewhere@unmapped.example',
+        emailVerified: true,
+      });
+      stubClassLink(['CL4', 'CL4B']);
+      const res = await callDirectory({ auth: studentAuth(['CL4', 'CL4B']) });
+      expect(res.classes.map((c) => c.name).sort()).toEqual([
+        'Class of elsewhere',
+        'Class of inactive',
+      ]);
+    });
+
+    it('drops a non-staff owner that ClassLink does not confirm for the section', async () => {
+      seedOwner('forger', null);
+      stubClassLink(['SOMETHING-ELSE']);
+      expect(await names()).toEqual([]);
+    });
+
+    it('drops a non-staff owner, without throwing, when ClassLink cannot answer', async () => {
+      seedOwner('forger', null);
+      seedOwner('real', { roleId: 'teacher', status: 'active' });
+      h.docStore.set('users/real/rosters/r1', {
+        classlinkClassId: 'CL4',
+        name: 'Real Class',
+      });
+      h.axiosGet = async () => {
+        throw new Error('classlink down');
+      };
+      expect(await names()).toEqual(['Real Class']);
+    });
+
+    it('drops a non-staff owner when ClassLink is not configured', async () => {
+      seedOwner('forger', null);
+      stubClassLink(['CL4']);
+      h.secretValues.classlinkClientId = '';
+      expect(await names()).toEqual([]);
+    });
+
+    it('asks ClassLink once per non-staff owner and never for staff', async () => {
+      const calls: string[] = [];
+      seedOwner('staff', { roleId: 'teacher', status: 'active' });
+      seedOwner('nodoc', null);
+      stubClassLink(['CL4'], calls);
+      await names();
+      await names();
+      // One users lookup and one classes lookup, for the one non-staff owner.
+      expect(calls).toHaveLength(2);
+    });
+
+    it('ignores disabled accounts and accounts carrying student or PIN claims', async () => {
+      seedOwner('off', { roleId: 'teacher' }, { disabled: true });
+      seedOwner('stu', null, { customClaims: { studentRole: true } });
+      seedOwner('pin', null, { customClaims: { pinLogin: true } });
+      expect(await names()).toEqual([]);
+    });
   });
 
   it('lists the real teacher and drops a forged roster for the same section', async () => {

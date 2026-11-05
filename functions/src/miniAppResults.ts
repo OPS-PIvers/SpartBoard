@@ -234,6 +234,11 @@ export async function handleSubmitMiniAppResult(
     ? pseudonymFor(caller.uid, input.sessionId)
     : caller.uid;
   const summaryRef = sessionRef.collection('submissions').doc(studentKey);
+  // Rules keep a summaryHidden session's summary teacher-only, so the student reads this receipt instead.
+  const receiptRef =
+    session.summaryHidden === true
+      ? sessionRef.collection('receipts').doc(studentKey)
+      : null;
   const limit = attemptLimitOf(session);
 
   return db.runTransaction(async (tx) => {
@@ -255,6 +260,14 @@ export async function handleSubmitMiniAppResult(
       : 0;
     const left = (used: number): number | null =>
       limit === null ? null : Math.max(0, limit - used);
+    const writeReceipt = (attemptCount: number) => {
+      if (receiptRef)
+        tx.set(receiptRef, {
+          studentUid: caller.uid,
+          submittedAt: nowMs,
+          attemptCount,
+        });
+    };
 
     if (input.kind === 'done') {
       const prior = isRecord(summary.payload) ? summary.payload : {};
@@ -268,6 +281,7 @@ export async function handleSubmitMiniAppResult(
         },
         { merge: true }
       );
+      writeReceipt(count);
       return { attempt: count, attemptsLeft: left(count) };
     }
 
@@ -295,6 +309,7 @@ export async function handleSubmitMiniAppResult(
           ],
         }
       );
+      writeReceipt(count);
       return { attempt: count, attemptsLeft: left(count) };
     }
 
@@ -357,6 +372,7 @@ export async function handleSubmitMiniAppResult(
       },
       { merge: false }
     );
+    writeReceipt(attemptNo);
 
     const response: SubmitMiniAppResultResponse = {
       attempt: attemptNo,
