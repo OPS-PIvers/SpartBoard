@@ -21,8 +21,6 @@ export function isStudentFeatureOpen(
   );
 }
 
-export const isStudentGradebookOpen = isStudentFeatureOpen;
-
 export function useStudentFeatureOpen(
   featureId: 'student-gradebook' | 'student-overview-resources'
 ): boolean {
