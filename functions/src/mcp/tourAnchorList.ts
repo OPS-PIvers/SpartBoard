@@ -46848,7 +46848,21 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Clear button on a raised hand in the Flashcards Check monitor",
     "scope": "field",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "flashcards.flag-accept",

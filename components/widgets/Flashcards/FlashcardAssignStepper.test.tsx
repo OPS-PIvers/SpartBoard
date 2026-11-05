@@ -408,7 +408,7 @@ describe('FlashcardAssignStepper', () => {
         'timeLimitMinutes'
       );
       expect(input.lockedSettings?.shuffle).toBe(true);
-      expect(input.scoreVisibility).toBe('score-and-answers');
+      expect(input.scoreVisibility).toBe('score-responses-and-answers');
       expect(lastUsed.save).toHaveBeenCalledWith(
         expect.objectContaining({ rules: input.rules })
       );
