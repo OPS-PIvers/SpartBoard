@@ -326,12 +326,21 @@ const isEditableTarget = (target: EventTarget | null): boolean =>
     target.tagName === 'TEXTAREA');
 
 /** Ctrl+V of a copied image or file anywhere while the panel is open. */
-function usePasteFiles(onFiles: (files: File[]) => void, disabled: boolean) {
+function usePasteFiles(
+  onFiles: (files: File[]) => void,
+  disabled: boolean,
+  scopeRef?: React.RefObject<HTMLElement | null>
+) {
   useEffect(() => {
     if (disabled) return;
     const onPaste = (e: ClipboardEvent) => {
       const data = e.clipboardData;
-      if (!data) return;
+      // An answer box already took this paste for its own picture.
+      if (!data || e.defaultPrevented) return;
+      // Modals over the editor handle their own pastes.
+      if (scopeRef && !scopeRef.current?.contains(e.target as Node | null)) {
+        return;
+      }
       const files = Array.from(data.files);
       if (files.length === 0) return;
       // Pasting copied text into a field keeps working as normal.
@@ -343,7 +352,7 @@ function usePasteFiles(onFiles: (files: File[]) => void, disabled: boolean) {
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [onFiles, disabled]);
+  }, [onFiles, disabled, scopeRef]);
 }
 
 const fileButtonClass =
@@ -944,13 +953,16 @@ export const QuestionStimulusSection: React.FC<{
   questionId: string;
   /** `quiz-calculator-stimulus` gate. */
   calculatorAvailable?: boolean;
-}> = ({ state, questionId, calculatorAvailable = false }) => {
+  /** Attaches an image pasted inside this element to the question; absent turns pasting off. */
+  pasteScopeRef?: React.RefObject<HTMLElement | null>;
+}> = ({ state, questionId, calculatorAvailable = false, pasteScopeRef }) => {
   const question = state.questions.find((q) => q.id === questionId);
   return (
     <AttachStimulusSection
       state={state}
       attachedIds={question?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
+      pasteScopeRef={pasteScopeRef}
       onToggle={(stimulusId) =>
         state.toggleStimulusOnQuestion(stimulusId, questionId)
       }
@@ -979,10 +991,22 @@ const AttachStimulusSection: React.FC<{
   state: QuizEditorController;
   attachedIds: string[] | undefined;
   calculatorAvailable: boolean;
+  pasteScopeRef?: React.RefObject<HTMLElement | null>;
   onToggle: (stimulusId: string) => void;
-}> = ({ state, attachedIds, calculatorAvailable, onToggle }) => {
+}> = ({ state, attachedIds, calculatorAvailable, pasteScopeRef, onToggle }) => {
   const { stimuli, questions, bankSlots } = state;
   const intake = useStimulusIntake(state);
+  const { addFromFile } = intake;
+  const onPastedFiles = useCallback(
+    (files: File[]) =>
+      void addFiles(
+        addFromFile,
+        files.filter((f) => f.type.startsWith('image/')),
+        (s) => onToggle(s.id)
+      ),
+    [addFromFile, onToggle]
+  );
+  usePasteFiles(onPastedFiles, intake.busy || !pasteScopeRef, pasteScopeRef);
   const [open, setOpen] = useState(false);
   const attachedCount = attachedIds?.length ?? 0;
 

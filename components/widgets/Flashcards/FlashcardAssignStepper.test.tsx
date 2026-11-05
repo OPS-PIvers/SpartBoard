@@ -29,6 +29,15 @@ vi.mock('@/hooks/useLastFlashcardAssignSettings', async (importOriginal) => {
   };
 });
 
+vi.mock('@/hooks/useFlashcardSets', async () => {
+  const { defaultFlashcardsSpeakAdminConfig } =
+    await import('@/config/flashcardsSpeakAdmin');
+  return {
+    readFlashcardsSpeakAdminConfig: () =>
+      Promise.resolve(defaultFlashcardsSpeakAdminConfig()),
+  };
+});
+
 const makeSet = (cardCount = 12): FlashcardSet => ({
   id: 'set-1',
   title: 'Spanish verbs',
@@ -253,6 +262,16 @@ describe('FlashcardAssignStepper', () => {
       expect(input.speakOff).toBeUndefined();
     });
 
+    it('keeps Speak rules off the step without flashcards-assign-v2', async () => {
+      const { onAssign } = renderStepper({ canSpeak: true });
+      studyResource();
+      fireEvent.click(screen.getByText('Speak'));
+      expect(screen.queryByLabelText('Level')).toBeNull();
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      expect(lastSubmission(onAssign).input.speakChoice).toBeUndefined();
+    });
+
     it('locks the Speak settings', async () => {
       const { onAssign } = renderStepper({ canSpeak: true });
       studyResource();
@@ -437,6 +456,76 @@ describe('FlashcardAssignStepper', () => {
       expect(input.kind).toBe('check');
       expect(input.checkMode).toBe('speak');
       expect(input.cardSelection).toBeUndefined();
+    });
+
+    it('picks Speak rules for a Speak check and remembers them', async () => {
+      const { onAssign } = renderStepper({ v2: true, canSpeak: true });
+      fireEvent.click(screen.getByText('How students are checked'));
+      fireEvent.click(screen.getByRole('radio', { name: 'Speak' }));
+      fireEvent.change(await screen.findByLabelText('Level'), {
+        target: { value: 'advanced' },
+      });
+      fireEvent.change(screen.getByLabelText('Attempts per card'), {
+        target: { value: '5' },
+      });
+      fireEvent.click(screen.getByRole('switch', { name: 'Hear it button' }));
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      const choice = lastSubmission(onAssign).input.speakChoice;
+      expect(choice).toMatchObject({
+        preset: 'advanced',
+        strict: true,
+        attempts: 5,
+        example: false,
+      });
+      await waitFor(() => expect(lastUsed.save).toHaveBeenCalled());
+      expect(
+        (lastUsed.save.mock.calls[0][0] as FlashcardAssignRules).speak
+      ).toEqual({
+        preset: 'advanced',
+        strict: true,
+        attempts: 5,
+        example: false,
+      });
+    });
+
+    it('starts from the last Speak rules on a study assignment', async () => {
+      lastUsed.value = {
+        ...DEFAULT_FLASHCARD_ASSIGN_FORM,
+        speak: {
+          preset: 'beginner',
+          strict: false,
+          attempts: 7,
+          example: true,
+        },
+      };
+      const { onAssign } = renderStepper({ v2: true, canSpeak: true });
+      fireEvent.click(screen.getByRole('radio', { name: /Study resource/ }));
+      fireEvent.click(screen.getByText('Speak'));
+      expect(
+        (await screen.findByLabelText<HTMLSelectElement>('Attempts per card'))
+          .value
+      ).toBe('7');
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      expect(lastSubmission(onAssign).input.speakChoice).toMatchObject({
+        preset: 'beginner',
+        attempts: 7,
+      });
+    });
+
+    it('sends no Speak rules when Speak is off for the study assignment', async () => {
+      const { onAssign } = renderStepper({ v2: true, canSpeak: true });
+      fireEvent.click(screen.getByRole('radio', { name: /Study resource/ }));
+      fireEvent.click(screen.getByText('Speak'));
+      await screen.findByLabelText('Level');
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Let students practice aloud' })
+      );
+      expect(screen.queryByLabelText('Level')).toBeNull();
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      expect(lastSubmission(onAssign).input.speakChoice).toBeUndefined();
     });
   });
 });

@@ -860,6 +860,92 @@ interface TeacherAcc {
   scoreCount: number;
 }
 
+/** Per-target (or, with `standards`, per-standard) rows; personal targets never cross into a PLC aggregate. */
+export function buildAggregateTargetRows(
+  questions: ReadonlyArray<{ id: string; targets: QuestionTargetSnapshot[] }>,
+  stats: ReadonlyMap<string, { graded: number; credit: number }>,
+  standards: boolean
+): AggregateTargetRow[] {
+  const groups = new Map<
+    string,
+    { target: QuestionTargetSnapshot; questionIds: Set<string> }
+  >();
+  const add = (target: QuestionTargetSnapshot, questionId: string) => {
+    const current = groups.get(target.id);
+    if (current) {
+      current.questionIds.add(questionId);
+      const incomingRich = target.label !== (target.code ?? target.id);
+      const currentRich =
+        current.target.label !== (current.target.code ?? current.target.id);
+      if (incomingRich || !currentRich) current.target = target;
+    } else {
+      groups.set(target.id, {
+        target,
+        questionIds: new Set([questionId]),
+      });
+    }
+  };
+  for (const question of questions) {
+    for (const target of question.targets) {
+      // Personal targets live in a teacher-private document. They may be
+      // useful in that teacher's results, but must not cross the PLC
+      // aggregate boundary through either their label or linked standards.
+      if (target.kind === 'personal') continue;
+      if (!standards) {
+        add(target, question.id);
+      } else if (target.kind === 'standard') {
+        add(target, question.id);
+        const parent = parentStandardTag(target);
+        if (parent) add(parent, question.id);
+      } else {
+        for (const standardId of new Set(target.standardIds ?? [])) {
+          const code = standardId.includes(':')
+            ? standardId.slice(standardId.indexOf(':') + 1)
+            : standardId;
+          add(
+            { id: standardId, kind: 'standard', code, label: code },
+            question.id
+          );
+        }
+      }
+    }
+  }
+  const order = new Map(
+    questions.map((question, index) => [question.id, index])
+  );
+  return Array.from(groups.values())
+    .map(({ target, questionIds }) => {
+      const ids = Array.from(questionIds).sort(
+        (a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)
+      );
+      const attempted = ids.reduce(
+        (sum, id) => sum + (stats.get(id)?.graded ?? 0),
+        0
+      );
+      const credit = ids.reduce(
+        (sum, id) => sum + (stats.get(id)?.credit ?? 0),
+        0
+      );
+      return {
+        targetId: target.id,
+        kind: target.kind,
+        ...(target.code ? { code: target.code } : {}),
+        label: target.label,
+        questionIds: ids,
+        attempted,
+        correctPercent: attempted > 0 ? pct(credit, attempted) : 0,
+        lowSample: attempted < 5,
+      };
+    })
+    .sort((a, b) =>
+      `${a.code ?? ''} ${a.label}`.localeCompare(
+        `${b.code ?? ''} ${b.label}`,
+        undefined,
+        { numeric: true, sensitivity: 'base' }
+      )
+    );
+}
+
 /** Deterministic, anonymized rollup: counts and averages only, never a student name or free-text answer. */
 export function computeAssessmentAggregate(
   input: ComputeInput
@@ -1056,89 +1142,8 @@ export function computeAssessmentAggregate(
     };
   });
 
-  const buildTargetRows = (standards: boolean): AggregateTargetRow[] => {
-    const groups = new Map<
-      string,
-      { target: QuestionTargetSnapshot; questionIds: Set<string> }
-    >();
-    const add = (target: QuestionTargetSnapshot, questionId: string) => {
-      const current = groups.get(target.id);
-      if (current) {
-        current.questionIds.add(questionId);
-        const incomingRich = target.label !== (target.code ?? target.id);
-        const currentRich =
-          current.target.label !== (current.target.code ?? current.target.id);
-        if (incomingRich || !currentRich) current.target = target;
-      } else {
-        groups.set(target.id, {
-          target,
-          questionIds: new Set([questionId]),
-        });
-      }
-    };
-    for (const question of input.groupQuestions) {
-      for (const target of question.targets) {
-        // Personal targets live in a teacher-private document. They may be
-        // useful in that teacher's results, but must not cross the PLC
-        // aggregate boundary through either their label or linked standards.
-        if (target.kind === 'personal') continue;
-        if (!standards) {
-          add(target, question.id);
-        } else if (target.kind === 'standard') {
-          add(target, question.id);
-          const parent = parentStandardTag(target);
-          if (parent) add(parent, question.id);
-        } else {
-          for (const standardId of new Set(target.standardIds ?? [])) {
-            const code = standardId.includes(':')
-              ? standardId.slice(standardId.indexOf(':') + 1)
-              : standardId;
-            add(
-              { id: standardId, kind: 'standard', code, label: code },
-              question.id
-            );
-          }
-        }
-      }
-    }
-    const order = new Map(
-      input.groupQuestions.map((question, index) => [question.id, index])
-    );
-    return Array.from(groups.values())
-      .map(({ target, questionIds }) => {
-        const ids = Array.from(questionIds).sort(
-          (a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)
-        );
-        const attempted = ids.reduce(
-          (sum, id) => sum + (acc.get(id)?.graded ?? 0),
-          0
-        );
-        const credit = ids.reduce(
-          (sum, id) => sum + (acc.get(id)?.credit ?? 0),
-          0
-        );
-        return {
-          targetId: target.id,
-          kind: target.kind,
-          ...(target.code ? { code: target.code } : {}),
-          label: target.label,
-          questionIds: ids,
-          attempted,
-          correctPercent: attempted > 0 ? pct(credit, attempted) : 0,
-          lowSample: attempted < 5,
-        };
-      })
-      .sort((a, b) =>
-        `${a.code ?? ''} ${a.label}`.localeCompare(
-          `${b.code ?? ''} ${b.label}`,
-          undefined,
-          { numeric: true, sensitivity: 'base' }
-        )
-      );
-  };
-
-  const perTarget = buildTargetRows(false);
-  const perStandard = buildTargetRows(true);
+  const perTarget = buildAggregateTargetRows(input.groupQuestions, acc, false);
+  const perStandard = buildAggregateTargetRows(input.groupQuestions, acc, true);
 
   const perTeacher: AggregatePerTeacher[] = Array.from(teachers.entries())
     .map(([teacherUid, t]) => ({

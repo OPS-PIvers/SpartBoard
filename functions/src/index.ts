@@ -242,6 +242,7 @@ export {
   markPlcAssessmentDirtyOnResponse,
   markPlcAssessmentDirtyOnFlashcardSession,
   markPlcAssessmentDirtyOnFlashcardProgress,
+  markPlcAssessmentDirtyOnFlashcardSet,
 } from './markPlcAssessmentDirty';
 export { recomputePlcAssessments } from './recomputePlcAssessments';
 

@@ -93,6 +93,9 @@ export interface DataOverviewInput {
   heroRef: TeamHeroRef | null;
   /** Fixture override for chart labels. */
   shortTitles?: Record<string, string>;
+  /** flashcards-assign-v2: also flashcard checks, for target and standard mastery across assessments. */
+  masteryAggregates?: readonly PlcAssessmentAggregate[];
+  masteryAssessments?: readonly PlcCommonAssessment[];
 }
 
 /** Axis label for an assessment: its unit label, else a clipped title. */
@@ -277,14 +280,23 @@ export function buildDataOverviewModel(
 export function findTargetMastery(
   input: Pick<
     DataOverviewInput,
-    'aggregates' | 'assessments' | 'targets' | 'cutoffs'
+    | 'aggregates'
+    | 'assessments'
+    | 'targets'
+    | 'cutoffs'
+    | 'masteryAggregates'
+    | 'masteryAssessments'
   >,
   targetId: string
 ): MasteryRow | null {
-  const mastery = buildMasteryByTarget(input.aggregates, input.targets, {
-    assessments: input.assessments,
-    cutoffs: input.cutoffs ?? DEFAULT_MASTERY_CUTOFFS,
-  });
+  const mastery = buildMasteryByTarget(
+    input.masteryAggregates ?? input.aggregates,
+    input.targets,
+    {
+      assessments: input.masteryAssessments ?? input.assessments,
+      cutoffs: input.cutoffs ?? DEFAULT_MASTERY_CUTOFFS,
+    }
+  );
   if (!mastery.tagged) return null;
   return (
     [...mastery.targets, ...mastery.standards].find(
@@ -297,13 +309,22 @@ export function findTargetMastery(
 export function lowestTargetId(
   input: Pick<
     DataOverviewInput,
-    'aggregates' | 'assessments' | 'targets' | 'cutoffs'
+    | 'aggregates'
+    | 'assessments'
+    | 'targets'
+    | 'cutoffs'
+    | 'masteryAggregates'
+    | 'masteryAssessments'
   >
 ): string | null {
-  const mastery = buildMasteryByTarget(input.aggregates, input.targets, {
-    assessments: input.assessments,
-    cutoffs: input.cutoffs ?? DEFAULT_MASTERY_CUTOFFS,
-  });
+  const mastery = buildMasteryByTarget(
+    input.masteryAggregates ?? input.aggregates,
+    input.targets,
+    {
+      assessments: input.masteryAssessments ?? input.assessments,
+      cutoffs: input.cutoffs ?? DEFAULT_MASTERY_CUTOFFS,
+    }
+  );
   if (!mastery.tagged) return null;
   let lowest: MasteryRow | null = null;
   for (const row of [...mastery.targets, ...mastery.standards]) {

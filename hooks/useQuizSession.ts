@@ -8,6 +8,7 @@
  */
 
 import { alignedOrderingImages } from '@/utils/quizOrderingImages';
+import { imagesForLabels } from '@/utils/quizAnswerImages';
 import { stripRubricExamples } from '@/utils/rubricGuide';
 import {
   useState,
@@ -573,6 +574,8 @@ export function toPublicQuestion(
     const english = [q.correctAnswer, ...q.incorrectAnswers.filter(Boolean)];
     const permutation = randomPermutation(english.length);
     base.choices = permutation.map((i) => english[i]);
+    const images = imagesForLabels(base.choices, q.answerImages);
+    if (images) base.choiceImages = images;
     for (const [loc, tr] of entries) {
       const choices = permuteAligned(tr.choices, english.length, permutation);
       if (choices && !introducesAmbiguity(choices, english))
@@ -582,6 +585,8 @@ export function toPublicQuestion(
     const english = multiAnswerOptions(q);
     const permutation = randomPermutation(english.length);
     base.choices = permutation.map((i) => english[i]);
+    const images = imagesForLabels(base.choices, q.answerImages);
+    if (images) base.choiceImages = images;
     for (const [loc, tr] of entries) {
       const choices = permuteAligned(tr.choices, english.length, permutation);
       if (
@@ -605,6 +610,10 @@ export function toPublicQuestion(
     const englishRight = [...pairs.map((p) => p.right), ...distractors];
     const permutation = randomPermutation(englishRight.length);
     base.matchingRight = permutation.map((i) => englishRight[i]);
+    const leftImages = imagesForLabels(base.matchingLeft, q.matchingTermImages);
+    if (leftImages) base.matchingLeftImages = leftImages;
+    const rightImages = imagesForLabels(base.matchingRight, q.answerImages);
+    if (rightImages) base.matchingRightImages = rightImages;
     for (const [loc, tr] of entries) {
       const englishLeft = pairs.map((p) => p.left);
       const left = permuteAligned(

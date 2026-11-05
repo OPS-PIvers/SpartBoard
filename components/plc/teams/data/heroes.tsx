@@ -12,6 +12,7 @@ import { TargetHeroView } from './TargetHeroView';
 import {
   findTargetMastery,
   lowestTargetId,
+  shortTitleFor,
   type DataOverviewModel,
 } from './dataOverviewModel';
 import type { TeamHeroProps } from '@/components/plc/teams/types';
@@ -81,13 +82,18 @@ export const TargetHeroFromInput: React.FC<{
 }> = ({ input, model, targetId, isLead, pinnedBy }) => {
   const { openLayoutEditor } = useTeamShellActions();
   const titles: Record<string, string> = {};
-  for (const a of input.assessments) titles[a.id] = a.title;
-  for (const a of input.aggregates) titles[a.assessmentId] ??= a.title ?? '';
+  for (const a of input.masteryAssessments ?? input.assessments)
+    titles[a.id] = a.title;
+  for (const a of input.masteryAggregates ?? input.aggregates)
+    titles[a.assessmentId] ??= a.title ?? '';
+  const shortTitles = { ...model.shortTitles };
+  for (const a of input.masteryAssessments ?? input.assessments)
+    shortTitles[a.id] ??= shortTitleFor(a.title, a);
   return (
     <TargetHeroView
       row={findTargetMastery(input, targetId)}
       titles={titles}
-      shortTitles={model.shortTitles}
+      shortTitles={shortTitles}
       cutoffs={model.cutoffs}
       isLead={isLead}
       pinnedBy={pinnedBy}

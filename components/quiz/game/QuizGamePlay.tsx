@@ -63,6 +63,7 @@ import {
 } from '@/utils/quizGame';
 import { CollapsibleStimuli } from '../QuizStimulusView';
 import { FibMultiBlankInput, NumberedBlanksText } from '../FibMultiBlankInput';
+import { AnswerImage, AnswerLabel } from '../AnswerImage';
 import { MatchingResponseInput } from '../MatchingResponseInput';
 import { OrderingResponseInput } from '../OrderingResponseInput';
 import { loadGamePicks, saveGamePicks } from './gamePicks';
@@ -705,6 +706,10 @@ const GameQuestion: React.FC<{
       ? structuredComplete(question, draft)
       : answer.length > 0;
   const choices = question.choices ?? [];
+  const choiceImages =
+    question.choiceImages?.length === choices.length
+      ? question.choiceImages
+      : undefined;
   const picked = new Set(parseMultiAnswer(draft));
 
   return (
@@ -733,7 +738,7 @@ const GameQuestion: React.FC<{
 
       {question.type === 'MC' && (
         <div className="grid gap-3 sm:grid-cols-2">
-          {choices.map((choice) => (
+          {choices.map((choice, i) => (
             <button
               // no-tour-anchor: student quiz screen; tours walk teachers
               key={choice}
@@ -742,7 +747,7 @@ const GameQuestion: React.FC<{
               onClick={() => onSubmit(choice)}
               className="min-h-14 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-left font-bold text-slate-800 transition-colors hover:border-brand-blue-primary hover:bg-brand-blue-lighter disabled:opacity-60"
             >
-              {choice}
+              <AnswerLabel label={choice} image={choiceImages?.[i]} large />
             </button>
           ))}
         </div>
@@ -750,7 +755,7 @@ const GameQuestion: React.FC<{
 
       {question.type === 'MA' && (
         <div className="grid gap-3 sm:grid-cols-2">
-          {choices.map((choice) => {
+          {choices.map((choice, i) => {
             const on = picked.has(choice);
             return (
               <button
@@ -782,6 +787,9 @@ const GameQuestion: React.FC<{
                 >
                   {on && <Check className="h-3.5 w-3.5" />}
                 </span>
+                {choiceImages?.[i] && (
+                  <AnswerImage src={choiceImages[i]} large />
+                )}
                 {choice}
               </button>
             );

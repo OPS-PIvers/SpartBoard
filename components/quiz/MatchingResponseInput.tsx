@@ -27,6 +27,7 @@ import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { QuizPublicQuestion } from '@/types';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
+import { AnswerImage, AnswerLabel } from './AnswerImage';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
@@ -56,6 +57,7 @@ function shuffle<T>(arr: T[]): T[] {
 interface DraggableChipProps {
   id: string;
   label: string;
+  image?: string;
   selected: boolean;
   disabled?: boolean;
   onTap: () => void;
@@ -70,6 +72,7 @@ interface DraggableChipProps {
 const DraggableChip: React.FC<DraggableChipProps> = ({
   id,
   label,
+  image,
   selected,
   disabled,
   onTap,
@@ -107,7 +110,7 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
       aria-label={ariaLabel ?? label}
       title={label}
     >
-      {label}
+      <AnswerLabel label={label} image={image} />
     </button>
   );
 };
@@ -204,6 +207,14 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
     () => question.matchingRight ?? [],
     [question.matchingRight]
   );
+  const termImages =
+    question.matchingLeftImages?.length === terms.length
+      ? question.matchingLeftImages
+      : undefined;
+  const optionImages =
+    question.matchingRightImages?.length === allOptions.length
+      ? question.matchingRightImages
+      : undefined;
 
   // ─── Initial state ────────────────────────────────────────────────────────
   // Map term -> placed option index (into allOptions). null = empty zone.
@@ -425,7 +436,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
       <div className="space-y-4">
         {/* Term + zone rows */}
         <div className="space-y-2">
-          {terms.map((term) => {
+          {terms.map((term, termIndex) => {
             const placedIdx = zonePlacements[term];
             const placedLabel =
               placedIdx !== null && placedIdx !== undefined
@@ -439,6 +450,9 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                   className={`flex w-1/2 items-center gap-2 rounded-xl text-sm font-bold wrap-break-word ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
                   title={term}
                 >
+                  {termImages?.[termIndex] && (
+                    <AnswerImage src={termImages[termIndex]} />
+                  )}
                   <span className="min-w-0 flex-1">{term}</span>
                   {speaker('matchingLeft', term)}
                 </span>
@@ -449,6 +463,11 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                     <DraggableChip
                       id={`zone-${term}`}
                       label={placedLabel}
+                      image={
+                        placedIdx !== null && placedIdx !== undefined
+                          ? optionImages?.[placedIdx]
+                          : undefined
+                      }
                       selected={placedSelected}
                       disabled={disabled}
                       onTap={() => handleZoneChipTap(term)}
@@ -512,6 +531,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                   <DraggableChip
                     id={`bank-${optionIndex}`}
                     label={allOptions[optionIndex]}
+                    image={optionImages?.[optionIndex]}
                     selected={selected}
                     disabled={disabled}
                     onTap={() => handleBankChipTap(optionIndex)}

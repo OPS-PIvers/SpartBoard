@@ -7,6 +7,7 @@ import type {
   FlashcardScoreVisibility,
   FlashcardSet,
   FlashcardSide,
+  FlashcardSpeakChoice,
   FlashcardSpeakSettings,
   FlashcardSpeakStudentSettings,
   FlashcardsSpeakAdminConfig,
@@ -317,6 +318,65 @@ export function buildSpeakStamp(
     example: true,
     unclearConfidence: adminConfig.unclearConfidence,
     locked: lock,
+  };
+}
+
+/** The set with the assign-time Speak choice laid over its own settings (dialects stay the set's). */
+export const withSpeakChoice = <
+  T extends Pick<FlashcardSet, 'termLanguage' | 'speak'>,
+>(
+  set: T,
+  choice: FlashcardSpeakChoice | undefined
+): T => {
+  if (!choice) return set;
+  const language = speakLanguageOf(set.termLanguage);
+  if (!language) return set;
+  const ids = speakGroupIds(language);
+  const fits = Object.keys(choice.groups).every((id) => ids.includes(id));
+  // A named level's groups follow the set's current language; a Custom from another language becomes Intermediate.
+  const preset: SpeakPreset =
+    choice.preset === 'custom' && !fits ? 'intermediate' : choice.preset;
+  const groups =
+    preset === 'custom'
+      ? choice.groups
+      : speakPresetSettings(language, preset).groups;
+  return {
+    ...set,
+    speak: {
+      dialects: set.speak?.dialects ?? [],
+      ...choice,
+      preset,
+      groups,
+    },
+  };
+};
+
+/** A stored choice, or undefined; buildSpeakStamp cleans each field. */
+export function parseSpeakChoice(
+  raw: unknown
+): FlashcardSpeakChoice | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const r = raw as Record<string, unknown>;
+  if (
+    !(['beginner', 'intermediate', 'advanced', 'custom'] as const).includes(
+      r.preset as SpeakPreset
+    ) ||
+    typeof r.strict !== 'boolean' ||
+    typeof r.attempts !== 'number' ||
+    !Number.isFinite(r.attempts) ||
+    typeof r.example !== 'boolean' ||
+    !r.groups ||
+    typeof r.groups !== 'object' ||
+    Array.isArray(r.groups)
+  ) {
+    return undefined;
+  }
+  return {
+    preset: r.preset as SpeakPreset,
+    strict: r.strict,
+    attempts: r.attempts,
+    example: r.example,
+    groups: r.groups,
   };
 }
 

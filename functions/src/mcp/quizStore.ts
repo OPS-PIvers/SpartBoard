@@ -139,6 +139,8 @@ const KEY_FIELDS = [
 ] as const;
 /** Type-specific extras that no longer make sense once the type changes. */
 const TYPE_BOUND_EXTRAS = [
+  'answerImages',
+  'matchingTermImages',
   'recording',
   'rubricId',
   'rubricSnapshot',

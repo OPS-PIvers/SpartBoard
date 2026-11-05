@@ -54,6 +54,7 @@ import { useAuth } from '@/context/useAuth';
 import {
   MatchingAnswerEditor,
   OrderingAnswerEditor,
+  type MatchingAnswerEditorProps,
 } from './MatchingOrderingEditor';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { DraftNumberInput } from './DraftNumberInput';
@@ -788,7 +789,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // would otherwise be a fresh closure each render).
   const selectedQuestionId = selectedQuestion?.id ?? null;
   const handleMatchingChange = useCallback(
-    (next: { correctAnswer: string; matchingDistractors: string[] }) => {
+    (next: Parameters<MatchingAnswerEditorProps['onChange']>[0]) => {
       if (selectedQuestionId) updateQuestion(selectedQuestionId, next);
     },
     [selectedQuestionId, updateQuestion]
@@ -816,13 +817,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     canAccessFeature,
   });
   const uploadWhiteboardImage = useWhiteboardImageUpload();
-  const orderingImagesOn = canAccessFeature('quiz-ordering-images');
-  const uploadOrderingImage = useCallback(
+  const answerImagesOn = canAccessFeature('quiz-ordering-images');
+  const uploadAnswerImage = useCallback(
     async (file: File): Promise<string | null> => {
       // A neutral name: a timestamp or original file name could give away the order.
       const uploaded = await uploadWhiteboardImage(
         file,
-        `ordering-item-${crypto.randomUUID()}`
+        `quiz-answer-${crypto.randomUUID()}`
       );
       return uploaded ? driveImageUrl(uploaded.driveFileId) : null;
     },
@@ -831,6 +832,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const rubricVisibilityOn = canAccessFeature('quiz-rubric-visibility');
   const spellCheckToggleOn = canAccessFeature('quiz-spell-check-toggle');
   const promptRef = useRef<HTMLTextAreaElement>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
   const readPrompt = useCallback(() => promptRef.current?.value, []);
   const targetsRef = useRef(selectedQuestion?.targets);
   useLayoutEffect(() => {
@@ -937,7 +939,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
 
   return (
     // Not `relative`: the rubric builder anchors to the modal body so it can span both panes.
-    <div className="flex flex-col h-full">
+    // Focusable so a click on empty space still aims a paste at this question.
+    <div
+      ref={paneRef}
+      tabIndex={-1}
+      className="flex flex-col h-full outline-hidden"
+    >
       <div className="px-5 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
         <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
           Question {selectedIndex + 1} of {questions.length}
@@ -1124,6 +1131,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               key={q.id}
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
+              onUploadImage={answerImagesOn ? uploadAnswerImage : undefined}
             />
             <NeedsAnswerNotice
               question={q}
@@ -1132,7 +1140,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         ) : q.type === 'Matching' ? (
           <MatchingAnswerEditor
+            key={q.id}
             correctAnswer={q.correctAnswer}
+            answerImages={q.answerImages}
+            termImages={q.matchingTermImages}
+            onUploadImage={answerImagesOn ? uploadAnswerImage : undefined}
             matchingDistractors={
               q.matchingDistractors ?? (EMPTY_DISTRACTORS as string[])
             }
@@ -1144,11 +1156,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             correctAnswer={q.correctAnswer}
             orderingImages={q.orderingImages}
             onChange={handleOrderingChange}
-            onUploadImage={
-              orderingImagesOn || q.orderingImages?.some(Boolean)
-                ? uploadOrderingImage
-                : undefined
-            }
+            onUploadImage={answerImagesOn ? uploadAnswerImage : undefined}
           />
         ) : isFreeResponseType(q.type) ? (
           <div className="space-y-3">
@@ -1273,6 +1281,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           state={state}
           questionId={q.id}
           calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+          pasteScopeRef={answerImagesOn ? paneRef : undefined}
         />
       </div>
 

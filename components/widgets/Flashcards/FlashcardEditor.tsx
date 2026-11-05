@@ -34,6 +34,7 @@ import type {
   SpeakDialect,
   SpeakLanguage,
 } from '@/types';
+import { FlashcardSetTargetsField } from './FlashcardSetTargetsField';
 import { FlashcardLanguageField } from './FlashcardLanguageField';
 import { PasteImportDrawer } from './PasteImportDrawer';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -239,10 +240,12 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
   speakLookup,
 }) => {
   const { t } = useTranslation();
-  const canSpeak =
-    useContext(AuthContext)?.canAccessFeature('flashcards-speak') ?? false;
+  const auth = useContext(AuthContext);
+  const canSpeak = auth?.canAccessFeature('flashcards-speak') ?? false;
+  const canTag = auth?.canAccessFeature('flashcards-assign-v2') ?? false;
   const [title, setTitle] = useState(initialSet.title);
   const [description, setDescription] = useState(initialSet.description ?? '');
+  const [targets, setTargets] = useState(initialSet.targets);
   const [termLanguage, setTermLanguage] = useState(initialSet.termLanguage);
   const [definitionLanguage, setDefinitionLanguage] = useState(
     initialSet.definitionLanguage
@@ -433,10 +436,15 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
       : speakSettings && (speakEdit?.language === speakLanguage || savedSpeak)
         ? speakSettings
         : undefined;
-    const { speak: _previousSpeak, ...rest } = initialSet;
+    const {
+      speak: _previousSpeak,
+      targets: _previousTargets,
+      ...rest
+    } = initialSet;
     await onSave({
       ...rest,
       ...(speak ? { speak } : {}),
+      ...(targets?.length ? { targets } : {}),
       title: title.trim(),
       description: description.trim(),
       termLanguage: termLanguage.trim() || 'en-US',
@@ -624,6 +632,14 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                   )}
                 />
               </label>
+              {canTag && (
+                <div className="[@container(min-width:680px)]:col-span-2">
+                  <FlashcardSetTargetsField
+                    targets={targets}
+                    onChange={setTargets}
+                  />
+                </div>
+              )}
               <FlashcardLanguageField
                 label="Term language"
                 value={termLanguage}

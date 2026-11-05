@@ -30,6 +30,8 @@ import {
 import { speakLanguageOf } from '@/config/pronunciationGroups';
 import {
   buildSpeakStamp,
+  parseSpeakChoice,
+  withSpeakChoice,
   speakCardsFor,
   type FlashcardSpeakStamp,
 } from '@/components/widgets/Flashcards/utils/flashcardAssign';
@@ -142,7 +144,10 @@ const rewriteOpenStudySessions = async (
       sessionDoc.get('speakOff') === true
         ? undefined
         : stampFor(
-            set,
+            withSpeakChoice(
+              set,
+              parseSpeakChoice(sessionDoc.get('speakChoice'))
+            ),
             adminConfig,
             (previous as { locked?: unknown } | undefined)?.locked === true
           );
@@ -184,8 +189,9 @@ const speakFitsLanguage = (
   return speak.refs.every((ref) => ref.dialect.split('-')[0] === primary);
 };
 
-const normalizeSet = (set: FlashcardSet): FlashcardSet => ({
+const normalizeSet = ({ targets, ...set }: FlashcardSet): FlashcardSet => ({
   ...withoutClaudeReview(set),
+  ...(targets && targets.length > 0 ? { targets } : {}),
   title: set.title.trim(),
   description: set.description?.trim() ?? '',
   termLanguage: set.termLanguage.trim() || 'en-US',

@@ -17,8 +17,11 @@ import type {
 } from '@/types';
 import {
   SPEAK_DIALECTS,
+  speakGroupIds,
+  speakLanguageOf,
   speakPresetSettings,
 } from '@/config/pronunciationGroups';
+import { clampSpeakAttempts } from '@/config/flashcardsSpeakAdmin';
 import { buildSpeakStamp } from '../utils/flashcardAssign';
 import { tokenizeIpa } from '@/utils/pronunciation/tokenizeIpa';
 import {
@@ -110,6 +113,45 @@ export const setSpeakStrict = (
         : 'custom',
   };
 };
+
+/** The assign step's starting Speak rules: the teacher's last pick, else the set's, else the district's. */
+export function initialAssignSpeakSettings(
+  termLanguage: string,
+  own: FlashcardSpeakSettings | undefined,
+  adminConfig: FlashcardsSpeakAdminConfig,
+  last:
+    | (Pick<
+        FlashcardSpeakSettings,
+        'preset' | 'strict' | 'attempts' | 'example'
+      > &
+        Partial<Pick<FlashcardSpeakSettings, 'groups'>>)
+    | null
+): FlashcardSpeakSettings | null {
+  const base = initialSpeakSettings(
+    termLanguage,
+    last ? undefined : own,
+    adminConfig
+  );
+  const language = speakLanguageOf(termLanguage);
+  if (!base || !last || !language) return base;
+  const ids = speakGroupIds(language);
+  const customFits =
+    last.preset === 'custom' &&
+    !!last.groups &&
+    Object.keys(last.groups).every((id) => ids.includes(id));
+  const leveled = customFits
+    ? { ...base, preset: 'custom' as const, groups: { ...last.groups } }
+    : last.preset === 'custom'
+      ? base
+      : applySpeakPreset(base, language, last.preset);
+  return {
+    ...(customFits
+      ? { ...leveled, strict: last.strict }
+      : setSpeakStrict(leveled, last.strict)),
+    attempts: clampSpeakAttempts(last.attempts, base.attempts),
+    example: last.example,
+  };
+}
 
 /** The card's references were computed for its current term. */
 export const speakForTerm = (

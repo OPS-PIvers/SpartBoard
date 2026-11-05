@@ -1077,9 +1077,10 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
   },
   'quiz-ordering-images': {
-    label: 'Ordering item images',
+    label: 'Quiz answer images',
     icon: ImagePlus,
-    description: 'Add an image to each item in an Ordering question.',
+    description:
+      'Add or paste an image on any answer, and paste images into a question.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',

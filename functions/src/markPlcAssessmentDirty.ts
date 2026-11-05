@@ -261,6 +261,46 @@ export async function handleFlashcardProgressWrite(
   }
 }
 
+/** Set handler body: new set tags dirty every PLC result the set's checks feed, so standards catch up. */
+export async function handleFlashcardSetWrite(
+  db: Firestore,
+  uid: string,
+  setId: string,
+  change: Change | undefined
+): Promise<void> {
+  if (!change) return;
+  const before = change.before.exists ? change.before.data()?.targets : null;
+  const after = change.after.exists ? change.after.data()?.targets : null;
+  if (JSON.stringify(before ?? null) === JSON.stringify(after ?? null)) return;
+  try {
+    const sessionsSnap = await db
+      .collection('flashcard_sessions')
+      .where('teacherUid', '==', uid)
+      .where('setId', '==', setId)
+      .get();
+    const seen = new Set<string>();
+    for (const doc of sessionsSnap.docs) {
+      const session = parseLinkedFlashcardSession(doc.data());
+      if (!session || seen.has(pairKey(session))) continue;
+      seen.add(pairKey(session));
+      // A tag edit adds no results, so it never recreates a deleted assessment.
+      const live = await findLiveAssessment(
+        db,
+        session.plcId,
+        session.syncGroupId
+      );
+      if (live && live.dirtyAt == null)
+        await setDirtyAt(db, session.plcId, live.id, Date.now());
+    }
+  } catch (err) {
+    logger.error('markPlcAssessmentDirty: flashcard set handler failed', {
+      uid,
+      setId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 function pairKey(s: LinkedSession): string {
   return `${s.plcId}\0${s.syncGroupId}`;
 }
@@ -383,6 +423,22 @@ export const markPlcAssessmentDirtyOnFlashcardProgress = onDocumentWritten(
     await handleFlashcardProgressWrite(
       admin.firestore(),
       event.params.sessionId,
+      event.data
+    );
+  }
+);
+
+export const markPlcAssessmentDirtyOnFlashcardSet = onDocumentWritten(
+  {
+    document: 'users/{uid}/flashcard_sets/{setId}',
+    memory: '256MiB',
+    maxInstances: 10,
+  },
+  async (event) => {
+    await handleFlashcardSetWrite(
+      admin.firestore(),
+      event.params.uid,
+      event.params.setId,
       event.data
     );
   }

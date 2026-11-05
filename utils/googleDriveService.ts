@@ -1,4 +1,4 @@
-import { APP_NAME } from '@/config/constants';
+import { DRIVE_APP_FOLDER } from '@/config/devProject';
 import { Dashboard } from '@/types';
 import { authError } from './driveAuthErrors';
 import { isInAppFolder, type DriveParentMeta } from './driveAppFolder';
@@ -266,7 +266,7 @@ export class GoogleDriveService {
    * Get the main app folder.
    */
   async getAppFolder(): Promise<string> {
-    return this.getOrCreateFolder(APP_NAME);
+    return this.getOrCreateFolder(DRIVE_APP_FOLDER);
   }
 
   /**
@@ -278,7 +278,7 @@ export class GoogleDriveService {
    */
   async hasExistingAppFolder(): Promise<boolean> {
     try {
-      const folderId = await this.findFolder(APP_NAME, 'root');
+      const folderId = await this.findFolder(DRIVE_APP_FOLDER, 'root');
       if (folderId) return true;
       // Fall back to the legacy folder name in case the rename migration
       // hasn't run yet for this user.

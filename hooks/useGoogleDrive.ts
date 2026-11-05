@@ -3,6 +3,7 @@ import { useAuth } from '@/context/useAuth';
 import { GoogleDriveService } from '@/utils/googleDriveService';
 import { isDriveAuthError, onDriveTokenChange } from '@/utils/driveAuthErrors';
 import { APP_NAME } from '@/config/constants';
+import { DRIVE_APP_FOLDER, IS_DEV_PROJECT } from '@/config/devProject';
 import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 
 const BACKGROUNDS_FOLDER = 'Backgrounds';
@@ -48,7 +49,13 @@ export const useGoogleDrive = () => {
   // state when the user's token has expired, and the toast already prompts
   // them to reconnect.
   useEffect(() => {
-    if (!driveService || !user?.uid || viewAsSuppressesBackgroundWrites())
+    // Dev never renames a folder: the legacy one belongs to prod.
+    if (
+      IS_DEV_PROJECT ||
+      !driveService ||
+      !user?.uid ||
+      viewAsSuppressesBackgroundWrites()
+    )
       return;
     const key = migrationKey(user.uid);
     if (localStorage.getItem(key)) return;
@@ -106,7 +113,7 @@ export const useGoogleDrive = () => {
     if (!driveService) return [];
 
     // Read-only lookup — never creates the app or Backgrounds folder
-    const appFolderId = await driveService.findFolder(APP_NAME);
+    const appFolderId = await driveService.findFolder(DRIVE_APP_FOLDER);
     if (!appFolderId) return [];
 
     const bgFolderId = await driveService.findFolder(

@@ -1188,6 +1188,38 @@ export const TOUR_ANCHORS = {
     label: 'Lock Speak settings switch in the Assign dialog Speak step',
     panel: true,
   },
+  'flashcards-speak.level': {
+    label: 'Speak Level dropdown in the Flashcards Assign dialog',
+    panel: true,
+  },
+  'flashcards-speak.attempts': {
+    label: 'Speak Attempts per card dropdown in the Flashcards Assign dialog',
+    panel: true,
+  },
+  'flashcards-speak.strict': {
+    label: 'Speak Strict switch in the Flashcards Assign dialog',
+    panel: true,
+  },
+  'flashcards-speak.example': {
+    label: 'Speak Hear it button switch in the Flashcards Assign dialog',
+    panel: true,
+  },
+  'flashcards-check.speak-level': {
+    label: 'Speak Level dropdown in the Flashcards check step',
+    panel: true,
+  },
+  'flashcards-check.speak-attempts': {
+    label: 'Speak Attempts per card dropdown in the Flashcards check step',
+    panel: true,
+  },
+  'flashcards-check.speak-strict': {
+    label: 'Speak Strict switch in the Flashcards check step',
+    panel: true,
+  },
+  'flashcards-check.speak-example': {
+    label: 'Speak Hear it button switch in the Flashcards check step',
+    panel: true,
+  },
   'flashcards-cards.mode': {
     label:
       'All, random or chosen cards switch in the Flashcards assign Cards step',
@@ -1930,6 +1962,50 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.order-remove': {
     label: 'Remove ordering item in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.option-image': {
+    label: 'Add image to answer option in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.option-image-remove': {
+    label: 'Remove answer option image in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.match-term-image': {
+    label: 'Add image to matching term in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-term-image-remove': {
+    label: 'Remove matching term image in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.match-definition-image': {
+    label: 'Add image to matching answer in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-definition-image-remove': {
+    label: 'Remove matching answer image in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.match-distractor-image': {
+    label: 'Add image to matching distractor in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-distractor-image-remove': {
+    label: 'Remove matching distractor image in the Quiz editor',
     perField: true,
     destructive: true,
     panel: true,

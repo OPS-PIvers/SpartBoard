@@ -248,6 +248,28 @@ describe('useFlashcardSets Speak stamp (F21)', () => {
     expect(opFor('flashcard_sessions/session-0')?.data.cards).toEqual(saved);
   });
 
+  it('re-stamps with the rules picked when assigning, not the set’s', async () => {
+    const speakChoice = {
+      preset: 'beginner' as const,
+      strict: false,
+      groups: { 'es-trill': 'forgive' as const },
+      attempts: 2,
+      example: true,
+    };
+    openSessions([{ speak: { locked: false }, speakChoice }]);
+    const { result } = renderHook(() => useFlashcardSets(TEACHER), {
+      wrapper: wrapper(true),
+    });
+    await act(async () => {
+      await result.current.saveSet(speakSet);
+    });
+    expect(opFor('flashcard_sessions/session-0')?.data.speak).toMatchObject({
+      ...speakChoice,
+      dialects: ['es-ES'],
+      locked: false,
+    });
+  });
+
   it('never stamps a session the teacher turned Speak off for', async () => {
     openSessions([{ speakOff: true }]);
     const { result } = renderHook(() => useFlashcardSets(TEACHER), {
@@ -392,6 +414,33 @@ describe('useFlashcardAssignments Speak stamp', () => {
     const session = opFor(`flashcard_sessions/${studyId}`)?.data;
     expect(session).not.toHaveProperty('speak');
     expect(session?.cards).toEqual(plainSet.cards);
+  });
+
+  it('stamps and keeps the Speak rules picked when assigning', async () => {
+    const speakChoice = {
+      preset: 'beginner' as const,
+      strict: false,
+      groups: { 'es-trill': 'forgive' as const },
+      attempts: 2,
+      example: true,
+    };
+    const { result } = renderHook(() => useFlashcardAssignments(TEACHER), {
+      wrapper: wrapper(true),
+    });
+    let id = '';
+    await act(async () => {
+      id = await result.current.createAssignment({
+        ...input,
+        kind: 'study',
+        speakChoice,
+      });
+    });
+    const session = opFor(`flashcard_sessions/${id}`)?.data;
+    expect(session?.speak).toMatchObject({
+      ...speakChoice,
+      dialects: ['es-ES'],
+    });
+    expect(session?.speakChoice).toEqual(speakChoice);
   });
 
   it('marks a Study session with Speak off and skips the stamp', async () => {

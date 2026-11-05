@@ -1,5 +1,5 @@
 // Flashcards assign on the accordion stepper (docs/plans/shipped/ASSIGN_STEPPER.md D2, D4, D9, D12).
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AuthContext } from '@/context/AuthContextValue';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
@@ -70,7 +70,10 @@ import {
   formatFlashcardsSpeakValue,
   type FlashcardsSpeakValue,
 } from '@/components/common/library/assignStepper/flashcardsSpeakValue';
+import { FlashcardsSpeakRules } from '@/components/common/library/assignStepper/FlashcardsSpeakRules';
 import { speakLanguageOf } from '@/config/pronunciationGroups';
+import { readFlashcardsSpeakAdminConfig } from '@/hooks/useFlashcardSets';
+import { initialAssignSpeakSettings } from './speak/speakEditorState';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { applyWhen } from '@/utils/assignAvailability';
 import {
@@ -91,6 +94,9 @@ import type {
   ClassRoster,
   FlashcardCheckRules,
   FlashcardSet,
+  FlashcardSpeakChoice,
+  FlashcardSpeakSettings,
+  FlashcardsSpeakAdminConfig,
   Plc,
 } from '@/types';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
@@ -193,6 +199,44 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     setPrefilled(true);
     setRules(next);
   };
+  // flashcards-assign-v2: Speak's rules are picked here, starting from the district defaults.
+  const speakLanguage = speakLanguageOf(set.termLanguage);
+  const speakRulesOn = v2 && speakAvailable && speakLanguage !== null;
+  const [speakAdmin, setSpeakAdmin] =
+    useState<FlashcardsSpeakAdminConfig | null>(null);
+  useEffect(() => {
+    if (!isOpen || !speakRulesOn) return;
+    let live = true;
+    void readFlashcardsSpeakAdminConfig().then((config) => {
+      if (live) setSpeakAdmin(config);
+    });
+    return () => {
+      live = false;
+    };
+  }, [isOpen, speakRulesOn]);
+  const [speakRules, setSpeakRules] = useState<FlashcardSpeakSettings | null>(
+    null
+  );
+  const [speakSeeded, setSpeakSeeded] = useState(false);
+  if (!speakSeeded && speakAdmin && lastUsed.loaded) {
+    setSpeakSeeded(true);
+    setSpeakRules(
+      initialAssignSpeakSettings(
+        set.termLanguage,
+        set.speak,
+        speakAdmin,
+        lastUsed.lastUsed?.speak ?? null
+      )
+    );
+  }
+  const speakRulesBody =
+    speakRulesOn && speakRules && speakLanguage ? (
+      <FlashcardsSpeakRules
+        language={speakLanguage}
+        value={speakRules}
+        onChange={setSpeakRules}
+      />
+    ) : undefined;
   const gates = useQuizRuleGates();
   // Rows a flag hides are not stamped, as in Quiz.
   const stampedRules: FlashcardCheckRules = (() => {
@@ -336,6 +380,16 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
           cardCount={chosenCount}
           v2={v2}
           speakAvailable={speakCheckOk}
+          speakRules={
+            speakRulesOn && speakRules && speakLanguage ? (
+              <FlashcardsSpeakRules
+                language={speakLanguage}
+                value={speakRules}
+                onChange={setSpeakRules}
+                placement="check-step"
+              />
+            ) : undefined
+          }
         />
       ),
     },
@@ -345,7 +399,13 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     },
     speak: {
       value: formatFlashcardsSpeakValue(speak, t),
-      body: <FlashcardsSpeakStep value={speak} onChange={setSpeak} />,
+      body: (
+        <FlashcardsSpeakStep
+          value={speak}
+          onChange={setSpeak}
+          rules={speakRulesBody}
+        />
+      ),
     },
   };
 
@@ -419,6 +479,19 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         };
       }
     }
+    const speakUsed =
+      kind === 'resource' ? speak.show : effectiveCheck.checkMode === 'speak';
+    const speakChoice: FlashcardSpeakChoice | undefined =
+      speakRulesBody && speakRules && speakUsed
+        ? {
+            preset: speakRules.preset,
+            strict: speakRules.strict,
+            groups: speakRules.groups,
+            attempts: speakRules.attempts,
+            example: speakRules.example,
+          }
+        : undefined;
+    if (speakChoice) submission.input.speakChoice = speakChoice;
     const sharePlc =
       inPlc && sharing.plcMode
         ? (resolveSharingPlc(sharing, plcs) ?? undefined)
@@ -438,6 +511,17 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         : submission,
       sharePlc ? { sharePlc } : undefined
     );
+    const lastSpeak = speakChoice
+      ? {
+          preset: speakChoice.preset,
+          strict: speakChoice.strict,
+          attempts: speakChoice.attempts,
+          example: speakChoice.example,
+          ...(speakChoice.preset === 'custom'
+            ? { groups: speakChoice.groups }
+            : {}),
+        }
+      : lastUsed.lastUsed?.speak;
     if (ok !== false && kind === 'work') {
       lastUsed.save(
         v2
@@ -445,9 +529,14 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
               ...check,
               scoreVisibility: scoreVisibilityFromRules(rules),
               rules: stampedRules,
+              ...(lastSpeak ? { speak: lastSpeak } : {}),
             }
           : check
       );
+    } else if (ok !== false && speakChoice && lastSpeak) {
+      const { collectSubmission: _kind, ...defaults } =
+        getFlashcardAssignPrefill(null, cardCount);
+      lastUsed.save({ ...(lastUsed.lastUsed ?? defaults), speak: lastSpeak });
     }
   };
 
