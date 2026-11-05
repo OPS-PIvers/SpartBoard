@@ -47,14 +47,22 @@ const ENABLED: SyncSettings = { enabled: true, dryRun: false };
 function buildHarness(rosters: FakeRoster[]) {
   const written = new Map<string, RosterFileContent>();
   const updated = new Map<string, Record<string, unknown>>();
-  const pinIndexCalls: { path: string; students: readonly SyncStudent[] }[] =
-    [];
+  const pinIndexCalls: {
+    path: string;
+    students: readonly SyncStudent[];
+    enrolled: ReadonlySet<string>;
+  }[] = [];
+  const taught = new Map<string, Set<string> | null>();
+  const teachLookups: string[] = [];
+  const upstreamFetches: string[] = [];
   const grants = new Map<string, boolean>();
   const driveVersions = new Map<string, string>();
 
   const docs = rosters.map((r) => {
     driveVersions.set(r.path, r.driveVersion ?? 'v1');
     grants.set(r.uid, true);
+    if (!taught.has(r.uid)) taught.set(r.uid, new Set());
+    taught.get(r.uid)?.add(String(r.data.classlinkClassId));
     return {
       id: r.path.split('/').pop(),
       ref: {
@@ -103,7 +111,12 @@ function buildHarness(rosters: FakeRoster[]) {
       }
       return Promise.resolve(`token-${uid}`);
     },
+    getTaughtClassIds: (uid) => {
+      teachLookups.push(uid);
+      return Promise.resolve(taught.get(uid) ?? null);
+    },
     fetchClassStudents: (classId) => {
+      upstreamFetches.push(classId);
       const r = rosters.find((x) => x.data.classlinkClassId === classId);
       return Promise.resolve({
         students: r ? r.upstream : [],
@@ -129,14 +142,25 @@ function buildHarness(rosters: FakeRoster[]) {
       const r = byFile.get(fileId);
       return Promise.resolve(driveVersions.get(r?.path ?? '') ?? 'v1');
     },
-    reconcilePinIndex: (rosterRef, _data, students) => {
-      pinIndexCalls.push({ path: rosterRef.path, students });
+    reconcilePinIndex: (rosterRef, _data, students, enrolled) => {
+      pinIndexCalls.push({ path: rosterRef.path, students, enrolled });
       return Promise.resolve();
     },
     now: () => 1_000_000,
   };
 
-  return { db, deps, written, updated, pinIndexCalls, grants, driveVersions };
+  return {
+    db,
+    deps,
+    written,
+    updated,
+    pinIndexCalls,
+    grants,
+    driveVersions,
+    taught,
+    teachLookups,
+    upstreamFetches,
+  };
 }
 
 const classlinkRoster = (
@@ -237,6 +261,99 @@ describe('runClassLinkRosterSync', () => {
     const meta = harness.updated.get('users/u1/rosters/r1');
     expect(meta).toBeDefined();
     expect(JSON.stringify(meta)).not.toMatch(/Ada|Alan|Zoe|Test/);
+  });
+
+  it('passes the ids ClassLink enrolls to the pin index', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [student('Ada', '01', 's1')],
+        [up('s1', 'Ada'), up('s2', 'Grace')]
+      ),
+    ]);
+    await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+    expect([...harness.pinIndexCalls[0].enrolled].sort()).toEqual(['s1', 's2']);
+  });
+
+  it('skips a roster whose owner ClassLink does not confirm as teaching the class, with no fetch or write', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/attacker/rosters/r1',
+        'attacker',
+        [student('Ada', '01', 's1')],
+        [up('s1', 'Ada'), up('s2', 'Grace')]
+      ),
+    ]);
+    harness.taught.set('attacker', new Set(['some-other-class']));
+
+    const out = await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+
+    expect(out.skippedNotTeacher).toBe(1);
+    expect(out.synced).toBe(0);
+    expect(out.errors).toBe(0);
+    expect(harness.upstreamFetches).toEqual([]);
+    expect(harness.written.size).toBe(0);
+    expect(harness.updated.size).toBe(0);
+    expect(harness.pinIndexCalls).toEqual([]);
+  });
+
+  it('skips a roster whose owner is not a verified teacher at all', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/anon/rosters/r1',
+        'anon',
+        [student('Ada', '01', 's1')],
+        [up('s1', 'Ada'), up('s2', 'Grace')]
+      ),
+    ]);
+    harness.taught.set('anon', null);
+
+    const out = await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+
+    expect(out.skippedNotTeacher).toBe(1);
+    expect(harness.upstreamFetches).toEqual([]);
+    expect(harness.written.size).toBe(0);
+  });
+
+  it('counts an unconfirmable teaching check as an error and writes nothing', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [student('Ada', '01', 's1')],
+        [up('s1', 'Ada'), up('s2', 'Grace')]
+      ),
+    ]);
+    harness.deps.getTaughtClassIds = () =>
+      Promise.reject(new Error('classlink down'));
+
+    const out = await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+
+    expect(out.errors).toBe(1);
+    expect(harness.upstreamFetches).toEqual([]);
+    expect(harness.written.size).toBe(0);
+    expect(harness.updated.size).toBe(0);
+  });
+
+  it('asks ClassLink about each owner once per run', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [student('Ada', '01', 's1')],
+        [up('s1', 'Ada'), up('s2', 'Grace')]
+      ),
+      classlinkRoster(
+        'users/u1/rosters/r2',
+        'u1',
+        [student('Alan', '02', 's9')],
+        [up('s9', 'Alan'), up('s8', 'Bo')]
+      ),
+    ]);
+    const out = await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+    expect(out.synced).toBe(2);
+    expect(harness.teachLookups).toEqual(['u1']);
   });
 
   it('reconciles the pin index with the post-merge students', async () => {

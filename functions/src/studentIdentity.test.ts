@@ -44,9 +44,13 @@ const h = vi.hoisted(() => ({
     googleClientId: 'google-client-id',
   },
   docStore: new Map<string, any>(),
-  authUsers: new Map<string, { displayName?: string; email?: string }>(),
+  authUsers: new Map<
+    string,
+    { displayName?: string; email?: string; emailVerified?: boolean }
+  >(),
   lastCustomToken: null as null | { uid: string; claims: unknown },
   failCustomToken: false,
+  authDown: false,
   batchOps: [] as Array<{ type: 'set' | 'delete'; path: string; data?: any }>,
   // 'ok' | 'throw' | 'no-payload'
   verify: {
@@ -170,6 +174,7 @@ vi.mock('./firebaseAdmin', () => {
       where: (f: string, op: string, v: unknown) =>
         makeQuery(items, [...filters, { f, op, v }], limitN),
       limit: (n: number) => makeQuery(items, filters, n),
+      select: () => makeQuery(items, filters, limitN),
       get: async () => {
         let res = items.filter((it) =>
           filters.every((fl) => matches(it.data, fl))
@@ -253,8 +258,12 @@ vi.mock('./firebaseAdmin', () => {
         return 'ct:' + uid;
       },
       getUser: async (uid: string) => {
+        if (h.authDown) throw new Error('auth outage');
         const u = h.authUsers.get(uid);
-        if (!u) throw new Error('no-user');
+        if (!u)
+          throw Object.assign(new Error('no-user'), {
+            code: 'auth/user-not-found',
+          });
         return u;
       },
     }),
@@ -273,9 +282,12 @@ import {
   PIN_LOGIN_MAX_CALLERS_PER_STUDENT,
   PIN_LOGIN_SESSION_MAX_FAILURES,
   PIN_LOGIN_SESSION_MAX_DAILY_FAILURES,
+  __resetRosterOwnerCache,
+  studentFirstName,
 } from './studentIdentity';
 import { computeStudentUid } from './classlinkShared';
 import * as admin from './firebaseAdmin';
+import { __resetAiCallerGateCache } from './aiCallerGate';
 
 // The onCall mock returns the raw handler, so each callable is invokable.
 const callStudentLogin = studentLoginV1 as unknown as (req: {
@@ -336,11 +348,14 @@ async function expectCode(promise: Promise<unknown>, code: string) {
 }
 
 beforeEach(() => {
+  __resetAiCallerGateCache();
+  __resetRosterOwnerCache();
   h.docStore.clear();
   h.authUsers.clear();
   h.batchOps.length = 0;
   h.lastCustomToken = null;
   h.failCustomToken = false;
+  h.authDown = false;
   h.secretValues = {
     classlinkClientId: 'cl-id',
     classlinkClientSecret: 'cl-secret',
@@ -357,6 +372,17 @@ beforeEach(() => {
   };
   h.axiosGet = null;
 });
+
+/** Seed a roster owner who is verified district staff in `org-orono`. */
+function seedTeacher(uid: string, displayName?: string) {
+  const email = `${uid}@orono.k12.mn.us`;
+  seedDomain('org-orono', '@orono.k12.mn.us');
+  h.authUsers.set(uid, { displayName, email, emailVerified: true });
+  h.docStore.set(`organizations/org-orono/members/${email}`, {
+    roleId: 'teacher',
+    status: 'active',
+  });
+}
 
 /** Seed a verified domain doc so the org gate resolves to `orgId`. */
 function seedDomain(orgId: string, domain: string) {
@@ -427,6 +453,7 @@ describe('studentLoginV1', () => {
       studentRole: true,
       orgId: 'org-orono',
       classIds: ['tc1'],
+      firstName: 'Student',
     });
   });
 
@@ -434,6 +461,8 @@ describe('studentLoginV1', () => {
     seedDomain('org-orono', '@orono.k12.mn.us');
     h.docStore.set('users/t1/rosters/r1', { classlinkClassId: 'C1' });
     h.docStore.set('users/t2/rosters/r2', { classlinkClassId: 'C2' });
+    seedTeacher('t1');
+    seedTeacher('t2');
     h.axiosGet = async (url: string) => {
       if (url.includes('/classes'))
         return {
@@ -454,6 +483,7 @@ describe('studentLoginV1', () => {
       orgId: 'org-orono',
       classIds: ['C1', 'C2'],
       sso: true,
+      firstName: 'Student',
     });
   });
 
@@ -462,6 +492,7 @@ describe('studentLoginV1', () => {
     h.docStore.set('users/t1/rosters/r1', { classlinkClassId: 'ENG' });
     h.docStore.set('users/t2/rosters/r2', { classlinkClassId: 'ENG' });
     h.docStore.set('users/t3/rosters/r3', { classlinkClassId: 'BIO' });
+    for (const uid of ['t1', 't2', 't3']) seedTeacher(uid);
     h.axiosGet = async (url: string) => {
       if (url.includes('/classes'))
         return {
@@ -487,6 +518,7 @@ describe('studentLoginV1', () => {
       orgId: 'org-orono',
       classIds: ['ENG', 'BIO'],
       sso: true,
+      firstName: 'Student',
     });
     const uid = computeStudentUid('SID-1', HMAC);
     expect(h.docStore.get(`student_sections/${uid}`)).toMatchObject({
@@ -498,6 +530,7 @@ describe('studentLoginV1', () => {
   it('fills the 20-slot cap with matched sections only', async () => {
     seedDomain('org-orono', '@orono.k12.mn.us');
     const sections = Array.from({ length: 30 }, (_, i) => `S${i}`);
+    seedTeacher('t');
     // Only the last 20 have rosters; the first 10 would have filled the old cap.
     for (const id of sections.slice(10)) {
       h.docStore.set(`users/t/rosters/${id}`, { classlinkClassId: id });
@@ -516,6 +549,43 @@ describe('studentLoginV1', () => {
     expect((h.lastCustomToken?.claims as any).classIds).toEqual(
       sections.slice(10)
     );
+  });
+
+  it('leaves out classes whose only roster was written by a non-teacher', async () => {
+    seedDomain('org-orono', '@orono.k12.mn.us');
+    h.docStore.set('users/real/rosters/r1', { classlinkClassId: 'ENG' });
+    h.docStore.set('users/anon/rosters/r2', { classlinkClassId: 'BIO' });
+    seedTeacher('real');
+    h.authUsers.set('anon', {});
+    h.axiosGet = async (url: string) => {
+      if (url.includes('/classes'))
+        return {
+          data: { classes: [{ sourcedId: 'ENG' }, { sourcedId: 'BIO' }] },
+        };
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'SID-1', role: 'student' }] } };
+      throw new Error('unexpected url: ' + url);
+    };
+    await callStudentLogin({ data: { idToken: 'x' } });
+    expect((h.lastCustomToken?.claims as any).classIds).toEqual(['ENG']);
+  });
+
+  it('puts the first name from the ID token on the student token', async () => {
+    seedDomain('org-orono', '@orono.k12.mn.us');
+    h.verify.payload = {
+      email: 'kid@orono.k12.mn.us',
+      email_verified: true,
+      given_name: ' Sam ',
+      name: 'Samuel Jones',
+    };
+    h.axiosGet = async (url: string) => {
+      if (url.includes('/classes')) return { data: { classes: [] } };
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'SID-1', role: 'student' }] } };
+      throw new Error('unexpected url: ' + url);
+    };
+    await callStudentLogin({ data: { idToken: 'x' } });
+    expect((h.lastCustomToken?.claims as any).firstName).toBe('Sam');
   });
 
   it('prefers the hd claim domain over the email suffix for the org gate', async () => {
@@ -666,7 +736,7 @@ describe('getStudentClassDirectoryV1', () => {
       classlinkSubject: 'English',
       classlinkClassCode: 'ENG9',
     });
-    h.authUsers.set('teacher1', { displayName: 'Ms. Halverson' });
+    seedTeacher('teacher1', 'Ms. Halverson');
 
     const res = await callDirectory({ auth: studentAuth(['CL1']) });
     expect(res.classes).toEqual([
@@ -703,23 +773,108 @@ describe('getStudentClassDirectoryV1', () => {
     expect(res.classes).toEqual([]);
   });
 
-  it('renders the roster entry with an empty teacher name when the Auth lookup fails', async () => {
-    h.docStore.set('users/ghost/rosters/r1', {
+  it('renders the roster entry with an empty teacher name when the teacher has no display name', async () => {
+    h.docStore.set('users/t9/rosters/r1', {
       classlinkClassId: 'CL2',
       name: 'History',
     });
-    // No authUsers entry for 'ghost' → getUser throws → '' fallback.
+    seedTeacher('t9');
+    h.authUsers.set('t9', {
+      email: 't9@orono.k12.mn.us',
+      emailVerified: true,
+    });
     const res = await callDirectory({ auth: studentAuth(['CL2']) });
     expect(res.classes).toEqual([
       {
         classId: 'CL2',
         name: 'History',
-        teacherDisplayName: '',
-        teacherDisplayNames: [],
+        teacherDisplayName: 't9',
+        teacherDisplayNames: ['t9'],
         subject: undefined,
         code: undefined,
       },
     ]);
+  });
+
+  it('ignores a roster whose owner has no Auth account', async () => {
+    h.docStore.set('users/ghost/rosters/r1', {
+      classlinkClassId: 'CL2',
+      name: 'History',
+    });
+    const res = await callDirectory({ auth: studentAuth(['CL2']) });
+    expect(res.classes).toEqual([]);
+  });
+
+  it('ignores rosters written by an anonymous or unverified account', async () => {
+    h.docStore.set('users/anon/rosters/r1', {
+      classlinkClassId: 'CL3',
+      name: 'Fake Class',
+    });
+    h.authUsers.set('anon', {});
+    h.docStore.set('users/unverified/rosters/r1', {
+      classlinkClassId: 'CL3',
+      name: 'Fake Class 2',
+    });
+    seedTeacher('unverified');
+    h.authUsers.set('unverified', {
+      email: 'unverified@orono.k12.mn.us',
+      emailVerified: false,
+    });
+    const res = await callDirectory({ auth: studentAuth(['CL3']) });
+    expect(res.classes).toEqual([]);
+  });
+
+  it('ignores a roster owned by an account with a verified email but no staff record', async () => {
+    h.docStore.set('users/kid/rosters/r1', {
+      classlinkClassId: 'CL4',
+      name: 'Fake Class',
+      bellPeriod: { buildingId: 'oms', periodId: '1' },
+    });
+    seedDomain('org-orono', '@orono.k12.mn.us');
+    h.authUsers.set('kid', {
+      email: 'kid@orono.k12.mn.us',
+      emailVerified: true,
+    });
+    const res = await callDirectory({ auth: studentAuth(['CL4']) });
+    expect(res.classes).toEqual([]);
+  });
+
+  it('lists the real teacher and drops a forged roster for the same section', async () => {
+    h.docStore.set('users/real/rosters/r1', {
+      classlinkClassId: 'CL5',
+      name: 'English 9',
+      updatedAt: 100,
+    });
+    seedTeacher('real', 'Ms. Real');
+    h.docStore.set('users/anon/rosters/r2', {
+      classlinkClassId: 'CL5',
+      name: 'Attacker Class',
+      updatedAt: 999,
+    });
+    h.authUsers.set('anon', {});
+    const res = await callDirectory({ auth: studentAuth(['CL5']) });
+    expect(res.classes).toEqual([
+      {
+        classId: 'CL5',
+        name: 'English 9',
+        teacherDisplayName: 'Ms. Real',
+        teacherDisplayNames: ['Ms. Real'],
+        subject: undefined,
+        code: undefined,
+      },
+    ]);
+  });
+
+  it('fails the call, rather than dropping classes, when Auth is down', async () => {
+    h.docStore.set('users/t1/rosters/r1', {
+      classlinkClassId: 'CL6',
+      name: 'Art',
+    });
+    seedTeacher('t1');
+    h.authDown = true;
+    await expect(callDirectory({ auth: studentAuth(['CL6']) })).rejects.toThrow(
+      'auth outage'
+    );
   });
 });
 
@@ -727,6 +882,11 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
   const studentAuth = (classIds: string[], orgId = 'org-orono') => ({
     uid: 'stu',
     token: { studentRole: true, classIds, orgId, sso: true },
+  });
+  beforeEach(() => {
+    seedTeacher('t');
+    seedTeacher('t1');
+    seedTeacher('t2');
   });
 
   it('merges a co-taught section into one entry named by the newest roster', async () => {
@@ -741,8 +901,8 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
       classlinkClassCode: 'ENG9H',
       updatedAt: 200,
     });
-    h.authUsers.set('t1', { displayName: 'Mr. Lee' });
-    h.authUsers.set('t2', { displayName: 'Ms. Ortiz' });
+    seedTeacher('t1', 'Mr. Lee');
+    seedTeacher('t2', 'Ms. Ortiz');
 
     const res = await callDirectory({ auth: studentAuth(['ENG']) });
     expect(res.classes).toEqual([
@@ -800,6 +960,31 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
       'biology 9',
       'World History',
     ]);
+  });
+
+  it('carries the first name claim onto a re-minted token', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('users/t/rosters/b', {
+      classlinkClassId: 'B',
+      name: 'Biology',
+    });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['A', 'B'],
+    });
+    await callDirectory({
+      auth: {
+        uid: 'stu',
+        token: {
+          studentRole: true,
+          classIds: ['A'],
+          orgId: 'org-orono',
+          sso: true,
+          firstName: 'Sam',
+        },
+      },
+    });
+    expect((h.lastCustomToken?.claims as any).firstName).toBe('Sam');
   });
 
   it('returns no token when the stored sections match the claim', async () => {
@@ -2013,6 +2198,55 @@ describe('getPseudonymsForAssignmentV1', () => {
     );
   });
 
+  describe('legacy test-class branch', () => {
+    const seedTestClass = () => {
+      seedDomain('org-orono', '@orono.k12.mn.us');
+      h.docStore.set(
+        'organizations/org-orono/members/teacher@orono.k12.mn.us',
+        { roleId: 'teacher', status: 'active' }
+      );
+      h.docStore.set('organizations/org-orono/testClasses/tc1', {
+        memberEmails: ['kid@orono.k12.mn.us'],
+      });
+    };
+    const ask = () =>
+      callPseudonymsForAssignment({
+        auth: TEACHER,
+        data: { assignmentId: ASSIGNMENT, classId: 'tc1', orgId: 'org-orono' },
+      });
+
+    it('denies an org member who forged the test class id onto their own roster', async () => {
+      seedTestClass();
+      h.docStore.set('users/teacher1/rosters/r1', { testClassId: 'tc1' });
+      await expectCode(ask(), 'permission-denied');
+    });
+
+    it('denies an org member who has no roster for the test class either', async () => {
+      seedTestClass();
+      await expectCode(ask(), 'permission-denied');
+    });
+
+    it('resolves the test class for a domain admin', async () => {
+      seedTestClass();
+      h.docStore.set(
+        'organizations/org-orono/members/teacher@orono.k12.mn.us',
+        { roleId: 'domain_admin', status: 'active' }
+      );
+      const res = await ask();
+      expect(Object.keys(res.pseudonyms)).toEqual(['kid@orono.k12.mn.us']);
+      expect(res.pseudonyms['kid@orono.k12.mn.us'].givenName).toBe('kid');
+    });
+
+    it('resolves the test class for a super admin', async () => {
+      seedTestClass();
+      h.docStore.set('admin_settings/user_roles', {
+        superAdmins: ['teacher@orono.k12.mn.us'],
+      });
+      const res = await ask();
+      expect(Object.keys(res.pseudonyms)).toEqual(['kid@orono.k12.mn.us']);
+    });
+  });
+
   it('ignores malformed refs and falls back to the classId path', async () => {
     seedOneRoster();
     const res = await callPseudonymsForAssignment({
@@ -2082,5 +2316,19 @@ describe('getPseudonymsForAssignmentV1 — caller identity verification', () => 
       data: { assignmentId: ASSIGNMENT, classId: 'CL1' },
     });
     expect(res.pseudonyms).toEqual({});
+  });
+});
+
+describe('studentFirstName', () => {
+  it('uses the given name, then the first word of the full name', () => {
+    expect(studentFirstName(' Sam ', 'Samuel Jones')).toBe('Sam');
+    expect(studentFirstName('', ' Samuel  Jones')).toBe('Samuel');
+    expect(studentFirstName(undefined, 'Riley')).toBe('Riley');
+  });
+
+  it("falls back to 'Student' when there is no usable name", () => {
+    expect(studentFirstName(undefined, undefined)).toBe('Student');
+    expect(studentFirstName('  ', '  ')).toBe('Student');
+    expect(studentFirstName('x'.repeat(61), 'Sam')).toBe('Student');
   });
 });

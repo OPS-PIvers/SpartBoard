@@ -6526,6 +6526,12 @@ service cloud.firestore {
                   int(submissionId.split('__')[1]) < cap);
         }
 
+        // A signed-in student's token carries their first name; the posted label must match it.
+        function awLabelOk() {
+          let n = request.auth.token.get('firstName', null);
+          return n == null || incoming().get('participantLabel', n) == n;
+        }
+
         // Short authored labels stay bounded so no branch can grow a doc every
         // gallery viewer re-downloads on each snapshot.
         function awBoundedStrings() {
@@ -6622,6 +6628,7 @@ service cloud.firestore {
           isInt('submittedAt') &&
           incoming().status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
           awFieldTypesOk() &&
+          awLabelOk() &&
           // authorUid is an ownership claim on every session shape, not just padlet ones.
           (!('authorUid' in incoming()) ||
            (incoming().authorUid == authUid() &&
@@ -6820,6 +6827,7 @@ service cloud.firestore {
           incoming().content.size() <= 2000 &&
           isStr('participantLabel') &&
           incoming().participantLabel.size() <= 200 &&
+          request.auth.token.get('firstName', incoming().participantLabel) == incoming().participantLabel &&
           incoming().authorUid == authUid() &&
           isInt('createdAt');
         allow delete: if signedIn() &&

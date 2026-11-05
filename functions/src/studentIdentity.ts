@@ -39,6 +39,9 @@ import {
   targetRefsFromAssignment,
 } from './studentAssignmentTargets';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isAiTeacherCaller } from './aiCallerGate';
+import { isTestClassAuthority } from './studentAssignmentTargets';
+import { BoundedLruMap } from './utils/boundedLruMap';
 
 // Student identity (ClassLink-via-Google) — PII-free auth flow
 // ---------------------------------------------------------------------------
@@ -70,7 +73,52 @@ const FIRESTORE_IN_CHUNK_SIZE = 10;
 
 type RosterSnap = FirebaseFirestore.QueryDocumentSnapshot;
 
-/** Every teacher roster whose `classlinkClassId` is in `ids`, grouped by that id. */
+// Roster docs are client-written, so each query is bounded and reads only the fields the directory shows.
+const ROSTER_MATCHES_PER_QUERY = 100;
+const ROSTER_DIRECTORY_FIELDS = [
+  'classlinkClassId',
+  'name',
+  'classlinkSubject',
+  'classlinkClassCode',
+  'bellPeriod',
+  'updatedAt',
+  'createdAt',
+] as const;
+const ROSTER_OWNER_TTL_MS = 5 * 60 * 1000;
+const rosterOwnerCache = new BoundedLruMap<string, { ok: boolean; at: number }>(
+  2000
+);
+
+/** Test-only: forget cached roster-owner checks. */
+export function __resetRosterOwnerCache(): void {
+  rosterOwnerCache.clear();
+}
+
+/** True when the roster owner's Auth account is a verified district staff member or admin. */
+async function isRosterOwnerTeacher(
+  db: FirebaseFirestore.Firestore,
+  uid: string
+): Promise<boolean> {
+  const cached = rosterOwnerCache.get(uid);
+  if (cached && Date.now() - cached.at < ROSTER_OWNER_TTL_MS) return cached.ok;
+  let ok = false;
+  try {
+    const user = await admin.auth().getUser(uid);
+    ok =
+      !!user.email &&
+      (await isAiTeacherCaller(db, {
+        email: user.email,
+        email_verified: user.emailVerified === true,
+      }));
+  } catch (err) {
+    // Only a missing account is a verdict; an outage must not read as "not a teacher".
+    if ((err as { code?: string })?.code !== 'auth/user-not-found') throw err;
+  }
+  rosterOwnerCache.set(uid, { ok, at: Date.now() });
+  return ok;
+}
+
+/** Roster docs owned by verified teachers whose `classlinkClassId` is in `ids`, grouped by that id. */
 async function lookupRostersBySection(
   db: FirebaseFirestore.Firestore,
   ids: readonly string[]
@@ -82,11 +130,27 @@ async function lookupRostersBySection(
       db
         .collectionGroup('rosters')
         .where('classlinkClassId', 'in', idChunk)
+        .select(...ROSTER_DIRECTORY_FIELDS)
+        .limit(ROSTER_MATCHES_PER_QUERY)
         .get()
     )
   );
+  const ownerOf = (doc: RosterSnap): string => doc.ref.parent.parent?.id ?? '';
+  const owners = new Set<string>();
   for (const snap of snapshots) {
     for (const doc of snap.docs) {
+      if (ownerOf(doc)) owners.add(ownerOf(doc));
+    }
+  }
+  const verified = new Set<string>();
+  await Promise.all(
+    [...owners].map(async (uid) => {
+      if (await isRosterOwnerTeacher(db, uid)) verified.add(uid);
+    })
+  );
+  for (const snap of snapshots) {
+    for (const doc of snap.docs) {
+      if (!verified.has(ownerOf(doc))) continue;
       const value: unknown = doc.get('classlinkClassId');
       if (typeof value !== 'string') continue;
       const list = out.get(value);
@@ -117,6 +181,17 @@ const readBellPeriod = (
     ? { buildingId, periodId }
     : undefined;
 };
+
+/** First name as the student sign-in page derives it from the ID token; 'Student' when absent or over 60 chars. */
+export function studentFirstName(
+  givenName: unknown,
+  fullName: unknown
+): string {
+  const given = typeof givenName === 'string' ? givenName.trim() : '';
+  const full = typeof fullName === 'string' ? fullName.trim() : '';
+  const first = given || full.split(/\s+/)[0] || '';
+  return first.length > 0 && first.length <= 60 ? first : 'Student';
+}
 
 const sameIdSet = (a: readonly string[], b: readonly string[]): boolean => {
   if (a.length !== b.length) return false;
@@ -183,6 +258,7 @@ export const studentLoginV1 = onCall(
     let email: string;
     let hd: string | undefined;
     let emailVerified: boolean;
+    let firstName = 'Student';
     try {
       const ticket = await oauthClient.verifyIdToken({
         idToken,
@@ -195,6 +271,7 @@ export const studentLoginV1 = onCall(
       email = typeof payload.email === 'string' ? payload.email : '';
       hd = typeof payload.hd === 'string' ? payload.hd : undefined;
       emailVerified = payload.email_verified === true;
+      firstName = studentFirstName(payload.given_name, payload.name);
     } catch {
       // Do not log token contents.
       console.warn('[studentLoginV1] ID token verification failed.');
@@ -246,6 +323,7 @@ export const studentLoginV1 = onCall(
           studentRole: true,
           orgId,
           classIds: mockClassIds,
+          firstName,
         });
         return { customToken, orgId, classCount: mockClassIds.length };
       } catch (err) {
@@ -330,6 +408,7 @@ export const studentLoginV1 = onCall(
         orgId,
         classIds,
         sso: true,
+        firstName,
       });
     } catch (err) {
       console.error('[studentLoginV1] createCustomToken failed:', err);
@@ -588,6 +667,10 @@ export const getStudentClassDirectoryV1 = onCall(
             orgId,
             classIds: nextClaim,
             sso: true,
+            // Carried over so the wall's name check still applies to the re-minted token.
+            ...(typeof request.auth.token.firstName === 'string'
+              ? { firstName: request.auth.token.firstName }
+              : {}),
           });
           listedIds = nextClaim;
         } catch (err) {
@@ -811,16 +894,8 @@ export const getPseudonymsForAssignmentV1 = onCall(
       );
       const testClassSnap = await testClassRef.get();
       if (testClassSnap.exists) {
-        // Authorize: teacher must own a roster whose `testClassId` matches.
-        // Roster metadata lives in Firestore (no Drive read needed for this
-        // gate). Same trust model as the ClassLink branch's "teaches this
-        // class" check, but anchored to the teacher's own roster ownership.
-        const ownedRosters = await db
-          .collection(`users/${request.auth.uid}/rosters`)
-          .where('testClassId', '==', classId)
-          .limit(1)
-          .get();
-        if (ownedRosters.empty) {
+        // Same authority as reading the testClasses doc; a roster's testClassId is client-written.
+        if (!(await isTestClassAuthority(db, teacherEmailLower, orgId))) {
           throw new HttpsError(
             'permission-denied',
             'Not a teacher of this test class.'
@@ -1059,20 +1134,13 @@ async function fetchOneRosterPages<T>(
   return null;
 }
 
-/**
- * Sourced ids of the students ClassLink enrolls in `classId`, or null when the
- * caller is not a non-student ClassLink user who teaches it. Throws
- * `unavailable` when ClassLink can't answer, so a caller never prunes on an outage.
- */
-export async function loadTaughtClassEnrollment(
-  teacherEmail: string,
-  classId: string,
-  creds: {
-    classlinkClientId: string;
-    classlinkClientSecret: string;
-    tenantUrl: string;
-  }
-): Promise<Set<string> | null> {
+type ClassLinkCreds = {
+  classlinkClientId: string;
+  classlinkClientSecret: string;
+  tenantUrl: string;
+};
+
+function assertClassLinkCreds(creds: ClassLinkCreds): void {
   if (
     !creds.classlinkClientId ||
     !creds.classlinkClientSecret ||
@@ -1080,6 +1148,27 @@ export async function loadTaughtClassEnrollment(
   ) {
     throw new HttpsError('internal', 'Server configuration missing.');
   }
+}
+
+/** Log a ClassLink failure by class only and surface it as `unavailable`. */
+function classLinkUnavailable(tag: string, err: unknown): never {
+  if (err instanceof HttpsError) throw err;
+  console.error(
+    `[${tag}] ClassLink request failed:`,
+    axios.isAxiosError(err) ? err.response?.status : 'unexpected'
+  );
+  throw new HttpsError('unavailable', 'Roster service unavailable.');
+}
+
+/**
+ * Ids of the classes ClassLink says this address teaches, or null when it is not a
+ * non-student ClassLink user. Throws `unavailable` when ClassLink can't answer.
+ */
+export async function loadTeacherClassIds(
+  teacherEmail: string,
+  creds: ClassLinkCreds
+): Promise<Set<string> | null> {
+  assertClassLinkCreds(creds);
   if (!isSafeEmailForOneRosterFilter(teacherEmail)) return null;
   const base = `${creds.tenantUrl.replace(/\/$/, '')}${ONEROSTER_BASE}`;
   try {
@@ -1116,12 +1205,30 @@ export async function loadTaughtClassEnrollment(
       classesUrl,
       { headers: { ...classesHeaders }, timeout: CLASSLINK_TIMEOUT_MS }
     );
-    if (
-      !(classesResp.data.classes ?? []).some((c) => c.sourcedId === classId)
-    ) {
-      return null;
-    }
+    return new Set(
+      (classesResp.data.classes ?? [])
+        .map((c) => c.sourcedId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    );
+  } catch (err) {
+    return classLinkUnavailable('loadTeacherClassIds', err);
+  }
+}
 
+/**
+ * Sourced ids of the students ClassLink enrolls in `classId`, or null when the
+ * caller is not a non-student ClassLink user who teaches it. Throws
+ * `unavailable` when ClassLink can't answer, so a caller never prunes on an outage.
+ */
+export async function loadTaughtClassEnrollment(
+  teacherEmail: string,
+  classId: string,
+  creds: ClassLinkCreds
+): Promise<Set<string> | null> {
+  const taught = await loadTeacherClassIds(teacherEmail, creds);
+  if (!taught?.has(classId)) return null;
+  try {
+    const base = `${creds.tenantUrl.replace(/\/$/, '')}${ONEROSTER_BASE}`;
     const students = await fetchOneRosterPages<ClassLinkStudent>(
       `${base}/classes/${encodeURIComponent(classId)}/students`,
       'users',
@@ -1134,12 +1241,7 @@ export async function loadTaughtClassEnrollment(
         .filter((id): id is string => typeof id === 'string' && id.length > 0)
     );
   } catch (err) {
-    if (err instanceof HttpsError) throw err;
-    console.error(
-      '[loadTaughtClassEnrollment] ClassLink request failed:',
-      axios.isAxiosError(err) ? err.response?.status : 'unexpected'
-    );
-    throw new HttpsError('unavailable', 'Roster service unavailable.');
+    return classLinkUnavailable('loadTaughtClassEnrollment', err);
   }
 }
 

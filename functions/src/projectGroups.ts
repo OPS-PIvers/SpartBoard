@@ -1,7 +1,12 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
-import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';
+import {
+  CLASSLINK_CLIENT_ID,
+  CLASSLINK_CLIENT_SECRET,
+  CLASSLINK_TENANT_URL,
+  STUDENT_PSEUDONYM_HMAC_SECRET,
+} from './secrets';
 import {
   ALLOWED_ORIGINS,
   computeStudentUid,
@@ -10,6 +15,8 @@ import {
 } from './classlinkShared';
 import { isTestClassAuthority } from './studentAssignmentTargets';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isTeacherShapedToken, type AiCallerToken } from './aiCallerGate';
+import { loadTaughtClassEnrollment } from './studentIdentity';
 
 // Projects widget group import: client posts sourcedIds, server applies the HMAC (D8).
 
@@ -201,11 +208,59 @@ async function allowedTestEmails(
   return allowed;
 }
 
+/**
+ * Sourced ids ClassLink enrolls, per class named by a group that imports students.
+ * Throws unless the caller is a verified non-student teacher of every such class.
+ */
+async function enrolledByClass(
+  token: AiCallerToken,
+  groups: CommitProjectGroupEntry[]
+): Promise<Map<string, ReadonlySet<string>>> {
+  const classIds = Array.from(
+    new Set(
+      groups
+        .filter((g) => g.classLinkSourcedIds.length > 0)
+        .map((g) => g.classId)
+    )
+  );
+  const out = new Map<string, ReadonlySet<string>>();
+  if (classIds.length === 0) return out;
+  const email = asString(token.email);
+  const domain = normalizeEmailDomain(email.toLowerCase()) ?? '';
+  if (!isTeacherShapedToken(token) || domain.startsWith('@students.')) {
+    throw new HttpsError('permission-denied', 'Teacher account required.');
+  }
+  const creds = {
+    classlinkClientId: CLASSLINK_CLIENT_ID.value(),
+    classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
+    tenantUrl: CLASSLINK_TENANT_URL.value(),
+  };
+  await Promise.all(
+    classIds.map(async (classId) => {
+      // Group payloads are client-written, so ClassLink must confirm the caller teaches the class.
+      const enrolled = await loadTaughtClassEnrollment(email, classId, creds);
+      if (!enrolled) {
+        throw new HttpsError(
+          'permission-denied',
+          'Not a teacher of this class.'
+        );
+      }
+      out.set(classId, enrolled);
+    })
+  );
+  return out;
+}
+
 /** Teacher-only. Writes the groups it was handed and deletes only the ids named in `deleteGroupIds` (D9). */
 export const commitProjectGroupsV1 = onCall(
   {
     memory: '256MiB',
-    secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
+    secrets: [
+      STUDENT_PSEUDONYM_HMAC_SECRET,
+      CLASSLINK_CLIENT_ID,
+      CLASSLINK_CLIENT_SECRET,
+      CLASSLINK_TENANT_URL,
+    ],
     invoker: 'public',
     cors: ALLOWED_ORIGINS,
   },
@@ -278,6 +333,7 @@ export const commitProjectGroupsV1 = onCall(
         .map((snap) => [snap.id, new Set(stringList(snap.data()?.memberUids))])
     );
 
+    const enrolledIds = await enrolledByClass(request.auth.token, groups);
     const testMembers = await allowedTestEmails(
       db,
       asString(request.auth.token.email).toLowerCase(),
@@ -290,9 +346,9 @@ export const commitProjectGroupsV1 = onCall(
     for (const group of groups) {
       const inTestClass = testMembers.get(group.classId);
       const minted = [
-        ...group.classLinkSourcedIds.map((sourcedId) =>
-          computeStudentUid(sourcedId, hmacSecret)
-        ),
+        ...group.classLinkSourcedIds
+          .filter((sourcedId) => enrolledIds.get(group.classId)?.has(sourcedId))
+          .map((sourcedId) => computeStudentUid(sourcedId, hmacSecret)),
         // Matches the uid studentLoginV1 mints for a test-class sign-in.
         ...group.testEmails
           .filter((email) => inTestClass?.has(email))
