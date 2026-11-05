@@ -68,6 +68,8 @@ describe('useTabAwayTracker', () => {
         'clearInterval',
         'Date',
         'performance',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
       ],
     });
     vi.setSystemTime(1_000_000);
@@ -232,6 +234,124 @@ describe('useTabAwayTracker', () => {
       });
       expect(onAwayTooLong).not.toHaveBeenCalled();
       expect(lastSaved()[0].outcome).toBe('over-limit');
+    });
+  });
+
+  describe('fullscreen required', () => {
+    let fullscreenElement: Element | null = null;
+    let requestFullscreen: ReturnType<typeof vi.fn<() => Promise<void>>>;
+    const setFullscreen = (on: boolean) =>
+      act(() => {
+        fullscreenElement = on ? document.documentElement : null;
+        document.dispatchEvent(new Event('fullscreenchange'));
+      });
+    beforeEach(() => {
+      fullscreenElement = document.documentElement;
+      Object.defineProperty(document, 'fullscreenEnabled', {
+        configurable: true,
+        get: () => true,
+      });
+      Object.defineProperty(document, 'fullscreenElement', {
+        configurable: true,
+        get: () => fullscreenElement,
+      });
+      requestFullscreen = vi.fn(() => {
+        setFullscreen(true);
+        return Promise.resolve();
+      });
+      document.documentElement.requestFullscreen = requestFullscreen;
+    });
+
+    it('counts leaving fullscreen as an exit', async () => {
+      const { onLeave, lastSaved } = setup({ fullscreenRequired: true });
+      setFullscreen(false);
+      await flush();
+      expect(onLeave).toHaveBeenCalledTimes(1);
+      expect(lastSaved()).toEqual([
+        { leftAt: 1_000_000, attempt: 0, questionIndex: 2 },
+      ]);
+    });
+
+    it('ignores leaving fullscreen when the page does not require it', async () => {
+      const { onLeave } = setup();
+      setFullscreen(false);
+      await flush();
+      expect(onLeave).not.toHaveBeenCalled();
+    });
+
+    it('keeps the exit open until fullscreen is back, then resume reopens it', async () => {
+      const { hook, lastSaved } = setup({
+        fullscreenRequired: true,
+        limitMs: 30_000,
+        autoSubmit: true,
+      });
+      leave();
+      setFullscreen(false);
+      await flush();
+      act(() => {
+        vi.advanceTimersByTime(3_000);
+      });
+      comeBack();
+      act(() => {
+        vi.advanceTimersByTime(2_000);
+      });
+      expect(hook.result.current.away?.outcome).toBeNull();
+      expect(lastSaved()).toHaveLength(1);
+
+      act(() => hook.result.current.resume());
+      await flush();
+      expect(requestFullscreen).toHaveBeenCalled();
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      const [exit] = lastSaved();
+      expect(exit.outcome).toBe('returned');
+      expect(exit.durationMs).toBeGreaterThanOrEqual(5_000);
+    });
+
+    it('keeps the exit open when the fullscreen exit arrives just after the tab is visible again', async () => {
+      const { hook, onLeave } = setup({ fullscreenRequired: true });
+      leave();
+      await flush();
+      hasFocus = true;
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+        window.dispatchEvent(new Event('focus'));
+        vi.advanceTimersByTime(5);
+      });
+      setFullscreen(false);
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      expect(hook.result.current.away?.outcome).toBeNull();
+      expect(onLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('submits at the away limit while the student stays out of fullscreen', async () => {
+      const { onAwayTooLong } = setup({
+        fullscreenRequired: true,
+        limitMs: 10_000,
+        autoSubmit: true,
+      });
+      setFullscreen(false);
+      await flush();
+      act(() => {
+        vi.advanceTimersByTime(10_250);
+      });
+      expect(onAwayTooLong).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes a tab exit on return before the student ever entered fullscreen', async () => {
+      fullscreenElement = null;
+      const { onLeave, lastSaved } = setup({ fullscreenRequired: true });
+      leave();
+      await flush();
+      expect(onLeave).toHaveBeenCalledTimes(1);
+      comeBack();
+      act(() => {
+        vi.advanceTimersByTime(250);
+      });
+      expect(lastSaved()[0].outcome).toBe('returned');
     });
   });
 });
