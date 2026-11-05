@@ -145,6 +145,8 @@ export const MAX_TARGET_REFS = 250;
  */
 export const MAX_STORED_TARGET_REFS = 2000;
 export const MAX_OWNED_CLASSES = 20;
+/** Ceiling when every class a teacher teaches is read, as for a merged project roster. */
+export const MAX_TAUGHT_CLASSES = 40;
 /** Narrowed classes per call; far above any real class list. */
 export const MAX_STUDENT_TARGET_CLASSES = 100;
 const ROSTER_SCAN_LIMIT = 100;
@@ -1505,14 +1507,15 @@ export async function loadTestClassMembership(
 
 export async function loadClassLinkMembership(
   teacherEmail: string,
-  ownedClassIds: readonly string[],
+  /** `null` means every class the teacher teaches, up to `MAX_TAUGHT_CLASSES`. */
+  ownedClassIds: readonly string[] | null,
   classlinkClientId: string,
   classlinkClientSecret: string,
   tenantUrl: string,
   names?: Map<string, TargetDirectoryName>
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-  if (ownedClassIds.length === 0) return out;
+  if (ownedClassIds?.length === 0) return out;
   if (!isSafeEmailForOneRosterFilter(teacherEmail)) return out;
 
   const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
@@ -1551,8 +1554,8 @@ export async function loadClassLinkMembership(
   );
   // Intersection: on the caller's roster AND actually taught by them.
   const authorized = ownedClassIds
-    .filter((id) => taught.has(id))
-    .slice(0, MAX_OWNED_CLASSES);
+    ? ownedClassIds.filter((id) => taught.has(id)).slice(0, MAX_OWNED_CLASSES)
+    : [...taught].slice(0, MAX_TAUGHT_CLASSES);
 
   const rosters = await Promise.all(
     authorized.map(async (classId) => {

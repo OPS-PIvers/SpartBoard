@@ -2442,6 +2442,30 @@ describe('loadClassLinkMembership', () => {
     expect(out.get(SOURCED_A)).toBe(CLASS_A);
   });
 
+  it('reads every taught class when no candidate list is given, and still nothing for a student', async () => {
+    route([{ sourcedId: 'T1', role: 'teacher' }]);
+    const all = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      null,
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(all.get(SOURCED_A)).toBe(CLASS_A);
+    route([{ sourcedId: 'S1', role: 'student' }]);
+    expect(
+      (
+        await loadClassLinkMembership(
+          'kid@orono.k12.mn.us',
+          null,
+          'id',
+          'secret',
+          'https://tenant.example'
+        )
+      ).size
+    ).toBe(0);
+  });
+
   it('SECURITY: a student-only OneRoster caller resolves to no classes', async () => {
     route([{ sourcedId: 'S1', roles: [{ role: 'student' }] }]);
     const out = await loadClassLinkMembership(

@@ -1,4 +1,4 @@
-// Which student uids a teacher may grade in a project class: ClassLink must confirm they teach it (or they run the test class).
+// Which student uids a teacher may grade in a project: any class they teach in ClassLink, or a test class they run.
 import { HttpsError } from 'firebase-functions/v2/https';
 import * as admin from '../firebaseAdmin';
 import {
@@ -8,83 +8,84 @@ import {
   STUDENT_PSEUDONYM_HMAC_SECRET,
 } from '../secrets';
 import { computeStudentUid } from '../classlinkShared';
-import { loadTaughtClassEnrollment } from '../studentIdentity';
 import {
-  loadTargetDirectory,
+  loadClassLinkMembership,
+  loadOwnedRosterClasses,
   loadTestClassMembership,
 } from '../studentAssignmentTargets';
+import { RosterUnavailableError } from './rosterUnavailable';
 
-/** Pseudonym uids of every student in `classId`, or empty when `ownerUid` does not teach it. A missing or `local:` class id means any class the owner teaches. */
+export interface ClassStudents {
+  uids: Set<string>;
+  /** Set when ClassLink could not answer; the uids then hold only what the test classes vouch for. */
+  degraded: RosterUnavailableError | null;
+}
+
+/** Pseudonym uids of every student in a class `ownerUid` teaches; `classId` only hints at a test class to read. */
 export async function loadClassStudentUids(
   db: admin.firestore.Firestore,
   ownerUid: string,
   classId: string
-): Promise<Set<string>> {
+): Promise<ClassStudents> {
   const uids = new Set<string>();
-  if (!ownerUid) return uids;
-  const anyClass = !classId || classId.startsWith('local:');
+  if (!ownerUid) return { uids, degraded: null };
   const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
   if (!hmacSecret) {
     throw new HttpsError('internal', 'Server configuration missing.');
   }
-  const owner = await admin
-    .auth()
-    .getUser(ownerUid)
-    .catch((err: unknown) => {
-      if ((err as { code?: string })?.code === 'auth/user-not-found')
-        return null;
-      throw err;
-    });
-  if (!owner?.email || !owner.emailVerified) return uids;
-
-  const creds = {
-    classlinkClientId: CLASSLINK_CLIENT_ID.value(),
-    classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
-    tenantUrl: CLASSLINK_TENANT_URL.value(),
-  };
-  if (anyClass) {
-    const { ctx } = await loadTargetDirectory(
-      db,
-      ownerUid,
-      owner.email,
-      creds,
-      (err) => {
+  let owner;
+  try {
+    owner = await admin
+      .auth()
+      .getUser(ownerUid)
+      .catch((err: unknown) => {
+        if ((err as { code?: string })?.code === 'auth/user-not-found')
+          return null;
         throw err;
-      }
-    );
-    for (const sourcedId of ctx.classIdBySourcedId.keys())
-      uids.add(computeStudentUid(sourcedId, hmacSecret));
-    if (ctx.testClassAuthorized)
-      for (const email of ctx.classIdByTestEmail.keys())
-        uids.add(computeStudentUid(`test:${email}`, hmacSecret));
-    return uids;
+      });
+  } catch (err) {
+    throw new RosterUnavailableError(err);
   }
-  if (
-    creds.classlinkClientId &&
-    creds.classlinkClientSecret &&
-    creds.tenantUrl
-  ) {
-    const enrolled = await loadTaughtClassEnrollment(
-      owner.email,
-      classId,
-      creds
-    );
-    if (enrolled) {
-      for (const sourcedId of enrolled)
+  if (!owner?.email || !owner.emailVerified) return { uids, degraded: null };
+
+  const classlinkClientId = CLASSLINK_CLIENT_ID.value();
+  const classlinkClientSecret = CLASSLINK_CLIENT_SECRET.value();
+  const tenantUrl = CLASSLINK_TENANT_URL.value();
+  let degraded: RosterUnavailableError | null = null;
+  if (classlinkClientId && classlinkClientSecret && tenantUrl) {
+    try {
+      const membership = await loadClassLinkMembership(
+        owner.email,
+        null,
+        classlinkClientId,
+        classlinkClientSecret,
+        tenantUrl
+      );
+      for (const sourcedId of membership.keys())
         uids.add(computeStudentUid(sourcedId, hmacSecret));
-      return uids;
+    } catch (err) {
+      degraded = new RosterUnavailableError(err);
     }
   }
 
+  // Test classes: the ones on the owner's rosters, plus the group's own class id.
+  const owned = await loadOwnedRosterClasses(db, ownerUid);
+  const testClassIds = [
+    ...new Set([
+      ...owned.testClassIds,
+      ...(classId && !classId.startsWith('local:') ? [classId] : []),
+    ]),
+  ];
   const { membership, authorized } = await loadTestClassMembership(
     db,
     owner.email,
-    [classId]
+    testClassIds
   );
-  if (!authorized) return uids;
-  for (const [email, memberClassId] of membership) {
-    if (memberClassId === classId)
+  if (authorized) {
+    for (const email of membership.keys())
       uids.add(computeStudentUid(`test:${email}`, hmacSecret));
   }
-  return uids;
+  // ClassLink down and no test class matched: nothing to go on, so let the caller retry.
+  if (degraded && uids.size === 0) throw degraded;
+  return { uids, degraded };
 }

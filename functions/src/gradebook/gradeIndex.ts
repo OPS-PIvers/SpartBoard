@@ -25,6 +25,8 @@ import {
   type QuizContext,
   isReviewQuiz,
 } from './gradeRowMath';
+import type { ClassStudents } from './projectMemberAuthority';
+import { RosterUnavailableError } from './rosterUnavailable';
 import type {
   IndexAttempt,
   IndexRow,
@@ -293,10 +295,7 @@ function sameRow(row: IndexRow, previous: Doc | undefined): boolean {
   return stableStringify(next) === stableStringify(prev);
 }
 
-/**
- * A row id carries no kind, so an existing row at it may belong to another live session.
- * Returns the row to build on (undefined once a stale one is retaken), or null when it must be left alone.
- */
+/** The row to build on (undefined once a stale foreign one is retaken), or null when another live session holds this id. */
 async function claimRow(
   db: Firestore,
   row: Pick<IndexRow, 'kind' | 'sessionId' | 'studentUid'>,
@@ -430,7 +429,7 @@ async function wallSubmittedAt(
 const ROSTER_CACHE_MS = 90_000;
 const rosterCache = new Map<
   string,
-  { at: number; students: Promise<Set<string>> }
+  { at: number; students: Promise<ClassStudents> }
 >();
 
 export function __resetProjectRosterCache(): void {
@@ -458,10 +457,13 @@ export function defaultProjectMemberAuthority(
         if (rosterCache.get(key) === stored) rosterCache.delete(key);
       });
     }
-    const students = await entry.students;
-    if (students.size === 0 && rosterCache.get(key) === entry)
+    const { uids, degraded } = await entry.students;
+    if ((uids.size === 0 || degraded) && rosterCache.get(key) === entry)
       rosterCache.delete(key);
-    return new Set(memberUids.filter((uid) => students.has(uid)));
+    const vouched = memberUids.filter((uid) => uids.has(uid));
+    // A ClassLink outage leaves some members unchecked, so retry rather than treat them as unvouched.
+    if (degraded && vouched.length < memberUids.length) throw degraded;
+    return new Set(vouched);
   };
 }
 
@@ -804,6 +806,8 @@ export const RECOMPUTE_BUDGET_MS = 420_000;
 
 /** Drains the dirty queue; a session re-dirtied mid-run stays queued. */
 const MAX_RECOMPUTE_FAILURES = 5;
+const ROSTER_RETRY_BASE_MS = 5 * 60_000;
+const ROSTER_RETRY_MAX_MS = 60 * 60_000;
 
 export async function drainDirtySessions(
   db: Firestore,
@@ -825,6 +829,7 @@ export async function drainDirtySessions(
       await doc.ref.delete();
       continue;
     }
+    if (typeof data.retryAt === 'number' && data.retryAt > Date.now()) continue;
     try {
       await recomputeSession(db, kind, asString(data.sessionId) || doc.id);
       recomputed++;
@@ -835,6 +840,33 @@ export async function drainDirtySessions(
       });
     } catch (err) {
       failed++;
+      if (err instanceof RosterUnavailableError) {
+        // The roster service being down is not the session's fault: back off, never give up.
+        const unavailable = (Number(data.unavailable) || 0) + 1;
+        logger.warn(
+          'gradeIndex: class roster unavailable, session kept queued',
+          {
+            sessionId: asString(data.sessionId) || doc.id,
+            kind,
+            unavailable,
+          }
+        );
+        await db.runTransaction(async (tx) => {
+          const current = await tx.get(doc.ref);
+          if (!current.exists || current.data()?.dirtyAt !== data.dirtyAt)
+            return;
+          tx.update(doc.ref, {
+            unavailable,
+            retryAt:
+              Date.now() +
+              Math.min(
+                ROSTER_RETRY_BASE_MS * 2 ** (unavailable - 1),
+                ROSTER_RETRY_MAX_MS
+              ),
+          });
+        });
+        continue;
+      }
       const failures = (Number(data.failures) || 0) + 1;
       logger.error('gradeIndex: session recompute failed', {
         sessionId: asString(data.sessionId) || doc.id,
