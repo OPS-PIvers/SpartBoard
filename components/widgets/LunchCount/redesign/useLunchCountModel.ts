@@ -22,6 +22,7 @@ import {
   getCentralTimestamp,
   hasSubmittedToday,
   reportClassKey,
+  submittedClassKey,
   submittedMarker,
 } from './lunchCountFormat';
 
@@ -116,6 +117,14 @@ export function useLunchCountModel(widget: WidgetData) {
     rosterPoolGroupId,
     rosterGroupsEnabled,
   ]);
+  const sentClass = submittedClassKey(
+    formatLunchTime(lunchTimeHour, lunchTimeMinute),
+    formatGradeLabel(gradeLevel),
+    rosterMode === 'custom'
+      ? null
+      : ((rosters.find((r) => r.id === activeRosterId) ?? rosters[0])?.id ??
+          null)
+  );
 
   const groupedStudents = useMemo(() => {
     const hot: LunchStudent[] = [];
@@ -290,12 +299,7 @@ export function useLunchCountModel(widget: WidgetData) {
       }
 
       updateWidget(widget.id, {
-        config: submittedMarker(
-          config,
-          widget.id,
-          dayKey,
-          reportClassKey(lunchTime, gradeLabel)
-        ),
+        config: submittedMarker(config, widget.id, dayKey, sentClass),
       });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
@@ -401,14 +405,7 @@ export function useLunchCountModel(widget: WidgetData) {
     setIsMissingInfoOpen,
     isSubmitting,
     reportData,
-    alreadySubmitted: hasSubmittedToday(
-      config,
-      widget.id,
-      reportClassKey(
-        formatLunchTime(lunchTimeHour, lunchTimeMinute),
-        formatGradeLabel(gradeLevel)
-      )
-    ),
+    alreadySubmitted: hasSubmittedToday(config, widget.id, sentClass),
   };
 }
 

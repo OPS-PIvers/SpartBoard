@@ -3,6 +3,7 @@ import {
   getCentralDayKey,
   hasSubmittedToday,
   reportClassKey,
+  submittedClassKey,
   submittedMarker,
 } from './lunchCountFormat';
 
@@ -35,6 +36,16 @@ describe('Lunch Count submitted marker', () => {
     expect(
       hasSubmittedToday(sentA(), 'w1', reportClassKey('11:30', 'GR2'))
     ).toBe(true);
+  });
+
+  it('lets the same widget send another class roster with the same time and grade', () => {
+    const day = getCentralDayKey();
+    const first = submittedClassKey('11:30', 'GR2', 'roster-a');
+    const second = submittedClassKey('11:30', 'GR2', 'roster-b');
+    const sent = submittedMarker({}, 'w1', day, first);
+    expect(hasSubmittedToday(sent, 'w1', first)).toBe(true);
+    expect(hasSubmittedToday(sent, 'w1', second)).toBe(false);
+    expect(submittedClassKey('11:30', 'GR2', null)).toBe('11:30 - GR2');
   });
 
   it('lets a duplicated widget submit', () => {

@@ -401,13 +401,15 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const editingIsNew =
     !!editingSet && !flashcardSets.sets.some((s) => s.id === editingSet.id);
 
-  // Autosave writes skip Study assignments; the write on Close refreshes them.
+  // Autosave also refreshes share links and Study assignments once the set is complete.
   const persistSet = async (
     set: FlashcardSet,
     { final }: { final: boolean }
   ): Promise<void> => {
     try {
-      const rewritten = await flashcardSets.saveSet(set, { syncStudy: final });
+      const rewritten = await flashcardSets.saveSet(set, {
+        syncStudy: final || flashcardSetIncompleteReason(set) === null,
+      });
       if (final && rewritten > 0) {
         addToast(
           `“${set.title}” saved. ${rewritten} open Study assignment${rewritten === 1 ? '' : 's'} updated.`,
