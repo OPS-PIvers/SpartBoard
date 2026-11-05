@@ -9770,6 +9770,12 @@ export interface FlashcardsConfig {
   lastRosterIdsBySetId?: Record<string, string[]>;
   /** In-memory pasted cards (Flashcards/utils/pastedDrafts.ts) the editor opens with. */
   pasteDraftId?: string;
+  /** Monitor student list, as in Quiz: score pills, tab warnings, proficiency tint, sort and filter. */
+  monitorShowScores?: boolean;
+  monitorShowTabWarnings?: boolean;
+  monitorShowProficiency?: boolean;
+  monitorSortBy?: 'first' | 'last' | 'status' | 'score';
+  monitorFilterBy?: 'all' | 'hi' | 'mid' | 'low' | 'tabs';
 }
 
 // --- PROJECTS WIDGET TYPES (docs/plans/shipped/PROJECTS_WIDGET.md) ---

@@ -45,6 +45,8 @@ export interface FlashcardResultRecord {
     attempts?: number;
   }>;
   flags?: Array<{ cardId: string; response: string; accepted?: boolean }>;
+  /** Check answers the student's device saved before submitting. */
+  checkLog?: Record<string, { response: string; done: boolean }>;
   speak?: Record<string, FlashcardSpeakProgress>;
   speakSounds?: Record<string, { n: number; m: number; f: number }>;
 }
@@ -274,6 +276,75 @@ export const checkCardAccuracy = (
     }))
     .sort((a, b) => a.percent - b.percent);
 };
+
+/** Cards a Check student has finished, from the submitted log or the live one. */
+export const checkCardsDone = (result: FlashcardResultRecord): number =>
+  typeof result.submittedAt === 'number' && result.answerLog
+    ? result.answerLog.length
+    : Object.values(result.checkLog ?? {}).filter((entry) => entry.done).length;
+
+/** One student's answer to one card: the graded one once submitted, else the saved one. */
+const checkAnswerFor = (
+  result: FlashcardResultRecord,
+  cardId: string
+): { response: string; correct: boolean } | null => {
+  if (typeof result.submittedAt === 'number' && result.answerLog) {
+    const entry = result.answerLog.find((e) => e.cardId === cardId);
+    if (!entry) return null;
+    const accepted = (result.flags ?? []).some(
+      (flag) => flag.cardId === cardId && flag.accepted === true
+    );
+    return {
+      response: entry.response,
+      correct: entry.correct === true || accepted,
+    };
+  }
+  const saved = result.checkLog?.[cardId];
+  return saved?.done ? { response: saved.response, correct: false } : null;
+};
+
+export interface FlashcardAnswerGroup {
+  key: string;
+  label: string;
+  count: number;
+  isCorrect: boolean;
+}
+
+/** Students' answers to one card, grouped ignoring case and spacing, most common first. */
+export const checkCardAnswers = (
+  results: readonly FlashcardResultRecord[],
+  cardId: string
+): { totalAnswered: number; rows: FlashcardAnswerGroup[] } => {
+  const groups = new Map<string, FlashcardAnswerGroup>();
+  let totalAnswered = 0;
+  for (const result of results) {
+    const answer = checkAnswerFor(result, cardId);
+    if (!answer) continue;
+    totalAnswered += 1;
+    const label = answer.response.trim().replace(/\s+/g, ' ');
+    if (!label) continue;
+    const key = label.toLowerCase();
+    const group = groups.get(key) ?? { key, label, count: 0, isCorrect: false };
+    group.count += 1;
+    group.isCorrect ||= answer.correct;
+    groups.set(key, group);
+  }
+  return {
+    totalAnswered,
+    rows: [...groups.values()].sort(
+      (a, b) => b.count - a.count || a.label.localeCompare(b.label)
+    ),
+  };
+};
+
+/** The side a Check student sees first on a card. */
+export const flashcardPrompt = (
+  session: FlashcardSession,
+  card: FlashcardCard
+): string =>
+  (session.lockedSettings?.showFirst ?? 'term') === 'term'
+    ? card.term
+    : card.definition;
 
 export const buildFlagRows = (
   session: FlashcardSession,

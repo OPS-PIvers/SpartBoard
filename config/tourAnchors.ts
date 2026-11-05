@@ -14428,6 +14428,37 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'flashcards.roster-scores': {
+    label: 'Scores toggle chip in the Flashcards monitor student list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.roster-tab-warnings': {
+    label: 'Tab warnings toggle chip in the Flashcards monitor student list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.roster-proficiency': {
+    label:
+      'Proficiency colors toggle chip in the Flashcards monitor student list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.roster-sort': {
+    label: 'Sort students select in the Flashcards monitor student list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.roster-filter': {
+    label: 'Filter students select in the Flashcards monitor student list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.card-result': {
+    label: 'Card row in the Flashcards monitor Card results',
+    perField: true,
+    panel: true,
+  },
   'mini-app.stepper-class-picker': {
     label: 'Class picker in the Mini App assign dialog',
     perWidgetType: true,
