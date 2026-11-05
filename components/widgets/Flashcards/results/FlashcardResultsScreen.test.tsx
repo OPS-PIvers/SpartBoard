@@ -174,10 +174,12 @@ describe('FlashcardResultsScreen', () => {
     expect(printProps.last?.initialSelection).toEqual(['ben']);
   });
 
-  it('hides names behind numbered labels', () => {
+  it('hides names behind numbered labels, sorted by the label', () => {
     show();
     fireEvent.click(screen.getByRole('button', { name: 'Hide student names' }));
     fireEvent.click(screen.getByText('Students'));
+    expect(rowNames()).toEqual(['Student 1', 'Student 2', 'Student 3']);
+    fireEvent.click(screen.getByRole('button', { name: 'Last name' }));
     expect(rowNames()).toEqual(['Student 1', 'Student 2', 'Student 3']);
   });
 
@@ -232,14 +234,17 @@ describe('FlashcardResultsScreen', () => {
 
 describe('flashcardQuizShape', () => {
   it('counts accepted typos right and serves only the cards answered', () => {
-    const response = flashcardQuizResponse({
-      studentUid: 'x',
-      submittedAt: 5,
-      score: 1,
-      total: 1,
-      answerLog: [{ cardId: 'c2', response: 'tow', correct: false }],
-      flags: [{ cardId: 'c2', response: 'tow', accepted: true }],
-    });
+    const response = flashcardQuizResponse(
+      {
+        studentUid: 'x',
+        submittedAt: 5,
+        score: 1,
+        total: 1,
+        answerLog: [{ cardId: 'c2', response: 'tow', correct: false }],
+        flags: [{ cardId: 'c2', response: 'tow', accepted: true }],
+      },
+      session()
+    );
     expect(response.servedQuestionIds).toEqual(['c2']);
     expect(response.score).toBe(100);
     const [, q2] = flashcardQuizQuestions(session());
@@ -248,9 +253,47 @@ describe('flashcardQuizShape', () => {
   });
 
   it('keeps unfinished work out of the graded answers', () => {
-    const response = flashcardQuizResponse(results[2]);
+    const response = flashcardQuizResponse(results[2], session());
     expect(response.status).toBe('in-progress');
     expect(response.answers).toEqual([]);
     expect(response.score).toBeNull();
+  });
+
+  it('counts every card mastered on a mastery Check', () => {
+    const mastery = session({ checkMode: 'flashcards' });
+    const response = flashcardQuizResponse(
+      { studentUid: 'x', submittedAt: 5, score: 2, total: 2, answerLog: [] },
+      mastery
+    );
+    const questions = flashcardQuizQuestions(mastery);
+    expect(questions.map((q) => q.correctAnswer)).toEqual(['', '']);
+    expect(
+      questions.map((q) => flashcardGradeFn(q, '', response).isCorrect)
+    ).toEqual([true, true]);
+  });
+
+  it('shows the term said on a Speak Check, with no typed key', () => {
+    const speak = session({ checkMode: 'speak' });
+    const response = flashcardQuizResponse(
+      {
+        studentUid: 'x',
+        submittedAt: 5,
+        score: 0,
+        total: 1,
+        answerLog: [{ cardId: 'c1', response: '', correct: false }],
+      },
+      speak
+    );
+    expect(response.answers[0].answer).toBe('uno');
+    expect(flashcardQuizQuestions(speak)[0].correctAnswer).toBe('');
+  });
+
+  it('keeps a multi-line card side as one answer', () => {
+    const [q1] = flashcardQuizQuestions(
+      session({
+        cards: [{ id: 'c1', term: 'uno', definition: 'one\nthe number' }],
+      })
+    );
+    expect(q1.correctAnswer).toBe('one the number');
   });
 });

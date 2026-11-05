@@ -168,10 +168,11 @@ export const FlashcardResultsScreen: React.FC<FlashcardResultsScreenProps> = ({
       results.map((r) =>
         flashcardQuizResponse(
           r,
+          session,
           r.classId ? classLabelFor(r.classId) : undefined
         )
       ),
-    [classLabelFor, results]
+    [classLabelFor, results, session]
   );
   const responseByUid = useMemo(
     () => new Map(responses.map((r) => [r.studentUid, r])),
@@ -188,21 +189,19 @@ export const FlashcardResultsScreen: React.FC<FlashcardResultsScreenProps> = ({
   const shownName = (uid: string): string =>
     hideNames ? (maskedNames.get(uid) ?? 'Student') : nameFor(uid);
 
-  const studentRows = useMemo(
-    () =>
-      rows.slice().sort((a, b) => {
-        const byName = collator.compare(
-          sortNameFor(a.studentUid),
-          sortNameFor(b.studentUid)
-        );
-        const scoreA = a.percent ?? -1;
-        const scoreB = b.percent ?? -1;
-        return sort === 'lastName'
-          ? byName || scoreB - scoreA
-          : scoreB - scoreA || byName;
-      }),
-    [rows, sort, sortNameFor]
-  );
+  // Hidden names sort by the masked label so the order can't hint at real last names.
+  const studentRows = useMemo(() => {
+    const key = (uid: string): string =>
+      hideNames ? (maskedNames.get(uid) ?? '') : sortNameFor(uid);
+    return rows.slice().sort((a, b) => {
+      const byName = collator.compare(key(a.studentUid), key(b.studentUid));
+      const scoreA = a.percent ?? -1;
+      const scoreB = b.percent ?? -1;
+      return sort === 'lastName'
+        ? byName || scoreB - scoreA
+        : scoreB - scoreA || byName;
+    });
+  }, [hideNames, maskedNames, rows, sort, sortNameFor]);
 
   const classOrder = useMemo(
     () =>
