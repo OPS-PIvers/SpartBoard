@@ -230,8 +230,8 @@ jobs:
       # Runs beside the backend deploy; hosting is untouched until the wait step below, so it reads the same live build.
       - name: Start carrying recent builds' assets forward
         run: |
-          ( node scripts/carryForwardAssets.mjs https://spartboard.web.app; echo $? > "$RUNNER_TEMP/carry-forward.exit" ) \
-            > "$RUNNER_TEMP/carry-forward.log" 2>&1 &
+          ( set +e; node scripts/carryForwardAssets.mjs https://spartboard.web.app; echo $? > "$RUNNER_TEMP/carry-forward.tmp"
+            mv "$RUNNER_TEMP/carry-forward.tmp" "$RUNNER_TEMP/carry-forward.exit" ) > "$RUNNER_TEMP/carry-forward.log" 2>&1 &
 
       # Backend before hosting: a new composite index isn't usable until it builds, so hosting waits for it.
       - name: Create Service Account File
@@ -293,10 +293,10 @@ jobs:
 
       # Open tabs on an older build still lazy-load their own chunks instead of reloading mid-lesson.
       - name: Carry recent builds' assets forward
-        timeout-minutes: 15
         run: |
-          while [ ! -f "$RUNNER_TEMP/carry-forward.exit" ]; do sleep 2; done
+          for _ in $(seq 450); do [ -f "$RUNNER_TEMP/carry-forward.exit" ] && break; sleep 2; done
           cat "$RUNNER_TEMP/carry-forward.log"
+          [ -f "$RUNNER_TEMP/carry-forward.exit" ] || { echo "::error::Carrying assets forward took over 15 minutes."; exit 1; }
           exit "$(cat "$RUNNER_TEMP/carry-forward.exit")"
 
       # Repo firebase-tools rather than action-hosting-deploy, whose bundled CLI hits "premature close".
