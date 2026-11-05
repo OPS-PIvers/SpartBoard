@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart3, Loader2 } from 'lucide-react';
 import { staffResultsLabel } from '@/utils/staffAudience';
-import type { FlashcardAssignment, FlashcardScoreVisibility } from '@/types';
+import type { FlashcardAssignment } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -27,6 +27,11 @@ import {
 } from '@/components/widgets/QuizWidget/components/monitor/PeriodBar';
 import type { MonitorRosterPrefs } from '@/components/widgets/QuizWidget/components/monitor/rosterStyles';
 import { logError } from '@/utils/logError';
+import {
+  flashcardClassVisibility,
+  isFlashcardPublished,
+} from '@/utils/flashcardResultsVisibility';
+import type { StudentResultsActions } from '@/components/widgets/QuizWidget/components/results/studentResultsSelection';
 import { FlashcardMonitor } from './FlashcardMonitor';
 import { FlashcardResultsScreen } from './FlashcardResultsScreen';
 import { useSyncPlcFlashcardResult } from './useSyncPlcFlashcardResult';
@@ -54,10 +59,6 @@ interface FlashcardResultsViewProps {
   screen?: 'monitor' | 'results';
 }
 
-const isPublished = (
-  visibility: FlashcardScoreVisibility | undefined
-): boolean => visibility !== undefined && visibility !== 'none';
-
 export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   assignment,
   onBack,
@@ -72,8 +73,15 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   const { orgId, canAccessFeature } = useAuth();
   const { rosters, addToast } = useDashboard();
   const { showConfirm } = useDialog();
-  const { session, results, loading, error, resetStudent, resolveFlag } =
-    useFlashcardResults(assignment.sessionId);
+  const {
+    session,
+    results,
+    loading,
+    error,
+    resetStudent,
+    resolveFlag,
+    setResultsOverride,
+  } = useFlashcardResults(assignment.sessionId);
   useSyncPlcFlashcardResult(
     assignment,
     session,
@@ -296,8 +304,37 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
 
   const quizStyle = canAccessFeature('flashcards-assign-v2');
 
-  const published = isPublished(
+  const published = isFlashcardPublished(
     session?.scoreVisibility ?? assignment.scoreVisibility
+  );
+
+  // Quiz's per-student Show / Hide / Follow class, on each student's own progress doc.
+  const studentResultsActions = useMemo<StudentResultsActions>(
+    () => ({
+      publish: async (keys, visibility, expiresAt, protection) => {
+        const submitted = new Set(
+          results
+            .filter((r) => typeof r.submittedAt === 'number')
+            .map((r) => r.studentUid)
+        );
+        const shown = keys.filter((key) => submitted.has(key));
+        await setResultsOverride(shown, {
+          mode: 'shown',
+          visibility,
+          publishedAt: Date.now(),
+          expiresAt,
+          ...(protection ? { protection } : {}),
+        });
+        return {
+          responsesUpdated: shown.length,
+          skipped: keys.length - shown.length,
+        };
+      },
+      hide: (keys) =>
+        setResultsOverride(keys, { mode: 'hidden', publishedAt: Date.now() }),
+      clear: (keys) => setResultsOverride(keys, null),
+    }),
+    [results, setResultsOverride]
   );
 
   const publishModal = publishOpen && (
@@ -377,6 +414,10 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         }
         launchedBy={launchedBy}
         addToast={addToast}
+        studentResultsActions={studentResultsActions}
+        classVisibility={flashcardClassVisibility(
+          session.scoreVisibility ?? assignment.scoreVisibility
+        )}
       />
     );
   }

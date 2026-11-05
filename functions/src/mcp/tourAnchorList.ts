@@ -64472,6 +64472,416 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.results-bulk-show",
+    "label": "Show results… in the Flashcards Results selection bar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-bulk-hide",
+    "label": "Hide results in the Flashcards Results selection bar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-bulk-follow-class",
+    "label": "Follow class in the Flashcards Results selection bar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-bulk-copy-names",
+    "label": "Copy names in the Flashcards Results selection bar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-bulk-print",
+    "label": "Print selected in the Flashcards Results selection bar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-bulk-clear",
+    "label": "Clear selection in the Flashcards Results selection bar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-student-menu",
+    "label": "Results options menu button for a student in Flashcards Results, by row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-student-menu-item",
+    "label": "Item in a results options menu in Flashcards Results, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-student-show",
+    "label": "Show results button in an open student row in Flashcards Results",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-student-hide",
+    "label": "Hide button in an open student row in Flashcards Results",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-student-follow-class",
+    "label": "Follow class button in an open student row in Flashcards Results",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-show-level",
+    "label": "What they see option in the Flashcards Show results dialog, by level",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-show-expiry",
+    "label": "Stop showing option in the Flashcards Show results dialog, by option",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-show-cancel",
+    "label": "Cancel in the Flashcards Show results dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-show-confirm",
+    "label": "Show results button in the Flashcards Show results dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-students-select-all",
+    "label": "Select all checkbox on the Flashcards Results Students list",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-student-select",
+    "label": "Select checkbox for one student in the Flashcards Results screen",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1",
+          "flashcards.results-drill:flashcards#students"
+        ],
+        "reveal": "flashcards.results-drill:flashcards#students",
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.results-export",
     "label": "Export to Sheets button in the Flashcards Results screen",
     "scope": "widget type",

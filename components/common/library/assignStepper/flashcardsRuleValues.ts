@@ -2,6 +2,7 @@
 import type {
   FlashcardCheckRules,
   FlashcardCheckSessionOptions,
+  FlashcardPublishedVisibility,
   FlashcardScoreVisibility,
   QuizBehaviorSettings,
 } from '@/types';
@@ -18,6 +19,7 @@ import {
   TAB_AWAY_LIMIT_MIN_SECONDS,
 } from '@/utils/tabAwayLimit';
 import { isFocusLevel } from '@/utils/pageProtections';
+import { flashcardClassVisibility } from '@/utils/flashcardResultsVisibility';
 
 const BOOLEAN_KEYS = [
   'shuffleQuestions',
@@ -96,15 +98,16 @@ export function parseFlashcardCheckRules(
 
 /** Seeds the switches from an older saved score visibility. */
 export function rulesFromScoreVisibility(
-  visibility: FlashcardScoreVisibility
+  visibility: FlashcardPublishedVisibility
 ): FlashcardCheckRules {
-  const answers = visibility === 'score-and-answers';
+  const level = flashcardClassVisibility(visibility);
+  const answers = level === 'score-responses-and-answers';
   return {
     ...DEFAULT_FLASHCARD_CHECK_RULES,
     sessionOptions: {
       ...DEFAULT_FLASHCARD_CHECK_RULES.sessionOptions,
-      showScoreOnSubmit: visibility !== 'none',
-      showResultToStudent: answers,
+      showScoreOnSubmit: level !== 'none',
+      showResultToStudent: answers || level === 'score-and-responses',
       showCorrectAnswerToStudent: answers,
     },
   };

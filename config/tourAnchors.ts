@@ -14509,6 +14509,94 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.results-bulk-show': {
+    label: 'Show results… in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-hide': {
+    label: 'Hide results in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-follow-class': {
+    label: 'Follow class in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-copy-names': {
+    label: 'Copy names in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-print': {
+    label: 'Print selected in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-bulk-clear': {
+    label: 'Clear selection in the Flashcards Results selection bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-student-menu': {
+    label:
+      'Results options menu button for a student in Flashcards Results, by row',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-student-menu-item': {
+    label: 'Item in a results options menu in Flashcards Results, by item',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-student-show': {
+    label: 'Show results button in an open student row in Flashcards Results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-student-hide': {
+    label: 'Hide button in an open student row in Flashcards Results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-student-follow-class': {
+    label: 'Follow class button in an open student row in Flashcards Results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-show-level': {
+    label:
+      'What they see option in the Flashcards Show results dialog, by level',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-show-expiry': {
+    label:
+      'Stop showing option in the Flashcards Show results dialog, by option',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-show-cancel': {
+    label: 'Cancel in the Flashcards Show results dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-show-confirm': {
+    label: 'Show results button in the Flashcards Show results dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-students-select-all': {
+    label: 'Select all checkbox on the Flashcards Results Students list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-student-select': {
+    label: 'Select checkbox for one student in the Flashcards Results screen',
+    perField: true,
+    panel: true,
+  },
   'flashcards.results-export': {
     label: 'Export to Sheets button in the Flashcards Results screen',
     perWidgetType: true,

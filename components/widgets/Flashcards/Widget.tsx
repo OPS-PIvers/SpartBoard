@@ -3,16 +3,20 @@ import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { Layers, LogIn } from 'lucide-react';
 import { deleteField, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import type {
-  FlashcardAssignment,
-  FlashcardCard,
-  FlashcardSet,
-  FlashcardsConfig,
-  StudentOverride,
-  SubShareFlashcardSetView,
-  StudentTargetRef,
-  WidgetData,
+import {
+  RESULTS_PROTECTION_DEFAULTS,
+  type FlashcardAssignment,
+  type FlashcardCard,
+  type FlashcardSet,
+  type FlashcardsConfig,
+  type StudentOverride,
+  type SubShareFlashcardSetView,
+  type StudentTargetRef,
+  type WidgetData,
 } from '@/types';
+import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import { flashcardClassVisibility } from '@/utils/flashcardResultsVisibility';
+import { logError } from '@/utils/logError';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -143,7 +147,13 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const config = widget.config as FlashcardsConfig;
-  const { user, ensureGoogleScope, canAccessFeature } = useAuth();
+  const {
+    user,
+    ensureGoogleScope,
+    canAccessFeature,
+    appSettings,
+    updateAppSettings,
+  } = useAuth();
   const claudeReview = useClaudeReview('flashcard_sets');
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -708,6 +718,24 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const handleUnpublishScores = async (
     assignment: FlashcardAssignment
   ): Promise<void> => {
+    // flashcards-assign-v2 confirms and reports with Quiz's Unpublish scores wording.
+    if (canAccessFeature('flashcards-assign-v2')) {
+      const ok = await showConfirm(
+        'Students will no longer be able to see their scores or responses. You can republish anytime.',
+        {
+          title: 'Unpublish scores',
+          variant: 'danger',
+          confirmLabel: 'Unpublish',
+        }
+      );
+      if (!ok) return;
+      await runAssignmentAction(
+        () => unpublishScores(assignment.id),
+        'Scores unpublished.',
+        'Failed to unpublish scores'
+      );
+      return;
+    }
     const confirmed = await showConfirm(
       `Hide scores for “${assignment.setTitle}”? Students stop seeing their results.`,
       { title: 'Hide scores', variant: 'warning', confirmLabel: 'Hide scores' }
@@ -927,7 +955,46 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         onNotice={addToast}
       />
 
-      {publishTarget && (
+      {publishTarget && canAccessFeature('flashcards-assign-v2') && (
+        <PublishScoresModal
+          assignmentTitle={publishTarget.setTitle || 'Untitled set'}
+          currentVisibility={flashcardClassVisibility(
+            publishTarget.scoreVisibility
+          )}
+          showProtection
+          initialProtection={
+            appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
+          }
+          onClose={() => setPublishTarget(null)}
+          onConfirm={async (visibility, protection) => {
+            const target = publishTarget;
+            if (visibility === 'none') {
+              await runAssignmentAction(
+                () => unpublishScores(target.id),
+                'Scores unpublished.',
+                'Failed to unpublish scores'
+              );
+              setPublishTarget(null);
+              return;
+            }
+            await runAssignmentAction(
+              () => publishScores(target.id, visibility, protection),
+              'Scores published.',
+              'Scores could not be published.'
+            );
+            setPublishTarget(null);
+            if (protection) {
+              try {
+                await updateAppSettings({ lastResultsProtection: protection });
+              } catch (err) {
+                logError('Flashcards.updateAppSettings.lastProtection', err);
+              }
+            }
+          }}
+        />
+      )}
+
+      {publishTarget && !canAccessFeature('flashcards-assign-v2') && (
         <FlashcardPublishScoresModal
           assignmentTitle={publishTarget.setTitle || 'Untitled set'}
           currentVisibility={publishTarget.scoreVisibility}

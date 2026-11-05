@@ -547,7 +547,7 @@ const WATCHED: Record<GradeKind, string[]> = {
     'classId',
   ],
   'guided-learning': ['score', 'completedAt', 'resultsOverride', 'classId'],
-  flashcards: ['score', 'total', 'submittedAt', 'classId'],
+  flashcards: ['score', 'total', 'submittedAt', 'resultsOverride', 'classId'],
   projects: ['points', 'maxPoints', 'overridesByUid', 'released', 'gradedAt'],
   'mini-app': ['submittedAt', 'studentUid', 'best'],
   'activity-wall': ['submittedAt', 'authorUid'],

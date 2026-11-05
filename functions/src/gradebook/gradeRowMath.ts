@@ -640,7 +640,7 @@ export function scoreFlashcardProgress(session: Doc, progress: Doc): RowScore {
   const scored = submittedAt !== null && total !== null && correct !== null;
   return {
     classId: asString(progress.classId) || null,
-    published: toMillis(session.scorePublishedAt) !== null,
+    published: isPublished(session, progress),
     targetEvidence: [],
     rawPct: scored && total > 0 ? pctOf(correct, total) : null,
     points: scored ? correct : null,

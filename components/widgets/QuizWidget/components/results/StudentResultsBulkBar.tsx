@@ -19,8 +19,22 @@ import type {
 import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { logError } from '@/utils/logError';
 import { canTeacherSubmit } from '@/utils/quizTeacherSubmit';
-import { ShowResultsDialog } from './ShowResultsDialog';
-import { tourTypeAttr } from '@/config/tourAnchors';
+import {
+  ShowResultsDialog,
+  type ShowResultsDialogAnchors,
+} from './ShowResultsDialog';
+import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
+
+/** Live-tour anchors for another widget's copy of this bar; Quiz's are the default. */
+export interface StudentResultsBulkBarAnchors {
+  show: TourAnchorAttrs;
+  hide: TourAnchorAttrs;
+  followClass: TourAnchorAttrs;
+  copyNames: TourAnchorAttrs;
+  print: TourAnchorAttrs;
+  clear: TourAnchorAttrs;
+  dialog: ShowResultsDialogAnchors;
+}
 import type {
   StudentResultsActions,
   StudentResultsSelection,
@@ -42,6 +56,11 @@ interface StudentResultsBulkBarProps {
   reopenBlockedReason?: string | null;
   /** Turns in these unfinished students' saved answers; resolves true once done. */
   onSubmit?: (responseKeys: string[]) => Promise<boolean>;
+  anchors?: StudentResultsBulkBarAnchors;
+  /** 'inline' sits flat in a list's header row, with labels only when the widget is wide. */
+  variant?: 'banner' | 'inline';
+  /** Shown before the count in the inline variant, such as a Select all checkbox. */
+  leading?: React.ReactNode;
 }
 
 const plural = (n: number) => `${n} student${n === 1 ? '' : 's'}`;
@@ -57,6 +76,9 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
   onReopen,
   reopenBlockedReason = null,
   onSubmit,
+  anchors,
+  variant = 'banner',
+  leading,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState<
@@ -155,28 +177,51 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
     }
   };
 
-  const buttonCls =
-    'inline-flex items-center rounded-md bg-white/15 hover:bg-white/25 font-sans font-semibold text-white disabled:opacity-50 transition-colors';
+  const inline = variant === 'inline';
+  const buttonCls = inline
+    ? 'inline-flex items-center rounded-md font-sans font-semibold text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-gray-darkest disabled:opacity-50 transition-colors'
+    : 'inline-flex items-center rounded-md bg-white/15 hover:bg-white/25 font-sans font-semibold text-white disabled:opacity-50 transition-colors';
   const buttonStyle = {
     gap: 'min(4px, 1cqmin)',
-    padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+    padding: inline
+      ? 'min(5px, 1.25cqmin)'
+      : 'min(4px, 1cqmin) min(8px, 2cqmin)',
     fontSize: 'min(11px, 3.5cqmin)',
   };
-  const iconStyle = { width: 'min(12px, 4cqmin)', height: 'min(12px, 4cqmin)' };
+  const iconStyle = inline
+    ? { width: 'min(14px, 4.5cqmin)', height: 'min(14px, 4.5cqmin)' }
+    : { width: 'min(12px, 4cqmin)', height: 'min(12px, 4cqmin)' };
+  // Inline buttons drop to icons in a narrow widget, keeping the label as the tooltip.
+  const label = (text: string) =>
+    inline ? <span className="@max-[560px]:hidden">{text}</span> : text;
+  const named = (text: string) =>
+    inline ? { 'aria-label': text, title: text } : {};
 
   return (
     <div
       role="toolbar"
       aria-label="Selected students"
-      className="sticky top-0 z-10 flex flex-wrap items-center rounded-lg bg-brand-blue-primary text-white shadow-xs"
-      style={{
-        gap: 'min(6px, 1.5cqmin)',
-        padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-      }}
+      className={
+        inline
+          ? 'sticky top-0 z-10 flex items-center bg-white'
+          : 'sticky top-0 z-10 flex flex-wrap items-center rounded-lg bg-brand-blue-primary text-white shadow-xs'
+      }
+      style={
+        inline
+          ? { gap: 'min(2px, 0.5cqmin)', paddingLeft: 'min(10px, 2.5cqmin)' }
+          : {
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+            }
+      }
     >
+      {inline && leading}
       <span
-        className="font-sans font-bold"
-        style={{ fontSize: 'min(12px, 4cqmin)' }}
+        className={`font-sans font-bold whitespace-nowrap ${inline ? 'text-brand-gray-darkest' : ''}`}
+        style={{
+          fontSize: inline ? 'min(11px, 3.5cqmin)' : 'min(12px, 4cqmin)',
+          ...(inline ? { marginLeft: 'min(6px, 1.5cqmin)' } : {}),
+        }}
       >
         {selected.length} selected
       </span>
@@ -184,24 +229,28 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
       <button
         type="button"
         onClick={() => setDialogOpen(true)}
+        {...named('Show results…')}
         disabled={busy !== null || completedKeys.length === 0}
-        {...tourTypeAttr('quiz-results.bulk-show', 'quiz')}
+        {...(anchors?.show ?? tourTypeAttr('quiz-results.bulk-show', 'quiz'))}
         title={
           completedKeys.length === 0
             ? 'None of the selected students have finished yet'
-            : undefined
+            : inline
+              ? 'Show results…'
+              : undefined
         }
         className={buttonCls}
         style={buttonStyle}
       >
         <Eye style={iconStyle} />
-        Show results…
+        {label('Show results…')}
       </button>
       <button
         type="button"
         onClick={() => void run('hide')}
+        {...named('Hide results')}
         disabled={busy !== null}
-        {...tourTypeAttr('quiz-results.bulk-hide', 'quiz')}
+        {...(anchors?.hide ?? tourTypeAttr('quiz-results.bulk-hide', 'quiz'))}
         className={buttonCls}
         style={buttonStyle}
       >
@@ -210,14 +259,16 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         ) : (
           <EyeOff style={iconStyle} />
         )}
-        Hide results
+        {label('Hide results')}
       </button>
       <button
         type="button"
         onClick={() => void run('clear')}
+        {...named('Follow class')}
         disabled={busy !== null}
         title="Remove these students' overrides so they see what the class sees."
-        {...tourTypeAttr('quiz-results.bulk-follow-class', 'quiz')}
+        {...(anchors?.followClass ??
+          tourTypeAttr('quiz-results.bulk-follow-class', 'quiz'))}
         className={buttonCls}
         style={buttonStyle}
       >
@@ -226,28 +277,32 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         ) : (
           <Users style={iconStyle} />
         )}
-        Follow class
+        {label('Follow class')}
       </button>
       <button
         type="button"
         onClick={() => void copyNames()}
-        {...tourTypeAttr('quiz-results.bulk-copy-names', 'quiz')}
+        {...named('Copy names')}
+        {...(anchors?.copyNames ??
+          tourTypeAttr('quiz-results.bulk-copy-names', 'quiz'))}
         className={buttonCls}
         style={buttonStyle}
       >
         <Copy style={iconStyle} />
-        Copy names
+        {label('Copy names')}
       </button>
       {onPrint && (
         <button
           type="button"
           onClick={() => onPrint(keys)}
-          {...tourTypeAttr('quiz-results.bulk-print', 'quiz')}
+          {...named('Print selected')}
+          {...(anchors?.print ??
+            tourTypeAttr('quiz-results.bulk-print', 'quiz'))}
           className={buttonCls}
           style={buttonStyle}
         >
           <Printer style={iconStyle} />
-          Print selected
+          {label('Print selected')}
         </button>
       )}
       {onReopen && (
@@ -303,7 +358,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         type="button"
         onClick={selection.clearSelection}
         aria-label="Clear selection"
-        {...tourTypeAttr('quiz-results.bulk-clear', 'quiz')}
+        {...(anchors?.clear ?? tourTypeAttr('quiz-results.bulk-clear', 'quiz'))}
         className="rounded-md hover:bg-white/15 transition-colors"
         style={{ padding: 'min(4px, 1cqmin)' }}
       >
@@ -323,6 +378,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
           initialVisibility={classVisibility}
           onClose={() => setDialogOpen(false)}
           onConfirm={handleShow}
+          anchors={anchors?.dialog}
         />
       )}
     </div>

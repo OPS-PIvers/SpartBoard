@@ -4,11 +4,22 @@
  * doc and its `progress` subcollection while a results view is open.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  deleteField,
+  doc,
+  onSnapshot,
+  writeBatch,
+} from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
-import type { FlashcardProgress, FlashcardSession } from '@/types';
+import type {
+  FlashcardProgress,
+  FlashcardSession,
+  QuizResultsOverride,
+} from '@/types';
 import {
   FC_CONTENT_COLLECTION,
   FC_CONTENT_DOC,
@@ -37,7 +48,15 @@ export interface UseFlashcardResultsResult {
     cardId: string,
     accept: boolean
   ) => Promise<void>;
+  /** Writes (or, with null, clears) these students' own results setting. */
+  setResultsOverride: (
+    studentUids: readonly string[],
+    override: QuizResultsOverride | null
+  ) => Promise<void>;
 }
+
+// Firestore caps a batch at 500 writes.
+const BATCH_LIMIT = 450;
 
 interface ResolveFlagInput {
   assignmentId: string;
@@ -181,6 +200,32 @@ export const useFlashcardResults = (
     [assignmentId]
   );
 
+  const setResultsOverride = useCallback<
+    UseFlashcardResultsResult['setResultsOverride']
+  >(
+    async (studentUids, override) => {
+      if (!assignmentId) return;
+      const uids = [...new Set(studentUids)];
+      for (let i = 0; i < uids.length; i += BATCH_LIMIT) {
+        const batch = writeBatch(db);
+        for (const uid of uids.slice(i, i + BATCH_LIMIT)) {
+          batch.update(
+            doc(
+              db,
+              FLASHCARD_SESSIONS_COLLECTION,
+              assignmentId,
+              FLASHCARD_PROGRESS_SUBCOLLECTION,
+              uid
+            ),
+            { resultsOverride: override ?? deleteField() }
+          );
+        }
+        await batch.commit();
+      }
+    },
+    [assignmentId]
+  );
+
   return {
     session,
     results,
@@ -188,5 +233,6 @@ export const useFlashcardResults = (
     error,
     resetStudent,
     resolveFlag,
+    setResultsOverride,
   };
 };

@@ -7227,8 +7227,10 @@ service cloud.firestore {
           return data.keys().hasOnly([
                    'classId', 'cards', 'starred', 'round', 'studyMs', 'modesUsed',
                    'tests', 'lastActiveAt', 'checkLog', 'speak', 'speakRound',
-                   'speakSounds', 'staffEmail', 'staffName'
+                   'speakSounds', 'staffEmail', 'staffName', 'resultsOverride'
                  ])
+                 // The teacher's per-student results setting is never the student's to write.
+                 && data.get('resultsOverride', null) == (resource == null ? null : existing().get('resultsOverride', null))
                  && data.classId is string
                  && fcCardsOk()
                  && data.starred is list
@@ -7263,6 +7265,10 @@ service cloud.firestore {
                               && fcWithinWindow() && fcOpen()
                               && (resource == null || !('submittedAt' in existing()))
                               && fcValidProgress();
+        // Show / Hide / Follow class for one student (flashcards-assign-v2): that one field only.
+        allow update: if fcIsSessionTeacher() && notDeactivated()
+                      && changedOnly(['resultsOverride'])
+                      && optMap(incoming(), 'resultsOverride');
         allow delete: if fcIsSessionTeacher() && notDeactivated();
       }
     }
