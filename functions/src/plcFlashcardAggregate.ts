@@ -109,9 +109,10 @@ export function computeFlashcardAggregate(
       if (!terms.has(card.id)) terms.set(card.id, card.term);
     }
   }
-  // A card carries every tag of each set it was assigned from.
+  // A card carries every tag of each set it was assigned from; mastery checks have no answers to count.
   const cardTargets = new Map<string, Map<string, QuestionTargetSnapshot>>();
   for (const session of input.sessions) {
+    if (session.checkMode === 'flashcards') continue;
     for (const target of session.targets ?? []) {
       for (const card of session.cards) {
         const tags =

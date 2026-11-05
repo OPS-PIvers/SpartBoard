@@ -81,8 +81,10 @@ export const TargetHeroFromInput: React.FC<{
 }> = ({ input, model, targetId, isLead, pinnedBy }) => {
   const { openLayoutEditor } = useTeamShellActions();
   const titles: Record<string, string> = {};
-  for (const a of input.assessments) titles[a.id] = a.title;
-  for (const a of input.aggregates) titles[a.assessmentId] ??= a.title ?? '';
+  for (const a of input.masteryAssessments ?? input.assessments)
+    titles[a.id] = a.title;
+  for (const a of input.masteryAggregates ?? input.aggregates)
+    titles[a.assessmentId] ??= a.title ?? '';
   return (
     <TargetHeroView
       row={findTargetMastery(input, targetId)}

@@ -107,4 +107,26 @@ describe('computeFlashcardAggregate', () => {
     });
     expect(agg.perQuestion[0].answered).toBe(0);
   });
+
+  it('gives a mastery-only check no target rows', () => {
+    const agg = computeFlashcardAggregate({
+      assessmentId: 'a',
+      title: 'Vocab',
+      sessions: [
+        {
+          id: 's',
+          teacherUid: 't',
+          teacherName: 'T',
+          checkMode: 'flashcards',
+          cards: [{ id: 'c1', term: 'perro' }],
+          submissions: [{ score: null, total: null, answerLog: [] }],
+          targets: [
+            { id: 'mn:WL.1', kind: 'standard', code: 'WL.1', label: 'WL.1' },
+          ],
+        },
+      ],
+    });
+    expect(agg.perTarget).toEqual([]);
+    expect(agg.perStandard).toEqual([]);
+  });
 });
