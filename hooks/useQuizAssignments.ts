@@ -1553,6 +1553,7 @@ export const useQuizAssignments = (
           : {}),
         ...(perPeriod ? { accessMode, periodAccess } : {}),
         ...(paperBatchId ? { paper: true as const, paperBatchId } : {}),
+        ...audienceSessionFields(options?.audience),
       };
 
       const mode = settings.sessionMode;

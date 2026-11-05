@@ -38,6 +38,8 @@ export const AssignWhenStep: React.FC<{
   periodAccess?: AssignPeriodAccessContext;
   /** Offers Manual; defaults to on only with bell periods. */
   manualAvailable?: boolean;
+  /** Staff audience: no classes, so Manual starts and pauses the whole assignment. */
+  staff?: boolean;
   /** Each class keeps one Opens for all classes, where only one open time can be saved. */
   sharedOpens?: boolean;
   /** Offers a window per class; defaults to on only with bell periods, since only a period gate saves one. */
@@ -49,6 +51,7 @@ export const AssignWhenStep: React.FC<{
   rosters,
   periodAccess,
   manualAvailable: manualOffered = !!periodAccess,
+  staff = false,
   sharedOpens,
   perClass = !!periodAccess,
 }) => {
@@ -130,9 +133,13 @@ export const AssignWhenStep: React.FC<{
 
       {manual ? (
         <StateLine>
-          {t('assignWhen.manualState', {
-            defaultValue: 'Starts paused. You start and pause each class.',
-          })}
+          {staff
+            ? t('assignWhen.manualStateStaff', {
+                defaultValue: 'Starts paused. You start and pause it.',
+              })
+            : t('assignWhen.manualState', {
+                defaultValue: 'Starts paused. You start and pause each class.',
+              })}
         </StateLine>
       ) : (
         <>
