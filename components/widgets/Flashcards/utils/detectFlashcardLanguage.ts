@@ -7,24 +7,21 @@ import {
 export const DETECT_MIN_CARDS = 5;
 const MIN_CONFIDENCE = 0.7;
 
-// Ordered so kana wins over the Han characters Japanese also uses.
-const SCRIPTS: readonly { pattern: RegExp; tag: string }[] = [
-  { pattern: /\p{Script=Hangul}/u, tag: 'ko-KR' },
-  { pattern: /[\p{Script=Hiragana}\p{Script=Katakana}]/u, tag: 'ja-JP' },
-  { pattern: /\p{Script=Han}/u, tag: 'zh-CN' },
-  { pattern: /\p{Script=Cyrillic}/u, tag: 'ru-RU' },
-];
+const count = (text: string, pattern: RegExp): number =>
+  text.match(pattern)?.length ?? 0;
 
 /** A language that the column's alphabet alone settles, or null for Latin script. */
 export const languageFromScript = (texts: readonly string[]): string | null => {
   const joined = texts.join(' ');
-  const letters = joined.match(/\p{L}/gu)?.length ?? 0;
+  const letters = count(joined, /\p{L}/gu);
   if (letters === 0) return null;
-  for (const { pattern, tag } of SCRIPTS) {
-    const global = new RegExp(pattern.source, 'gu');
-    const hits = joined.match(global)?.length ?? 0;
-    if (hits / letters >= 0.5) return tag;
-  }
+  const share = (hits: number): boolean => hits / letters >= 0.5;
+  if (share(count(joined, /\p{Script=Hangul}/gu))) return 'ko-KR';
+  const han = count(joined, /\p{Script=Han}/gu);
+  const kana = count(joined, /[\p{Script=Hiragana}\p{Script=Katakana}]/gu);
+  // Japanese words mix kanji with kana, so any kana marks the column as Japanese.
+  if (share(han + kana)) return kana > 0 ? 'ja-JP' : 'zh-CN';
+  if (share(count(joined, /\p{Script=Cyrillic}/gu))) return 'ru-RU';
   return null;
 };
 

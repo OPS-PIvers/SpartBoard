@@ -201,7 +201,7 @@ describe('FlashcardSetEditorModal', () => {
       cards: korean.map((term, i) => ({
         id: `k${i}`,
         term: i === 4 ? '' : term,
-        definition: 'x',
+        definition: i === 4 ? '' : 'x',
       })),
     });
     renderModal({ isNew: true, set });
@@ -218,6 +218,26 @@ describe('FlashcardSetEditorModal', () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 1000));
     expect(termLanguage).toHaveProperty('value', 'fr-FR');
+  });
+
+  it('leaves a saved set with five or more cards on its own language', async () => {
+    const set = baseSet({
+      termLanguage: 'en-US',
+      cards: ['하나', '둘', '셋', '넷', '다섯'].map((term, i) => ({
+        id: `k${i}`,
+        term,
+        definition: 'x',
+      })),
+    });
+    renderModal({ set });
+    fireEvent.change(screen.getByLabelText('Term 5'), {
+      target: { value: '여섯' },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(screen.getByLabelText('Term language')).toHaveProperty(
+      'value',
+      'en-US'
+    );
   });
 
   it('adds the next card on Enter in Definition', () => {

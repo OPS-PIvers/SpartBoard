@@ -16,6 +16,9 @@ describe('languageFromScript', () => {
     expect(languageFromScript(['안녕하세요'])).toBe('ko-KR');
     expect(languageFromScript(['ありがとう', '学校'])).toBe('ja-JP');
     expect(languageFromScript(['你好'])).toBe('zh-CN');
+    expect(
+      languageFromScript(['学校', '先生', '電車', '日本語', '食べる'])
+    ).toBe('ja-JP');
     expect(languageFromScript(['привет'])).toBe('ru-RU');
   });
 

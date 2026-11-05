@@ -37,7 +37,10 @@ import {
 } from '@/components/widgets/QuizWidget/components/quizEditorFieldStyles';
 import { FlashcardLanguageField } from './FlashcardLanguageField';
 import { FlashcardSetTargetsField } from './FlashcardSetTargetsField';
-import { detectFlashcardLanguage } from './utils/detectFlashcardLanguage';
+import {
+  DETECT_MIN_CARDS,
+  detectFlashcardLanguage,
+} from './utils/detectFlashcardLanguage';
 import { DEFAULT_QUIZ_LANGUAGE } from '@/config/quizReadAloud';
 import { PasteImportDrawer } from './PasteImportDrawer';
 import { SpeakReviewList } from './speak/SpeakReviewList';
@@ -106,8 +109,8 @@ export const FlashcardSetEditorModal: React.FC<
     lookupReferences,
     composeSet,
   } = state;
-  // A column the teacher set by hand is never auto-detected again.
-  const [pickedLanguage, setPickedLanguage] = useState({
+  // A column is guessed at most once, and never after the teacher picks its language.
+  const [settledLanguage, setSettledLanguage] = useState({
     term: false,
     definition: false,
   });
@@ -125,21 +128,27 @@ export const FlashcardSetEditorModal: React.FC<
     () => set.cards.map((card) => card.definition).join('\n'),
     [set.cards]
   );
-  // Only a new set, or one still on the default language, is guessed, and only once its words change.
+  // A set saved with enough cards already had its languages chosen.
+  const startedFilled = cleanFlashcards(set.cards).length >= DETECT_MIN_CARDS;
+  const canDetect = !startedFilled && checkingCount === 0;
   const detectTerm =
-    !pickedLanguage.term &&
-    (isNew || set.termLanguage === DEFAULT_QUIZ_LANGUAGE) &&
+    canDetect &&
+    !settledLanguage.term &&
+    termLanguage === DEFAULT_QUIZ_LANGUAGE &&
     termTexts !== initialTerms;
   const detectDefinition =
-    !pickedLanguage.definition &&
-    (isNew || set.definitionLanguage === DEFAULT_QUIZ_LANGUAGE) &&
+    canDetect &&
+    !settledLanguage.definition &&
+    definitionLanguage === DEFAULT_QUIZ_LANGUAGE &&
     definitionTexts !== initialDefinitions;
   useEffect(() => {
     if (!detectTerm) return undefined;
     let cancelled = false;
     const timer = window.setTimeout(() => {
       void detectFlashcardLanguage(termTexts.split('\n')).then((tag) => {
-        if (!cancelled && tag) setTermLanguage(tag);
+        if (cancelled || !tag) return;
+        setTermLanguage(tag);
+        setSettledLanguage((p) => ({ ...p, term: true }));
       });
     }, DETECT_DELAY_MS);
     return () => {
@@ -152,7 +161,9 @@ export const FlashcardSetEditorModal: React.FC<
     let cancelled = false;
     const timer = window.setTimeout(() => {
       void detectFlashcardLanguage(definitionTexts.split('\n')).then((tag) => {
-        if (!cancelled && tag) setDefinitionLanguage(tag);
+        if (cancelled || !tag) return;
+        setDefinitionLanguage(tag);
+        setSettledLanguage((p) => ({ ...p, definition: true }));
       });
     }, DETECT_DELAY_MS);
     return () => {
@@ -471,7 +482,7 @@ export const FlashcardSetEditorModal: React.FC<
             heading="Term"
             value={termLanguage}
             onChange={(tag) => {
-              setPickedLanguage((p) => ({ ...p, term: true }));
+              setSettledLanguage((p) => ({ ...p, term: true }));
               setTermLanguage(tag);
             }}
             tourField="term"
@@ -481,7 +492,7 @@ export const FlashcardSetEditorModal: React.FC<
             heading="Definition"
             value={definitionLanguage}
             onChange={(tag) => {
-              setPickedLanguage((p) => ({ ...p, definition: true }));
+              setSettledLanguage((p) => ({ ...p, definition: true }));
               setDefinitionLanguage(tag);
             }}
             tourField="definition"
