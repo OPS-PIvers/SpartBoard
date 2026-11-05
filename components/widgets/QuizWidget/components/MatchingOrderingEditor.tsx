@@ -101,7 +101,7 @@ function parsePairs(
       { id: newId(), term: '', definition: '' },
     ];
   }
-  const rows = correctAnswer.split('|').map((p) => {
+  const rows: PairRow[] = correctAnswer.split('|').map((p) => {
     const sep = p.indexOf(':');
     const term = sep < 0 ? p : p.slice(0, sep);
     const definition = sep < 0 ? '' : p.slice(sep + 1);
