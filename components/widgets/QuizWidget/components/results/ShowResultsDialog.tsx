@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { Eye, Loader2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import {
+  tourAttr,
+  tourFieldAttr,
+  tourTypeAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 import { PUBLISH_LEVEL_OPTIONS } from '@/components/common/library/publishScoreLevels';
 import {
   RESULTS_PROTECTION_DEFAULTS,
@@ -24,6 +29,14 @@ const EXPIRY_OPTIONS: { id: ResultsExpiryPreset; label: string }[] = [
   { id: '1week', label: '1 week' },
 ];
 
+/** Live-tour anchors for another widget's copy of this dialog; Quiz's are the default. */
+export interface ShowResultsDialogAnchors {
+  level: (level: string) => TourAnchorAttrs;
+  expiry: (preset: string) => TourAnchorAttrs;
+  cancel: TourAnchorAttrs;
+  confirm: TourAnchorAttrs;
+}
+
 interface ShowResultsDialogProps {
   /** One name, or "3 students", for the heading. */
   targetLabel: string;
@@ -35,8 +48,7 @@ interface ShowResultsDialogProps {
     expiresAt: number | null,
     protection: ResultsProtection | undefined
   ) => Promise<void>;
-  /** Widget type for the live-tour anchors; Flashcards reuses this dialog. */
-  tourWidgetType?: string;
+  anchors?: ShowResultsDialogAnchors;
 }
 
 export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
@@ -45,7 +57,7 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
   initialProtection,
   onClose,
   onConfirm,
-  tourWidgetType = 'quiz',
+  anchors,
 }) => {
   const { canAccessFeature } = useAuth();
   const showProtection = canAccessFeature('gradebook');
@@ -129,11 +141,12 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
                 <input
                   type="radio"
                   name="student-results-level"
-                  {...tourFieldAttr(
-                    'quiz-results.show-results-level',
-                    tourWidgetType,
-                    id
-                  )}
+                  {...(anchors?.level(id) ??
+                    tourFieldAttr(
+                      'quiz-results.show-results-level',
+                      'quiz',
+                      id
+                    ))}
                   value={id}
                   checked={active}
                   onChange={() => setVisibility(id)}
@@ -167,11 +180,12 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
                 <input
                   type="radio"
                   name="student-results-expiry"
-                  {...tourFieldAttr(
-                    'quiz-results.show-results-expiry',
-                    tourWidgetType,
-                    opt.id
-                  )}
+                  {...(anchors?.expiry(opt.id) ??
+                    tourFieldAttr(
+                      'quiz-results.show-results-expiry',
+                      'quiz',
+                      opt.id
+                    ))}
                   value={opt.id}
                   checked={expiry === opt.id}
                   onChange={() => setExpiry(opt.id)}
@@ -201,10 +215,8 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            {...tourTypeAttr(
-              'quiz-results.show-results-cancel',
-              tourWidgetType
-            )}
+            {...(anchors?.cancel ??
+              tourTypeAttr('quiz-results.show-results-cancel', 'quiz'))}
             className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             Cancel
@@ -213,10 +225,8 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
             type="button"
             onClick={() => void handleConfirm()}
             disabled={submitting}
-            {...tourTypeAttr(
-              'quiz-results.show-results-confirm',
-              tourWidgetType
-            )}
+            {...(anchors?.confirm ??
+              tourTypeAttr('quiz-results.show-results-confirm', 'quiz'))}
             className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-light disabled:opacity-60"
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

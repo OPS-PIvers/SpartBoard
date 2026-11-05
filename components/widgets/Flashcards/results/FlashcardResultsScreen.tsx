@@ -60,7 +60,11 @@ import {
   ResultsOverrideBadge,
   StudentResultsControl,
 } from '@/components/widgets/QuizWidget/components/results/StudentResultsControl';
-import { StudentResultsBulkBar } from '@/components/widgets/QuizWidget/components/results/StudentResultsBulkBar';
+import {
+  StudentResultsBulkBar,
+  type StudentResultsBulkBarAnchors,
+} from '@/components/widgets/QuizWidget/components/results/StudentResultsBulkBar';
+import type { ShowResultsDialogAnchors } from '@/components/widgets/QuizWidget/components/results/ShowResultsDialog';
 import {
   StudentResultsSelectionContext,
   useStudentResultsSelection,
@@ -105,6 +109,35 @@ const HIDDEN_PRINT_OPTIONS: readonly ResultsPrintToggle[] = [
   'showWrittenFeedback',
   'includeStimuli',
 ];
+// Quiz's Show results pieces, tagged with Flashcards' own tour anchors.
+const SHOW_DIALOG_ANCHORS: ShowResultsDialogAnchors = {
+  level: (level) =>
+    tourFieldAttr('flashcards.results-show-level', 'flashcards', level),
+  expiry: (preset) =>
+    tourFieldAttr('flashcards.results-show-expiry', 'flashcards', preset),
+  cancel: tourTypeAttr('flashcards.results-show-cancel', 'flashcards'),
+  confirm: tourTypeAttr('flashcards.results-show-confirm', 'flashcards'),
+};
+const PANEL_ANCHORS = {
+  show: tourTypeAttr('flashcards.results-student-show', 'flashcards'),
+  hide: tourTypeAttr('flashcards.results-student-hide', 'flashcards'),
+  followClass: tourTypeAttr(
+    'flashcards.results-student-follow-class',
+    'flashcards'
+  ),
+};
+const BULK_ANCHORS: StudentResultsBulkBarAnchors = {
+  show: tourTypeAttr('flashcards.results-bulk-show', 'flashcards'),
+  hide: tourTypeAttr('flashcards.results-bulk-hide', 'flashcards'),
+  followClass: tourTypeAttr(
+    'flashcards.results-bulk-follow-class',
+    'flashcards'
+  ),
+  copyNames: tourTypeAttr('flashcards.results-bulk-copy-names', 'flashcards'),
+  print: tourTypeAttr('flashcards.results-bulk-print', 'flashcards'),
+  clear: tourTypeAttr('flashcards.results-bulk-clear', 'flashcards'),
+  dialog: SHOW_DIALOG_ANCHORS,
+};
 const collator = new Intl.Collator(undefined, {
   sensitivity: 'base',
   numeric: true,
@@ -424,7 +457,14 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
                   classVisibility={classVisibility}
                   actions={resultsActions}
                   addToast={addToast}
-                  tourWidgetType="flashcards"
+                  triggerAnchor={tourFieldAttr(
+                    'flashcards.results-student-menu',
+                    'flashcards',
+                    `row-${rowIndex + 1}`
+                  )}
+                  tourId="flashcards.results-student-menu-item"
+                  tourScope="flashcards"
+                  dialogAnchors={SHOW_DIALOG_ANCHORS}
                 />
               </span>
             )}
@@ -449,7 +489,8 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
                 classVisibility={classVisibility}
                 actions={resultsActions}
                 addToast={addToast}
-                tourWidgetType="flashcards"
+                panelAnchors={PANEL_ANCHORS}
+                dialogAnchors={SHOW_DIALOG_ANCHORS}
               />
             )}
             {drilldown.lines.length === 0 ? (
@@ -680,7 +721,7 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
                   resolveName={(r) => shownName(r.studentUid)}
                   addToast={addToast}
                   onPrint={(keys) => setPrintSelection(keys)}
-                  tourWidgetType="flashcards"
+                  anchors={BULK_ANCHORS}
                 />
               )}
               <div

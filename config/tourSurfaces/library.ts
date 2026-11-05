@@ -300,6 +300,42 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'library-shell.archive-primary-action:flashcards#row-1',
     parent: 'library.flashcards',
     needs: ['student-data'],
+    inner: {
+      'flashcards.results-bulk-show':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-bulk-hide':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-bulk-follow-class':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-bulk-copy-names':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-bulk-print':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-bulk-clear':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-menu':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-menu-item':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-show':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-hide':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-follow-class':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-show-level':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-show-expiry':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-show-cancel':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-show-confirm':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-students-select-all':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-select':
+        'flashcards.results-drill:flashcards#students',
+    },
   },
   'library.flashcards.assignment-settings': {
     label: 'Flashcards assignment Settings dialog',
