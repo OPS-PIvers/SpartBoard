@@ -201,6 +201,9 @@ describe('useQuizAssignments — per-period sessions', () => {
     expect(deleteDoc).toHaveBeenCalledWith(
       'quiz_sessions/a-1/content/questions'
     );
+    expect(deleteDoc).toHaveBeenCalledWith(
+      'quiz_sessions/a-1/content/readAloud'
+    );
     expect(batchDelete).toHaveBeenCalledWith('quiz_sessions/a-1');
   });
 

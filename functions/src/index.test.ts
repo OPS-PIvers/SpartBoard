@@ -3919,6 +3919,7 @@ describe('index barrel — deployed export set', () => {
     'pollCodePointer',
     'resolvePollCodeV1',
     'mintPollCodeV1',
+    'guidedLearningLateRevealKey',
     // Gradebook grade index + student projection
     'gradeIndexQuizResponse',
     'gradeIndexVideoResponse',

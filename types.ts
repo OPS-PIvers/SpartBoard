@@ -3907,6 +3907,8 @@ export interface MiniAppSession
   attemptLimit?: number | null;
   /** v2 only: students see per-question correctness after submitting (D9). */
   showCorrectAnswers?: boolean;
+  /** Set at create when answers are hidden; rules then keep the summary teacher-only and students read a receipt. */
+  summaryHidden?: true;
   /** v2 only: frozen copy of the app's manifest at assign. */
   manifest?: MiniAppManifest;
 }

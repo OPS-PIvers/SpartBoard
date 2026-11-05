@@ -803,6 +803,166 @@ describe('prepareQuizReadAloud', () => {
 // through unchecked would let an attacker claim a real admin's address and
 // unlock quiz-read-aloud without ever proving ownership of that inbox. Same
 // rail as quizStimulusText.ts's buildDefaultExtractDeps / chargeOcr.
+describe('per-period manifests', () => {
+  const OPEN = {
+    c1: {
+      state: 'open',
+      openAt: null,
+      closeAt: null,
+      bellPeriodId: null,
+      verified: true,
+      label: 'P1',
+    },
+  };
+  const perPeriodDocs = () => {
+    const docs = makeDocs({
+      session: {
+        questionsInContent: true,
+        periodAccess: OPEN,
+        classIds: ['c1'],
+        publicQuestions: undefined,
+        readAloud: {
+          status: 'ready',
+          voice: 'v',
+          files: { 'q:old:question': 'quiz_tts_cache/v/old.mp3' },
+        },
+      },
+      pointer: null,
+    });
+    docs['quiz_sessions/s1/content/questions'] = { publicQuestions: QUESTIONS };
+    docs[`quiz_sessions/s1/responses/${STUDENT}`] = { classId: 'c1' };
+    return docs;
+  };
+  const CONTENT = 'quiz_sessions/s1/content/questions';
+  const RA = 'quiz_sessions/s1/content/readAloud';
+  const pathFields = ['files', 'timings', 'stimulusChunks', 'localized'];
+
+  it('prepare keeps audio paths off the session doc and in the read-aloud content doc', async () => {
+    const docs = perPeriodDocs();
+    const { deps } = makeDeps(docs);
+    const res = await prepareQuizReadAloud(
+      { sessionId: 's1', callerUid: TEACHER },
+      deps
+    );
+    expect(res.status).toBe('ready');
+    const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
+    expect(manifest).toMatchObject({ status: 'ready', failedKeys: [] });
+    for (const f of pathFields) expect(manifest).not.toHaveProperty(f);
+    const { parts } = enumerateParts({ publicQuestions: QUESTIONS });
+    const hidden = docs[RA];
+    expect(Object.keys(hidden.files as Doc).sort()).toEqual(
+      parts.map((p) => p.key).sort()
+    );
+    expect(hidden.stimulusChunks).toBeDefined();
+    // The questions doc every student listens to is left alone.
+    expect(docs[CONTENT]).toEqual({ publicQuestions: QUESTIONS });
+  });
+
+  it('prepare keeps paths on the session when its questions are inline too', async () => {
+    const docs = makeDocs({ session: { periodAccess: OPEN } });
+    const { deps } = makeDeps(docs);
+    await prepareQuizReadAloud({ sessionId: 's1', callerUid: TEACHER }, deps);
+    const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
+    expect(manifest.status).toBe('ready');
+    expect(Object.keys(manifest.files as Doc).length).toBeGreaterThan(0);
+    expect(docs[RA]).toBeUndefined();
+  });
+
+  it('plays even when saving the new path fails', async () => {
+    const docs = perPeriodDocs();
+    const { deps } = makeDeps(docs);
+    const realDb = deps.db as unknown as {
+      collection: (c: string) => { doc: (id: string) => Doc };
+    };
+    const collection = realDb.collection.bind(realDb);
+    realDb.collection = (c: string) => {
+      const col = collection(c);
+      const doc = col.doc.bind(col);
+      return {
+        ...col,
+        doc: (id: string) => {
+          const ref = doc(id) as Doc & {
+            collection: (sub: string) => { doc: (x: string) => Doc };
+          };
+          if (c !== 'quiz_sessions') return ref;
+          return {
+            ...ref,
+            collection: (sub: string) => ({
+              doc: (x: string) =>
+                sub === 'content'
+                  ? {
+                      ...ref.collection(sub).doc(x),
+                      set: () => Promise.reject(new Error('too big')),
+                    }
+                  : ref.collection(sub).doc(x),
+            }),
+          };
+        },
+      };
+    };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const res = await synthesizeQuizAudio(
+      {
+        mode: 'student',
+        sessionId: 's1',
+        questionId: 'q1',
+        part: { kind: 'question' },
+      },
+      classStudent,
+      deps
+    );
+    expect(res.path).toMatch(/^quiz_tts_cache\//);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('the student fallback patches the read-aloud doc and moves old session paths there', async () => {
+    const docs = perPeriodDocs();
+    const { deps } = makeDeps(docs);
+    const res = await synthesizeQuizAudio(
+      {
+        mode: 'student',
+        sessionId: 's1',
+        questionId: 'q1',
+        part: { kind: 'question' },
+      },
+      classStudent,
+      deps
+    );
+    // Paths prepared before the move keep playing from their new home.
+    expect(docs[RA].files).toEqual({
+      'q:old:question': 'quiz_tts_cache/v/old.mp3',
+      'q:q1:question': res.path,
+    });
+    expect(docs[CONTENT]).toEqual({ publicQuestions: QUESTIONS });
+    const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
+    expect(manifest.status).toBe('ready');
+    for (const f of pathFields) expect(manifest).not.toHaveProperty(f);
+  });
+
+  it('a stimulus fallback goes to the read-aloud doc too', async () => {
+    const docs = perPeriodDocs();
+    docs[CONTENT].readAloudTextByStimulusId = { 'stim-1': 'Passage one.' };
+    const { deps } = makeDeps(docs);
+    await synthesizeQuizAudio(
+      {
+        mode: 'student',
+        sessionId: 's1',
+        questionId: 'q2',
+        part: { kind: 'stimulus', stimulusId: 'stim-1' },
+      },
+      classStudent,
+      deps
+    );
+    expect(docs[RA].stimulusChunks).toEqual({
+      'stim-1': ['stim:stim-1:0'],
+    });
+    expect(docs['quiz_sessions/s1'].readAloud).not.toHaveProperty(
+      'stimulusChunks'
+    );
+  });
+});
+
 describe('buildDefaultDeps isFeatureGranted', () => {
   it('SECURITY: never passes an unverified account email to isGlobalFeatureGranted', async () => {
     const getUser = vi.fn().mockResolvedValue({

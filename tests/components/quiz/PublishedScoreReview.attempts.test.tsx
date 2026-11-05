@@ -103,4 +103,23 @@ describe('PublishedScoreReview attempt picker', () => {
     expect(loader).not.toHaveBeenCalled();
     expect(screen.queryByRole('group', { name: 'Attempt' })).toBeNull();
   });
+
+  it('hides the tally on a score-on-submit result that carries no right/wrong', () => {
+    const loader = vi.fn<MyQuizAttemptsLoader>();
+    render(
+      <MyQuizAttemptsLoaderContext.Provider value={loader}>
+        <PublishedScoreReview
+          session={session}
+          myResponse={{
+            ...live(1),
+            answers: [{ questionId: 'q1', answer: 'A', answeredAt: 0 }],
+          }}
+          visibility="score-only"
+          pin=""
+        />
+      </MyQuizAttemptsLoaderContext.Provider>
+    );
+    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(screen.queryByText(/fully correct/)).toBeNull();
+  });
 });

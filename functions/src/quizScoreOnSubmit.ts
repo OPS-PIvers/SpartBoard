@@ -10,6 +10,10 @@ import {
 } from './plcAssessmentMath';
 import { notChosenIds, parseChooseSections } from './quizSectionsChosen';
 import { assertViewAsAllowed } from './viewAsGuard';
+import {
+  resolveServerResultsVisibility,
+  visibilityIncludesResponses,
+} from './quizResultsVisibilityServer';
 
 const SESSIONS = 'quiz_sessions';
 const MAX_ID_LENGTH = 128;
@@ -82,6 +86,17 @@ function representativeAnswers(
   const out = new Map<string, ScoreOnSubmitAnswer>();
   for (const a of sorted) if (!out.has(a.questionId)) out.set(a.questionId, a);
   return out;
+}
+
+/** The answers without per-question verdicts, for a student who may not see right/wrong. */
+export function withoutVerdicts(
+  answers: ScoreOnSubmitAnswer[]
+): ScoreOnSubmitAnswer[] {
+  return answers.map((a) => {
+    const { isCorrect: _hidden, ...rest } = a;
+    void _hidden;
+    return rest;
+  });
 }
 
 /** Server twin of gradeResponseForPublish; null when any served question needs a teacher grade. */
@@ -239,9 +254,17 @@ export async function handleScoreQuizOnSubmit(
       return { score: null };
     const result = scoreAttempt(data, ctx);
     if (!result) return { score: null };
+    // Right/wrong stays off the student-readable doc unless their results show responses.
+    const { visibility } = resolveServerResultsVisibility(
+      session,
+      data,
+      Date.now()
+    );
     tx.update(responseRef, {
       score: result.score,
-      answers: result.answers,
+      answers: visibilityIncludesResponses(visibility)
+        ? result.answers
+        : withoutVerdicts(result.answers),
       scoredOnSubmitAttempt: attempt,
     });
     return { score: result.score };
