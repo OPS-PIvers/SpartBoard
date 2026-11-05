@@ -110,8 +110,10 @@ export async function isInDevFolder(
   for (let depth = 0; id && depth < MAX_DEPTH; depth++) {
     const meta = await fetchMeta(id);
     if (!meta) return false;
-    if (meta.trashed) return false;
-    if (meta.name === devFolder || meta.properties?.[DEV_FILE_TAG] === 'true')
+    if (
+      !meta.trashed &&
+      (meta.name === devFolder || meta.properties?.[DEV_FILE_TAG] === 'true')
+    )
       return true;
     id = meta.parents?.[0];
   }

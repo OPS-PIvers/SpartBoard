@@ -28,6 +28,7 @@ const TREE: Record<
   devRoot: { name: 'SpartBoard Dev', parents: ['root'] },
   root: { name: 'My Drive' },
   plainSheet: { name: 'Results', parents: ['root'] },
+  trashedDevFile: { name: 'Old.json', parents: ['devQuizzes'], trashed: true },
   markedSheet: {
     name: 'Results',
     parents: ['root'],
@@ -138,6 +139,15 @@ describe('installDevDriveWriteGuard', () => {
     });
     await target.fetch(`${DRIVE}/devFile`, { ...AUTH, method: 'DELETE' });
     expect(writes().map((w) => w.method)).toEqual(['PATCH', 'DELETE']);
+  });
+
+  it('allows writes to a trashed file inside the dev folder', async () => {
+    const { target, writes } = setup();
+    await target.fetch(`${DRIVE}/trashedDevFile`, {
+      ...AUTH,
+      method: 'DELETE',
+    });
+    expect(writes().map((w) => w.method)).toEqual(['DELETE']);
   });
 
   it('allows writes to a file this tab created anywhere', async () => {
