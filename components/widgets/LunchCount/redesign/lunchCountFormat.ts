@@ -50,6 +50,31 @@ export function formatLunchTime(hour: string, minute: string): string {
   return `${String(parsedHour)}:${String(safeMinute).padStart(2, '0')}`;
 }
 
+/** Today as YYYY-MM-DD in Central time, the same day the sheet row uses. */
+export function getCentralDayKey(): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+/** True only for the widget that sent today's report, so copies can still submit. */
+export function hasSubmittedToday(
+  config: { lastSubmittedDate?: string; lastSubmittedWidgetId?: string },
+  widgetId: string
+): boolean {
+  return (
+    config.lastSubmittedDate === getCentralDayKey() &&
+    config.lastSubmittedWidgetId === widgetId
+  );
+}
+
 export function getCentralTimestamp(): string {
   try {
     return new Intl.DateTimeFormat('en-US', {

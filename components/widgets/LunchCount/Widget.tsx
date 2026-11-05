@@ -30,6 +30,10 @@ import type { LunchInfo } from './MissingInfoModal';
 import { useNutrislice } from './useNutrislice';
 import { DragChip } from './components/DragChip';
 import { useMultiDrag } from './useMultiDrag';
+import {
+  getCentralDayKey,
+  hasSubmittedToday,
+} from './redesign/lunchCountFormat';
 import { logError } from '@/utils/logError';
 import { toLunchCountSchoolSite } from '@/config/buildings';
 
@@ -572,6 +576,12 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         throw new Error(result);
       }
 
+      updateWidget(widget.id, {
+        config: {
+          lastSubmittedDate: getCentralDayKey(),
+          lastSubmittedWidgetId: widget.id,
+        },
+      });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
     } catch (err) {
@@ -1207,6 +1217,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             .join(' - '),
         }}
         isSubmitting={isSubmitting}
+        alreadySubmitted={hasSubmittedToday(config, widget.id)}
       />
       <Modal
         isOpen={!!peekedItem}

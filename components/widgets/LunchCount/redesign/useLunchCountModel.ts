@@ -18,7 +18,9 @@ import {
   formatGradeLabel,
   formatLunchTime,
   formatTeacherName,
+  getCentralDayKey,
   getCentralTimestamp,
+  hasSubmittedToday,
 } from './lunchCountFormat';
 
 export interface LunchStudent {
@@ -284,6 +286,12 @@ export function useLunchCountModel(widget: WidgetData) {
         throw new Error(result);
       }
 
+      updateWidget(widget.id, {
+        config: {
+          lastSubmittedDate: getCentralDayKey(),
+          lastSubmittedWidgetId: widget.id,
+        },
+      });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
     } catch (err) {
@@ -388,6 +396,7 @@ export function useLunchCountModel(widget: WidgetData) {
     setIsMissingInfoOpen,
     isSubmitting,
     reportData,
+    alreadySubmitted: hasSubmittedToday(config, widget.id),
   };
 }
 
