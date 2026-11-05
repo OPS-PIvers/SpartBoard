@@ -209,22 +209,30 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     Record<string, FlashcardCheckWriteEntry>
   >(() => check?.initialCheckLog ?? {});
   // A Speak check asks each undecided card once, in deck order; its round summary leads to Submit.
-  // The server grades every card speakable as saved, so a district skip fix can't drop one here.
-  const [speakCheckCards] = useState<FlashcardCard[]>(() => {
-    if (!speakCheck) return [];
+  // Ids are frozen so word fixes that load later still apply; the server grades every card speakable as saved.
+  const [speakCheckIds] = useState<string[]>(() =>
+    speakCheck
+      ? deckCards
+          .filter(
+            (card) =>
+              isSpeakableCard(card) && !check?.initialCheckLog?.[card.id]?.done
+          )
+          .map((card) => card.id)
+      : []
+  );
+  const speakCheckCards = useMemo(() => {
+    if (speakCheckIds.length === 0) return [];
     const fixed = new Map(cards.map((card) => [card.id, card]));
-    return deckCards
-      .filter(
-        (card) =>
-          isSpeakableCard(card) && !check?.initialCheckLog?.[card.id]?.done
-      )
-      .map((card) => {
-        const withFix = fixed.get(card.id);
-        return withFix && isSpeakableCard(withFix) ? withFix : card;
-      });
-  });
+    const raw = new Map(deckCards.map((card) => [card.id, card]));
+    return speakCheckIds.flatMap((id) => {
+      const withFix = fixed.get(id);
+      if (withFix && isSpeakableCard(withFix)) return [withFix];
+      const original = raw.get(id);
+      return original ? [original] : [];
+    });
+  }, [speakCheckIds, cards, deckCards]);
   const [speakCheckFinished, setSpeakCheckFinished] = useState(
-    () => speakCheck && speakCheckCards.length === 0
+    () => speakCheck && speakCheckIds.length === 0
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [speakPrefs, setSpeakPrefs] = useState<SpeakPrefs>({});
@@ -807,9 +815,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               onAnswer: answerCheckTest,
             }}
           />
-        ) : speakCheckDone &&
-          check &&
-          cards.some((card) => checkLog[card.id]?.done) ? (
+        ) : speakCheckDone && check && deckCards.some(isSpeakableCard) ? (
           <CheckSubmitPanel
             mode="speak"
             dark={dark}
