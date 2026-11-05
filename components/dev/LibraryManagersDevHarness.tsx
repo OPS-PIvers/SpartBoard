@@ -187,6 +187,22 @@ const FLASHCARD_ASSIGNMENTS: FlashcardAssignment[] = range((i) => ({
   ...(i % 3 === 1 ? { cardSelection: { mode: 'random', count: 10 } } : {}),
   periodNames: FC_PERIODS[i % 4],
   ...(i % 4 === 1 ? { scoreVisibility: 'score' } : {}),
+  // Every third live one is per-period and not started, to show Paused / Start.
+  ...(i % 6 === 2
+    ? {
+        accessMode: 'assessment' as const,
+        periodAccess: {
+          'roster-4': {
+            state: 'closed' as const,
+            openAt: null,
+            closeAt: null,
+            bellPeriodId: '4',
+            verified: true,
+            label: 'Period 4',
+          },
+        },
+      }
+    : {}),
   status: i % 2 === 0 ? 'active' : 'ended',
   createdAt: NOW - i * 3600_000,
   updatedAt: NOW - i * 3600_000,
@@ -582,6 +598,8 @@ const FlashcardsView: React.FC = () => {
       onShareWithPlc={noop}
       onAssignmentShareWithPlc={noop}
       onAssignmentStopSharingWithPlc={noop}
+      onAssignmentMonitor={noop}
+      onBulkDelete={() => Promise.resolve(false)}
       quizStyle={new URLSearchParams(window.location.search).get('v2') === '1'}
     />
   );
@@ -616,6 +634,8 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   'activity-wall': ActivityWallView,
   review: ReviewView,
 };
+
+const SIZE = new URLSearchParams(window.location.search);
 
 const readView = (): HarnessView => {
   const requested = new URLSearchParams(window.location.search).get('view');
@@ -678,7 +698,11 @@ export const LibraryManagersDevHarness: React.FC = () => {
             <div
               data-testid="library-harness-widget"
               className="relative overflow-hidden rounded-2xl bg-white shadow-lg"
-              style={{ width: 960, height: 560, containerType: 'size' }}
+              style={{
+                width: Number(SIZE.get('w')) || 960,
+                height: Number(SIZE.get('h')) || 560,
+                containerType: 'size',
+              }}
             >
               <View key={view} />
             </div>

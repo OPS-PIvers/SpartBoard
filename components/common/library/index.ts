@@ -144,3 +144,5 @@ export type {
 export { latestAssignedAt } from './folderView';
 export type { LibraryLocation, ItemNoun } from './folderView';
 export type { LibraryFolderViewModel } from './LibraryFolderViewContext';
+export { LibrarySelectToggle } from './LibrarySelectToggle';
+export { LibraryRowSubtitle } from './LibraryRowSubtitle';

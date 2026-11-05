@@ -15119,6 +15119,10 @@ export const TOUR_ANCHORS = {
     label: 'New folder button in the Flashcards library',
     panel: true,
   },
+  'flashcards.select-mode': {
+    label: 'Select button in the Flashcards library toolbar',
+    panel: true,
+  },
   'flashcards.folder-root': {
     label: 'Library root folder in the Flashcards library',
     panel: true,
@@ -15936,11 +15940,6 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.archive-plc-results': {
     label: 'Share results with PLC item in a quiz assignment row menu',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-library.archive-copy-link': {
-    label: 'Copy Student Link item in a quiz In Progress row menu',
     perWidgetType: true,
     panel: true,
   },
