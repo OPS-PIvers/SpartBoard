@@ -34,6 +34,7 @@ import {
   labelClass,
 } from '@/components/widgets/QuizWidget/components/quizEditorFieldStyles';
 import { FlashcardLanguageField } from './FlashcardLanguageField';
+import { FlashcardSetTargetsField } from './FlashcardSetTargetsField';
 import { PasteImportDrawer } from './PasteImportDrawer';
 import { SpeakReviewList } from './speak/SpeakReviewList';
 import { SortableCardRow } from './FlashcardEditor';
@@ -78,6 +79,8 @@ export const FlashcardSetEditorModal: React.FC<
     setTitle,
     description,
     setDescription,
+    targets,
+    setTargets,
     termLanguage,
     setTermLanguage,
     definitionLanguage,
@@ -163,6 +166,7 @@ export const FlashcardSetEditorModal: React.FC<
     () => [
       title,
       description,
+      targets,
       termLanguage,
       definitionLanguage,
       cards,
@@ -171,6 +175,7 @@ export const FlashcardSetEditorModal: React.FC<
     [
       title,
       description,
+      targets,
       termLanguage,
       definitionLanguage,
       cards,
@@ -389,6 +394,11 @@ export const FlashcardSetEditorModal: React.FC<
           {...tourTypeAttr('flashcards.editor-description', 'flashcards')}
         />
       </label>
+      <FlashcardSetTargetsField
+        targets={targets}
+        onChange={setTargets}
+        labelClassName={labelClass}
+      />
       {set.importedFrom && (
         <ImportAttributionLine
           attribution={set.importedFrom}
