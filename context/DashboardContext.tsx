@@ -624,15 +624,23 @@ const saveBaselineOf = (d: Dashboard): SaveBaseline => {
   };
 };
 
-/** True only when the server says no share doc exists; offline or an error reads as not gone. */
-const shareIsGone = async (shareId: string): Promise<boolean> => {
-  if (isAuthBypass) return true;
+/** What the server says about a share doc; a denied read means it is no longer visible, other errors are unknown. */
+const shareStatus = async (
+  shareId: string
+): Promise<'gone' | 'present' | 'unknown'> => {
+  if (isAuthBypass) return 'gone';
   try {
-    return !(await getDoc(doc(db, 'shared_boards', shareId))).exists();
-  } catch {
-    return false;
+    const snap = await getDoc(doc(db, 'shared_boards', shareId));
+    return snap.exists() ? 'present' : 'gone';
+  } catch (err) {
+    return (err as { code?: string }).code === 'permission-denied'
+      ? 'gone'
+      : 'unknown';
   }
 };
+
+// Waits before re-listening to a share whose listener dropped on a transient error.
+const SHARE_RELISTEN_MS = [5_000, 30_000, 120_000];
 
 /** True only when the server says the share doc exists and `hostUid` wrote it. */
 const shareIsHostedBy = async (
@@ -4054,7 +4062,42 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       let latest: SharedBoardSnapshot | null = null;
-      let confirming = false;
+      let endChecking = false;
+      let hostChecking = false;
+      let disposed = false;
+      let relistenTimer: ReturnType<typeof setTimeout> | undefined;
+      let relistens = 0;
+      let unsubscribe: () => void = () => undefined;
+      // A check that resolves after a newer snapshot arrived is stale: handle the newer one afresh.
+      const rerun = () => {
+        if (latest) handleSnapshot(latest, false);
+        else checkGone();
+      };
+      const scheduleRelisten = () => {
+        if (disposed || relistenTimer) return;
+        const delay =
+          SHARE_RELISTEN_MS[Math.min(relistens, SHARE_RELISTEN_MS.length - 1)];
+        relistens += 1;
+        relistenTimer = setTimeout(() => {
+          relistenTimer = undefined;
+          if (disposed) return;
+          unsubscribe();
+          listen();
+        }, delay);
+      };
+      // A cache miss or listener error also reports null: end the board only once the server confirms it.
+      const checkGone = () => {
+        if (endChecking) return;
+        endChecking = true;
+        const asked = latest;
+        void shareStatus(shareId).then((status) => {
+          endChecking = false;
+          if (disposed) return;
+          if (latest !== asked) rerun();
+          else if (status === 'gone') handleSnapshot(null, true);
+          else scheduleRelisten();
+        });
+      };
       const handleSnapshot = (
         remote: SharedBoardSnapshot | null,
         serverConfirmed: boolean
@@ -4064,14 +4107,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // An ended board re-attaches only when the server confirms the recorded host's share is back.
         if (remote && known?.linkedShareEnded && !serverConfirmed) {
           if (
-            !confirming &&
+            !hostChecking &&
             recordedHost &&
             remote.linkedShareHostUid === recordedHost
           ) {
-            confirming = true;
+            hostChecking = true;
             void shareIsHostedBy(shareId, recordedHost).then((hosted) => {
-              confirming = false;
-              if (hosted && latest) handleSnapshot(latest, true);
+              hostChecking = false;
+              if (disposed) return;
+              if (latest !== remote) rerun();
+              else if (hosted) handleSnapshot(remote, true);
             });
           }
           return;
@@ -4337,21 +4382,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         });
       };
 
-      return subscribeToSharedBoard(shareId, (remote) => {
-        sharedSnapshotSeenRef.current.add(shareId);
-        latest = remote;
-        if (remote) {
-          handleSnapshot(remote, false);
-          return;
-        }
-        // A cache miss or listener error also reports null: end the board only once the server confirms it.
-        if (confirming) return;
-        confirming = true;
-        void shareIsGone(shareId).then((gone) => {
-          confirming = false;
-          if (gone && latest === null) handleSnapshot(null, true);
+      const listen = () => {
+        unsubscribe = subscribeToSharedBoard(shareId, (remote) => {
+          sharedSnapshotSeenRef.current.add(shareId);
+          latest = remote;
+          if (remote) {
+            relistens = 0;
+            handleSnapshot(remote, false);
+          } else {
+            checkGone();
+          }
         });
-      });
+      };
+      listen();
+      return () => {
+        disposed = true;
+        clearTimeout(relistenTimer);
+        unsubscribe();
+      };
     },
     [
       user,

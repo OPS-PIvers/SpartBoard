@@ -1158,6 +1158,119 @@ describe('DashboardContext Sharing Logic', () => {
         ).not.toBe(true);
       });
 
+      it('ends a board when the server denies reading the share', async () => {
+        vi.mocked(getDoc).mockRejectedValue(
+          Object.assign(new Error('denied'), { code: 'permission-denied' })
+        );
+        const { captured, emitNull } = await renderSubscribedBoard(
+          collab(false)
+        );
+        emitNull();
+        await waitFor(() =>
+          expect(
+            captured.current.find((d) => d.id === 'collab-board')
+              ?.linkedShareEnded
+          ).toBe(true)
+        );
+      });
+
+      it('listens again with a growing delay after a transient error', async () => {
+        vi.mocked(getDoc).mockRejectedValue(
+          Object.assign(new Error('down'), { code: 'unavailable' })
+        );
+        const { captured, emitNull } = await renderSubscribedBoard(
+          collab(false)
+        );
+        const calls = () => mockSubscribeToSharedBoard.mock.calls.length;
+        const before = calls();
+        vi.useFakeTimers();
+        try {
+          emitNull();
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(4_000);
+          });
+          expect(calls()).toBe(before);
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(1_500);
+          });
+          expect(calls()).toBe(before + 1);
+          emitNull();
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(10_000);
+          });
+          expect(calls()).toBe(before + 1);
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(20_000);
+          });
+          expect(calls()).toBe(before + 2);
+        } finally {
+          vi.useRealTimers();
+        }
+        expect(
+          captured.current.find((d) => d.id === 'collab-board')
+            ?.linkedShareEnded
+        ).not.toBe(true);
+      });
+
+      it('listens again when the server still has the share', async () => {
+        serverDoc('host-a');
+        const { emitNull } = await renderSubscribedBoard(collab(false));
+        const before = mockSubscribeToSharedBoard.mock.calls.length;
+        vi.useFakeTimers();
+        try {
+          emitNull();
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(5_500);
+          });
+          expect(mockSubscribeToSharedBoard.mock.calls.length).toBe(before + 1);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('checks an end while a re-attach check is pending', async () => {
+        let release: (v: unknown) => void = () => undefined;
+        vi.mocked(getDoc).mockImplementationOnce(
+          () => new Promise((resolve) => (release = resolve)) as never
+        );
+        serverDoc(null);
+        const { captured, emit, emitNull } = await renderSubscribedBoard(
+          collab(true)
+        );
+        const before = vi.mocked(getDoc).mock.calls.length;
+        emit(back('host-a'));
+        emitNull();
+        await settle();
+        expect(vi.mocked(getDoc).mock.calls.length).toBe(before + 2);
+        release({
+          exists: () => true,
+          data: () => ({ originalAuthor: 'host-a' }),
+        });
+        await settle();
+        expect(
+          captured.current.find((d) => d.id === 'collab-board')
+            ?.linkedShareEnded
+        ).toBe(true);
+      });
+
+      it('handles a newer snapshot afresh when a pending check resolves late', async () => {
+        let release: (v: unknown) => void = () => undefined;
+        vi.mocked(getDoc).mockImplementationOnce(
+          () => new Promise((resolve) => (release = resolve)) as never
+        );
+        const { captured, emit } = await renderSubscribedBoard(collab(true));
+        emit(back('host-a'));
+        emit(back('attacker'));
+        release({
+          exists: () => true,
+          data: () => ({ originalAuthor: 'host-a' }),
+        });
+        await settle();
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareEnded).toBe(true);
+        expect(board?.background).toBe('bg-slate-800');
+      });
+
       it('ends a board once the server confirms the share is gone', async () => {
         serverDoc(null);
         const { captured, emitNull } = await renderSubscribedBoard(
