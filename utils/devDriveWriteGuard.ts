@@ -12,6 +12,8 @@ const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const DRIVE_META_URL = 'https://www.googleapis.com/drive/v3/files';
 const MAX_DEPTH = 8;
 
+class MetadataAuthError extends Error {}
+
 export class DevProdDriveWriteError extends Error {
   constructor() {
     super(
@@ -126,6 +128,7 @@ export function installDevDriveWriteGuard(
         `${DRIVE_META_URL}/${encodeURIComponent(fileId)}?fields=name,parents,trashed&supportsAllDrives=true`,
         { headers: { Authorization: auth } }
       );
+      if (res.status === 401) throw new MetadataAuthError();
       if (!res.ok) throw new Error(`Drive metadata ${res.status}`);
       return (await res.json()) as FileMeta;
     };
@@ -166,7 +169,9 @@ export function installDevDriveWriteGuard(
     let ok = false;
     try {
       ok = await canWrite(fileId, authHeader(input, init));
-    } catch {
+    } catch (err) {
+      // An expired token fails the write itself too, and the caller's refresh-on-401 needs to see it.
+      if (err instanceof MetadataAuthError) return original(input, init);
       ok = false;
     }
     if (!ok) throw new DevProdDriveWriteError();

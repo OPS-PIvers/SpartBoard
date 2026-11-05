@@ -42,6 +42,8 @@ const NEW_FILE_ID_KEYS = [
   'presentationId',
 ] as const;
 
+class MetadataAuthError extends Error {}
+
 export class DevProdDriveWriteError extends Error {
   constructor() {
     super(
@@ -120,6 +122,27 @@ function authHeader(input: string | URL | Request, init?: RequestInit): string {
 
 type Fetch = typeof fetch;
 
+/** For Drive writes sent without fetch (axios): throws on dev unless the file is dev's own. */
+export async function assertDevDriveWritable(
+  accessToken: string,
+  fileId: string
+): Promise<void> {
+  if (!IS_DEV_PROJECT) return;
+  const ok = await isInDevFolder(
+    fileId,
+    async (id) => {
+      const res = await fetch(
+        `${DRIVE_META_URL}/${encodeURIComponent(id)}?fields=name,parents,trashed&supportsAllDrives=true`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!res.ok) throw new Error(`Drive metadata ${res.status}`);
+      return (await res.json()) as FileMeta;
+    },
+    DRIVE_APP_FOLDER
+  ).catch(() => false);
+  if (!ok) throw new DevProdDriveWriteError();
+}
+
 /** Wraps fetch so dev functions can read prod files but write only dev's own. */
 export function installDevDriveWriteGuard(
   target: { fetch: Fetch } = globalThis,
@@ -140,6 +163,7 @@ export function installDevDriveWriteGuard(
             `${DRIVE_META_URL}/${encodeURIComponent(id)}?fields=name,parents,trashed&supportsAllDrives=true`,
             { headers: { Authorization: auth } }
           );
+          if (res.status === 401) throw new MetadataAuthError();
           if (!res.ok) throw new Error(`Drive metadata ${res.status}`);
           return (await res.json()) as FileMeta;
         },
@@ -174,7 +198,9 @@ export function installDevDriveWriteGuard(
     let ok = false;
     try {
       ok = await canWrite(fileId, authHeader(input, init));
-    } catch {
+    } catch (err) {
+      // An expired token fails the write itself too, and the caller's refresh-on-401 needs to see it.
+      if (err instanceof MetadataAuthError) return original(input, init);
       ok = false;
     }
     if (!ok) throw new DevProdDriveWriteError();

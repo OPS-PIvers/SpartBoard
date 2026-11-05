@@ -142,3 +142,11 @@ describe('installDevDriveWriteGuard', () => {
     expect(writes()).toHaveLength(1);
   });
 });
+
+describe('metadata 401', () => {
+  it('passes the write through so the caller sees the expired token', async () => {
+    const { target, writes } = setup(401);
+    await target.fetch(`${DRIVE}/prodFile`, { ...AUTH, method: 'DELETE' });
+    expect(writes()).toHaveLength(1);
+  });
+});
