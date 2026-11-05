@@ -373,6 +373,30 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  const handleBulkDelete = async (sets: FlashcardSet[]): Promise<boolean> => {
+    const confirmed = await confirmDelete({
+      titles: sets.map((set) => set.title),
+      noun: LIBRARY_ITEM_NOUNS.flashcards,
+    });
+    if (!confirmed) return false;
+    const results = await Promise.allSettled(
+      sets.map((set) => flashcardSets.deleteSet(set.id))
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    const succeeded = results.length - failed;
+    if (succeeded > 0)
+      addToast(
+        `Deleted ${succeeded} set${succeeded === 1 ? '' : 's'}.`,
+        'success'
+      );
+    if (failed > 0)
+      addToast(
+        `${failed} set${failed === 1 ? '' : 's'} failed to delete.`,
+        'error'
+      );
+    return true;
+  };
+
   const handleAssign = (set: FlashcardSet): void => {
     if (set.cards.length === 0) {
       addToast('Add cards to this set before assigning it.', 'error');
@@ -729,6 +753,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                   })
                 }
                 onAssignmentResults={showResults}
+                onAssignmentMonitor={showResults}
+                onBulkDelete={handleBulkDelete}
                 onAssignmentPublishScores={setPublishTarget}
                 onAssignmentUnpublishScores={(a) =>
                   void handleUnpublishScores(a)
