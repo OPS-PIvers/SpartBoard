@@ -1221,7 +1221,13 @@
       "bandCount": "{{count}} élèves · {{percent}} %",
       "scoredStudents": "{{count}} élèves notés",
       "distributionPending": "Le graphique se met à jour d’ici quelques minutes.",
-      "distributionEmpty": "Le graphique se remplit quand les enseignants publient les scores."
+      "distributionEmpty": "Le graphique se remplit quand les enseignants publient les scores.",
+      "untitledCard": "Carte sans titre",
+      "cardAnswered": "{{count}} réponses",
+      "sortCardOrder": "Ordre des cartes",
+      "cardsHeading": "Cartes",
+      "sortCards": "Trier les cartes",
+      "distributionEmptyCards": "Le graphique se remplit à mesure que les élèves terminent une vérification. Les vérifications de maîtrise comptent qui a terminé, sans note."
     },
     "learningTargets": {
       "heading": "Objectifs d’apprentissage"

@@ -1434,12 +1434,14 @@ export interface PlcUnreadState {
  * `synced_video_activities` group); it is immutable on update. `createdBy` and
  * `id` are likewise identity fields. Soft-deletable via `deletedAt`.
  */
+export type PlcAssessmentKind = 'quiz' | 'video-activity' | 'flashcard-check';
+
 export interface PlcCommonAssessment {
   id: string;
   /** Team-facing assessment title (e.g. "Unit 4 CFA"). */
   title: string;
-  /** Which authoring surface backs this assessment. */
-  kind: 'quiz' | 'video-activity';
+  /** Which authoring surface backs this assessment; the server creates `flashcard-check` ones. */
+  kind: PlcAssessmentKind;
   /**
    * Canonical content group id — the `synced_quizzes` /
    * `synced_video_activities` group whose results roll up to this assessment.
@@ -1527,7 +1529,7 @@ export interface PlcAssessmentAggregate {
   schemaVersion: number;
   /** Assessment title snapshot (schema 2+). */
   title?: string;
-  kind?: 'quiz' | 'video-activity';
+  kind?: PlcAssessmentKind;
   /** Number of teachers who have contributed results. */
   teacherCount: number;
   /** Total students across all contributing teachers' classes. */

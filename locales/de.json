@@ -1221,7 +1221,13 @@
       "bandCount": "{{count}} Schüler · {{percent}} %",
       "scoredStudents": "{{count}} Schüler bewertet",
       "distributionPending": "Das Diagramm aktualisiert sich in wenigen Minuten.",
-      "distributionEmpty": "Das Diagramm füllt sich, sobald Lehrkräfte Ergebnisse veröffentlichen."
+      "distributionEmpty": "Das Diagramm füllt sich, sobald Lehrkräfte Ergebnisse veröffentlichen.",
+      "untitledCard": "Karte ohne Titel",
+      "cardAnswered": "{{count}} beantwortet",
+      "sortCardOrder": "Kartenreihenfolge",
+      "cardsHeading": "Karten",
+      "sortCards": "Karten sortieren",
+      "distributionEmptyCards": "Das Diagramm füllt sich, sobald Schüler eine Überprüfung abschließen. Beherrschungsüberprüfungen zählen, wer fertig ist, ohne Punktzahl."
     },
     "learningTargets": {
       "heading": "Lernziele"

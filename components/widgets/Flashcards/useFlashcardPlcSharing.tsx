@@ -24,12 +24,21 @@ interface Options {
     assignmentId: string,
     plcShare: FlashcardAssignment['plcShare']
   ) => Promise<void>;
+  /** flashcards-assign-v2: a student check links its session to the PLC's results instead. */
+  linkChecks: boolean;
+  /** Links a check's session to a PLC (null unlinks). */
+  linkCheck: (
+    assignment: Pick<FlashcardAssignment, 'sessionId' | 'setId'>,
+    plc: Plc | null
+  ) => Promise<void>;
 }
 
 export const useFlashcardPlcSharing = ({
   enabled,
   addToast,
   setPlcShare,
+  linkChecks,
+  linkCheck,
 }: Options) => {
   const { user } = useAuth();
   const { plcs } = usePlcs({ enabled });
@@ -47,13 +56,38 @@ export const useFlashcardPlcSharing = ({
 
   type ShareableAssignment = Pick<
     FlashcardAssignment,
-    'id' | 'sessionId' | 'setId' | 'setTitle' | 'periodNames'
+    | 'id'
+    | 'sessionId'
+    | 'setId'
+    | 'setTitle'
+    | 'periodNames'
+    | 'kind'
+    | 'audience'
   >;
+  const linksCheck = (
+    assignment: Pick<FlashcardAssignment, 'kind' | 'audience'>
+  ) =>
+    linkChecks &&
+    assignment.kind === 'check' &&
+    assignment.audience !== 'staff';
   const writeResultsShare = async (
     assignment: ShareableAssignment,
     plc: Plc
   ): Promise<void> => {
     if (!user) return;
+    if (linksCheck(assignment)) {
+      await linkCheck(assignment, plc);
+      try {
+        await setPlcShare(assignment.id, {
+          plcId: plc.id,
+          sharedAt: Date.now(),
+        });
+      } catch (error) {
+        await linkCheck(assignment, null).catch(() => undefined);
+        throw error;
+      }
+      return;
+    }
     const summary = await loadFlashcardResultSummary(assignment.sessionId);
     const sharedAt = Date.now();
     await writePlcFlashcardResult(plc.id, user.uid, {
@@ -122,6 +156,8 @@ export const useFlashcardPlcSharing = ({
       // Clear the share first so a pending results sync can't recreate the doc after the delete.
       await setPlcShare(assignment.id, null);
       try {
+        // A check may be linked, have a results doc from an older share, or both.
+        if (assignment.kind === 'check') await linkCheck(assignment, null);
         await deletePlcFlashcardResult(share.plcId, assignment.id);
       } catch (error) {
         await setPlcShare(assignment.id, share).catch(() => undefined);

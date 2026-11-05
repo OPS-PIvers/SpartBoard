@@ -1221,7 +1221,13 @@
       "bandCount": "{{count}} estudiantes · {{percent}} %",
       "scoredStudents": "{{count}} estudiantes calificados",
       "distributionPending": "El gráfico se actualiza en unos minutos.",
-      "distributionEmpty": "El gráfico se completa cuando los docentes publican las puntuaciones."
+      "distributionEmpty": "El gráfico se completa cuando los docentes publican las puntuaciones.",
+      "untitledCard": "Tarjeta sin título",
+      "cardAnswered": "{{count}} respondieron",
+      "sortCardOrder": "Orden de las tarjetas",
+      "cardsHeading": "Tarjetas",
+      "sortCards": "Ordenar tarjetas",
+      "distributionEmptyCards": "El gráfico se completa a medida que los estudiantes terminan una comprobación. Las comprobaciones de dominio cuentan quién terminó, sin puntuación."
     },
     "learningTargets": {
       "heading": "Objetivos de aprendizaje"

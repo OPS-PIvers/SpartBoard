@@ -166,6 +166,15 @@ export function toPersonalFlashcardSet(
   };
 }
 
+/** The PLC result group a check pools into: the PLC's own set when the copy came from that PLC. */
+export function plcSyncGroupId(
+  set: Pick<FlashcardSet, 'plcOrigin'> | undefined,
+  setId: string,
+  plcId: string
+): string {
+  return set?.plcOrigin?.plcId === plcId ? set.plcOrigin.setId : setId;
+}
+
 function usePlcSubscription<T>(
   plcId: string | null,
   sub: string,
@@ -372,9 +381,15 @@ export async function writePlcFlashcardResult(
   );
 }
 
+/** A missing doc is not an error. */
 export async function deletePlcFlashcardResult(
   plcId: string,
   assignmentId: string
 ): Promise<void> {
-  await deleteDoc(doc(db, PLCS, plcId, PLC_FLASHCARD_RESULTS, assignmentId));
+  const ref = doc(db, PLCS, plcId, PLC_FLASHCARD_RESULTS, assignmentId);
+  try {
+    await deleteDoc(ref);
+  } catch (error) {
+    if ((await getDoc(ref)).exists()) throw error;
+  }
 }
