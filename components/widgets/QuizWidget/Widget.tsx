@@ -1147,7 +1147,8 @@ const TeacherQuizWidget: React.FC<{
           data,
           banks,
           plcId,
-          sharedBankSources
+          sharedBankSources,
+          user.uid
         );
         if (check.unsharedBankTitles.length > 0) {
           throw new Error(unsharedBanksMessage(check.unsharedBankTitles));
