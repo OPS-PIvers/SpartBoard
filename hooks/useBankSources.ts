@@ -68,25 +68,27 @@ export async function loadSyncedBankContent(
   if (expectedOwnerUid && data.ownerUid !== expectedOwnerUid) {
     throw new Error('This shared bank is no longer available.');
   }
-  return toBankContent(data);
+  return {
+    ...toBankContent(data),
+    ...(data.ownerUid ? { syncOwnerUid: data.ownerUid } : {}),
+  };
 }
 
-/** Sharer a slot is bound to; a slot without a recorded sharer is bound to `userId` when it points at that user's own synced bank, else unbound. */
+/** Sharer a slot is pinned to; an unpinned slot on one of `userId`'s own banks is pinned to `userId`, else unpinned. */
 export function expectedSlotOwner(
-  slot: Pick<QuizBankSlot, 'bankId' | 'syncGroupId' | 'syncOwnerUid'>,
-  banks: readonly Pick<QuestionBankMetadata, 'id' | 'sync'>[],
+  slot: Pick<QuizBankSlot, 'bankId' | 'syncOwnerUid'>,
+  banks: readonly Pick<QuestionBankMetadata, 'id'>[],
   userId: string | undefined
 ): string | undefined {
   if (slot.syncOwnerUid) return slot.syncOwnerUid;
   if (!userId) return undefined;
-  const own = banks.find((b) => b.id === slot.bankId);
-  return own?.sync?.groupId === slot.syncGroupId ? userId : undefined;
+  return banks.some((b) => b.id === slot.bankId) ? userId : undefined;
 }
 
 /** One entry per random slot keyed by bankSlotKey(slot); a slot whose bank can't be loaded is absent. */
 export async function loadBankContentsFor(
   quiz: Pick<QuizData, 'bankSlots'>,
-  banks: readonly Pick<QuestionBankMetadata, 'id' | 'driveFileId' | 'sync'>[],
+  banks: readonly Pick<QuestionBankMetadata, 'id' | 'driveFileId'>[],
   loadBankData: (driveFileId: string) => Promise<QuestionBankData>,
   userId?: string
 ): Promise<Map<string, BankContent>> {
@@ -182,7 +184,7 @@ export function useBankSources(
     async (source: BankSource): Promise<BankContent> => {
       if (source.kind === 'plc') {
         if (!source.syncGroupId) throw new Error('Shared bank has no group id');
-        return loadSyncedBankContent(source.syncGroupId, source.syncOwnerUid);
+        return loadSyncedBankContent(source.syncGroupId);
       }
       if (!source.driveFileId) throw new Error('Bank has no Drive file');
       const data = await loadBankData(source.driveFileId);

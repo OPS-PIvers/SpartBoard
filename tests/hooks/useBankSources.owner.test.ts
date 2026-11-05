@@ -72,9 +72,7 @@ describe('shared bank slot owner binding', () => {
   });
 
   it('binds a slot on the user own synced bank to that user', async () => {
-    const banks = [
-      { id: 'b1', driveFileId: 'd1', sync: { groupId: 'g1', plcIds: ['p'] } },
-    ];
+    const banks = [{ id: 'b1', driveFileId: 'd1' }];
     expect(expectedSlotOwner(slot(), banks, 'me')).toBe('me');
     (getDoc as Mock).mockResolvedValue(syncedDoc('attacker'));
     const out = await loadBankContentsFor(
@@ -96,6 +94,24 @@ describe('shared bank slot owner binding', () => {
       'me'
     );
     expect(out.has('g1')).toBe(true);
+  });
+
+  it('keeps the pin on an own bank that was unshared since', () => {
+    const banks = [{ id: 'b1', driveFileId: 'd1', sync: undefined }];
+    expect(expectedSlotOwner(slot(), banks, 'me')).toBe('me');
+    expect(expectedSlotOwner(slot({ bankId: 'theirs' }), banks, 'me')).toBe(
+      undefined
+    );
+    expect(
+      expectedSlotOwner(slot({ syncOwnerUid: 'sharer' }), banks, 'me')
+    ).toBe('sharer');
+  });
+
+  it('reads the owner from the synced doc itself', async () => {
+    (getDoc as Mock).mockResolvedValue(syncedDoc('sharer'));
+    await expect(loadSyncedBankContent('g1')).resolves.toMatchObject({
+      syncOwnerUid: 'sharer',
+    });
   });
 
   it('loadSyncedBankContent checks the expected owner', async () => {

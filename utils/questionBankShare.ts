@@ -3,7 +3,6 @@ import type { QuestionBankMetadata, QuizBankSlot, QuizData } from '@/types';
 /** Teammate bank a quiz slot may draw from (subset of `BankSource`). */
 export interface SharedBankRef {
   syncGroupId?: string;
-  syncOwnerUid?: string;
   plcId?: string;
 }
 
@@ -40,8 +39,7 @@ export function reconcileBankSlotsForPlcShare(
           unsharedBankTitles.push(own.title);
         return slot;
       }
-      if (slot.syncGroupId === sync.groupId && (slot.syncOwnerUid || !ownerUid))
-        return slot;
+      if (slot.syncGroupId === sync.groupId) return slot;
       changed = true;
       return {
         ...slot,
@@ -49,18 +47,14 @@ export function reconcileBankSlotsForPlcShare(
         ...(ownerUid ? { syncOwnerUid: ownerUid } : {}),
       };
     }
-    const via = sharedSources.find(
+    const viaPlc = sharedSources.some(
       (s) =>
         !!slot.syncGroupId &&
         s.syncGroupId === slot.syncGroupId &&
         s.plcId === plcId
     );
-    if (!via && !unsharedBankTitles.includes(slot.bankTitle))
+    if (!viaPlc && !unsharedBankTitles.includes(slot.bankTitle))
       unsharedBankTitles.push(slot.bankTitle);
-    if (via?.syncOwnerUid && !slot.syncOwnerUid) {
-      changed = true;
-      return { ...slot, syncOwnerUid: via.syncOwnerUid };
-    }
     return slot;
   });
   return { bankSlots, changed, unsharedBankTitles };

@@ -162,7 +162,7 @@ export interface BankSource {
   bankId: string;
   /** Set when the bank is PLC-shared (own or a teammate's). */
   syncGroupId?: string;
-  /** Uid that owns the synced doc; slots record it so a re-created doc is refused. */
+  /** personal only: the signed-in owner of this synced bank. */
   syncOwnerUid?: string;
   title: string;
   questionCount: number;
@@ -216,7 +216,6 @@ export function mergeBankSources(
       kind: 'plc',
       bankId: entry.syncGroupId,
       syncGroupId: entry.syncGroupId,
-      syncOwnerUid: entry.sharedBy,
       title: entry.title,
       questionCount: entry.questionCount,
       targetIds: entry.targetIds ?? [],
