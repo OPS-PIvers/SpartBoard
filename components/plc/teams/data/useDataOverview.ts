@@ -40,8 +40,23 @@ export function useDataOverviewInput(
   plc: Plc,
   heroRef: TeamHeroRef | null
 ): { input: DataOverviewInput; loading: boolean } {
-  const { aggregates, loading: aggLoading } = usePlcAggregate(plc.id);
-  const { assessments, loading: assessLoading } = usePlcAssessments(plc.id);
+  const { canAccessFeature } = useAuth();
+  // flashcards-assign-v2: flashcard checks count toward target and standard mastery only.
+  const flashcards = canAccessFeature('flashcards-assign-v2');
+  const { aggregates: withChecks, loading: aggLoading } = usePlcAggregate(
+    plc.id,
+    { flashcards }
+  );
+  const { assessments: assessmentsWithChecks, loading: assessLoading } =
+    usePlcAssessments(plc.id, { flashcards });
+  const aggregates = useMemo(
+    () => withChecks.filter((a) => a.kind !== 'flashcard-check'),
+    [withChecks]
+  );
+  const assessments = useMemo(
+    () => assessmentsWithChecks.filter((a) => a.kind !== 'flashcard-check'),
+    [assessmentsWithChecks]
+  );
   const targetList = usePlcLearningTargets(plc.id);
   const teacherUids = useMemo(
     () =>
@@ -60,8 +75,23 @@ export function useDataOverviewInput(
         : {}),
       teacherUids,
       heroRef,
+      ...(flashcards
+        ? {
+            masteryAggregates: withChecks,
+            masteryAssessments: assessmentsWithChecks,
+          }
+        : {}),
     }),
-    [aggregates, assessments, targetList.list, teacherUids, heroRef]
+    [
+      aggregates,
+      assessments,
+      withChecks,
+      assessmentsWithChecks,
+      flashcards,
+      targetList.list,
+      teacherUids,
+      heroRef,
+    ]
   );
   return { input, loading: aggLoading || assessLoading };
 }

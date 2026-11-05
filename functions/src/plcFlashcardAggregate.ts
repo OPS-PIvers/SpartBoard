@@ -2,9 +2,11 @@
 import {
   AGGREGATE_SCHEMA_VERSION,
   bucketScores,
+  buildAggregateTargetRows,
   type AggregatePayload,
   type AggregatePerQuestion,
   type AggregatePerTeacher,
+  type QuestionTargetSnapshot,
 } from './plcAssessmentMath';
 
 export interface FlashcardCheckCard {
@@ -33,6 +35,8 @@ export interface FlashcardCheckSessionInput {
   checkMode: string;
   cards: FlashcardCheckCard[];
   submissions: SubmittedFlashcardCheck[];
+  /** The teacher's set-level tags; every card of the set counts toward each. */
+  targets?: QuestionTargetSnapshot[];
 }
 
 export interface FlashcardAggregateInput {
@@ -103,6 +107,19 @@ export function computeFlashcardAggregate(
   for (const session of input.sessions) {
     for (const card of session.cards) {
       if (!terms.has(card.id)) terms.set(card.id, card.term);
+    }
+  }
+  // A card carries every tag of each set it was assigned from; mastery checks have no answers to count.
+  const cardTargets = new Map<string, Map<string, QuestionTargetSnapshot>>();
+  for (const session of input.sessions) {
+    if (session.checkMode === 'flashcards') continue;
+    for (const target of session.targets ?? []) {
+      for (const card of session.cards) {
+        const tags =
+          cardTargets.get(card.id) ?? new Map<string, QuestionTargetSnapshot>();
+        if (!tags.has(target.id)) tags.set(target.id, target);
+        cardTargets.set(card.id, tags);
+      }
     }
   }
   const tally = new Map<string, { answered: number; correct: number }>();
@@ -189,6 +206,17 @@ export function computeFlashcardAggregate(
     }))
     .sort((a, b) => (a.teacherUid < b.teacherUid ? -1 : 1));
 
+  const taggedCards = Array.from(terms.keys()).map((id) => ({
+    id,
+    targets: Array.from(cardTargets.get(id)?.values() ?? []),
+  }));
+  const cardStats = new Map(
+    Array.from(tally.entries()).map(([id, t]) => [
+      id,
+      { graded: t.answered, credit: t.correct },
+    ])
+  );
+
   const scoreSum = scores.reduce((sum, v) => sum + v, 0);
   return {
     assessmentId: input.assessmentId,
@@ -208,8 +236,8 @@ export function computeFlashcardAggregate(
     computedFromSessionIds: sessionIds,
     alignment: 'byId',
     perQuestion,
-    perTarget: [],
-    perStandard: [],
+    perTarget: buildAggregateTargetRows(taggedCards, cardStats, false),
+    perStandard: buildAggregateTargetRows(taggedCards, cardStats, true),
     contributorUids: perTeacher.map((t) => t.teacherUid),
     perTeacher,
   };

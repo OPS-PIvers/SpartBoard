@@ -3919,6 +3919,7 @@ describe('index barrel — deployed export set', () => {
     'markPlcAssessmentDirtyOnResponse',
     'markPlcAssessmentDirtyOnFlashcardSession',
     'markPlcAssessmentDirtyOnFlashcardProgress',
+    'markPlcAssessmentDirtyOnFlashcardSet',
     'recomputePlcAssessments',
     'pollCodePointer',
     'resolvePollCodeV1',
