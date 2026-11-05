@@ -1966,6 +1966,50 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-editor.option-image': {
+    label: 'Add image to answer option in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.option-image-remove': {
+    label: 'Remove answer option image in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.match-term-image': {
+    label: 'Add image to matching term in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-term-image-remove': {
+    label: 'Remove matching term image in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.match-definition-image': {
+    label: 'Add image to matching answer in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-definition-image-remove': {
+    label: 'Remove matching answer image in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.match-distractor-image': {
+    label: 'Add image to matching distractor in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-distractor-image-remove': {
+    label: 'Remove matching distractor image in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
   'quiz-editor.order-image': {
     label: 'Add image to ordering item in the Quiz editor',
     perField: true,

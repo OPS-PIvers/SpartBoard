@@ -8,6 +8,13 @@ import type { LocalizedQuestionStrings, QuizPublicQuestion } from '@/types';
 /** Fields the projection and the seeded shuffle may permute. `matchingLeft` is deliberately absent. */
 export type ReindexableField = 'choices' | 'matchingRight' | 'orderingItems';
 
+/** Each reorderable field's index-aligned picture list. */
+const IMAGE_FIELD = {
+  choices: 'choiceImages',
+  matchingRight: 'matchingRightImages',
+  orderingItems: 'orderingImages',
+} as const satisfies Record<ReindexableField, keyof QuizPublicQuestion>;
+
 /**
  * Apply ONE index operation — a permutation or a kept subset — to `field` on
  * the English question AND to the same field on every locale, in lockstep.
@@ -28,12 +35,13 @@ export function reindexChoiceArray(
     ...q,
     [field]: indices.map((i) => source[i]),
   };
-  // Item images ride with their items so a reorder never pairs a picture with the wrong item.
-  if (field === 'orderingItems' && q.orderingImages) {
-    const images = q.orderingImages;
+  // Pictures ride with their answers so a reorder never pairs one with the wrong answer.
+  const imageField = IMAGE_FIELD[field];
+  const images = q[imageField];
+  if (images) {
     if (images.length === source.length)
-      next.orderingImages = indices.map((i) => images[i]);
-    else delete next.orderingImages;
+      next[imageField] = indices.map((i) => images[i]);
+    else delete next[imageField];
   }
   if (!q.localized) return next;
   const localized: Record<string, LocalizedQuestionStrings> = {};

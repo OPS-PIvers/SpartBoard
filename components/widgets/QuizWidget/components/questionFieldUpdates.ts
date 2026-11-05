@@ -89,6 +89,8 @@ export function questionTypeChangeUpdates(
         : '',
     matchingDistractors: undefined,
     orderingImages: undefined,
+    answerImages: undefined,
+    matchingTermImages: undefined,
     // Reset written-specific fields when switching off written types
     placeholder: isWritten ? q.placeholder : undefined,
     maxWords: isWritten ? q.maxWords : undefined,

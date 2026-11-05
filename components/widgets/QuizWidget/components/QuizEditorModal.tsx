@@ -188,6 +188,10 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
       (qa.orderingImages ?? []).join('|') !==
         (qb.orderingImages ?? []).join('|') ||
+      JSON.stringify(qa.answerImages ?? []) !==
+        JSON.stringify(qb.answerImages ?? []) ||
+      JSON.stringify(qa.matchingTermImages ?? []) !==
+        JSON.stringify(qb.matchingTermImages ?? []) ||
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
       (qa.rubricVisibleToStudents === true) !==

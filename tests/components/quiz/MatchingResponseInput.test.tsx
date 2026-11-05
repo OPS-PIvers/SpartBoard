@@ -26,6 +26,46 @@ function makeQuestion(
   };
 }
 
+describe('MatchingResponseInput pictures', () => {
+  it('shows each picture beside its own term and match', () => {
+    render(
+      <MatchingResponseInput
+        question={{
+          ...makeQuestion(['Dog', 'Frog'], ['Mammal', 'Amphibian', 'Reptile']),
+          matchingLeftImages: ['', 'https://img/frog'],
+          matchingRightImages: ['', '', 'https://img/reptile'],
+        }}
+        savedAnswer={null}
+        onChange={vi.fn()}
+      />
+    );
+    expect(
+      document.querySelector('img[src="https://img/frog"]')?.closest('span')
+        ?.textContent
+    ).toContain('Frog');
+    expect(
+      document
+        .querySelector('img[src="https://img/reptile"]')
+        ?.closest('button')?.textContent
+    ).toBe('Reptile');
+    expect(document.querySelectorAll('img')).toHaveLength(2);
+  });
+
+  it('ignores a picture list that no longer lines up', () => {
+    render(
+      <MatchingResponseInput
+        question={{
+          ...makeQuestion(['Dog'], ['Mammal', 'Reptile']),
+          matchingRightImages: ['https://img/only-one'],
+        }}
+        savedAnswer={null}
+        onChange={vi.fn()}
+      />
+    );
+    expect(document.querySelectorAll('img')).toHaveLength(0);
+  });
+});
+
 describe('MatchingResponseInput', () => {
   it('renders all definitions from matchingRight as selectable bank chips', () => {
     const onChange = vi.fn();

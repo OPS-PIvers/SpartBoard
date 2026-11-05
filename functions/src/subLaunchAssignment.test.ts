@@ -1152,6 +1152,40 @@ describe('publicQuestionFromKey', () => {
     );
     expect('orderingImages' in ordering).toBe(false);
 
+    const choice = publicQuestionFromKey({
+      id: 'q7',
+      type: 'MC',
+      text: 'Pick',
+      correctAnswer: 'A',
+      incorrectAnswers: ['B'],
+      answerImages: [
+        { text: 'B', url: 'https://img/b' },
+        { text: 'A', url: 'http://img/a' },
+      ],
+    });
+    (choice.choices as string[]).forEach((label, i) =>
+      expect((choice.choiceImages as string[])[i]).toBe(
+        label === 'B' ? 'https://img/b' : ''
+      )
+    );
+    expect('answerImages' in choice).toBe(false);
+
+    const matched = publicQuestionFromKey({
+      id: 'q8',
+      type: 'Matching',
+      text: 'Match',
+      correctAnswer: 'Dog:Mammal|Frog:Amphibian',
+      matchingDistractors: ['Reptile'],
+      matchingTermImages: [{ text: 'Frog', url: 'https://img/frog' }],
+      answerImages: [{ text: 'Reptile', url: 'https://img/reptile' }],
+    });
+    expect(matched.matchingLeftImages).toEqual(['', 'https://img/frog']);
+    (matched.matchingRight as string[]).forEach((label, i) =>
+      expect((matched.matchingRightImages as string[])[i]).toBe(
+        label === 'Reptile' ? 'https://img/reptile' : ''
+      )
+    );
+
     const fr = publicQuestionFromKey({
       id: 'q6',
       type: 'free-response',

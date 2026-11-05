@@ -25,6 +25,7 @@ import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { QuizPublicQuestion } from '@/types';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
+import { AnswerLabel } from './AnswerImage';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
@@ -49,29 +50,6 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return out;
 }
-
-/** Item image beside its label; draggable chips must not start a native image drag. */
-const ItemImage: React.FC<{ src: string }> = ({ src }) => (
-  <img
-    src={src}
-    alt=""
-    draggable={false}
-    className="w-14 h-14 rounded-lg object-cover bg-white shrink-0 pointer-events-none"
-  />
-);
-
-const ItemLabel: React.FC<{ label: string; image?: string }> = ({
-  label,
-  image,
-}) =>
-  image ? (
-    <span className="flex items-center gap-2">
-      <ItemImage src={image} />
-      <span>{label}</span>
-    </span>
-  ) : (
-    <>{label}</>
-  );
 
 const DraggableChip: React.FC<{
   id: string;
@@ -114,7 +92,7 @@ const DraggableChip: React.FC<{
       aria-label={ariaLabel ?? label}
       title={label}
     >
-      <ItemLabel label={label} image={image} />
+      <AnswerLabel label={label} image={image} />
     </button>
   );
 };
@@ -201,7 +179,7 @@ const Slot: React.FC<{
           aria-label={`${filledLabel}, ${slotPosition}`}
           aria-pressed={selectedHere}
         >
-          <ItemLabel label={filledLabel} image={filledImage} />
+          <AnswerLabel label={filledLabel} image={filledImage} />
         </button>
       ) : (
         <button

@@ -193,6 +193,33 @@ describe('toStoredQuestion', () => {
     expect(() => store({ type: 'fill_in_blank', text: 'Q' })).toThrow();
   });
 
+  it('keeps answer pictures through an edit but drops them on a type change', () => {
+    const existing: StoredQuestion = {
+      id: 'q1',
+      timeLimit: 30,
+      text: 'Old',
+      type: 'MC',
+      correctAnswer: 'A',
+      incorrectAnswers: ['B'],
+      answerImages: [{ text: 'B', url: 'https://img/b' }],
+    };
+    const edited = store(
+      {
+        type: 'multiple_choice',
+        text: 'New',
+        correct_answer: 'A',
+        incorrect_answers: ['B'],
+      },
+      existing
+    );
+    expect(edited.answerImages).toEqual(existing.answerImages);
+    const retyped = store(
+      { type: 'free_response', text: 'Now open' },
+      existing
+    );
+    expect(retyped.answerImages).toBeUndefined();
+  });
+
   it('keeps targets and rubric on an edited question but replaces its key', () => {
     const existing: StoredQuestion = {
       id: 'q1',
