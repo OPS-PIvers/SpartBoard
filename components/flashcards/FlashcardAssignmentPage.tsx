@@ -415,7 +415,7 @@ export const TrackedPlayer: React.FC<{
       {warningOpen && forced === null && (
         <CheckTabWarning
           count={tabWarnings}
-          submits={tabThreshold !== 'off'}
+          limit={tabThreshold === 'off' ? null : tabThreshold}
           away={tabTracker.away}
           rule={tabRule}
           onDismiss={() => {

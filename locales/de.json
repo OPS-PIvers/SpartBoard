@@ -3516,19 +3516,20 @@
       "periodPausedBody": "Dein Fortschritt bleibt auf dieser Seite. Lass diesen Tab offen.",
       "notInPeriod": "Du bist in keiner Klasse, der dieses Set zugewiesen wurde. Frage deine Lehrkraft.",
       "seatError": "Du konntest deiner Klasse nicht beitreten. Lade die Seite neu, um es noch einmal zu versuchen.",
-      "tabTitle": "Tabwechsel erkannt",
-      "tabBody": "Du hast den Test verlassen. Deine Lehrkraft kann das sehen.",
+      "tabTitle": "Du hast die Seite verlassen",
+      "tabBody": "Deine Lehrkraft kann das sehen.",
       "tabWarning": "Warnung {{count}}.",
-      "tabSubmits": "Bei wiederholtem Tabwechsel wird dein Test abgegeben.",
-      "tabReturn": "Verstanden, zurück zum Test",
+      "tabSubmits": "Nach {{limit}} Warnungen wird deine Aufgabe abgegeben.",
+      "tabReturn": "Zurück zu meiner Aufgabe",
       "raiseHand": "Hand heben",
-      "handRaised": "Hand gehoben, Hilfe kommt",
+      "handRaised": "Hand gehoben",
       "timeUpTitle": "Die Zeit ist um",
-      "tabSubmitTitle": "Du hast den Test zu oft verlassen",
+      "tabSubmitTitle": "Du hast die Seite zu oft verlassen",
       "submittingAnswers": "Deine Antworten werden abgegeben…",
-      "forcedTab": "Du hast den Test zu oft verlassen, deshalb wurde er abgegeben.",
+      "forcedTab": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Sprich mit deiner Lehrkraft, wenn du denkst, dass das ein Fehler war.",
       "tryAgain": "Erneut versuchen",
-      "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut."
+      "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut.",
+      "tabWarningOf": "Warnung {{count}} von {{limit}}."
     },
     "speak": {
       "player": {

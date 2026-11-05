@@ -179,7 +179,7 @@ describe('FlashcardCheckResults', () => {
     expect(screen.getByText('50%')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'You left the check too many times, so it was submitted.'
+        /You left the page too many times\. Your assignment has been submitted\./
       )
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();

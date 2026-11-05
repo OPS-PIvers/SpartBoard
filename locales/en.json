@@ -4823,19 +4823,20 @@
       "periodPausedBody": "Your progress stays on this page. Keep this tab open.",
       "notInPeriod": "You're not in a class this set was assigned to. Ask your teacher.",
       "seatError": "Couldn't join your class. Refresh the page to try again.",
-      "tabTitle": "Tab switch detected",
-      "tabBody": "You left the check. Your teacher can see this.",
+      "tabTitle": "You left the page",
+      "tabBody": "Your teacher can see this.",
       "tabWarning": "Warning {{count}}.",
-      "tabSubmits": "Repeated tab switches will submit your check.",
-      "tabReturn": "I understand, return to the check",
+      "tabSubmits": "After {{limit}} warnings, your assignment is submitted.",
+      "tabReturn": "Back to my assignment",
       "raiseHand": "Raise hand",
-      "handRaised": "Hand raised, help is coming",
+      "handRaised": "Hand raised",
       "timeUpTitle": "Time's up",
-      "tabSubmitTitle": "You left the check too many times",
+      "tabSubmitTitle": "You left the page too many times",
       "submittingAnswers": "Submitting your answers…",
-      "forcedTab": "You left the check too many times, so it was submitted.",
+      "forcedTab": "You left the page too many times. Your assignment has been submitted. Ask your teacher if you think this was a mistake.",
       "tryAgain": "Try again",
-      "tryAgainError": "Couldn't start a new attempt. Try again."
+      "tryAgainError": "Couldn't start a new attempt. Try again.",
+      "tabWarningOf": "Warning {{count}} of {{limit}}."
     },
     "speak": {
       "player": {

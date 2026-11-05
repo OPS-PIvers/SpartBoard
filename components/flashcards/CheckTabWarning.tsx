@@ -8,12 +8,12 @@ import type { TabAwayRule } from '@/utils/tabAwayLimit';
 /** The Check's tab-switch warning, laid out like Quiz's. */
 export const CheckTabWarning: React.FC<{
   count: number;
-  /** Repeated switches submit the Check. */
-  submits: boolean;
+  /** Warnings before the assignment is submitted; null when it never is. */
+  limit: number | null;
   away: TabAwayState | null;
   rule: TabAwayRule | null;
   onDismiss: () => void;
-}> = ({ count, submits, away, rule, onDismiss }) => {
+}> = ({ count, limit, away, rule, onDismiss }) => {
   const { t } = useTranslation();
   return (
     <div
@@ -43,8 +43,12 @@ export const CheckTabWarning: React.FC<{
         {t('flashcards.assignment.tabBody')}
         <br />
         <br />
-        <strong>{t('flashcards.assignment.tabWarning', { count })}</strong>{' '}
-        {submits && t('flashcards.assignment.tabSubmits')}
+        <strong>
+          {limit === null
+            ? t('flashcards.assignment.tabWarning', { count })
+            : t('flashcards.assignment.tabWarningOf', { count, limit })}
+        </strong>{' '}
+        {limit !== null && t('flashcards.assignment.tabSubmits', { limit })}
       </p>
       {/* no-tour-anchor: student page; live tours run in the teacher app */}
       <button

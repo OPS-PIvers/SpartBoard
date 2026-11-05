@@ -3516,19 +3516,20 @@
       "periodPausedBody": "Ta progression reste sur cette page. Garde cet onglet ouvert.",
       "notInPeriod": "Tu n’es dans aucune classe à laquelle cette série a été attribuée. Demande à ton enseignant.",
       "seatError": "Impossible de rejoindre ta classe. Recharge la page pour réessayer.",
-      "tabTitle": "Changement d'onglet détecté",
-      "tabBody": "Tu as quitté le contrôle. Ton enseignant peut le voir.",
+      "tabTitle": "Tu as quitté la page",
+      "tabBody": "Ton enseignant peut le voir.",
       "tabWarning": "Avertissement {{count}}.",
-      "tabSubmits": "Si tu changes d'onglet plusieurs fois, ton contrôle sera remis.",
-      "tabReturn": "J'ai compris, retourner au contrôle",
+      "tabSubmits": "Après {{limit}} avertissements, ton devoir est remis.",
+      "tabReturn": "Retour à mon devoir",
       "raiseHand": "Lever la main",
-      "handRaised": "Main levée, de l'aide arrive",
+      "handRaised": "Main levée",
       "timeUpTitle": "Le temps est écoulé",
-      "tabSubmitTitle": "Tu as quitté le contrôle trop de fois",
+      "tabSubmitTitle": "Tu as quitté la page trop de fois",
       "submittingAnswers": "Envoi de tes réponses…",
-      "forcedTab": "Tu as quitté le contrôle trop de fois, il a donc été remis.",
+      "forcedTab": "Tu as quitté la page trop de fois. Ton devoir a été remis. Parle à ton enseignant si tu penses que c'est une erreur.",
       "tryAgain": "Réessayer",
-      "tryAgainError": "Impossible de commencer une nouvelle tentative. Réessaie."
+      "tryAgainError": "Impossible de commencer une nouvelle tentative. Réessaie.",
+      "tabWarningOf": "Avertissement {{count}} sur {{limit}}."
     },
     "speak": {
       "player": {
