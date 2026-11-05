@@ -3838,6 +3838,7 @@ describe('index barrel — deployed export set', () => {
     'studentLoginV1',
     'getAssignmentPseudonymV1',
     'getStudentClassDirectoryV1',
+    'reportStudentLoadIssueV1',
     'getPseudonymsForAssignmentV1',
     'getGradebookRosterV1',
     'commitRosterPinIndexV1',
