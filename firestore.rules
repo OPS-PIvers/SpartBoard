@@ -810,9 +810,12 @@ service cloud.firestore {
       }
     }
 
-    // Rosters - users can only access their own rosters in their subcollection
+    // Rosters - users can only access their own rosters in their subcollection.
+    // Only a teacher account writes them: studentIdentity trusts classlinkClassId
+    // across the collection group, so anonymous and studentRole callers can't seed it.
     match /users/{userId}/rosters/{rosterId} {
-      allow read, write: if ownsUser(userId);
+      allow read: if ownsUser(userId);
+      allow write: if ownsUserTeacher(userId) && notAnon();
 
       // Non-PII PIN index sidecar bridging PIN-joining students into the SSO uid
       // space. commitRosterPinIndexV1 writes and pinLoginV1 reads via Admin SDK;
