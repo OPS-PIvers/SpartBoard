@@ -27,6 +27,7 @@ import type {
   FlashcardProgress,
   FlashcardSession,
   StudentAssignmentPointer,
+  StudentOverride,
 } from '@/types';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
@@ -53,7 +54,9 @@ import {
   canTryAgain,
   checkDeadline,
   checkOptionsOf,
+  checkOverrideOf,
   forcedCheckSubmission,
+  withCardSubset,
 } from './checkAttempt';
 import { QuizTimeLimitClock } from '@/components/quiz/QuizTimeLimitClock';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
@@ -167,6 +170,8 @@ export const TrackedPlayer: React.FC<{
   resetCount: number;
   /** A Staff-audience joiner, named on their progress doc. */
   staff?: StaffIdentity;
+  /** The student's accommodations, already limited to Checks with rules. */
+  override?: StudentOverride;
 }> = ({
   session,
   progress,
@@ -175,6 +180,7 @@ export const TrackedPlayer: React.FC<{
   paused = false,
   resetCount,
   staff,
+  override,
 }) => {
   const { t } = useTranslation();
   const [framed] = useState(isFramedWindow);
@@ -247,9 +253,14 @@ export const TrackedPlayer: React.FC<{
 
   // flashcards-assign-v2 rules: time limit, tab warnings, page protections and raise hand.
   const options = isCheck ? checkOptionsOf(session) : null;
-  const timeLimited = checkDeadline(options, 0) !== null;
+  const multiplier = override?.timeMultiplier;
+  const timeLimited = checkDeadline(options, 0, multiplier) !== null;
   const stampedStart = progress?.attemptStartedAt;
-  const deadline = checkDeadline(options, stampedStart ?? tracked.startedAt);
+  const deadline = checkDeadline(
+    options,
+    stampedStart ?? tracked.startedAt,
+    multiplier
+  );
   useEffect(() => {
     if (!timeLimited || paused || stampedStart !== undefined) return;
     void adapter.writeAttemptFields({ attemptStartedAt: tracked.startedAt });
@@ -285,9 +296,12 @@ export const TrackedPlayer: React.FC<{
 
   const tabOn = options?.tabWarningsEnabled === true;
   const tabThreshold = getEffectiveTabWarningThreshold(
-    options?.tabWarningThreshold
+    options?.tabWarningThreshold,
+    override?.tabWarningThreshold
   );
-  const tabRule = options ? getEffectiveTabAwayRule(options) : null;
+  const tabRule = options
+    ? getEffectiveTabAwayRule(options, override?.tabAwayLimit)
+    : null;
   const [tabWarnings, setTabWarnings] = useState(
     progress?.tabSwitchWarnings ?? 0
   );
@@ -300,6 +314,9 @@ export const TrackedPlayer: React.FC<{
     setWarningOpen(false);
     setForced(null);
   }
+  const protections = options
+    ? effectivePageProtections(options, override)
+    : null;
   const tabTracker = useTabAwayTracker({
     enabled: tabOn && !paused && forced === null,
     sessionActive: session.status === 'active',
@@ -324,8 +341,8 @@ export const TrackedPlayer: React.FC<{
       setWarningOpen(true);
       submitForced('tab');
     },
+    fullscreenRequired: protections?.fullscreen === true,
   });
-  const protections = options ? effectivePageProtections(options) : null;
 
   const handOn = options?.handRaiseEnabled === true;
   const [handPending, setHandPending] = useState<boolean | null>(null);
@@ -363,6 +380,7 @@ export const TrackedPlayer: React.FC<{
               mode: session.checkMode,
               masteryThreshold: session.masteryThreshold,
               initialCheckLog: progress?.checkLog,
+              answerChoices: override?.answerChoices,
               submitting: submitState.kind === 'submitting',
               error:
                 submitState.kind === 'failed'
@@ -420,7 +438,7 @@ export const TrackedPlayer: React.FC<{
           rule={tabRule}
           onDismiss={() => {
             setWarningOpen(false);
-            tabTracker.release();
+            tabTracker.resume();
           }}
         />
       )}
@@ -680,7 +698,10 @@ export const FlashcardAssignmentPage: React.FC<{
 
   if (view.kind === 'excluded') return <AssignmentExcludedNotice />;
 
-  const { session, progress } = view;
+  const override = checkOverrideOf(view.session, pointer?.override);
+  // Only this student's cards, for the player, the forced submission and the review.
+  const session = withCardSubset(view.session, override);
+  const { progress } = view;
   const isCheck = session.kind === 'check';
 
   let body: React.ReactNode;
@@ -794,6 +815,7 @@ export const FlashcardAssignmentPage: React.FC<{
           paused={view.paused}
           resetCount={listen.resetCount}
           staff={staff}
+          override={override}
         />
       );
       break;

@@ -6922,13 +6922,15 @@ export type RubricSnapshot = Rubric;
 /** Per-student accommodation override. Never stored on session docs (spec §2a). */
 export interface StudentOverride {
   timeMultiplier?: 1.5 | 2 | 'unlimited';
-  questionIds?: string[]; // quiz only: subset to serve
+  questionIds?: string[]; // quiz question ids, or Flashcards Check card ids: subset to serve
   /** Quiz only. Values are option TEXT, not ids (teacher-side translated; never the correct answer). */
   hiddenOptionIdsByQuestion?: Record<string, string[]>;
   // quiz only; 'points' means grade this question by raw points, ignoring any rubric
   rubricOverrideByQuestion?: Record<string, RubricSnapshot | 'points'>;
-  tabWarningThreshold?: number | 'off'; // quiz only (during-taking system)
-  tabAwayLimit?: number | 'off'; // quiz only; seconds to auto-submit at, or 'off' for no auto-submit
+  tabWarningThreshold?: number | 'off'; // quiz and Flashcards Check
+  tabAwayLimit?: number | 'off'; // quiz and Flashcards Check; seconds to auto-submit at, or 'off' for no auto-submit
+  /** Flashcards Check only: multiple choice shows this many answers instead of 4. */
+  answerChoices?: 2 | 3;
   readAloud?: boolean; // quiz only; signed-in students, needs 'quiz-read-aloud'
   /** Block (true) or allow (false) copy, paste and print for this student; absent = the session's rule. */
   blockCopyPaste?: boolean;

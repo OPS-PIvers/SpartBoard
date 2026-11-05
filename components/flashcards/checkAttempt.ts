@@ -5,7 +5,9 @@ import type {
   FlashcardFlag,
   FlashcardProgress,
   FlashcardSession,
+  StudentOverride,
 } from '@/types';
+import { resolveAttemptDeadline } from '@/utils/quizTimeLimit';
 import type { FlashcardCheckSubmission } from './FlashcardPlayer';
 
 /** The Quiz-style rules a Check enforces on the student; none on Checks assigned before them. */
@@ -14,15 +16,34 @@ export const checkOptionsOf = (
 ): FlashcardCheckSessionOptions | null =>
   session.kind === 'check' ? (session.rules?.sessionOptions ?? null) : null;
 
+/** The student's accommodations; only Checks with rules honor them. */
+export const checkOverrideOf = (
+  session: Pick<FlashcardSession, 'kind' | 'rules'>,
+  override: StudentOverride | undefined
+): StudentOverride | undefined =>
+  checkOptionsOf(session) ? override : undefined;
+
+/** The session with only this student's cards; every card when the subset matches none. */
+export const withCardSubset = <T extends Pick<FlashcardSession, 'cards'>>(
+  session: T,
+  override: StudentOverride | undefined
+): T => {
+  const ids = override?.questionIds;
+  if (!ids) return session;
+  const keep = new Set(ids);
+  const cards = session.cards.filter((card) => keep.has(card.id));
+  return cards.length > 0 ? { ...session, cards } : session;
+};
+
 /** When this attempt's time runs out, or null without a time limit. */
 export const checkDeadline = (
   options: FlashcardCheckSessionOptions | null,
-  startedAt: number | undefined
+  startedAt: number | undefined,
+  multiplier?: StudentOverride['timeMultiplier']
 ): number | null => {
   const minutes = options?.timeLimitMinutes;
   if (typeof minutes !== 'number' || minutes <= 0) return null;
-  if (typeof startedAt !== 'number') return null;
-  return startedAt + minutes * 60_000;
+  return resolveAttemptDeadline(startedAt, minutes, multiplier);
 };
 
 /** Whether the student may start another attempt themselves. */

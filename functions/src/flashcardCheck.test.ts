@@ -579,6 +579,96 @@ describe('handleSubmitFlashcardCheck write mode', () => {
   });
 });
 
+describe('handleSubmitFlashcardCheck card subset', () => {
+  const subsetPointer = (questionIds: string[]) => ({
+    kind: 'flashcards',
+    classId: 'class-1',
+    override: { questionIds },
+  });
+  const rules = { attemptLimit: 1, sessionOptions: {} };
+
+  it("grades only the student's cards on a Check with rules", async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: session({ rules }),
+      [POINTER_PATH]: subsetPointer(['c1', 'c3']),
+    };
+    const result = await handleSubmitFlashcardCheck(
+      makeDb(docs),
+      student,
+      {
+        assignmentId: 'a1',
+        answerLog: writeLog({}).filter((e) => ['c1', 'c3'].includes(e.cardId)),
+      },
+      NOW
+    );
+    expect(result).toEqual({ score: 2, total: 2, submittedAt: NOW });
+  });
+
+  it('rejects a card outside the subset', async () => {
+    const db = makeDb({
+      [SESSION_PATH]: session({ rules }),
+      [POINTER_PATH]: subsetPointer(['c1', 'c3']),
+    });
+    await expectCode(
+      handleSubmitFlashcardCheck(
+        db,
+        student,
+        { assignmentId: 'a1', answerLog: writeLog({}) },
+        NOW
+      ),
+      'invalid-argument'
+    );
+  });
+
+  it('takes typed answers when the subset is too small for multiple choice', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: session({
+        rules,
+        checkMode: 'test',
+        lockedSettings: {
+          showFirst: 'definition',
+          strict: false,
+          testTypes: ['mc'],
+          testCount: 'all',
+        },
+      }),
+      [POINTER_PATH]: subsetPointer(['c1', 'c3']),
+    };
+    const result = await handleSubmitFlashcardCheck(
+      makeDb(docs),
+      student,
+      {
+        assignmentId: 'a1',
+        answerLog: [
+          { cardId: 'c1', response: 'el perro', type: 'fib' },
+          { cardId: 'c3', response: 'el gato', type: 'fib' },
+        ],
+      },
+      NOW
+    );
+    expect(result).toEqual({ score: 2, total: 2, submittedAt: NOW });
+  });
+
+  it('ignores the subset on a Check without rules, or when no card matches', async () => {
+    for (const [over, ids] of [
+      [{}, ['c1']],
+      [{ rules }, ['gone']],
+    ] as const) {
+      const docs: Record<string, Doc> = {
+        [SESSION_PATH]: session(over),
+        [POINTER_PATH]: subsetPointer([...ids]),
+      };
+      const result = await handleSubmitFlashcardCheck(
+        makeDb(docs),
+        student,
+        { assignmentId: 'a1', answerLog: writeLog({}) },
+        NOW
+      );
+      expect(result.total).toBe(4);
+    }
+  });
+});
+
 describe('handleSubmitFlashcardCheck test mode', () => {
   const testSession = (over: Doc = {}) =>
     session({

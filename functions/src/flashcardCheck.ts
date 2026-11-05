@@ -382,6 +382,18 @@ async function loadOpenCheck(
   return { sessionRef, session, pointer, sharedClassId, staffFields };
 }
 
+// A Check with rules grades only the student's card subset; a subset matching no card is ignored.
+function studentCards(
+  cards: FlashcardCard[],
+  { session, pointer }: CheckAccess
+): FlashcardCard[] {
+  if (!isRecord(session.rules) || !isRecord(pointer.override)) return cards;
+  const ids = pointer.override.questionIds;
+  if (!Array.isArray(ids)) return cards;
+  const subset = cards.filter((card) => ids.includes(card.id));
+  return subset.length > 0 ? subset : cards;
+}
+
 // Per-period sessions keep their cards in content/cards.
 async function loadCheckCards(access: CheckAccess): Promise<FlashcardCard[]> {
   const cards = sessionCards(
@@ -436,7 +448,7 @@ export async function handleSubmitFlashcardCheck(
     checkMode !== 'speak'
   )
     throw new HttpsError('failed-precondition', 'Unknown Check mode.');
-  const cards = await loadCheckCards(access);
+  const cards = studentCards(await loadCheckCards(access), access);
   const byId = new Map(cards.map((card) => [card.id, card]));
   const settings = lockedSettingsFrom(session.lockedSettings);
   const answerFor = (card: FlashcardCard): string =>
@@ -500,13 +512,18 @@ export async function handleSubmitFlashcardCheck(
     )
       invalid('answerLog does not match the locked question count.');
     const logCards = cardsForLog(input.answerLog, byId);
+    // As the player does: under four cards multiple choice drops out, and typed answers stand in when nothing is left.
+    const fewCards = settings.testTypes.filter(
+      (t) => cards.length >= MC_MIN_CARDS || t !== 'mc'
+    );
+    const allowedTypes = fewCards.length > 0 ? fewCards : ['fib'];
     graded = input.answerLog.map((entry, i) => {
       // A forced submission comes from saved answers, which carry no type: grade it as typed.
       const type = entry.type ?? (forced ? 'fib' : undefined);
       if (
         type === undefined ||
         type === 'speak' ||
-        (!settings.testTypes.includes(type) && entry.type !== undefined)
+        (!allowedTypes.includes(type) && entry.type !== undefined)
       )
         return invalid('answerLog uses a question type that is not allowed.');
       if (type === 'mc' && cards.length < MC_MIN_CARDS)

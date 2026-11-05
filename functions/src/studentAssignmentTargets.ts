@@ -171,6 +171,7 @@ export interface StudentOverride {
   rubricOverrideByQuestion?: Record<string, unknown>;
   tabWarningThreshold?: number | 'off';
   tabAwayLimit?: number | 'off';
+  answerChoices?: 2 | 3;
   readAloud?: boolean;
   blockCopyPaste?: boolean;
   openAt?: number;
@@ -463,6 +464,9 @@ export function sanitizeOverride(raw: unknown): StudentOverride | null {
   if (awayLimit === 'off') out.tabAwayLimit = 'off';
   else if (typeof awayLimit === 'number' && Number.isFinite(awayLimit))
     out.tabAwayLimit = Math.min(300, Math.max(5, Math.round(awayLimit)));
+
+  if (src.answerChoices === 2 || src.answerChoices === 3)
+    out.answerChoices = src.answerChoices;
 
   if (src.readAloud === true) out.readAloud = true;
   if (typeof src.blockCopyPaste === 'boolean')

@@ -49,6 +49,8 @@ export interface TestModeCheck {
   submitting: boolean;
   error?: string | null;
   onSubmit: (answerLog: FlashcardAnswerLogEntry[]) => void;
+  /** Multiple choice shows this many answers instead of 4 (an accommodation). */
+  answerChoices?: number;
   /** Saved answers by card id, so a reload or reopen restores the test. */
   initialAnswers?: Record<string, string>;
   onAnswer?: (cardId: string, response: string) => void;
@@ -89,7 +91,8 @@ const buildQuestions = (
   showFirst: FlashcardSide,
   testTypes: FlashcardTestType[],
   testCount: number | 'all',
-  seed: string
+  seed: string,
+  choices = 4
 ): TestQuestion[] => {
   const enabled =
     cards.length < 4 ? testTypes.filter((type) => type !== 'mc') : testTypes;
@@ -111,7 +114,7 @@ const buildQuestions = (
         ),
       ],
       `${seed}:${card.id}:distractors`
-    ).slice(0, 3);
+    ).slice(0, Math.max(1, choices - 1));
     return {
       id: `${card.id}:${type}`,
       card,
@@ -234,9 +237,11 @@ export const TestMode: React.FC<TestModeProps> = ({
         showFirst,
         testTypes,
         retakeIds ? 'all' : testCount,
-        isCheck ? seed : `${seed}:${round}:${cycle}`
+        isCheck ? seed : `${seed}:${round}:${cycle}`,
+        check?.answerChoices
       ),
     [
+      check?.answerChoices,
       isCheck,
       cycle,
       pool,

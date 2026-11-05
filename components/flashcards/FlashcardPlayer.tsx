@@ -92,6 +92,8 @@ export interface FlashcardPlayerCheck {
   mode: FlashcardMode;
   masteryThreshold?: number;
   initialCheckLog?: Record<string, FlashcardCheckWriteEntry>;
+  /** Test multiple choice shows this many answers instead of 4 (an accommodation). */
+  answerChoices?: number;
   submitting: boolean;
   error?: string | null;
   onCheckWrite?: (cardId: string, entry: FlashcardCheckWriteEntry) => void;
@@ -810,6 +812,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               submitting: check.submitting,
               error: check.error,
               onSubmit: submitCheck,
+              answerChoices: check.answerChoices,
               initialAnswers: Object.fromEntries(
                 Object.entries(checkLog).map(([cardId, entry]) => [
                   cardId,

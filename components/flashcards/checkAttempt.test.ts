@@ -4,7 +4,9 @@ import {
   canTryAgain,
   checkDeadline,
   checkOptionsOf,
+  checkOverrideOf,
   forcedCheckSubmission,
+  withCardSubset,
 } from './checkAttempt';
 
 const cards = [
@@ -37,6 +39,33 @@ describe('checkAttempt', () => {
     expect(checkDeadline({ timeLimitMinutes: 10 }, undefined)).toBeNull();
     expect(checkDeadline({}, 1000)).toBeNull();
     expect(checkDeadline(null, 1000)).toBeNull();
+  });
+
+  it('stretches the deadline for extended time', () => {
+    expect(checkDeadline({ timeLimitMinutes: 10 }, 0, 1.5)).toBe(900_000);
+    expect(checkDeadline({ timeLimitMinutes: 10 }, 0, 2)).toBe(1_200_000);
+    expect(checkDeadline({ timeLimitMinutes: 10 }, 0, 'unlimited')).toBeNull();
+  });
+
+  it('honors accommodations only on Checks with rules', () => {
+    const override = { tabWarningThreshold: 'off' as const };
+    const rules = { attemptLimit: 1, sessionOptions: {} };
+    expect(checkOverrideOf(check({ rules }), override)).toBe(override);
+    expect(checkOverrideOf(check(), override)).toBeUndefined();
+    expect(checkOverrideOf(check({ kind: 'study', rules }), override)).toBe(
+      undefined
+    );
+  });
+
+  it("keeps only the student's cards, or every card when none match", () => {
+    const session = check();
+    expect(withCardSubset(session, undefined)).toBe(session);
+    expect(
+      withCardSubset(session, { questionIds: ['c', 'a', 'gone'] }).cards.map(
+        (card) => card.id
+      )
+    ).toEqual(['a', 'c']);
+    expect(withCardSubset(session, { questionIds: ['gone'] })).toBe(session);
   });
 
   it('allows Try again while attempts remain', () => {

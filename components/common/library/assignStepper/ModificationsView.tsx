@@ -46,6 +46,9 @@ export interface ModificationsListProps extends ModificationsScope {
   /** Quiz rows add question subset, MC hider and rubric swap. */
   quizMode: boolean;
   quizContext?: ModificationsQuizContext;
+  /** Flashcards Check rows: tab rules, card subset (`quizContext.questions` are the cards), answer choices. */
+  flashcardsMode?: boolean;
+  answerChoicesAvailable?: boolean;
   readAloudAvailable?: boolean;
   /** Quiz and Video Activity: shows the copy, paste and print choice (focus-sessions flag). */
   pageProtectionsAvailable?: boolean;
@@ -69,6 +72,8 @@ const StudentModificationRow: React.FC<{
   onOverrideChange: (next: StudentOverride) => void;
   onSkipChange: (skipped: boolean) => void;
   quizMode: boolean;
+  flashcardsMode: boolean;
+  answerChoicesAvailable: boolean;
   readAloudAvailable: boolean;
   pageProtectionsAvailable: boolean;
   questions: OverrideEditorQuestion[];
@@ -83,6 +88,8 @@ const StudentModificationRow: React.FC<{
   onOverrideChange,
   onSkipChange,
   quizMode,
+  flashcardsMode,
+  answerChoicesAvailable,
   readAloudAvailable,
   pageProtectionsAvailable,
   questions,
@@ -132,6 +139,8 @@ const StudentModificationRow: React.FC<{
           override={override}
           onChange={onOverrideChange}
           quizMode={quizMode}
+          flashcardsMode={flashcardsMode}
+          answerChoicesAvailable={answerChoicesAvailable}
           readAloudAvailable={readAloudAvailable}
           pageProtectionsAvailable={pageProtectionsAvailable}
           questions={questions}
@@ -152,6 +161,8 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
   onChange,
   quizMode,
   quizContext,
+  flashcardsMode = false,
+  answerChoicesAvailable = false,
   readAloudAvailable = false,
   pageProtectionsAvailable = false,
   canPickClasses = true,
@@ -423,6 +434,8 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                 expanded={openKey === row.key}
                 onExpandedChange={(next) => setOpenKey(next ? row.key : null)}
                 quizMode={quizMode}
+                flashcardsMode={flashcardsMode}
+                answerChoicesAvailable={answerChoicesAvailable}
                 readAloudAvailable={readAloudAvailable}
                 pageProtectionsAvailable={pageProtectionsAvailable}
                 questions={quizContext?.questions ?? []}
@@ -561,6 +574,8 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                     }
                     onSkipChange={(skipped) => setSkipped(row.ref, skipped)}
                     quizMode={quizMode}
+                    flashcardsMode={flashcardsMode}
+                    answerChoicesAvailable={answerChoicesAvailable}
                     readAloudAvailable={readAloudAvailable}
                     pageProtectionsAvailable={pageProtectionsAvailable}
                     questions={quizContext?.questions ?? []}

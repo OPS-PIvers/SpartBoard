@@ -95,6 +95,7 @@ import {
 } from './utils/flashcardAssign';
 import type {
   ClassRoster,
+  FlashcardCard,
   FlashcardCheckRules,
   FlashcardSet,
   FlashcardSpeakChoice,
@@ -125,6 +126,28 @@ export interface FlashcardAssignStepperProps {
 export interface FlashcardAssignExtras {
   sharePlc?: Plc;
 }
+
+// Drops card-subset ids the assignment no longer has; a subset left empty or whole is cleared.
+const fitCardSubsets = (
+  targeting: AssignTargetingValue,
+  assigned: FlashcardCard[]
+): AssignTargetingValue => {
+  const ids = new Set(assigned.map((card) => card.id));
+  const overridesByKey = Object.fromEntries(
+    Object.entries(targeting.overridesByKey).map(([key, override]) => {
+      if (!override.questionIds) return [key, override];
+      const { questionIds, ...rest } = override;
+      const kept = questionIds.filter((id) => ids.has(id));
+      return [
+        key,
+        kept.length > 0 && kept.length < ids.size
+          ? { ...rest, questionIds: kept }
+          : rest,
+      ];
+    })
+  );
+  return { ...targeting, overridesByKey };
+};
 
 export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   isOpen,
@@ -475,7 +498,9 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       form: useCardChoice ? { ...form, testCount: 'all' } : form,
       rosters,
       rosterIds: staff ? [] : classes.classIds,
-      targeting: resolved.targeting,
+      targeting: useCardChoice
+        ? fitCardSubsets(resolved.targeting, assignedSet.cards)
+        : resolved.targeting,
       bellWindow: periodAccess?.bellWindow,
       classes: staff ? { classIds: [], studentsByClass: {} } : classes,
       manualStart,
@@ -558,6 +583,13 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   };
 
   const title = set.title || 'Untitled set';
+  // The per-student card subset picks from the cards this assignment uses.
+  const modCards = useCardChoice
+    ? resolveSelectedCards(cards, set.cards).map((card) => ({
+        id: card.id,
+        label: card.term || card.definition,
+      }))
+    : [];
 
   return (
     <AssignStepper
@@ -590,6 +622,17 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
             onChange={setTargeting}
             onBack={() => setShowMods(false)}
             quizMode={false}
+            {...(useCardChoice
+              ? {
+                  flashcardsMode: true,
+                  pageProtectionsAvailable: true,
+                  quizContext: { questions: modCards, rubrics: [] },
+                  answerChoicesAvailable:
+                    effectiveCheck.checkMode === 'test' &&
+                    effectiveCheck.testTypes.includes('mc') &&
+                    modCards.length >= 4,
+                }
+              : {})}
           />
         ) : undefined
       }

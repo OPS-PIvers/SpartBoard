@@ -2061,6 +2061,17 @@ describe('sanitizeOverride', () => {
     expect(sanitizeOverride({ timeMultiplier: 99 })).toBeNull();
   });
 
+  it('keeps 2 or 3 Flashcards answer choices only', () => {
+    expect(sanitizeOverride({ answerChoices: 3 })).toEqual({
+      answerChoices: 3,
+    });
+    expect(sanitizeOverride({ answerChoices: 2 })).toEqual({
+      answerChoices: 2,
+    });
+    expect(sanitizeOverride({ answerChoices: 1 })).toBeNull();
+    expect(sanitizeOverride({ answerChoices: 4 })).toBeNull();
+  });
+
   it('keeps the supported override surface', () => {
     expect(
       sanitizeOverride({

@@ -61,6 +61,10 @@ export interface OverrideEditorRowProps {
   onChange: (next: StudentOverride) => void;
   /** Quiz-only fields (subset picker, option hider, rubric swap, tab warning) render only when true. */
   quizMode?: boolean;
+  /** Flashcards Check: tab rules, a card subset (`questions` are the cards) and fewer answer choices. */
+  flashcardsMode?: boolean;
+  /** Flashcards only. Shows "Answer choices" when the Check's Test uses multiple choice. */
+  answerChoicesAvailable?: boolean;
   questions?: OverrideEditorQuestion[];
   rubrics?: Rubric[];
   /** Other selected students eligible for "Copy overrides from". */
@@ -131,6 +135,8 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   override,
   onChange,
   quizMode = false,
+  flashcardsMode = false,
+  answerChoicesAvailable = false,
   questions = [],
   rubrics = [],
   peers = [],
@@ -172,9 +178,14 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   // Per-question ids, so each rubric select is named by its own question.
   const rubricSelectIdBase = useId();
 
-  const totalQuestions = quizMode ? questions.length : undefined;
+  // Quiz and Flashcards share the tab rules and the subset picker.
+  const tabRules = quizMode || flashcardsMode;
+  const totalQuestions = tabRules ? questions.length : undefined;
   const chips = [
-    ...summarizeOverride(override, t, { totalQuestions }),
+    ...summarizeOverride(override, t, {
+      totalQuestions,
+      subsetOf: flashcardsMode ? 'cards' : 'questions',
+    }),
     ...extraChips,
   ];
 
@@ -475,7 +486,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             </div>
           )}
 
-          {quizMode && (
+          {tabRules && (
             <div>
               <label
                 htmlFor={tabWarningInputId}
@@ -530,7 +541,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             </div>
           )}
 
-          {quizMode && tabAwayTimerOn && (
+          {tabRules && tabAwayTimerOn && (
             <div>
               <label
                 htmlFor={tabAwayInputId}
@@ -624,10 +635,40 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             </div>
           )}
 
-          {quizMode && questions.length > 0 && (
+          {flashcardsMode && answerChoicesAvailable && (
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                {t('studentOverride.questionSubset', 'Question subset')}
+                {t('studentOverride.answerChoices', 'Answer choices')}
+              </span>
+              <div className="mt-1">
+                <SegmentedControl
+                  anchor={tourAttr('override-row.answer-choices')}
+                  ariaLabel={t(
+                    'studentOverride.answerChoices',
+                    'Answer choices'
+                  )}
+                  value={String(override.answerChoices ?? 4)}
+                  onChange={(id) =>
+                    patch({
+                      answerChoices:
+                        id === '3' ? 3 : id === '2' ? 2 : undefined,
+                    })
+                  }
+                  options={['4', '3', '2'].map((value) => ({
+                    value,
+                    label: value,
+                  }))}
+                />
+              </div>
+            </div>
+          )}
+
+          {tabRules && questions.length > 0 && (
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {flashcardsMode
+                  ? t('studentOverride.cardSubset', 'Card subset')
+                  : t('studentOverride.questionSubset', 'Question subset')}
               </span>
               <div className="mt-1 flex flex-col gap-1 max-h-40 overflow-y-auto">
                 {questions.map((q) => (
