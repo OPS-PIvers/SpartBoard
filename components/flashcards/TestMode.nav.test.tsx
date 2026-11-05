@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FlashcardCard } from '@/types';
@@ -11,7 +11,10 @@ const cards: FlashcardCard[] = Array.from({ length: 6 }, (_, index) => ({
   definition: `def ${index}`,
 }));
 
-const renderTest = (questionBar: boolean) =>
+const renderTest = (
+  questionBar: boolean,
+  testTypes: Array<'mc' | 'fib'> = ['mc']
+) =>
   render(
     <TestMode
       cards={cards}
@@ -20,7 +23,7 @@ const renderTest = (questionBar: boolean) =>
       termLanguage="es-US"
       definitionLanguage="en-US"
       strict={false}
-      testTypes={['mc']}
+      testTypes={testTypes}
       testCount="all"
       dark={false}
       questionBar={questionBar}
@@ -113,5 +116,32 @@ describe('TestMode question bar', () => {
         .getByRole('button', { name: 'Submit test' })
         .hasAttribute('disabled')
     ).toBe(false);
+  });
+
+  it('moves on with Enter in a typed answer, but not while an IME is composing', async () => {
+    const user = userEvent.setup();
+    renderTest(true, ['fib']);
+    const input = screen.getByRole('textbox');
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
+    expect(screen.getByText('Question 1 of 6')).toBeTruthy();
+    await user.type(input, 'x{Enter}');
+    expect(screen.getByText('Question 2 of 6')).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('textbox'));
+  });
+
+  it('starts a new practice test on question 1', async () => {
+    const user = userEvent.setup();
+    const { container } = renderTest(true);
+    for (let index = 0; index < 6; index += 1) {
+      await pick(
+        user,
+        container.querySelector<HTMLElement>('[data-test-index]') as HTMLElement
+      );
+      if (index < 5)
+        await user.click(screen.getByRole('button', { name: 'Next' }));
+    }
+    await user.click(screen.getByRole('button', { name: 'Submit test' }));
+    await user.click(screen.getByRole('button', { name: 'New test' }));
+    expect(screen.getByText('Question 1 of 6')).toBeTruthy();
   });
 });

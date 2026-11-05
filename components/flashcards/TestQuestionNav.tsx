@@ -37,7 +37,7 @@ export const TestQuestionNav: React.FC<TestQuestionNavProps> = ({
     onJump(index);
   };
   const iconButton = cx(
-    'flex items-center justify-center rounded-md transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-35',
+    'relative touch-target-expand flex items-center justify-center rounded-md transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-35',
     dark ? 'text-white hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'
   );
   const iconSize = {
@@ -117,7 +117,7 @@ export const TestQuestionNav: React.FC<TestQuestionNavProps> = ({
           aria-haspopup="dialog"
           onClick={() => setOpen((value) => !value)}
           className={cx(
-            'flex shrink-0 items-center whitespace-nowrap rounded-md border font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
+            'relative touch-target-expand flex shrink-0 items-center whitespace-nowrap rounded-md border font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
             dark
               ? 'border-white/20 hover:bg-white/10'
               : 'border-slate-200 hover:bg-slate-50'
@@ -223,7 +223,7 @@ export const TestQuestionNav: React.FC<TestQuestionNavProps> = ({
               className="grid overflow-y-auto"
               style={{
                 gridTemplateColumns:
-                  'repeat(auto-fill, minmax(min(36px, 9cqmin), 1fr))',
+                  'repeat(auto-fill, minmax(min(40px, 10cqmin), 1fr))',
                 gap: 'min(6px, 1.5cqmin)',
                 marginTop: 'min(10px, 2.5cqmin)',
                 maxHeight: 'min(320px, 60cqh)',
@@ -242,7 +242,7 @@ export const TestQuestionNav: React.FC<TestQuestionNavProps> = ({
                       aria-current={isCurrent ? 'step' : undefined}
                       onClick={() => jump(index)}
                       className={cx(
-                        'flex w-full items-center justify-center rounded-md border font-bold tabular-nums transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
+                        'relative touch-target-expand flex w-full items-center justify-center rounded-md border font-bold tabular-nums transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
                         done
                           ? 'border-rose-600 bg-rose-600 text-white hover:bg-rose-700'
                           : dark
@@ -254,7 +254,7 @@ export const TestQuestionNav: React.FC<TestQuestionNavProps> = ({
                             : 'ring-2 ring-slate-900 ring-offset-1')
                       )}
                       style={{
-                        height: 'min(34px, 8.5cqmin)',
+                        height: 'min(40px, 10cqmin)',
                         fontSize: 'min(12px, 3.2cqmin)',
                       }}
                     >

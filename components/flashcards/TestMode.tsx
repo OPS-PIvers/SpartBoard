@@ -16,6 +16,7 @@ import type {
   FlashcardTestType,
 } from '@/types';
 import { matchFlashcardAnswer } from '@/utils/flashcardMatch';
+import { isImeComposing } from '@/utils/imeComposing';
 import { getFlashcardAnswerCharacters } from '@/config/flashcardCharBars';
 import { CharacterBar } from './PlayerPrimitives';
 import { TestQuestionNav } from './TestQuestionNav';
@@ -160,7 +161,7 @@ const FibAnswer: React.FC<FibAnswerProps> = ({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === 'Enter' && onEnter) {
+          if (event.key === 'Enter' && onEnter && !isImeComposing(event)) {
             event.preventDefault();
             onEnter();
           }
@@ -214,7 +215,7 @@ export const TestMode: React.FC<TestModeProps> = ({
 }) => {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [current, setCurrent] = useState(0);
+  const [currentId, setCurrentId] = useState<string | null>(null);
   const [focusAnswer, setFocusAnswer] = useState(false);
   const isCheck = Boolean(check);
   const checkRecordedRef = useRef(false);
@@ -276,17 +277,15 @@ export const TestMode: React.FC<TestModeProps> = ({
   const answeredList = questions.map(
     (question) => (answers[question.id] ?? '').trim().length > 0
   );
-  const questionKey = questions.map((question) => question.id).join('|');
-  const [navKey, setNavKey] = useState(questionKey);
-  if (navKey !== questionKey) {
-    setNavKey(questionKey);
-    setCurrent(0);
-  }
-  const currentIndex = Math.min(current, Math.max(questions.length - 1, 0));
+  // Tracked by id so a live card edit that reorders questions keeps the student's place.
+  const currentIndex = Math.max(
+    0,
+    questions.findIndex((question) => question.id === currentId)
+  );
 
   const jumpTo = (index: number): void => {
     const target = Math.max(0, Math.min(index, questions.length - 1));
-    setCurrent(target);
+    setCurrentId(questions[target]?.id ?? null);
     setFocusAnswer(true);
     scrollRef.current?.scrollTo({ top: 0 });
   };
@@ -351,7 +350,9 @@ export const TestMode: React.FC<TestModeProps> = ({
     );
     setAnswers({});
     setResults(null);
-    setCycle((current) => current + 1);
+    setCurrentId(null);
+    setFocusAnswer(false);
+    setCycle((value) => value + 1);
   };
 
   if (questions.length === 0) return null;
@@ -701,6 +702,7 @@ export const TestMode: React.FC<TestModeProps> = ({
               )}
               style={{
                 gap: 'min(4px, 1cqmin)',
+                minHeight: 44,
                 padding: 'min(9px, 2.2cqmin) min(14px, 3.2cqmin)',
                 fontSize: 'min(13px, 3.4cqmin)',
               }}
@@ -721,6 +723,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                 className="flex items-center rounded-lg bg-rose-600 font-bold text-white transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300"
                 style={{
                   gap: 'min(4px, 1cqmin)',
+                  minHeight: 44,
                   padding: 'min(9px, 2.2cqmin) min(14px, 3.2cqmin)',
                   fontSize: 'min(13px, 3.4cqmin)',
                 }}
