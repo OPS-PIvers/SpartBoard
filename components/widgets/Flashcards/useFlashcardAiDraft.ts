@@ -73,7 +73,8 @@ export const useFlashcardAiDraft = ({
     setCount,
     generating,
     error,
-    setFile: (content: string, name: string) => setFileState({ content, name }),
+    setFile: (content: string | null, name: string | null) =>
+      setFileState(content ? { content, name: name ?? '' } : null),
     extracting,
     setExtracting,
     generate,
