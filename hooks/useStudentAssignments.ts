@@ -684,10 +684,13 @@ export function useStudentAssignments({
     const items = collection(db, 'student_assignments', studentUid, 'items');
     let unsub: (() => void) | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    const subscribe = (attempt: number) => {
+    const subscribe = (firstAttempt: number) => {
+      // A delivered snapshot restarts the retry count for this listener's next failure.
+      let attempt = firstAttempt;
       unsub = onSnapshot(
         items,
         (snap) => {
+          attempt = 0;
           const next: Record<string, StudentAssignmentPointer> = {};
           for (const d of snap.docs) {
             next[d.id] = d.data() as StudentAssignmentPointer;
@@ -1053,7 +1056,9 @@ export function useStudentAssignments({
       retryTimers.add(timer);
     };
 
-    const subscribePlan = (plan: SubscriptionPlan, attempt: number) => {
+    const subscribePlan = (plan: SubscriptionPlan, firstAttempt: number) => {
+      // A delivered snapshot restarts the retry count for this listener's next failure.
+      let attempt = firstAttempt;
       const config = KIND_CONFIG[plan.kind];
       const q = buildQuery(
         config,
@@ -1066,7 +1071,10 @@ export function useStudentAssignments({
         planKey(plan),
         onSnapshot(
           q,
-          (snap) => handleSnapshot(plan, snap),
+          (snap) => {
+            attempt = 0;
+            handleSnapshot(plan, snap);
+          },
           (err) => handleError(plan, attempt, err)
         )
       );

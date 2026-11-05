@@ -139,6 +139,45 @@ describe('useStudentAssignments — failed listener retry', () => {
     );
   });
 
+  it('restarts the retry count after a listener recovers', () => {
+    const fails: Fail[] = [];
+    let flashcardCalls = 0;
+    vi.mocked(firestore.onSnapshot).mockImplementation(((
+      ref: { __name?: string },
+      onNext: Next,
+      onError: Fail
+    ) => {
+      if (ref.__name === 'flashcard_sessions') {
+        flashcardCalls += 1;
+        fails.push(onError);
+        onNext({ docs: [{ id: FLASHCARD.id, data: () => FLASHCARD.data }] });
+        return () => undefined;
+      }
+      onNext({ docs: [] });
+      return () => undefined;
+    }) as unknown as typeof firestore.onSnapshot);
+    renderHook(() => useStudentAssignments({ classIds: ['c1'] }));
+    const initial = flashcardCalls;
+
+    act(() => {
+      fails[0]({ code: 'unavailable', message: 'offline' });
+    });
+    act(() => {
+      vi.advanceTimersByTime(LISTENER_RETRY_DELAYS_MS[0]);
+    });
+    act(() => {
+      fails[fails.length - 1]({ code: 'unavailable', message: 'offline' });
+    });
+    act(() => {
+      vi.advanceTimersByTime(LISTENER_RETRY_DELAYS_MS[0]);
+    });
+
+    expect(flashcardCalls).toBe(initial + 2);
+    expect(reportStudentLoadIssue).not.toHaveBeenCalledWith(
+      expect.objectContaining({ attempt: 1 })
+    );
+  });
+
   it('stops pending retries on unmount', () => {
     const { calls } = failFlashcardsTimes(99);
     const { unmount } = renderHook(() =>
