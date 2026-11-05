@@ -27,8 +27,8 @@ describe('DashboardContext AI Security Helpers', () => {
 
     it('gives a widget type with no AI keys an empty config', () => {
       expect(
-        sanitizeAIConfig('links', {
-          urls: [{ url: 'https://evil.example' }],
+        sanitizeAIConfig('webcam', {
+          snapshotUrl: 'https://evil.example',
         })
       ).toEqual({});
     });
@@ -42,6 +42,27 @@ describe('DashboardContext AI Security Helpers', () => {
       expect(
         sanitizeAIConfig('clock', { format24: false, glow: true })
       ).toEqual({ format24: false, glow: true });
+    });
+
+    it('keeps non-URL keys the model may reasonably set', () => {
+      expect(sanitizeAIConfig('traffic', { active: 'green' })).toEqual({
+        active: 'green',
+      });
+      expect(
+        sanitizeAIConfig('materials', {
+          selectedItems: ['pencil'],
+          title: 'Bring',
+          activeItems: ['x'],
+        })
+      ).toEqual({ selectedItems: ['pencil'], title: 'Bring' });
+      expect(
+        sanitizeAIConfig('instructionalRoutines', {
+          selectedRoutineId: 'tps',
+        })
+      ).toEqual({ selectedRoutineId: 'tps' });
+      expect(
+        sanitizeAIConfig('schedule', { rowStyle: 'lines', cardOpacity: 0.5 })
+      ).toEqual({ rowStyle: 'lines', cardOpacity: 0.5 });
     });
 
     it('ignores inherited keys', () => {
