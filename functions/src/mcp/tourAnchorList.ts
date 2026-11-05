@@ -63912,6 +63912,50 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards-settings-modal.plc-results",
+    "label": "Share results with PLC button in the Flashcards assignment Settings dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.assignment-settings",
+        "kind": "modal",
+        "path": [
+          "library-shell.archive-menu-item:flashcards#row-1-item-2"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-settings-modal.stop-plc",
+    "label": "Stop sharing with PLC button in the Flashcards assignment Settings dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.assignment-settings",
+        "kind": "modal",
+        "path": [
+          "library-shell.archive-menu-item:flashcards#row-1-item-2"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.stepper-kind-switch",
     "label": "Student work or Study resource switch in the Flashcards assign dialog",
     "scope": "widget type",

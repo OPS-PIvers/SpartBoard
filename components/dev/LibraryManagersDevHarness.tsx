@@ -18,6 +18,7 @@ import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/compo
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { MiniAppManager } from '@/components/widgets/MiniApp/components/MiniAppManager';
 import { FlashcardLibrary } from '@/components/widgets/Flashcards/FlashcardLibrary';
+import { FlashcardAssignmentSettingsModal } from '@/components/widgets/Flashcards/FlashcardAssignmentSettingsModal';
 import { WallLibraryModal } from '@/components/widgets/ActivityWall/WallLibraryModal';
 import type { LibraryTab } from '@/components/common/library/types';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
@@ -175,6 +176,12 @@ const FLASHCARD_SETS: FlashcardSet[] = range((i) => ({
 
 const FC_MODES = ['write', 'speak', 'test', 'flashcards'] as const;
 const FC_PERIODS = [['Period 3'], ['Period 3', 'Period 5'], ['Period 4'], []];
+const FC_ROSTER_IDS = [
+  ['roster-3'],
+  ['roster-3', 'roster-5'],
+  ['roster-4'],
+  [],
+];
 
 const FLASHCARD_ASSIGNMENTS: FlashcardAssignment[] = range((i) => ({
   id: `fca-${i}`,
@@ -186,6 +193,7 @@ const FLASHCARD_ASSIGNMENTS: FlashcardAssignment[] = range((i) => ({
   ...(i % 5 === 4 ? {} : { checkMode: FC_MODES[i % 4] }),
   ...(i % 3 === 1 ? { cardSelection: { mode: 'random', count: 10 } } : {}),
   periodNames: FC_PERIODS[i % 4],
+  rosterIds: FC_ROSTER_IDS[i % 4],
   ...(i % 4 === 1 ? { scoreVisibility: 'score' } : {}),
   // Every third live one is per-period and not started, to show Paused / Start.
   ...(i % 6 === 2
@@ -570,38 +578,54 @@ const FlashcardsView: React.FC = () => {
       prev.map((set) => (set.id === itemId ? { ...set, folderId } : set))
     )
   );
+  const [settingsFor, setSettingsFor] = useState<FlashcardAssignment | null>(
+    null
+  );
   return (
-    <FlashcardLibrary
-      userId="mock-user-id"
-      sets={sets}
-      loading={false}
-      error={null}
-      folders={folders}
-      assignments={FLASHCARD_ASSIGNMENTS}
-      assignmentsLoading={false}
-      tab={tab}
-      onTabChange={setTab}
-      onNew={noop}
-      onImport={noop}
-      onEdit={noop}
-      onPresent={noop}
-      onShare={noop}
-      onAssign={noop}
-      onDelete={noop}
-      onAssignmentResults={noop}
-      onAssignmentPublishScores={noop}
-      onAssignmentUnpublishScores={noop}
-      onAssignmentCopyLink={noop}
-      onAssignmentEnd={noop}
-      onAssignmentReopen={noop}
-      onAssignmentDelete={noop}
-      onShareWithPlc={noop}
-      onAssignmentShareWithPlc={noop}
-      onAssignmentStopSharingWithPlc={noop}
-      onAssignmentMonitor={noop}
-      onBulkDelete={() => Promise.resolve(false)}
-      quizStyle={new URLSearchParams(window.location.search).get('v2') === '1'}
-    />
+    <>
+      {settingsFor && (
+        <FlashcardAssignmentSettingsModal
+          assignment={settingsFor}
+          rosters={ROSTERS}
+          onClose={() => setSettingsFor(null)}
+          onSave={() => Promise.resolve()}
+        />
+      )}
+      <FlashcardLibrary
+        userId="mock-user-id"
+        sets={sets}
+        loading={false}
+        error={null}
+        folders={folders}
+        assignments={FLASHCARD_ASSIGNMENTS}
+        assignmentsLoading={false}
+        tab={tab}
+        onTabChange={setTab}
+        onNew={noop}
+        onImport={noop}
+        onEdit={noop}
+        onPresent={noop}
+        onShare={noop}
+        onAssign={noop}
+        onDelete={noop}
+        onAssignmentResults={noop}
+        onAssignmentPublishScores={noop}
+        onAssignmentUnpublishScores={noop}
+        onAssignmentCopyLink={noop}
+        onAssignmentEnd={noop}
+        onAssignmentReopen={noop}
+        onAssignmentDelete={noop}
+        onShareWithPlc={noop}
+        onAssignmentShareWithPlc={noop}
+        onAssignmentStopSharingWithPlc={noop}
+        onAssignmentMonitor={noop}
+        onAssignmentSettings={setSettingsFor}
+        onBulkDelete={() => Promise.resolve(false)}
+        quizStyle={
+          new URLSearchParams(window.location.search).get('v2') === '1'
+        }
+      />
+    </>
   );
 };
 
