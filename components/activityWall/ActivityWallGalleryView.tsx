@@ -481,6 +481,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
             )}
           </div>
           <button
+            // no-tour-anchor: student wall gallery image-size toggle, which never shows on the board
             type="button"
             onClick={() => setImageSize(nextWallImageSize(imageSize))}
             aria-label={`Image size: ${WALL_IMAGE_SIZE_LABEL[imageSize]}. Click to change.`}
