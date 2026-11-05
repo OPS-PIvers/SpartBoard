@@ -600,9 +600,9 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
       .catch((error: unknown) => {
         for (const cardId of cardIds) this.dirtyCards.add(cardId);
         for (const cardId of checkIds) this.dirtyCheckLog.add(cardId);
-        this.attemptFields = { ...attemptFields, ...this.attemptFields };
-        // A refused Speak map (e.g. over the rules' size cap) must not block the rest of the progress.
+        // A refused Speak map or attempt field (e.g. a stale tab count) must not block the rest of the progress.
         if (!isPermissionDenied(error)) {
+          this.attemptFields = { ...attemptFields, ...this.attemptFields };
           for (const cardId of speakIds) this.dirtySpeak.add(cardId);
           for (const token of soundIds) this.dirtySounds.add(token);
         }

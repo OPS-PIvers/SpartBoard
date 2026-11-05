@@ -28,9 +28,11 @@ export const checkDeadline = (
 /** Whether the student may start another attempt themselves. */
 export const canTryAgain = (
   session: Pick<FlashcardSession, 'kind' | 'rules'>,
-  progress: Pick<FlashcardProgress, 'completedAttempts'>
+  progress: Pick<FlashcardProgress, 'completedAttempts' | 'forcedSubmit'>
 ): boolean => {
   if (session.kind !== 'check' || !session.rules) return false;
+  // Leaving the tab too often waits for the teacher's Unlock attempt, as in Quiz.
+  if (progress.forcedSubmit === 'tab') return false;
   const limit = session.rules.attemptLimit;
   return limit === null || (progress.completedAttempts ?? 1) < limit;
 };

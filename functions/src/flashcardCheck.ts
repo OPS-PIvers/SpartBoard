@@ -626,6 +626,7 @@ export async function handleSubmitFlashcardCheck(
           ? progress.completedAttempts
           : 0) + 1,
       ...(forced ? { forcedSubmit: forced } : {}),
+      handRaisedAt: admin.firestore.FieldValue.delete(),
     };
     if (!progressSnap.exists)
       Object.assign(write, newProgressFields(access, checkMode));
@@ -670,6 +671,10 @@ const reopenFields = (): Record<string, unknown> => ({
   forcedSubmit: DELETE(),
   attemptStartedAt: DELETE(),
   tabSwitchWarnings: DELETE(),
+  resultsTabWarnings: DELETE(),
+  resultsLockedOut: DELETE(),
+  resultsLockedOutAt: DELETE(),
+  handRaisedAt: DELETE(),
 });
 
 /** Try again (student, within the attempts allowed) or Unlock attempt (teacher, answers kept). */
@@ -717,6 +722,12 @@ export async function handleReopenFlashcardCheck(
       : 1;
     if (limit !== null && used >= limit)
       throw new HttpsError('failed-precondition', 'No attempts left.');
+    // As in Quiz, leaving the tab too often waits for the teacher's Unlock attempt.
+    if (progress.forcedSubmit === 'tab')
+      throw new HttpsError(
+        'failed-precondition',
+        'Ask your teacher to unlock.'
+      );
     tx.update(progressRef, {
       ...reopenFields(),
       checkLog: DELETE(),

@@ -162,7 +162,7 @@ const QuizStyleResults: React.FC<FlashcardCheckResultsProps> = ({
   const score = progress.score ?? 0;
   const percent = total > 0 ? Math.round((score / total) * 100) : 0;
 
-  return (
+  const gate = (
     <ResultsProtectionGate
       protection={protection}
       publishedAt={publishedAt}
@@ -244,6 +244,19 @@ const QuizStyleResults: React.FC<FlashcardCheckResultsProps> = ({
         </div>
       </div>
     </ResultsProtectionGate>
+  );
+  // The lock screen hides the page, so Try again sits below it.
+  if (progress.resultsLockedOut !== true || !onTryAgain) return gate;
+  return (
+    <div className="flex h-full flex-col">
+      <div className="min-h-0 flex-1">{gate}</div>
+      <div className="shrink-0 border-t border-slate-200 bg-white px-4 pb-4">
+        <AttemptActions
+          forced={progress.forcedSubmit}
+          onTryAgain={onTryAgain}
+        />
+      </div>
+    </div>
   );
 };
 

@@ -212,13 +212,15 @@ export const TrackedPlayer: React.FC<{
   }, [adapter, paused]);
 
   const inFlightRef = useRef(false);
+  // Set once the server took the submission, until the snapshot swaps this page out.
+  const submittedRef = useRef(false);
   const [forced, setForced] = useState<'time' | 'tab' | null>(null);
   const forcedTriedAtRef = useRef(0);
   const submit = async (
     submission: FlashcardCheckSubmission,
     forcedBy?: 'time' | 'tab'
   ) => {
-    if (paused || inFlightRef.current) return;
+    if (paused || inFlightRef.current || submittedRef.current) return;
     inFlightRef.current = true;
     if (forcedBy) setForced(forcedBy);
     dispatchSubmit({ type: 'submitStarted' });
@@ -234,6 +236,7 @@ export const TrackedPlayer: React.FC<{
         flags: submission.flags,
         ...(forcedBy ? { forced: forcedBy } : {}),
       });
+      submittedRef.current = true;
     } catch (submitError) {
       console.error('[FlashcardAssignmentPage] Submit failed:', submitError);
       dispatchSubmit({ type: 'submitFailed' });
@@ -289,6 +292,14 @@ export const TrackedPlayer: React.FC<{
     progress?.tabSwitchWarnings ?? 0
   );
   const [warningOpen, setWarningOpen] = useState(false);
+  // A teacher reset starts the attempt over.
+  const [seenReset, setSeenReset] = useState(resetCount);
+  if (seenReset !== resetCount) {
+    setSeenReset(resetCount);
+    setTabWarnings(0);
+    setWarningOpen(false);
+    setForced(null);
+  }
   const tabTracker = useTabAwayTracker({
     enabled: tabOn && !paused && forced === null,
     sessionActive: session.status === 'active',
@@ -297,7 +308,8 @@ export const TrackedPlayer: React.FC<{
     attempt: progress?.completedAttempts ?? 0,
     getPosition: () => ({}),
     onLeave: async () => {
-      const next = tabWarnings + 1;
+      // Another tab or device may have counted more.
+      const next = Math.max(tabWarnings, progress?.tabSwitchWarnings ?? 0) + 1;
       setTabWarnings(next);
       setWarningOpen(true);
       await adapter.writeAttemptFields({ tabSwitchWarnings: next });

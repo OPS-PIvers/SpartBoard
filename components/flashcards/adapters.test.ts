@@ -149,6 +149,31 @@ describe('TrackedFlashcardAdapter', () => {
     expect(writes[1]).not.toHaveProperty('attemptStartedAt');
   });
 
+  it('drops a refused attempt field so later progress still saves', async () => {
+    const writes: FlashcardProgressWrite[] = [];
+    let refuse = true;
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: (payload) => {
+        writes.push(payload);
+        if (refuse) {
+          refuse = false;
+          return Promise.reject(
+            Object.assign(new Error('no'), { code: 'permission-denied' })
+          );
+        }
+        return Promise.resolve();
+      },
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await adapter.writeAttemptFields({ tabSwitchWarnings: 1 });
+    adapter.star('card-a');
+    await adapter.flush();
+    expect(writes[1]).not.toHaveProperty('tabSwitchWarnings');
+    expect(writes[1]?.starred).toEqual(['card-a']);
+  });
+
   it('holds writes while paused and sends them on resume', async () => {
     vi.useFakeTimers();
     const { adapter, writes } = setup();

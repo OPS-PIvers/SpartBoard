@@ -48,6 +48,8 @@ describe('checkAttempt', () => {
     });
     expect(canTryAgain(unlimited, { completedAttempts: 40 })).toBe(true);
     expect(canTryAgain(check(), {})).toBe(false);
+    expect(canTryAgain(unlimited, { forcedSubmit: 'tab' })).toBe(false);
+    expect(canTryAgain(unlimited, { forcedSubmit: 'time' })).toBe(true);
   });
 
   it('sends only what was answered when a submit is forced', () => {

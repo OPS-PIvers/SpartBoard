@@ -1089,6 +1089,37 @@ describe('handleReopenFlashcardCheck', () => {
     }
   });
 
+  it('leaves a tab auto-submit for the teacher to unlock, and clears the results lock on reopen', async () => {
+    const rules = { attemptLimit: null, sessionOptions: {} };
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: session({ rules }),
+      [PROGRESS_PATH]: submitted({ forcedSubmit: 'tab' }),
+    };
+    await expectCode(
+      handleReopenFlashcardCheck(
+        makeDb(docs),
+        student,
+        { assignmentId: 'a1' },
+        NOW
+      ),
+      'failed-precondition'
+    );
+    docs[PROGRESS_PATH] = submitted({
+      resultsLockedOut: true,
+      resultsTabWarnings: 3,
+      handRaisedAt: NOW,
+    });
+    await handleReopenFlashcardCheck(
+      makeDb(docs),
+      student,
+      { assignmentId: 'a1' },
+      NOW
+    );
+    expect(docs[PROGRESS_PATH].resultsLockedOut).toBeUndefined();
+    expect(docs[PROGRESS_PATH].resultsTabWarnings).toBeUndefined();
+    expect(docs[PROGRESS_PATH].handRaisedAt).toBeUndefined();
+  });
+
   it("lets the session teacher unlock an attempt with the student's answers kept", async () => {
     const docs: Record<string, Doc> = {
       [SESSION_PATH]: session(),
