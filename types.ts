@@ -9401,6 +9401,8 @@ export interface FlashcardSet {
   speak?: FlashcardSpeakSettings;
   /** Where Import got this set (IMPORT.md D7); never copied to the public snapshot. */
   importedFrom?: ImportAttribution;
+  /** The PLC set this copy came from, so teammates' checks pool into one PLC result. */
+  plcOriginSetId?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -9629,6 +9631,9 @@ export interface FlashcardSession
   cardSelection?: FlashcardCardSelection;
   /** Check: attempts, time limit, shuffle, integrity and What students see (flashcards-assign-v2). */
   rules?: FlashcardCheckRules;
+  /** Check shared with a PLC: pools into `plcs/{plcId}/assessments/{syncGroupId}`. */
+  plcId?: string;
+  syncGroupId?: string;
   /** Assigned by a teacher with the flashcards-test-nav flag: students get the Test question bar. */
   testNavBar?: true;
   masteryThreshold?: FlashcardMasteryThreshold;

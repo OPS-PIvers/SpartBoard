@@ -75,6 +75,8 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   cardSelection?: FlashcardCardSelection;
   /** Check only (flashcards-assign-v2): attempts, time limit, shuffle, integrity, What students see. */
   rules?: FlashcardCheckRules;
+  /** Check only: the PLC its results pool into. */
+  plcLink?: { plcId: string; syncGroupId: string };
 }
 
 export interface UseFlashcardAssignmentsResult {
@@ -212,6 +214,7 @@ export const useFlashcardAssignments = (
           ? input.cardSelection
           : undefined;
       const rules = isCheck && input.rules ? input.rules : undefined;
+      const plcLink = isCheck ? input.plcLink : undefined;
       const language = speakLanguageOf(input.set.termLanguage);
       // A Speak check prepares any card that has no pronunciation yet.
       const prepared =
@@ -252,6 +255,9 @@ export const useFlashcardAssignments = (
         ...(speakOff ? { speakOff: true as const } : {}),
         ...(cardSelection ? { cardSelection } : {}),
         ...(rules ? { rules } : {}),
+        ...(plcLink
+          ? { plcId: plcLink.plcId, syncGroupId: plcLink.syncGroupId }
+          : {}),
         ...(testNavBar ? { testNavBar: true as const } : {}),
         classIds,
         classId: classIds[0] ?? '',

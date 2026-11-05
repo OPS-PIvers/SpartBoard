@@ -3917,6 +3917,8 @@ describe('index barrel — deployed export set', () => {
     // PLC analytics rollup + migration + discovery mirror
     'markPlcAssessmentDirtyOnSession',
     'markPlcAssessmentDirtyOnResponse',
+    'markPlcAssessmentDirtyOnFlashcardSession',
+    'markPlcAssessmentDirtyOnFlashcardProgress',
     'recomputePlcAssessments',
     'pollCodePointer',
     'resolvePollCodeV1',

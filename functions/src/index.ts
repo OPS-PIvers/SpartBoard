@@ -240,6 +240,8 @@ export { groupReminderEmails } from './groupReminderEmails';
 export {
   markPlcAssessmentDirtyOnSession,
   markPlcAssessmentDirtyOnResponse,
+  markPlcAssessmentDirtyOnFlashcardSession,
+  markPlcAssessmentDirtyOnFlashcardProgress,
 } from './markPlcAssessmentDirty';
 export { recomputePlcAssessments } from './recomputePlcAssessments';
 

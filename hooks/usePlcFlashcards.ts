@@ -144,7 +144,7 @@ export function parsePlcFlashcardResultEntry(
   };
 }
 
-/** Portable copy for "Add to my library": fresh id, no attribution. */
+/** Portable copy for "Add to my library": fresh id, no attribution, origin kept for PLC results. */
 export function toPersonalFlashcardSet(
   entry: PlcFlashcardSetEntry
 ): FlashcardSet {
@@ -155,6 +155,7 @@ export function toPersonalFlashcardSet(
     termLanguage: entry.termLanguage,
     definitionLanguage: entry.definitionLanguage,
     cards: entry.cards.map((card) => ({ ...card })),
+    plcOriginSetId: entry.id,
     folderId: null,
     createdAt: now,
     updatedAt: now,

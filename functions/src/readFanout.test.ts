@@ -135,6 +135,7 @@ describe('server read counts per trigger invocation', () => {
       'plcs/p/assessments/g': { syncGroupId: 'g', dirtyAt: null },
     });
     await markDirty(stub.db as never, 'p', 'g', {
+      kind: 'quiz',
       plcId: 'p',
       syncGroupId: 'g',
       quizId: '',
