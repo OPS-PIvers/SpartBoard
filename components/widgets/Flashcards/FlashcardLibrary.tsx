@@ -389,12 +389,6 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
                 },
               ]
             : [
-                {
-                  id: 'copy-link',
-                  label: 'Copy Student Link',
-                  icon: Copy,
-                  onClick: () => onAssignmentCopyLink(assignment),
-                },
                 ...plcAction(assignment),
                 {
                   id: 'end',
