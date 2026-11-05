@@ -29,14 +29,12 @@ import { ImportAttributionLine } from '@/components/import/ImportAttributionLine
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useDialog } from '@/context/useDialog';
 import { tourTypeAttr } from '@/config/tourAnchors';
-import { speakLanguageOf } from '@/config/pronunciationGroups';
 import {
   inputClass,
   labelClass,
 } from '@/components/widgets/QuizWidget/components/quizEditorFieldStyles';
 import { FlashcardLanguageField } from './FlashcardLanguageField';
 import { PasteImportDrawer } from './PasteImportDrawer';
-import { SpeakSettingsPanel } from './speak/SpeakSettingsPanel';
 import { SpeakReviewList } from './speak/SpeakReviewList';
 import { SortableCardRow } from './FlashcardEditor';
 import type { SpeakLookupCall } from './speak/lookupSpeakReferences';
@@ -76,7 +74,6 @@ export const FlashcardSetEditorModal: React.FC<
   const { t } = useTranslation();
   const state = useFlashcardEditorState(set, speakLookup);
   const {
-    canSpeak,
     title,
     setTitle,
     description,
@@ -90,8 +87,6 @@ export const FlashcardSetEditorModal: React.FC<
     error,
     setError,
     notice,
-    speakSettings,
-    setSpeakSettings,
     speakOn,
     speakRow,
     confirmSpeakCard,
@@ -454,13 +449,6 @@ export const FlashcardSetEditorModal: React.FC<
           tourField="definition"
         />
       </div>
-      {canSpeak && (
-        <SpeakSettingsPanel
-          language={speakLanguageOf(termLanguage)}
-          settings={speakSettings}
-          onChange={setSpeakSettings}
-        />
-      )}
     </div>
   );
 
