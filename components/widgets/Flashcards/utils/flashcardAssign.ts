@@ -327,10 +327,29 @@ export const withSpeakChoice = <
 >(
   set: T,
   choice: FlashcardSpeakChoice | undefined
-): T =>
-  choice
-    ? { ...set, speak: { dialects: set.speak?.dialects ?? [], ...choice } }
-    : set;
+): T => {
+  if (!choice) return set;
+  const language = speakLanguageOf(set.termLanguage);
+  if (!language) return set;
+  const ids = speakGroupIds(language);
+  const fits = Object.keys(choice.groups).every((id) => ids.includes(id));
+  // A named level's groups follow the set's current language; a Custom from another language becomes Intermediate.
+  const preset: SpeakPreset =
+    choice.preset === 'custom' && !fits ? 'intermediate' : choice.preset;
+  const groups =
+    preset === 'custom'
+      ? choice.groups
+      : speakPresetSettings(language, preset).groups;
+  return {
+    ...set,
+    speak: {
+      dialects: set.speak?.dialects ?? [],
+      ...choice,
+      preset,
+      groups,
+    },
+  };
+};
 
 /** A stored choice, or undefined; buildSpeakStamp cleans each field. */
 export function parseSpeakChoice(

@@ -38,7 +38,9 @@ export type FlashcardAssignRules = Omit<
   speak?: LastSpeakChoice;
 };
 
-export type LastSpeakChoice = Omit<FlashcardSpeakChoice, 'groups'>;
+/** Groups are kept only for a Custom level, and reused only when they fit the next set's language. */
+export type LastSpeakChoice = Omit<FlashcardSpeakChoice, 'groups'> &
+  Partial<Pick<FlashcardSpeakChoice, 'groups'>>;
 
 const PRESETS: readonly SpeakPreset[] = [...SPEAK_PRESET_IDS, 'custom'];
 
@@ -58,10 +60,21 @@ const parseLastSpeak = (raw: unknown): LastSpeakChoice | null => {
     strict: r.strict,
     attempts: clampSpeakAttempts(r.attempts),
     example: r.example,
+    ...(r.preset === 'custom' &&
+    r.groups &&
+    typeof r.groups === 'object' &&
+    !Array.isArray(r.groups)
+      ? { groups: r.groups }
+      : {}),
   };
 };
 
-const MODES: readonly FlashcardMode[] = ['flashcards', 'write', 'test'];
+const MODES: readonly FlashcardMode[] = [
+  'flashcards',
+  'write',
+  'test',
+  'speak',
+];
 const SIDES: readonly FlashcardSide[] = ['term', 'definition'];
 const TEST_TYPES: readonly FlashcardTestType[] = ['mc', 'fib'];
 const THRESHOLDS: readonly FlashcardMasteryThreshold[] = [2, 3, 4];

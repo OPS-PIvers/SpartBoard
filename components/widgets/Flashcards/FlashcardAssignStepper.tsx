@@ -508,6 +508,9 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
           strict: speakChoice.strict,
           attempts: speakChoice.attempts,
           example: speakChoice.example,
+          ...(speakChoice.preset === 'custom'
+            ? { groups: speakChoice.groups }
+            : {}),
         }
       : lastUsed.lastUsed?.speak;
     if (ok !== false && kind === 'work') {
@@ -522,7 +525,9 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
           : check
       );
     } else if (ok !== false && speakChoice && lastSpeak) {
-      lastUsed.save({ ...(lastUsed.lastUsed ?? check), speak: lastSpeak });
+      const { collectSubmission: _kind, ...defaults } =
+        getFlashcardAssignPrefill(null, cardCount);
+      lastUsed.save({ ...(lastUsed.lastUsed ?? defaults), speak: lastSpeak });
     }
   };
 
