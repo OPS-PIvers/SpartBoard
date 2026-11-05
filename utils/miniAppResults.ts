@@ -75,3 +75,22 @@ export function submitErrorCode(err: unknown): string {
   if (code.endsWith('permission-denied')) return 'not-allowed';
   return 'failed';
 }
+
+/** A student's own submission summary, or their receipt when the summary is teacher-only; null when neither exists. */
+export async function readOwnMiniAppSubmission(
+  sessionId: string,
+  docId: string
+): Promise<Record<string, unknown> | null> {
+  try {
+    const snap = await getDoc(
+      doc(db, 'mini_app_sessions', sessionId, 'submissions', docId)
+    );
+    return snap.exists() ? snap.data() : null;
+  } catch (err) {
+    const receipt = await getDoc(
+      doc(db, 'mini_app_sessions', sessionId, 'receipts', docId)
+    ).catch(() => null);
+    if (receipt?.exists()) return receipt.data();
+    throw err;
+  }
+}

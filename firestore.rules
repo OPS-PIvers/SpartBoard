@@ -6129,11 +6129,15 @@ service cloud.firestore {
 
         // Teacher + admins read all submissions; a student reads their own (the
         // /my-assignments completion badge). Identity is the studentUid field
-        // (works for both pseudonym and auth-uid doc ids).
+        // (works for both pseudonym and auth-uid doc ids). A v2 session that hides
+        // correct answers keeps the graded summary teacher-only; the student reads
+        // their receipt below instead.
         allow read: if signedIn() && (
           isAdmin() ||
           maOwner() ||
-          existing().studentUid == authUid()
+          (existing().studentUid == authUid() &&
+            (maSessionData().get('resultsVersion', 1) != 2 ||
+             maSessionData().get('showCorrectAnswers', true) != false))
         );
 
         // Any authed user (anon or studentRole) creates/updates their own submission while
@@ -6182,6 +6186,11 @@ service cloud.firestore {
           );
           allow create, update: if false;
         }
+      }
+
+      // Attempt count only, written by submitMiniAppResultV1 when the summary is teacher-only.
+      match /receipts/{key} {
+        allow read: if signedIn() && existing().studentUid == authUid();
       }
 
       // v2 answer key copied at assign; students never read it (MINI_APP_RESULTS.md D5).

@@ -803,6 +803,113 @@ describe('prepareQuizReadAloud', () => {
 // through unchecked would let an attacker claim a real admin's address and
 // unlock quiz-read-aloud without ever proving ownership of that inbox. Same
 // rail as quizStimulusText.ts's buildDefaultExtractDeps / chargeOcr.
+describe('per-period manifests', () => {
+  const OPEN = {
+    c1: {
+      state: 'open',
+      openAt: null,
+      closeAt: null,
+      bellPeriodId: null,
+      verified: true,
+      label: 'P1',
+    },
+  };
+  const perPeriodDocs = () => {
+    const docs = makeDocs({
+      session: {
+        questionsInContent: true,
+        periodAccess: OPEN,
+        classIds: ['c1'],
+        publicQuestions: undefined,
+        readAloud: {
+          status: 'ready',
+          voice: 'v',
+          files: { 'q:old:question': 'quiz_tts_cache/v/old.mp3' },
+        },
+      },
+      pointer: null,
+    });
+    docs['quiz_sessions/s1/content/questions'] = { publicQuestions: QUESTIONS };
+    docs[`quiz_sessions/s1/responses/${STUDENT}`] = { classId: 'c1' };
+    return docs;
+  };
+  const CONTENT = 'quiz_sessions/s1/content/questions';
+  const pathFields = ['files', 'timings', 'stimulusChunks', 'localized'];
+
+  it('prepare keeps audio paths off the session doc and in the content doc', async () => {
+    const docs = perPeriodDocs();
+    const { deps } = makeDeps(docs);
+    const res = await prepareQuizReadAloud(
+      { sessionId: 's1', callerUid: TEACHER },
+      deps
+    );
+    expect(res.status).toBe('ready');
+    const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
+    expect(manifest).toMatchObject({ status: 'ready', failedKeys: [] });
+    for (const f of pathFields) expect(manifest).not.toHaveProperty(f);
+    const { parts } = enumerateParts({ publicQuestions: QUESTIONS });
+    const hidden = docs[CONTENT].readAloud as Doc;
+    expect(Object.keys(hidden.files as Doc).sort()).toEqual(
+      parts.map((p) => p.key).sort()
+    );
+    expect(hidden.stimulusChunks).toBeDefined();
+    expect(docs[CONTENT].publicQuestions).toEqual(QUESTIONS);
+  });
+
+  it('prepare on a period-only session leaves the paths to the gated callable', async () => {
+    const docs = makeDocs({ session: { periodAccess: OPEN } });
+    const { deps } = makeDeps(docs);
+    await prepareQuizReadAloud({ sessionId: 's1', callerUid: TEACHER }, deps);
+    const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
+    expect(manifest.status).toBe('ready');
+    for (const f of pathFields) expect(manifest).not.toHaveProperty(f);
+    expect(docs[CONTENT]).toBeUndefined();
+  });
+
+  it('the student fallback patches the content doc and clears old session paths', async () => {
+    const docs = perPeriodDocs();
+    const { deps } = makeDeps(docs);
+    const res = await synthesizeQuizAudio(
+      {
+        mode: 'student',
+        sessionId: 's1',
+        questionId: 'q1',
+        part: { kind: 'question' },
+      },
+      classStudent,
+      deps
+    );
+    expect((docs[CONTENT].readAloud as Doc).files).toEqual({
+      'q:q1:question': res.path,
+    });
+    const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
+    expect(manifest.status).toBe('ready');
+    for (const f of pathFields) expect(manifest).not.toHaveProperty(f);
+  });
+
+  it('a stimulus fallback goes to the content doc too', async () => {
+    const docs = perPeriodDocs();
+    docs[CONTENT].readAloudTextByStimulusId = { 'stim-1': 'Passage one.' };
+    const { deps } = makeDeps(docs);
+    await synthesizeQuizAudio(
+      {
+        mode: 'student',
+        sessionId: 's1',
+        questionId: 'q2',
+        part: { kind: 'stimulus', stimulusId: 'stim-1' },
+      },
+      classStudent,
+      deps
+    );
+    expect((docs[CONTENT].readAloud as Doc).stimulusChunks).toEqual({
+      'stim-1': ['stim:stim-1:0'],
+    });
+    expect(docs['quiz_sessions/s1'].readAloud).not.toHaveProperty(
+      'stimulusChunks'
+    );
+  });
+});
+
 describe('buildDefaultDeps isFeatureGranted', () => {
   it('SECURITY: never passes an unverified account email to isGlobalFeatureGranted', async () => {
     const getUser = vi.fn().mockResolvedValue({

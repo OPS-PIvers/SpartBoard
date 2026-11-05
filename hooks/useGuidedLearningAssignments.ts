@@ -36,6 +36,7 @@ import {
   type AssignmentClassEdit,
 } from '@/utils/assignmentClassEdit';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
+import { activeResultsOverride } from '@/utils/quizResultsVisibility';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import {
   type SharedSource,
@@ -130,8 +131,9 @@ export interface UseGuidedLearningAssignmentsResult {
    * Publish student-facing score visibility for an archived assignment.
    * Mirrors `useQuizAssignments.publishAssignmentScores`: recomputes
    * per-response `isCorrect` + `score`, mirrors the visibility flag onto
-   * the session doc, and populates `session.revealedAnswers` iff the
-   * teacher chose `'score-responses-and-answers'`. Pre-existing
+   * the session doc, and writes `revealedAnswers` onto each submitted
+   * response iff the teacher chose `'score-responses-and-answers'`
+   * (never the session doc). Pre-existing
    * per-response values are overwritten so the operation is idempotent
    * and self-correcting (responses submitted in student-mode are
    * written with `isCorrect: null`).
@@ -151,7 +153,7 @@ export interface UseGuidedLearningAssignmentsResult {
    * Revoke published score visibility for an assignment. Clears
    * `scoreVisibility` + `scorePublishedAt` on the assignment doc (via
    * `deleteField()`) and wipes `revealedAnswers` on the mirrored
-   * session doc. Per-response `score` / `isCorrect` are left intact —
+   * session doc and on every response. Per-response `score` / `isCorrect` are left intact —
    * student-side rendering gates on `session.scoreVisibility`.
    */
   unpublishAssignmentScores: (assignmentId: string) => Promise<void>;
@@ -472,6 +474,23 @@ export const useGuidedLearningAssignments = (
         protection: deleteField(),
       });
       await batch.commit();
+      // Publishes since the key moved to each response leave it there; clear it too.
+      const keyed = (
+        await readAllDocsPaged(
+          collection(
+            db,
+            GL_SESSIONS_COLLECTION,
+            assignmentId,
+            GL_SESSION_RESPONSES_SUBCOLLECTION
+          )
+        )
+      ).filter((d) => d.data().revealedAnswers != null);
+      for (let i = 0; i < keyed.length; i += 400) {
+        const chunk = writeBatch(db);
+        for (const d of keyed.slice(i, i + 400))
+          chunk.update(d.ref, { revealedAnswers: deleteField() });
+        await chunk.commit();
+      }
     },
     [userId]
   );
@@ -527,11 +546,24 @@ export const useGuidedLearningAssignments = (
         )
       );
 
+      // The key goes on each submitted response that shows answers, never the session (as Quiz does).
+      const revealedAnswers: Record<string, string> | null =
+        visibility === 'score-responses-and-answers' ? {} : null;
+      if (revealedAnswers) {
+        // First-wins, matching the grading dedup above — the revealed answer must match what the student was graded against.
+        for (const s of dedupedSteps) {
+          const formatted = formatCanonicalAnswer(s);
+          if (formatted !== null) revealedAnswers[s.id] = formatted;
+        }
+      }
+
       interface ResponseUpdate {
         ref: ReturnType<typeof doc>;
         patch: {
           score: number;
           answers: GuidedLearningResponse['answers'];
+          revealedAnswers:
+            Record<string, string> | ReturnType<typeof deleteField>;
         };
       }
       const updates: ResponseUpdate[] = [];
@@ -545,9 +577,19 @@ export const useGuidedLearningAssignments = (
             stepsById,
             gradableStepIds.size
           );
+        const override = activeResultsOverride(data.resultsOverride, now);
+        const showsAnswers =
+          !override ||
+          (override.mode === 'shown' &&
+            override.visibility === 'score-responses-and-answers');
         updates.push({
           ref: d.ref,
-          patch: { score, answers: gradedAnswers },
+          patch: {
+            score,
+            answers: gradedAnswers,
+            revealedAnswers:
+              revealedAnswers && showsAnswers ? revealedAnswers : deleteField(),
+          },
         });
       }
 
@@ -572,17 +614,8 @@ export const useGuidedLearningAssignments = (
         // Republishing without protection must not keep a stale one.
         protection: protection ?? deleteField(),
       };
-      if (visibility === 'score-responses-and-answers') {
-        const revealedAnswers: Record<string, string> = {};
-        // First-wins, matching the grading dedup above — the revealed answer must match what the student was graded against.
-        for (const s of dedupedSteps) {
-          const formatted = formatCanonicalAnswer(s);
-          if (formatted !== null) revealedAnswers[s.id] = formatted;
-        }
-        sessionPatch.revealedAnswers = revealedAnswers;
-      } else {
-        sessionPatch.revealedAnswers = deleteField();
-      }
+      // Clears a key older publishes left on the session, which any signed-in user can read.
+      sessionPatch.revealedAnswers = deleteField();
       firstBatch.update(sessionRef, sessionPatch);
 
       const firstChunkSize = Math.min(updates.length, MAX_BATCH_WRITES - 2);

@@ -31,4 +31,21 @@ describe('mergeQuizSessionContent', () => {
     expect(merged?.publicQuestions.map((q) => q.id)).toEqual(['q1']);
     expect(merged?.stimuli).toEqual([{ id: 'st1' }]);
   });
+
+  it('folds the read-aloud paths in over the session status', () => {
+    const session = {
+      ...base,
+      questionsInContent: true,
+      readAloud: { status: 'ready', voice: 'v' },
+    } as unknown as QuizSession;
+    const merged = mergeQuizSessionContent(session, {
+      publicQuestions: [],
+      readAloud: { files: { 'q:q1:question': 'quiz_tts_cache/v/h.mp3' } },
+    });
+    expect(merged?.readAloud).toEqual({
+      status: 'ready',
+      voice: 'v',
+      files: { 'q:q1:question': 'quiz_tts_cache/v/h.mp3' },
+    });
+  });
 });

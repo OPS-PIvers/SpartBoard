@@ -92,7 +92,11 @@ import {
   isStudentContextMenuBlockWatched,
   useObservedStudentContextMenuBlock,
 } from '@/hooks/useStudentContextMenuBlock';
-import { submitErrorCode, submitMiniAppResult } from '@/utils/miniAppResults';
+import {
+  readOwnMiniAppSubmission,
+  submitErrorCode,
+  submitMiniAppResult,
+} from '@/utils/miniAppResults';
 import {
   initialMiniAppView,
   miniAppViewReducer,
@@ -577,11 +581,9 @@ const AppViewer: React.FC<{
         const docId = isStudentRole
           ? await getCachedPseudonym(session.id, currentUser.uid)
           : currentUser.uid;
-        const snap = await getDoc(
-          doc(db, SESSIONS_COLLECTION, session.id, 'submissions', docId)
-        );
-        if (snap.exists()) {
-          const used = (snap.data() as MiniAppSubmission).attemptCount;
+        const own = await readOwnMiniAppSubmission(session.id, docId);
+        if (own) {
+          const used = (own as Partial<MiniAppSubmission>).attemptCount;
           dispatch({
             type: 'existingFound',
             attemptCount: isV2 && typeof used === 'number' ? used : undefined,

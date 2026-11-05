@@ -144,6 +144,14 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
   });
 
   it('unpublishAssignmentScores clears flags via deleteField on both docs', async () => {
+    const refKeyed = { id: 'r-keyed' };
+    const refPlain = { id: 'r-plain' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        { ref: refKeyed, data: () => ({ revealedAnswers: { s0: 'a' } }) },
+        { ref: refPlain, data: () => ({}) },
+      ],
+    });
     const { result } = renderHook(() =>
       useGuidedLearningAssignments(TEACHER_UID)
     );
@@ -151,9 +159,14 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
       await result.current.unpublishAssignmentScores(ASSIGNMENT_ID);
     });
 
-    // Single batch (assignment + session) — no response reads on unpublish.
-    expect(mockGetDocs).not.toHaveBeenCalled();
-    expect(batchCommit).toHaveBeenCalledTimes(1);
+    // Assignment + session, then the responses that still hold the key.
+    expect(batchCommit).toHaveBeenCalledTimes(2);
+    expect(batchUpdate).toHaveBeenCalledWith(refKeyed, {
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+    });
+    expect(batchUpdate.mock.calls.some(([ref]) => ref === refPlain)).toBe(
+      false
+    );
 
     const assignmentCall = batchUpdate.mock.calls.find(
       ([ref]) =>
@@ -179,6 +192,7 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
   });
 
   it('unpublishAssignmentScores is idempotent', async () => {
+    mockGetDocs.mockResolvedValue({ docs: [] });
     const { result } = renderHook(() =>
       useGuidedLearningAssignments(TEACHER_UID)
     );
@@ -186,7 +200,6 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
       await result.current.unpublishAssignmentScores(ASSIGNMENT_ID);
       await result.current.unpublishAssignmentScores(ASSIGNMENT_ID);
     });
-    expect(mockGetDocs).not.toHaveBeenCalled();
     expect(batchCommit).toHaveBeenCalledTimes(2);
   });
 
@@ -356,7 +369,7 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
     );
   });
 
-  it('populates revealedAnswers on score-responses-and-answers, formatting matching/sorting too', async () => {
+  it('puts revealedAnswers on submitted responses, never the session, formatting matching/sorting too', async () => {
     const matching: GuidedLearningQuestion = {
       type: 'matching',
       text: 'Match',
@@ -397,7 +410,51 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
         interactionType: 'text-popover',
       },
     ]);
-    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+    const base = {
+      studentAnonymousId: 'u',
+      startedAt: 1,
+      score: null,
+      answers: [{ stepId: 's0', answer: 'a', isCorrect: null }],
+    };
+    const refDone = { id: 'r-done' };
+    const refWorking = { id: 'r-working' };
+    const refHidden = { id: 'r-hidden' };
+    const refLower = { id: 'r-lower' };
+    const refExpired = { id: 'r-expired' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        { ref: refDone, data: () => ({ ...base, completedAt: 2 }) },
+        { ref: refWorking, data: () => ({ ...base, completedAt: null }) },
+        {
+          ref: refHidden,
+          data: () => ({
+            ...base,
+            completedAt: 2,
+            resultsOverride: { mode: 'hidden' },
+          }),
+        },
+        {
+          ref: refLower,
+          data: () => ({
+            ...base,
+            completedAt: 2,
+            resultsOverride: {
+              mode: 'shown',
+              visibility: 'score-only',
+              publishedAt: 1,
+            },
+          }),
+        },
+        {
+          ref: refExpired,
+          data: () => ({
+            ...base,
+            completedAt: 2,
+            resultsOverride: { mode: 'hidden', expiresAt: 1 },
+          }),
+        },
+      ],
+    });
 
     const { result } = renderHook(() =>
       useGuidedLearningAssignments(TEACHER_UID)
@@ -417,17 +474,19 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
     if (!sessionCall) throw new Error('expected session update');
     expect(sessionCall[1]).toMatchObject({
       scoreVisibility: 'score-responses-and-answers',
-      revealedAnswers: {
-        s0: 'a',
-        s1: 'A → 1\nB → 2',
-        s2: 'x → y → z',
-      },
+      revealedAnswers: DELETE_FIELD_SENTINEL,
     });
-    // Info hotspot is omitted.
-    expect(
-      (sessionCall[1] as { revealedAnswers: Record<string, string> })
-        .revealedAnswers['s3-info']
-    ).toBeUndefined();
+    const patchFor = (ref: unknown) =>
+      batchUpdate.mock.calls.find(([r]) => r === ref)?.[1] as
+        { revealedAnswers: unknown } | undefined;
+    const key = { s0: 'a', s1: 'A → 1\nB → 2', s2: 'x → y → z' };
+    expect(patchFor(refDone)?.revealedAnswers).toEqual(key);
+    expect(patchFor(refExpired)?.revealedAnswers).toEqual(key);
+    // Not submitted: no write at all.
+    expect(patchFor(refWorking)).toBeUndefined();
+    // A student held back or shown less gets no key.
+    expect(patchFor(refHidden)?.revealedAnswers).toBe(DELETE_FIELD_SENTINEL);
+    expect(patchFor(refLower)?.revealedAnswers).toBe(DELETE_FIELD_SENTINEL);
   });
 
   it('clears stale isCorrect when a step no longer exists', async () => {
