@@ -11,6 +11,9 @@ const FILE_API_HOSTS = new Set([
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const DRIVE_META_URL = 'https://www.googleapis.com/drive/v3/files';
 const MAX_DEPTH = 8;
+// Sheets, Docs and Slides create files outside the dev folder, so dev marks them. Only dev writes this, and dev can't write prod files.
+const DEV_FILE_TAG = 'spartboardDevFile';
+const META_FIELDS = 'name,parents,trashed,properties';
 
 class MetadataAuthError extends Error {}
 
@@ -52,11 +55,12 @@ interface FileMeta {
   name?: string;
   parents?: string[];
   trashed?: boolean;
+  properties?: Record<string, string>;
 }
 
 export type FetchMeta = (fileId: string) => Promise<FileMeta | null>;
 
-/** True when the file is the dev folder or sits somewhere inside it. */
+/** True when the file is the dev folder, sits inside it, or carries dev's mark. */
 export async function isInDevFolder(
   fileId: string,
   fetchMeta: FetchMeta,
@@ -66,7 +70,9 @@ export async function isInDevFolder(
   for (let depth = 0; id && depth < MAX_DEPTH; depth++) {
     const meta = await fetchMeta(id);
     if (!meta) return false;
-    if (meta.name === devFolder && !meta.trashed) return true;
+    if (meta.trashed) return false;
+    if (meta.name === devFolder || meta.properties?.[DEV_FILE_TAG] === 'true')
+      return true;
     id = meta.parents?.[0];
   }
   return false;
@@ -105,8 +111,7 @@ export function isFileApiWrite(
   }
 }
 
-const NEW_FILE_ID_KEYS = [
-  'id',
+const API_FILE_ID_KEYS = [
   'spreadsheetId',
   'documentId',
   'presentationId',
@@ -125,7 +130,7 @@ export function installDevDriveWriteGuard(
     (auth: string): FetchMeta =>
     async (fileId) => {
       const res = await original(
-        `${DRIVE_META_URL}/${encodeURIComponent(fileId)}?fields=name,parents,trashed&supportsAllDrives=true`,
+        `${DRIVE_META_URL}/${encodeURIComponent(fileId)}?fields=${META_FIELDS}&supportsAllDrives=true`,
         { headers: { Authorization: auth } }
       );
       if (res.status === 401) throw new MetadataAuthError();
@@ -145,16 +150,40 @@ export function installDevDriveWriteGuard(
     return check;
   };
 
-  const rememberNewFile = async (res: Response): Promise<void> => {
-    if (!res.ok) return;
+  const markAsDevFile = async (fileId: string, auth: string): Promise<void> => {
     try {
-      const body = (await res.clone().json()) as Record<string, unknown>;
-      for (const key of NEW_FILE_ID_KEYS) {
-        const value = body[key];
-        if (typeof value === 'string') createdHere.add(value);
-      }
+      const res = await original(
+        `${DRIVE_META_URL}/${encodeURIComponent(fileId)}?fields=id&supportsAllDrives=true`,
+        {
+          method: 'PATCH',
+          headers: { Authorization: auth, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ properties: { [DEV_FILE_TAG]: 'true' } }),
+        }
+      );
+      if (!res.ok) throw new Error(`Drive metadata ${res.status}`);
+    } catch (err) {
+      // The file still works in this tab; only a reload would lose it.
+      console.warn('Could not mark a new Drive file as dev-made', err);
+    }
+  };
+
+  const rememberNewFile = async (
+    res: Response,
+    auth: string
+  ): Promise<void> => {
+    if (!res.ok) return;
+    let body: Record<string, unknown>;
+    try {
+      body = (await res.clone().json()) as Record<string, unknown>;
     } catch {
-      // Not a JSON body, so nothing to remember.
+      return; // Not a JSON body, so nothing to remember.
+    }
+    if (typeof body.id === 'string') createdHere.add(body.id);
+    for (const key of API_FILE_ID_KEYS) {
+      const value = body[key];
+      if (typeof value !== 'string') continue;
+      createdHere.add(value);
+      await markAsDevFile(value, auth);
     }
   };
 
@@ -163,7 +192,7 @@ export function installDevDriveWriteGuard(
     const fileId = writeTargetFileId(hrefOf(input));
     if (fileId === null) {
       const res = await original(input, init);
-      await rememberNewFile(res);
+      await rememberNewFile(res, authHeader(input, init));
       return res;
     }
     let ok = false;
