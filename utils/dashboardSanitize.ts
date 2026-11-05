@@ -114,3 +114,9 @@ export const sanitizeBoardForSubShare = (board: Dashboard): Dashboard => {
     }),
   };
 };
+
+/** The board without a Drive file id: a new board gets its own file on first save. */
+export const withoutDriveFileId = (board: Dashboard): Dashboard => {
+  const { driveFileId: _driveFileId, ...rest } = board;
+  return rest;
+};

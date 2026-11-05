@@ -68,6 +68,100 @@ export const validatePlacement = (
   };
 };
 
+/** Top-level config keys the AI may set per widget type; any other type receives no AI config. */
+const AI_CONFIG_KEYS: Partial<Record<WidgetType, readonly string[]>> = {
+  clock: [
+    'format24',
+    'showSeconds',
+    'fontFamily',
+    'clockStyle',
+    'themeColor',
+    'glow',
+    'showTime',
+    'showDate',
+    'dateColor',
+  ],
+  'time-tool': [
+    'mode',
+    'visualType',
+    'duration',
+    'elapsedTime',
+    'selectedSound',
+    'themeColor',
+    'glow',
+    'fontFamily',
+    'clockStyle',
+  ],
+  text: [
+    'content',
+    'bgColor',
+    'fontSize',
+    'fontFamily',
+    'fontColor',
+    'textSizePreset',
+    'verticalAlign',
+  ],
+  checklist: [
+    'items',
+    'mode',
+    'fontFamily',
+    'fontColor',
+    'cardColor',
+    'cardOpacity',
+    'textSizePreset',
+    'rowStyle',
+  ],
+  random: [
+    'firstNames',
+    'lastNames',
+    'mode',
+    'groupSize',
+    'groupingMode',
+    'numGroups',
+    'lastResult',
+    'soundEnabled',
+    'remainingStudents',
+    'rosterMode',
+    'autoStartTimer',
+    'visualStyle',
+    'rowStyle',
+    'cardColor',
+    'cardOpacity',
+    'fontColor',
+  ],
+  dice: ['count', 'diceColor', 'dotColor'],
+  sound: ['sensitivity', 'visual', 'autoTrafficLight', 'trafficLightThreshold'],
+  poll: ['question', 'options'],
+  scoreboard: ['teams'],
+  countdown: [
+    'title',
+    'startDate',
+    'eventDate',
+    'includeWeekends',
+    'countToday',
+    'viewMode',
+    'cardColor',
+    'fontColor',
+    'eventColor',
+  ],
+  schedule: [
+    'items',
+    'cardColor',
+    'cardOpacity',
+    'fontFamily',
+    'fontColor',
+    'textSizePreset',
+    'rowStyle',
+  ],
+  instructionalRoutines: ['selectedRoutineId'],
+  calendar: ['events'],
+  materials: ['selectedItems', 'title'],
+  traffic: ['active'],
+  expectations: ['voiceLevel', 'workMode', 'interactionMode'],
+  qr: ['url', 'showUrl', 'qrColor', 'qrBgColor'],
+  embed: ['url', 'zoom', 'refreshInterval', 'autoplay', 'startAtSeconds'],
+};
+
 /** Basic sanitization for AI-generated widget configurations to prevent XSS/Injection */
 export const sanitizeAIConfig = (
   type: WidgetType,
@@ -75,8 +169,16 @@ export const sanitizeAIConfig = (
 ): Partial<WidgetConfig> => {
   if (!config || typeof config !== 'object') return {};
 
-  // Deep clone to avoid mutating original
-  const sanitized = structuredClone(config) as Record<string, unknown>;
+  const allowed = AI_CONFIG_KEYS[type] ?? [];
+  const sanitized: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (Object.hasOwn(config, key)) {
+      // Deep clone to avoid mutating original
+      sanitized[key] = structuredClone(
+        (config as Record<string, unknown>)[key]
+      );
+    }
+  }
 
   // 1. Critical XSS prevention for widgets with HTML/Script capability
   // AI is not intended to generate executable code via the layout tool.

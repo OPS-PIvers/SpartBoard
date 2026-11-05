@@ -539,12 +539,23 @@ service cloud.firestore {
       // fields for their own org only. users/buildings are server-derived counts,
       // never client-settable at the domain-admin tier.
       allow create, delete: if isSuperAdmin();
-      allow update: if isSuperAdmin() ||
+      // claudeManagedAuth is a trusted token issuer: super admins only, in a pinned shape.
+      allow update: if (isSuperAdmin() && managedAuthOk()) ||
         (isDomainAdmin(orgId) &&
          changedOnly([
            'name', 'shortName', 'shortCode', 'state', 'primaryAdminEmail',
            'seedColor', 'supportUrl'
          ]));
+      function managedAuthOk() {
+        return incoming().get('claudeManagedAuth', null) ==
+            existing().get('claudeManagedAuth', null) ||
+          managedAuthShape(incoming().get('claudeManagedAuth', null));
+      }
+      function managedAuthShape(m) {
+        return m is map && m.keys().hasOnly(['enabled', 'issuer']) &&
+          m.enabled is bool && m.issuer is string && m.issuer.size() <= 300 &&
+          m.issuer.matches('https://[^\\s?#@]+');
+      }
 
       match /buildings/{buildingId} {
         allow read: if isOrgMember(orgId) || isSuperAdmin();
@@ -705,7 +716,8 @@ service cloud.firestore {
           // config/buildings.ts.
           (isBuildingAdmin(orgId) &&
            emailLower != request.auth.token.email.lower() &&
-           existing().get('roleId', '') != 'super_admin' &&
+           // Never a higher tier, in either direction.
+           !(existing().get('roleId', '') in ['super_admin', 'domain_admin']) &&
            buildingListsOverlap(existing().get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
            changedOnly(['status'])) ||
           // Self-write: a user may stamp `lastActive` on their own member doc.
@@ -1056,7 +1068,7 @@ service cloud.firestore {
     match /admin_settings/{document=**} {
       allow read: if isAdmin();
       allow write: if notDomainsPath(document) &&
-                      ((isAdmin() && !string(document).matches('(.*/)?(user_roles|view_as|lti_config|sub_launch_as_teacher|classlink_sync|focus_sessions)(/.*)?')) ||
+                      ((isAdmin() && !string(document).matches('(.*/)?(user_roles|view_as|lti_config|sub_launch_as_teacher|classlink_sync|focus_sessions|claude_managed_auth|claude_connector_cimd)(/.*)?')) ||
                        isSuperAdmin());
     }
 
@@ -1299,13 +1311,14 @@ service cloud.firestore {
     }
 
     // Schoology section (LTI context) -> ClassLink class link; LTI analogue of
-    // classroom_course_links, keyed by LTI `context_id`. READ open to any authed user
-    // (teacher monitor + SidebarClasses resolve link state). WRITES are SERVER-ONLY:
+    // classroom_course_links, keyed by LTI `context_id` (a co-teacher's own link is
+    // `{contextId}~{uid}`). READ: only the teacher a link belongs to (the link dialog
+    // queries teacherUid == their uid). WRITES are SERVER-ONLY:
     // linkLtiCourseV1 verifies the caller owns a session that SAW this context before
     // writing via Admin SDK. Rules can't validate an LTI launch, so a client write
     // would let any authed user squat any context_id.
     match /lti_course_links/{contextId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && existing().teacherUid == authUid();
     }
 
     // PII-free grade-sync keys (pseudonym sub -> resourceLink). Written and read only
@@ -2031,6 +2044,12 @@ service cloud.firestore {
         'parentCommentId'
       ]);
     }
+    // A student token's first name, or 'Student', is the only label it may post under.
+    function wallLabelOk() {
+      let n = request.auth.token.get('firstName', null);
+      let l = incoming().get('participantLabel', 'Student');
+      return n == null || l == n || l == 'Student';
+    }
     function wallLikeKeysOk() {
       return incoming().keys().hasOnly([
         'id', 'submissionId', 'authorUid', 'createdAt'
@@ -2133,6 +2152,7 @@ service cloud.firestore {
           incoming().content.size() > 0 &&
           incoming().content.size() <= 2000 &&
           isStr('participantLabel') &&
+          wallLabelOk() &&
           incoming().authorUid == authUid() &&
           isInt('createdAt');
         // Commenter can delete their own comment; share owner / admin can
@@ -5539,9 +5559,10 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource == null ||
         authUid() == existing().studentUid ||
-        authUid() == existing().teacherUid ||
         isAdmin() ||
-        authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid
+        (!isStudentRoleUser() &&
+         (authUid() == existing().teacherUid ||
+          authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid))
       );
       allow create: if signedIn() &&
         ledgerCreateOk(ledgerId, ledgerS('video_activity_sessions', ledgerId), 'activityId');
@@ -5556,7 +5577,8 @@ service cloud.firestore {
         ||
         // Teacher reset/refund branch (see quiz_attempt_ledger): may only DECREASE
         // completedAttempts (removeStudent reset + unlockStudentAttempt refund).
-        (((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
+        (!isStudentRoleUser() &&
+         ((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
           authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid) &&
          unchanged('studentUid') &&
          unchanged('activityId') &&
@@ -5572,8 +5594,10 @@ service cloud.firestore {
       // ledgers symmetric.
       allow delete: if signedIn() && (
         resource == null ||
-        (authUid() == existing().teacherUid && authUid() != existing().studentUid) || isAdmin() ||
-        authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid
+        isAdmin() ||
+        (!isStudentRoleUser() &&
+         ((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
+          authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid))
       );
     }
 
@@ -5835,8 +5859,9 @@ service cloud.firestore {
       function vaS() {
         return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data;
       }
+      // Student tokens are non-anonymous, so they never count as the owner.
       function vaOwner(s) {
-        return signedIn() && (s.teacherUid == authUid() || isAdmin());
+        return signedIn() && ((s.teacherUid == authUid() && !isStudentRoleUser()) || isAdmin());
       }
       // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
       // caller can't enumerate every teacher's sessions.
@@ -5845,6 +5870,8 @@ service cloud.firestore {
       // Non-anonymous teachers create only sessions they own.
       allow create: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
+        notDeactivated() &&
         subMonitorStampAbsent() &&
         incoming().teacherUid == authUid() &&
         !('ltiAttachment' in incoming());
@@ -5854,6 +5881,7 @@ service cloud.firestore {
       // hasOnly). The student response rule below stays tight.
       allow update: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
         existing().teacherUid == authUid() &&
         subMonitorStampUnchanged() &&
         sameId() &&
@@ -5888,7 +5916,7 @@ service cloud.firestore {
           vaS().status == 'ended' ||
           periodOpen(vaS(), seatedClassId('video_activity_sessions', sessionId))
         );
-        allow write: if contentWriteOk('video_activity_sessions', sessionId);
+        allow write: if !isStudentRoleUser() && contentWriteOk('video_activity_sessions', sessionId);
       }
       match /seats/{uid} {
         allow read: if signedIn() && authUid() == uid;
@@ -5992,12 +6020,14 @@ service cloud.firestore {
              incoming().get('unlocked', false) == false) &&
             isList('answers') &&
             // Append-only on answers, except a rejoin-reset (prior completedAt
-            // non-null → null) may clear answers to []. Otherwise no rollback.
+            // non-null → null) may clear answers to []. Otherwise no rollback,
+            // and earlier entries keep their order, so the scored first answer stays first.
             ((existing().get('completedAt', null) != null &&
               incoming().get('completedAt', null) == null &&
               incoming().answers.size() == 0) ||
-             (incoming().answers.size() >= existing().answers.size() &&
-              incoming().answers.hasAll(existing().answers))) &&
+             (existing().answers.size() == 0 ||
+              (incoming().answers.size() >= existing().answers.size() &&
+               incoming().answers[0:existing().answers.size()] == existing().answers))) &&
             notDecreased('tabSwitchWarnings') &&
             notDecreased('completedAttempts') &&
             // Attempt-cap enforcement — last line of defense behind the
@@ -6051,10 +6081,13 @@ service cloud.firestore {
       // Only authenticated (non-anonymous) teachers can create sessions they own
       allow create: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
+        notDeactivated() &&
         incoming().teacherUid == authUid();
       // Teachers can rename, end, re-window or re-period their own sessions
       allow update: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
         existing().teacherUid == authUid() &&
         changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind', 'openAt', 'closeAt', 'dueAt', 'classIds', 'rosterIds', 'removedClasses']) &&
         incoming().status in ['active', 'ended'];
@@ -6066,14 +6099,18 @@ service cloud.firestore {
       function maSessionData() {
         return get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data;
       }
+      // Student tokens never count as the owner.
+      function maOwner() {
+        return maSessionData().teacherUid == authUid() && !isStudentRoleUser();
+      }
       function maOpen() {
         return seatOpen('mini_app_sessions', sessionId, maSessionData());
       }
       // Per-period sessions keep their app here until the period opens.
       match /content/{docId} {
         allow read: if signedIn() && (isAdmin() ||
-          maSessionData().teacherUid == authUid() || maOpen());
-        allow write: if contentWriteOk('mini_app_sessions', sessionId);
+          maOwner() || maOpen());
+        allow write: if !isStudentRoleUser() && contentWriteOk('mini_app_sessions', sessionId);
       }
       match /seats/{uid} {
         allow read: if signedIn() && authUid() == uid;
@@ -6092,11 +6129,14 @@ service cloud.firestore {
 
         // Teacher + admins read all submissions; a student reads their own (the
         // /my-assignments completion badge). Identity is the studentUid field
-        // (works for both pseudonym and auth-uid doc ids).
+        // (works for both pseudonym and auth-uid doc ids). A session created with
+        // summaryHidden (immutable) keeps the summary teacher-only; the student
+        // reads their receipt below instead.
         allow read: if signedIn() && (
           isAdmin() ||
-          maSessionData().teacherUid == authUid() ||
-          existing().studentUid == authUid()
+          maOwner() ||
+          (existing().studentUid == authUid() &&
+            maSessionData().get('summaryHidden', false) != true)
         );
 
         // Any authed user (anon or studentRole) creates/updates their own submission while
@@ -6134,26 +6174,31 @@ service cloud.firestore {
         // used when a teacher wipes an assignment.
         allow delete: if signedIn() && (
           isAdmin() ||
-          maSessionData().teacherUid == authUid()
+          maOwner()
         );
 
         // v2 attempt history, written only by submitMiniAppResultV1.
         match /attempts/{attemptId} {
           allow read, delete: if signedIn() && (
             isAdmin() ||
-            maSessionData().teacherUid == authUid()
+            maOwner()
           );
           allow create, update: if false;
         }
+      }
+
+      // Attempt count only, written by submitMiniAppResultV1 when the summary is teacher-only.
+      match /receipts/{key} {
+        allow read: if signedIn() && existing().studentUid == authUid();
       }
 
       // v2 answer key copied at assign; students never read it (MINI_APP_RESULTS.md D5).
       match /private/{docId} {
         allow read: if signedIn() && (
           isAdmin() ||
-          maSessionData().teacherUid == authUid()
+          maOwner()
         );
-        allow create, update: if contentWriteOk('mini_app_sessions', sessionId);
+        allow create, update: if !isStudentRoleUser() && contentWriteOk('mini_app_sessions', sessionId);
         allow delete: if false;
       }
 
@@ -6162,7 +6207,7 @@ service cloud.firestore {
       match /views/{viewId} {
         allow read: if signedIn() && (
           isAdmin() ||
-          get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data.teacherUid == authUid()
+          maOwner()
         );
         allow create: if signedIn() &&
           incoming().keys().hasOnly(['viewedAt']) &&
@@ -6200,16 +6245,18 @@ service cloud.firestore {
       // Only authenticated (non-anonymous) teachers can create sessions; they must own it
       allow create: if signedIn() &&
         notAnon() &&
+        !isStudentRoleUser() &&
+        notDeactivated() &&
         subMonitorStampAbsent() &&
         incoming().teacherUid == authUid();
       // Owning teacher (or admin) may update (publishAssignmentScores mirrors
       // scoreVisibility + revealedAnswers onto the session so the student listener
       // can gate review without teacher-owned docs; mirrors Quiz sessions) and
       // delete (GL "Delete permanently" cleanup).
-      allow update: if signedIn() &&
+      allow update: if signedIn() && !isStudentRoleUser() &&
         (existing().teacherUid == authUid() || isAdmin()) &&
         subMonitorStampUnchanged();
-      allow delete: if signedIn() &&
+      allow delete: if signedIn() && !isStudentRoleUser() &&
         (existing().teacherUid == authUid() || isAdmin());
 
       // The session doc, named once: the full path repeated a dozen times in
@@ -6222,7 +6269,7 @@ service cloud.firestore {
         return passesStudentClassGateCompat(glSession().get('classIds', []), glSession().get('classId', ''));
       }
       function glIsTeacher() {
-        return isAdmin() || glSession().teacherUid == authUid();
+        return isAdmin() || (glSession().teacherUid == authUid() && !isStudentRoleUser());
       }
       // GL stores assignment mode under `assignmentMode` (its `mode` is
       // play-mode: structured/guided/explore); other widgets use `mode`.
@@ -6323,7 +6370,7 @@ service cloud.firestore {
         allow read: if signedIn() &&
           (glIsTeacher() || isSubMonitor(glSession()) || glOpen() ||
            exists(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)/responses/$(authUid())));
-        allow write: if contentWriteOk('guided_learning_sessions', sessionId);
+        allow write: if !isStudentRoleUser() && contentWriteOk('guided_learning_sessions', sessionId);
       }
       match /seats/{uid} {
         allow read: if signedIn() && authUid() == uid;
@@ -6602,6 +6649,7 @@ service cloud.firestore {
           isInt('submittedAt') &&
           incoming().status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
           awFieldTypesOk() &&
+          wallLabelOk() &&
           // authorUid is an ownership claim on every session shape, not just padlet ones.
           (!('authorUid' in incoming()) ||
            (incoming().authorUid == authUid() &&
@@ -6800,6 +6848,7 @@ service cloud.firestore {
           incoming().content.size() <= 2000 &&
           isStr('participantLabel') &&
           incoming().participantLabel.size() <= 200 &&
+          wallLabelOk() &&
           incoming().authorUid == authUid() &&
           isInt('createdAt');
         allow delete: if signedIn() &&
@@ -7054,15 +7103,18 @@ service cloud.firestore {
       allow get: if true;
       allow list: if false;
       allow create: if signedIn()
+                    && notAnon()
                     && !isStudentRoleUser()
                     && notDeactivated()
                     && validPublicFlashcardSnapshot();
       allow update: if signedIn()
+                    && notAnon()
                     && !isStudentRoleUser()
                     && notDeactivated()
                     && existing().teacherUid == authUid()
                     && validPublicFlashcardSnapshot();
       allow delete: if signedIn()
+                    && notAnon()
                     && !isStudentRoleUser()
                     && notDeactivated()
                     && existing().teacherUid == authUid();

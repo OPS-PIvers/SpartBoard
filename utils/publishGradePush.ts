@@ -97,8 +97,6 @@ export interface RunPublishGradePushOptions<R> {
   buildClassroomGrades: (responses: R[]) => ClassroomGradeEntry[];
   /** Build the Schoology payload (scaled to schoologyMaxPoints). */
   buildSchoologyGrades: (responses: R[]) => LtiGradeEntry[];
-  /** `schoology-tool-columns` is on: update a column SpartBoard already made (never creates one). */
-  schoologyToolColumns?: boolean;
 }
 
 /** The Firestore session collection a runner kind targets. */
@@ -120,7 +118,6 @@ export async function runPublishGradePush<R>({
   schoologyMaxPoints,
   buildClassroomGrades,
   buildSchoologyGrades,
-  schoologyToolColumns = false,
 }: RunPublishGradePushOptions<R>): Promise<void> {
   // The attachments are pre-filtered to partner-first + flag-on, with a valid
   // grade scale (defensive re-check below). A student-initiated attachment is
@@ -155,8 +152,8 @@ export async function runPublishGradePush<R>({
       | undefined;
     classTargets = sess ?? null;
     ltiLinked = !!sess?.ltiAttachment;
-    toolColumn =
-      !ltiLinked && schoologyToolColumns && sess?.ltiToolColumn === true;
+    // Updates a column SpartBoard already made (never creates one).
+    toolColumn = !ltiLinked && sess?.ltiToolColumn === true;
   } catch (err) {
     logError('publishGradePush.readSession', err, { sessionId, kind });
   }

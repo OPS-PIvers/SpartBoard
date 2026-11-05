@@ -258,25 +258,6 @@ const criterionSchema = z.object({
     ),
 });
 
-async function assertGuidesAllowed(
-  ctx: ToolContext,
-  criteria: readonly { examples?: string[] }[] | undefined
-): Promise<void> {
-  if (!criteria?.some((c) => c.examples !== undefined)) return;
-  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
-  const ok = await isGlobalFeatureGranted(
-    ctx.db,
-    'rubric-scoring-guides',
-    ctx.email,
-    ctx.uid
-  ).catch(() => false);
-  if (!ok) {
-    throw new ToolError(
-      "Scoring-guide rubrics aren't turned on for this account yet. Leave out examples."
-    );
-  }
-}
-
 export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'list_rubrics',
@@ -338,7 +319,6 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
     },
     (input) =>
       run('create_rubric', ctx, async () => {
-        await assertGuidesAllowed(ctx, input.criteria);
         const criteria = buildCriteria(input.criteria, [], randomUUID);
         await reserveWrite(ctx);
         const now = Date.now();
@@ -383,7 +363,6 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
     },
     (input) =>
       run('update_rubric', ctx, async () => {
-        await assertGuidesAllowed(ctx, input.criteria);
         const existing = await readRubric(ctx, input.rubric_id);
         const criteria = input.criteria
           ? buildCriteria(input.criteria, existing.criteria, randomUUID)

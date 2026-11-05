@@ -265,7 +265,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   const waitForBanks = !!resolvedDriveFileId && banksLoading;
   // Read at load time so a bank list change doesn't re-download the quiz.
   const loadBankContents = useEffectEvent((quiz: Pick<QuizData, 'bankSlots'>) =>
-    loadBankContentsFor(quiz, banks, loadBankData)
+    loadBankContentsFor(quiz, banks, loadBankData, user?.uid)
   );
   useEffect(() => {
     const quizId = session?.quizId;
@@ -684,7 +684,11 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   // Schoology (LTI AGS) push — same grade builder as the dashboard Results view.
   const pushSchoologyGrades = useCallback(async () => {
     if (!session?.ltiAttachment || !sessionId || !quizData) return;
-    const maxPoints = quizMaxPoints(questions, session?.sections);
+    const maxPoints = quizMaxPoints(
+      questions,
+      session?.sections,
+      session?.bankSlots
+    );
     const grades = withFinalScores(
       buildQuizClassroomGradeEntries(
         responses.filter((r) => r.status === 'completed'),
@@ -731,6 +735,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   }, [
     session?.ltiAttachment,
     session?.sections,
+    session?.bankSlots,
     sessionId,
     quizData,
     questions,

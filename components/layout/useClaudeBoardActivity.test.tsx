@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   setDoc: vi.fn(() => Promise.resolve()),
   addToast: vi.fn(),
   loadDashboard: vi.fn(),
-  flagOn: true,
+  connectorOn: true,
   dash: {
     dashboards: [] as Dashboard[],
     activeDashboard: null as Dashboard | null,
@@ -26,7 +26,8 @@ vi.mock('@/utils/viewAsTab', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'u1' },
-    canAccessFeature: (id: string) => id === 'ai-boards' && mocks.flagOn,
+    canAccessFeature: (id: string) =>
+      id === 'claude-connector' && mocks.connectorOn,
   }),
 }));
 vi.mock('@/context/useDashboard', () => ({
@@ -56,7 +57,7 @@ const setBoards = (boards: Dashboard[], activeId: string) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.flagOn = true;
+  mocks.connectorOn = true;
   mocks.dash.loading = false;
   setBoards([], '');
 });
@@ -111,17 +112,6 @@ describe('useClaudeBoardActivity', () => {
     expect(mocks.addToast).toHaveBeenCalledTimes(1);
   });
 
-  it('does nothing with the flag off', () => {
-    mocks.flagOn = false;
-    setBoards([board('a'), board('b', { claudeUnseen: true })], 'b');
-    const { rerender } = renderHook(() => useClaudeBoardActivity());
-    setBoards([board('a', { claudeEditedAt: Date.now() }), board('b')], 'b');
-    rerender();
-    expect(mocks.addToast).not.toHaveBeenCalled();
-    expect(mocks.markClaudeBoardSeen).not.toHaveBeenCalled();
-    expect(mocks.setDoc).not.toHaveBeenCalled();
-  });
-
   it('clears the badge once when the board is opened', () => {
     setBoards(
       [
@@ -158,6 +148,21 @@ describe('useClaudeBoardActivity', () => {
       { boardScreen: { w: 1600, h: 1000, at: expect.any(Number) as number } },
       { merge: true }
     );
+    Reflect.deleteProperty(document, 'fullscreenElement');
+  });
+
+  it('records nothing without the Claude connector', () => {
+    vi.useFakeTimers();
+    mocks.connectorOn = false;
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => document.documentElement,
+    });
+    window.innerWidth = 1600;
+    window.innerHeight = 1000;
+    renderHook(() => useClaudeBoardActivity());
+    vi.advanceTimersByTime(1100);
+    expect(mocks.setDoc).not.toHaveBeenCalled();
     Reflect.deleteProperty(document, 'fullscreenElement');
   });
 

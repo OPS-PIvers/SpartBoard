@@ -83,6 +83,7 @@ import type {
   ClassRoster,
   PaperBatch,
   PaperSheetStimulus,
+  Plc,
   QuizData,
   QuizQuestion,
 } from '@/types';
@@ -1423,5 +1424,148 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
     expect(onSaveBatch).not.toHaveBeenCalled();
     expect(onCreateQuiz).not.toHaveBeenCalled();
+  });
+});
+
+describe('PaperPrintModal on the Assign on paper stepper', () => {
+  beforeEach(() => {
+    sheetImages = { src: {}, failed: [], loading: false };
+    features.clear();
+    vi.clearAllMocks();
+  });
+
+  const pickPeriod1 = () => {
+    fireEvent.click(screen.getByRole('button', { name: /No classes/ }));
+    fireEvent.click(screen.getByLabelText(/Period 1/, { selector: 'input' }));
+  };
+
+  const assignSetup = (
+    assignOver: Partial<
+      NonNullable<React.ComponentProps<typeof PaperPrintModal>['assign']>
+    > = {},
+    over: Partial<React.ComponentProps<typeof PaperPrintModal>> = {}
+  ) => {
+    const onCreateAssignment = vi.fn().mockResolvedValue(undefined);
+    const result = setup({
+      assign: {
+        plcs: [],
+        initialSharing: { plcMode: false, plcId: '' },
+        onCreateAssignment,
+        ...assignOver,
+      },
+      ...over,
+    });
+    return { ...result, onCreateAssignment };
+  };
+
+  it('picks classes in the stepper and has no separate sheet list', () => {
+    assignSetup();
+    expect(screen.queryByText(/Who gets a sheet/i)).toBeNull();
+    expect(
+      screen.getByRole('button', { name: /Assign and print/ })
+    ).toBeInTheDocument();
+  });
+
+  it('saves the batch, then makes the paper assignment, then prints', async () => {
+    const order: string[] = [];
+    const onSaveBatch = vi.fn((_batch: PaperBatch) => {
+      order.push('save');
+      return Promise.resolve();
+    });
+    const print = vi.fn(() => {
+      order.push('print');
+    });
+    const onCreateAssignment = vi.fn(() => {
+      order.push('assign');
+      return Promise.resolve();
+    });
+    assignSetup({ onCreateAssignment }, { onSaveBatch, print });
+    pickPeriod1();
+    fireEvent.click(screen.getByRole('button', { name: /Assign and print/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    expect(order).toEqual(['save', 'assign', 'print']);
+    const batch = onSaveBatch.mock.calls[0][0];
+    expect(Object.values(batch.seats)).toEqual([
+      { rosterId: 'r1', studentId: 's1' },
+      { rosterId: 'r1', studentId: 's2' },
+    ]);
+    expect(onCreateAssignment).toHaveBeenCalledWith({
+      batchId: batch.id,
+      rosterIds: ['r1'],
+      periodNames: ['Period 1'],
+      sharing: null,
+    });
+  });
+
+  it('never prints when the paper assignment could not be made', async () => {
+    const onCreateAssignment = vi.fn().mockRejectedValue(new Error('offline'));
+    const { print, onError } = assignSetup({ onCreateAssignment });
+    pickPeriod1();
+    fireEvent.click(screen.getByRole('button', { name: /Assign and print/ }));
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('offline'));
+    expect(print).not.toHaveBeenCalled();
+  });
+
+  it('retries with the saved stack instead of saving another', async () => {
+    const onCreateAssignment = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(undefined);
+    const { print, onError, onSaveBatch } = assignSetup({
+      onCreateAssignment,
+    });
+    pickPeriod1();
+    const submit = screen.getByRole('button', { name: /Assign and print/ });
+    fireEvent.click(submit);
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('offline'));
+    fireEvent.click(submit);
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    expect(onSaveBatch).toHaveBeenCalledTimes(1);
+    expect(onCreateAssignment).toHaveBeenCalledTimes(2);
+    expect(print.mock.calls[0][0].batchId).toBe(
+      onSaveBatch.mock.calls[0][0].id
+    );
+  });
+
+  it('replans over the saved stack when the picks change before a retry', async () => {
+    const onCreateAssignment = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(undefined);
+    const { print, onError, onSaveBatch } = assignSetup({
+      onCreateAssignment,
+    });
+    pickPeriod1();
+    const submit = screen.getByRole('button', { name: /Assign and print/ });
+    fireEvent.click(submit);
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('offline'));
+    fireEvent.click(screen.getByText('Answer sheets'));
+    fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
+      target: { value: '5' },
+    });
+    fireEvent.click(submit);
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    expect(onSaveBatch).toHaveBeenCalledTimes(2);
+    const batch = onSaveBatch.mock.calls[1][0];
+    expect(batch.spareSeats).toHaveLength(5);
+    expect(batch.id).toBe(onSaveBatch.mock.calls[0][0].id);
+    expect(onCreateAssignment).toHaveBeenLastCalledWith(
+      expect.objectContaining({ batchId: batch.id, rosterIds: ['r1'] })
+    );
+  });
+
+  it('passes the Sharing choice when the quiz syncs with a PLC', async () => {
+    const plc = { id: 'plc-1', name: 'Science PLC' } as Plc;
+    const { onCreateAssignment, print } = assignSetup({
+      plcs: [plc],
+      initialSharing: { plcMode: true, plcId: 'plc-1' },
+    });
+    expect(screen.getByText('Shared with Science PLC')).toBeInTheDocument();
+    pickPeriod1();
+    fireEvent.click(screen.getByRole('button', { name: /Assign and print/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    expect(onCreateAssignment).toHaveBeenCalledWith(
+      expect.objectContaining({ sharing: { plcMode: true, plcId: 'plc-1' } })
+    );
   });
 });

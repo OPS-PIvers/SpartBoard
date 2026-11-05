@@ -13,6 +13,7 @@ import {
 import type { KeyItem } from './quizDocumentImport/types';
 import { CHOICE_LETTERS } from './paperSheetLayout';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
+import { questionFromRows } from './quizChoiceRows';
 
 /** `A.` / `b)` / `(C)` option lines, which end the question text. */
 const OPTION = /^\s*\(?[A-Ea-e][.)]\s|^\s*\([A-Ea-e]\)\s*/;
@@ -118,10 +119,26 @@ export function applyQuestionFill(
     const next = { ...q, text: fill.text.trim() };
     const options = fill.options?.filter((o) => o.trim());
     if (options && options.length > 0) {
-      const answer = fill.correctAnswer?.trim() ?? '';
+      const wanted = fill.correctAnswer?.trim().toLowerCase() ?? '';
+      const answerAt = wanted
+        ? options.findIndex((o) => o.trim().toLowerCase() === wanted)
+        : -1;
+      // A key that names none of the printed options is no key; the paper's rows stay exact.
+      const answer = answerAt === -1 ? '' : options[answerAt];
+      // The teacher's paper letters these options; keep its order so bubbles score right.
+      const stored = questionFromRows(
+        options.map((text, at) => ({ text, correct: at === answerAt })),
+        false
+      );
       next.type = 'MC';
       next.correctAnswer = answer;
-      next.incorrectAnswers = options.filter((o) => o !== answer);
+      next.incorrectAnswers = options.filter((_o, at) => at !== answerAt);
+      next.paperOwnTest = true;
+      if (stored.optionOrder) {
+        next.optionOrder = stored.optionOrder;
+      } else {
+        delete next.optionOrder;
+      }
       // An answer the document supplied is a key the teacher no longer owes.
       if (answer) delete next.needsKey;
       else next.needsKey = true;
@@ -133,6 +150,8 @@ export function applyQuestionFill(
       next.correctAnswer === q.correctAnswer &&
       next.incorrectAnswers.join('\u0000') ===
         q.incorrectAnswers.join('\u0000') &&
+      (next.optionOrder ?? []).join() === (q.optionOrder ?? []).join() &&
+      next.paperOwnTest === q.paperOwnTest &&
       next.needsKey === q.needsKey
     ) {
       return q;

@@ -48,6 +48,7 @@ import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import {
   QuizSession,
+  QuizReadAloudManifest,
   QuizResponse,
   QuizResponseAnswer,
   QuizQuestion,
@@ -103,6 +104,7 @@ import {
   mergeQuizSessionContent,
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
+  QUIZ_READ_ALOUD_DOC,
   type QuizSessionContent,
 } from '@/utils/quizSessionContent';
 import {
@@ -2362,6 +2364,40 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     gateSignature,
     contentRetry,
   ]);
+  // Read-aloud paths sit in their own small content doc, so a per-part patch never resends the questions.
+  const [readAloudPaths, setReadAloudPaths] =
+    useState<Partial<QuizReadAloudManifest> | null>(null);
+  const hasReadAloud = inContent && !!session?.readAloud;
+  useEffect(() => {
+    if (!hasReadAloud || !sessionIdState || !responseKeyState) return;
+    return onSnapshot(
+      doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionIdState,
+        QUIZ_CONTENT_COLLECTION,
+        QUIZ_READ_ALOUD_DOC
+      ),
+      (snap) =>
+        setReadAloudPaths(
+          snap.exists() ? (snap.data() as Partial<QuizReadAloudManifest>) : null
+        ),
+      (err) => {
+        if ((err as { code?: string }).code !== 'permission-denied') {
+          console.error(
+            '[useQuizSessionStudent] read-aloud listener error:',
+            err
+          );
+        }
+      }
+    );
+  }, [
+    hasReadAloud,
+    sessionIdState,
+    responseKeyState,
+    gateSignature,
+    contentRetry,
+  ]);
   // Leaderboard names live beside the session; this device reads them once seated.
   const [boardNames, setBoardNames] = useState<{
     sessionId: string;
@@ -2415,14 +2451,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       ? boardNames.names
       : null;
   const mergedSession = useMemo(() => {
-    const merged = mergeQuizSessionContent(session, content);
+    const merged = mergeQuizSessionContent(session, content, readAloudPaths);
     return merged?.liveLeaderboard && names
       ? {
           ...merged,
           liveLeaderboard: withLeaderboardNames(merged.liveLeaderboard, names),
         }
       : merged;
-  }, [session, content, names]);
+  }, [session, content, readAloudPaths, names]);
 
   const lookupSession = useCallback(
     async (

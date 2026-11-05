@@ -55,6 +55,7 @@
 import type * as admin from '../firebaseAdmin';
 import { normalizeQuizCode } from '../quizCode';
 import { quizJoinCodeOwner } from '../quizJoinCodeOwner';
+import { readTeacherLink } from './courseLinkStore';
 
 type Db = admin.firestore.Firestore;
 
@@ -66,7 +67,6 @@ export const QUIZ_ASSIGNMENTS_SUBCOLLECTION = 'quiz_assignments';
 /** `lti_session_memberships/{sessionId}/contexts/{contextId}` */
 export const LTI_SESSION_MEMBERSHIPS_COLLECTION = 'lti_session_memberships';
 /** Section↔ClassLink link docs (owned by courseLinkEndpoints.ts; read here only). */
-const LTI_COURSE_LINKS_COLLECTION = 'lti_course_links';
 const RESPONSES_SUBCOLLECTION = 'responses';
 
 function sessionCollectionForKind(kind: LtiSessionKind): string {
@@ -600,14 +600,13 @@ export async function persistLtiLaunchContext(
 
   if (args.contextTitle) {
     // A section linked to a class already on the session is that class; its title must not count twice.
-    const linkSnap = await db
-      .collection(LTI_COURSE_LINKS_COLLECTION)
-      .doc(contextId)
-      .get();
-    const link = linkSnap.data() ?? {};
+    const sessionTeacher =
+      typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
+    // The session teacher's own link (a co-teacher may pair the section with their class), else the section's.
+    const link =
+      (await readTeacherLink(db, contextId, sessionTeacher, true)) ?? {};
     // A test-class link pairs on the roster's testClassId slug (also in classIds).
-    const pairedClassId: unknown =
-      link.classlinkClassId ?? (link.testClassId as unknown);
+    const pairedClassId: unknown = link.classlinkClassId ?? link.testClassId;
     const paired = sectionPairedOnSession(
       sessionData,
       pairedClassId,

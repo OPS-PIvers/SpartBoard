@@ -111,6 +111,7 @@ import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
+  QUIZ_READ_ALOUD_DOC,
   type QuizSessionContent,
 } from '@/utils/quizSessionContent';
 import { isFreeResponseType } from '@/types';
@@ -235,6 +236,8 @@ export type SharedAssignmentImportMode = 'sync' | 'copy';
 export interface CreateAssignmentOptions extends AudienceSessionFields {
   /** Defaults to `'active'`. */
   initialStatus?: QuizAssignmentStatus;
+  /** Assigned on paper: marks the assignment and links the printed stack it imports from. */
+  paperBatchId?: string;
   /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
   widgetKind?: QuizWidgetKind;
   /** Review game length (plan D22); only written for `sessionMode: 'game'`. */
@@ -1443,6 +1446,7 @@ export const useQuizAssignments = (
         periodAccess,
         widgetKind,
         gameDurationMs,
+        paperBatchId,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
@@ -1548,6 +1552,7 @@ export const useQuizAssignments = (
           ? { resolvedDriveFileId: settings.resolvedDriveFileId }
           : {}),
         ...(perPeriod ? { accessMode, periodAccess } : {}),
+        ...(paperBatchId ? { paper: true as const, paperBatchId } : {}),
       };
 
       const mode = settings.sessionMode;
@@ -2110,6 +2115,15 @@ export const useQuizAssignments = (
         typeof sessionCodeField === 'string' ? sessionCodeField : '';
       // Its own write, and it must land first: once the session goes, no rule can reach it.
       if (sessionSnap?.data()?.questionsInContent === true) {
+        await deleteDoc(
+          doc(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            assignmentId,
+            QUIZ_CONTENT_COLLECTION,
+            QUIZ_READ_ALOUD_DOC
+          )
+        );
         await deleteDoc(
           doc(
             db,

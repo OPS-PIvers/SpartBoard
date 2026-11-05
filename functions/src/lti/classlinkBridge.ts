@@ -28,12 +28,16 @@ import { computeStudentUid } from '../classlinkShared';
 // Reuse the existing OneRoster seam (and its test-spy point) rather than
 // re-implementing the signed fetch.
 import { classroomAddonNet } from '../classroomAddonAuth';
+import {
+  LTI_COURSE_LINKS_COLLECTION,
+  readCoTeacherLinks,
+} from './courseLinkStore';
 
 /** Sticky sub-uid → ClassLink-uid mapping. Server-write-only (firestore.rules). */
 export const LTI_IDENTITY_BRIDGE_COLLECTION = 'lti_identity_bridge';
 
-/** Firestore collection holding the Schoology section↔class link docs. */
-const LTI_COURSE_LINKS_COLLECTION = 'lti_course_links';
+/** Most ClassLink classes one launch OneRoster-fetches across co-teachers' links. */
+const MAX_BRIDGE_CLASSES = 3;
 
 // Firestore-id shape, matching courseLinkEndpoints.ts. The contextId is
 // platform-supplied and flows into a `.doc()` path, so a slash-bearing value
@@ -132,26 +136,46 @@ async function resolveLive(
   const { tenantUrl, clientId, clientSecret } = classlink;
   if (!tenantUrl || !clientId || !clientSecret) return null;
 
+  const lower = email.toLowerCase();
+  const tried = new Set<string>();
+  const tryClass = async (
+    classlinkClassId: unknown
+  ): Promise<BridgedIdentity | null> => {
+    if (typeof classlinkClassId !== 'string' || !classlinkClassId) return null;
+    if (tried.has(classlinkClassId) || tried.size >= MAX_BRIDGE_CLASSES) {
+      return null;
+    }
+    tried.add(classlinkClassId);
+    try {
+      const uid = (
+        await oneRosterUidsByEmail(classlink, classlinkClassId, hmacSecret)
+      ).get(lower);
+      return uid ? { uid, classlinkClassId, live: true } : null;
+    } catch (err) {
+      // One class failing to load must not hide a co-teacher's class.
+      console.warn('[ltiClasslinkBridge] OneRoster fetch failed:', err);
+      return null;
+    }
+  };
+
   const linkSnap = await db
     .doc(`${LTI_COURSE_LINKS_COLLECTION}/${contextId}`)
     .get();
-  const classlinkClassId = (linkSnap.data() ?? {}).classlinkClassId as unknown;
-  if (typeof classlinkClassId !== 'string' || !classlinkClassId) return null;
-
-  const uidsByEmail = await oneRosterUidsByEmail(
-    classlink,
-    classlinkClassId,
-    hmacSecret
-  );
-  const uid = uidsByEmail.get(email.toLowerCase());
-  if (!uid) {
+  if (!linkSnap.exists) return null;
+  const first = await tryClass((linkSnap.data() ?? {}).classlinkClassId);
+  if (first) return first;
+  // Co-teachers may link the section to their own ClassLink class.
+  for (const link of await readCoTeacherLinks(db, contextId)) {
+    const hit = await tryClass(link.classlinkClassId);
+    if (hit) return hit;
+  }
+  if (tried.size > 0) {
     console.warn(
       '[ltiClasslinkBridge] linked section but launch email not in the ' +
         'OneRoster roster; per-student overrides will not reach this student.'
     );
-    return null;
   }
-  return { uid, classlinkClassId, live: true };
+  return null;
 }
 
 /**

@@ -360,13 +360,14 @@ export function AssignmentArchiveCard<TAssignment>({
                   ? primaryAction.disabledReason
                   : undefined
               }
-              {...(tourRowKey
-                ? tourFieldAttr(
-                    'library-shell.archive-primary-action',
-                    tourWidgetTypeResolved,
-                    tourRowKey
-                  )
-                : {})}
+              {...(primaryAction.anchor ??
+                (tourRowKey
+                  ? tourFieldAttr(
+                      'library-shell.archive-primary-action',
+                      tourWidgetTypeResolved,
+                      tourRowKey
+                    )
+                  : {}))}
               className="flex w-full items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 gap: 'min(6px, 1.5cqmin)',

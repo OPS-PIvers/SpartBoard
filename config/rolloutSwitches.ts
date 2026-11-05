@@ -29,6 +29,14 @@ import {
   normalizeClaudeReviewRemindersSettings,
 } from '@/config/claudeReviewReminders';
 import {
+  CLAUDE_CONNECTOR_CIMD_SETTINGS_DOC,
+  normalizeClaudeConnectorCimdSettings,
+} from '@/config/claudeConnectorCimd';
+import {
+  CLAUDE_MANAGED_AUTH_SETTINGS_DOC,
+  normalizeClaudeManagedAuthSettings,
+} from '@/config/claudeManagedAuth';
+import {
   GRADEBOOK_INDEX_SETTINGS_DOC,
   normalizeGradebookIndexSettings,
 } from '@/config/gradebookIndex';
@@ -134,6 +142,22 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Flag items Claude made or changed until the teacher opens them. On by default.',
     normalize: normalizeClaudeReviewRemindersSettings,
+  },
+  {
+    docId: CLAUDE_CONNECTOR_CIMD_SETTINGS_DOC,
+    title: 'Claude connects without registering',
+    description:
+      'Claude identifies itself with its published client document instead of registering a new client on each connection.',
+    normalize: normalizeClaudeConnectorCimdSettings,
+    superAdminOnly: true,
+  },
+  {
+    docId: CLAUDE_MANAGED_AUTH_SETTINGS_DOC,
+    title: 'Claude sign-in without Connect',
+    description:
+      'Staff connect Claude without the Connect step, once a SpartBoard admin sets the issuer in Organization > Overview.',
+    normalize: normalizeClaudeManagedAuthSettings,
+    superAdminOnly: true,
   },
   {
     docId: GRADEBOOK_INDEX_SETTINGS_DOC,

@@ -505,6 +505,13 @@ const ActivityWallTimelineDevHarness = import.meta.env.DEV
     )
   : null;
 
+const PaperTestDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/PaperTestDevHarness').then((module) => ({
+        default: module.PaperTestDevHarness,
+      }))
+    )
+  : null;
 const AssignStepperDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/AssignStepperDevHarness').then((module) => ({
@@ -1479,6 +1486,18 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <AssignStepperDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
+    PaperTestDevHarness &&
+    pathname === '/paper-test-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PaperTestDevHarness />
       </Suspense>
     );
   }

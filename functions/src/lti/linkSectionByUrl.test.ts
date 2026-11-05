@@ -61,6 +61,17 @@ vi.mock('../firebaseAdmin', () => ({
               data: () => courseLinks.get(ctx),
             }),
           }),
+          where: (field: string, _op: string, value: string) => {
+            const q = {
+              limit: () => q,
+              get: async () => ({
+                docs: [...courseLinks]
+                  .filter(([, v]) => v[field] === value)
+                  .map(([id, v]) => ({ id, data: () => v, ref: { _ctx: id } })),
+              }),
+            };
+            return q;
+          },
         };
       }
       if (name === 'users') {
@@ -76,6 +87,10 @@ vi.mock('../firebaseAdmin', () => ({
       }
       throw new Error(`unexpected collection ${name}`);
     },
+    batch: () => ({
+      delete: (ref: { _ctx: string }) => courseLinks.delete(ref._ctx),
+      commit: async () => undefined,
+    }),
     runTransaction: async (
       fn: (tx: {
         get: (ref: { _ctx: string }) => Promise<{
@@ -83,18 +98,23 @@ vi.mock('../firebaseAdmin', () => ({
           data: () => unknown;
         }>;
         set: (ref: { _ctx: string }, data: Record<string, unknown>) => void;
+        delete: (ref: { _ctx: string }) => void;
       }) => Promise<unknown>
     ) =>
       fn({
-        get: async (ref) => ({
-          exists: courseLinks.has(ref._ctx),
-          data: () => courseLinks.get(ref._ctx),
-        }),
+        get: async (ref) =>
+          '_ctx' in ref
+            ? {
+                exists: courseLinks.has(ref._ctx),
+                data: () => courseLinks.get(ref._ctx),
+              }
+            : (ref as unknown as { get: () => Promise<never> }).get(),
         set: (ref, data) =>
           courseLinks.set(ref._ctx, {
             ...(courseLinks.get(ref._ctx) ?? {}),
             ...data,
           }),
+        delete: (ref) => courseLinks.delete(ref._ctx),
       }),
   })),
 }));
@@ -110,26 +130,18 @@ vi.mock('./ags', () => ({
   getAgsAccessToken: vi.fn().mockResolvedValue('nrps-token'),
 }));
 
-const {
-  fetchNrpsMembershipMock,
-  fetchClassStudentsMock,
-  grantedMock,
-  testMembershipMock,
-} = vi.hoisted(() => ({
-  fetchNrpsMembershipMock: vi.fn(),
-  fetchClassStudentsMock: vi.fn(),
-  grantedMock: vi.fn(),
-  testMembershipMock: vi.fn(),
-}));
+const { fetchNrpsMembershipMock, fetchClassStudentsMock, testMembershipMock } =
+  vi.hoisted(() => ({
+    fetchNrpsMembershipMock: vi.fn(),
+    fetchClassStudentsMock: vi.fn(),
+    testMembershipMock: vi.fn(),
+  }));
 vi.mock('../studentAssignmentTargets', () => ({
   loadTestClassMembership: testMembershipMock,
 }));
 vi.mock('./nrps', () => ({ fetchNrpsMembership: fetchNrpsMembershipMock }));
 vi.mock('../classroomAddonAuth', () => ({
   classroomAddonNet: { fetchClassStudents: fetchClassStudentsMock },
-}));
-vi.mock('../quizMediaArchive', () => ({
-  isGlobalFeatureGranted: grantedMock,
 }));
 
 import {
@@ -185,7 +197,6 @@ beforeEach(() => {
     { id: 'r-test', data: { testClassId: 'mock-p1' } },
   ];
   courseLinks.clear();
-  grantedMock.mockReset().mockResolvedValue(true);
   fetchNrpsMembershipMock.mockReset().mockResolvedValue({
     contextTitle: 'Biology · P2',
     members: [
@@ -292,14 +303,6 @@ describe('ltiLinkSectionByUrlV1', () => {
     expect(fetchNrpsMembershipMock).not.toHaveBeenCalled();
   });
 
-  it('rejects a caller without the feature', async () => {
-    grantedMock.mockResolvedValue(false);
-    await expect(
-      call({ auth: TEACHER, data: { url: URL_OK } })
-    ).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(fetchNrpsMembershipMock).not.toHaveBeenCalled();
-  });
-
   it('reads NRPS from the URL built from the section id', async () => {
     await call({ auth: TEACHER, data: { url: URL_OK } });
     expect(fetchNrpsMembershipMock.mock.calls[0][0]).toBe(
@@ -399,12 +402,39 @@ describe('ltiLinkSectionByUrlV1', () => {
     expect(fetchClassStudentsMock).not.toHaveBeenCalled();
   });
 
-  it('never re-points a section another teacher linked', async () => {
-    courseLinks.set('7660186912', { teacherUid: 'teacher-2' });
-    await expect(
-      call({ auth: TEACHER, data: { url: URL_OK, rosterId: 'r-1' } })
-    ).rejects.toMatchObject({ code: 'already-exists' });
-    expect(courseLinks.get('7660186912')).toEqual({ teacherUid: 'teacher-2' });
+  it("gives a co-teacher their own link without touching the other teacher's", async () => {
+    courseLinks.set('7660186912', {
+      teacherUid: 'teacher-2',
+      contextId: '7660186912',
+      rosterId: 'their-roster',
+    });
+    const res = await call({
+      auth: TEACHER,
+      data: { url: URL_OK, rosterId: 'r-1' },
+    });
+    expect(res).toMatchObject({ ok: true, contextId: '7660186912' });
+    expect(courseLinks.get('7660186912')).toEqual({
+      teacherUid: 'teacher-2',
+      contextId: '7660186912',
+      rosterId: 'their-roster',
+    });
+    expect(courseLinks.get('7660186912~teacher-1')).toMatchObject({
+      teacherUid: 'teacher-1',
+      contextId: '7660186912',
+      rosterId: 'r-1',
+      linkedBy: 'url',
+    });
+    const preview = await call({ auth: TEACHER, data: { url: URL_OK } });
+    expect(preview.linkedRosterId).toBe('r-1');
+  });
+
+  it("does not show another teacher's class as the caller's link", async () => {
+    courseLinks.set('7660186912', {
+      teacherUid: 'teacher-2',
+      rosterId: 'their-roster',
+    });
+    const preview = await call({ auth: TEACHER, data: { url: URL_OK } });
+    expect(preview.linkedRosterId).toBeNull();
   });
 
   it('lets the same teacher re-link and keeps an earlier title', async () => {
@@ -427,6 +457,26 @@ describe('ltiLinkSectionByUrlV1', () => {
       rosterId: 'r-1',
       contextTitle: 'Old title',
     });
+  });
+
+  it("replaces the class's earlier section link", async () => {
+    courseLinks.set('8497631489', {
+      teacherUid: 'teacher-1',
+      rosterId: 'r-1',
+      contextTitle: 'Biology B (S2)',
+    });
+    courseLinks.set('8497000000', { teacherUid: 'teacher-1', rosterId: 'r-2' });
+    const res = await call({
+      auth: TEACHER,
+      data: { url: URL_OK, rosterId: 'r-1' },
+    });
+    expect(res).toMatchObject({
+      replaced: ['Biology B (S2)'],
+      replacedIds: ['8497631489'],
+    });
+    expect(courseLinks.has('8497631489')).toBe(false);
+    expect(courseLinks.has('8497000000')).toBe(true);
+    expect(courseLinks.get('7660186912')).toMatchObject({ rosterId: 'r-1' });
   });
 
   it('reports an unreadable course plainly', async () => {

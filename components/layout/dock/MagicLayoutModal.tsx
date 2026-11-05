@@ -45,15 +45,10 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
         fileContext,
         fileName
       );
-      const widgets = await generateDashboardLayout(
-        fullDescription,
-        canAccessFeature('ai-boards')
-          ? {
-              screen: { w: window.innerWidth, h: window.innerHeight },
-              canUseWidget: canAccessWidget,
-            }
-          : undefined
-      );
+      const widgets = await generateDashboardLayout(fullDescription, {
+        screen: { w: window.innerWidth, h: window.innerHeight },
+        canUseWidget: canAccessWidget,
+      });
       addWidgets(widgets);
       addToast('Layout generated!', 'success');
       onClose();

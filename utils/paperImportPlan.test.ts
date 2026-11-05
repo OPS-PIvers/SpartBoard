@@ -9,7 +9,7 @@ import {
   paperImportRequestFields,
   sheetRowQuestionIds,
 } from './paperImportPlan';
-import { buildPaperStubQuiz } from './paperSheetPlan';
+import { buildPaperStubQuiz, paperChoiceOrder } from './paperSheetPlan';
 
 const mc = (id: string, correct: string, wrong: string[]): QuizQuestion => ({
   id,
@@ -102,10 +102,44 @@ const sheet = (
 
 describe('answerTextFor', () => {
   it('maps a bubble through the printed order, or to the letter for a stub', () => {
-    expect(answerTextFor(batch, 'q1', 1)).toBe('Paris');
-    expect(answerTextFor({ ...batch, choiceOrder: undefined }, 'q1', 1)).toBe(
-      'B'
+    expect(answerTextFor(batch, undefined, 'q1', 1)).toBe('Paris');
+    expect(
+      answerTextFor({ ...batch, choiceOrder: undefined }, undefined, 'q1', 1)
+    ).toBe('B');
+  });
+
+  it("reads a stub sheet through the options filled in from the teacher's paper", () => {
+    const filled: QuizQuestion = {
+      ...mc('q1', 'Rennin', ['Protease', 'Aribinose', 'mRNA']),
+      optionOrder: [1, 2, 0, 3],
+      paperOwnTest: true,
+    };
+    const stubBatch = {
+      choiceOrder: { q1: ['A', 'B', 'C', 'D'] },
+    };
+    expect(answerTextFor(stubBatch, filled, 'q1', 2)).toBe('Rennin');
+    expect(answerTextFor({}, filled, 'q1', 0)).toBe('Protease');
+    const keyed = applyKeyToQuiz(
+      { ...authored, questions: [filled] },
+      { ...batch, choiceOrder: undefined },
+      { q1: 1 },
+      5
     );
+    expect(keyed.questions[0].correctAnswer).toBe('Aribinose');
+    expect(paperChoiceOrder(keyed.questions[0])).toEqual([
+      'Protease',
+      'Aribinose',
+      'Rennin',
+      'mRNA',
+    ]);
+  });
+
+  it('keeps bare letters for a stub filled before its paper order was kept', () => {
+    const oldFill = mc('q1', 'Rennin', ['Protease', 'Aribinose', 'mRNA']);
+    const stubBatch = { choiceOrder: { q1: ['A', 'B', 'C', 'D'] } };
+    expect(answerTextFor(stubBatch, oldFill, 'q1', 0)).toBe('A');
+    const editorFill = { ...oldFill, optionOrder: [1, 0, 2, 3] };
+    expect(answerTextFor(stubBatch, editorFill, 'q1', 0)).toBe('Protease');
   });
 });
 
@@ -241,6 +275,26 @@ describe('key sheet', () => {
       incorrectAnswers: ['Paris', 'Lyon'],
     });
     expect(keyed.questions[2]).toEqual(authored.questions[2]);
+  });
+
+  it("keeps a reprint lettered like the teacher's own paper after a key sheet", () => {
+    const own: QuizData = {
+      ...authored,
+      questions: [
+        { ...mc('q1', '', ['Lyon', 'Nice', 'Paris']), paperOwnTest: true },
+      ],
+    };
+    const ownBatch: PaperBatch = {
+      ...batch,
+      choiceOrder: { q1: ['Lyon', 'Nice', 'Paris'] },
+    };
+    const keyed = applyKeyToQuiz(own, ownBatch, { q1: 2 }, 5);
+    expect(keyed.questions[0].correctAnswer).toBe('Paris');
+    expect(paperChoiceOrder(keyed.questions[0])).toEqual([
+      'Lyon',
+      'Nice',
+      'Paris',
+    ]);
   });
 });
 

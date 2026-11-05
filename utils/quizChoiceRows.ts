@@ -39,6 +39,10 @@ const isPermutation = (order: readonly number[], n: number) =>
   new Set(order).size === n &&
   order.every((i) => Number.isInteger(i) && i >= 0 && i < n);
 
+/** True when the teacher arranged the options, so `rowsFromQuestion` is not just answer-first. */
+export const hasArrangedOrder = (q: ChoiceFields): boolean =>
+  !!q.optionOrder && isPermutation(q.optionOrder, storedRows(q).length);
+
 /** Rows in the order the teacher last arranged them. */
 export function rowsFromQuestion(q: ChoiceFields): ChoiceRow[] {
   const rows = storedRows(q);

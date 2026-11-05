@@ -131,7 +131,6 @@ const harnessAdapter = (onSaved: (build: VersionImportBuild) => void) =>
       harnessImages.list = next;
     },
     documentImages: () => harnessImages.list,
-    rubricScoringGuides: true,
     saveVersionImport: (build) => {
       onSaved(build);
       return Promise.resolve();

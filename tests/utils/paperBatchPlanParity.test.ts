@@ -160,6 +160,18 @@ describe('client/server paper batch plan parity', () => {
     }
     const stub = question('q6', 'C', ['A', 'B', 'D']);
     expect(serverChoiceOrder(stub)).toEqual(clientChoiceOrder(stub));
+    const ownTest = {
+      ...question('q7', 'Rennin', ['Protease', 'Aribinose', 'mRNA']),
+      optionOrder: [1, 2, 0, 3],
+      paperOwnTest: true,
+    };
+    expect(serverChoiceOrder(ownTest)).toEqual(clientChoiceOrder(ownTest));
+    expect(serverChoiceOrder(ownTest)).toEqual([
+      'Protease',
+      'Aribinose',
+      'Rennin',
+      'mRNA',
+    ]);
   });
 
   it('picks the same printable rows out of a mixed quiz', () => {

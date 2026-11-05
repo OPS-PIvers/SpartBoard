@@ -243,6 +243,8 @@ export { recomputePlcAssessments } from './recomputePlcAssessments';
 
 // Poll join codes resolve through server-written poll_codes pointers.
 export { pollCodePointer } from './pollCodePointer';
+export { resolvePollCodeV1, mintPollCodeV1 } from './pollCodeResolve';
+export { guidedLearningLateRevealKey } from './guidedLearningRevealKey';
 
 // Gradebook grade index and student projection (docs/plans/GRADEBOOK.md D10, D37); off until admin_settings/gradebook_index.enabled.
 // gradeIndexQuizResponse also keeps quiz attempt history, which is always on (docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md).
@@ -399,8 +401,10 @@ export {
 export {
   linkLtiCourseV1,
   ltiSuggestClassLinkMatchV1,
+  ltiUnlinkSectionV1,
 } from './lti/courseLinkEndpoints';
 export { ltiLinkSectionByUrlV1 } from './lti/linkSectionByUrl';
+export { ltiFindSchoologySectionsV1 } from './lti/findSchoologySections';
 export {
   ltiToolColumnCategoriesV1,
   ltiCreateToolColumnCategoriesV1,

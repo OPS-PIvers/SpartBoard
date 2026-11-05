@@ -3,6 +3,7 @@ export const WEATHER_FRESHNESS_RATIO = 0.9;
 
 export interface StoredWeatherMeta {
   updatedAt?: unknown;
+  temp?: unknown;
   source?: unknown;
   city?: unknown;
 }
@@ -18,6 +19,10 @@ export const isStoredWeatherFresh = (
   }
 ): boolean => {
   if (!stored || typeof stored.updatedAt !== 'number') return false;
+  // An older client may have stored a blank temperature; replace it right away.
+  if (typeof stored.temp !== 'number' || !Number.isFinite(stored.temp)) {
+    return false;
+  }
   if (stored.source !== opts.source) return false;
   if (opts.source === 'openweather' && (stored.city ?? '') !== opts.cityKey) {
     return false;

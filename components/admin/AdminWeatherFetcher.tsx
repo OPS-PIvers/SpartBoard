@@ -13,6 +13,7 @@ import {
   fetchUvHours,
   parseEarthNetworksDetails,
   parseOpenWeatherDetails,
+  readStationTemperature,
 } from '@/components/widgets/Weather/details';
 import { isStoredWeatherFresh } from './adminWeatherFreshness';
 
@@ -50,6 +51,23 @@ export const AdminWeatherFetcher: React.FC = () => {
     const source = config.source ?? 'openweather';
     const cityKey = config.city?.trim() ?? '';
     const weatherRef = doc(db, 'global_weather', 'current');
+
+    const fetchOpenWeather = async (city?: string) => {
+      const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY as
+        string | undefined;
+      if (!apiKey) throw new Error('No API Key');
+      const params =
+        city && city.trim()
+          ? `q=${encodeURIComponent(city.trim())}`
+          : `lat=${STATION_CONFIG.lat}&lon=${STATION_CONFIG.lon}`;
+      const res = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?${params}&appid=${apiKey}&units=imperial`,
+        { signal: abortController.signal }
+      );
+      const data = (await res.json()) as OpenWeatherData;
+      if (Number(data.cod) !== 200) throw new Error(String(data.message));
+      return data;
+    };
 
     const fetchWeather = async () => {
       let storedUv: WeatherDetails['uvHours'] = null;
@@ -112,8 +130,6 @@ export const AdminWeatherFetcher: React.FC = () => {
           }
 
           if (data?.o) {
-            temp = data.o.t;
-            feelsLike = data.o.fl ?? data.o.t;
             condition = EARTH_NETWORKS_ICONS.SNOW.includes(data.o.ic)
               ? 'snowy'
               : EARTH_NETWORKS_ICONS.CLOUDY.includes(data.o.ic)
@@ -123,6 +139,16 @@ export const AdminWeatherFetcher: React.FC = () => {
                   : EARTH_NETWORKS_ICONS.RAIN.includes(data.o.ic)
                     ? 'rainy'
                     : 'cloudy';
+            const reading = readStationTemperature(data.o);
+            if (reading) {
+              temp = reading.temp;
+              feelsLike = reading.feelsLike;
+            } else {
+              // Station sensor reports no temperature; never store null (shows as 0°).
+              const fallback = await fetchOpenWeather();
+              temp = fallback.main.temp;
+              feelsLike = fallback.main.feels_like;
+            }
             locationName = STATION_CONFIG.name;
             details = {
               ...parseEarthNetworksDetails(data),
@@ -136,31 +162,12 @@ export const AdminWeatherFetcher: React.FC = () => {
             throw new Error('Station data unavailable');
           }
         } else {
-          // OpenWeather
-          const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY as
-            string | undefined;
-          if (!apiKey) throw new Error('No API Key');
-
-          const city = config.city;
-          const params =
-            city && city.trim()
-              ? `q=${encodeURIComponent(city.trim())}`
-              : `lat=${STATION_CONFIG.lat}&lon=${STATION_CONFIG.lon}`;
-
-          const res = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?${params}&appid=${apiKey}&units=imperial`,
-            { signal: abortController.signal }
-          );
-          const data = (await res.json()) as OpenWeatherData;
-          if (Number(data.cod) === 200) {
-            temp = data.main.temp;
-            feelsLike = data.main.feels_like;
-            condition = data.weather[0].main.toLowerCase();
-            locationName = data.name;
-            details = parseOpenWeatherDetails(data);
-          } else {
-            throw new Error(String(data.message));
-          }
+          const data = await fetchOpenWeather(config.city);
+          temp = data.main.temp;
+          feelsLike = data.main.feels_like;
+          condition = data.weather[0].main.toLowerCase();
+          locationName = data.name;
+          details = parseOpenWeatherDetails(data);
         }
 
         // Write to Firestore

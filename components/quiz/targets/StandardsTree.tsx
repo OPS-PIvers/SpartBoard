@@ -66,6 +66,7 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
       <li key={standard.key}>
         <div className="flex items-start gap-1 rounded-sm hover:bg-slate-100">
           <button
+            // no-tour-anchor: one expander per standard, generated from the catalog
             type="button"
             onClick={() => flip(standard.key, open)}
             aria-expanded={open}
@@ -81,6 +82,7 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
           {standardSelectable ? (
             <label className="flex flex-1 items-start gap-2 py-1.5 pr-2 cursor-pointer">
               <input
+                // no-tour-anchor: one checkbox per standard, generated from the catalog
                 type="checkbox"
                 className={CHECKBOX}
                 checked={isSelected(tag.id)}
@@ -90,6 +92,7 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
             </label>
           ) : (
             <button
+              // no-tour-anchor: hidden duplicate of the standard expander
               type="button"
               tabIndex={-1}
               aria-hidden="true"
@@ -108,6 +111,7 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
                 <li key={b.id}>
                   <label className="flex items-start gap-2 px-2 py-1.5 rounded-sm hover:bg-slate-100 cursor-pointer">
                     <input
+                      // no-tour-anchor: one checkbox per benchmark, generated from the catalog
                       type="checkbox"
                       className={CHECKBOX}
                       checked={isSelected(b.id)}
@@ -138,6 +142,7 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
     return (
       <li key={strand.key}>
         <button
+          // no-tour-anchor: one expander per strand, generated from the catalog
           type="button"
           onClick={() => flip(strand.key, open)}
           aria-expanded={open}

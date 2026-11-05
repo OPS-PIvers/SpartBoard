@@ -7,13 +7,24 @@
  * joiner's response already carries.
  */
 
-import type { ClassRoster, PaperBatch, QuizData, Student } from '@/types';
+import type {
+  ClassRoster,
+  PaperBatch,
+  QuizData,
+  QuizQuestion,
+  Student,
+} from '@/types';
 import type { AssembledSheet } from './paperImportAssemble';
 import { mcItemsOf } from './paperPageMap';
 import { CHOICE_LETTERS } from './paperSheetLayout';
-import { analyzePaperQuiz } from './paperSheetPlan';
+import { analyzePaperQuiz, isPlaceholderLetterChoices } from './paperSheetPlan';
 import { pageMapsForSeat } from './paperSheetVersions';
 import { paperCropStoragePath } from './paperWritten';
+import {
+  hasArrangedOrder,
+  questionFromRows,
+  rowsFromQuestion,
+} from './quizChoiceRows';
 
 /** Client mirror of the function's `ImportPaperAnswer`. */
 export interface ImportPaperAnswerPayload {
@@ -71,13 +82,63 @@ export interface SkippedSheet {
   reason: SkipReason;
 }
 
-/** Option text a bubbled choice stands for (plan Q36); a stub's is the letter. */
+/**
+ * The options a sheet's bubbles stand for, in letter order (plan Q36). A stub
+ * sheet recorded bare letters; once the quiz was filled in from the teacher's
+ * paper, those letters mean the filled options in the order her paper prints.
+ */
+export function printedOptionsFor(
+  batch: Pick<PaperBatch, 'choiceOrder'>,
+  question: QuizQuestion | undefined,
+  questionId: string
+): string[] {
+  const recorded = batch.choiceOrder?.[questionId];
+  if (recorded && !isPlaceholderLetterChoices(recorded)) return [...recorded];
+  // An own-test fill or an editor arrangement keeps the paper's letters; an older document fill stored the answer first.
+  if (
+    question &&
+    (question.paperOwnTest || hasArrangedOrder(question)) &&
+    (question.type === 'MC' || question.type === 'MA')
+  ) {
+    const filled = rowsFromQuestion(question).map((r) => r.text);
+    if (filled.length > 0 && !isPlaceholderLetterChoices(filled)) return filled;
+  }
+  return recorded
+    ? [...recorded]
+    : CHOICE_LETTERS.slice(
+        0,
+        Math.max(2, 1 + (question?.incorrectAnswers?.length ?? 0))
+      );
+}
+
+/** Each recorded question's printed options, read through the filled quiz for a stub batch. */
+export function printedChoiceOrder(
+  batch: Pick<PaperBatch, 'choiceOrder'>,
+  questions: readonly QuizQuestion[]
+): Record<string, string[]> | undefined {
+  const out: Record<string, string[]> = {};
+  for (const q of questions) {
+    const options = printedOptionsFor(batch, q, q.id);
+    if (batch.choiceOrder?.[q.id] || !isPlaceholderLetterChoices(options))
+      out[q.id] = options;
+  }
+  for (const [id, recorded] of Object.entries(batch.choiceOrder ?? {})) {
+    out[id] ??= [...recorded];
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** Option text a bubbled choice stands for; a stub's is the letter until the quiz is filled in. */
 export function answerTextFor(
-  batch: PaperBatch,
+  batch: Pick<PaperBatch, 'choiceOrder'>,
+  question: QuizQuestion | undefined,
   questionId: string,
   choice: number
 ): string {
-  return batch.choiceOrder?.[questionId]?.[choice] ?? CHOICE_LETTERS[choice];
+  return (
+    printedOptionsFor(batch, question, questionId)[choice] ??
+    CHOICE_LETTERS[choice]
+  );
 }
 
 /**
@@ -137,6 +198,7 @@ export interface BuildImportResult {
  */
 export function buildImportPayload(input: BuildImportInput): BuildImportResult {
   const batchRowIds = sheetRowQuestionIds(input.quiz, input.batch);
+  const questionById = new Map(input.quiz.questions.map((q) => [q.id, q]));
   const rowIdsFor = (seat: number): string[] =>
     input.batch.versions
       ? sheetRowQuestionIds(input.quiz, {
@@ -173,7 +235,12 @@ export function buildImportPayload(input: BuildImportInput): BuildImportResult {
           return [
             {
               questionId,
-              answer: answerTextFor(input.batch, questionId, read.choice),
+              answer: answerTextFor(
+                input.batch,
+                questionById.get(questionId),
+                questionId,
+                read.choice
+              ),
             },
           ];
         }
@@ -243,18 +310,20 @@ export function applyKeyToQuiz(
   const questions = quiz.questions.map((q) => {
     const choice = key[q.id];
     if (choice === null || choice === undefined) return q;
-    const options =
-      batch.choiceOrder?.[q.id] ??
-      CHOICE_LETTERS.slice(
-        0,
-        Math.max(2, 1 + (q.incorrectAnswers?.length ?? 0))
-      );
+    const options = printedOptionsFor(batch, q, q.id);
     const correct = options[choice];
     if (correct === undefined) return q;
+    // Keep each option where the sheet lettered it, so a reprint letters it the same way.
+    const { optionOrder } = questionFromRows(
+      options.map((text, i) => ({ text, correct: i === choice })),
+      false
+    );
+    const { optionOrder: _old, ...rest } = q;
     return {
-      ...q,
+      ...rest,
       correctAnswer: correct,
       incorrectAnswers: options.filter((_, i) => i !== choice),
+      ...(optionOrder ? { optionOrder } : {}),
     };
   });
   return { ...quiz, questions, updatedAt: now };

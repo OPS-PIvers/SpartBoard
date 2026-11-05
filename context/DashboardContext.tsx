@@ -127,6 +127,7 @@ import {
 import {
   importedConnections,
   sanitizeBoardSnapshot,
+  withoutDriveFileId,
 } from '@/utils/dashboardSanitize';
 import {
   grantedRosters,
@@ -623,6 +624,38 @@ const saveBaselineOf = (d: Dashboard): SaveBaseline => {
   };
 };
 
+/** What the server says about a share doc; a denied read means it is no longer visible, other errors are unknown. */
+const shareStatus = async (
+  shareId: string
+): Promise<'gone' | 'present' | 'unknown'> => {
+  if (isAuthBypass) return 'gone';
+  try {
+    const snap = await getDoc(doc(db, 'shared_boards', shareId));
+    return snap.exists() ? 'present' : 'gone';
+  } catch (err) {
+    return (err as { code?: string }).code === 'permission-denied'
+      ? 'gone'
+      : 'unknown';
+  }
+};
+
+// Waits before re-listening to a share whose listener dropped on a transient error.
+const SHARE_RELISTEN_MS = [5_000, 30_000, 120_000];
+
+/** True only when the server says the share doc exists and `hostUid` wrote it. */
+const shareIsHostedBy = async (
+  shareId: string,
+  hostUid: string
+): Promise<boolean> => {
+  if (isAuthBypass) return true;
+  try {
+    const snap = await getDoc(doc(db, 'shared_boards', shareId));
+    return snap.exists() && snap.data()?.originalAuthor === hostUid;
+  } catch {
+    return false;
+  }
+};
+
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -639,7 +672,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     savedWidgetConfigs,
     materialsPreferences,
     timeToolStartSeconds,
-    canAccessFeature,
     profileLoaded,
     setupCompleted,
     lastActiveCollectionId,
@@ -4029,13 +4061,69 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
 
-      return subscribeToSharedBoard(shareId, (remote) => {
-        sharedSnapshotSeenRef.current.add(shareId);
+      let latest: SharedBoardSnapshot | null = null;
+      let endChecking = false;
+      let hostChecking = false;
+      let disposed = false;
+      let relistenTimer: ReturnType<typeof setTimeout> | undefined;
+      let relistens = 0;
+      let unsubscribe: () => void = () => undefined;
+      // A check that resolves after a newer snapshot arrived is stale: handle the newer one afresh.
+      const rerun = () => {
+        if (latest) handleSnapshot(latest, false);
+        else checkGone();
+      };
+      const scheduleRelisten = () => {
+        if (disposed || relistenTimer) return;
+        const delay =
+          SHARE_RELISTEN_MS[Math.min(relistens, SHARE_RELISTEN_MS.length - 1)];
+        relistens += 1;
+        relistenTimer = setTimeout(() => {
+          relistenTimer = undefined;
+          if (disposed) return;
+          unsubscribe();
+          listen();
+        }, delay);
+      };
+      // A cache miss or listener error also reports null: end the board only once the server confirms it.
+      const checkGone = () => {
+        if (endChecking) return;
+        endChecking = true;
+        const asked = latest;
+        void shareStatus(shareId).then((status) => {
+          endChecking = false;
+          if (disposed) return;
+          if (latest !== asked) rerun();
+          else if (status === 'gone') handleSnapshot(null, true);
+          else scheduleRelisten();
+        });
+      };
+      const handleSnapshot = (
+        remote: SharedBoardSnapshot | null,
+        serverConfirmed: boolean
+      ) => {
         const known = dashboardsRef.current.find((x) => x.id === dashboardId);
         const recordedHost = known?.linkedShareHostUid;
+        // An ended board re-attaches only when the server confirms the recorded host's share is back.
+        if (remote && known?.linkedShareEnded && !serverConfirmed) {
+          if (
+            !hostChecking &&
+            recordedHost &&
+            remote.linkedShareHostUid === recordedHost
+          ) {
+            hostChecking = true;
+            void shareIsHostedBy(shareId, recordedHost).then((hosted) => {
+              hostChecking = false;
+              if (disposed) return;
+              if (latest !== remote) rerun();
+              else if (hosted) handleSnapshot(remote, true);
+            });
+          }
+          return;
+        }
         // The share doc was deleted and its id re-created by someone else: treat it as ended.
         const hostChanged =
-          !!remote?.linkedShareHostUid &&
+          !!remote &&
           !!recordedHost &&
           remote.linkedShareHostUid !== recordedHost;
         if (!remote || hostChanged) {
@@ -4292,7 +4380,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           return prev.map((b) => (b.id === dashboardId ? next : b));
         });
-      });
+      };
+
+      const listen = () => {
+        unsubscribe = subscribeToSharedBoard(shareId, (remote) => {
+          sharedSnapshotSeenRef.current.add(shareId);
+          latest = remote;
+          if (remote) {
+            relistens = 0;
+            handleSnapshot(remote, false);
+          } else {
+            checkGone();
+          }
+        });
+      };
+      listen();
+      return () => {
+        disposed = true;
+        clearTimeout(relistenTimer);
+        unsubscribe();
+      };
     },
     [
       user,
@@ -4671,7 +4778,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const newDb: Dashboard = data
         ? {
-            ...data,
+            // A new board has no Drive file of its own; the first save creates one.
+            ...withoutDriveFileId(data),
             id: options?.keepId ? data.id : crypto.randomUUID(),
             name,
             order: data.order ?? maxOrder + 1,
@@ -5239,7 +5347,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               // Deep-clone the board so nested widget state isn't shared by
               // reference across imports.
               {
-                ...structuredClone(b),
+                ...sanitizeBoardSnapshot(structuredClone(b)),
                 id: crypto.randomUUID(),
                 order: baseOrder + idx + 1,
               },
@@ -6440,10 +6548,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // The building layer for a new widget, with the teacher's own timer starting length over it.
-  const timerStartSeconds =
-    timeToolStartSeconds && canAccessFeature('timer-starting-length')
-      ? timeToolStartSeconds
-      : 0;
+  const timerStartSeconds = timeToolStartSeconds ?? 0;
   const getNewWidgetBaseConfig = useCallback(
     (type: WidgetType): Record<string, unknown> | undefined => {
       const building = getAdminBuildingConfig(type);

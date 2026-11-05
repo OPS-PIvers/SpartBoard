@@ -1130,6 +1130,18 @@
       "indexes": []
     },
     {
+      "collectionGroup": "poll_code_limits",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "poll_joins",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "pin_login_attempts",
       "fieldPath": "expireAt",
       "ttl": true,
@@ -1137,6 +1149,12 @@
     },
     {
       "collectionGroup": "mcp_oauth_codes",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "mcp_oauth_jti",
       "fieldPath": "expireAt",
       "ttl": true,
       "indexes": []

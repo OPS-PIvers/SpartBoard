@@ -8,6 +8,7 @@ import {
   beginLinkedCollectionImport,
   endLinkedCollectionImport,
 } from '@/utils/linkedCollectionImportLock';
+import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
 import type { SharedBoardSnapshot } from '@/hooks/useFirestore';
 import type {
   Collection,
@@ -17,6 +18,9 @@ import type {
 } from '@/types';
 
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+vi.mock('@/utils/activityWallBoardAccess', () => ({
+  closeWallsToBoard: vi.fn().mockResolvedValue(undefined),
+}));
 
 type LinkCb = (
   link: LinkedCollection | null,
@@ -148,6 +152,7 @@ const emit = async (link: LinkedCollection, fromCache = false) => {
 };
 
 beforeEach(() => {
+  vi.mocked(closeWallsToBoard).mockClear();
   linkCb = null;
   shares = new Map();
   linkDoc = makeLink();
@@ -1252,6 +1257,11 @@ describe('useLinkedCollectionSync: Stop sharing, Leave and ended links', () => {
   });
 
   it('host Stop sharing ends the link and every listed board, and shares nothing again', async () => {
+    shares.set('s1', share('s1', { originalAuthor: 'other' }));
+    shares.set(
+      'not-imported',
+      share('not-imported', { originalAuthor: 'other' })
+    );
     const deps = makeDeps({
       collections: [hostRoot],
       dashboards: [
@@ -1314,6 +1324,7 @@ describe('useLinkedCollectionSync: Stop sharing, Leave and ended links', () => {
   });
 
   it('a Synced member who leaves keeps copies and leaves the boards they joined', async () => {
+    shares.set('s1', share('s1'));
     const deps = makeDeps({
       dashboards: [
         board('linked-s1', 'week', live('s1', 'collaborator')),
@@ -1344,6 +1355,7 @@ describe('useLinkedCollectionSync: Stop sharing, Leave and ended links', () => {
   });
 
   it('a View-Only member who leaves loses the copy', async () => {
+    shares.set('s1', share('s1', { intendedMode: 'view-only' }));
     const deps = makeDeps({
       collections: [viewerRoot],
       dashboards: [board('linked-s1', 'week', live('s1', 'viewer'))],
@@ -1373,6 +1385,10 @@ describe('useLinkedCollectionSync: Stop sharing, Leave and ended links', () => {
   });
 
   it('another host tab ends every listed board when it sees the link ended', async () => {
+    shares.set(
+      'collab-board',
+      share('collab-board', { originalAuthor: 'other' })
+    );
     const deps = makeDeps({
       collections: [hostRoot],
       dashboards: [board('a', 'week', live('L1_a', 'owner'))],
@@ -1438,5 +1454,288 @@ describe('useLinkedCollectionSync: Stop sharing, Leave and ended links', () => {
       await new Promise((r) => setTimeout(r, 0));
     });
     expect(deps.collectionsApi.setCollectionLink).not.toHaveBeenCalled();
+  });
+});
+
+describe('useLinkedCollectionSync: only the link’s own shares and boards', () => {
+  const hostRoot: Collection = { ...root, linkedCollectionRole: 'owner' };
+
+  it('host Stop sharing skips listed shares that do not name the link', async () => {
+    shares.set('solo', share('solo', { linkedCollectionId: undefined }));
+    shares.set('elsewhere', share('elsewhere', { linkedCollectionId: 'L2' }));
+    shares.set('collab', share('collab', { originalAuthor: 'other' }));
+    const deps = makeDeps({
+      collections: [hostRoot],
+      dashboards: [board('a', 'week', live('L1_a', 'owner'))],
+    });
+    vi.mocked(deps.loadSharedBoard).mockImplementation((id: string) =>
+      id === 'broken'
+        ? Promise.reject(new Error('read failed'))
+        : Promise.resolve(shares.get(id) ?? null)
+    );
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        hostUid: 'me',
+        boards: [
+          { shareId: 'L1_a', name: 'A', order: 0 },
+          { shareId: 'solo', name: 'B', order: 1 },
+          { shareId: 'elsewhere', name: 'C', order: 2 },
+          { shareId: 'collab', name: 'D', order: 3 },
+          { shareId: 'broken', name: 'E', order: 4 },
+          { shareId: 'gone-and-foreign', name: 'F', order: 5 },
+        ],
+      })
+    );
+    await act(async () => {
+      await result.current.stopSharingCollection('week');
+    });
+    expect(
+      vi
+        .mocked(deps.stopSharingBoard)
+        .mock.calls.map((c) => c[0])
+        .sort()
+    ).toEqual(['L1_a', 'collab']);
+  });
+
+  it('closes the host’s walls to every share of the link on Stop sharing', async () => {
+    shares.set('collab', share('collab', { originalAuthor: 'other' }));
+    const deps = makeDeps({
+      collections: [hostRoot],
+      dashboards: [board('a', 'week', live('L1_a', 'owner'))],
+    });
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        hostUid: 'me',
+        boards: [
+          { shareId: 'L1_a', name: 'A', order: 0 },
+          { shareId: 'collab', name: 'B', order: 1 },
+        ],
+      })
+    );
+    await act(async () => {
+      await result.current.stopSharingCollection('week');
+    });
+    expect(
+      vi
+        .mocked(closeWallsToBoard)
+        .mock.calls.map((c) => [c[0], c[1]])
+        .sort()
+    ).toEqual([
+      ['me', 'L1_a'],
+      ['me', 'collab'],
+    ]);
+  });
+
+  it('a member who leaves exits every share of the link, imported or not, and only those', async () => {
+    shares.set('s1', share('s1'));
+    shares.set('s2', share('s2'));
+    shares.set('mine-doc', share('mine-doc', { originalAuthor: 'me' }));
+    shares.set('unrelated', share('unrelated', { linkedCollectionId: 'L2' }));
+    const deps = makeDeps({
+      dashboards: [
+        board('linked-s1', 'week', live('s1', 'collaborator')),
+        board('own', 'week', live('mine-doc', 'owner')),
+        board('plain', 'week', live('unrelated', 'collaborator')),
+      ],
+    });
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        boards: [
+          { shareId: 's1', name: 'A', order: 0 },
+          { shareId: 's2', name: 'B', order: 1 },
+          { shareId: 'mine-doc', name: 'C', order: 2 },
+          { shareId: 'unrelated', name: 'D', order: 3 },
+        ],
+      })
+    );
+    await act(async () => {
+      await result.current.leaveSharedCollection('week');
+    });
+    expect(
+      vi
+        .mocked(deps.leaveSharedBoard)
+        .mock.calls.map((c) => c[0])
+        .sort()
+    ).toEqual(['s1', 's2']);
+    expect(
+      vi
+        .mocked(closeWallsToBoard)
+        .mock.calls.map((c) => c[1])
+        .sort()
+    ).toEqual(['mine-doc', 's1', 's2']);
+  });
+
+  it('a member removed from the link leaves its shares and closes their walls', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps({
+      dashboards: [board('linked-s1', 'week', live('s1', 'collaborator'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        participants: {},
+        boards: [{ shareId: 's1', name: 'A', order: 0 }],
+      })
+    );
+    await waitFor(() =>
+      expect(deps.leaveSharedBoard).toHaveBeenCalledWith('s1')
+    );
+    expect(closeWallsToBoard).toHaveBeenCalledWith('me', 's1', new Set());
+  });
+
+  it('a board the link dropped is left, and its walls closed', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps({
+      dashboards: [board('a', 'week', live('s1', 'collaborator'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [] }));
+    await waitFor(() => expect(deps.deleteBoard).toHaveBeenCalledWith('a'));
+    expect(deps.leaveSharedBoard).toHaveBeenCalledWith('s1');
+    expect(closeWallsToBoard).toHaveBeenCalledWith('me', 's1', new Set());
+  });
+
+  it('host leaves a collaborator’s share when deleting it is denied', async () => {
+    shares.set('collab', share('collab', { originalAuthor: 'other' }));
+    const deps = makeDeps({
+      collections: [hostRoot],
+      dashboards: [board('a', 'week', live('L1_a', 'owner'))],
+    });
+    vi.mocked(deps.stopSharingBoard).mockImplementation((id: string) =>
+      id === 'collab'
+        ? Promise.reject(
+            Object.assign(new Error('denied'), { code: 'permission-denied' })
+          )
+        : Promise.resolve()
+    );
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        hostUid: 'me',
+        boards: [
+          { shareId: 'L1_a', name: 'A', order: 0 },
+          { shareId: 'collab', name: 'B', order: 1 },
+        ],
+      })
+    );
+    await act(async () => {
+      await result.current.stopSharingCollection('week');
+    });
+    expect(deps.leaveSharedBoard).toHaveBeenCalledTimes(1);
+    expect(deps.leaveSharedBoard).toHaveBeenCalledWith('collab');
+  });
+
+  it('host still tries to delete its own link’s ids when the read fails', async () => {
+    const deps = makeDeps({ collections: [hostRoot] });
+    vi.mocked(deps.loadSharedBoard).mockRejectedValue(new Error('read failed'));
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        hostUid: 'me',
+        boards: [
+          { shareId: 'L1_x', name: 'A', order: 0 },
+          { shareId: 'foreign', name: 'B', order: 1 },
+        ],
+      })
+    );
+    await act(async () => {
+      await result.current.stopSharingCollection('week');
+    });
+    expect(
+      vi.mocked(deps.stopSharingBoard).mock.calls.map((c) => c[0])
+    ).toEqual(['L1_x']);
+  });
+
+  it('judges who wrote a share from its doc, not from a local owner role', async () => {
+    shares.set('s9', share('s9', { originalAuthor: 'host' }));
+    const deps = makeDeps({
+      dashboards: [board('b', 'week', live('s9', 'owner'))],
+    });
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [{ shareId: 's9', name: 'A', order: 0 }] }));
+    await act(async () => {
+      await result.current.leaveSharedCollection('week');
+    });
+    expect(deps.leaveSharedBoard).toHaveBeenCalledWith('s9');
+  });
+
+  it('a member still leaves and wall-closes a joined share when its read fails', async () => {
+    const deps = makeDeps({
+      dashboards: [board('linked-s1', 'week', live('s1', 'collaborator'))],
+    });
+    vi.mocked(deps.loadSharedBoard).mockRejectedValue(new Error('offline'));
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] }));
+    await act(async () => {
+      await result.current.leaveSharedCollection('week');
+    });
+    expect(deps.leaveSharedBoard).toHaveBeenCalledWith('s1');
+    expect(closeWallsToBoard).toHaveBeenCalledWith('me', 's1', new Set());
+  });
+
+  it('closes walls to the shares one at a time', async () => {
+    shares.set('s1', share('s1'));
+    shares.set('s2', share('s2'));
+    let running = 0;
+    let peak = 0;
+    vi.mocked(closeWallsToBoard).mockImplementation(async () => {
+      running += 1;
+      peak = Math.max(peak, running);
+      await new Promise((r) => setTimeout(r, 5));
+      running -= 1;
+    });
+    const deps = makeDeps();
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        boards: [
+          { shareId: 's1', name: 'A', order: 0 },
+          { shareId: 's2', name: 'B', order: 1 },
+        ],
+      })
+    );
+    await act(async () => {
+      await result.current.leaveSharedCollection('week');
+    });
+    expect(closeWallsToBoard).toHaveBeenCalledTimes(2);
+    expect(peak).toBe(1);
+    vi.mocked(closeWallsToBoard).mockResolvedValue(undefined);
+  });
+
+  it('does not import a share a numbered copy already mirrors', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps({
+      dashboards: [board('linked-s1-2', 'week', live('s1', 'collaborator'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(deps.createBoard).not.toHaveBeenCalled();
+  });
+
+  it('never replaces a board that already has the import id', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps({
+      dashboards: [board('linked-s1', null, { name: 'Mine, unrelated' })],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] }));
+    await waitFor(() => expect(deps.createBoard).toHaveBeenCalled());
+    expect(vi.mocked(deps.createBoard).mock.calls[0][0].id).toBe('linked-s1-2');
+    expect(deps.createBoard).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not import again a share whose live copy already has the id', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps({
+      dashboards: [board('linked-s1', 'week', live('s1', 'collaborator'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(deps.createBoard).not.toHaveBeenCalled();
   });
 });

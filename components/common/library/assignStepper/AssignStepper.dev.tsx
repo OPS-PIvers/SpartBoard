@@ -35,6 +35,7 @@ const VALUES: Record<AssignStepId, string> = {
   video: 'Rewind on wrong answer',
   check: 'Flashcards, hide until I publish',
   speak: 'On',
+  sheets: '2 spares, answer key',
   sharing: 'Not shared',
 };
 

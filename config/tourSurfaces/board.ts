@@ -101,6 +101,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'widget',
     files: [
       'components/common/DraggableWindow.tsx',
+      'components/common/WidgetAnnotateToolbar.tsx',
       'components/connections/WidgetConnectionControls.tsx',
     ],
     needs: ['widget-on-stage'],
@@ -114,6 +115,7 @@ export const SURFACES: TourSurfaceMap = {
       'widget.connection-edit': 'widget.connection-badge',
       'widget.close-confirm.cancel': 'widget.close',
       'widget.close-confirm.confirm': 'widget.close',
+      'widget.annotate-toolbar.colors': 'widget.annotate',
       'widget.annotate-toolbar.eraser': 'widget.annotate',
       'widget.annotate-toolbar.undo': 'widget.annotate',
       'widget.annotate-toolbar.clear-all': 'widget.annotate',
@@ -337,6 +339,24 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'dock.item:remote',
     parent: 'board.dock',
   },
+  // Opened by the Learning targets button in the Quiz, Video Activity and Guided Learning editors.
+  'board.target-picker': {
+    label: 'Learning target picker',
+    kind: 'shared',
+    files: [
+      'components/quiz/targets/TargetPicker.tsx',
+      'components/quiz/targets/TargetsField.tsx',
+    ],
+    needs: ['widget-on-stage'],
+  },
+  'board.schoology-push': {
+    label: 'Push to Schoology dialog',
+    kind: 'modal',
+    needs: ['widget-on-stage', 'student-data'],
+    files: ['components/schoology/ToolColumnPushDialog.tsx'],
+    openerMissing:
+      'Push to Schoology gradebook button in Quiz and Video Activity results (useSchoologyToolColumnPush)',
+  },
   'board.smart-paste': {
     label: 'Smart paste picker',
     kind: 'modal',
@@ -485,7 +505,11 @@ export const SURFACES: TourSurfaceMap = {
   'board.schoology-link': {
     label: 'Link Schoology sections',
     kind: 'modal',
-    files: ['components/classes/LinkSchoologyModal.tsx'],
+    files: [
+      'components/classes/LinkSchoologyModal.tsx',
+      'components/classes/SchoologyLinkedCourses.tsx',
+      'components/classes/SchoologyFindCourses.tsx',
+    ],
     opensWith: 'classes.link-schoology',
   },
 
