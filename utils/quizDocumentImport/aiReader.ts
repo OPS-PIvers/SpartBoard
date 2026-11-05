@@ -12,6 +12,7 @@ import { findAnswerKey } from './answerKey';
 import {
   applyExamViewAfterKey,
   applyExamViewTypes,
+  groupMatchingSets,
   isExamView,
 } from './examView';
 import { mergeAnswerKey } from './mergeKey';
@@ -393,30 +394,43 @@ export async function readQuizDocumentWithAi(
     };
   }
   const ai = read;
-  const quiz = aiQuizToExtracted(ai, titleFromFileName(fileName), reader);
+  const extracted = aiQuizToExtracted(ai, titleFromFileName(fileName), reader);
+  const quiz = {
+    ...extracted,
+    questions: groupMatchingSets(extracted.questions),
+  };
+  // A keyed matching set combines into one question even when no printed key was found.
+  const combined = (q: ExtractedQuiz): ExtractedQuiz => ({
+    ...q,
+    questions: applyExamViewAfterKey(q.questions),
+  });
 
   if (kind !== 'docx') {
     const withFigures = await attachPdfFigures(quiz, ai, file, options.cropper);
-    return withPdfKey(withFigures, file, options.readPdfLines, reader);
+    return combined(
+      await withPdfKey(withFigures, file, options.readPdfLines, reader)
+    );
   }
 
   try {
     const { lines, images } = await readDocx(file);
-    return withDocumentKey(
-      graftDocxImages(quiz, parseQuestionLines(lines, reader), images),
-      lines,
-      reader
+    return combined(
+      withDocumentKey(
+        graftDocxImages(quiz, parseQuestionLines(lines, reader), images),
+        lines,
+        reader
+      )
     );
   } catch (err) {
     // The questions are already read; losing the pictures is worth a note,
     // not an error that throws the import away.
     console.warn('[quizDocumentImport] could not read pictures', err);
-    return {
+    return combined({
       ...quiz,
       warnings: [
         ...quiz.warnings,
         'Pictures in this file couldn’t be brought in — add them in the editor.',
       ],
-    };
+    });
   }
 }
