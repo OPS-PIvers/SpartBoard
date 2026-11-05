@@ -7238,8 +7238,11 @@ service cloud.firestore {
                    'speakSounds', 'staffEmail', 'staffName', 'resultsOverride',
                    'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt',
                    'completedAttempts', 'forcedSubmit', 'attemptStartedAt', 'handRaisedAt',
-                   'tabSwitchWarnings'
+                   'tabSwitchWarnings', 'cardSubset'
                  ])
+                 // The card subset is a copy of the student's own pointer, or cleared.
+                 && (fcKept(data, 'cardSubset') || data.get('cardSubset', null) == null ||
+                     data.cardSubset == get(/databases/$(database)/documents/student_assignments/$(studentUid)/items/$(sessionId)).data.override.questionIds)
                  // The teacher's results setting and the results tab-away guard ride through unchanged.
                  && fcKept(data, 'resultsOverride') && fcKept(data, 'resultsTabWarnings')
                  && fcKept(data, 'resultsLockedOut') && fcKept(data, 'resultsLockedOutAt')

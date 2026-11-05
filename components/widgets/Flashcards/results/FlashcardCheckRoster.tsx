@@ -156,7 +156,12 @@ export const FlashcardCheckRoster: React.FC<{
               </span>
             )}
             {bucket === 'inProgress' && total > 0 && (
-              <RosterOnQuestion index={Math.min(s.cardsDone + 1, total)} />
+              <RosterOnQuestion
+                index={Math.min(
+                  s.cardsDone + 1,
+                  Math.min(total, s.cardTotal ?? total)
+                )}
+              />
             )}
             {showScores && <RosterScorePill score={rounded} suffix="%" />}
             <RosterRowMenu

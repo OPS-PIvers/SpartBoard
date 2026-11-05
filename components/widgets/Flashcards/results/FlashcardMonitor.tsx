@@ -22,6 +22,7 @@ import {
 import {
   buildCheckRows,
   checkCardsDone,
+  studentCardsOf,
   buildFlagRows,
   buildStudyRows,
   checkCardAccuracy,
@@ -598,12 +599,13 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
           bucket: key,
           score: row.percent,
           cardsDone: result ? checkCardsDone(result) : 0,
+          cardTotal: studentCardsOf(session, result).length,
           openFlags: row.openFlags,
           hand: handOn && key === 'inProgress' && result?.handRaisedAt != null,
         });
       }
     return out;
-  }, [checkByBucket, handOn, quizStyle, results]);
+  }, [checkByBucket, handOn, quizStyle, results, session]);
 
   const openStudyRows =
     quizStyle && !isCheck && openBucket

@@ -293,7 +293,7 @@ export type FlashcardProgressWrite = Partial<
 
 export type FlashcardAttemptFields = Pick<
   FlashcardProgressWrite,
-  'attemptStartedAt' | 'handRaisedAt' | 'tabSwitchWarnings'
+  'attemptStartedAt' | 'handRaisedAt' | 'tabSwitchWarnings' | 'cardSubset'
 >;
 
 export interface FlashcardRating {

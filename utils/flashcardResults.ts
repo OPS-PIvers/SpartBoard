@@ -11,6 +11,10 @@ import type {
   QuizResultsOverride,
   SpeakLanguage,
 } from '@/types';
+import {
+  checkOptionsOf,
+  withCardSubset,
+} from '@/components/flashcards/checkAttempt';
 import { isKnownSpeakSound } from '@/config/pronunciationSoundNames';
 import {
   DEFAULT_FLASHCARD_MASTERY_THRESHOLD,
@@ -54,6 +58,8 @@ export interface FlashcardResultRecord {
   completedAttempts?: number;
   forcedSubmit?: 'time' | 'tab';
   handRaisedAt?: number | null;
+  /** The student's card subset, stamped from their accommodations. */
+  cardSubset?: string[] | null;
   /** Check answers the student's device saved before submitting. */
   checkLog?: Record<
     string,
@@ -155,15 +161,25 @@ export const filterResultsByClass = <T extends { classId?: string }>(
     ? [...results]
     : results.filter((result) => (result.classId ?? '') === classId);
 
+/** The cards this student works on: their subset on a Check with rules, else every card. */
+export const studentCardsOf = (
+  session: FlashcardSession,
+  result: Pick<FlashcardResultRecord, 'cardSubset'> | undefined
+): FlashcardSession['cards'] =>
+  checkOptionsOf(session) && result?.cardSubset
+    ? withCardSubset(session, { questionIds: result.cardSubset }).cards
+    : session.cards;
+
 export const buildStudyRows = (
   session: FlashcardSession,
   results: readonly FlashcardResultRecord[]
 ): FlashcardStudyRow[] => {
   const threshold = sessionThreshold(session);
-  const total = session.cards.length;
   return results.map((result) => {
+    const cards = studentCardsOf(session, result);
+    const total = cards.length;
     const buckets = emptyBuckets();
-    for (const card of session.cards) {
+    for (const card of cards) {
       buckets[flashcardBucketOf(result.cards?.[card.id], threshold)] += 1;
     }
     const studyMs = result.studyMs ?? 0;
@@ -237,9 +253,8 @@ export const buildCheckRows = (
   session: FlashcardSession,
   results: readonly FlashcardResultRecord[]
 ): FlashcardCheckRow[] => {
-  const fallbackTotal = session.cards.length;
   return results.map((result) => {
-    const total = result.total ?? fallbackTotal;
+    const total = result.total ?? studentCardsOf(session, result).length;
     const submitted = typeof result.submittedAt === 'number';
     const score = submitted ? (result.score ?? 0) : null;
     return {
@@ -463,8 +478,8 @@ export const buildSpeakRows = (
   language: SpeakLanguage
 ): FlashcardSpeakRow[] => {
   const threshold = sessionThreshold(session);
-  const cards = session.cards.filter(isSpeakableCard);
   return results.map((result) => {
+    const cards = studentCardsOf(session, result).filter(isSpeakableCard);
     let mastered = 0;
     let inProgress = 0;
     for (const card of cards) {

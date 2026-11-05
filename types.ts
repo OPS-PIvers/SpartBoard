@@ -9780,6 +9780,8 @@ export interface FlashcardProgress
   handRaisedAt?: number | null;
   /** Times the student left the Check's tab this attempt. */
   tabSwitchWarnings?: number;
+  /** The student's card subset copied from their pointer (rules check it), so teacher counts use it. */
+  cardSubset?: string[] | null;
 }
 
 /** `plcs/{plcId}/flashcard_sets/{setId}`: a set shared with a PLC, payload inline. */

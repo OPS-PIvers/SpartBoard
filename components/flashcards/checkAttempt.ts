@@ -8,6 +8,7 @@ import type {
   StudentOverride,
 } from '@/types';
 import { resolveAttemptDeadline } from '@/utils/quizTimeLimit';
+import { isSpeakableCard } from '@/utils/flashcardSchedule';
 import type { FlashcardCheckSubmission } from './FlashcardPlayer';
 
 /** The Quiz-style rules a Check enforces on the student; none on Checks assigned before them. */
@@ -23,16 +24,23 @@ export const checkOverrideOf = (
 ): StudentOverride | undefined =>
   checkOptionsOf(session) ? override : undefined;
 
-/** The session with only this student's cards; every card when the subset matches none. */
-export const withCardSubset = <T extends Pick<FlashcardSession, 'cards'>>(
+/** The session with only this student's cards; every card when the subset leaves nothing to do. */
+export const withCardSubset = <
+  T extends Pick<FlashcardSession, 'cards' | 'checkMode'>,
+>(
   session: T,
-  override: StudentOverride | undefined
+  override: Pick<StudentOverride, 'questionIds'> | undefined
 ): T => {
   const ids = override?.questionIds;
   if (!ids) return session;
   const keep = new Set(ids);
   const cards = session.cards.filter((card) => keep.has(card.id));
-  return cards.length > 0 ? { ...session, cards } : session;
+  // Mirrors studentCards in functions/src/flashcardCheck.ts.
+  const usable =
+    session.checkMode === 'speak'
+      ? cards.some(isSpeakableCard)
+      : cards.length > 0;
+  return usable ? { ...session, cards } : session;
 };
 
 /** When this attempt's time runs out, or null without a time limit. */
