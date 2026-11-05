@@ -71,7 +71,6 @@ const CoordinateEntry: React.FC<{ onPick: (pin: MapPin) => void }> = ({
   return (
     <div className="mt-2">
       <button
-        // no-tour-anchor: student map pin picker, which runs on the student wall page, not the board
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
@@ -89,7 +88,6 @@ const CoordinateEntry: React.FC<{ onPick: (pin: MapPin) => void }> = ({
               Latitude
             </label>
             <input
-              // no-tour-anchor: student map pin picker, which runs on the student wall page, not the board
               id="aw-pin-lat"
               className={inputClass}
               type="number"
@@ -108,7 +106,6 @@ const CoordinateEntry: React.FC<{ onPick: (pin: MapPin) => void }> = ({
               Longitude
             </label>
             <input
-              // no-tour-anchor: student map pin picker, which runs on the student wall page, not the board
               id="aw-pin-lng"
               className={inputClass}
               type="number"
@@ -120,7 +117,6 @@ const CoordinateEntry: React.FC<{ onPick: (pin: MapPin) => void }> = ({
             />
           </div>
           <button
-            // no-tour-anchor: student map pin picker, which runs on the student wall page, not the board
             type="button"
             disabled={!valid}
             onClick={() => onPick({ lat: latValue, lng: lngValue })}

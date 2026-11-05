@@ -221,7 +221,6 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
       style={{ zIndex: Z_INDEX.dialog }}
     >
       <button
-        // no-tour-anchor: student post composer, which runs on the student wall page, not the board
         type="button"
         aria-label="Close"
         onClick={onClose}
@@ -243,7 +242,6 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
             {heading}
           </h2>
           <button
-            // no-tour-anchor: student post composer, which runs on the student wall page, not the board
             type="button"
             onClick={onClose}
             aria-label="Close composer"
@@ -356,7 +354,6 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
           {error && <p className="text-sm font-medium text-red-700">{error}</p>}
 
           <button
-            // no-tour-anchor: student post composer, which runs on the student wall page, not the board
             type="submit"
             disabled={busy || !valid}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 font-bold text-white transition hover:bg-emerald-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:opacity-60"

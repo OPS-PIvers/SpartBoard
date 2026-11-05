@@ -204,7 +204,6 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
           Column
         </label>
         <select
-          // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
           id="aw-section"
           className={selectClass}
           value={value.sectionId}
@@ -231,7 +230,6 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
             Row
           </label>
           <select
-            // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
             id="aw-row"
             className={selectClass}
             value={value.rowId}
@@ -249,7 +247,6 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
             Column
           </label>
           <select
-            // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
             id="aw-col"
             className={selectClass}
             value={value.colId}
@@ -357,7 +354,6 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
           When (label)
         </label>
         <input
-          // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
           id="aw-label"
           className={selectClass}
           value={value.label}

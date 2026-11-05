@@ -28,6 +28,7 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | components/widgets/InstructionalRoutines/PromptDialog.tsx:86 | Prompt textarea, Cancel and Submit buttons | Shared prompt dialog; same reason as ConfirmDialog. |
 | components/widgets/InstructionalRoutines/IconPicker.tsx:40 | Close and icon option buttons | Shared picker used by the template editor and settings; needs a caller-supplied anchor. |
 | components/widgets/LiveControl.tsx:156 | Live toggle, student count, menu close, Freeze All | Shared by several widgets; needs a caller-supplied widget type and anchor ids. |
+| components/activityWall/submission/ComposerSheet.tsx | Add-post composer, AddSpot, type picker, content and structure fields, map pin picker | Not student-only: the teacher opens the composer from the board widget (Widget.tsx openTeacherComposer). Needs real anchors on a board surface, not opt-outs. |
 | components/settingsModal/sections/AppearanceSection.tsx:59 | Reset button in each color row | One shared control for three color rows; the anchor would need a per-row key. |
 | components/settingsModal/sections/ConnectedAppsSection.tsx:193 | Disconnect button | One per connected app, generated per row. |
 | components/widgets/GuidedLearning/components/recorder/ | Tour recorder panel, frame review and session controls | Authoring tool for recording tours; unclear whether a tour would ever walk a teacher through it. |
@@ -58,4 +59,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-11-02 | claude/tour-anchors-2026-11-02 | Library and assigning (quiz student answer screens, imported-assignment setup dialog) | 4 | 27 | 0 | 462 in 171 files |
 | 2026-11-03 | claude/tour-anchors-2026-11-03 | Library and assigning (quiz paper scan viewer, read-aloud, audio recording and playback) | 8 | 18 | 0 | 436 in 164 files |
 | 2026-11-04 | claude/tour-anchors-2026-11-04 | Library and assigning (learning target picker, Push to Schoology dialog) | 14 | 11 | 0 | 411 in 157 files |
-| 2026-11-05 | claude/tour-anchors-2026-11-05 | Library and assigning (Activity Wall student wall, post cards, composer and comments) | 0 | 37 | 0 | 374 in 145 files |
+| 2026-11-05 | claude/tour-anchors-2026-11-05 | Library and assigning (Activity Wall student wall, post cards and comments) | 0 | 17 | 0 | 394 in 151 files |

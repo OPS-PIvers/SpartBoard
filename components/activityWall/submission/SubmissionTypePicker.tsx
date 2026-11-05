@@ -33,7 +33,6 @@ export const SubmissionTypePicker: React.FC<SubmissionTypePickerProps> = ({
         const selected = value === type;
         return (
           <button
-            // no-tour-anchor: student post type picker, which runs on the student wall page, not the board
             key={type}
             type="button"
             aria-pressed={selected}

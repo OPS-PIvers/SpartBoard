@@ -29,7 +29,6 @@ export const AddSpot: React.FC<AddSpotProps> = ({
 
   return (
     <button
-      // no-tour-anchor: student add-post spot in the wall layouts, which students use, not a tour
       type="button"
       aria-label="Add a post here"
       data-testid="aw-add-spot"
