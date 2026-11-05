@@ -10,6 +10,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-session-lti-attachment';
 const TEACHER_UID = 'lti-teacher';
@@ -24,6 +25,7 @@ const asTeacher = () =>
   testEnv
     .authenticatedContext(TEACHER_UID, {
       email: `${TEACHER_UID}@example.com`,
+      email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
@@ -70,6 +72,9 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [`${TEACHER_UID}@example.com`])
+  );
 });
 
 describe.each(CASES)('$name ltiAttachment', (c) => {

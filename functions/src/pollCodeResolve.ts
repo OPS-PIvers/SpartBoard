@@ -5,7 +5,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isTeacherShapedToken } from './aiCallerGate';
+import { isAiTeacherCaller } from './aiCallerGate';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 type Firestore = admin.firestore.Firestore;
@@ -235,7 +235,10 @@ export const mintPollCodeV1 = onCall(
   },
   async (request) => {
     assertViewAsAllowed(request);
-    if (!request.auth || !isTeacherShapedToken(request.auth.token)) {
+    if (
+      !request.auth ||
+      !(await isAiTeacherCaller(admin.firestore(), request.auth.token))
+    ) {
       throw new HttpsError('permission-denied', 'Teacher sign-in required.');
     }
     return { code: await mintPollCode(admin.firestore(), request.auth.uid) };

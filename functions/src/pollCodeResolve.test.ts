@@ -26,9 +26,15 @@ vi.mock('firebase-functions/v2/https', () => ({
 
 vi.mock('firebase-functions/logger', () => ({ warn: vi.fn() }));
 import * as logger from 'firebase-functions/logger';
+const { isAiTeacherCaller } = vi.hoisted(() => ({
+  isAiTeacherCaller: vi.fn<(db: unknown, token: unknown) => Promise<boolean>>(),
+}));
+vi.mock('./aiCallerGate', () => ({ isAiTeacherCaller }));
+import * as admin from './firebaseAdmin';
 
 import {
   mintPollCode,
+  mintPollCodeV1,
   normalizePollCodeInput,
   pollJoinId,
   resolvePollCode,
@@ -228,5 +234,32 @@ describe('mintPollCode', () => {
     const code = await mintPollCode(db, 't1', NOW, () => 2);
     stub.store.set(`poll_sessions/t1_${code}`, { teacherUid: 't1' });
     expect(await resolve('anon1', code)).toBe(`t1_${code}`);
+  });
+});
+
+describe('mintPollCodeV1', () => {
+  const call = mintPollCodeV1 as unknown as (req: unknown) => Promise<{
+    code: string;
+  }>;
+  const studentToken = {
+    email: '704522@orono.k12.mn.us',
+    email_verified: true,
+    firebase: { sign_in_provider: 'google.com' },
+  };
+
+  it('refuses a verified district account that is not staff or an admin', async () => {
+    isAiTeacherCaller.mockResolvedValueOnce(false);
+    await expect(
+      call({ auth: { uid: 's1', token: studentToken } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(isAiTeacherCaller.mock.lastCall?.[1]).toBe(studentToken);
+  });
+
+  it('mints for staff or an admin', async () => {
+    const { db } = setup({});
+    vi.mocked(admin.firestore).mockReturnValue(db);
+    isAiTeacherCaller.mockResolvedValueOnce(true);
+    const { code } = await call({ auth: { uid: 't1', token: studentToken } });
+    expect(code).toMatch(/^[A-Z0-9]{5}$/);
   });
 });

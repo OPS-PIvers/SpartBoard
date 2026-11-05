@@ -14,6 +14,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-ma-period-access-test';
 const TEACHER_UID = 'teacher-uid';
@@ -151,6 +152,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [
+      `${TEACHER_UID}@example.org`,
+      `${OTHER_TEACHER_UID}@example.org`,
+    ])
+  );
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
       email: ADMIN_EMAIL,

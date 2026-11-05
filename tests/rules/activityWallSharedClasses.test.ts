@@ -23,6 +23,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-aw-shared-classes';
 const HOST_UID = 'host-uid';
@@ -112,6 +113,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(
+      ctx.firestore(),
+      [HOST_UID, COLLAB_UID, VIEWER_UID].map((uid) => `${uid}@orono.k12.mn.us`)
+    )
+  );
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     await setDoc(doc(db, `shared_boards/${SHARE_ID}`), {
