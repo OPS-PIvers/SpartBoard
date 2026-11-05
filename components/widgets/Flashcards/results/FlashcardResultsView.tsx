@@ -25,6 +25,8 @@ import {
   ClassPicker,
   PeriodBar,
 } from '@/components/widgets/QuizWidget/components/monitor/PeriodBar';
+import type { MonitorRosterPrefs } from '@/components/widgets/QuizWidget/components/monitor/rosterStyles';
+import { logError } from '@/utils/logError';
 import { FlashcardMonitor } from './FlashcardMonitor';
 import { useSyncPlcFlashcardResult } from './useSyncPlcFlashcardResult';
 import {
@@ -44,6 +46,9 @@ interface FlashcardResultsViewProps {
   syncPlcShare?: boolean;
   /** Ends the assignment for every class (Close all). */
   onEnd?: () => Promise<void>;
+  /** Student list switches, sort and filter, kept in widget config like Quiz's. */
+  monitorPrefs?: MonitorRosterPrefs;
+  onUpdateMonitorPrefs?: (updates: Partial<MonitorRosterPrefs>) => void;
 }
 
 const isPublished = (
@@ -57,6 +62,8 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   onUnpublishScores,
   syncPlcShare = false,
   onEnd,
+  monitorPrefs,
+  onUpdateMonitorPrefs,
 }) => {
   const { orgId, canAccessFeature } = useAuth();
   const { rosters, addToast } = useDashboard();
@@ -187,6 +194,16 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     }
   };
 
+  // Quiz's Remove student: confirmed in the menu, so no dialog and no success toast.
+  const handleRemove = async (studentUid: string): Promise<void> => {
+    try {
+      await resetStudent(studentUid);
+    } catch (removeError) {
+      logError('FlashcardResultsView.remove', removeError);
+      addToast('Could not remove the student. Try again.', 'error');
+    }
+  };
+
   const handleResolveFlag = async (
     studentUid: string,
     cardId: string,
@@ -254,6 +271,8 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     session?.speak && canAccessFeature('flashcards-speak')
       ? speakLanguageOf(session.termLanguage)
       : null;
+
+  const quizStyle = canAccessFeature('flashcards-assign-v2');
 
   const published = isPublished(
     session?.scoreVisibility ?? assignment.scoreVisibility
@@ -338,7 +357,12 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
           speakLanguage={speakLanguage}
           published={published}
           onBack={onBack}
-          onResetStudent={(uid) => void handleReset(uid)}
+          onResetStudent={(uid) =>
+            void (quizStyle ? handleRemove(uid) : handleReset(uid))
+          }
+          quizStyle={quizStyle}
+          prefs={monitorPrefs}
+          onUpdatePrefs={onUpdateMonitorPrefs}
           onResolveFlag={handleResolveFlag}
           letInFor={letInFor}
           onPublish={() =>

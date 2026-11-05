@@ -718,6 +718,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onUnpublishScores={unpublishScores}
                 syncPlcShare={plcSharing.enabled}
                 onEnd={() => endAssignment(openResults.id)}
+                monitorPrefs={config}
+                onUpdateMonitorPrefs={(updates) =>
+                  updateWidget(widget.id, { config: updates })
+                }
               />
             ) : view === 'present' && presentSet ? (
               inShare ? (
