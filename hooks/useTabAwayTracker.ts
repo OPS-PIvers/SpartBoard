@@ -179,10 +179,11 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
       if (isFullscreenNow()) seenFullscreenRef.current = true;
       else if (seenFullscreenRef.current) void handleLeave();
     };
-    if (isFullscreenNow()) seenFullscreenRef.current = true;
+    // A new attempt starts on the Start cover again.
+    seenFullscreenRef.current = isFullscreenNow();
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
-  }, [watchFullscreen, handleLeave]);
+  }, [watchFullscreen, handleLeave, args.attempt]);
 
   // Chrome fires no window blur for the URL bar or browser menus.
   useFocusLossPoll({
@@ -194,6 +195,9 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
   const awayOpen = away !== null && away.outcome === null;
   useEffect(() => {
     if (!awayOpen) return;
+    // Chrome can deliver the fullscreen exit after the tab is visible again, so a fullscreen page confirms the return a frame later.
+    let backSeen = false;
+    let frame = 0;
     const tick = () => {
       const open = openRef.current;
       if (!open) return;
@@ -209,7 +213,15 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
         document.hasFocus() &&
         fullscreenOk()
       ) {
-        closeOpen(outcomeFor(ms, a.limitMs), ms);
+        if (!watchesFullscreen() || backSeen) {
+          closeOpen(outcomeFor(ms, a.limitMs), ms);
+        } else {
+          backSeen = true;
+          cancelAnimationFrame(frame);
+          frame = requestAnimationFrame(() => window.setTimeout(tick, 0));
+        }
+      } else {
+        backSeen = false;
       }
     };
     const id = window.setInterval(tick, 250);
@@ -218,11 +230,12 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
     window.addEventListener('focus', tick);
     return () => {
       window.clearInterval(id);
+      cancelAnimationFrame(frame);
       document.removeEventListener('visibilitychange', tick);
       document.removeEventListener('fullscreenchange', tick);
       window.removeEventListener('focus', tick);
     };
-  }, [awayOpen, closeOpen, fullscreenOk]);
+  }, [awayOpen, closeOpen, fullscreenOk, watchesFullscreen]);
 
   // Reopen check: an exit left open by a closed tab or a sleeping device.
   useEffect(() => {

@@ -299,9 +299,28 @@ describe('useTabAwayTracker', () => {
       act(() => hook.result.current.resume());
       await flush();
       expect(requestFullscreen).toHaveBeenCalled();
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
       const [exit] = lastSaved();
       expect(exit.outcome).toBe('returned');
       expect(exit.durationMs).toBeGreaterThanOrEqual(5_000);
+    });
+
+    it('keeps the exit open when the fullscreen exit arrives just after the tab is visible again', async () => {
+      const { hook, onLeave } = setup({ fullscreenRequired: true });
+      leave();
+      await flush();
+      hasFocus = true;
+      act(() => {
+        window.dispatchEvent(new Event('focus'));
+      });
+      setFullscreen(false);
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      expect(hook.result.current.away?.outcome).toBeNull();
+      expect(onLeave).toHaveBeenCalledTimes(1);
     });
 
     it('submits at the away limit while the student stays out of fullscreen', async () => {
@@ -325,6 +344,9 @@ describe('useTabAwayTracker', () => {
       await flush();
       expect(onLeave).toHaveBeenCalledTimes(1);
       comeBack();
+      act(() => {
+        vi.advanceTimersByTime(250);
+      });
       expect(lastSaved()[0].outcome).toBe('returned');
     });
   });
