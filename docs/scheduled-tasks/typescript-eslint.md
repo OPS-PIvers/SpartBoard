@@ -70,6 +70,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-11-05 action: Thursday daily run. Nothing In Progress. widget-registry has no Open items; css-scaling's two Open LOWs are deferred pending a legibility-floor decision. Picked typescript-eslint's lint OOM item; recency check clean. Fixed in `scripts/lintApp.mjs`; PR opened to `dev-paul`._
+
 _2026-10-12: Daily audit (Monday). **Environment caveat:** the sandbox's `node_modules` is stale versus `package.json`/lockfile (installed vitest 4.1.11 vs declared ^5.0.3, jsdom 27.4.0 vs ^30.1.2, lucide-react 0.563.0 vs ^1.55.0, eslint-plugin-react-hooks 7.0.1 vs 7.1.1; Node is v22 vs required 24), so results below are likely environment artifacts, not repo regressions. `pnpm type-check`: 1 error, `tests/setup-axe.ts(7,13) TS2428 'Matchers' must have identical type parameters` (classification (a); the file's `Matchers<R, T>` augmentation matches vitest 5's declaration but not the installed 4.x `Matchers<T = any>`). `pnpm lint`: 2 errors + 399 warnings, all but 2 being `Unused eslint-disable directive` for `react-hooks/*` rules (the older installed plugin does not report them); the 2 errors are `react-hooks/set-state-in-effect` at `components/widgets/GuidedLearning/components/GuidedLearningStage.tsx:353` and `components/widgets/QuizWidget/components/AnnotatedResponseView.tsx:261` (classification (c); CI on the pinned plugin is the authority — not filed as Open). Re-run after a clean `pnpm run install:all` on Node 24 to confirm. 0 new Open items._
 
 _2026-10-08: Thursday daily audit on merged `dev-paul` @ `5b543ff2`. `pnpm type-check` exit 0 (no errors). `pnpm lint` (app + functions, `--max-warnings 0`) exit 0. 0 issues._
@@ -85,13 +87,6 @@ _2026-10-04: Daily audit (Sunday). `pnpm type-check` exit 0, 0 errors. `pnpm lin
 _2026-10-03: Daily audit (Saturday). `pnpm type-check` exit 0, 0 errors. `pnpm lint` (app and functions, `--max-warnings 0`) exit 0, 0 errors and warnings in any category. 0 new issues._
 
 _2026-10-02: Daily audit (Friday). `pnpm type-check` exit 0, 0 errors. `pnpm lint:functions` exit 0. `eslint . --max-warnings 0` on the app exit 0 with 0 errors/warnings when run with `NODE_OPTIONS=--max-old-space-size=6144`; plain `pnpm lint` was OOM-killed (exit 137) on this 16 GB runner at the default heap. 1 new LOW item (tooling, below)._
-
-### LOW `pnpm lint` (full-repo type-aware ESLint) is OOM-killed at the default Node heap
-
-- **Detected:** 2026-10-02
-- **File:** `package.json` (`lint:app` script)
-- **Detail:** `eslint . --max-warnings 0` exits 137 (killed) with Node's default heap on a 16 GB runner; it passes cleanly with `--max-old-space-size=6144`. Scheduled audits and any contributor running the full lint can get a false failure.
-- **Fix:** Set `NODE_OPTIONS=--max-old-space-size=6144` in the `lint:app` script (or document it), keeping the CLAUDE.md guidance against running full lint casually.
 
 _2026-10-01: Daily audit (HEAD `00ce6828`). `pnpm type-check` exit 0 with no errors. `pnpm lint` (app + functions, `--max-warnings 0`) exit 0 with no errors or warnings. 0 issues._
 
@@ -362,6 +357,14 @@ _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-0
 ---
 
 ## Completed
+
+### RESOLVED 2026-11-05 LOW `pnpm lint` (full-repo type-aware ESLint) is OOM-killed at the default Node heap
+
+- **Detected:** 2026-10-02
+- **File:** `package.json` (`lint:app` script)
+- **Detail:** `eslint . --max-warnings 0` exits 137 (killed) with Node's default heap on a 16 GB runner; it passes cleanly with `--max-old-space-size=6144`. Scheduled audits and any contributor running the full lint can get a false failure.
+- **Fix:** Set `NODE_OPTIONS=--max-old-space-size=6144` in the `lint:app` script (or document it), keeping the CLAUDE.md guidance against running full lint casually.
+- **Completed:** 2026-11-05 (`scripts/lintApp.mjs` now runs ESLint with `--max-old-space-size=6144`)
 
 ### MEDIUM node_modules not installed — type-check and lint cannot run in this environment
 
