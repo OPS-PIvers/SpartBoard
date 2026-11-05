@@ -3623,8 +3623,10 @@ export interface LunchCountConfig {
   lunchTimeMinute?: string;
   /** Selected grade level (K, 1, 2, MAC for Schumann; 3, 4, 5 for Intermediate) */
   gradeLevel?: string;
-  /** Local date (toLocaleDateString) of the last submitted report */
+  /** Central-time day (YYYY-MM-DD) of the last submitted report */
   lastSubmittedDate?: string;
+  /** Widget that sent it, so a duplicated widget can still submit */
+  lastSubmittedWidgetId?: string;
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;

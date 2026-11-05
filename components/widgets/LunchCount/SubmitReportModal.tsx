@@ -91,6 +91,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
           <Button
             onClick={handleClose}
             variant="secondary"
+            {...tourTypeAttr('lunch-count.report-close', 'lunchCount')}
             className="mt-6 w-full py-4 rounded-2xl font-black uppercase tracking-widest"
           >
             Close
