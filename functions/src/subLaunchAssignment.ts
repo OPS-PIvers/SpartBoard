@@ -316,6 +316,8 @@ interface KeyQuestion {
   incorrectAnswers?: string[];
   matchingDistractors?: string[];
   orderingImages?: string[];
+  answerImages?: { text?: unknown; url?: unknown }[];
+  matchingTermImages?: { text?: unknown; url?: unknown }[];
   points?: number;
   placeholder?: string;
   minWords?: number;
@@ -340,6 +342,21 @@ function shuffled<T>(items: T[]): T[] {
  * recording: a sub-launched run has no reviewed locales and no media gate, so
  * those are simply absent rather than mirrored.
  */
+// Mirrors utils/quizAnswerImages imagesForLabels: https only, aligned, absent when empty.
+function imagesForLabels(
+  labels: string[],
+  images: KeyQuestion['answerImages']
+): string[] | undefined {
+  if (!Array.isArray(images)) return undefined;
+  const out = labels.map((label) => {
+    const url = images.find(
+      (img) => typeof img.text === 'string' && img.text.trim() === label.trim()
+    )?.url;
+    return typeof url === 'string' && url.startsWith('https://') ? url : '';
+  });
+  return out.some(Boolean) ? out : undefined;
+}
+
 export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
   const base: Record<string, unknown> = {
     id: q.id,
@@ -349,14 +366,20 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
   };
   if (q.type === 'MC') {
     const english = [q.correctAnswer ?? '', ...(q.incorrectAnswers ?? [])];
-    base.choices = shuffled(english.filter(Boolean));
+    const choices = shuffled(english.filter(Boolean));
+    base.choices = choices;
+    const images = imagesForLabels(choices, q.answerImages);
+    if (images) base.choiceImages = images;
   } else if (q.type === 'MA') {
     // Right options then wrong (utils/quizMultiAnswer multiAnswerOptions), shuffled so neither side shows.
     const nonBlank = (s: string) => s.trim().length > 0;
-    base.choices = shuffled([
+    const choices = shuffled([
       ...(q.correctAnswer ?? '').split('|').filter(nonBlank),
       ...(q.incorrectAnswers ?? []).filter((s) => !!s && nonBlank(s)),
     ]);
+    base.choices = choices;
+    const images = imagesForLabels(choices, q.answerImages);
+    if (images) base.choiceImages = images;
   } else if (q.type === 'Matching') {
     // Only the first colon separates term from definition, so a definition
     // containing one survives intact.
@@ -366,13 +389,19 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
         ? { left: p, right: '' }
         : { left: p.slice(0, sep), right: p.slice(sep + 1) };
     });
-    base.matchingLeft = pairs.map((p) => p.left);
+    const left = pairs.map((p) => p.left);
+    base.matchingLeft = left;
     // Shuffled with the distractors mixed in, and the distractor list itself
     // never travels — otherwise a student reads the wrong options off devtools.
-    base.matchingRight = shuffled([
+    const right = shuffled([
       ...pairs.map((p) => p.right),
       ...(q.matchingDistractors ?? []).filter(Boolean),
     ]);
+    base.matchingRight = right;
+    const leftImages = imagesForLabels(left, q.matchingTermImages);
+    if (leftImages) base.matchingLeftImages = leftImages;
+    const rightImages = imagesForLabels(right, q.answerImages);
+    if (rightImages) base.matchingRightImages = rightImages;
   } else if (q.type === 'Ordering') {
     const items = (q.correctAnswer ?? '').split('|');
     const order = shuffled(items.map((_, i) => i));

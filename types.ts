@@ -4363,6 +4363,12 @@ export interface RecessGearConfig {
  * Legacy 'short'/'essay' values are normalized on read; see
  * `utils/quizQuestionNormalize.ts`.
  */
+/** A picture tied to an answer by its text, so it follows the answer through edits and shuffles. */
+export interface QuizAnswerImage {
+  text: string;
+  url: string;
+}
+
 export type QuizQuestionType =
   'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA' | 'free-response';
 
@@ -4466,6 +4472,10 @@ export interface QuizQuestion {
   matchingDistractors?: string[];
   /** Ordering only: image URL per item, index-aligned with `correctAnswer.split('|')`; '' = no image. */
   orderingImages?: string[];
+  /** MC/MA options and the match side of Matching (extras included). */
+  answerImages?: QuizAnswerImage[];
+  /** Matching only: pictures on the terms. */
+  matchingTermImages?: QuizAnswerImage[];
   /**
    * Per-question opt-in for partial credit on Matching/Ordering/MA. Ignored
    * for MC/FIB/free-response. Defaults to false.
@@ -5212,6 +5222,12 @@ export interface QuizPublicQuestion {
   orderingItems?: string[];
   /** Ordering only: image URL per item, index-aligned with `orderingItems`; '' = no image. */
   orderingImages?: string[];
+  /** MC/MA: image URL per option, index-aligned with `choices`; '' = no image. */
+  choiceImages?: string[];
+  /** Matching only: image URL per term, index-aligned with `matchingLeft`; '' = no image. */
+  matchingLeftImages?: string[];
+  /** Matching only: image URL per match, index-aligned with `matchingRight`; '' = no image. */
+  matchingRightImages?: string[];
   /** Free Response only: optional editor placeholder */
   placeholder?: string;
   /** Free Response only: optional lower word bound shown in the editor */
@@ -10881,7 +10897,7 @@ export type GlobalFeature =
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */
   | 'quiz-submit-for-student'
-  /** Quiz Ordering questions: an image on each item. */
+  /** Quiz answers of every type: a picture on each, plus pasting images into a question. */
   | 'quiz-ordering-images'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'

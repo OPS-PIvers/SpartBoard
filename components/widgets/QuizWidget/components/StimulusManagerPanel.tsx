@@ -331,7 +331,8 @@ function usePasteFiles(onFiles: (files: File[]) => void, disabled: boolean) {
     if (disabled) return;
     const onPaste = (e: ClipboardEvent) => {
       const data = e.clipboardData;
-      if (!data) return;
+      // An answer box already took this paste for its own picture.
+      if (!data || e.defaultPrevented) return;
       const files = Array.from(data.files);
       if (files.length === 0) return;
       // Pasting copied text into a field keeps working as normal.
@@ -944,13 +945,21 @@ export const QuestionStimulusSection: React.FC<{
   questionId: string;
   /** `quiz-calculator-stimulus` gate. */
   calculatorAvailable?: boolean;
-}> = ({ state, questionId, calculatorAvailable = false }) => {
+  /** Attaches an image pasted anywhere in the question to this question. */
+  pasteImages?: boolean;
+}> = ({
+  state,
+  questionId,
+  calculatorAvailable = false,
+  pasteImages = false,
+}) => {
   const question = state.questions.find((q) => q.id === questionId);
   return (
     <AttachStimulusSection
       state={state}
       attachedIds={question?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
+      pasteImages={pasteImages}
       onToggle={(stimulusId) =>
         state.toggleStimulusOnQuestion(stimulusId, questionId)
       }
@@ -979,10 +988,28 @@ const AttachStimulusSection: React.FC<{
   state: QuizEditorController;
   attachedIds: string[] | undefined;
   calculatorAvailable: boolean;
+  pasteImages?: boolean;
   onToggle: (stimulusId: string) => void;
-}> = ({ state, attachedIds, calculatorAvailable, onToggle }) => {
+}> = ({
+  state,
+  attachedIds,
+  calculatorAvailable,
+  pasteImages = false,
+  onToggle,
+}) => {
   const { stimuli, questions, bankSlots } = state;
   const intake = useStimulusIntake(state);
+  const { addFromFile } = intake;
+  const onPastedFiles = useCallback(
+    (files: File[]) =>
+      void addFiles(
+        addFromFile,
+        files.filter((f) => f.type.startsWith('image/')),
+        (s) => onToggle(s.id)
+      ),
+    [addFromFile, onToggle]
+  );
+  usePasteFiles(onPastedFiles, intake.busy || !pasteImages);
   const [open, setOpen] = useState(false);
   const attachedCount = attachedIds?.length ?? 0;
 

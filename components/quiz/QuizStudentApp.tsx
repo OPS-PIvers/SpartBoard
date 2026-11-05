@@ -205,6 +205,7 @@ import {
 } from './readAloud/useQuizReadAloud';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { CrossOutChoiceButton } from './CrossOutChoiceButton';
+import { AnswerImage } from './AnswerImage';
 import {
   crossOutStorageKey,
   useCrossedOutChoices,
@@ -4301,6 +4302,14 @@ export const ActiveQuiz: React.FC<{
                             'aria-describedby': `ma-hint-${currentQuestion.id}`,
                           }
                         : {};
+                      // Same index in every locale, since `options` only swaps the strings.
+                      const choiceImage =
+                        currentQuestion.choiceImages?.length === options.length
+                          ? currentQuestion.choiceImages[options.indexOf(opt)]
+                          : '';
+                      const picture = choiceImage ? (
+                        <AnswerImage src={choiceImage} large />
+                      ) : null;
                       const content = multiPicked ? (
                         <span className="flex items-center gap-3">
                           <span
@@ -4318,6 +4327,16 @@ export const ActiveQuiz: React.FC<{
                               />
                             )}
                           </span>
+                          {picture}
+                          <span
+                            className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
+                          >
+                            {opt}
+                          </span>
+                        </span>
+                      ) : picture ? (
+                        <span className="flex items-center gap-3">
+                          {picture}
                           <span
                             className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
                           >

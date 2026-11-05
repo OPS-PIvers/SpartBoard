@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Check, Plus, Trash2 } from 'lucide-react';
 import type { QuizQuestion } from '@/types';
 import {
@@ -11,7 +11,13 @@ import {
 } from '@/utils/quizChoiceRows';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { answerImagesFromRows, imageForLabel } from '@/utils/quizAnswerImages';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
+import { AnswerImageControl } from './AnswerImageControl';
+import {
+  useAnswerImagePicker,
+  type UploadAnswerImage,
+} from './useAnswerImagePicker';
 
 type ChoiceUpdates = Partial<
   Pick<
@@ -21,13 +27,18 @@ type ChoiceUpdates = Partial<
     | 'incorrectAnswers'
     | 'optionOrder'
     | 'allowPartialCredit'
+    | 'answerImages'
   >
 >;
 
 interface ChoiceOptionsEditorProps {
   question: QuizQuestion;
   onChange: (updates: ChoiceUpdates) => void;
+  /** Uploads one picture and resolves to its URL; absent hides the picture buttons. */
+  onUploadImage?: UploadAnswerImage;
 }
+
+type EditorRow = ChoiceRow & { id: string; image?: string };
 
 const LETTERS = 'ABCDEFGHIJKL';
 
@@ -37,45 +48,76 @@ const signature = (q: QuizQuestion) =>
     q.correctAnswer,
     q.incorrectAnswers,
     q.optionOrder ?? null,
+    q.answerImages ?? null,
   ]);
 
+const toEditorRows = (
+  rows: ChoiceRow[],
+  images: QuizQuestion['answerImages']
+): EditorRow[] =>
+  rows.map((r) => ({
+    ...r,
+    id: crypto.randomUUID(),
+    image: imageForLabel(images, r.text),
+  }));
+
+const blankRow = (): EditorRow => ({
+  id: crypto.randomUUID(),
+  text: '',
+  correct: false,
+});
+
+function fieldsFromRows(rows: readonly EditorRow[], multi: boolean) {
+  return {
+    ...questionFromRows(rows, multi),
+    // Keyed by the text as saved, which drops `|` for choose-all.
+    answerImages: answerImagesFromRows(
+      multi
+        ? rows.map((r) => ({ ...r, text: r.text.replace(/\|/g, '') }))
+        : rows
+    ),
+  };
+}
+
 // A brand-new blank question opens with four empty options.
-function initialRows(q: QuizQuestion): ChoiceRow[] {
-  const rows = rowsFromQuestion(q);
+function initialRows(q: QuizQuestion): EditorRow[] {
+  const rows = toEditorRows(rowsFromQuestion(q), q.answerImages);
   const pristine =
     q.type === 'MC' && rows.every((r) => !r.correct && r.text === '');
   if (!pristine || rows.length >= 4) return rows;
-  return [
-    ...rows,
-    ...Array.from({ length: 4 - rows.length }, () => ({
-      text: '',
-      correct: false,
-    })),
-  ];
+  return [...rows, ...Array.from({ length: 4 - rows.length }, blankRow)];
 }
 
 /** MC and choose-all as one option list; mount with `key={question.id}`. */
 export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
   question,
   onChange,
+  onUploadImage,
 }) => {
   const multi = question.type === 'MA';
-  const [rows, setRows] = useState<ChoiceRow[]>(() => initialRows(question));
+  const [rows, setRows] = useState<EditorRow[]>(() => initialRows(question));
   const [lastSig, setLastSig] = useState(() => signature(question));
 
   // Re-read the question when something other than this editor changed it.
   const sig = signature(question);
   if (sig !== lastSig) {
     setLastSig(sig);
-    const mine = questionFromRows(rows, multi);
+    const mine = fieldsFromRows(rows, multi);
     if (signature({ ...question, ...mine }) !== sig) {
-      setRows(rowsFromQuestion(question));
+      setRows(toEditorRows(rowsFromQuestion(question), question.answerImages));
     }
   }
 
-  const commit = (next: ChoiceRow[], nextMulti = multi) => {
+  // Latest rows for an upload that resolves after later edits.
+  const rowsRef = useRef(rows);
+  useLayoutEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+
+  const commit = (next: EditorRow[], nextMulti = multi) => {
+    rowsRef.current = next;
     setRows(next);
-    const fields = questionFromRows(next, nextMulti);
+    const fields = fieldsFromRows(next, nextMulti);
     setLastSig(signature({ ...question, ...fields }));
     onChange(fields);
   };
@@ -116,11 +158,18 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
     handleRadioGroupKeyDown(e, rows, (row) => toggleCorrect(rows.indexOf(row)));
   };
 
+  const setRowImage = (id: string, image: string) => {
+    if (rowsRef.current.some((r) => r.id === id))
+      commit(rowsRef.current.map((r) => (r.id === id ? { ...r, image } : r)));
+  };
+  const images = useAnswerImagePicker(onUploadImage, setRowImage);
+
   const canTurnOffMulti = rows.length <= MAX_SINGLE_OPTIONS;
   const Marker = multi ? 'rounded-md' : 'rounded-full';
 
   return (
     <div className="space-y-3">
+      {images.fileInput}
       <div className="space-y-2">
         <span className={labelClass}>Answer options</span>
         <div
@@ -132,7 +181,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
           {rows.map((row, idx) => {
             const letter = LETTERS[idx] ?? String(idx + 1);
             return (
-              <div key={idx} className="flex items-center gap-2">
+              <div key={row.id} className="flex items-center gap-2">
                 <span className="w-3 text-xs font-bold text-slate-500 text-center shrink-0">
                   {letter}
                 </span>
@@ -160,6 +209,12 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                   type="text"
                   value={row.text}
                   aria-label={`Option ${letter}`}
+                  onPaste={images.pasteInto(row.id)}
+                  placeholder={
+                    row.image && !row.text.trim()
+                      ? 'Add text for this image'
+                      : undefined
+                  }
                   {...tourFieldAttr(
                     'quiz-editor.option',
                     'quiz',
@@ -176,8 +231,28 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                     row.correct
                       ? 'border-emerald-400 bg-emerald-50 font-bold text-emerald-900'
                       : ''
-                  }`}
+                  } ${row.image && !row.text.trim() ? 'border-amber-500' : ''}`}
                 />
+                {onUploadImage && (
+                  <AnswerImageControl
+                    image={row.image}
+                    uploading={images.uploadingKey === row.id}
+                    disabled={images.uploadingKey !== null}
+                    onPick={() => images.pick(row.id)}
+                    onRemove={() => setRowImage(row.id, '')}
+                    name={`option ${letter}`}
+                    addAttrs={tourFieldAttr(
+                      'quiz-editor.option-image',
+                      'quiz',
+                      letter.toLowerCase()
+                    )}
+                    removeAttrs={tourFieldAttr(
+                      'quiz-editor.option-image-remove',
+                      'quiz',
+                      letter.toLowerCase()
+                    )}
+                  />
+                )}
                 {rows.length > 2 && (
                   <button
                     type="button"
@@ -199,7 +274,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
           {canAddRow(rows, multi) && (
             <button
               type="button"
-              onClick={() => commit([...rows, { text: '', correct: false }])}
+              onClick={() => commit([...rows, blankRow()])}
               {...tourTypeAttr('quiz-editor.option-add', 'quiz')}
               className="flex items-center justify-center gap-1.5 py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-blue-primary font-bold transition-all text-xs"
             >

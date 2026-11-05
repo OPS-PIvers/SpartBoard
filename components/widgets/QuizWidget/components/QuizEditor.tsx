@@ -54,6 +54,7 @@ import { useAuth } from '@/context/useAuth';
 import {
   MatchingAnswerEditor,
   OrderingAnswerEditor,
+  type MatchingAnswerEditorProps,
 } from './MatchingOrderingEditor';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { DraftNumberInput } from './DraftNumberInput';
@@ -788,7 +789,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // would otherwise be a fresh closure each render).
   const selectedQuestionId = selectedQuestion?.id ?? null;
   const handleMatchingChange = useCallback(
-    (next: { correctAnswer: string; matchingDistractors: string[] }) => {
+    (next: Parameters<MatchingAnswerEditorProps['onChange']>[0]) => {
       if (selectedQuestionId) updateQuestion(selectedQuestionId, next);
     },
     [selectedQuestionId, updateQuestion]
@@ -816,13 +817,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     canAccessFeature,
   });
   const uploadWhiteboardImage = useWhiteboardImageUpload();
-  const orderingImagesOn = canAccessFeature('quiz-ordering-images');
-  const uploadOrderingImage = useCallback(
+  const answerImagesOn = canAccessFeature('quiz-ordering-images');
+  const uploadAnswerImage = useCallback(
     async (file: File): Promise<string | null> => {
       // A neutral name: a timestamp or original file name could give away the order.
       const uploaded = await uploadWhiteboardImage(
         file,
-        `ordering-item-${crypto.randomUUID()}`
+        `quiz-answer-${crypto.randomUUID()}`
       );
       return uploaded ? driveImageUrl(uploaded.driveFileId) : null;
     },
@@ -1124,6 +1125,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               key={q.id}
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
+              onUploadImage={
+                answerImagesOn || q.answerImages?.length
+                  ? uploadAnswerImage
+                  : undefined
+              }
             />
             <NeedsAnswerNotice
               question={q}
@@ -1132,7 +1138,17 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         ) : q.type === 'Matching' ? (
           <MatchingAnswerEditor
+            key={q.id}
             correctAnswer={q.correctAnswer}
+            answerImages={q.answerImages}
+            termImages={q.matchingTermImages}
+            onUploadImage={
+              answerImagesOn ||
+              q.answerImages?.length ||
+              q.matchingTermImages?.length
+                ? uploadAnswerImage
+                : undefined
+            }
             matchingDistractors={
               q.matchingDistractors ?? (EMPTY_DISTRACTORS as string[])
             }
@@ -1145,8 +1161,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             orderingImages={q.orderingImages}
             onChange={handleOrderingChange}
             onUploadImage={
-              orderingImagesOn || q.orderingImages?.some(Boolean)
-                ? uploadOrderingImage
+              answerImagesOn || q.orderingImages?.some(Boolean)
+                ? uploadAnswerImage
                 : undefined
             }
           />
@@ -1273,6 +1289,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           state={state}
           questionId={q.id}
           calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+          pasteImages={answerImagesOn}
         />
       </div>
 
