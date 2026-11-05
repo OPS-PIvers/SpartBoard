@@ -325,7 +325,12 @@ async function claimRow(
 }
 
 /** Write only when something besides `updatedAt` changed; the row is re-read and claimed in the same transaction. */
-async function writeRow(db: Firestore, row: IndexRow): Promise<boolean> {
+async function writeRow(
+  db: Firestore,
+  row: IndexRow,
+  previous: Doc | undefined
+): Promise<boolean> {
+  if (sameRow(row, previous)) return false;
   const ref = db
     .collection(GRADE_INDEX)
     .doc(rowId(row.sessionId, row.studentUid));
@@ -432,7 +437,7 @@ export function __resetProjectRosterCache(): void {
   rosterCache.clear();
 }
 
-/** Looks each owner and class up once per 90 s, shared by the triggers and the recompute; a failed lookup throws and is not cached. */
+/** Looks each owner and class up once per 90 s, shared by the triggers and the recompute; a failed or empty lookup is not cached. */
 export function defaultProjectMemberAuthority(
   db: Firestore
 ): ProjectMemberAuthority {
@@ -453,6 +458,8 @@ export function defaultProjectMemberAuthority(
       });
     }
     const students = await entry.students;
+    if (students.size === 0 && rosterCache.get(key) === entry)
+      rosterCache.delete(key);
     return new Set(memberUids.filter((uid) => students.has(uid)));
   };
 }
@@ -613,7 +620,7 @@ export async function applyDocWrite(
         row.studentUid
       );
       if (prev === null) continue;
-      if (await writeRow(db, row)) writes++;
+      if (await writeRow(db, row, prev)) writes++;
     }
     return writes;
   }
@@ -639,7 +646,7 @@ export async function applyDocWrite(
   const prev = await previousRow(db, w.kind, w.sessionId, studentUid);
   if (prev === null) return 0;
   const row = await buildRow(db, ctx, studentUid, score, prev, now);
-  return (await writeRow(db, row)) ? 1 : 0;
+  return (await writeRow(db, row, prev)) ? 1 : 0;
 }
 
 /** Rebuilds every row of one session; rows whose work is gone are deleted. */

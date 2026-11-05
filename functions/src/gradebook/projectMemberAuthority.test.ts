@@ -135,6 +135,15 @@ describe('defaultProjectMemberAuthority', () => {
     expect(await authority('owner', 'class-1', [s1])).toEqual(new Set([s1]));
   });
 
+  it('does not cache an empty roster, so a new class or student is not denied for 90 seconds', async () => {
+    const authority = defaultProjectMemberAuthority(db);
+    const s1 = computeStudentUid('s1', 'hmac');
+    expect((await authority('owner', 'class-1', [s1])).size).toBe(0);
+    loadTaughtClassEnrollment.mockResolvedValue(new Set(['s1']));
+    expect(await authority('owner', 'class-1', [s1])).toEqual(new Set([s1]));
+    expect(loadTaughtClassEnrollment).toHaveBeenCalledTimes(2);
+  });
+
   it('shares one lookup across authorities for 90 seconds, then asks again', async () => {
     vi.useFakeTimers();
     try {
