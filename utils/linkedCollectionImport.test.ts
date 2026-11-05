@@ -159,4 +159,18 @@ describe('linkedBoardFromShare id', () => {
       linkedBoardFromShare(entry, snap, { ...opts, takenIds: taken }).id
     ).toBe('linked-s1-2');
   });
+  it('drops a stored Drive file id and host linkage the share doc carries', () => {
+    const poisoned = {
+      ...snap,
+      driveFileId: 'victim-drive-file',
+      thumbnailUrl: 'https://host.example/t.png',
+      sharedGroups: [{ id: 'g' }],
+      isDefault: true,
+    } as unknown as Dashboard;
+    const board = linkedBoardFromShare(entry, poisoned, opts);
+    expect(board.driveFileId).toBeUndefined();
+    expect(board.thumbnailUrl).toBeUndefined();
+    expect(board.sharedGroups).toBeUndefined();
+    expect(board.isDefault).toBe(false);
+  });
 });

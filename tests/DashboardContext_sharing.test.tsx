@@ -1068,6 +1068,282 @@ describe('DashboardContext Sharing Logic', () => {
       expect(board?.linkedShareHostUid).toBeUndefined();
     });
 
+    it('keeps an ended board ended when the server does not confirm the share is back', async () => {
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
+        linkedShareEnded: true,
+      });
+
+      emit({
+        id: 'share-sync',
+        name: 'Someone else',
+        background: 'bg-red-500',
+        widgets: [],
+        createdAt: 2,
+        linkedShareHostUid: 'host-a',
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const board = captured.current.find((d) => d.id === 'collab-board');
+      expect(board?.linkedShareEnded).toBe(true);
+      expect(board?.background).toBe('bg-slate-800');
+    });
+
+    describe('ending and re-attaching against the server', () => {
+      const serverDoc = (originalAuthor: string | null) =>
+        vi.mocked(getDoc).mockImplementation(
+          () =>
+            Promise.resolve({
+              exists: () => originalAuthor !== null,
+              data: () => (originalAuthor ? { originalAuthor } : undefined),
+            }) as never
+        );
+      const collab = (ended: boolean): Dashboard => ({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
+        ...(ended ? { linkedShareEnded: true } : {}),
+      });
+      const back = (host: string): Dashboard => ({
+        id: 'share-sync',
+        name: 'Synced Board',
+        background: 'bg-red-500',
+        widgets: [],
+        createdAt: 2,
+        linkedShareHostUid: host,
+      });
+      const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
+      afterEach(() => {
+        vi.mocked(getDoc).mockResolvedValue({
+          exists: () => false,
+          data: () => undefined,
+        } as never);
+      });
+
+      it('does not end a board on a null the server contradicts', async () => {
+        serverDoc('host-a');
+        const { captured, emitNull } = await renderSubscribedBoard(
+          collab(false)
+        );
+        emitNull();
+        await settle();
+        expect(
+          captured.current.find((d) => d.id === 'collab-board')
+            ?.linkedShareEnded
+        ).not.toBe(true);
+      });
+
+      it('does not end a board when the server cannot be reached', async () => {
+        vi.mocked(getDoc).mockRejectedValue(new Error('offline'));
+        const { captured, emitNull } = await renderSubscribedBoard(
+          collab(false)
+        );
+        emitNull();
+        await settle();
+        expect(
+          captured.current.find((d) => d.id === 'collab-board')
+            ?.linkedShareEnded
+        ).not.toBe(true);
+      });
+
+      it('ends a board when the server denies reading the share', async () => {
+        vi.mocked(getDoc).mockRejectedValue(
+          Object.assign(new Error('denied'), { code: 'permission-denied' })
+        );
+        const { captured, emitNull } = await renderSubscribedBoard(
+          collab(false)
+        );
+        emitNull();
+        await waitFor(() =>
+          expect(
+            captured.current.find((d) => d.id === 'collab-board')
+              ?.linkedShareEnded
+          ).toBe(true)
+        );
+      });
+
+      it('listens again with a growing delay after a transient error', async () => {
+        vi.mocked(getDoc).mockRejectedValue(
+          Object.assign(new Error('down'), { code: 'unavailable' })
+        );
+        const { captured, emitNull } = await renderSubscribedBoard(
+          collab(false)
+        );
+        const calls = () => mockSubscribeToSharedBoard.mock.calls.length;
+        const before = calls();
+        vi.useFakeTimers();
+        try {
+          emitNull();
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(4_000);
+          });
+          expect(calls()).toBe(before);
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(1_500);
+          });
+          expect(calls()).toBe(before + 1);
+          emitNull();
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(10_000);
+          });
+          expect(calls()).toBe(before + 1);
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(20_000);
+          });
+          expect(calls()).toBe(before + 2);
+        } finally {
+          vi.useRealTimers();
+        }
+        expect(
+          captured.current.find((d) => d.id === 'collab-board')
+            ?.linkedShareEnded
+        ).not.toBe(true);
+      });
+
+      it('listens again when the server still has the share', async () => {
+        serverDoc('host-a');
+        const { emitNull } = await renderSubscribedBoard(collab(false));
+        const before = mockSubscribeToSharedBoard.mock.calls.length;
+        vi.useFakeTimers();
+        try {
+          emitNull();
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(5_500);
+          });
+          expect(mockSubscribeToSharedBoard.mock.calls.length).toBe(before + 1);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('checks an end while a re-attach check is pending', async () => {
+        let release: (v: unknown) => void = () => undefined;
+        vi.mocked(getDoc).mockImplementationOnce(
+          () => new Promise((resolve) => (release = resolve)) as never
+        );
+        serverDoc(null);
+        const { captured, emit, emitNull } = await renderSubscribedBoard(
+          collab(true)
+        );
+        const before = vi.mocked(getDoc).mock.calls.length;
+        emit(back('host-a'));
+        emitNull();
+        await settle();
+        expect(vi.mocked(getDoc).mock.calls.length).toBe(before + 2);
+        release({
+          exists: () => true,
+          data: () => ({ originalAuthor: 'host-a' }),
+        });
+        await settle();
+        expect(
+          captured.current.find((d) => d.id === 'collab-board')
+            ?.linkedShareEnded
+        ).toBe(true);
+      });
+
+      it('handles a newer snapshot afresh when a pending check resolves late', async () => {
+        let release: (v: unknown) => void = () => undefined;
+        vi.mocked(getDoc).mockImplementationOnce(
+          () => new Promise((resolve) => (release = resolve)) as never
+        );
+        const { captured, emit } = await renderSubscribedBoard(collab(true));
+        emit(back('host-a'));
+        emit(back('attacker'));
+        release({
+          exists: () => true,
+          data: () => ({ originalAuthor: 'host-a' }),
+        });
+        await settle();
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareEnded).toBe(true);
+        expect(board?.background).toBe('bg-slate-800');
+      });
+
+      it('ends a board once the server confirms the share is gone', async () => {
+        serverDoc(null);
+        const { captured, emitNull } = await renderSubscribedBoard(
+          collab(false)
+        );
+        emitNull();
+        await waitFor(() =>
+          expect(
+            captured.current.find((d) => d.id === 'collab-board')
+              ?.linkedShareEnded
+          ).toBe(true)
+        );
+      });
+
+      it('re-attaches an ended board when the server confirms the recorded host’s share is back', async () => {
+        serverDoc('host-a');
+        const { captured, emit } = await renderSubscribedBoard(collab(true));
+        emit(back('host-a'));
+        await waitFor(() => {
+          const board = captured.current.find((d) => d.id === 'collab-board');
+          expect(board?.linkedShareEnded).toBe(false);
+          expect(board?.background).toBe('bg-red-500');
+        });
+      });
+
+      it('keeps an ended board ended when the server names another host', async () => {
+        serverDoc('attacker');
+        const { captured, emit } = await renderSubscribedBoard(collab(true));
+        emit(back('host-a'));
+        await settle();
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareEnded).toBe(true);
+        expect(board?.background).toBe('bg-slate-800');
+      });
+
+      it('never re-attaches an ended board from a snapshot by another host', async () => {
+        serverDoc('attacker');
+        const { captured, emit } = await renderSubscribedBoard(collab(true));
+        emit(back('attacker'));
+        await settle();
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareEnded).toBe(true);
+        expect(board?.background).toBe('bg-slate-800');
+      });
+    });
+
+    it('treats a share doc without the recorded host as ended', async () => {
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
+      });
+
+      emit({
+        id: 'share-sync',
+        name: 'Someone else',
+        background: 'bg-red-500',
+        widgets: [],
+        createdAt: 2,
+      });
+
+      await waitFor(() => {
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareEnded).toBe(true);
+        expect(board?.background).toBe('bg-slate-800');
+      });
+    });
+
     it('viewer leaving the board (Leave button) deletes the local copy', async () => {
       const linked: Dashboard = {
         id: 'view-board',

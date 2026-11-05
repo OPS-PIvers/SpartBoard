@@ -709,6 +709,7 @@ export const useFirestore = (userId: string | null) => {
         return mockSharedStore.add(
           {
             ...dashboard,
+            originalAuthor: userId,
             ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
             ...(intendedMode ? { intendedMode } : {}),
             ...(plcId ? { plcId } : {}),
@@ -809,6 +810,7 @@ export const useFirestore = (userId: string | null) => {
       if (isAuthBypass) {
         return mockSharedStore.add({
           ...dashboard,
+          originalAuthor: userId,
           ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
           intendedMode: 'substitute',
           ...(sharedRosters?.length ? { sharedRosters } : {}),
