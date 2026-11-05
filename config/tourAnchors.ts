@@ -13003,6 +13003,10 @@ export const TOUR_ANCHORS = {
     label: 'Copy, paste and print choice in the override editor',
     panel: true,
   },
+  'override-row.answer-choices': {
+    label: 'Answer choices choice in the Flashcards override editor',
+    panel: true,
+  },
   'override-row.language': {
     label: 'Language picker in the override editor',
     panel: true,

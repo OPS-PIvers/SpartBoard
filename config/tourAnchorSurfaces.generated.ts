@@ -3109,6 +3109,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'override-row.copy': ['library.override-row'],
     'override-row.read-aloud': ['library.override-row'],
     'override-row.copy-paste-print': ['library.override-row'],
+    'override-row.answer-choices': ['library.override-row'],
     'override-row.language': ['library.override-row'],
     'override-row.tab-warning': ['library.override-row'],
     'override-row.tab-warning-off': ['library.override-row'],

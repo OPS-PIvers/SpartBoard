@@ -382,6 +382,18 @@ async function loadOpenCheck(
   return { sessionRef, session, pointer, sharedClassId, staffFields };
 }
 
+// A Check with rules grades only the student's card subset; a subset matching no card is ignored.
+function studentCards(
+  cards: FlashcardCard[],
+  { session, pointer }: CheckAccess
+): FlashcardCard[] {
+  if (!isRecord(session.rules) || !isRecord(pointer.override)) return cards;
+  const ids = pointer.override.questionIds;
+  if (!Array.isArray(ids)) return cards;
+  const subset = cards.filter((card) => ids.includes(card.id));
+  return subset.length > 0 ? subset : cards;
+}
+
 // Per-period sessions keep their cards in content/cards.
 async function loadCheckCards(access: CheckAccess): Promise<FlashcardCard[]> {
   const cards = sessionCards(
@@ -436,7 +448,7 @@ export async function handleSubmitFlashcardCheck(
     checkMode !== 'speak'
   )
     throw new HttpsError('failed-precondition', 'Unknown Check mode.');
-  const cards = await loadCheckCards(access);
+  const cards = studentCards(await loadCheckCards(access), access);
   const byId = new Map(cards.map((card) => [card.id, card]));
   const settings = lockedSettingsFrom(session.lockedSettings);
   const answerFor = (card: FlashcardCard): string =>

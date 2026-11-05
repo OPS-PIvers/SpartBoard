@@ -58475,6 +58475,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "override-row.answer-choices",
+    "label": "Answer choices choice in the Flashcards override editor",
+    "scope": "board",
+    "panel": true
+  },
+  {
     "id": "override-row.language",
     "label": "Language picker in the override editor",
     "scope": "board",
