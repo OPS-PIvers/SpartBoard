@@ -42,9 +42,10 @@ vi.mock('./secrets', () => ({
   STUDENT_PSEUDONYM_HMAC_SECRET: { value: () => 'unit-test-hmac-secret' },
 }));
 
-import { computeStudentUid } from './classlinkShared';
+import { CLASSLINK_TIMEOUT_MS, computeStudentUid } from './classlinkShared';
 import {
   MAX_TARGET_REFS,
+  MAX_TAUGHT_CLASSES,
   computeSessionCloseAt,
   handleSetAssignmentTargets,
   isTestClassAuthority,
@@ -167,6 +168,7 @@ function makeDb(state: StubState) {
       fn: (tx: {
         get: (ref: { __path: string }) => Promise<unknown>;
         set: (ref: { __path: string }, data: Record<string, unknown>) => void;
+        delete: (ref: { __path: string }) => void;
       }) => Promise<unknown>
     ) =>
       fn({
@@ -174,6 +176,10 @@ function makeDb(state: StubState) {
         set: (ref, data) => {
           state.writes.push({ path: ref.__path, op: 'set', data });
           applyMerge(state, ref.__path, data);
+        },
+        delete: (ref) => {
+          state.writes.push({ path: ref.__path, op: 'delete' });
+          state.docs.delete(ref.__path);
         },
       }),
     batch: () => {
@@ -921,6 +927,175 @@ describe('handleSetAssignmentTargets', () => {
 // in `add`. Without a refresh pass, a D3 edit to their override or the window
 // would never reach their pointer doc.
 // ---------------------------------------------------------------------------
+
+describe('handleSetAssignmentTargets — pointers owned by another teacher', () => {
+  const uidA = () => computeStudentUid(SOURCED_A, HMAC);
+  const victimPointer = (extra: Record<string, unknown> = {}) => ({
+    kind: 'quiz',
+    sessionId: 'victim-session',
+    teacherUid: OTHER_TEACHER_UID,
+    classId: 'victim-class',
+    createdAt: 1,
+    updatedAt: 1,
+    ...extra,
+  });
+
+  it('keeps the other teacher pointer when a same-id assignment asks to remove the student', async () => {
+    state.docs.set(pointerPath(uidA()), victimPointer());
+    const before = { ...state.docs.get(pointerPath(uidA())) };
+    const result = await run(
+      baseInput({
+        add: [],
+        remove: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    expect(result.removed).toBe(0);
+    expect(state.docs.get(pointerPath(uidA()))).toEqual(before);
+    expect(
+      state.writes.filter((w) => w.path === pointerPath(uidA()))
+    ).toHaveLength(0);
+  });
+
+  it('does not re-own or re-point the other teacher pointer on add, and reports the skip', async () => {
+    state.docs.set(pointerPath(uidA()), victimPointer());
+    const before = { ...state.docs.get(pointerPath(uidA())) };
+    const result = await run(baseInput());
+    expect(result.written).toBe(0);
+    expect(result.skipped).toEqual([
+      {
+        ref: { kind: 'classlink', sourcedId: SOURCED_A },
+        reason: 'not-in-teacher-classes',
+      },
+    ]);
+    expect(state.docs.get(pointerPath(uidA()))).toEqual(before);
+    expect(state.docs.get(assignmentPath())).toMatchObject({
+      targetStudents: [],
+    });
+  });
+
+  it('does not overwrite the other teacher pointer with a skip marker', async () => {
+    state.docs.set(pointerPath(uidA()), victimPointer());
+    const before = { ...state.docs.get(pointerPath(uidA())) };
+    const result = await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    expect(result.skippedExclusions).toHaveLength(1);
+    expect(state.docs.get(pointerPath(uidA()))).toEqual(before);
+  });
+
+  it('still adds the caller own students beside a foreign-held one', async () => {
+    state.docs.set(pointerPath(uidA()), victimPointer());
+    const result = await run(
+      baseInput({
+        add: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: SOURCED_B },
+        ],
+      })
+    );
+    expect(result.written).toBe(1);
+    expect(pointerFor(SOURCED_B)).toMatchObject({ teacherUid: TEACHER_UID });
+    expect(pointerFor(SOURCED_A)).toMatchObject({
+      teacherUid: OTHER_TEACHER_UID,
+    });
+  });
+
+  /** Lets another teacher take the pointer after the first read, before the writes land. */
+  const takenMidCall = (extra: Record<string, unknown> = {}) => {
+    let fired = false;
+    return racedDb(() => {
+      if (fired) return;
+      fired = true;
+      state.docs.set(pointerPath(uidA()), victimPointer(extra));
+    });
+  };
+
+  it('does not overwrite a pointer another teacher creates between the read and the write', async () => {
+    const result = await handleSetAssignmentTargets(
+      takenMidCall() as never,
+      TEACHER_UID,
+      HMAC,
+      baseInput(),
+      () => Promise.resolve(ctx())
+    );
+    expect(result.written).toBe(0);
+    expect(result.skipped).toEqual([
+      {
+        ref: { kind: 'classlink', sourcedId: SOURCED_A },
+        reason: 'not-in-teacher-classes',
+      },
+    ]);
+    expect(pointerFor()).toMatchObject({ teacherUid: OTHER_TEACHER_UID });
+    expect(state.docs.get(assignmentPath())).toMatchObject({
+      targetStudents: [],
+    });
+  });
+
+  it('does not delete a pointer that changed owner after it was read', async () => {
+    await run(baseInput());
+    const result = await handleSetAssignmentTargets(
+      takenMidCall() as never,
+      TEACHER_UID,
+      HMAC,
+      baseInput({
+        add: [],
+        remove: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      }),
+      () => Promise.resolve(ctx())
+    );
+    expect(result.removed).toBe(0);
+    expect(pointerFor()).toMatchObject({ teacherUid: OTHER_TEACHER_UID });
+  });
+
+  it('does not recreate a pointer in a refresh when it was deleted after the read', async () => {
+    await run(baseInput());
+    let fired = false;
+    const db = racedDb(() => {
+      if (fired) return;
+      fired = true;
+      state.docs.delete(pointerPath(uidA()));
+    });
+    await handleSetAssignmentTargets(
+      db as never,
+      TEACHER_UID,
+      HMAC,
+      baseInput({ add: [], window: { dueAt: 5 } }),
+      () => Promise.resolve(ctx())
+    );
+    expect(state.docs.has(pointerPath(uidA()))).toBe(false);
+  });
+
+  it('removes and re-adds the caller own pointers as before', async () => {
+    await run(baseInput());
+    expect(pointerFor()).toMatchObject({ teacherUid: TEACHER_UID });
+    const result = await run(
+      baseInput({
+        add: [],
+        remove: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    expect(result.removed).toBe(1);
+    expect(state.docs.has(pointerPath(uidA()))).toBe(false);
+    await run(baseInput());
+    expect(pointerFor()).toMatchObject({
+      teacherUid: TEACHER_UID,
+      sessionId: ASSIGNMENT_ID,
+    });
+  });
+
+  it('lets the caller re-point their own pointer to a new session', async () => {
+    state.docs.set(
+      pointerPath(uidA()),
+      victimPointer({ teacherUid: TEACHER_UID, sessionId: 'old-session' })
+    );
+    const result = await run(baseInput());
+    expect(result.written).toBe(1);
+    expect(pointerFor()).toMatchObject({ sessionId: ASSIGNMENT_ID });
+  });
+});
 
 describe('handleSetAssignmentTargets — already-targeted refresh', () => {
   const seedTwo = () =>
@@ -2239,6 +2414,8 @@ describe('setAssignmentTargetsV1 onCall wrapper — caller identity verification
   });
 });
 
+type PagedConfig = { params?: { offset?: string; limit?: string } };
+
 describe('loadClassLinkMembership', () => {
   const route = (users: unknown[]) =>
     axiosGet.mockImplementation((url: string) => {
@@ -2266,6 +2443,191 @@ describe('loadClassLinkMembership', () => {
       'https://tenant.example'
     );
     expect(out.get(SOURCED_A)).toBe(CLASS_A);
+  });
+
+  it('reads every taught class when no candidate list is given, and still nothing for a student', async () => {
+    route([{ sourcedId: 'T1', role: 'teacher' }]);
+    const all = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      null,
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(all.get(SOURCED_A)).toBe(CLASS_A);
+    route([{ sourcedId: 'S1', role: 'student' }]);
+    expect(
+      (
+        await loadClassLinkMembership(
+          'kid@orono.k12.mn.us',
+          null,
+          'id',
+          'secret',
+          'https://tenant.example'
+        )
+      ).size
+    ).toBe(0);
+  });
+
+  it('pages through a class bigger than one page of students', async () => {
+    const page = (from: number, count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        sourcedId: `kid-${from + i}`,
+      }));
+    axiosGet.mockImplementation(
+      (url: string, config?: { params?: { offset?: string } }) => {
+        if (url.endsWith('/users'))
+          return Promise.resolve({
+            data: { users: [{ sourcedId: 'T1', role: 'teacher' }] },
+          });
+        if (url.endsWith('/classes'))
+          return Promise.resolve({
+            data: { classes: [{ sourcedId: CLASS_A }] },
+          });
+        const offset = Number(config?.params?.offset ?? 0);
+        return Promise.resolve({
+          data: { users: offset === 0 ? page(0, 200) : page(200, 50) },
+        });
+      }
+    );
+    const out = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      [CLASS_A],
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(out.size).toBe(250);
+    expect(out.get('kid-249')).toBe(CLASS_A);
+  });
+
+  it('fails rather than return a class it cannot prove it read in full', async () => {
+    axiosGet.mockImplementation((url: string) => {
+      if (url.endsWith('/users'))
+        return Promise.resolve({
+          data: { users: [{ sourcedId: 'T1', role: 'teacher' }] },
+        });
+      if (url.endsWith('/classes'))
+        return Promise.resolve({ data: { classes: [{ sourcedId: CLASS_A }] } });
+      return Promise.resolve({
+        data: {
+          users: Array.from({ length: 200 }, (_, i) => ({
+            sourcedId: `k${i}`,
+          })),
+        },
+      });
+    });
+    await expect(
+      loadClassLinkMembership(
+        'teacher@orono.k12.mn.us',
+        [CLASS_A],
+        'id',
+        'secret',
+        'https://tenant.example'
+      )
+    ).rejects.toThrow('page cap');
+  });
+
+  const manyClasses = (count: number, onStudents?: () => void) => {
+    axiosGet.mockImplementation((url: string, config?: PagedConfig) => {
+      if (url.endsWith('/users'))
+        return Promise.resolve({
+          data: { users: [{ sourcedId: 'T1', role: 'teacher' }] },
+        });
+      if (url.endsWith('/classes')) {
+        const offset = Number(config?.params?.offset ?? 0);
+        const limit = Number(config?.params?.limit ?? count);
+        return Promise.resolve({
+          data: {
+            classes: Array.from({ length: count }, (_, i) => ({
+              sourcedId: `class-${i}`,
+            })).slice(offset, offset + limit),
+          },
+        });
+      }
+      if (/\/students$/.test(url)) onStudents?.();
+      const classId = /\/classes\/([^/]+)\/students$/.exec(url)?.[1] ?? '';
+      return Promise.resolve({
+        data: { users: [{ sourcedId: `kid-of-${classId}` }] },
+      });
+    });
+  };
+
+  it('reads every taught class past the old 40-class cap when no list is given', async () => {
+    manyClasses(120);
+    const out = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      null,
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(out.size).toBe(120);
+    expect(out.get('kid-of-class-119')).toBe('class-119');
+  });
+
+  it('pages the teacher class list, so a class on page two is still authorized', async () => {
+    manyClasses(250);
+    const out = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      ['class-230'],
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(out.get('kid-of-class-230')).toBe('class-230');
+    const classCalls = (axiosGet.mock.calls as unknown[][]).filter((c) =>
+      String(c[0]).endsWith('/classes')
+    );
+    expect(classCalls).toHaveLength(2);
+  });
+
+  it('fails loudly when reading every class runs past the time budget', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      manyClasses(30, () => vi.setSystemTime(Date.now() + 100_000));
+      await expect(
+        loadClassLinkMembership(
+          'teacher@orono.k12.mn.us',
+          null,
+          'id',
+          'secret',
+          'https://tenant.example'
+        )
+      ).rejects.toThrow('time budget');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fails loudly, never with a partial set, past the taught-class ceiling', async () => {
+    manyClasses(MAX_TAUGHT_CLASSES + 1);
+    await expect(
+      loadClassLinkMembership(
+        'teacher@orono.k12.mn.us',
+        null,
+        'id',
+        'secret',
+        'https://tenant.example'
+      )
+    ).rejects.toThrow('too many classes');
+  });
+
+  it('puts a timeout on every ClassLink call', async () => {
+    route([{ sourcedId: 'T1', role: 'teacher' }]);
+    await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      [CLASS_A],
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(axiosGet).toHaveBeenCalledTimes(3);
+    for (const call of axiosGet.mock.calls as unknown[][]) {
+      expect((call[1] as { timeout?: number }).timeout).toBe(
+        CLASSLINK_TIMEOUT_MS
+      );
+    }
   });
 
   it('SECURITY: a student-only OneRoster caller resolves to no classes', async () => {

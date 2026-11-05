@@ -5558,6 +5558,10 @@ export const PublishedScoreReview: React.FC<{
   const correctCount = myResponse.answers.filter(
     (a) => autoGradedQuestionIds.has(a.questionId) && a.isCorrect === true
   ).length;
+  // A score-on-submit result below the responses level carries no right/wrong to count.
+  const hasVerdicts = myResponse.answers.some(
+    (a) => typeof a.isCorrect === 'boolean'
+  );
   // A written answer with no grade entry is still owed a teacher grade, so any
   // score shown here is provisional (M12 decision 8 / RR-06). Detected from the
   // student's own response — no answer key is exposed to this view.
@@ -5821,11 +5825,12 @@ export const PublishedScoreReview: React.FC<{
                   written-response questions where "fully correct" is a
                   category error. Hide the line on essay-only quizzes; on
                   mixed quizzes it counts only the auto-graded subset. */}
-              {autoGradedCount > 0 && (!picked || picked.answers) && (
-                <p className={`mt-2 text-sm ${subtleText}`}>
-                  {correctCount} of {autoGradedCount} fully correct
-                </p>
-              )}
+              {autoGradedCount > 0 &&
+                (picked ? !!picked.answers : hasVerdicts) && (
+                  <p className={`mt-2 text-sm ${subtleText}`}>
+                    {correctCount} of {autoGradedCount} fully correct
+                  </p>
+                )}
               {(awaitingGrade || recordingAwaitingGrade) && (
                 <p
                   className={`mt-2 text-sm font-semibold ${

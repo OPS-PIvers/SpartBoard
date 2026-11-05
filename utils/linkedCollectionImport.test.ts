@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { Dashboard } from '@/types';
 import {
+  freeLinkedBoardId,
+  linkedBoardFromShare,
   orderSectionsParentsFirst,
   parseLinkedCollectionPath,
   safeName,
@@ -122,5 +125,52 @@ describe('collaborator-written fields', () => {
     expect(safeName(' Unit 3 ', 'Fallback')).toBe('Unit 3');
     expect(safeStyleValue('#ad2122')).toBe('#ad2122');
     expect(safeStyleValue({})).toBeUndefined();
+  });
+});
+
+describe('freeLinkedBoardId', () => {
+  it('uses the share id when no board has it', () => {
+    expect(freeLinkedBoardId('s1')).toBe('linked-s1');
+    expect(freeLinkedBoardId('s1', new Set(['other']))).toBe('linked-s1');
+  });
+  it('numbers the id when a board already has it', () => {
+    expect(freeLinkedBoardId('s1', new Set(['linked-s1']))).toBe('linked-s1-2');
+    expect(freeLinkedBoardId('s1', new Set(['linked-s1', 'linked-s1-2']))).toBe(
+      'linked-s1-3'
+    );
+  });
+});
+
+describe('linkedBoardFromShare id', () => {
+  const entry = { shareId: 's1', name: 'A', order: 0 };
+  const snap = { id: 's1', name: 'A', widgets: [] } as unknown as Dashboard;
+  const opts = {
+    uid: 'me',
+    role: 'collaborator' as const,
+    fallbackName: 'Week',
+    order: 1,
+  };
+  it('keeps the fixed id by default', () => {
+    expect(linkedBoardFromShare(entry, snap, opts).id).toBe('linked-s1');
+  });
+  it('never takes an id a board already has', () => {
+    const taken = new Set(['linked-s1']);
+    expect(
+      linkedBoardFromShare(entry, snap, { ...opts, takenIds: taken }).id
+    ).toBe('linked-s1-2');
+  });
+  it('drops a stored Drive file id and host linkage the share doc carries', () => {
+    const poisoned = {
+      ...snap,
+      driveFileId: 'victim-drive-file',
+      thumbnailUrl: 'https://host.example/t.png',
+      sharedGroups: [{ id: 'g' }],
+      isDefault: true,
+    } as unknown as Dashboard;
+    const board = linkedBoardFromShare(entry, poisoned, opts);
+    expect(board.driveFileId).toBeUndefined();
+    expect(board.thumbnailUrl).toBeUndefined();
+    expect(board.sharedGroups).toBeUndefined();
+    expect(board.isDefault).toBe(false);
   });
 });

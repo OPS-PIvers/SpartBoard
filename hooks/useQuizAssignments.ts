@@ -111,6 +111,7 @@ import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
+  QUIZ_READ_ALOUD_DOC,
   type QuizSessionContent,
 } from '@/utils/quizSessionContent';
 import { isFreeResponseType } from '@/types';
@@ -2114,6 +2115,15 @@ export const useQuizAssignments = (
         typeof sessionCodeField === 'string' ? sessionCodeField : '';
       // Its own write, and it must land first: once the session goes, no rule can reach it.
       if (sessionSnap?.data()?.questionsInContent === true) {
+        await deleteDoc(
+          doc(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            assignmentId,
+            QUIZ_CONTENT_COLLECTION,
+            QUIZ_READ_ALOUD_DOC
+          )
+        );
         await deleteDoc(
           doc(
             db,

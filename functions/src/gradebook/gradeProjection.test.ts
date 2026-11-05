@@ -422,7 +422,7 @@ describe('triggers', () => {
         after: { exists: true, data: () => response },
       },
     });
-    expect(stub.get('grade_index_sessions/qs1')).toMatchObject({
+    expect(stub.get('grade_index_sessions/quiz__qs1')).toMatchObject({
       kind: 'quiz',
     });
   });
@@ -442,7 +442,7 @@ describe('triggers', () => {
         },
       },
     });
-    expect(stub.get('grade_index_sessions/qs1')).toMatchObject({
+    expect(stub.get('grade_index_sessions/quiz__qs1')).toMatchObject({
       kind: 'quiz',
     });
   });
@@ -471,14 +471,14 @@ describe('side-doc ownership', () => {
 
   it('queues when the writer owns the session', async () => {
     const stub = await run({ 'quiz_sessions/qs1': { teacherUid: 't1' } }, 't1');
-    expect(stub.has('grade_index_sessions/qs1')).toBe(true);
+    expect(stub.has('grade_index_sessions/quiz__qs1')).toBe(true);
   });
 
   it('ignores a non-owner and a missing session', async () => {
     const other = await run({ 'quiz_sessions/qs1': { teacherUid: 't1' } }, 'x');
-    expect(other.has('grade_index_sessions/qs1')).toBe(false);
+    expect(other.has('grade_index_sessions/quiz__qs1')).toBe(false);
     const missing = await run({}, 'x');
-    expect(missing.has('grade_index_sessions/qs1')).toBe(false);
+    expect(missing.has('grade_index_sessions/quiz__qs1')).toBe(false);
   });
 });
 

@@ -162,6 +162,8 @@ export interface BankSource {
   bankId: string;
   /** Set when the bank is PLC-shared (own or a teammate's). */
   syncGroupId?: string;
+  /** personal only: the signed-in owner of this synced bank. */
+  syncOwnerUid?: string;
   title: string;
   questionCount: number;
   targetIds: string[];
@@ -183,7 +185,8 @@ export interface SharedBankRow {
 /** Own banks first, then teammates' shared ones; own shared banks appear once. */
 export function mergeBankSources(
   own: QuestionBankMetadata[],
-  shared: SharedBankRow[]
+  shared: SharedBankRow[],
+  ownerUid?: string
 ): BankSource[] {
   const ownGroupIds = new Set<string>();
   const sources: BankSource[] = own.map((meta) => {
@@ -193,6 +196,7 @@ export function mergeBankSources(
       kind: 'personal' as const,
       bankId: meta.id,
       syncGroupId: meta.sync?.groupId,
+      syncOwnerUid: meta.sync ? ownerUid : undefined,
       title: meta.title,
       questionCount: meta.questionCount,
       targetIds: meta.targetIds ?? [],

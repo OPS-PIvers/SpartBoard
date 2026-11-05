@@ -145,6 +145,9 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
         id: crypto.randomUUID(),
         bankId: source.bankId,
         ...(source.syncGroupId ? { syncGroupId: source.syncGroupId } : {}),
+        ...(source.syncGroupId && (content.syncOwnerUid ?? source.syncOwnerUid)
+          ? { syncOwnerUid: content.syncOwnerUid ?? source.syncOwnerUid }
+          : {}),
         bankTitle: source.title,
         mode: 'random',
         count,

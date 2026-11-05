@@ -16,6 +16,65 @@ import {
 
 describe('DashboardContext AI Security Helpers', () => {
   describe('sanitizeAIConfig', () => {
+    it('drops a PDF url the model supplies', () => {
+      const sanitized = sanitizeAIConfig('pdf', {
+        activePdfUrl: 'https://evil.example/phish.html',
+        activePdfId: 'x',
+        activePdfName: 'n',
+      }) as Record<string, unknown>;
+      expect(sanitized).toEqual({});
+    });
+
+    it('gives a widget type with no AI keys an empty config', () => {
+      expect(
+        sanitizeAIConfig('webcam', {
+          snapshotUrl: 'https://evil.example',
+        })
+      ).toEqual({});
+    });
+
+    it('keeps only the keys a widget type may receive', () => {
+      const sanitized = sanitizeAIConfig('random', {
+        visualStyle: 'wheel',
+        iframeSrc: 'https://evil.example',
+      }) as Record<string, unknown>;
+      expect(sanitized).toEqual({ visualStyle: 'wheel' });
+      expect(
+        sanitizeAIConfig('clock', { format24: false, glow: true })
+      ).toEqual({ format24: false, glow: true });
+    });
+
+    it('keeps non-URL keys the model may reasonably set', () => {
+      expect(sanitizeAIConfig('traffic', { active: 'green' })).toEqual({
+        active: 'green',
+      });
+      expect(
+        sanitizeAIConfig('materials', {
+          selectedItems: ['pencil'],
+          title: 'Bring',
+          activeItems: ['x'],
+        })
+      ).toEqual({ selectedItems: ['pencil'], title: 'Bring' });
+      expect(
+        sanitizeAIConfig('instructionalRoutines', {
+          selectedRoutineId: 'tps',
+        })
+      ).toEqual({ selectedRoutineId: 'tps' });
+      expect(
+        sanitizeAIConfig('schedule', { rowStyle: 'lines', cardOpacity: 0.5 })
+      ).toEqual({ rowStyle: 'lines', cardOpacity: 0.5 });
+    });
+
+    it('ignores inherited keys', () => {
+      const polluted = Object.create({ content: 'x' }) as Record<
+        string,
+        unknown
+      >;
+      expect(sanitizeAIConfig('text', polluted)).toEqual({
+        content: '',
+      });
+    });
+
     it('removes html and activeApp from miniApp config', () => {
       const config = {
         html: '<script>alert("XSS")</script>',

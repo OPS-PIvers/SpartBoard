@@ -29,6 +29,12 @@ import {
 import { GRADE_INDEX } from './gradeIndex';
 import type { IndexRow, GradeKind } from './types';
 import {
+  CLASSLINK_CLIENT_ID,
+  CLASSLINK_CLIENT_SECRET,
+  CLASSLINK_TENANT_URL,
+  STUDENT_PSEUDONYM_HMAC_SECRET,
+} from '../secrets';
+import {
   applyAttemptGradeWrite,
   applyAttemptWrite,
 } from '../quizAttemptHistory';
@@ -49,6 +55,13 @@ interface WriteEvent {
 const TRIGGER_OPTS = { memory: '256MiB' as const, maxInstances: 20 };
 // Config edits re-project whole classes, so they get the long timeout.
 const FANOUT_OPTS = { ...TRIGGER_OPTS, timeoutSeconds: 540 };
+// Project rows are checked against the owner's live class roster.
+const ROSTER_SECRETS = [
+  CLASSLINK_CLIENT_ID,
+  CLASSLINK_CLIENT_SECRET,
+  CLASSLINK_TENANT_URL,
+  STUDENT_PSEUDONYM_HMAC_SECRET,
+];
 
 const dataOf = (side: Change['before'] | undefined): Doc | undefined =>
   side?.exists ? (side.data() ?? undefined) : undefined;
@@ -114,6 +127,7 @@ const studentDocTrigger = (kind: GradeKind) =>
   onDocumentWritten(
     {
       ...TRIGGER_OPTS,
+      ...(kind === 'projects' ? { secrets: ROSTER_SECRETS } : {}),
       document: `${SESSION_COLLECTION[kind]}/{sessionId}/${STUDENT_SUBCOLLECTION[kind]}/{docId}`,
     },
     (event) => handleStudentDocWrite(kind, event as unknown as WriteEvent)
@@ -475,6 +489,7 @@ export const gradeIndexRecompute = onSchedule(
     memory: '512MiB',
     maxInstances: 1,
     timeoutSeconds: 540,
+    secrets: ROSTER_SECRETS,
   },
   async () => {
     await runGradeIndexRecompute(admin.firestore());

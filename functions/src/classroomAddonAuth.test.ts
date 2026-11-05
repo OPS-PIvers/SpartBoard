@@ -278,6 +278,7 @@ describe('classroomAddonLoginV1 (spike)', () => {
       studentRole: true,
       orgId: 'org-orono',
       classIds: ['classroom:C1'],
+      firstName: 'Student',
     });
   });
 
@@ -331,6 +332,7 @@ describe('classroomAddonLoginV1 (spike)', () => {
       studentRole: true,
       orgId: 'org-orono',
       classIds: ['CL-SECTION-1', 'classroom:C1'],
+      firstName: 'Student',
     });
   });
 
@@ -361,6 +363,7 @@ describe('classroomAddonLoginV1 (spike)', () => {
       studentRole: true,
       orgId: 'org-orono',
       classIds: ['classroom:C1'],
+      firstName: 'Student',
     });
   });
 

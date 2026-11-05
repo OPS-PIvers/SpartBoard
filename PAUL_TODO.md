@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-126.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-128.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -13,6 +13,8 @@ Last audited 2026-11-01. Items removed as done: PT-73, PT-77, PT-81, PT-82, PT-8
 
 ## 1. Now: blocking a release or a person
 
+- [ ] **PT-126 🤖 Schoology section owner backfill, now due** (security wave 3, live since release #5189 on 2026-11-05). Until it runs, Schoology sections launched before the release show "Student" instead of names and refuse course linking until a student relaunches. On the PC with the prod key:
+  > Run `node scripts/backfill-lti-context-owners.mjs` on prod as a dry run and show me the counts, then re-run with `--apply` after I say go.
 - [ ] **PT-1 🤖 Quiz join code backfill, run 2** (F78). Run 1 and the security release are done; run 2 is what lets the next release drop the old-client rule (AB-47). Turn on the PC with the prod key (OPS-z6wXCDG6PbO), then paste:
   > Run the post-release quiz join code backfill on prod: `node scripts/backfill-quiz-join-codes.mjs --all` as a dry run, show me the counts, then `--all --apply` after I say go.
 - [ ] **PT-2 🤖 Re-run the widened demote script** (F73, #4900). The first run only checked auto-enrolled teacher records; this one checks all of them, which can include students. On the PC with the prod key and ClassLink env vars:
@@ -71,6 +73,8 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 ## 3. Prod steps that need your OK
 
+- [ ] **PT-127 🤖 Count hidden results left on older docs** (security wave 3, read-only). New writes keep these off student-readable docs; older ones stay until the teacher republishes. On the PC with the prod key:
+  > On prod, count (read-only, counts only): quiz responses with `scoredOnSubmitAttempt` and `isCorrect` whose session shows less than responses; Guided Learning sessions still holding `revealedAnswers`; quiz sessions with `questionsInContent` whose session doc still holds read-aloud `files` or `timings`; and `driveFileId` values that appear on dashboards of more than one user. Report counts; any cleanup needs my OK.
 - [ ] **PT-122 You: try the Claude connector without registration**. On spartboard-dev, Admin Settings > Access > Previews > District switches > "Claude connects without registering" > on. Wait 5 minutes, remove and re-add the dev connector in Claude, connect from claude.ai and from Claude Code (`/mcp`), and run one tool in each. If both work, turn the same row on in prod and repeat once. Turning it off puts Claude back on registration within 5 minutes.
 - [ ] **PT-60 🤖 Scrub active Video Activity sessions** (F19). Outside school hours, PC with the prod key:
   > Scrub the active VA sessions on prod with `--include-active` (4 sessions): dry run, then apply after I say go.

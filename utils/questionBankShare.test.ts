@@ -71,6 +71,34 @@ describe('reconcileBankSlotsForPlcShare', () => {
     expect(result.changed).toBe(false);
   });
 
+  it('pins the sharer when it stamps the group id', () => {
+    const result = reconcileBankSlotsForPlcShare(
+      { bankSlots: [slot()] },
+      [bank('bank-a', 'Bank A', { groupId: 'g1', plcIds: ['plc-1'] })],
+      'plc-1',
+      [],
+      'me'
+    );
+    expect(result.changed).toBe(true);
+    expect(result.bankSlots[0]).toMatchObject({
+      syncGroupId: 'g1',
+      syncOwnerUid: 'me',
+    });
+  });
+
+  it('leaves an already-synced slot without a pin alone', () => {
+    const legacy = slot({ syncGroupId: 'g1' });
+    const result = reconcileBankSlotsForPlcShare(
+      { bankSlots: [legacy] },
+      [bank('bank-a', 'Bank A', { groupId: 'g1', plcIds: ['plc-1'] })],
+      'plc-1',
+      [],
+      'me'
+    );
+    expect(result.changed).toBe(false);
+    expect(result.bankSlots[0]).toBe(legacy);
+  });
+
   it('accepts a teammate bank shared into the same PLC', () => {
     const result = reconcileBankSlotsForPlcShare(
       { bankSlots: [slot({ bankId: 'their-bank', syncGroupId: 'g9' })] },

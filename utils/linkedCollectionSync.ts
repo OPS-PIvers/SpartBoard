@@ -40,6 +40,7 @@ export const boardBelongsToShare = (
   linkId: string
 ): boolean =>
   board.id === linkedBoardLocalId(shareId) ||
+  board.id.startsWith(`${linkedBoardLocalId(shareId)}-`) ||
   shareId === linkedBoardShareId(linkId, board.id);
 
 /** The live linked collections this teacher has. */

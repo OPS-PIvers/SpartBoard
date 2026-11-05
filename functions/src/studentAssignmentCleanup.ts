@@ -12,6 +12,9 @@
  * docs too — so no `/student_assignments` query is needed — which also
  * keeps the A3 non-goal (no cross-assignment per-student querying) intact.
  * Assignments with no `targetStudents` (every pre-M17 doc) are a no-op.
+ *
+ * The refs on a deleted doc are client-written, so a pointer is deleted only
+ * when its own `teacherUid` is the user the deleted doc lived under.
  */
 
 import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
@@ -22,6 +25,7 @@ import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';
 import {
   STUDENT_ASSIGNMENTS_ROOT,
   STUDENT_ASSIGNMENT_ITEMS,
+  type AssignmentKind,
   pointerRefsFromAssignment,
   targetRefsFromAssignment,
   uidForRef,
@@ -37,28 +41,45 @@ export async function deletePointersForAssignment(
   db: admin.firestore.Firestore,
   assignmentId: string,
   refs: readonly StudentTargetRef[],
-  hmacSecret: string
+  hmacSecret: string,
+  ownerUid: string,
+  kind?: AssignmentKind
 ): Promise<number> {
-  if (refs.length === 0) return 0;
+  if (refs.length === 0 || !ownerUid) return 0;
   const uids = [...new Set(refs.map((ref) => uidForRef(ref, hmacSecret)))];
+  let removed = 0;
   for (let i = 0; i < uids.length; i += BATCH_OP_LIMIT) {
-    const batch = db.batch();
-    for (const uid of uids.slice(i, i + BATCH_OP_LIMIT)) {
-      batch.delete(
+    const pointerRefs = uids
+      .slice(i, i + BATCH_OP_LIMIT)
+      .map((uid) =>
         db
           .collection(STUDENT_ASSIGNMENTS_ROOT)
           .doc(uid)
           .collection(STUDENT_ASSIGNMENT_ITEMS)
           .doc(assignmentId)
       );
-    }
-    await batch.commit();
+    removed += await db.runTransaction(async (tx) => {
+      const snaps = await Promise.all(pointerRefs.map((ref) => tx.get(ref)));
+      let count = 0;
+      for (const snap of snaps) {
+        if (!snap.exists) continue;
+        const pointerKind: unknown = snap.get('kind');
+        if (snap.get('teacherUid') !== ownerUid) continue;
+        if (kind && typeof pointerKind === 'string' && pointerKind !== kind)
+          continue;
+        tx.delete(snap.ref);
+        count += 1;
+      }
+      return count;
+    });
   }
-  return uids.length;
+  return removed;
 }
 
 async function handleAssignmentDeleted(
   assignmentId: string,
+  ownerUid: string,
+  kind: AssignmentKind,
   data: Record<string, unknown> | undefined
 ): Promise<void> {
   const refs = pointerRefsFromAssignment(data);
@@ -74,7 +95,9 @@ async function handleAssignmentDeleted(
     admin.firestore(),
     assignmentId,
     refs,
-    hmacSecret
+    hmacSecret,
+    ownerUid,
+    kind
   );
   logger.info('studentAssignmentCleanup: pointers removed', {
     assignmentId,
@@ -92,29 +115,54 @@ const triggerOptions = (document: string) => ({
 export const cleanupQuizAssignmentPointers = onDocumentDeleted(
   triggerOptions('users/{userId}/quiz_assignments/{assignmentId}'),
   (event) =>
-    handleAssignmentDeleted(event.params.assignmentId, event.data?.data())
+    handleAssignmentDeleted(
+      event.params.assignmentId,
+      event.params.userId,
+      'quiz',
+      event.data?.data()
+    )
 );
 
 export const cleanupVideoActivityAssignmentPointers = onDocumentDeleted(
   triggerOptions('users/{userId}/video_activity_assignments/{assignmentId}'),
   (event) =>
-    handleAssignmentDeleted(event.params.assignmentId, event.data?.data())
+    handleAssignmentDeleted(
+      event.params.assignmentId,
+      event.params.userId,
+      'video-activity',
+      event.data?.data()
+    )
 );
 
 export const cleanupGuidedLearningAssignmentPointers = onDocumentDeleted(
   triggerOptions('users/{userId}/guided_learning_assignments/{assignmentId}'),
   (event) =>
-    handleAssignmentDeleted(event.params.assignmentId, event.data?.data())
+    handleAssignmentDeleted(
+      event.params.assignmentId,
+      event.params.userId,
+      'guided-learning',
+      event.data?.data()
+    )
 );
 
 export const cleanupMiniAppAssignmentPointers = onDocumentDeleted(
   triggerOptions('users/{userId}/miniapp_assignments/{assignmentId}'),
   (event) =>
-    handleAssignmentDeleted(event.params.assignmentId, event.data?.data())
+    handleAssignmentDeleted(
+      event.params.assignmentId,
+      event.params.userId,
+      'mini-app',
+      event.data?.data()
+    )
 );
 
 export const cleanupFlashcardAssignmentPointers = onDocumentDeleted(
   triggerOptions('users/{userId}/flashcard_assignments/{assignmentId}'),
   (event) =>
-    handleAssignmentDeleted(event.params.assignmentId, event.data?.data())
+    handleAssignmentDeleted(
+      event.params.assignmentId,
+      event.params.userId,
+      'flashcards',
+      event.data?.data()
+    )
 );

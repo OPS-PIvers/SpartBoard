@@ -24,7 +24,8 @@ export function reconcileBankSlotsForPlcShare(
   quiz: Pick<QuizData, 'bankSlots'>,
   ownBanks: readonly QuestionBankMetadata[],
   plcId: string,
-  sharedSources: readonly SharedBankRef[] = []
+  sharedSources: readonly SharedBankRef[] = [],
+  ownerUid?: string
 ): BankSlotShareReconciliation {
   const unsharedBankTitles: string[] = [];
   let changed = false;
@@ -40,7 +41,11 @@ export function reconcileBankSlotsForPlcShare(
       }
       if (slot.syncGroupId === sync.groupId) return slot;
       changed = true;
-      return { ...slot, syncGroupId: sync.groupId };
+      return {
+        ...slot,
+        syncGroupId: sync.groupId,
+        ...(ownerUid ? { syncOwnerUid: ownerUid } : {}),
+      };
     }
     const viaPlc = sharedSources.some(
       (s) =>

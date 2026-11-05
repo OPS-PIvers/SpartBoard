@@ -15,7 +15,10 @@ import {
 export type BankContent = Pick<
   QuestionBankData,
   'id' | 'title' | 'questions' | 'stimuli' | 'targets'
->;
+> & {
+  /** Owner read from the synced doc itself; absent on Drive banks. */
+  syncOwnerUid?: string;
+};
 
 /** Key under which a slot's bank content is looked up: the synced group when shared. */
 export function bankSlotKey(

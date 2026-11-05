@@ -29,6 +29,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { dropPinLogin } from '@/utils/pinLoginScope';
+import { useStudentTokenFirstName } from './engagement/useStudentTokenFirstName';
 import { useResolvedFirebaseUser } from '@/hooks/useResolvedFirebaseUser';
 import {
   normalizeActivityWallSession,
@@ -432,6 +433,8 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
   const showNames = session.showNames ?? false;
   // Counts are visible to everyone; only signed-in viewers can post.
   const canWrite = !viewer.isAnonymous;
+  // A signed-in student comments under the name on their token, so the name/PIN boxes are skipped.
+  const tokenFirstName = useStudentTokenFirstName(viewer);
   const renderFooter = useMemo(
     () =>
       makeEngagementFooter({
@@ -439,10 +442,19 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
         canWrite,
         flags,
         identificationMode,
+        participantLabel: tokenFirstName,
         showNames,
         engagement,
       }),
-    [viewer.uid, canWrite, flags, identificationMode, showNames, engagement]
+    [
+      viewer.uid,
+      canWrite,
+      flags,
+      identificationMode,
+      tokenFirstName,
+      showNames,
+      engagement,
+    ]
   );
 
   return (
@@ -469,6 +481,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
             )}
           </div>
           <button
+            // no-tour-anchor: student wall gallery image-size toggle, which never shows on the board
             type="button"
             onClick={() => setImageSize(nextWallImageSize(imageSize))}
             aria-label={`Image size: ${WALL_IMAGE_SIZE_LABEL[imageSize]}. Click to change.`}

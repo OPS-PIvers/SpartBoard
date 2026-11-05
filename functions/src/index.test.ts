@@ -3100,7 +3100,7 @@ describe('getPseudonymsForAssignmentV1', () => {
     isMember: boolean;
     testClassPath: string;
     testClass: { memberEmails?: string[] } | null;
-    ownsRoster: boolean;
+    roleId: string;
   }) => {
     const memberPath = `organizations/${opts.orgId}/members/${opts.teacherEmailLower}`;
     mockFirestore.doc.mockImplementation((path: string) => {
@@ -3108,7 +3108,12 @@ describe('getPseudonymsForAssignmentV1', () => {
         return {
           path,
           get: vi.fn(() =>
-            Promise.resolve({ exists: opts.isMember, data: () => ({}) })
+            Promise.resolve({
+              exists: opts.isMember,
+              data: () => ({ roleId: opts.roleId }),
+              get: (field: string) =>
+                field === 'roleId' ? opts.roleId : undefined,
+            })
           ),
         } as any;
       }
@@ -3126,24 +3131,6 @@ describe('getPseudonymsForAssignmentV1', () => {
       }
       return { path, get: vi.fn(() => Promise.resolve({ exists: false })) };
     });
-
-    const rostersPath = `users/${opts.teacherUid}/rosters`;
-    const baseCollectionImpl = mockFirestore.collection.getMockImplementation();
-    mockFirestore.collection.mockImplementation((name: string) => {
-      if (name === rostersPath) {
-        return {
-          where: vi.fn(() => ({
-            limit: vi.fn(() => ({
-              get: vi.fn(() =>
-                Promise.resolve({ empty: !opts.ownsRoster, docs: [] })
-              ),
-            })),
-          })),
-        } as any;
-      }
-      // Fall back to the existing collection mock for unrelated collections.
-      return baseCollectionImpl ? baseCollectionImpl(name) : ({} as any);
-    });
   };
 
   it('returns pseudonyms keyed by HMAC("test:{email}") for a test-class assignment', async () => {
@@ -3159,7 +3146,7 @@ describe('getPseudonymsForAssignmentV1', () => {
           'OtherStudent@orono.k12.mn.us',
         ],
       },
-      ownsRoster: true,
+      roleId: 'domain_admin',
     });
     // axios.get must NOT be called for the test-class branch — assert by
     // not installing any URL-aware responses (default reject would surface
@@ -3233,7 +3220,7 @@ describe('getPseudonymsForAssignmentV1', () => {
       isMember: false, // ← not in the org members collection
       testClassPath: 'organizations/orono/testClasses/mock-period-1',
       testClass: { memberEmails: ['s1@orono.k12.mn.us'] },
-      ownsRoster: true,
+      roleId: 'domain_admin',
     });
 
     const handler = getPseudonymsForAssignmentV1 as any;
@@ -3249,7 +3236,7 @@ describe('getPseudonymsForAssignmentV1', () => {
     ).rejects.toThrow('Not a member of this organization.');
   });
 
-  it("rejects when the teacher doesn't own a roster with matching testClassId", async () => {
+  it('rejects a teacher who is not a test-class authority', async () => {
     installTestClassMocks({
       orgId: 'orono',
       teacherEmailLower: 'teacher@district.org',
@@ -3257,7 +3244,7 @@ describe('getPseudonymsForAssignmentV1', () => {
       isMember: true,
       testClassPath: 'organizations/orono/testClasses/mock-period-1',
       testClass: { memberEmails: ['s1@orono.k12.mn.us'] },
-      ownsRoster: false, // ← teacher hasn't imported this test class
+      roleId: 'teacher', // ← not a test-class authority
     });
 
     const handler = getPseudonymsForAssignmentV1 as any;
@@ -3281,7 +3268,7 @@ describe('getPseudonymsForAssignmentV1', () => {
       isMember: true,
       testClassPath: 'organizations/orono/testClasses/c-1',
       testClass: null, // ← real ClassLink class, not a test class
-      ownsRoster: false, // ← irrelevant; ownership gate is only for test classes
+      roleId: 'teacher', // ← irrelevant; the authority gate is only for test classes
     });
     // Configure the standard ClassLink mocks so the fall-through path
     // can complete and we can assert the existing branch behavior.
@@ -3930,6 +3917,9 @@ describe('index barrel — deployed export set', () => {
     'markPlcAssessmentDirtyOnResponse',
     'recomputePlcAssessments',
     'pollCodePointer',
+    'resolvePollCodeV1',
+    'mintPollCodeV1',
+    'guidedLearningLateRevealKey',
     // Gradebook grade index + student projection
     'gradeIndexQuizResponse',
     'gradeIndexVideoResponse',

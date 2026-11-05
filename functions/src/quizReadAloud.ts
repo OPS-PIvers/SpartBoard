@@ -884,6 +884,34 @@ async function withRetry<T>(
   throw lastError;
 }
 
+// ── Per-period manifests ───────────────────────────────────────────────────
+
+/** Fields of the manifest that name cache paths, so they reveal the spoken text. */
+export const READ_ALOUD_PATH_FIELDS = [
+  'files',
+  'timings',
+  'stimulusChunks',
+  'localized',
+] as const;
+
+/** A session that keeps its questions in the content doc keeps its audio paths there too. */
+export function readAloudGated(session: Record<string, unknown>): boolean {
+  return session.questionsInContent === true;
+}
+
+/** Deletes every path field from the session-doc manifest. */
+function pathFieldsDeleted(): Record<string, unknown> {
+  return Object.fromEntries(
+    READ_ALOUD_PATH_FIELDS.map((f) => [f, admin.firestore.FieldValue.delete()])
+  );
+}
+
+/** `content/readAloud`: the manifest paths, behind the same period gate as the questions, apart from them so patches stay small. */
+export const readAloudDocRef = (
+  sessionRef: admin.firestore.DocumentReference
+): admin.firestore.DocumentReference =>
+  sessionRef.collection('content').doc('readAloud');
+
 // ── prepareQuizReadAloudV1 ─────────────────────────────────────────────────
 
 export async function prepareQuizReadAloud(
@@ -932,13 +960,14 @@ export async function prepareQuizReadAloud(
       : settings.defaultLanguage;
   const voices = voicesForLanguage(settings, language);
   const teacherUid = input.callerUid;
+  const gated = readAloudGated(session);
   await sessionRef.set(
     {
       readAloud: {
         status: 'preparing',
         voice: voices.neural2,
         startedAt: nowMs,
-        files: existingFiles,
+        ...(gated ? pathFieldsDeleted() : { files: existingFiles }),
       },
     },
     { merge: true }
@@ -1066,7 +1095,19 @@ export async function prepareQuizReadAloud(
   const status: PrepareQuizReadAloudResult['status'] =
     englishStatus === 'ready' && localizedFailed ? 'partial' : englishStatus;
   const totalParts = parts.length + localizedParts;
+  const paths = {
+    files,
+    timings,
+    stimulusChunks,
+    ...(Object.keys(localized).length > 0 ? { localized } : {}),
+  };
   try {
+    // Behind the content doc's period gate.
+    if (gated)
+      await readAloudDocRef(sessionRef).set(
+        { voice: voices.neural2, ...paths },
+        { merge: true }
+      );
     await sessionRef.set(
       {
         readAloud: {
@@ -1074,11 +1115,8 @@ export async function prepareQuizReadAloud(
           voice: voices.neural2,
           preparedAt: deps.now(),
           startedAt: admin.firestore.FieldValue.delete(),
-          files,
-          timings,
-          stimulusChunks,
           failedKeys,
-          ...(Object.keys(localized).length > 0 ? { localized } : {}),
+          ...(gated ? pathFieldsDeleted() : paths),
         },
       },
       { merge: true }
@@ -1286,10 +1324,59 @@ export async function synthesizeQuizAudio(
       : settings.defaultLanguage
   ).neural2;
   const nowMs = deps.now();
-  const manifestBase =
-    typeof session.readAloud === 'object' && session.readAloud !== null
-      ? {}
-      : { status: 'partial', voice: sessionVoice, files: {} };
+  const hasManifest =
+    typeof session.readAloud === 'object' && session.readAloud !== null;
+  const gated = readAloudGated(session);
+  // Saves the new paths so the next student plays straight from Storage.
+  const writeManifestPaths = async (paths: Record<string, unknown>) => {
+    if (!gated) {
+      await sessionRef.set(
+        {
+          readAloud: {
+            ...(hasManifest
+              ? {}
+              : { status: 'partial', voice: sessionVoice, files: {} }),
+            ...paths,
+          },
+        },
+        { merge: true }
+      );
+      return;
+    }
+    const onSession = hasManifest
+      ? (session.readAloud as Record<string, unknown>)
+      : {};
+    // Paths prepared before they moved: carry them over so they keep playing, then clear them.
+    const stalePaths = Object.fromEntries(
+      READ_ALOUD_PATH_FIELDS.filter((f) => f in onSession).map((f) => [
+        f,
+        onSession[f],
+      ])
+    );
+    const stale = Object.keys(stalePaths).length > 0;
+    if (stale)
+      await readAloudDocRef(sessionRef).set(
+        { voice: sessionVoice, ...stalePaths },
+        { merge: true }
+      );
+    await readAloudDocRef(sessionRef).set(
+      { voice: sessionVoice, ...paths },
+      { merge: true }
+    );
+    if (stale)
+      await sessionRef.set({ readAloud: pathFieldsDeleted() }, { merge: true });
+  };
+  // A failed cache write must never fail playback; the next student re-patches.
+  const patchManifest = async (paths: Record<string, unknown>) => {
+    try {
+      await writeManifestPaths(paths);
+    } catch (error) {
+      console.warn('[quizReadAloud] manifest patch failed', {
+        sessionId: request.sessionId,
+        error,
+      });
+    }
+  };
 
   if (request.part.kind === 'stimulus') {
     // Stimulus passages are not translated, so a translated view has no stimulus audio.
@@ -1337,12 +1424,7 @@ export async function synthesizeQuizAudio(
       if (result.cached) hits += 1;
       else cached = false;
     }
-    await sessionRef.set(
-      {
-        readAloud: { ...manifestBase, files, stimulusChunks: { [sid]: keys } },
-      },
-      { merge: true }
-    );
+    await patchManifest({ files, stimulusChunks: { [sid]: keys } });
     await recordCacheHits(db, hits, nowMs);
     return {
       path: paths[0],
@@ -1367,23 +1449,17 @@ export async function synthesizeQuizAudio(
     files: { [key]: result.path },
     ...(result.timings ? { timings: { [key]: result.timings } } : {}),
   };
-  await sessionRef.set(
-    {
-      readAloud: {
-        ...manifestBase,
-        ...(request.locale
-          ? {
-              localized: {
-                [request.locale]: {
-                  voice: voices.neural2,
-                  ...slice,
-                },
-              },
-            }
-          : slice),
-      },
-    },
-    { merge: true }
+  await patchManifest(
+    request.locale
+      ? {
+          localized: {
+            [request.locale]: {
+              voice: voices.neural2,
+              ...slice,
+            },
+          },
+        }
+      : slice
   );
   if (result.cached) await recordCacheHits(db, 1, nowMs);
   return {
