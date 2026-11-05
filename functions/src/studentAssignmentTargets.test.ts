@@ -2466,6 +2466,65 @@ describe('loadClassLinkMembership', () => {
     ).toBe(0);
   });
 
+  it('pages through a class bigger than one page of students', async () => {
+    const page = (from: number, count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        sourcedId: `kid-${from + i}`,
+      }));
+    axiosGet.mockImplementation(
+      (url: string, config?: { params?: { offset?: string } }) => {
+        if (url.endsWith('/users'))
+          return Promise.resolve({
+            data: { users: [{ sourcedId: 'T1', role: 'teacher' }] },
+          });
+        if (url.endsWith('/classes'))
+          return Promise.resolve({
+            data: { classes: [{ sourcedId: CLASS_A }] },
+          });
+        const offset = Number(config?.params?.offset ?? 0);
+        return Promise.resolve({
+          data: { users: offset === 0 ? page(0, 200) : page(200, 50) },
+        });
+      }
+    );
+    const out = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      [CLASS_A],
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(out.size).toBe(250);
+    expect(out.get('kid-249')).toBe(CLASS_A);
+  });
+
+  it('fails rather than return a class it cannot prove it read in full', async () => {
+    axiosGet.mockImplementation((url: string) => {
+      if (url.endsWith('/users'))
+        return Promise.resolve({
+          data: { users: [{ sourcedId: 'T1', role: 'teacher' }] },
+        });
+      if (url.endsWith('/classes'))
+        return Promise.resolve({ data: { classes: [{ sourcedId: CLASS_A }] } });
+      return Promise.resolve({
+        data: {
+          users: Array.from({ length: 200 }, (_, i) => ({
+            sourcedId: `k${i}`,
+          })),
+        },
+      });
+    });
+    await expect(
+      loadClassLinkMembership(
+        'teacher@orono.k12.mn.us',
+        [CLASS_A],
+        'id',
+        'secret',
+        'https://tenant.example'
+      )
+    ).rejects.toThrow('page cap');
+  });
+
   it('SECURITY: a student-only OneRoster caller resolves to no classes', async () => {
     route([{ sourcedId: 'S1', roles: [{ role: 'student' }] }]);
     const out = await loadClassLinkMembership(

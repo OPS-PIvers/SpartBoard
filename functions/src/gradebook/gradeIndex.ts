@@ -806,6 +806,7 @@ export const RECOMPUTE_BUDGET_MS = 420_000;
 
 /** Drains the dirty queue; a session re-dirtied mid-run stays queued. */
 const MAX_RECOMPUTE_FAILURES = 5;
+const BACKOFF_FETCH_FACTOR = 3;
 const ROSTER_RETRY_BASE_MS = 5 * 60_000;
 const ROSTER_RETRY_MAX_MS = 60 * 60_000;
 
@@ -816,20 +817,23 @@ export async function drainDirtySessions(
   const snap = await db
     .collection(GRADE_INDEX_QUEUE)
     .orderBy('dirtyAt', 'asc')
-    .limit(limit)
+    .limit(limit * BACKOFF_FETCH_FACTOR)
     .get();
   let recomputed = 0;
   let failed = 0;
+  let due = 0;
   const started = Date.now();
   for (const doc of snap.docs) {
-    if (Date.now() - started > RECOMPUTE_BUDGET_MS) break;
+    if (Date.now() - started > RECOMPUTE_BUDGET_MS || due >= limit) break;
     const data = doc.data();
     const kind = data.kind as GradeKind;
     if (!(kind in SESSION_COLLECTION)) {
       await doc.ref.delete();
       continue;
     }
+    // Entries backing off are skipped without using up a slot; the query reads extra to make room.
     if (typeof data.retryAt === 'number' && data.retryAt > Date.now()) continue;
+    due++;
     try {
       await recomputeSession(db, kind, asString(data.sessionId) || doc.id);
       recomputed++;
