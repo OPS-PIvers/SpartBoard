@@ -75,6 +75,8 @@ interface FlashcardMonitorProps {
   published: boolean;
   onBack: () => void;
   onResetStudent: (studentUid: string) => void;
+  /** Unlock results for a student locked out of them. */
+  unlockFor?: (studentUid: string) => (() => void) | undefined;
   onResolveFlag: (
     studentUid: string,
     cardId: string,
@@ -198,6 +200,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   published,
   onBack,
   onResetStudent,
+  unlockFor,
   onResolveFlag,
   letInFor,
   onPublish,
@@ -721,6 +724,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                 onUpdatePrefs={onUpdatePrefs}
                 letInFor={letInFor}
                 onRemove={onResetStudent}
+                unlockFor={unlockFor}
                 belowCount={flagCountFor}
                 renderBelow={renderFlagsFor}
               />

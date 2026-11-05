@@ -8,6 +8,7 @@ import {
   ExternalLink,
   FileSpreadsheet,
   Loader2,
+  Lock,
   Printer,
   RefreshCw,
 } from 'lucide-react';
@@ -26,7 +27,8 @@ import { QuizDriveService } from '@/utils/quizDriveService';
 import { logError } from '@/utils/logError';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { ScorePill } from '@/components/common/sessionViews';
+import { ScorePill, SessionBadge } from '@/components/common/sessionViews';
+import { resolveFlashcardResultsVisibility } from '@/utils/flashcardResultsVisibility';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import {
   buildCheckRows,
@@ -99,6 +101,8 @@ interface FlashcardResultsScreenProps {
   studentResultsActions?: StudentResultsActions;
   /** The class-wide level, in Quiz's terms. */
   classVisibility?: QuizScoreVisibility;
+  /** Lets a student locked out of their results back in. */
+  onUnlockResults?: (studentUid: string) => Promise<void>;
 }
 
 // Same header colour as the Flashcards library, so the widget reads as one piece.
@@ -194,6 +198,7 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
   addToast,
   studentResultsActions,
   classVisibility = 'none',
+  onUnlockResults,
 }) => {
   const { ensureGoogleScope, isExternalUser, user } = useAuth();
   const selection = useStudentResultsSelection();
@@ -251,6 +256,24 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
   const overrideByUid = useMemo(
     () => new Map(results.map((r) => [r.studentUid, r.resultsOverride])),
     [results]
+  );
+  // Students who left their protected results too often, with the count that locked them.
+  const lockedByUid = useMemo(
+    () =>
+      new Map(
+        results
+          .filter((r) => r.resultsLockedOut === true)
+          .map((r) => [
+            r.studentUid,
+            {
+              warnings: r.resultsTabWarnings ?? 0,
+              threshold:
+                resolveFlashcardResultsVisibility(session, r).protection
+                  ?.tabWarningThreshold ?? 3,
+            },
+          ])
+      ),
+    [results, session]
   );
 
   // Numbered by real name, so "Student 3" is the same student on every screen.
@@ -384,6 +407,9 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
     if (!row || !response) return null;
     const open = openStudent === uid;
     const name = shownName(uid);
+    const locked = lockedByUid.get(uid);
+    const unlock =
+      locked && onUnlockResults ? () => onUnlockResults(uid) : undefined;
     const drilldown = open
       ? computeStudentDrilldown(quiz.questions, response, flashcardGradeFn)
       : null;
@@ -448,6 +474,18 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
             {resultsActions && (
               <ResultsOverrideBadge override={overrideByUid.get(uid)} />
             )}
+            {locked && (
+              <span
+                title={`Results locked after ${locked.warnings} of ${locked.threshold} tab-switch warnings`}
+                className="shrink-0"
+              >
+                <SessionBadge
+                  tone="warn"
+                  icon={Lock}
+                  label={`Locked (${locked.warnings}/${locked.threshold})`}
+                />
+              </span>
+            )}
           </div>
           <div
             className="flex items-center shrink-0"
@@ -495,6 +533,7 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
                   tourId="flashcards.results-student-menu-item"
                   tourScope="flashcards"
                   dialogAnchors={SHOW_DIALOG_ANCHORS}
+                  onUnlock={unlock}
                 />
               </span>
             )}
@@ -521,6 +560,7 @@ const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
                 addToast={addToast}
                 panelAnchors={PANEL_ANCHORS}
                 dialogAnchors={SHOW_DIALOG_ANCHORS}
+                onUnlock={unlock}
               />
             )}
             {drilldown.lines.length === 0 ? (

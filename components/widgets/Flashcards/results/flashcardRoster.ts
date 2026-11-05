@@ -62,10 +62,11 @@ export const orderFlashcardRoster = <T extends FlashcardRosterStudent>(
     : ordered;
 };
 
-/** Let in now and Remove student, as in the Quiz monitor's student menu. */
+/** Let in now, Unlock results and Remove student, as in the Quiz monitor's student menu. */
 export const flashcardMenuItems = (
   letIn: (() => void) | undefined,
-  onRemove: () => void
+  onRemove: () => void,
+  unlockResults?: () => void
 ): RosterMenuItem[] => [
   ...(letIn
     ? [
@@ -78,6 +79,19 @@ export const flashcardMenuItems = (
             'let-in'
           ),
           onClick: letIn,
+        },
+      ]
+    : []),
+  ...(unlockResults
+    ? [
+        {
+          label: 'Unlock results',
+          tour: tourFieldAttr(
+            'flashcards.student-menu-item',
+            'flashcards',
+            'unlock-results'
+          ),
+          onClick: unlockResults,
         },
       ]
     : []),

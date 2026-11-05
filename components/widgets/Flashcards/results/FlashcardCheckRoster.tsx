@@ -40,6 +40,8 @@ export const FlashcardCheckRoster: React.FC<{
   onUpdatePrefs: (updates: Partial<MonitorRosterPrefs>) => void;
   letInFor: (studentUid: string) => (() => void) | undefined;
   onRemove: (studentUid: string) => void;
+  /** Unlock results for a student locked out of them; undefined hides the item. */
+  unlockFor?: (studentUid: string) => (() => void) | undefined;
   /** Flagged answers a student has, so anchor numbering is worked out up front. */
   belowCount: (studentUid: string) => number;
   renderBelow: (studentUid: string, firstIndex: number) => React.ReactNode;
@@ -52,6 +54,7 @@ export const FlashcardCheckRoster: React.FC<{
   onUpdatePrefs,
   letInFor,
   onRemove,
+  unlockFor,
   belowCount,
   renderBelow,
 }) => {
@@ -121,8 +124,10 @@ export const FlashcardCheckRoster: React.FC<{
                 'flashcards',
                 field
               )}
-              items={flashcardMenuItems(letInFor(s.studentUid), () =>
-                onRemove(s.studentUid)
+              items={flashcardMenuItems(
+                letInFor(s.studentUid),
+                () => onRemove(s.studentUid),
+                unlockFor?.(s.studentUid)
               )}
             />
           </RosterRow>

@@ -81,6 +81,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     resetStudent,
     resolveFlag,
     setResultsOverride,
+    unlockResults,
   } = useFlashcardResults(assignment.sessionId);
   useSyncPlcFlashcardResult(
     assignment,
@@ -415,6 +416,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         launchedBy={launchedBy}
         addToast={addToast}
         studentResultsActions={studentResultsActions}
+        onUnlockResults={unlockResults}
         classVisibility={flashcardClassVisibility(
           session.scoreVisibility ?? assignment.scoreVisibility
         )}
@@ -470,6 +472,20 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
           onBack={onBack}
           onResetStudent={(uid) =>
             void (quizStyle ? handleRemove(uid) : handleReset(uid))
+          }
+          unlockFor={(uid) =>
+            results.some((r) => r.studentUid === uid && r.resultsLockedOut)
+              ? () =>
+                  void unlockResults(uid)
+                    .then(() => addToast('Results unlocked.', 'success'))
+                    .catch((unlockError: unknown) => {
+                      logError(
+                        'FlashcardResultsView.unlockResults',
+                        unlockError
+                      );
+                      addToast('Could not unlock results. Try again.', 'error');
+                    })
+              : undefined
           }
           quizStyle={quizStyle}
           prefs={monitorPrefs}

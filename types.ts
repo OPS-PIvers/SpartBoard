@@ -9759,6 +9759,10 @@ export interface FlashcardProgress
   flags?: FlashcardFlag[];
   /** Teacher-written: this student's results setting, overriding the class one. */
   resultsOverride?: QuizResultsOverride;
+  /** Times the student left their published results; the teacher's Unlock lowers it. */
+  resultsTabWarnings?: number;
+  resultsLockedOut?: boolean;
+  resultsLockedOutAt?: number;
 }
 
 /** `plcs/{plcId}/flashcard_sets/{setId}`: a set shared with a PLC, payload inline. */

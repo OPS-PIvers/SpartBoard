@@ -48,6 +48,9 @@ export interface FlashcardResultRecord {
   flags?: Array<{ cardId: string; response: string; accepted?: boolean }>;
   /** The teacher's results setting for this student alone. */
   resultsOverride?: QuizResultsOverride;
+  /** Times the student left their protected results, and whether that locked them out. */
+  resultsTabWarnings?: number;
+  resultsLockedOut?: boolean;
   /** Check answers the student's device saved before submitting. */
   checkLog?: Record<
     string,

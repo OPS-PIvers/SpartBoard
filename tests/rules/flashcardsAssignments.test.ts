@@ -625,6 +625,71 @@ describe('flashcard_sessions progress', () => {
       )
     );
   });
+
+  it('lets a submitted student raise their results tab-away count and lock, never lower or unlock', async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    // Before submitting, the guard fields are not the student's to write.
+    await seed(progressPath, progress());
+    await assertFails(
+      updateDoc(doc(studentDb, progressPath), { resultsTabWarnings: 1 })
+    );
+    await seed(
+      progressPath,
+      progress({ submittedAt: 5, score: 1, total: 2, resultsTabWarnings: 1 })
+    );
+    await assertSucceeds(
+      updateDoc(doc(studentDb, progressPath), { resultsTabWarnings: 2 })
+    );
+    await assertSucceeds(
+      updateDoc(doc(studentDb, progressPath), {
+        resultsTabWarnings: 3,
+        resultsLockedOut: true,
+        resultsLockedOutAt: 9,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(studentDb, progressPath), { resultsTabWarnings: 0 })
+    );
+    await assertFails(
+      updateDoc(doc(studentDb, progressPath), { resultsLockedOut: false })
+    );
+    await assertFails(
+      updateDoc(doc(studentDb, progressPath), {
+        resultsTabWarnings: 4,
+        score: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent('other-student', [CLASS_A]), progressPath), {
+        resultsTabWarnings: 4,
+      })
+    );
+  });
+
+  it('lets the session teacher unlock a student’s results', async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    await seed(
+      progressPath,
+      progress({
+        submittedAt: 5,
+        resultsTabWarnings: 3,
+        resultsLockedOut: true,
+        resultsLockedOutAt: 9,
+      })
+    );
+    const unlock = {
+      resultsTabWarnings: 2,
+      resultsLockedOut: false,
+      resultsLockedOutAt: deleteField(),
+    };
+    await assertFails(
+      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), progressPath), unlock)
+    );
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), progressPath), unlock)
+    );
+  });
 });
 
 describe('flashcard_sessions PLC link', () => {

@@ -25,6 +25,11 @@ const session = (scoreVisibility?: FlashcardPublishedVisibility) =>
     scorePublishedAt: scoreVisibility ? 1 : undefined,
   }) as FlashcardSession;
 
+const RULES = {
+  attemptLimit: 1,
+  sessionOptions: {},
+} as unknown as FlashcardSession['rules'];
+
 const progress = (resultsOverride?: QuizResultsOverride) =>
   ({
     classId: 'cl-1',
@@ -99,6 +104,44 @@ describe('FlashcardCheckResults', () => {
       expiresAt: Date.now() + 60_000,
     });
     expect(screen.getByText('1/2')).toBeInTheDocument();
+  });
+
+  it('shows how many cards were answered while results are hidden on a new Check', () => {
+    render(
+      <FlashcardCheckResults
+        session={{ ...session('none'), rules: RULES }}
+        progress={progress()}
+      />
+    );
+    expect(screen.getByText('of 2 cards answered')).toBeInTheDocument();
+    expect(screen.queryByText('1/2')).not.toBeInTheDocument();
+  });
+
+  it('reviews every card, right and wrong, once responses are shown', () => {
+    show('score-and-responses');
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('1 of 2 correct')).toBeInTheDocument();
+    expect(screen.getByText('one')).toBeInTheDocument();
+    expect(screen.getByText('too')).toBeInTheDocument();
+    expect(screen.getByLabelText('Correct')).toBeInTheDocument();
+    expect(screen.getByLabelText('Incorrect')).toBeInTheDocument();
+  });
+
+  it('watermarks protected results', () => {
+    const { container } = render(
+      <FlashcardCheckResults
+        session={{
+          ...session('score-only'),
+          protection: {
+            watermarkEnabled: true,
+            tabWarningEnabled: false,
+            tabWarningThreshold: 3,
+          },
+        }}
+        progress={progress()}
+      />
+    );
+    expect(container.querySelector('svg pattern')).not.toBeNull();
   });
 
   it('falls back to the class level once a student setting has ended', () => {

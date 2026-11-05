@@ -9,7 +9,9 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  getDoc,
   onSnapshot,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -53,6 +55,8 @@ export interface UseFlashcardResultsResult {
     studentUids: readonly string[],
     override: QuizResultsOverride | null
   ) => Promise<void>;
+  /** Lets a locked-out student back into their results; one more tab-away locks them again. */
+  unlockResults: (studentUid: string) => Promise<void>;
 }
 
 // Firestore caps a batch at 500 writes.
@@ -226,6 +230,28 @@ export const useFlashcardResults = (
     [assignmentId]
   );
 
+  const unlockResults = useCallback(
+    async (studentUid: string) => {
+      if (!assignmentId) return;
+      const ref = doc(
+        db,
+        FLASHCARD_SESSIONS_COLLECTION,
+        assignmentId,
+        FLASHCARD_PROGRESS_SUBCOLLECTION,
+        studentUid
+      );
+      const snap = await getDoc(ref);
+      const prev =
+        (snap.data() as FlashcardProgress | undefined)?.resultsTabWarnings ?? 0;
+      await updateDoc(ref, {
+        resultsTabWarnings: Math.max(0, prev - 1),
+        resultsLockedOut: false,
+        resultsLockedOutAt: deleteField(),
+      });
+    },
+    [assignmentId]
+  );
+
   return {
     session,
     results,
@@ -234,5 +260,6 @@ export const useFlashcardResults = (
     resetStudent,
     resolveFlag,
     setResultsOverride,
+    unlockResults,
   };
 };

@@ -498,7 +498,11 @@ export const FlashcardAssignmentPage: React.FC<{
       break;
     case 'submitted':
       body = (
-        <FlashcardCheckResults session={session} progress={view.progress} />
+        <FlashcardCheckResults
+          session={session}
+          progress={view.progress}
+          progressDocPath={`flashcard_sessions/${session.id}/${PROGRESS_SUBCOLLECTION}/${pseudonymUid}`}
+        />
       );
       break;
     case 'checkClosed':
