@@ -50,7 +50,11 @@ import {
   orderFlashcardRoster,
   type FlashcardRosterStudent,
 } from './flashcardRoster';
-import { FlashcardCardDetail, FlashcardCardList } from './FlashcardCardResults';
+import {
+  FlashcardCardAccuracyList,
+  FlashcardCardDetail,
+  FlashcardCardList,
+} from './FlashcardCardResults';
 
 const STUDY_BUCKET_LABELS: Partial<Record<BucketKey, string>> = {
   done: 'Mastered',
@@ -787,34 +791,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
         {screen === 'cards' && !quizCards && (
           <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
             {isCheck ? (
-              accuracy.length === 0 ? (
-                <EmptyLine message="Accuracy appears once students submit." />
-              ) : (
-                accuracy.map((entry) => (
-                  <div
-                    key={entry.card.id}
-                    className={rowClass}
-                    style={rowStyle}
-                  >
-                    <div className="min-w-0">
-                      <p
-                        className="truncate font-sans font-medium text-brand-gray-dark"
-                        style={text.name}
-                      >
-                        {entry.card.term}
-                      </p>
-                      <p
-                        className="wrap-break-word font-sans text-brand-gray-primary"
-                        style={text.sub}
-                      >
-                        {entry.correct} of {entry.answered} correct ·{' '}
-                        {entry.card.definition}
-                      </p>
-                    </div>
-                    <PercentPill percent={entry.percent} />
-                  </div>
-                ))
-              )
+              <FlashcardCardAccuracyList accuracy={accuracy} />
             ) : hardest.length === 0 ? (
               <EmptyLine message="No misses recorded yet." />
             ) : (

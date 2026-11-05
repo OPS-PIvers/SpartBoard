@@ -619,12 +619,16 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
-  const showResults = (assignment: FlashcardAssignment): void => {
+  const showResults = (
+    assignment: FlashcardAssignment,
+    resultsScreen: 'monitor' | 'results' = 'monitor'
+  ): void => {
     updateWidget(widget.id, {
       config: {
         ...config,
         view: 'results',
         activeAssignmentId: assignment.id,
+        resultsScreen,
       },
     });
   };
@@ -764,6 +768,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onUnpublishScores={unpublishScores}
                 syncPlcShare={plcSharing.enabled}
                 onEnd={() => endAssignment(openResults.id)}
+                screen={config.resultsScreen}
                 monitorPrefs={config}
                 onUpdateMonitorPrefs={(updates) =>
                   updateWidget(widget.id, { config: updates })
@@ -827,8 +832,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                     },
                   })
                 }
-                onAssignmentResults={showResults}
-                onAssignmentMonitor={showResults}
+                onAssignmentResults={(a) => showResults(a, 'results')}
+                onAssignmentMonitor={(a) => showResults(a, 'monitor')}
                 onAssignmentSettings={
                   canAccessFeature('flashcards-assign-v2')
                     ? setSettingsTarget

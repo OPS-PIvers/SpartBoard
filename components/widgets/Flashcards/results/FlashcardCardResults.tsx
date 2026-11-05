@@ -8,6 +8,7 @@ import {
 import {
   checkCardAnswers,
   flashcardPrompt,
+  type FlashcardCardAccuracy,
   type FlashcardResultRecord,
 } from '@/utils/flashcardResults';
 import { cardLabel } from './flashcardRoster';
@@ -70,3 +71,53 @@ export const FlashcardCardDetail: React.FC<{
     />
   );
 };
+
+const sub = { fontSize: 'min(11px, 3.8cqmin)' };
+
+/** Speak checks have no typed answers, so their cards show pass rates, lowest first. */
+export const FlashcardCardAccuracyList: React.FC<{
+  accuracy: readonly FlashcardCardAccuracy[];
+}> = ({ accuracy }) =>
+  accuracy.length === 0 ? (
+    <p
+      className="text-center font-sans text-brand-gray-primary"
+      style={{ fontSize: 'min(12px, 4cqmin)', padding: 'min(8px, 2cqmin)' }}
+    >
+      Accuracy appears once students submit.
+    </p>
+  ) : (
+    <>
+      {accuracy.map((entry) => (
+        <div
+          key={entry.card.id}
+          className="flex items-center justify-between rounded-lg border border-brand-gray-lightest bg-white"
+          style={{
+            padding: 'min(7px, 1.8cqmin) min(10px, 2.5cqmin)',
+            gap: 'min(8px, 2cqmin)',
+          }}
+        >
+          <div className="min-w-0">
+            <p
+              className="truncate font-sans font-medium text-brand-gray-dark"
+              style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+            >
+              {entry.card.term}
+            </p>
+            <p
+              className="wrap-break-word font-sans text-brand-gray-primary"
+              style={sub}
+            >
+              {entry.correct} of {entry.answered} correct ·{' '}
+              {entry.card.definition}
+            </p>
+          </div>
+          <span
+            className="rounded-full bg-brand-blue-lighter font-sans font-semibold tabular-nums text-brand-blue-dark"
+            style={{ ...sub, padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)' }}
+          >
+            {Math.round(entry.percent)}%
+          </span>
+        </div>
+      ))}
+    </>
+  );
