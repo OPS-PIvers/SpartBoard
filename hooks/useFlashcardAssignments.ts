@@ -16,6 +16,7 @@ import { AuthContext } from '@/context/AuthContextValue';
 import { speakAdminConfigFor } from '@/hooks/useFlashcardSets';
 import {
   buildSpeakStamp,
+  withSpeakChoice,
   speakCardsFor,
 } from '@/components/widgets/Flashcards/utils/flashcardAssign';
 import { attachSpeakReferences } from '@/components/widgets/Flashcards/speak/lookupSpeakReferences';
@@ -41,6 +42,7 @@ import {
 } from '@/utils/flashcardSessionContent';
 import type {
   AudienceSessionFields,
+  FlashcardSpeakChoice,
   FlashcardAssignment,
   FlashcardAssignmentKind,
   FlashcardCardSelection,
@@ -83,6 +85,8 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   speakLocked?: boolean;
   /** Study only: Speak is hidden for this assignment and stays hidden on set saves. */
   speakOff?: boolean;
+  /** flashcards-assign-v2: Speak rules picked when assigning, used instead of the set's. */
+  speakChoice?: FlashcardSpeakChoice;
   /** Check only: how `set.cards` was narrowed (already applied to the cards). */
   cardSelection?: FlashcardCardSelection;
   /** Check only (flashcards-assign-v2): attempts, time limit, shuffle, integrity, What students see. */
@@ -226,9 +230,10 @@ export const useFlashcardAssignments = (
         (isCheck && !speakCheck) || speakOff
           ? null
           : await speakAdminConfigFor(input.set, canSpeak);
+      const speakChoice = adminConfig ? input.speakChoice : undefined;
       const speak = adminConfig
         ? buildSpeakStamp(
-            input.set,
+            withSpeakChoice(input.set, speakChoice),
             true,
             adminConfig,
             speakCheck || input.speakLocked === true
@@ -283,6 +288,7 @@ export const useFlashcardAssignments = (
         ...(periodGate ? { cardsInContent: true, ...periodGate } : {}),
         ...(speak ? { speak } : {}),
         ...(speakOff ? { speakOff: true as const } : {}),
+        ...(speak && speakChoice ? { speakChoice } : {}),
         ...(cardSelection ? { cardSelection } : {}),
         ...(rules ? { rules } : {}),
         ...(plcLink
