@@ -10,7 +10,7 @@
  */
 
 import { GuidedLearningSet } from '@/types';
-import { APP_NAME } from '@/config/constants';
+import { DRIVE_APP_FOLDER } from '@/config/constants';
 import { authError } from '@/utils/driveAuthErrors';
 import { isInAppFolder, type DriveParentMeta } from '@/utils/driveAppFolder';
 
@@ -128,8 +128,8 @@ export class GuidedLearningDriveService {
   private getGLFolderId(): Promise<string> {
     const cached = glFolderIdByToken.get(this.accessToken);
     if (cached) return cached;
-    const lookup = this.getOrCreateFolder(APP_NAME).then((appFolderId) =>
-      this.getOrCreateFolder(GL_FOLDER_NAME, appFolderId)
+    const lookup = this.getOrCreateFolder(DRIVE_APP_FOLDER).then(
+      (appFolderId) => this.getOrCreateFolder(GL_FOLDER_NAME, appFolderId)
     );
     glFolderIdByToken.set(this.accessToken, lookup);
     lookup.catch(() => glFolderIdByToken.delete(this.accessToken));

@@ -41,6 +41,7 @@ import {
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
 } from './secrets';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { DRIVE_APP_FOLDER } from './devDriveWriteGuard';
 
 const OFFLINE_GRANT_SECRETS = [
   GOOGLE_OAUTH_CLIENT_ID,
@@ -51,7 +52,7 @@ const OFFLINE_GRANT_SECRETS = [
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const DRIVE_TIMEOUT_MS = 20000;
-const APP_DRIVE_FOLDER = 'SpartBoard';
+const APP_DRIVE_FOLDER = DRIVE_APP_FOLDER;
 const QUIZ_DRIVE_FOLDER = 'Quizzes';
 
 const MAX_ID_LENGTH = 128;

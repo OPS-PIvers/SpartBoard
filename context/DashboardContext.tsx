@@ -211,6 +211,8 @@ import {
   getAnnotationWorldRect,
 } from '@/utils/annotationSize';
 import { STANDARD_COLORS } from '@/config/colors';
+import { IS_DEV_PROJECT } from '@/config/constants';
+import { DevProdDriveWriteError } from '@/utils/devDriveWriteGuard';
 import { tourDemoConfig } from '@/config/tourDemoContent';
 import {
   createWidgetHistoryStack,
@@ -1883,11 +1885,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const blob = new Blob([JSON.stringify(pii)], {
         type: 'application/json',
       });
-      const existingPiiFileId = piiDriveFileIdRef.current.get(dashboard.id);
+      let existingPiiFileId = piiDriveFileIdRef.current.get(dashboard.id);
       try {
         if (existingPiiFileId) {
-          await driveService.updateFileContent(existingPiiFileId, blob);
-        } else {
+          try {
+            await driveService.updateFileContent(existingPiiFileId, blob);
+          } catch (err) {
+            // Dev can't write the live site's copy, so it keeps its own.
+            if (!(err instanceof DevProdDriveWriteError)) throw err;
+            existingPiiFileId = undefined;
+          }
+        }
+        if (!existingPiiFileId) {
           const file = await driveService.uploadFile(
             blob,
             `${dashboard.id}-pii.json`,
@@ -3407,8 +3416,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Use a static query string to avoid query injection, then filter by exact
     // filename client-side
-    void driveService
-      .listFiles("name contains '-pii.json'")
+    // Dev reads the newest copy first, which is its own once it has saved.
+    void (
+      IS_DEV_PROJECT
+        ? driveService.listFiles(
+            "name contains '-pii.json'",
+            'modifiedTime desc'
+          )
+        : driveService.listFiles("name contains '-pii.json'")
+    )
       .then(async (files) => {
         const piiFile = files.find((f) => f.name === expectedFileName);
         if (!piiFile) {

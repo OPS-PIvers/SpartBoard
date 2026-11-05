@@ -16,6 +16,9 @@
  * which runs them exactly once (guarded on `admin.apps.length`).
  */
 
+// Dev only: refuses Drive writes to prod files (no-op in prod).
+import './devDriveWriteGuard';
+
 // ── ClassLink roster (teacher-side OneRoster import) ───────────────────────
 export { getClassLinkRosterV1 } from './classlinkRoster';
 export { classlinkRosterSync } from './classlinkRosterSync';
