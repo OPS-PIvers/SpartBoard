@@ -103,6 +103,7 @@ describe('useFlashcardAssignments updateAssignmentSettings', () => {
         rosterIds: ['r1'],
         classIds: ['CL-1'],
         periodNames: ['Period 1'],
+        classPeriodByClassId: {},
         periodAccessRows: { p2: null },
       },
       periodAccessEdits: { p1: { closeAt: 9 }, p2: { closeAt: 9 } },
