@@ -176,6 +176,35 @@ export function stageSetWrite(
   }
 }
 
+/** Mirrors parseSpeakChoice in components/widgets/Flashcards/utils/flashcardAssign.ts. */
+export function speakChoiceOf(
+  raw: unknown
+): Record<string, unknown> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const r = raw as Record<string, unknown>;
+  if (
+    !['beginner', 'intermediate', 'advanced', 'custom'].includes(
+      r.preset as string
+    ) ||
+    typeof r.strict !== 'boolean' ||
+    typeof r.attempts !== 'number' ||
+    !Number.isFinite(r.attempts) ||
+    typeof r.example !== 'boolean' ||
+    !r.groups ||
+    typeof r.groups !== 'object' ||
+    Array.isArray(r.groups)
+  ) {
+    return undefined;
+  }
+  return {
+    preset: r.preset,
+    strict: r.strict,
+    groups: r.groups,
+    attempts: Math.min(10, Math.max(1, Math.round(r.attempts))),
+    example: r.example,
+  };
+}
+
 /** Mirrors rewriteOpenStudySessions in hooks/useFlashcardSets.ts; without `speakStamp` keeps a client stamp unless the language moved off it. */
 export async function rewriteOpenStudySessions(
   db: Firestore,
@@ -198,10 +227,16 @@ export async function rewriteOpenStudySessions(
     const dialects = (stamp as { dialects?: unknown } | undefined)?.dialects;
     const speakOff = sessionDoc.get('speakOff') === true;
     // A fresh stamp keeps the assignment's lock; a session turned off never gets one.
+    // Rules picked when assigning win over the set's while the language is unchanged, as on the client.
+    const choice =
+      Array.isArray(dialects) && dialectsFit(dialects, set.termLanguage)
+        ? speakChoiceOf(sessionDoc.get('speakChoice'))
+        : undefined;
     const nextStamp =
       speakStamp && !speakOff
         ? {
             ...speakStamp,
+            ...choice,
             locked:
               (stamp as { locked?: unknown } | undefined)?.locked === true,
           }

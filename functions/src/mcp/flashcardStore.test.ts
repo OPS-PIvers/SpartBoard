@@ -261,10 +261,22 @@ describe('Speak carry-through', () => {
 
   it('re-stamps open sessions with their lock and skips one turned off', async () => {
     const updates: Array<[string, Record<string, unknown>]> = [];
+    const choice = {
+      preset: 'beginner',
+      strict: false,
+      groups: { 'es-trill': 'forgive' },
+      attempts: 2,
+      example: true,
+    };
     const sessions = [
       { id: 's-locked', speak: { dialects: ['es-419'], locked: true } },
       { id: 's-new' },
       { id: 's-off', speakOff: true },
+      {
+        id: 's-chosen',
+        speak: { dialects: ['es-419'], locked: false },
+        speakChoice: choice,
+      },
     ];
     const query = {
       where: () => query,
@@ -302,6 +314,11 @@ describe('Speak carry-through', () => {
     const byId = Object.fromEntries(updates);
     expect(byId['s-locked'].speak).toEqual({ ...stamp, locked: true });
     expect(byId['s-new'].speak).toEqual({ ...stamp, locked: false });
+    expect(byId['s-chosen'].speak).toEqual({
+      ...stamp,
+      ...choice,
+      locked: false,
+    });
     expect((byId['s-new'].cards as FlashcardSet['cards'])[0].speak).toBe(speak);
     expect(byId['s-off']).not.toHaveProperty('speak');
     expect(
