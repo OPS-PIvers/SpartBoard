@@ -1194,6 +1194,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Flashcards Test question bar. Admin-only until Paul has used it in prod.
+  'flashcards-test-nav': {
+    label: 'Flashcards: Test question bar',
+    icon: ListChecks,
+    description:
+      'Test mode shows one question at a time with Question N of M and an All questions grid.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // The flag only hides the Behavior switch; teachers turn spell check off themselves.
   'spell-check-setting': {
     label: 'Spell check switch',

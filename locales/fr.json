@@ -3446,7 +3446,17 @@
       "nav": "Questions du test",
       "goTo": "Aller à la question {{number}}",
       "numberType": "{{number}}. {{type}}",
-      "submit": "Envoyer le test"
+      "submit": "Envoyer le test",
+      "questionOf": "Question {{number}} sur {{total}}",
+      "answeredCount": "{{count}} sur {{total}} répondues",
+      "allQuestions": "Toutes les questions",
+      "nextUnanswered": "Suivante sans réponse",
+      "answered": "Répondue",
+      "notAnswered": "Sans réponse",
+      "previous": "Question précédente",
+      "next": "Question suivante",
+      "back": "Retour",
+      "nextButton": "Suivant"
     },
     "characters": {
       "uppercase": "Utiliser les majuscules",
@@ -3636,6 +3646,9 @@
         "confirm": "C'est juste",
         "ipaLabel": "Prononciation (API), {{dialect}}",
         "ipaInvalid": "Certains de ces symboles ne sont pas reconnus.",
+        "addIpa": "Ajouter une autre",
+        "removeIpa": "Retirer la prononciation",
+        "hearIpaFailed": "Impossible de lire cette prononciation.",
         "checkingCards_one": "Recherche de la prononciation de {{count}} carte…",
         "checkingCards_other": "Recherche de la prononciation de {{count}} cartes…",
         "finishingCards": "Finalisation de Speak : {{done}} sur {{total}} cartes",

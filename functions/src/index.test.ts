@@ -3829,6 +3829,7 @@ describe('index barrel — deployed export set', () => {
     // Org-admin media review & compliance delete
     'listQuizMediaForOrgAdmin',
     'lookupSpeakReferencesV1',
+    'hearSpeakIpaV1',
     'listSpeakWordsToCheckV1',
     'deleteQuizMediaForOrgAdmin',
     // Admin analytics endpoint
@@ -3982,6 +3983,7 @@ describe('index barrel — deployed export set', () => {
     'focusReportV1',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
+    'syncConfigFromProdV1',
     'gradebookDemoV1',
     // Guided Learning Storage slide GC
     'gcGuidedLearningMedia',

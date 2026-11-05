@@ -4753,7 +4753,17 @@
       "nav": "Test questions",
       "goTo": "Go to question {{number}}",
       "numberType": "{{number}}. {{type}}",
-      "submit": "Submit test"
+      "submit": "Submit test",
+      "questionOf": "Question {{number}} of {{total}}",
+      "answeredCount": "{{count}} of {{total}} answered",
+      "allQuestions": "All questions",
+      "nextUnanswered": "Next unanswered",
+      "answered": "Answered",
+      "notAnswered": "Not answered",
+      "previous": "Previous question",
+      "next": "Next question",
+      "back": "Back",
+      "nextButton": "Next"
     },
     "characters": {
       "uppercase": "Use uppercase characters",
@@ -4943,6 +4953,9 @@
         "confirm": "Looks right",
         "ipaLabel": "Pronunciation (IPA), {{dialect}}",
         "ipaInvalid": "Some of these symbols aren't recognized.",
+        "addIpa": "Add another",
+        "removeIpa": "Remove pronunciation",
+        "hearIpaFailed": "Could not play this pronunciation.",
         "checkingCards_one": "Checking how to say {{count}} card…",
         "checkingCards_other": "Checking how to say {{count}} cards…",
         "finishingCards": "Finishing Speak: {{done}} of {{total}} cards",

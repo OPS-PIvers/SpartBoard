@@ -165,6 +165,7 @@ export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
 // ── Flashcards Speak reference lookup (docs/multilingual-pronunciation-engine.md S3) ─
 export { lookupSpeakReferencesV1 } from './pronunciation/lookup';
+export { hearSpeakIpaV1 } from './pronunciation/hearIpa';
 export { listSpeakWordsToCheckV1 } from './pronunciation/wordsToCheck';
 
 // ── Video Activity answer key (server-graded; key kept off session docs) ────
@@ -339,7 +340,10 @@ export { focusStatusV1, focusReportV1 } from './focus/studentEndpoints';
 export { migratePlcs } from './migratePlcs';
 
 // Dev-only: copy the caller's own prod materials into spartboard-dev.
-export { syncMyMaterialsFromProdV1 } from './devSyncFromProd';
+export {
+  syncConfigFromProdV1,
+  syncMyMaterialsFromProdV1,
+} from './devSyncFromProd';
 export { gradebookDemoV1 } from './devGradebookDemo';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';

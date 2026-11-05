@@ -3446,7 +3446,17 @@
       "nav": "Testfragen",
       "goTo": "Zu Frage {{number}}",
       "numberType": "{{number}}. {{type}}",
-      "submit": "Test abgeben"
+      "submit": "Test abgeben",
+      "questionOf": "Frage {{number}} von {{total}}",
+      "answeredCount": "{{count}} von {{total}} beantwortet",
+      "allQuestions": "Alle Fragen",
+      "nextUnanswered": "Nächste unbeantwortete",
+      "answered": "Beantwortet",
+      "notAnswered": "Nicht beantwortet",
+      "previous": "Vorherige Frage",
+      "next": "Nächste Frage",
+      "back": "Zurück",
+      "nextButton": "Weiter"
     },
     "characters": {
       "uppercase": "Großbuchstaben verwenden",
@@ -3636,6 +3646,9 @@
         "confirm": "Sieht richtig aus",
         "ipaLabel": "Aussprache (IPA), {{dialect}}",
         "ipaInvalid": "Einige dieser Zeichen werden nicht erkannt.",
+        "addIpa": "Weitere hinzufügen",
+        "removeIpa": "Aussprache entfernen",
+        "hearIpaFailed": "Diese Aussprache konnte nicht abgespielt werden.",
         "checkingCards_one": "Aussprache von {{count}} Karte wird geprüft…",
         "checkingCards_other": "Aussprache von {{count}} Karten wird geprüft…",
         "finishingCards": "Speak wird fertiggestellt: {{done}} von {{total}} Karten",

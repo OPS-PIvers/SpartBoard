@@ -3446,7 +3446,17 @@
       "nav": "Preguntas de la prueba",
       "goTo": "Ir a la pregunta {{number}}",
       "numberType": "{{number}}. {{type}}",
-      "submit": "Enviar prueba"
+      "submit": "Enviar prueba",
+      "questionOf": "Pregunta {{number}} de {{total}}",
+      "answeredCount": "{{count}} de {{total}} respondidas",
+      "allQuestions": "Todas las preguntas",
+      "nextUnanswered": "Siguiente sin responder",
+      "answered": "Respondida",
+      "notAnswered": "Sin responder",
+      "previous": "Pregunta anterior",
+      "next": "Pregunta siguiente",
+      "back": "Atrás",
+      "nextButton": "Siguiente"
     },
     "characters": {
       "uppercase": "Usar mayúsculas",
@@ -3636,6 +3646,9 @@
         "confirm": "Se ve bien",
         "ipaLabel": "Pronunciación (AFI), {{dialect}}",
         "ipaInvalid": "Algunos de estos símbolos no se reconocen.",
+        "addIpa": "Agregar otra",
+        "removeIpa": "Quitar pronunciación",
+        "hearIpaFailed": "No se pudo reproducir esta pronunciación.",
         "checkingCards_one": "Revisando cómo se dice {{count}} tarjeta…",
         "checkingCards_other": "Revisando cómo se dicen {{count}} tarjetas…",
         "finishingCards": "Terminando Speak: {{done}} de {{total}} tarjetas",
