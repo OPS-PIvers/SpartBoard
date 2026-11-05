@@ -67,5 +67,15 @@ export function reprintBlocker(
   const order = batch.choiceOrder;
   if (order && analysis.rows.some((r) => !order[r.questionId]))
     return 'changed';
+  // The page maps record each bubble row's question, so a reorder shows there.
+  const printedRows = (batch.pageMaps ?? [])
+    .flatMap((m) => m.items)
+    .flatMap((i) => (i.kind === 'mc' ? [i] : []));
+  if (
+    printedRows.some(
+      (i) => analysis.rows[i.sheetRow]?.questionId !== i.questionId
+    )
+  )
+    return 'changed';
   return null;
 }

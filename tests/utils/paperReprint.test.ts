@@ -85,4 +85,24 @@ describe('paperReprint', () => {
       )
     ).toBe('versions');
   });
+
+  it('blocks a stack whose questions were reordered since printing', () => {
+    const item = (questionId: string, sheetRow: number) => ({
+      kind: 'mc' as const,
+      questionId,
+      sheetRow,
+      label: String(sheetRow + 1),
+      originMm: { x: 0, y: 0 },
+    });
+    const batch: PaperBatch = {
+      ...BATCH,
+      layoutVersion: 2,
+      pageMaps: [{ page: 1, grid: 2, items: [item('q1', 0), item('q2', 1)] }],
+    };
+    const rows = [{ questionId: 'q1' }, { questionId: 'q2' }];
+    expect(reprintBlocker(batch, { rows } as never)).toBeNull();
+    expect(reprintBlocker(batch, { rows: [...rows].reverse() } as never)).toBe(
+      'changed'
+    );
+  });
 });
