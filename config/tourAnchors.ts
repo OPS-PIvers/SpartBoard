@@ -2738,6 +2738,21 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-reprint.cancel': {
+    label: 'Print response sheets again Cancel in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-reprint.print': {
+    label: 'Print response sheets again Print button in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-reprint.student': {
+    label: 'Student checkbox when printing response sheets again',
+    perField: true,
+    panel: true,
+  },
   'quiz-print.close': {
     label: 'Print sheets close (×) in the Quiz widget',
     perWidgetType: true,
@@ -15846,6 +15861,17 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.import-responses': {
     label: 'Import responses button on a paper assignment card',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.import-stack': {
+    label:
+      'Import responses item in a quiz card menu, for a stack with no paper assignment',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.reprint-sheets': {
+    label: 'Print response sheets item in a paper assignment menu',
     perWidgetType: true,
     panel: true,
   },

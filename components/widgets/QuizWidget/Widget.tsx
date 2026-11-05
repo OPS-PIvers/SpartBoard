@@ -20,6 +20,7 @@ import {
   ScoreboardTeam,
   QuizBehaviorSettings,
   QuizWidgetKind,
+  Plc,
 } from '@/types';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { isGameSession } from '@/utils/reviewResults';
@@ -188,6 +189,7 @@ import {
   type PaperImportRequestExtra,
   type PaperImportWrittenResult,
 } from './components/PaperImportModal';
+import { PaperReprintModal } from './components/PaperReprintModal';
 import {
   firestoreDocData,
   readPaperImportQuota,
@@ -202,6 +204,7 @@ import type {
 import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
 import {
   deletePaperBatchesForQuiz,
+  listPaperBatches,
   savePaperBatch,
   listPaperBatchesForQuiz,
   savePendingReview,
@@ -805,8 +808,16 @@ const TeacherQuizWidget: React.FC<{
     quiz: QuizData;
     meta: QuizMetadata;
     batches: PaperBatch[];
-    assignment: QuizAssignment;
+    /** The Paper card it opened from; null for a stack with no card. */
+    assignment: QuizAssignment | null;
   } | null>(null);
+  // Every stack's quiz, so the library can offer Import for a stack no Paper card owns.
+  const [paperBatchIndex, setPaperBatchIndex] = useState<
+    { id: string; quizId: string }[]
+  >([]);
+  const [paperBatchesVersion, setPaperBatchesVersion] = useState(0);
+  // Paper assignments made here whose listener row may not have arrived yet.
+  const createdPaperIdsRef = useRef(new Set<string>());
   // Assign on paper offers Sharing only when the quiz already syncs with a PLC.
   const paperAssignPlc = (() => {
     const groupId = paperPrintMeta?.sync?.groupId;
@@ -814,6 +825,94 @@ const TeacherQuizWidget: React.FC<{
     const plc = plcId ? plcs.find((p) => p.id === plcId) : undefined;
     return plc && groupId ? { plc, groupId } : null;
   })();
+
+  const paperUid = paperSheets.enabled && !isReview ? user?.uid : undefined;
+  useEffect(() => {
+    if (!paperUid) return;
+    let live = true;
+    listPaperBatches(paperUid)
+      .then((batches) => {
+        if (live)
+          setPaperBatchIndex(
+            batches.map((b) => ({ id: b.id, quizId: b.quizId }))
+          );
+      })
+      .catch((err: unknown) => console.warn('[QuizWidget] paper stacks:', err));
+    return () => {
+      live = false;
+    };
+  }, [paperUid, paperBatchesVersion]);
+  const [paperReprint, setPaperReprint] = useState<{
+    quiz: QuizData;
+    batch: PaperBatch;
+  } | null>(null);
+  const paperAssignmentMeta = (assignment: QuizAssignment): QuizMetadata =>
+    quizzes.find((q) => q.id === assignment.quizId) ?? {
+      id: assignment.quizId,
+      title: assignment.quizTitle,
+      driveFileId: assignment.quizDriveFileId,
+      questionCount: 0,
+      createdAt: assignment.createdAt,
+      updatedAt: assignment.createdAt,
+    };
+  const linkedPaperBatchIds = new Set(
+    assignments.flatMap((a) => (a.paperBatchId ? [a.paperBatchId] : []))
+  );
+  const looseStackQuizIds = new Set(
+    paperBatchIndex
+      .filter((b) => !linkedPaperBatchIds.has(b.id))
+      .map((b) => b.quizId)
+  );
+
+  const createPaperAssignment = async (
+    meta: QuizMetadata,
+    data: QuizData,
+    {
+      batchId,
+      periodNames,
+      pool,
+    }: {
+      batchId: string;
+      periodNames: string[];
+      pool: { plc: Plc; groupId: string } | null;
+    }
+  ): Promise<string> => {
+    const behavior = getQuizBehavior(meta);
+    const plc = pool ? buildPlcLinkage(pool.plc) : undefined;
+    const { id } = await createAssignment(
+      {
+        id: meta.id,
+        title: meta.title,
+        driveFileId: meta.driveFileId,
+        questions: data.questions,
+        ...(data.stimuli ? { stimuli: data.stimuli } : {}),
+      },
+      {
+        sessionMode: 'student',
+        // Paper has no clock and no tab (plan Q33).
+        sessionOptions: {
+          ...behavior.sessionOptions,
+          speedBonusEnabled: false,
+          streakBonusEnabled: false,
+          tabWarningsEnabled: false,
+        },
+        attemptLimit: 1,
+        ...(periodNames.length > 0
+          ? { periodName: periodNames[0], periodNames }
+          : {}),
+        ...(plc && pool ? { plc } : {}),
+      },
+      // No classIds and paused: never a live door for students.
+      {
+        ...kindTag,
+        initialStatus: 'paused',
+        paperBatchId: batchId,
+        ...(plc && pool ? { plcPoolSyncGroupId: pool.groupId } : {}),
+      }
+    );
+    createdPaperIdsRef.current.add(id);
+    return id;
+  };
   const [paperOcr, setPaperOcr] = useState<{
     quiz: QuizData;
     meta: QuizMetadata;
@@ -2583,16 +2682,7 @@ const TeacherQuizWidget: React.FC<{
         onImportPaperResponses={
           paperSheets.enabled && !isReview && user?.uid
             ? async (assignment) => {
-                const meta: QuizMetadata = quizzes.find(
-                  (q) => q.id === assignment.quizId
-                ) ?? {
-                  id: assignment.quizId,
-                  title: assignment.quizTitle,
-                  driveFileId: assignment.quizDriveFileId,
-                  questionCount: 0,
-                  createdAt: assignment.createdAt,
-                  updatedAt: assignment.createdAt,
-                };
+                const meta = paperAssignmentMeta(assignment);
                 const data = await loadQuiz(meta);
                 if (!data) return;
                 const batches = (
@@ -2602,6 +2692,32 @@ const TeacherQuizWidget: React.FC<{
               }
             : undefined
         }
+        onReprintPaperSheets={
+          paperUid
+            ? async (assignment) => {
+                const data = await loadQuiz(paperAssignmentMeta(assignment));
+                if (!data) return;
+                const batch = (
+                  await listPaperBatchesForQuiz(paperUid, assignment.quizId)
+                ).find((b) => b.id === assignment.paperBatchId);
+                if (batch) setPaperReprint({ quiz: data, batch });
+                else addToast('Could not find these response sheets.', 'error');
+              }
+            : undefined
+        }
+        onImportLooseStack={
+          paperUid
+            ? async (meta) => {
+                const data = await loadQuiz(meta);
+                if (!data) return;
+                const batches = (
+                  await listPaperBatchesForQuiz(paperUid, meta.id)
+                ).filter((b) => !linkedPaperBatchIds.has(b.id));
+                setPaperImport({ quiz: data, meta, batches, assignment: null });
+              }
+            : undefined
+        }
+        hasLooseStack={(quizId) => looseStackQuizIds.has(quizId)}
         onAddAnswerKey={
           canImportDocuments
             ? async (meta) => {
@@ -4431,45 +4547,13 @@ const TeacherQuizWidget: React.FC<{
               plcId: paperAssignPlc?.plc.id ?? '',
             },
             onCreateAssignment: async ({ batchId, periodNames, sharing }) => {
-              const meta = paperPrintMeta;
-              const behavior = getQuizBehavior(meta);
               // Pools with the PLC the quiz syncs from unless Sharing was turned off.
-              const pool =
-                paperAssignPlc && sharing?.plcMode ? paperAssignPlc : null;
-              const plc = pool ? buildPlcLinkage(pool.plc) : undefined;
-              await createAssignment(
-                {
-                  id: meta.id,
-                  title: meta.title,
-                  driveFileId: meta.driveFileId,
-                  questions: paperPrintQuiz.questions,
-                  ...(paperPrintQuiz.stimuli
-                    ? { stimuli: paperPrintQuiz.stimuli }
-                    : {}),
-                },
-                {
-                  sessionMode: 'student',
-                  // Paper has no clock and no tab (plan Q33).
-                  sessionOptions: {
-                    ...behavior.sessionOptions,
-                    speedBonusEnabled: false,
-                    streakBonusEnabled: false,
-                    tabWarningsEnabled: false,
-                  },
-                  attemptLimit: 1,
-                  ...(periodNames.length > 0
-                    ? { periodName: periodNames[0], periodNames }
-                    : {}),
-                  ...(plc && pool ? { plc } : {}),
-                },
-                // No classIds and paused: never a live door for students.
-                {
-                  ...kindTag,
-                  initialStatus: 'paused',
-                  paperBatchId: batchId,
-                  ...(plc && pool ? { plcPoolSyncGroupId: pool.groupId } : {}),
-                }
-              );
+              await createPaperAssignment(paperPrintMeta, paperPrintQuiz, {
+                batchId,
+                periodNames,
+                pool:
+                  paperAssignPlc && sharing?.plcMode ? paperAssignPlc : null,
+              });
             },
           }}
           rosters={rosters}
@@ -4511,6 +4595,7 @@ const TeacherQuizWidget: React.FC<{
             setPaperPrintQuiz(null);
             setPaperPrintBanks(null);
             setPaperPrintMeta(null);
+            setPaperBatchesVersion((v) => v + 1);
           }}
           onError={(message) => addToast(message, 'error')}
         />
@@ -4521,10 +4606,35 @@ const TeacherQuizWidget: React.FC<{
           uid={user.uid}
           batches={paperImport.batches}
           rosters={rosters}
-          assignments={[paperImport.assignment]}
-          lockedAssignmentId={paperImport.assignment.id}
+          {...(paperImport.assignment
+            ? {
+                assignments: [paperImport.assignment],
+                lockedAssignmentId: paperImport.assignment.id,
+              }
+            : {
+                assignments: assignments.filter(
+                  (a) => a.quizId === paperImport.meta.id
+                ),
+                onCreateAssignment: (batchId: string) => {
+                  const { meta, quiz } = paperImport;
+                  const groupId = meta.sync?.groupId;
+                  const plcId = groupId
+                    ? syncedGroups.get(groupId)?.plcId
+                    : undefined;
+                  const plc = plcs.find((p) => p.id === plcId);
+                  return createPaperAssignment(meta, quiz, {
+                    batchId,
+                    periodNames: [],
+                    pool: plc && groupId ? { plc, groupId } : null,
+                  });
+                },
+              })}
           onImported={(assignmentId) => {
-            // Imported paper work is done: the card moves to Completed.
+            // Imported paper work is done: a paper card moves to Completed.
+            const row = assignments.find((a) => a.id === assignmentId);
+            const isPaper =
+              createdPaperIdsRef.current.has(assignmentId) || !!row?.paper;
+            if (!isPaper || row?.status === 'inactive') return;
             deactivateAssignment(assignmentId).catch((err: unknown) =>
               addToast(
                 err instanceof Error ? err.message : 'Failed to deactivate',
@@ -4573,7 +4683,19 @@ const TeacherQuizWidget: React.FC<{
             savePendingReview(user.uid, batchId, review)
           }
           onPickFromDrive={pickScanFromDrive}
-          onClose={() => setPaperImport(null)}
+          onClose={() => {
+            setPaperImport(null);
+            setPaperBatchesVersion((v) => v + 1);
+          }}
+          onError={(message) => addToast(message, 'error')}
+        />
+      )}
+      {paperReprint && (
+        <PaperReprintModal
+          quiz={paperReprint.quiz}
+          batch={paperReprint.batch}
+          rosters={rosters}
+          onClose={() => setPaperReprint(null)}
           onError={(message) => addToast(message, 'error')}
         />
       )}

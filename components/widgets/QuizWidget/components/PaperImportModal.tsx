@@ -117,7 +117,7 @@ interface PaperImportModalProps {
   /** Administrations of this quiz the scan may attach to (plan Q24). */
   assignments: QuizAssignment[];
   /** Create a fresh paper administration; returns its id. Absent when the administration is locked. */
-  onCreateAssignment?: () => Promise<string>;
+  onCreateAssignment?: (batchId: string) => Promise<string>;
   /** Opened from a paper assignment's card: its batch and administration are fixed. */
   lockedAssignmentId?: string;
   /** Runs once the first import of this scan lands. */
@@ -504,7 +504,9 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     }
     void refreshQuota(batch);
     setAssembled(restored);
-    setAssignmentId(state.assignmentId || NEW_ADMINISTRATION);
+    setAssignmentId(
+      lockedAssignmentId ?? (state.assignmentId || NEW_ADMINISTRATION)
+    );
     setKey(state.key);
     setKeyConfirmed(state.keyConfirmed);
     setSpareAssignments(state.spareAssignments);
@@ -784,7 +786,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       if (nextQuiz !== quiz) await onSaveQuiz(nextQuiz);
       const target =
         assignmentId === NEW_ADMINISTRATION && onCreateAssignment
-          ? await onCreateAssignment()
+          ? await onCreateAssignment(batchId)
           : assignmentId;
       setImportedAssignmentId(target);
       setLastPayload(payload);

@@ -114,6 +114,22 @@ describe('QuizManager — paper answer sheets', () => {
     );
   });
 
+  it('offers Import responses on a quiz with a stack no Paper card owns', () => {
+    const onImportLooseStack = vi.fn();
+    renderLibrary({ onImportLooseStack, hasLooseStack: () => true });
+    openRowMenu();
+    fireEvent.click(screen.getByText('Import responses'));
+    expect(onImportLooseStack).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'quiz-1' })
+    );
+  });
+
+  it('hides the stack import when every stack has a Paper card', () => {
+    renderLibrary({ onImportLooseStack: vi.fn(), hasLooseStack: () => false });
+    openRowMenu();
+    expect(screen.queryByText('Import responses')).toBeNull();
+  });
+
   it('offers Import questions in the row menu when wired', () => {
     const onReadPaperQuestions = vi.fn();
     renderLibrary({ onReadPaperQuestions });
@@ -175,6 +191,36 @@ describe('QuizManager — paper assignment card', () => {
     expect(screen.queryByRole('button', { name: /Start/ })).toBeNull();
     expect(screen.queryByText('KQ100')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Import responses/ }));
+    expect(onImportPaperResponses).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'qa-paper' })
+    );
+  });
+
+  it('offers Print response sheets and Delete in the Paper card menu', () => {
+    const onReprintPaperSheets = vi.fn();
+    renderTab('active', PAPER, {
+      onImportPaperResponses: vi.fn(),
+      onReprintPaperSheets,
+    });
+    openRowMenu();
+    expect(screen.getByText('Delete')).toBeTruthy();
+    fireEvent.click(screen.getByText('Print response sheets'));
+    expect(onReprintPaperSheets).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'qa-paper' })
+    );
+  });
+
+  it('keeps Import responses and Print response sheets after it completes', () => {
+    const onImportPaperResponses = vi.fn();
+    const onReprintPaperSheets = vi.fn();
+    renderTab(
+      'archive',
+      { ...PAPER, status: 'inactive' },
+      { onImportPaperResponses, onReprintPaperSheets }
+    );
+    openRowMenu();
+    expect(screen.getByText('Print response sheets')).toBeTruthy();
+    fireEvent.click(screen.getByText('Import responses'));
     expect(onImportPaperResponses).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'qa-paper' })
     );

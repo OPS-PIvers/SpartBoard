@@ -11212,6 +11212,72 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-reprint.cancel",
+    "label": "Print response sheets again Cancel in the Quiz widget",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.paper-reprint",
+        "kind": "modal",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1",
+          "quiz-library.reprint-sheets:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-reprint.print",
+    "label": "Print response sheets again Print button in the Quiz widget",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.paper-reprint",
+        "kind": "modal",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1",
+          "quiz-library.reprint-sheets:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-reprint.student",
+    "label": "Student checkbox when printing response sheets again",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-reprint",
+        "kind": "modal",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1",
+          "quiz-library.reprint-sheets:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-print.close",
     "label": "Print sheets close (×) in the Quiz widget",
     "scope": "widget type",
@@ -70379,6 +70445,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.tab:quiz#active"
         ],
         "reveal": "library-shell.tab:quiz#active",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.import-stack",
+    "label": "Import responses item in a quiz card menu, for a stack with no paper assignment",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.card-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.card-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.reprint-sheets",
+    "label": "Print response sheets item in a paper assignment menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
         "needs": [
           "widget-on-stage"
         ]

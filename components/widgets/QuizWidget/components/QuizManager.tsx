@@ -294,6 +294,12 @@ interface QuizManagerProps {
   onAssignOnPaper?: (quiz: QuizMetadata) => void;
   /** Open the scan import for a paper assignment. */
   onImportPaperResponses?: (assignment: QuizAssignment) => void;
+  /** Print a paper assignment's sheets again, same seats, for lost sheets. */
+  onReprintPaperSheets?: (assignment: QuizAssignment) => void;
+  /** Import a stack with no Paper card (a teammate's print, or one from before Assign on paper). */
+  onImportLooseStack?: (quiz: QuizMetadata) => void;
+  /** The quiz has a printed stack that no paper assignment owns. */
+  hasLooseStack?: (quizId: string) => boolean;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
   /** Take the quiz as students see it. Absent when the feature is off. */
@@ -658,6 +664,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onAddAnswerKey,
   onAssignOnPaper,
   onImportPaperResponses,
+  onReprintPaperSheets,
+  onImportLooseStack,
+  hasLooseStack,
   onEdit,
   onPreview,
   onStudentView,
@@ -1221,6 +1230,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             },
           ]
         : []),
+      ...(onImportLooseStack && hasLooseStack?.(quiz.id)
+        ? [
+            {
+              id: 'import-paper',
+              label: 'Import responses',
+              icon: ScanLine,
+              onClick: () => onImportLooseStack(quiz),
+              anchor: tourTypeAttr('quiz-library.import-stack', 'quiz'),
+            },
+          ]
+        : []),
       ...(onReadPaperQuestions
         ? [
             {
@@ -1526,6 +1546,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onClick: () => (onImportPaperResponses ?? noop)(a),
         anchor: tourTypeAttr('quiz-library.import-responses', 'quiz'),
       };
+      if (onReprintPaperSheets && a.paperBatchId) {
+        secondaries.push({
+          id: 'reprint-paper',
+          label: 'Print response sheets',
+          icon: Printer,
+          anchor: tourTypeAttr('quiz-library.reprint-sheets', 'quiz'),
+          onClick: () => onReprintPaperSheets(a),
+        });
+      }
       secondaries.push({
         id: 'delete',
         label: 'Delete',
@@ -1732,6 +1761,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       icon: BarChart3,
       onClick: () => void (onArchiveResults ?? noop)(a),
     };
+    // More scans from the same stack (another class, make-ups) still import here.
+    if (a.paper && onImportPaperResponses) {
+      secondaries.push({
+        id: 'import-paper',
+        label: 'Import responses',
+        icon: ScanLine,
+        anchor: tourTypeAttr('quiz-library.import-responses', 'quiz'),
+        onClick: () => onImportPaperResponses(a),
+      });
+    }
+    if (a.paper) {
+      if (onReprintPaperSheets && a.paperBatchId) {
+        secondaries.push({
+          id: 'reprint-paper',
+          label: 'Print response sheets',
+          icon: Printer,
+          anchor: tourTypeAttr('quiz-library.reprint-sheets', 'quiz'),
+          onClick: () => onReprintPaperSheets(a),
+        });
+      }
+    }
     secondaries.push({
       id: 'monitor',
       label: 'Monitor',

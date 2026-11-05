@@ -7,7 +7,13 @@
  */
 
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -397,9 +403,18 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const [classes, setClasses] = useState<AssignClassesValue>(
     EMPTY_ASSIGN_CLASSES_VALUE
   );
-  const [sharingValue, setSharingValue] = useState<SharingStepValue>(
-    () => assign?.initialSharing ?? { plcMode: false, plcId: '' }
+  // Null until the teacher touches Sharing, so the default follows PLC data that loads late.
+  const [sharingPick, setSharingValue] = useState<SharingStepValue | null>(
+    null
   );
+  const sharingValue: SharingStepValue = sharingPick ??
+    assign?.initialSharing ?? { plcMode: false, plcId: '' };
+  // Assign on paper: the stack (and then the assignment) already saved, so a retry only prints.
+  const committedRef = useRef<{
+    batch: PaperBatch;
+    sheets: ReturnType<typeof planPaperBatch>['sheets'];
+    assigned: boolean;
+  } | null>(null);
   const selectedStudentIds = useMemo(
     () =>
       assign ? paperSelectedStudentIds(classes, rosters) : pickedStudentIds,
@@ -935,7 +950,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         pageMaps = plan.pageMaps;
       }
 
-      const { batch, sheets } = planPaperBatch({
+      const planned = planPaperBatch({
         batchId: crypto.randomUUID(),
         quizId: quiz.id,
         selections: selectionsForPrint,
@@ -959,18 +974,24 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(versionPlan ? { versions: versionPlan.records } : {}),
         createdAt: now,
       });
-      if (onCreateQuiz) await onCreateQuiz(printedQuiz);
-      // The stub carries them already; an authored quiz records them here, so
-      // the next print and every PLC copy start from the same sheet (D18).
-      // Only when they changed: an unchanged save would publish a new version
-      // to the PLC and tell every peer to pull a print they did not make.
-      else if (onSavePrintSetup && (sheetStimuliChanged || boxSizesChanged))
-        await onSavePrintSetup({
-          stimuli: sheetStimuli,
-          boxSizes: changedBoxSizes,
-        });
-      await onSaveBatch(batch);
-      if (assign) {
+      const committed = assign ? committedRef.current : null;
+      const { batch, sheets } = committed ?? planned;
+      // A retry after the stack was saved reuses it rather than orphaning it.
+      if (!committed) {
+        if (onCreateQuiz) await onCreateQuiz(printedQuiz);
+        // The stub carries them already; an authored quiz records them here, so
+        // the next print and every PLC copy start from the same sheet (D18).
+        // Only when they changed: an unchanged save would publish a new version
+        // to the PLC and tell every peer to pull a print they did not make.
+        else if (onSavePrintSetup && (sheetStimuliChanged || boxSizesChanged))
+          await onSavePrintSetup({
+            stimuli: sheetStimuli,
+            boxSizes: changedBoxSizes,
+          });
+        await onSaveBatch(batch);
+        if (assign) committedRef.current = { batch, sheets, assigned: false };
+      }
+      if (assign && !committedRef.current?.assigned) {
         const picked = pickedPaperRosters(classes, rosters);
         await assign.onCreateAssignment({
           batchId: batch.id,
@@ -978,6 +999,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           periodNames: picked.map((r) => r.name),
           sharing: sharingStepShown ? sharingValue : null,
         });
+        committedRef.current = { batch, sheets, assigned: true };
       }
       print({
         batchId: batch.id,

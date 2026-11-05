@@ -14,6 +14,7 @@ import {
 } from '@/components/widgets/QuizWidget/components/QuizManager';
 import { PaperImportModal } from '@/components/widgets/QuizWidget/components/PaperImportModal';
 import { PaperPrintModal } from '@/components/widgets/QuizWidget/components/PaperPrintModal';
+import { PaperReprintModal } from '@/components/widgets/QuizWidget/components/PaperReprintModal';
 import type {
   ClassRoster,
   PaperBatch,
@@ -79,6 +80,7 @@ const PAPER: QuizAssignment = {
   ...base(0),
   id: 'qa-paper',
   paper: true,
+  paperBatchId: 'batch-1',
   status: 'paused',
   createdAt: NOW,
   periodNames: [ROSTERS[0].name, ROSTERS[1].name],
@@ -134,6 +136,7 @@ const Manager: React.FC<{
       onAssignOnPaper={noop}
       onReadPaperQuestions={noop}
       onImportPaperResponses={noop}
+      onReprintPaperSheets={noop}
       assignments={assignments}
       assignmentsLoading={false}
     />
@@ -154,7 +157,12 @@ const BATCH: PaperBatch = {
   rosterIds: ['r1', 'r2'],
   questionCount: 24,
   choiceCount: 4,
-  seats: {},
+  seats: Object.fromEntries(
+    [...ROSTERS[0].students, ...ROSTERS[1].students].map((st, i) => [
+      i + 1,
+      { rosterId: st.id.split('-')[0], studentId: st.id },
+    ])
+  ),
   spareSeats: [53, 54],
   pagesPerSheet: 1,
   createdAt: NOW,
@@ -206,6 +214,22 @@ const VIEWS = {
     />
   ),
   completed: () => <Manager tab="archive" assignments={COMPLETED} />,
+  reprint: () => (
+    <PaperReprintModal
+      quiz={{ ...ASSIGN_QUIZ, questions: ASSIGN_QUIZ.questions.slice(0, 2) }}
+      batch={{
+        ...BATCH,
+        questionCount: 2,
+        choiceOrder: {
+          q1: ['Nucleus', 'Ribosome', 'Vacuole', 'Cell wall'],
+          q2: ['Ribosome', 'Nucleus', 'Cell wall', 'Vacuole'],
+        },
+      }}
+      rosters={ROSTERS}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
 } as const;
 type View = keyof typeof VIEWS;
 
