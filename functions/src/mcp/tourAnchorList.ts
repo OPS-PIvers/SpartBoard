@@ -67516,7 +67516,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "flashcards.select-mode",
     "label": "Select button in the Flashcards library toolbar",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards",
+        "kind": "widget",
+        "widget_type": "flashcards",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "flashcards.folder-root",
