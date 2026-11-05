@@ -84,7 +84,7 @@ export const LandingOverview: React.FC<LandingOverviewProps> = ({
             <button
               type="button"
               onClick={() => setSeeAll((v) => !v)}
-              className="self-start rounded-sm text-sm font-semibold text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+              className="relative touch-target-expand self-start rounded-sm text-sm font-semibold text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
             >
               {seeAll ? 'Show less' : `See all ${total} assignments`}
             </button>
@@ -115,7 +115,7 @@ export const LandingOverview: React.FC<LandingOverviewProps> = ({
               <button
                 type="button"
                 onClick={() => setSeeAllRes((v) => !v)}
-                className="self-start rounded-sm text-sm font-semibold text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                className="relative touch-target-expand self-start rounded-sm text-sm font-semibold text-brand-blue-primary hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
               >
                 {seeAllRes
                   ? 'Show less'
