@@ -9,7 +9,13 @@ vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 
 type Fn = ReturnType<typeof vi.fn>;
 
-const board = { id: 'b1', name: 'B', widgets: [], createdAt: 1 } as Dashboard;
+const board: Dashboard = {
+  id: 'b1',
+  name: 'B',
+  background: '',
+  widgets: [],
+  createdAt: 1,
+};
 
 const mockTx = (existing: Record<string, unknown> | null) => {
   const tx = {
