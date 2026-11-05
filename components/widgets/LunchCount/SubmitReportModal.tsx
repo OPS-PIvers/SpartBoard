@@ -3,7 +3,7 @@ import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { tourTypeAttr } from '@/config/tourAnchors';
-import { FileSpreadsheet, X, Send } from 'lucide-react';
+import { CheckCircle2, FileSpreadsheet, X, Send } from 'lucide-react';
 
 /**
  * Props for the SubmitReportModal component.
@@ -33,6 +33,8 @@ interface SubmitReportModalProps {
   };
   /** Whether the report is currently being submitted */
   isSubmitting: boolean;
+  /** True when a report was already submitted today */
+  alreadySubmitted?: boolean;
 }
 
 /**
@@ -45,6 +47,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
   onSubmit,
   data,
   isSubmitting,
+  alreadySubmitted = false,
 }) => {
   const [notes, setNotes] = useState('');
   const [extraPizza, setExtraPizza] = useState<number | ''>('');
@@ -58,6 +61,44 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
   }, [isSubmitting, onClose]);
 
   if (!isOpen) return null;
+
+  if (alreadySubmitted && !isSubmitting) {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={handleClose}
+        variant="bare"
+        maxWidth="max-w-[90%]"
+        ariaLabelledby="report-modal-title"
+      >
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 text-center border border-slate-200">
+          <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center">
+            <CheckCircle2
+              className="w-8 h-8 text-emerald-600"
+              aria-hidden="true"
+            />
+          </div>
+          <h3
+            id="report-modal-title"
+            className="font-black text-lg uppercase tracking-tight text-slate-800"
+          >
+            Lunch Count Already Submitted
+          </h3>
+          <p className="mt-2 text-sm font-bold text-slate-500">
+            Today&apos;s lunch count has been sent. You can submit again
+            tomorrow.
+          </p>
+          <Button
+            onClick={handleClose}
+            variant="secondary"
+            className="mt-6 w-full py-4 rounded-2xl font-black uppercase tracking-widest"
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
 
   const isIntermediate = data.schoolSite === 'orono-intermediate-school';
 

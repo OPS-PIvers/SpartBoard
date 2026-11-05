@@ -572,6 +572,12 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         throw new Error(result);
       }
 
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          lastSubmittedDate: new Date().toLocaleDateString(),
+        },
+      });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
     } catch (err) {
@@ -1207,6 +1213,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             .join(' - '),
         }}
         isSubmitting={isSubmitting}
+        alreadySubmitted={
+          config.lastSubmittedDate === new Date().toLocaleDateString()
+        }
       />
       <Modal
         isOpen={!!peekedItem}

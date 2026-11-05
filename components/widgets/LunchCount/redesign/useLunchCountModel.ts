@@ -284,6 +284,12 @@ export function useLunchCountModel(widget: WidgetData) {
         throw new Error(result);
       }
 
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          lastSubmittedDate: new Date().toLocaleDateString(),
+        },
+      });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
     } catch (err) {
@@ -388,6 +394,8 @@ export function useLunchCountModel(widget: WidgetData) {
     setIsMissingInfoOpen,
     isSubmitting,
     reportData,
+    alreadySubmitted:
+      config.lastSubmittedDate === new Date().toLocaleDateString(),
   };
 }
 
