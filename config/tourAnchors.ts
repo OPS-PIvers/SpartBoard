@@ -10517,11 +10517,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'flashcards-editor.card-row': {
-    label: 'A card in the Flashcards set editor list',
-    perField: true,
-    panel: true,
-  },
   'flashcards.editor-description': {
     label: 'Description box in the Flashcards editor',
     perWidgetType: true,

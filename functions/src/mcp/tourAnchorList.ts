@@ -46610,24 +46610,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "flashcards-editor.card-row",
-    "label": "A card in the Flashcards set editor list",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "flashcards.editor-description",
     "label": "Description box in the Flashcards editor",
     "scope": "widget type",

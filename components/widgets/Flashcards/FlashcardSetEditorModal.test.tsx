@@ -192,10 +192,10 @@ describe('FlashcardSetEditorModal', () => {
     );
   });
 
-  it('adds and selects the next card on Enter in Definition', () => {
+  it('adds the next card on Enter in Definition', () => {
     renderModal({});
     fireEvent.keyDown(screen.getByLabelText('Definition 1'), { key: 'Enter' });
-    expect(screen.getByText('Card 2 of 3')).toBeTruthy();
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
     expect(screen.getByLabelText('Term 2')).toHaveProperty('value', '');
   });
 
@@ -205,7 +205,7 @@ describe('FlashcardSetEditorModal', () => {
       key: 'Enter',
       isComposing: true,
     });
-    expect(screen.getByText('Card 1 of 2')).toBeTruthy();
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(2);
   });
 });
 
