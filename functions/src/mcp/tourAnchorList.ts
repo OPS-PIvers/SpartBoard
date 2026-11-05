@@ -7889,6 +7889,45 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.order-image",
+    "label": "Add image to ordering item in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.order-image-remove",
+    "label": "Remove ordering item image in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.order-add",
     "label": "Add ordering item in the Quiz editor",
     "scope": "widget type",

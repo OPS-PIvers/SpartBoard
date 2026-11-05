@@ -727,6 +727,19 @@ const StructuredAnswerArea: React.FC<{
             </span>
             <div className="flex-1 flex items-center gap-3">
               <span className="text-brand-blue-primary/30">→</span>
+              {question.type === 'Ordering' &&
+                showAnswer &&
+                question.orderingImages?.[i]?.startsWith('https://') && (
+                  <img
+                    src={question.orderingImages[i]}
+                    alt=""
+                    className="rounded-lg object-cover bg-white shrink-0"
+                    style={{
+                      width: 'min(40px, 10cqmin)',
+                      height: 'min(40px, 10cqmin)',
+                    }}
+                  />
+                )}
               <span
                 className={`font-bold transition-all duration-500 ${
                   showAnswer

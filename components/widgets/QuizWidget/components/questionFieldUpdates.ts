@@ -88,6 +88,7 @@ export function questionTypeChangeUpdates(
         ? joinBlanks(Array(countTextBlanks(q.text)).fill(''))
         : '',
     matchingDistractors: undefined,
+    orderingImages: undefined,
     // Reset written-specific fields when switching off written types
     placeholder: isWritten ? q.placeholder : undefined,
     maxWords: isWritten ? q.maxWords : undefined,

@@ -7,6 +7,7 @@
  * useQuizSessionStudent — Student joins and submits answers.
  */
 
+import { alignedOrderingImages } from '@/utils/quizOrderingImages';
 import { stripRubricExamples } from '@/utils/rubricGuide';
 import {
   useState,
@@ -639,6 +640,8 @@ export function toPublicQuestion(
     const english = q.correctAnswer.split('|');
     const permutation = randomPermutation(english.length);
     base.orderingItems = permutation.map((i) => english[i]);
+    const images = alignedOrderingImages(q.orderingImages, english.length);
+    if (images) base.orderingImages = permutation.map((i) => images[i]);
     for (const [loc, tr] of entries) {
       const items = permuteAligned(
         tr.orderingItems,
