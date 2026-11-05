@@ -269,12 +269,19 @@ export const TrackedPlayer: React.FC<{
   // Copies the card subset onto progress so the teacher's counts use it.
   const subsetKey = override?.questionIds?.join('\n') ?? null;
   const stampedKey = progress?.cardSubset?.join('\n') ?? null;
+  // Only onto an existing doc, and once per subset, so opening the page or a refused write doesn't loop.
+  const hasProgress = progress !== null;
+  const subsetTriedRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    if (paused || subsetKey === stampedKey) return;
+    // A teacher reset deletes the doc; the next one gets the subset again.
+    if (!hasProgress) subsetTriedRef.current = undefined;
+    if (paused || !hasProgress || subsetKey === stampedKey) return;
+    if (subsetTriedRef.current === subsetKey) return;
+    subsetTriedRef.current = subsetKey;
     void adapter.writeAttemptFields({
       cardSubset: subsetKey === null ? null : subsetKey.split('\n'),
     });
-  }, [adapter, paused, subsetKey, stampedKey]);
+  }, [adapter, paused, hasProgress, subsetKey, stampedKey]);
 
   const submitForced = (by: 'time' | 'tab') => {
     const now = Date.now();
