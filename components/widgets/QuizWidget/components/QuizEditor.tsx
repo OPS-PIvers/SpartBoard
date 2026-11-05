@@ -819,7 +819,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const orderingImagesOn = canAccessFeature('quiz-ordering-images');
   const uploadOrderingImage = useCallback(
     async (file: File): Promise<string | null> => {
-      const uploaded = await uploadWhiteboardImage(file);
+      // A neutral name: a timestamp or original file name could give away the order.
+      const uploaded = await uploadWhiteboardImage(
+        file,
+        `ordering-item-${crypto.randomUUID()}`
+      );
       return uploaded ? driveImageUrl(uploaded.driveFileId) : null;
     },
     [uploadWhiteboardImage]
@@ -1136,6 +1140,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           />
         ) : q.type === 'Ordering' ? (
           <OrderingAnswerEditor
+            key={q.id}
             correctAnswer={q.correctAnswer}
             orderingImages={q.orderingImages}
             onChange={handleOrderingChange}

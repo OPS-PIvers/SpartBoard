@@ -186,6 +186,8 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.noSpellCheck === true) !== (qb.noSpellCheck === true) ||
       (qa.paperBoxSize ?? '') !== (qb.paperBoxSize ?? '') ||
       (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
+      (qa.orderingImages ?? []).join('|') !==
+        (qb.orderingImages ?? []).join('|') ||
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
       (qa.rubricVisibleToStudents === true) !==

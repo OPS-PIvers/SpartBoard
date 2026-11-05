@@ -579,6 +579,7 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
     onChange(serializeOrderItems(next), serializeOrderImages(next));
 
   const setRowImage = (id: string, image: string) => {
+    if (!rowsRef.current.some((r) => r.id === id)) return;
     const next = rowsRef.current.map((r) =>
       r.id === id ? { ...r, image } : r
     );

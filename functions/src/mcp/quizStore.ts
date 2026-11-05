@@ -322,6 +322,13 @@ export function toStoredQuestion(
       }
       assertNoPipe(n, items, 'items');
       base.correctAnswer = items.join('|');
+      // Item images stay only while the items are unchanged; any edit to them drops the images.
+      if (
+        existing?.type === 'Ordering' &&
+        existing.correctAnswer === base.correctAnswer &&
+        Array.isArray(existing.orderingImages)
+      )
+        base.orderingImages = existing.orderingImages;
       if (input.partial_credit !== undefined)
         base.allowPartialCredit = input.partial_credit;
       break;
