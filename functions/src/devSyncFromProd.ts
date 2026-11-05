@@ -1,5 +1,9 @@
-// Dev-only: replaces the caller's own materials in spartboard-dev with a fresh copy from prod. Read-only on prod.
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+// Dev-only: replaces the caller's own materials and the shared admin config in spartboard-dev with a fresh copy from prod. Read-only on prod.
+import {
+  onCall,
+  HttpsError,
+  type CallableRequest,
+} from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { GoogleAuth, Impersonated } from 'google-auth-library';
 import './functionsInit';
@@ -10,26 +14,31 @@ const PROD_PROJECT_ID = 'spartboard';
 const PROD_READER_SA = 'prod-reader@spartboard-dev.iam.gserviceaccount.com';
 const PROD_DOCS = `https://firestore.googleapis.com/v1/projects/${PROD_PROJECT_ID}/databases/(default)/documents`;
 
-// Teacher-authored content only. Rosters (student names), OAuth tokens, assignments and PLC state stay out.
+// The teacher's own materials and settings. OAuth tokens, assignments, PLC state and alert schedules (dev would email twice) stay out.
 export const SYNCED_USER_COLLECTIONS = [
   'activity_wall_activities',
   'collections',
   'dashboards',
   'flashcard_folders',
   'flashcard_sets',
+  'gradebook_classes',
+  'gradebook_settings',
   'guided_learning',
   'guided_learning_folders',
+  'mini_app_keys',
   'miniapp_folders',
   'miniapps',
   'music_stations',
   'notebooks',
   'pdfs',
+  'plc_layouts',
   'projects',
   'projects_folders',
   'question_bank_folders',
   'question_banks',
   'quiz_folders',
   'quizzes',
+  'rosters',
   'rubrics',
   'saved_widgets',
   'starterPacks',
@@ -244,26 +253,33 @@ export async function readProdTree(
   return entries;
 }
 
+async function assertDevAdmin(request: CallableRequest): Promise<{
+  email: string;
+  devUid: string;
+  db: admin.firestore.Firestore;
+}> {
+  if (currentProjectId() !== DEV_PROJECT_ID) {
+    throw new HttpsError(
+      'failed-precondition',
+      'This only runs in the dev project.'
+    );
+  }
+  const email = request.auth?.token.email?.toLowerCase();
+  if (!request.auth || !email || !request.auth.token.email_verified) {
+    throw new HttpsError('unauthenticated', 'Sign in with Google first.');
+  }
+  const db = admin.firestore();
+  if (!(await db.doc(`admins/${email}`).get()).exists) {
+    throw new HttpsError('permission-denied', 'Admins only.');
+  }
+  return { email, devUid: request.auth.uid, db };
+}
+
 export const syncMyMaterialsFromProdV1 = onCall(
   { memory: '512MiB', timeoutSeconds: 300, maxInstances: 2 },
   async (request): Promise<{ copied: Record<string, number> }> => {
     assertViewAsAllowed(request);
-    if (currentProjectId() !== DEV_PROJECT_ID) {
-      throw new HttpsError(
-        'failed-precondition',
-        'This only runs in the dev project.'
-      );
-    }
-    const email = request.auth?.token.email?.toLowerCase();
-    if (!request.auth || !email || !request.auth.token.email_verified) {
-      throw new HttpsError('unauthenticated', 'Sign in with Google first.');
-    }
-    const db = admin.firestore();
-    if (!(await db.doc(`admins/${email}`).get()).exists) {
-      throw new HttpsError('permission-denied', 'Admins only.');
-    }
-
-    const devUid = request.auth.uid;
+    const { email, devUid, db } = await assertDevAdmin(request);
     const token = await prodToken();
     const prodUid = await findProdUid(token, email);
     const swapUid = (s: string) => s.split(prodUid).join(devUid);
@@ -308,6 +324,154 @@ export const syncMyMaterialsFromProdV1 = onCall(
         await writer.close();
       }
       copied[name] = keep.size;
+    }
+    return { copied };
+  }
+);
+
+// Shared admin config mirrored whole (top-level docs only, so student-writable subcollections like announcements/*/pollVotes never come over).
+export const CONFIG_COLLECTIONS = [
+  'admins',
+  'admin_settings',
+  'feature_permissions',
+  'global_permissions',
+  'admin_backgrounds',
+  'global_mini_apps',
+  'global_music_stations',
+  'global_pdfs',
+  'global_weather',
+  'global_video_activities',
+  'instructional_routines',
+  'help_center',
+  'help_resources',
+  'dashboard_templates',
+  'announcements',
+  'standards_catalog',
+  'building_guided_learning',
+  'building_guided_learning_index',
+  'building_guided_learning_tours',
+  'building_web_tours',
+  'custom_widgets',
+  'gradebook_district_configs',
+  'grading_period_sets',
+  'lunch_menus',
+] as const;
+
+// Organization subcollections mirrored whole; `members` copies admins only and never prunes.
+export const ORG_SUBCOLLECTIONS = [
+  'buildings',
+  'domains',
+  'roles',
+  'studentPageConfig',
+  'testClasses',
+] as const;
+
+// Never removed from dev even when prod lacks them, so a dev-only admin can't be locked out.
+const NO_PRUNE = new Set(['admins']);
+
+// Kill switches forced off in dev regardless of prod's value.
+export const DEV_OVERRIDES: Record<string, Record<string, unknown>> = {
+  'admin_settings/classlink_sync': { enabled: false },
+};
+
+const keepString = (s: string) => s;
+const relPath = (doc: RestDocument) => doc.name.split('/documents/')[1] ?? '';
+const docId = (doc: RestDocument) => doc.name.split('/').pop() ?? '';
+
+export function isAdminMember(
+  doc: RestDocument,
+  adminEmails: Set<string>
+): boolean {
+  const email = (doc.fields?.email?.stringValue ?? docId(doc)).toLowerCase();
+  return (
+    adminEmails.has(email) && doc.fields?.roleId?.stringValue !== 'student'
+  );
+}
+
+interface ConfigPlan {
+  path: string;
+  docs: RestDocument[];
+  prune: boolean;
+}
+
+export async function readProdConfig(token: string): Promise<{
+  orgs: RestDocument[];
+  plan: ConfigPlan[];
+}> {
+  const plan: ConfigPlan[] = [];
+  for (const name of CONFIG_COLLECTIONS) {
+    plan.push({
+      path: name,
+      docs: await listProdDocs(token, name),
+      prune: !NO_PRUNE.has(name),
+    });
+  }
+  const adminEmails = new Set(
+    (plan.find((p) => p.path === 'admins')?.docs ?? []).map((d) =>
+      docId(d).toLowerCase()
+    )
+  );
+  const orgs = await listProdDocs(token, 'organizations');
+  for (const org of orgs) {
+    const orgPath = relPath(org);
+    for (const sub of ORG_SUBCOLLECTIONS) {
+      plan.push({
+        path: `${orgPath}/${sub}`,
+        docs: await listProdDocs(token, `${orgPath}/${sub}`),
+        prune: true,
+      });
+    }
+    plan.push({
+      path: `${orgPath}/members`,
+      docs: (await listProdDocs(token, `${orgPath}/members`)).filter((m) =>
+        isAdminMember(m, adminEmails)
+      ),
+      prune: false,
+    });
+  }
+  return { orgs, plan };
+}
+
+export const syncConfigFromProdV1 = onCall(
+  { memory: '1GiB', timeoutSeconds: 540, maxInstances: 1 },
+  async (request): Promise<{ copied: Record<string, number> }> => {
+    assertViewAsAllowed(request);
+    const { db } = await assertDevAdmin(request);
+    const token = await prodToken();
+
+    // Read everything from prod first so a failed read never leaves dev config half-pruned.
+    const { orgs, plan } = await readProdConfig(token);
+
+    const copied: Record<string, number> = {};
+    const writer = db.bulkWriter();
+    try {
+      for (const org of orgs) {
+        void writer.set(
+          db.doc(relPath(org)),
+          fromRestFields(org.fields ?? {}, keepString)
+        );
+      }
+      for (const { path, docs, prune } of plan) {
+        if (prune) {
+          const keep = new Set(docs.map(docId));
+          for (const ref of await db.collection(path).listDocuments()) {
+            if (!keep.has(ref.id)) void writer.delete(ref);
+          }
+        }
+        for (const d of docs) {
+          if (!d.createTime) continue;
+          void writer.set(
+            db.doc(relPath(d)),
+            fromRestFields(d.fields ?? {}, keepString)
+          );
+        }
+        copied[path] = docs.length;
+      }
+    } finally {
+      await writer.close();
+    }
+    for (const [path, data] of Object.entries(DEV_OVERRIDES)) {
+      await db.doc(path).set(data, { merge: true });
     }
     return { copied };
   }

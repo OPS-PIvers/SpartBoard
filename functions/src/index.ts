@@ -339,7 +339,10 @@ export { focusStatusV1, focusReportV1 } from './focus/studentEndpoints';
 export { migratePlcs } from './migratePlcs';
 
 // Dev-only: copy the caller's own prod materials into spartboard-dev.
-export { syncMyMaterialsFromProdV1 } from './devSyncFromProd';
+export {
+  syncConfigFromProdV1,
+  syncMyMaterialsFromProdV1,
+} from './devSyncFromProd';
 export { gradebookDemoV1 } from './devGradebookDemo';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';

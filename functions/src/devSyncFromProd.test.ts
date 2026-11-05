@@ -39,10 +39,14 @@ vi.mock('firebase-functions/v2/https', () => ({
 }));
 
 import {
+  CONFIG_COLLECTIONS,
   currentProjectId,
+  DEV_OVERRIDES,
   fromRestFields,
+  readProdConfig,
   readProdTree,
   SYNCED_USER_COLLECTIONS,
+  syncConfigFromProdV1,
   syncMyMaterialsFromProdV1,
 } from './devSyncFromProd';
 
@@ -91,15 +95,114 @@ describe('fromRestFields', () => {
 });
 
 describe('SYNCED_USER_COLLECTIONS', () => {
-  it('never copies student-bearing or credential collections', () => {
+  it('never copies credential, student-work or emailing collections', () => {
     for (const name of [
-      'rosters',
       'private',
       'quiz_assignments',
       'paper_batches',
+      'group_email_alerts',
+      'mcp_grants',
     ]) {
       expect(SYNCED_USER_COLLECTIONS).not.toContain(name);
     }
+  });
+
+  it("copies the teacher's classes and personal settings", () => {
+    for (const name of [
+      'rosters',
+      'userProfile',
+      'gradebook_settings',
+      'plc_layouts',
+    ]) {
+      expect(SYNCED_USER_COLLECTIONS).toContain(name);
+    }
+  });
+});
+
+describe('readProdConfig', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('reads every config collection and keeps only admin, non-student members', async () => {
+    const base = 'projects/spartboard/databases/(default)/documents/';
+    const t = '2026-09-22T00:00:00Z';
+    const doc = (path: string, fields: Record<string, unknown> = {}) => ({
+      name: base + path,
+      createTime: t,
+      fields,
+    });
+    const pages: Record<string, unknown[]> = {
+      admins: [doc('admins/boss@x.org')],
+      admin_settings: [doc('admin_settings/a')],
+      organizations: [doc('organizations/orono')],
+      'organizations/orono/buildings': [
+        doc('organizations/orono/buildings/hs'),
+      ],
+      'organizations/orono/members': [
+        doc('organizations/orono/members/boss@x.org', {
+          email: { stringValue: 'Boss@x.org' },
+          roleId: { stringValue: 'teacher' },
+        }),
+        doc('organizations/orono/members/kid@x.org', {
+          roleId: { stringValue: 'student' },
+        }),
+        doc('organizations/orono/members/staff@x.org', {
+          roleId: { stringValue: 'teacher' },
+        }),
+      ],
+    };
+    const listed: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const path = decodeURIComponent(
+          url.split('/documents/')[1].split('?')[0]
+        );
+        listed.push(path);
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ documents: pages[path] ?? [] }),
+        });
+      })
+    );
+
+    const { orgs, plan } = await readProdConfig('tok');
+
+    for (const name of CONFIG_COLLECTIONS) expect(listed).toContain(name);
+    expect(orgs).toHaveLength(1);
+    const byPath = new Map(plan.map((p) => [p.path, p]));
+    expect(byPath.get('admins')?.prune).toBe(false);
+    expect(byPath.get('admin_settings')?.prune).toBe(true);
+    expect(byPath.get('organizations/orono/buildings')?.docs).toHaveLength(1);
+    const members = byPath.get('organizations/orono/members');
+    expect(members?.prune).toBe(false);
+    expect(members?.docs.map((d) => d.name.split('/').pop())).toEqual([
+      'boss@x.org',
+    ]);
+  });
+});
+
+describe('syncConfigFromProdV1', () => {
+  const saved = { ...process.env };
+  afterEach(() => {
+    process.env = { ...saved };
+  });
+
+  it('refuses to run outside the dev project', async () => {
+    process.env.GCLOUD_PROJECT = 'spartboard';
+    const handler = syncConfigFromProdV1 as unknown as (
+      req: unknown
+    ) => Promise<unknown>;
+    await expect(
+      handler({ auth: { uid: 'u', token: {} } })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
+  it('forces ClassLink sync off', () => {
+    expect(DEV_OVERRIDES['admin_settings/classlink_sync']).toEqual({
+      enabled: false,
+    });
   });
 });
 
