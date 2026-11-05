@@ -1,4 +1,5 @@
 // Which student uids a teacher may grade in a project class: ClassLink must confirm they teach it (or they run the test class).
+import { HttpsError } from 'firebase-functions/v2/https';
 import * as admin from '../firebaseAdmin';
 import {
   CLASSLINK_CLIENT_ID,
@@ -17,9 +18,11 @@ export async function loadClassStudentUids(
   classId: string
 ): Promise<Set<string>> {
   const uids = new Set<string>();
+  if (!ownerUid || !classId || classId.startsWith('local:')) return uids;
   const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
-  if (!ownerUid || !classId || classId.startsWith('local:') || !hmacSecret)
-    return uids;
+  if (!hmacSecret) {
+    throw new HttpsError('internal', 'Server configuration missing.');
+  }
   const owner = await admin
     .auth()
     .getUser(ownerUid)

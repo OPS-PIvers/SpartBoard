@@ -313,23 +313,29 @@ async function claimRow(
     .collection(SESSION_COLLECTION[kind as GradeKind])
     .doc(sessionId)
     .get();
-  return session.exists && session.data()?.teacherUid === owner
-    ? null
-    : undefined;
+  if (!(session.exists && session.data()?.teacherUid === owner))
+    return undefined;
+  logger.warn('gradeIndex: row held by another session left alone', {
+    kind: row.kind,
+    sessionId: row.sessionId,
+    heldByKind: kind,
+    heldBySessionId: sessionId,
+  });
+  return null;
 }
 
-/** Write only when something besides `updatedAt` changed, so reruns cost no writes. */
-async function writeRow(
-  db: Firestore,
-  row: IndexRow,
-  previous: Doc | undefined
-): Promise<boolean> {
-  if (sameRow(row, previous)) return false;
-  await db
+/** Write only when something besides `updatedAt` changed; the row is re-read and claimed in the same transaction. */
+async function writeRow(db: Firestore, row: IndexRow): Promise<boolean> {
+  const ref = db
     .collection(GRADE_INDEX)
-    .doc(rowId(row.sessionId, row.studentUid))
-    .set(row as unknown as Doc);
-  return true;
+    .doc(rowId(row.sessionId, row.studentUid));
+  return db.runTransaction(async (tx) => {
+    const current = (await tx.get(ref)).data();
+    if (sameRow(row, current)) return false;
+    if ((await claimRow(db, row, current)) === null) return false;
+    tx.set(ref, row as unknown as Doc);
+    return true;
+  });
 }
 
 /** Recompute write: a row a trigger rewrote after `startedAt` is newer than this snapshot, so it stays. */
@@ -416,23 +422,37 @@ async function wallSubmittedAt(
   return times.length > 0 ? Math.min(...times) : 0;
 }
 
-/** Checks each class once per run against the owner's live roster; a lookup failure throws so the recompute retries. */
+const ROSTER_CACHE_MS = 90_000;
+const rosterCache = new Map<
+  string,
+  { at: number; students: Promise<Set<string>> }
+>();
+
+export function __resetProjectRosterCache(): void {
+  rosterCache.clear();
+}
+
+/** Looks each owner and class up once per 90 s, shared by the triggers and the recompute; a failed lookup throws and is not cached. */
 export function defaultProjectMemberAuthority(
   db: Firestore
 ): ProjectMemberAuthority {
-  const rosters = new Map<string, Promise<Set<string>>>();
   return async (ownerUid, classId, memberUids) => {
     if (!classId || memberUids.length === 0) return new Set();
     const key = `${ownerUid}\n${classId}`;
-    let roster = rosters.get(key);
-    if (!roster) {
-      roster = import('./projectMemberAuthority').then((m) =>
+    const now = Date.now();
+    let entry = rosterCache.get(key);
+    if (!entry || now - entry.at > ROSTER_CACHE_MS) {
+      const students = import('./projectMemberAuthority').then((m) =>
         m.loadClassStudentUids(db, ownerUid, classId)
       );
-      rosters.set(key, roster);
-      void roster.catch(() => rosters.delete(key));
+      entry = { at: now, students };
+      rosterCache.set(key, entry);
+      const stored = entry;
+      void students.catch(() => {
+        if (rosterCache.get(key) === stored) rosterCache.delete(key);
+      });
     }
-    const students = await roster;
+    const students = await entry.students;
     return new Set(memberUids.filter((uid) => students.has(uid)));
   };
 }
@@ -571,7 +591,7 @@ export async function applyDocWrite(
   w = { ...w, after };
 
   if (w.kind === 'projects') {
-    const { upserts, memberUids, denied } = await projectRows(
+    const { upserts, memberUids } = await projectRows(
       db,
       ctx,
       w.docId,
@@ -585,7 +605,6 @@ export async function applyDocWrite(
         await deleteRow(db, w.kind, w.sessionId, uid);
       return memberUids.length;
     }
-    for (const uid of denied) await deleteRow(db, w.kind, w.sessionId, uid);
     for (const row of upserts) {
       const prev = await previousRow(
         db,
@@ -594,7 +613,7 @@ export async function applyDocWrite(
         row.studentUid
       );
       if (prev === null) continue;
-      if (await writeRow(db, row, prev)) writes++;
+      if (await writeRow(db, row)) writes++;
     }
     return writes;
   }
@@ -620,7 +639,7 @@ export async function applyDocWrite(
   const prev = await previousRow(db, w.kind, w.sessionId, studentUid);
   if (prev === null) return 0;
   const row = await buildRow(db, ctx, studentUid, score, prev, now);
-  return (await writeRow(db, row, prev)) ? 1 : 0;
+  return (await writeRow(db, row)) ? 1 : 0;
 }
 
 /** Rebuilds every row of one session; rows whose work is gone are deleted. */
@@ -655,7 +674,7 @@ export async function recomputeSession(
     if (kind === 'projects') {
       const memberAuthority = authority ?? defaultProjectMemberAuthority(db);
       for (const d of docs.docs) {
-        const { upserts } = await projectRows(
+        const { upserts, denied } = await projectRows(
           db,
           ctx,
           d.id,
@@ -665,6 +684,11 @@ export async function recomputeSession(
           memberAuthority
         );
         rows.push(...upserts);
+        // A member the roster no longer vouches for gets no update, but their existing row is not dropped for that alone.
+        for (const uid of denied) {
+          const id = rowId(sessionId, uid);
+          if (existing.has(id)) keep.add(id);
+        }
       }
     } else {
       const wallFirst = new Map<string, number>();

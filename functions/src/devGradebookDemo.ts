@@ -22,7 +22,7 @@ import {
   type WorkState,
 } from './devGradebookDemo/data';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { recomputeSession } from './gradebook/gradeIndex';
+import { SESSION_COLLECTION, recomputeSession } from './gradebook/gradeIndex';
 import { projectRow } from './gradebook/gradeProjection';
 import type { IndexRow } from './gradebook/types';
 
@@ -911,6 +911,8 @@ export async function removeGradebookDemo(
   for (const sid of sids) {
     await w.delete(db.doc(`gradebook_columns/${sid}`));
     await w.delete(db.doc(`grade_index_sessions/${sid}`));
+    for (const kind of Object.keys(SESSION_COLLECTION))
+      await w.delete(db.doc(`grade_index_sessions/${kind}__${sid}`));
   }
 
   const rosterIds: string[] = [];

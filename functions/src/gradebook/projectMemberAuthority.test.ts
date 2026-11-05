@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { getUser, loadTaughtClassEnrollment, loadTestClassMembership } =
+const { getUser, loadTaughtClassEnrollment, loadTestClassMembership, secret } =
   vi.hoisted(() => ({
     getUser: vi.fn(),
     loadTaughtClassEnrollment: vi.fn(),
     loadTestClassMembership: vi.fn(),
+    secret: { hmac: 'hmac' },
   }));
 vi.mock('../firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
@@ -16,19 +17,24 @@ vi.mock('../secrets', () => ({
   CLASSLINK_CLIENT_ID: { value: () => 'id' },
   CLASSLINK_CLIENT_SECRET: { value: () => 'secret' },
   CLASSLINK_TENANT_URL: { value: () => 'https://tenant.example' },
-  STUDENT_PSEUDONYM_HMAC_SECRET: { value: () => 'hmac' },
+  STUDENT_PSEUDONYM_HMAC_SECRET: { value: () => secret.hmac },
 }));
 vi.mock('../studentIdentity', () => ({ loadTaughtClassEnrollment }));
 vi.mock('../studentAssignmentTargets', () => ({ loadTestClassMembership }));
 
 import { computeStudentUid } from '../classlinkShared';
 import { loadClassStudentUids } from './projectMemberAuthority';
-import { defaultProjectMemberAuthority } from './gradeIndex';
+import {
+  __resetProjectRosterCache,
+  defaultProjectMemberAuthority,
+} from './gradeIndex';
 
 const db = {} as never;
 const teacher = { email: 't@school.edu', emailVerified: true };
 
 beforeEach(() => {
+  __resetProjectRosterCache();
+  secret.hmac = 'hmac';
   getUser.mockReset().mockResolvedValue(teacher);
   loadTaughtClassEnrollment.mockReset().mockResolvedValue(null);
   loadTestClassMembership
@@ -92,6 +98,13 @@ describe('loadClassStudentUids', () => {
     expect(loadTaughtClassEnrollment).not.toHaveBeenCalled();
   });
 
+  it('throws, rather than returning no students, when the HMAC secret is missing', async () => {
+    secret.hmac = '';
+    await expect(
+      loadClassStudentUids(db, 'owner', 'class-1')
+    ).rejects.toMatchObject({ code: 'internal' });
+  });
+
   it('throws when ClassLink is unavailable rather than reading it as no students', async () => {
     loadTaughtClassEnrollment.mockRejectedValue(new Error('unavailable'));
     await expect(loadClassStudentUids(db, 'owner', 'class-1')).rejects.toThrow(
@@ -120,5 +133,21 @@ describe('defaultProjectMemberAuthority', () => {
     loadTaughtClassEnrollment.mockResolvedValue(new Set(['s1']));
     const s1 = computeStudentUid('s1', 'hmac');
     expect(await authority('owner', 'class-1', [s1])).toEqual(new Set([s1]));
+  });
+
+  it('shares one lookup across authorities for 90 seconds, then asks again', async () => {
+    vi.useFakeTimers();
+    try {
+      loadTaughtClassEnrollment.mockResolvedValue(new Set(['s1']));
+      const s1 = computeStudentUid('s1', 'hmac');
+      await defaultProjectMemberAuthority(db)('owner', 'class-1', [s1]);
+      await defaultProjectMemberAuthority(db)('owner', 'class-1', [s1]);
+      expect(loadTaughtClassEnrollment).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(91_000);
+      await defaultProjectMemberAuthority(db)('owner', 'class-1', [s1]);
+      expect(loadTaughtClassEnrollment).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

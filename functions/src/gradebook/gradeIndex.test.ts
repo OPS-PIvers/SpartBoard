@@ -21,8 +21,10 @@ vi.mock('firebase-functions/logger', () => ({
 }));
 
 import * as admin from '../firebaseAdmin';
+import * as logger from 'firebase-functions/logger';
 import {
   __resetGradeIndexEnabledCache,
+  __resetProjectRosterCache,
   applyDocWrite,
   sessionWriteMatters,
   docWriteMatters,
@@ -118,7 +120,10 @@ const rosterOf =
   (_owner, _classId, members) =>
     Promise.resolve(new Set(members.filter((u) => uids.includes(u))));
 
-beforeEach(() => __resetGradeIndexEnabledCache());
+beforeEach(() => {
+  __resetGradeIndexEnabledCache();
+  __resetProjectRosterCache();
+});
 
 describe('applyDocWrite', () => {
   it('uses the doc as it is now, not a late event payload', async () => {
@@ -659,6 +664,40 @@ describe('a row id shared with another kind of session', () => {
     });
   });
 
+  it('loses a cross-kind race instead of overwriting: the row is claimed inside the write transaction', async () => {
+    const stub = seed({
+      'quiz_sessions/qs1/responses/u1': completed(),
+      'quiz_sessions/qs2': { teacherUid: 't9', quizTitle: 'Other' },
+    });
+    const foreign = {
+      ...victimRow,
+      kind: 'mini-app',
+      sessionId: 'qs2',
+      ownerUid: 't9',
+    };
+    const inner = stub.db.runTransaction.bind(stub.db);
+    stub.db.runTransaction = ((
+      fn: Parameters<typeof stub.db.runTransaction>[0]
+    ) => {
+      stub.store.set('grade_index/qs1__u1', foreign);
+      return inner(fn);
+    }) as never;
+    const w = {
+      kind: 'quiz' as const,
+      sessionId: 'qs1',
+      docId: 'u1',
+      before: undefined,
+      after: completed(),
+    };
+    stub.store.set('mini_app_sessions/qs2', { teacherUid: 't9' });
+    expect(await applyDocWrite(stub.db as unknown as Db, w, NOW)).toBe(0);
+    expect(stub.get('grade_index/qs1__u1')).toEqual(foreign);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'gradeIndex: row held by another session left alone',
+      expect.objectContaining({ heldByKind: 'mini-app' })
+    );
+  });
+
   it('retakes a row whose own session is gone, without its attempts', async () => {
     const stub = makeStubFirestore({
       ...attackerApp,
@@ -726,20 +765,21 @@ describe('project rows and the owner class roster', () => {
     expect(stub.has('grade_index/t1_p1__stranger')).toBe(false);
   });
 
-  it('removes a row an earlier unchecked write left for a member the owner does not teach', async () => {
+  it('keeps, without updating, the existing row of a member the roster no longer vouches for', async () => {
     const stub = makeStubFirestore({
       ...run,
       'grade_index/t1_p1__stranger': strangerRow,
     });
     await applyDocWrite(stub.db as unknown as Db, write, NOW, rosterOf(['u1']));
-    expect(stub.has('grade_index/t1_p1__stranger')).toBe(false);
+    expect(stub.get('grade_index/t1_p1__stranger')).toEqual(strangerRow);
     expect(stub.has('grade_index/t1_p1__u1')).toBe(true);
   });
 
-  it('drops those rows in a full recompute too', async () => {
+  it('keeps those rows in a full recompute, and still drops a row for a member the group no longer holds', async () => {
     const stub = makeStubFirestore({
       ...run,
       'grade_index/t1_p1__stranger': strangerRow,
+      'grade_index/t1_p1__left': { ...strangerRow, studentUid: 'left' },
     });
     expect(
       await recomputeSession(
@@ -750,8 +790,27 @@ describe('project rows and the owner class roster', () => {
         rosterOf(['u1'])
       )
     ).toEqual({ written: 1, deleted: 1 });
-    expect(stub.has('grade_index/t1_p1__stranger')).toBe(false);
+    expect(stub.get('grade_index/t1_p1__stranger')).toEqual(strangerRow);
+    expect(stub.has('grade_index/t1_p1__left')).toBe(false);
     expect(stub.has('grade_index/t1_p1__u1')).toBe(true);
+  });
+
+  it('deletes nothing when the roster comes back empty', async () => {
+    const stub = makeStubFirestore({
+      ...run,
+      'grade_index/t1_p1__u1': { ...strangerRow, studentUid: 'u1' },
+      'grade_index/t1_p1__stranger': strangerRow,
+    });
+    expect(
+      await recomputeSession(
+        stub.db as unknown as Db,
+        'projects',
+        't1_p1',
+        NOW,
+        rosterOf([])
+      )
+    ).toEqual({ written: 0, deleted: 0 });
+    expect(gradeRows(stub)).toHaveLength(2);
   });
 
   it('writes nothing when no class roster vouches for the group', async () => {

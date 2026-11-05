@@ -167,6 +167,7 @@ function makeDb(state: StubState) {
       fn: (tx: {
         get: (ref: { __path: string }) => Promise<unknown>;
         set: (ref: { __path: string }, data: Record<string, unknown>) => void;
+        delete: (ref: { __path: string }) => void;
       }) => Promise<unknown>
     ) =>
       fn({
@@ -174,6 +175,10 @@ function makeDb(state: StubState) {
         set: (ref, data) => {
           state.writes.push({ path: ref.__path, op: 'set', data });
           applyMerge(state, ref.__path, data);
+        },
+        delete: (ref) => {
+          state.writes.push({ path: ref.__path, op: 'delete' });
+          state.docs.delete(ref.__path);
         },
       }),
     batch: () => {
@@ -995,6 +1000,71 @@ describe('handleSetAssignmentTargets — pointers owned by another teacher', () 
     expect(pointerFor(SOURCED_A)).toMatchObject({
       teacherUid: OTHER_TEACHER_UID,
     });
+  });
+
+  /** Lets another teacher take the pointer after the first read, before the writes land. */
+  const takenMidCall = (extra: Record<string, unknown> = {}) => {
+    let fired = false;
+    return racedDb(() => {
+      if (fired) return;
+      fired = true;
+      state.docs.set(pointerPath(uidA()), victimPointer(extra));
+    });
+  };
+
+  it('does not overwrite a pointer another teacher creates between the read and the write', async () => {
+    const result = await handleSetAssignmentTargets(
+      takenMidCall() as never,
+      TEACHER_UID,
+      HMAC,
+      baseInput(),
+      () => Promise.resolve(ctx())
+    );
+    expect(result.written).toBe(0);
+    expect(result.skipped).toEqual([
+      {
+        ref: { kind: 'classlink', sourcedId: SOURCED_A },
+        reason: 'not-in-teacher-classes',
+      },
+    ]);
+    expect(pointerFor()).toMatchObject({ teacherUid: OTHER_TEACHER_UID });
+    expect(state.docs.get(assignmentPath())).toMatchObject({
+      targetStudents: [],
+    });
+  });
+
+  it('does not delete a pointer that changed owner after it was read', async () => {
+    await run(baseInput());
+    const result = await handleSetAssignmentTargets(
+      takenMidCall() as never,
+      TEACHER_UID,
+      HMAC,
+      baseInput({
+        add: [],
+        remove: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      }),
+      () => Promise.resolve(ctx())
+    );
+    expect(result.removed).toBe(0);
+    expect(pointerFor()).toMatchObject({ teacherUid: OTHER_TEACHER_UID });
+  });
+
+  it('does not recreate a pointer in a refresh when it was deleted after the read', async () => {
+    await run(baseInput());
+    let fired = false;
+    const db = racedDb(() => {
+      if (fired) return;
+      fired = true;
+      state.docs.delete(pointerPath(uidA()));
+    });
+    await handleSetAssignmentTargets(
+      db as never,
+      TEACHER_UID,
+      HMAC,
+      baseInput({ add: [], window: { dueAt: 5 } }),
+      () => Promise.resolve(ctx())
+    );
+    expect(state.docs.has(pointerPath(uidA()))).toBe(false);
   });
 
   it('removes and re-adds the caller own pointers as before', async () => {
