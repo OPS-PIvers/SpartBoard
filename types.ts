@@ -9468,6 +9468,12 @@ export interface FlashcardSpeakSettings {
   example: boolean;
 }
 
+/** flashcards-assign-v2: Speak rules the teacher picks when assigning; groups belong to the set's language. */
+export type FlashcardSpeakChoice = Pick<
+  FlashcardSpeakSettings,
+  'preset' | 'strict' | 'groups' | 'attempts' | 'example'
+>;
+
 /** What students read: the settings plus the district's "Repeat when unclear" cut-off (0-1), stamped at save. */
 export type FlashcardSpeakStudentSettings = FlashcardSpeakSettings & {
   unclearConfidence?: number;
@@ -9655,6 +9661,8 @@ export interface FlashcardSession
   speak?: FlashcardSpeakStudentSettings & { locked: boolean };
   /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
   speakOff?: true;
+  /** Speak rules picked when assigning; a set save re-stamps with these instead of the set's. */
+  speakChoice?: FlashcardSpeakChoice;
   /** Check: how the set's cards were narrowed at assign time; absent means all. */
   cardSelection?: FlashcardCardSelection;
   /** Check: attempts, time limit, shuffle, integrity and What students see (flashcards-assign-v2). */

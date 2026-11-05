@@ -30,6 +30,8 @@ export interface FlashcardsCheckContext {
 export interface FlashcardsCheckStepProps extends FlashcardsCheckContext {
   value: FlashcardsCheckValue;
   onChange: (value: FlashcardsCheckValue) => void;
+  /** Speak mode's Level, attempts, Strict and Hear it controls. */
+  speakRules?: React.ReactNode;
 }
 
 const MASTERY_MIN = 2;
@@ -54,6 +56,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
   cardCount,
   v2 = false,
   speakAvailable = false,
+  speakRules,
 }) => {
   const update = (patch: Partial<FlashcardsCheckValue>): void =>
     onChange({ ...value, ...patch });
@@ -90,7 +93,8 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
           onChange={(checkMode) => update({ checkMode })}
         />
       </div>
-      {speakMode && (
+      {speakMode && speakRules}
+      {speakMode && !speakRules && (
         <p className="text-sm text-slate-600">
           Students say each term aloud. Attempts per card come from this
           set&rsquo;s Speak settings.

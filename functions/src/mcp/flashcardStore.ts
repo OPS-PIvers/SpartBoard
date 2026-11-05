@@ -3,6 +3,12 @@ import type * as admin from '../firebaseAdmin';
 import { FieldValue, type Timestamp } from 'firebase-admin/firestore';
 import { randomUUID } from 'node:crypto';
 import { ToolError } from './activity';
+import {
+  SPEAK_GROUP_IDS,
+  speakLanguageOf,
+  speakPresetSettings,
+  type SpeakPreset,
+} from './flashcardSpeakSettings';
 
 type Firestore = admin.firestore.Firestore;
 type WriteBatch = admin.firestore.WriteBatch;
@@ -176,6 +182,46 @@ export function stageSetWrite(
   }
 }
 
+/** Mirrors parseSpeakChoice + withSpeakChoice in components/widgets/Flashcards/utils/flashcardAssign.ts. */
+export function speakChoiceOf(
+  raw: unknown,
+  termLanguage: string
+): Record<string, unknown> | undefined {
+  const language = speakLanguageOf(termLanguage);
+  if (!language || !raw || typeof raw !== 'object' || Array.isArray(raw))
+    return undefined;
+  const r = raw as Record<string, unknown>;
+  const presets = ['beginner', 'intermediate', 'advanced', 'custom'];
+  if (
+    !presets.includes(r.preset as string) ||
+    typeof r.strict !== 'boolean' ||
+    typeof r.attempts !== 'number' ||
+    !Number.isFinite(r.attempts) ||
+    typeof r.example !== 'boolean' ||
+    !r.groups ||
+    typeof r.groups !== 'object' ||
+    Array.isArray(r.groups)
+  ) {
+    return undefined;
+  }
+  const ids = SPEAK_GROUP_IDS[language];
+  const fits = Object.keys(r.groups).every((id) => ids.includes(id));
+  // A named level follows the current language; a Custom from another language becomes Intermediate.
+  const preset = (
+    r.preset === 'custom' && !fits ? 'intermediate' : r.preset
+  ) as SpeakPreset;
+  return {
+    preset,
+    strict: r.strict,
+    groups:
+      preset === 'custom'
+        ? r.groups
+        : speakPresetSettings(language, preset).groups,
+    attempts: Math.min(10, Math.max(1, Math.round(r.attempts))),
+    example: r.example,
+  };
+}
+
 /** Mirrors rewriteOpenStudySessions in hooks/useFlashcardSets.ts; without `speakStamp` keeps a client stamp unless the language moved off it. */
 export async function rewriteOpenStudySessions(
   db: Firestore,
@@ -198,10 +244,16 @@ export async function rewriteOpenStudySessions(
     const dialects = (stamp as { dialects?: unknown } | undefined)?.dialects;
     const speakOff = sessionDoc.get('speakOff') === true;
     // A fresh stamp keeps the assignment's lock; a session turned off never gets one.
+    // Rules picked when assigning win over the set's, as on the client.
+    const choice = speakChoiceOf(
+      sessionDoc.get('speakChoice'),
+      set.termLanguage
+    );
     const nextStamp =
       speakStamp && !speakOff
         ? {
             ...speakStamp,
+            ...choice,
             locked:
               (stamp as { locked?: unknown } | undefined)?.locked === true,
           }
