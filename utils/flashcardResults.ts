@@ -8,6 +8,7 @@ import type {
   FlashcardMode,
   FlashcardSession,
   FlashcardSpeakProgress,
+  QuizResultsOverride,
   SpeakLanguage,
 } from '@/types';
 import { isKnownSpeakSound } from '@/config/pronunciationSoundNames';
@@ -45,6 +46,8 @@ export interface FlashcardResultRecord {
     attempts?: number;
   }>;
   flags?: Array<{ cardId: string; response: string; accepted?: boolean }>;
+  /** The teacher's results setting for this student alone. */
+  resultsOverride?: QuizResultsOverride;
   /** Check answers the student's device saved before submitting. */
   checkLog?: Record<
     string,

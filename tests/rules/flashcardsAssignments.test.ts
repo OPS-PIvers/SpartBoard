@@ -20,6 +20,8 @@ import {
   orderBy,
   query,
   setDoc,
+  updateDoc,
+  deleteField,
   where,
 } from 'firebase/firestore';
 
@@ -550,6 +552,78 @@ describe('flashcard_sessions progress', () => {
       )
     );
     await assertSucceeds(deleteDoc(doc(teacherDb, progressPath)));
+  });
+
+  it("lets only the session teacher set one student's results, and nothing else", async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    await seed(
+      progressPath,
+      progress({ submittedAt: 5, score: 1, total: 1, answerLog: [] })
+    );
+    const shown = {
+      mode: 'shown',
+      visibility: 'score-only',
+      publishedAt: 9,
+      expiresAt: null,
+    };
+    const teacherDb = asTeacher(TEACHER_UID);
+    await assertSucceeds(
+      updateDoc(doc(teacherDb, progressPath), { resultsOverride: shown })
+    );
+    await assertSucceeds(
+      updateDoc(doc(teacherDb, progressPath), {
+        resultsOverride: deleteField(),
+      })
+    );
+    await assertFails(
+      updateDoc(doc(teacherDb, progressPath), { resultsOverride: 'shown' })
+    );
+    await assertFails(
+      updateDoc(doc(teacherDb, progressPath), {
+        resultsOverride: shown,
+        score: 1,
+        total: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), progressPath), {
+        resultsOverride: shown,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT_UID, [CLASS_A]), progressPath), {
+        resultsOverride: shown,
+      })
+    );
+  });
+
+  it("keeps a student's writes from touching the teacher's results setting", async () => {
+    await seed(SESSION_PATH, session({ kind: 'check', checkMode: 'write' }));
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    await assertFails(
+      setDoc(
+        doc(studentDb, progressPath),
+        progress({ resultsOverride: { mode: 'hidden', publishedAt: 1 } })
+      )
+    );
+    await seed(
+      progressPath,
+      progress({ resultsOverride: { mode: 'hidden', publishedAt: 1 } })
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(studentDb, progressPath),
+        { round: 2, lastActiveAt: 2 },
+        { merge: true }
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(studentDb, progressPath),
+        { lastActiveAt: 3, resultsOverride: deleteField() },
+        { merge: true }
+      )
+    );
   });
 });
 

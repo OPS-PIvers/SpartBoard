@@ -23,6 +23,7 @@ const printProps = vi.hoisted(() => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     ensureGoogleScope: () => Promise.resolve('token'),
+    canAccessFeature: () => false,
     isExternalUser: false,
     user: { uid: 'teacher-1' },
   }),
@@ -119,8 +120,18 @@ const results: FlashcardResultRecord[] = [
   },
 ];
 
+const actions = {
+  publish: vi.fn(() => Promise.resolve({ responsesUpdated: 1, skipped: 0 })),
+  hide: vi.fn(() => Promise.resolve()),
+  clear: vi.fn(() => Promise.resolve()),
+};
+
 const show = (
-  over: { session?: FlashcardSession; results?: FlashcardResultRecord[] } = {}
+  over: {
+    session?: FlashcardSession;
+    results?: FlashcardResultRecord[];
+    withActions?: boolean;
+  } = {}
 ) =>
   render(
     <FlashcardResultsScreen
@@ -136,6 +147,8 @@ const show = (
       classControls={null}
       launchedBy={null}
       addToast={vi.fn()}
+      studentResultsActions={over.withActions ? actions : undefined}
+      classVisibility="none"
     />
   );
 
@@ -221,6 +234,53 @@ describe('FlashcardResultsScreen', () => {
     fireEvent.click(screen.getByText('dos'));
     expect(screen.getByText('Card 2 results')).toBeInTheDocument();
     expect(screen.getByLabelText('Correct answer')).toBeInTheDocument();
+  });
+
+  it('has no per-student controls without the actions', () => {
+    show();
+    fireEvent.click(screen.getByText('Students'));
+    expect(screen.queryByText('Select all')).not.toBeInTheDocument();
+  });
+
+  it('hides results from the picked students with the bulk bar', async () => {
+    actions.hide.mockClear();
+    show({ withActions: true });
+    fireEvent.click(screen.getByText('Students'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ben Young' }));
+    expect(screen.getByText('1 selected')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Hide results/ }));
+    await waitFor(() => expect(actions.hide).toHaveBeenCalledWith(['ben']));
+  });
+
+  it("shows one student's results from the open row with an end date", async () => {
+    actions.publish.mockClear();
+    show({ withActions: true });
+    fireEvent.click(screen.getByText('Students'));
+    fireEvent.click(screen.getByRole('button', { name: 'Ana Zed' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show results' }));
+    fireEvent.click(screen.getByLabelText('Score & Responses'));
+    fireEvent.click(screen.getByText('1 week'));
+    const confirm = screen
+      .getAllByRole('button', { name: 'Show results' })
+      .at(-1);
+    fireEvent.click(confirm as HTMLElement);
+    await waitFor(() => expect(actions.publish).toHaveBeenCalled());
+    const [keys, level, expiresAt] = actions.publish.mock
+      .calls[0] as unknown as [string[], string, number];
+    expect(keys).toEqual(['ana']);
+    expect(level).toBe('score-and-responses');
+    expect(expiresAt).toBeGreaterThan(Date.now());
+  });
+
+  it('badges a student whose results are hidden', () => {
+    show({
+      withActions: true,
+      results: [
+        { ...results[0], resultsOverride: { mode: 'hidden', publishedAt: 1 } },
+      ],
+    });
+    fireEvent.click(screen.getByText('Students'));
+    expect(screen.getByText('Hidden')).toBeInTheDocument();
   });
 
   it('shows the empty state before anyone has progress', () => {

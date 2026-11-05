@@ -9557,6 +9557,10 @@ export type FlashcardCardSelection =
 export type FlashcardMasteryThreshold = 2 | 3 | 4;
 export type FlashcardScoreVisibility = 'none' | 'score' | 'score-and-answers';
 
+/** A published Check level: today's assign-time values, or Quiz's levels from Publish scores (flashcards-assign-v2). */
+export type FlashcardPublishedVisibility =
+  FlashcardScoreVisibility | QuizScoreVisibility;
+
 /** Quiz session options a flashcards-assign-v2 Check stamps, under Quiz's own names. */
 export type FlashcardCheckSessionOptions = Pick<
   QuizSessionOptions,
@@ -9650,8 +9654,10 @@ export interface FlashcardSession
   openAt?: number | null;
   dueAt?: number | null;
   closeAt?: number | null;
-  scoreVisibility?: FlashcardScoreVisibility;
+  scoreVisibility?: FlashcardPublishedVisibility;
   scorePublishedAt?: number;
+  /** Results watermark and tab lockout from Publish scores (flashcards-assign-v2). */
+  protection?: ResultsProtection;
   individualTargeting?: boolean;
   createdAt: number;
   endedAt?: number;
@@ -9678,7 +9684,8 @@ export interface FlashcardAssignment
   rosterIds?: string[];
   classIds?: string[];
   periodNames?: string[];
-  scoreVisibility?: FlashcardScoreVisibility;
+  scoreVisibility?: FlashcardPublishedVisibility;
+  protection?: ResultsProtection;
   /** Check: how the set's cards were narrowed at assign time; absent means all. */
   cardSelection?: FlashcardCardSelection;
   /** Check: the session's rules, kept here for the edit modal. */
@@ -9718,6 +9725,8 @@ export interface FlashcardProgress
   total?: number;
   answerLog?: FlashcardAnswerLogEntry[];
   flags?: FlashcardFlag[];
+  /** Teacher-written: this student's results setting, overriding the class one. */
+  resultsOverride?: QuizResultsOverride;
 }
 
 /** `plcs/{plcId}/flashcard_sets/{setId}`: a set shared with a PLC, payload inline. */

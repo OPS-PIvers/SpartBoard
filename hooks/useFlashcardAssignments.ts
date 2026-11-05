@@ -48,9 +48,11 @@ import type {
   FlashcardMasteryThreshold,
   FlashcardMode,
   FlashcardModeSettings,
+  FlashcardPublishedVisibility,
   FlashcardScoreVisibility,
   FlashcardSession,
   FlashcardSet,
+  ResultsProtection,
   StudentOverride,
 } from '@/types';
 
@@ -115,7 +117,8 @@ export interface UseFlashcardAssignmentsResult {
   /** Releases Check scores to students at the chosen level of detail. */
   publishScores: (
     assignmentId: string,
-    visibility: Exclude<FlashcardScoreVisibility, 'none'>
+    visibility: Exclude<FlashcardPublishedVisibility, 'none'>,
+    protection?: ResultsProtection
   ) => Promise<void>;
   /** Hides released Check scores again. */
   unpublishScores: (assignmentId: string) => Promise<void>;
@@ -474,10 +477,11 @@ export const useFlashcardAssignments = (
   const publishScores = useCallback<
     UseFlashcardAssignmentsResult['publishScores']
   >(
-    (assignmentId, visibility) =>
+    (assignmentId, visibility, protection) =>
       writeScorePatch(assignmentId, {
         scoreVisibility: visibility,
         scorePublishedAt: Date.now(),
+        ...(protection ? { protection } : {}),
       }),
     [writeScorePatch]
   );

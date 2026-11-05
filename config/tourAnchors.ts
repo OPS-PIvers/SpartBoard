@@ -14498,6 +14498,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.results-students-select-all': {
+    label: 'Select all checkbox on the Flashcards Results Students list',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.results-student-select': {
+    label: 'Select checkbox for one student in the Flashcards Results screen',
+    perField: true,
+    panel: true,
+  },
   'flashcards.results-export': {
     label: 'Export to Sheets button in the Flashcards Results screen',
     perWidgetType: true,

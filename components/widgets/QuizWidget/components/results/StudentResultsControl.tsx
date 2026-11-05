@@ -84,6 +84,8 @@ export interface StudentResultsControlProps {
   triggerAnchor?: TourAnchorAttrs;
   tourId?: TourAnchorId;
   tourScope?: string;
+  /** Widget type for the live-tour anchors; Flashcards reuses this control. */
+  tourWidgetType?: string;
 }
 
 /** Show, hide, or return one student's results to the class setting. */
@@ -101,6 +103,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
   triggerAnchor,
   tourId,
   tourScope,
+  tourWidgetType = 'quiz',
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState<'hide' | 'clear' | 'unlock' | null>(null);
@@ -159,6 +162,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
       }
       onClose={() => setDialogOpen(false)}
       onConfirm={handleShow}
+      tourWidgetType={tourWidgetType}
     />
   );
 
@@ -205,7 +209,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           triggerIcon={MoreVertical}
           triggerProps={tourFieldAttr(
             'quiz-results.student-results-menu',
-            'quiz',
+            tourWidgetType,
             key
           )}
           triggerClassName={triggerClassName}
@@ -256,7 +260,11 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
     >
       <p
         className="flex-1 min-w-0 font-sans text-brand-gray-dark"
-        style={{ fontSize: 'min(12px, 4cqmin)' }}
+        // A basis lets the buttons wrap below in a narrow window instead of squeezing the text.
+        style={{
+          fontSize: 'min(12px, 4cqmin)',
+          flexBasis: 'min(200px, 55cqmin)',
+        }}
       >
         <span className="font-semibold">Results for this student: </span>
         {status}
@@ -266,7 +274,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           type="button"
           onClick={() => setDialogOpen(true)}
           disabled={busy !== null}
-          {...tourFieldAttr('quiz-results.student-show', 'quiz', key)}
+          {...tourFieldAttr('quiz-results.student-show', tourWidgetType, key)}
           className={buttonCls}
           style={buttonStyle}
         >
@@ -279,7 +287,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           type="button"
           onClick={() => void run('hide')}
           disabled={busy !== null}
-          {...tourFieldAttr('quiz-results.student-hide', 'quiz', key)}
+          {...tourFieldAttr('quiz-results.student-hide', tourWidgetType, key)}
           className={buttonCls}
           style={buttonStyle}
         >
@@ -297,7 +305,11 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           onClick={() => void run('clear')}
           disabled={busy !== null}
           title={FOLLOW_CLASS_TIP}
-          {...tourFieldAttr('quiz-results.student-follow-class', 'quiz', key)}
+          {...tourFieldAttr(
+            'quiz-results.student-follow-class',
+            tourWidgetType,
+            key
+          )}
           className={buttonCls}
           style={buttonStyle}
         >

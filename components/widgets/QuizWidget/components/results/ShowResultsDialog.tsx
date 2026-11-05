@@ -35,6 +35,8 @@ interface ShowResultsDialogProps {
     expiresAt: number | null,
     protection: ResultsProtection | undefined
   ) => Promise<void>;
+  /** Widget type for the live-tour anchors; Flashcards reuses this dialog. */
+  tourWidgetType?: string;
 }
 
 export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
@@ -43,6 +45,7 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
   initialProtection,
   onClose,
   onConfirm,
+  tourWidgetType = 'quiz',
 }) => {
   const { canAccessFeature } = useAuth();
   const showProtection = canAccessFeature('gradebook');
@@ -128,7 +131,7 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
                   name="student-results-level"
                   {...tourFieldAttr(
                     'quiz-results.show-results-level',
-                    'quiz',
+                    tourWidgetType,
                     id
                   )}
                   value={id}
@@ -166,7 +169,7 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
                   name="student-results-expiry"
                   {...tourFieldAttr(
                     'quiz-results.show-results-expiry',
-                    'quiz',
+                    tourWidgetType,
                     opt.id
                   )}
                   value={opt.id}
@@ -198,7 +201,10 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            {...tourTypeAttr('quiz-results.show-results-cancel', 'quiz')}
+            {...tourTypeAttr(
+              'quiz-results.show-results-cancel',
+              tourWidgetType
+            )}
             className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             Cancel
@@ -207,7 +213,10 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
             type="button"
             onClick={() => void handleConfirm()}
             disabled={submitting}
-            {...tourTypeAttr('quiz-results.show-results-confirm', 'quiz')}
+            {...tourTypeAttr(
+              'quiz-results.show-results-confirm',
+              tourWidgetType
+            )}
             className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-light disabled:opacity-60"
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

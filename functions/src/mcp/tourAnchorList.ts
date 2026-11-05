@@ -13960,9 +13960,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -13987,9 +13984,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -14014,9 +14008,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -14040,9 +14031,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Copy names in Quiz results",
     "scope": "widget type",
     "panel": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -14066,9 +14054,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Print selected in Quiz results",
     "scope": "widget type",
     "panel": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -14093,9 +14078,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -14120,9 +14102,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -14146,9 +14125,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Clear selection in Quiz results",
     "scope": "widget type",
     "panel": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -14198,9 +14174,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Show results dialog",
     "scope": "widget type",
     "panel": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -14215,9 +14188,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -64415,6 +64385,49 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "flashcards.results-students-sort",
     "label": "Score or Last name sort in the Flashcards Results screen",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-students-select-all",
+    "label": "Select all checkbox on the Flashcards Results Students list",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-student-select",
+    "label": "Select checkbox for one student in the Flashcards Results screen",
     "scope": "field",
     "panel": true,
     "routes": [

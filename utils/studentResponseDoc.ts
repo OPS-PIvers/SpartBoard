@@ -44,6 +44,7 @@ export const OVERRIDE_KINDS: ReadonlySet<AssignmentSummary['kind']> = new Set([
   'quiz',
   'video-activity',
   'guided-learning',
+  'flashcards',
 ]);
 
 let pseudonymCacheOwnerUid: string | null = null;

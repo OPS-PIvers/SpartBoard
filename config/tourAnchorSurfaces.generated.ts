@@ -3471,6 +3471,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'flashcards.results-student': ['library.flashcards.results'],
     'flashcards.results-student-print': ['library.flashcards.results'],
     'flashcards.results-students-sort': ['library.flashcards.results'],
+    'flashcards.results-students-select-all': ['library.flashcards.results'],
+    'flashcards.results-student-select': ['library.flashcards.results'],
     'flashcards.results-export': ['library.flashcards.results'],
     'flashcards.results-open-sheet': ['library.flashcards.results'],
     'flashcards.results-sheet-refresh': ['library.flashcards.results'],

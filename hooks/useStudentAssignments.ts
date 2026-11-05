@@ -339,10 +339,11 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
         ? data.title
         : 'Flashcards',
     hrefFrom: (sessionId) => `/flashcards/a/${encodeURIComponent(sessionId)}`,
+    // Older Checks publish 'score' or 'score-and-answers'; Publish scores writes Quiz's levels.
     gradingStateFrom: (data) =>
       data.kind === 'check' &&
-      (data.scoreVisibility === 'score' ||
-        data.scoreVisibility === 'score-and-answers')
+      typeof data.scoreVisibility === 'string' &&
+      data.scoreVisibility !== 'none'
         ? 'graded'
         : 'not-graded',
   },

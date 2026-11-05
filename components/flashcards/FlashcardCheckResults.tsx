@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FlashcardProgress, FlashcardSession } from '@/types';
+import { resolveFlashcardResultsVisibility } from '@/utils/flashcardResultsVisibility';
 import { getFlashcardSides } from './playerUtils';
 
 interface FlashcardCheckResultsProps {
@@ -14,7 +15,8 @@ export const FlashcardCheckResults: React.FC<FlashcardCheckResultsProps> = ({
   progress,
 }) => {
   const { t } = useTranslation();
-  const visibility = session.scoreVisibility ?? 'none';
+  const { visibility } = resolveFlashcardResultsVisibility(session, progress);
+  const showAnswers = visibility === 'score-responses-and-answers';
   const showFirst = session.lockedSettings?.showFirst ?? 'term';
   const cardsById = new Map(session.cards.map((card) => [card.id, card]));
   const missed = (progress.answerLog ?? []).filter((entry) => !entry.correct);
@@ -61,7 +63,7 @@ export const FlashcardCheckResults: React.FC<FlashcardCheckResultsProps> = ({
           )}
         </section>
 
-        {visibility === 'score-and-answers' &&
+        {(visibility === 'score-and-responses' || showAnswers) &&
           session.checkMode !== 'flashcards' && (
             <section className="mt-5">
               {missed.length === 0 ? (
@@ -86,7 +88,9 @@ export const FlashcardCheckResults: React.FC<FlashcardCheckResultsProps> = ({
                             className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-950"
                           >
                             <p className="font-black">{card.term}</p>
-                            <p className="mt-1">{card.definition}</p>
+                            {showAnswers && (
+                              <p className="mt-1">{card.definition}</p>
+                            )}
                           </li>
                         );
                       }
@@ -102,12 +106,14 @@ export const FlashcardCheckResults: React.FC<FlashcardCheckResultsProps> = ({
                             </span>{' '}
                             {entry.response}
                           </p>
-                          <p>
-                            <span className="font-bold">
-                              {t('flashcards.assignment.correctAnswer')}
-                            </span>{' '}
-                            {sides.answer}
-                          </p>
+                          {showAnswers && (
+                            <p>
+                              <span className="font-bold">
+                                {t('flashcards.assignment.correctAnswer')}
+                              </span>{' '}
+                              {sides.answer}
+                            </p>
+                          )}
                         </li>
                       );
                     })}

@@ -15,6 +15,7 @@ import type {
   FlashcardAssignment,
   FlashcardSession,
   QuizResponse,
+  QuizScoreVisibility,
   SpeakLanguage,
   StaffResponseFields,
   Toast,
@@ -55,6 +56,17 @@ import {
   FlashcardCardDetail,
   FlashcardCardList,
 } from './FlashcardCardResults';
+import {
+  ResultsOverrideBadge,
+  StudentResultsControl,
+} from '@/components/widgets/QuizWidget/components/results/StudentResultsControl';
+import { StudentResultsBulkBar } from '@/components/widgets/QuizWidget/components/results/StudentResultsBulkBar';
+import {
+  StudentResultsSelectionContext,
+  useStudentResultsSelection,
+  useStudentResultsSelectionState,
+  type StudentResultsActions,
+} from '@/components/widgets/QuizWidget/components/results/studentResultsSelection';
 import { cardLabel } from './flashcardRoster';
 
 type Screen = 'home' | 'cards' | 'students' | 'speaking';
@@ -79,6 +91,10 @@ interface FlashcardResultsScreenProps {
   classControls: React.ReactNode;
   launchedBy: React.ReactNode;
   addToast: (message: string, type?: Toast['type']) => void;
+  /** Per-student Show / Hide / Follow class; the controls render only when provided. */
+  studentResultsActions?: StudentResultsActions;
+  /** The class-wide level, in Quiz's terms. */
+  classVisibility?: QuizScoreVisibility;
 }
 
 // Same header colour as the Flashcards library, so the widget reads as one piece.
@@ -98,6 +114,10 @@ const footerIcon = {
   width: 'min(14px, 4.5cqmin)',
   height: 'min(14px, 4.5cqmin)',
 };
+const checkboxStyle = {
+  width: 'min(14px, 4.5cqmin)',
+  height: 'min(14px, 4.5cqmin)',
+} as const;
 const smallText = { fontSize: 'min(11px, 3.8cqmin)' } as const;
 const smallIcon = {
   width: 'min(12px, 3.8cqmin)',
@@ -113,7 +133,20 @@ const footerButtonStyle = {
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** A Check assignment's Results screen, laid out like Quiz's: summary, distribution, card and student drill-downs, print and export. */
-export const FlashcardResultsScreen: React.FC<FlashcardResultsScreenProps> = ({
+export const FlashcardResultsScreen: React.FC<FlashcardResultsScreenProps> = (
+  props
+) => {
+  const selection = useStudentResultsSelectionState();
+  return (
+    <StudentResultsSelectionContext.Provider
+      value={props.studentResultsActions ? selection : null}
+    >
+      <FlashcardResultsBody {...props} />
+    </StudentResultsSelectionContext.Provider>
+  );
+};
+
+const FlashcardResultsBody: React.FC<FlashcardResultsScreenProps> = ({
   assignment,
   session,
   results,
@@ -126,8 +159,12 @@ export const FlashcardResultsScreen: React.FC<FlashcardResultsScreenProps> = ({
   classControls,
   launchedBy,
   addToast,
+  studentResultsActions,
+  classVisibility = 'none',
 }) => {
   const { ensureGoogleScope, isExternalUser, user } = useAuth();
+  const selection = useStudentResultsSelection();
+  const resultsActions = selection ? studentResultsActions : undefined;
   const outward = useViewAsOutward();
   const [screen, setScreen] = useState<Screen>('home');
   const [cardIndex, setCardIndex] = useState<number | null>(null);
@@ -177,6 +214,10 @@ export const FlashcardResultsScreen: React.FC<FlashcardResultsScreenProps> = ({
   const responseByUid = useMemo(
     () => new Map(responses.map((r) => [r.studentUid, r])),
     [responses]
+  );
+  const overrideByUid = useMemo(
+    () => new Map(results.map((r) => [r.studentUid, r.resultsOverride])),
+    [results]
   );
 
   // Numbered by real name, so "Student 3" is the same student on every screen.
@@ -263,6 +304,11 @@ export const FlashcardResultsScreen: React.FC<FlashcardResultsScreenProps> = ({
             ? 'Speaking'
             : title;
 
+  const allKeys = responses.map((r) => r.studentUid);
+  const allSelected =
+    allKeys.length > 0 &&
+    allKeys.every((k) => selection?.selectedResponseKeys.has(k));
+
   const goBack = (): void => {
     if (screen === 'home') onBack();
     else if (screen === 'cards' && cardIndex !== null) setCardIndex(null);
@@ -289,54 +335,98 @@ export const FlashcardResultsScreen: React.FC<FlashcardResultsScreenProps> = ({
           className="flex items-center justify-between cursor-pointer"
           style={{ gap: 'min(8px, 2cqmin)' }}
         >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpenStudent(open ? null : uid);
-            }}
-            aria-expanded={open}
-            {...tourFieldAttr(
-              'flashcards.results-student',
-              'flashcards',
-              `row-${rowIndex + 1}`
+          <div
+            className="flex flex-wrap items-center min-w-0"
+            style={{ gap: 'min(6px, 1.5cqmin)' }}
+          >
+            {selection && resultsActions && (
+              <input
+                type="checkbox"
+                aria-label={`Select ${name}`}
+                checked={selection.selectedResponseKeys.has(uid)}
+                onChange={() => selection.toggle(uid)}
+                onClick={(e) => e.stopPropagation()}
+                {...tourFieldAttr(
+                  'flashcards.results-student-select',
+                  'flashcards',
+                  `row-${rowIndex + 1}`
+                )}
+                className="shrink-0 accent-brand-blue-primary"
+                style={checkboxStyle}
+              />
             )}
-            className="flex items-center min-w-0 text-left rounded-sm focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenStudent(open ? null : uid);
+              }}
+              aria-expanded={open}
+              {...tourFieldAttr(
+                'flashcards.results-student',
+                'flashcards',
+                `row-${rowIndex + 1}`
+              )}
+              className="flex items-center min-w-0 text-left rounded-sm focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+              style={{ gap: 'min(4px, 1cqmin)' }}
+            >
+              <ChevronRight
+                aria-hidden
+                className={`shrink-0 text-brand-gray-primary transition-transform ${open ? 'rotate-90' : ''}`}
+                style={smallIcon}
+              />
+              <span
+                className="font-sans font-medium text-brand-gray-dark truncate"
+                style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+              >
+                {name}
+              </span>
+            </button>
+            {resultsActions && (
+              <ResultsOverrideBadge override={overrideByUid.get(uid)} />
+            )}
+          </div>
+          <div
+            className="flex items-center shrink-0"
             style={{ gap: 'min(4px, 1cqmin)' }}
           >
-            <ChevronRight
-              aria-hidden
-              className={`shrink-0 text-brand-gray-primary transition-transform ${open ? 'rotate-90' : ''}`}
-              style={smallIcon}
-            />
-            <span
-              className="font-sans font-medium text-brand-gray-dark truncate"
-              style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-            >
-              {name}
-            </span>
-          </button>
-          <div className="text-right shrink-0">
-            {row.percent !== null ? (
-              <>
-                <ScorePill score={row.percent} display="percent" />
-                <p
-                  className="text-brand-gray-primary tabular-nums"
-                  style={{ fontSize: 'min(10px, 3cqmin)' }}
+            <div className="text-right shrink-0">
+              {row.percent !== null ? (
+                <>
+                  <ScorePill score={row.percent} display="percent" />
+                  <p
+                    className="text-brand-gray-primary tabular-nums"
+                    style={{ fontSize: 'min(10px, 3cqmin)' }}
+                  >
+                    {row.score}/{row.total} pts
+                  </p>
+                </>
+              ) : (
+                <div
+                  className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded-sm tracking-tighter"
+                  style={{
+                    fontSize: 'min(9px, 2.5cqmin)',
+                    padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                  }}
                 >
-                  {row.score}/{row.total} pts
-                </p>
-              </>
-            ) : (
-              <div
-                className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded-sm tracking-tighter"
-                style={{
-                  fontSize: 'min(9px, 2.5cqmin)',
-                  padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                }}
-              >
-                {response.status}
-              </div>
+                  {response.status}
+                </div>
+              )}
+            </div>
+            {resultsActions && (
+              // The menu and its dialog sit in the row; keep their clicks from toggling it.
+              <span onClick={(e) => e.stopPropagation()}>
+                <StudentResultsControl
+                  responseKey={uid}
+                  override={overrideByUid.get(uid)}
+                  completed={response.status === 'completed'}
+                  displayName={name}
+                  classVisibility={classVisibility}
+                  actions={resultsActions}
+                  addToast={addToast}
+                  tourWidgetType="flashcards"
+                />
+              </span>
             )}
           </div>
         </div>
@@ -349,6 +439,19 @@ export const FlashcardResultsScreen: React.FC<FlashcardResultsScreenProps> = ({
               paddingTop: 'min(6px, 1.5cqmin)',
             }}
           >
+            {resultsActions && (
+              <StudentResultsControl
+                layout="panel"
+                responseKey={uid}
+                override={overrideByUid.get(uid)}
+                completed={response.status === 'completed'}
+                displayName={name}
+                classVisibility={classVisibility}
+                actions={resultsActions}
+                addToast={addToast}
+                tourWidgetType="flashcards"
+              />
+            )}
             {drilldown.lines.length === 0 ? (
               <p
                 className="font-sans text-brand-gray-primary"
@@ -568,23 +671,69 @@ export const FlashcardResultsScreen: React.FC<FlashcardResultsScreenProps> = ({
               className="flex flex-col"
               style={{ gap: 'min(6px, 1.5cqmin)' }}
             >
-              <div className="flex items-center justify-end">
-                <SegmentedToggle
-                  label="Sort students"
-                  value={sort}
-                  options={[
-                    ['score', 'Score'],
-                    ['lastName', 'Last name'],
-                  ]}
-                  onChange={setSort}
-                  anchor={(v) =>
-                    tourFieldAttr(
-                      'flashcards.results-students-sort',
-                      'flashcards',
-                      v
-                    )
-                  }
+              {selection && resultsActions && (
+                <StudentResultsBulkBar
+                  responses={responses}
+                  selection={selection}
+                  actions={resultsActions}
+                  classVisibility={classVisibility}
+                  resolveName={(r) => shownName(r.studentUid)}
+                  addToast={addToast}
+                  onPrint={(keys) => setPrintSelection(keys)}
+                  tourWidgetType="flashcards"
                 />
+              )}
+              <div
+                className="flex flex-wrap items-center"
+                style={{
+                  gap: 'min(8px, 2cqmin)',
+                  paddingLeft: 'min(10px, 2.5cqmin)',
+                }}
+              >
+                {selection && resultsActions && (
+                  <label
+                    className="flex items-center font-sans text-brand-gray-primary cursor-pointer"
+                    style={{
+                      gap: 'min(6px, 1.5cqmin)',
+                      fontSize: 'min(11px, 3.5cqmin)',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={() =>
+                        allSelected
+                          ? selection.clearSelection()
+                          : selection.addToSelection(allKeys)
+                      }
+                      {...tourTypeAttr(
+                        'flashcards.results-students-select-all',
+                        'flashcards'
+                      )}
+                      className="accent-brand-blue-primary"
+                      style={checkboxStyle}
+                    />
+                    Select all
+                  </label>
+                )}
+                <div className="ml-auto flex items-center">
+                  <SegmentedToggle
+                    label="Sort students"
+                    value={sort}
+                    options={[
+                      ['score', 'Score'],
+                      ['lastName', 'Last name'],
+                    ]}
+                    onChange={setSort}
+                    anchor={(v) =>
+                      tourFieldAttr(
+                        'flashcards.results-students-sort',
+                        'flashcards',
+                        v
+                      )
+                    }
+                  />
+                </div>
               </div>
               {studentRows.map((row, i) => renderStudent(row.studentUid, i))}
             </div>
