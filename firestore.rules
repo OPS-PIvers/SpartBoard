@@ -7187,7 +7187,7 @@ service cloud.firestore {
                     // Audience is fixed at create, so live joiners' progress writes keep passing.
                     && incoming().get('audience', '') == existing().get('audience', '')
                     && incoming().status in ['active', 'ended']
-                    && (incoming().get('plcId', null) in [null, existing().get('plcId', null)] || fcPlcLinkOk());
+                    && (incoming().get('plcId', null) == null || !changed(['plcId', 'syncGroupId']) || fcPlcLinkOk());
       allow delete: if fcTeacherSignedIn() && existing().teacherUid == authUid();
 
       function fcSession() {

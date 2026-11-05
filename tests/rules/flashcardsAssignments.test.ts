@@ -589,6 +589,20 @@ describe('flashcard_sessions PLC link', () => {
     );
   });
 
+  it('refuses a new syncGroupId from a teacher who left', async () => {
+    await seed(
+      SESSION_PATH,
+      session({ ...linked, teacherUid: OTHER_TEACHER_UID })
+    );
+    await assertFails(
+      setDoc(
+        doc(asTeacher(OTHER_TEACHER_UID), SESSION_PATH),
+        { syncGroupId: 'other-set' },
+        { merge: true }
+      )
+    );
+  });
+
   it('refuses a link with no syncGroupId', async () => {
     await assertFails(
       setDoc(
