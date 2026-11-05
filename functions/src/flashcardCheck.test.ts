@@ -1152,5 +1152,6 @@ describe('handleReopenFlashcardCheck', () => {
     );
     expect(docs[PROGRESS_PATH].submittedAt).toBeUndefined();
     expect(docs[PROGRESS_PATH].checkLog).toBeDefined();
+    expect(docs[PROGRESS_PATH].completedAttempts).toBe(0);
   });
 });

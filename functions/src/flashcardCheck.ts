@@ -701,9 +701,15 @@ export async function handleReopenFlashcardCheck(
     const progressRef = sessionRef.collection('progress').doc(input.studentUid);
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(progressRef);
+      const done: unknown = snap.data()?.completedAttempts;
       if (!isFiniteNumber(snap.data()?.submittedAt))
         throw new HttpsError('failed-precondition', 'Not submitted.');
-      tx.update(progressRef, { ...reopenFields(), lastActiveAt: nowMs });
+      // The student resumes the same attempt, so its resubmit must not count twice.
+      tx.update(progressRef, {
+        ...reopenFields(),
+        completedAttempts: Math.max(0, (isFiniteNumber(done) ? done : 1) - 1),
+        lastActiveAt: nowMs,
+      });
     });
     return { reopened: true };
   }
