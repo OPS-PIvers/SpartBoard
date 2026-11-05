@@ -21,6 +21,7 @@ interface FlashcardCard {
   id: string;
   term: string;
   definition: string;
+  speak?: unknown;
 }
 
 interface LockedSettings {
@@ -146,6 +147,21 @@ export function parseSubmitFlashcardCheckInput(
     };
   });
   return { assignmentId, answerLog, flags };
+}
+
+// Mirror of utils/flashcardSchedule.ts isSpeakableCard.
+function isSpeakableCard(card: FlashcardCard): boolean {
+  const speak = isRecord(card.speak) ? card.speak : null;
+  return (
+    !!speak &&
+    speak.status !== 'unavailable' &&
+    speak.term === card.term &&
+    Array.isArray(speak.refs) &&
+    speak.refs.some(
+      (ref) =>
+        isRecord(ref) && Array.isArray(ref.tokens) && ref.tokens.length > 0
+    )
+  );
 }
 
 function sessionCards(raw: unknown): FlashcardCard[] {
@@ -433,10 +449,18 @@ export async function handleSubmitFlashcardCheck(
     });
   } else if (checkMode === 'speak') {
     // Speak is judged on the student's device (no audio leaves it), so the server records its verdicts.
-    if (input.answerLog.length === 0)
-      invalid('answerLog must include at least one card.');
-    cardsForLog(input.answerLog, byId);
-    total = input.answerLog.length;
+    const speakable = cards.filter(isSpeakableCard);
+    if (speakable.length === 0)
+      throw new HttpsError(
+        'failed-precondition',
+        'No card in this assignment can be spoken.'
+      );
+    if (input.answerLog.length !== speakable.length)
+      invalid('answerLog must include every speakable card once.');
+    const logCards = cardsForLog(input.answerLog, byId);
+    if (!logCards.every(isSpeakableCard))
+      invalid('answerLog includes a card that cannot be spoken.');
+    total = speakable.length;
     graded = input.answerLog.map((entry) => {
       if (entry.type !== 'speak' || entry.passed === undefined)
         return invalid('Each Speak answer needs a result.');

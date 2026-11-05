@@ -860,6 +860,18 @@ describe('handleSubmitFlashcardCheck staff audience', () => {
 });
 
 describe('handleSubmitFlashcardCheck speak mode', () => {
+  const spoken = (card: { id: string; term: string }) => ({
+    ...card,
+    speak: {
+      term: card.term,
+      status: 'ready',
+      refs: [{ dialect: 'es-419', tokens: ['a'], stress: [] }],
+    },
+  });
+  // c4 has no usable reading, so it is never asked or graded.
+  const SPEAK_CARDS = [...CARDS.slice(0, 3).map(spoken), CARDS[3]];
+  const speakSession = () =>
+    session({ checkMode: 'speak', cards: SPEAK_CARDS });
   const speakLog = (passed: Record<string, boolean>) =>
     Object.entries(passed).map(([cardId, ok]) => ({
       cardId,
@@ -871,7 +883,7 @@ describe('handleSubmitFlashcardCheck speak mode', () => {
 
   it('scores the device verdicts over the cards the student said', async () => {
     const docs: Record<string, Doc> = {
-      [SESSION_PATH]: session({ checkMode: 'speak' }),
+      [SESSION_PATH]: speakSession(),
     };
     const result = await handleSubmitFlashcardCheck(
       makeDb(docs),
@@ -893,17 +905,26 @@ describe('handleSubmitFlashcardCheck speak mode', () => {
     });
   });
 
-  it('rejects an empty log, a missing verdict, unknown or repeated cards', async () => {
+  it('rejects a log that skips, repeats or invents cards, or has no verdict', async () => {
     for (const answerLog of [
       [],
-      [{ cardId: 'c1', response: '', type: 'speak' }],
-      [{ cardId: 'c1', response: '', passed: true }],
-      speakLog({ nope: true }),
-      [...speakLog({ c1: true }), ...speakLog({ c1: false })],
+      speakLog({ c1: true, c2: true }),
+      speakLog({ c1: true, c2: true, c3: true, c4: true }),
+      speakLog({ c1: true, c2: true, c4: true }),
+      [
+        ...speakLog({ c1: true, c2: true }),
+        { cardId: 'c3', response: '', type: 'speak' },
+      ],
+      [
+        ...speakLog({ c1: true, c2: true }),
+        { cardId: 'c3', response: '', passed: true },
+      ],
+      speakLog({ c1: true, c2: true, nope: true }),
+      [...speakLog({ c1: true, c2: true }), ...speakLog({ c1: false })],
     ]) {
       await expectCode(
         handleSubmitFlashcardCheck(
-          makeDb({ [SESSION_PATH]: session({ checkMode: 'speak' }) }),
+          makeDb({ [SESSION_PATH]: speakSession() }),
           student,
           { assignmentId: 'a1', answerLog },
           NOW
@@ -911,6 +932,18 @@ describe('handleSubmitFlashcardCheck speak mode', () => {
         'invalid-argument'
       );
     }
+  });
+
+  it('refuses a Speak check with no speakable card', async () => {
+    await expectCode(
+      handleSubmitFlashcardCheck(
+        makeDb({ [SESSION_PATH]: session({ checkMode: 'speak' }) }),
+        student,
+        { assignmentId: 'a1', answerLog: speakLog({ c1: true }) },
+        NOW
+      ),
+      'failed-precondition'
+    );
   });
 
   it('refuses Speak answers in a test check', async () => {

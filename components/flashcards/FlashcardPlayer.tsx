@@ -209,14 +209,20 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     Record<string, FlashcardCheckWriteEntry>
   >(() => check?.initialCheckLog ?? {});
   // A Speak check asks each undecided card once, in deck order; its round summary leads to Submit.
-  const [speakCheckCards] = useState<FlashcardCard[]>(() =>
-    speakCheck
-      ? cards.filter(
-          (card) =>
-            isSpeakableCard(card) && !check?.initialCheckLog?.[card.id]?.done
-        )
-      : []
-  );
+  // The server grades every card speakable as saved, so a district skip fix can't drop one here.
+  const [speakCheckCards] = useState<FlashcardCard[]>(() => {
+    if (!speakCheck) return [];
+    const fixed = new Map(cards.map((card) => [card.id, card]));
+    return deckCards
+      .filter(
+        (card) =>
+          isSpeakableCard(card) && !check?.initialCheckLog?.[card.id]?.done
+      )
+      .map((card) => {
+        const withFix = fixed.get(card.id);
+        return withFix && isSpeakableCard(withFix) ? withFix : card;
+      });
+  });
   const [speakCheckFinished, setSpeakCheckFinished] = useState(
     () => speakCheck && speakCheckCards.length === 0
   );
@@ -812,19 +818,15 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             flaggedCount={0}
             onSubmit={() =>
               submitCheck(
-                cards.flatMap((card) => {
+                deckCards.filter(isSpeakableCard).map((card) => {
                   const entry = checkLog[card.id];
-                  return entry?.done && entry.passed !== undefined
-                    ? [
-                        {
-                          cardId: card.id,
-                          response: '',
-                          type: 'speak' as const,
-                          attempts: Math.max(1, entry.attempts),
-                          passed: entry.passed,
-                        },
-                      ]
-                    : [];
+                  return {
+                    cardId: card.id,
+                    response: '',
+                    type: 'speak' as const,
+                    attempts: Math.max(1, entry?.attempts ?? 1),
+                    passed: entry?.passed === true,
+                  };
                 })
               )
             }
