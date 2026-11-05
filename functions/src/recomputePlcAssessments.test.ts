@@ -777,6 +777,49 @@ describe('recomputeOnePlcAssessment for Flashcards checks', () => {
     expect(stub.get('plcs/plc-1/assessments/set-1')?.dirtyAt).toBeNull();
   });
 
+  it('rolls each teacher’s set tags into targets and standards', async () => {
+    const stub = seedFlashcards();
+    stub.store.set('flashcard_sessions/fa', {
+      ...stub.get('flashcard_sessions/fa'),
+      setId: 'set-1',
+    });
+    stub.store.set('users/tA/flashcard_sets/set-1', {
+      targets: [
+        {
+          id: 'mn:WL.1',
+          kind: 'standard',
+          code: 'WL.1',
+          label: 'Interpret words',
+        },
+        {
+          id: 'lt-1',
+          kind: 'plc',
+          ownerId: 'plc-1',
+          label: 'Name animals',
+          standardIds: ['mn:WL.2'],
+        },
+        { id: 'p-1', kind: 'personal', label: 'My private goal' },
+      ],
+    });
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'set-1');
+    const agg = stub.get('plcs/plc-1/aggregates/set-1')!;
+    const rows = (key: string) =>
+      (agg[key] as Array<Record<string, unknown>>).map((r) => [
+        r.targetId,
+        r.attempted,
+        r.correctPercent,
+      ]);
+    expect(rows('perTarget')).toEqual([
+      ['lt-1', 4, 50],
+      ['mn:WL.1', 4, 50],
+    ]);
+    expect(rows('perStandard')).toEqual([
+      ['mn:WL.1', 4, 50],
+      ['mn:WL.2', 4, 50],
+    ]);
+    expect(JSON.stringify(agg)).not.toContain('My private goal');
+  });
+
   it('leaves out a class the teacher removed', async () => {
     const stub = seedFlashcards();
     stub.store.set('flashcard_sessions/fa', {

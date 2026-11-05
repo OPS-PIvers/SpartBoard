@@ -7,10 +7,12 @@ import './functionsInit';
 import {
   AGGREGATE_SCHEMA_VERSION,
   computeAssessmentAggregate,
+  parseTargets,
   resolveGroupQuestions,
   type AggregatePayload,
   type CompletedResponse,
   type ManualGrade,
+  type QuestionTargetSnapshot,
   type RawAnswer,
   type SessionInput,
 } from './plcAssessmentMath';
@@ -234,16 +236,33 @@ async function flashcardAggregateFor(
   const teacherNames = teacherNamesFromPlc(plcSnap.data());
   const activeMembers = activePlcMemberUids(plcSnap.data());
   const sessions: FlashcardCheckSessionInput[] = [];
+  // Set tags are read live from each teacher's set, so tagging after assigning still counts.
+  const setTargets = new Map<string, Promise<QuestionTargetSnapshot[]>>();
+  const targetsOf = (teacherUid: string, setId: string) => {
+    const key = `${teacherUid}/${setId}`;
+    let pending = setTargets.get(key);
+    if (!pending) {
+      pending = setId
+        ? db
+            .doc(`users/${teacherUid}/flashcard_sets/${setId}`)
+            .get()
+            .then((snap) => parseTargets(snap.data()?.targets))
+        : Promise.resolve([]);
+      setTargets.set(key, pending);
+    }
+    return pending;
+  };
   for (const sessionDoc of sessionsSnap.docs) {
     const s = sessionDoc.data();
     const teacherUid = asString(s.teacherUid);
     if (!activeMembers.has(teacherUid)) continue;
     if (s.kind !== 'check' || s.audience === 'staff') continue;
-    const [progressSnap, contentSnap] = await Promise.all([
+    const [progressSnap, contentSnap, targets] = await Promise.all([
       sessionDoc.ref.collection('progress').get(),
       s.cardsInContent === true
         ? sessionDoc.ref.collection('content').doc('cards').get()
         : Promise.resolve(null),
+      targetsOf(teacherUid, asString(s.setId)),
     ]);
     const keepClass = sessionClassPredicate(s);
     sessions.push({
@@ -258,6 +277,7 @@ async function flashcardAggregateFor(
         .filter((d) => keepClass(d.data()))
         .map((d) => parseSubmittedFlashcardCheck(d.data()))
         .filter((p): p is SubmittedFlashcardCheck => p !== null),
+      targets,
     });
   }
   return computeFlashcardAggregate({ assessmentId, title, sessions });

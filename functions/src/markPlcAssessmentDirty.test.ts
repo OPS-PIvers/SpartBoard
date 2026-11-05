@@ -29,6 +29,7 @@ import {
   markDirty,
   markPlcAssessmentDirtyOnFlashcardProgress,
   markPlcAssessmentDirtyOnFlashcardSession,
+  markPlcAssessmentDirtyOnFlashcardSet,
   markPlcAssessmentDirtyOnResponse,
   markPlcAssessmentDirtyOnSession,
   parseLinkedFlashcardSession,
@@ -535,5 +536,28 @@ describe('Flashcards check triggers', () => {
       progressEvent(null, { submittedAt: NOW, score: 1, total: 1 })
     );
     expect(stub.get('plcs/plc-1/assessments/set-origin')).toBeUndefined();
+  });
+
+  it('marks dirty when the set’s tags change, not on other set edits', async () => {
+    const onFcSet = markPlcAssessmentDirtyOnFlashcardSet as unknown as Handler;
+    stub.store.set('flashcard_sessions/fc-a', check);
+    stub.store.set('plcs/plc-1/assessments/set-origin', {
+      syncGroupId: 'set-origin',
+      dirtyAt: null,
+    });
+    const setEvent = (before: StubData, after: StubData) => ({
+      params: { uid: 'tA', setId: 'set-a' },
+      data: { before: snap(before), after: snap(after) },
+    });
+    const dirtyAt = () =>
+      stub.get('plcs/plc-1/assessments/set-origin')?.dirtyAt;
+
+    await onFcSet(setEvent({ title: 'A' }, { title: 'B' }));
+    expect(dirtyAt()).toBeNull();
+
+    await onFcSet(
+      setEvent({ title: 'B' }, { title: 'B', targets: [{ id: 'mn:WL.1' }] })
+    );
+    expect(dirtyAt()).toBe(NOW);
   });
 });

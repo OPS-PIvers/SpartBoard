@@ -132,6 +132,27 @@ describe('helpers', () => {
     expect(row?.points).toHaveLength(1);
   });
 
+  it('counts flashcard checks toward a target only through masteryAggregates', () => {
+    const tagged = AGGREGATES.find((a) =>
+      a.perTarget?.some((r) => r.targetId === '7.RP.1')
+    );
+    const row = tagged?.perTarget?.find((r) => r.targetId === '7.RP.1');
+    if (!row) throw new Error('fixture has no 7.RP.1 row');
+    const check: PlcAssessmentAggregate = {
+      ...untag(AGGREGATES[0]),
+      assessmentId: 'fc-1',
+      kind: 'flashcard-check',
+      perTarget: [{ ...row, attempted: 20, correctPercent: 90 }],
+      perStandard: [],
+    };
+    const withCheck = findTargetMastery(
+      { ...base, masteryAggregates: [...AGGREGATES, check] },
+      '7.RP.1'
+    );
+    expect(withCheck?.points).toHaveLength(2);
+    expect(findTargetMastery(base, '7.RP.1')?.points).toHaveLength(1);
+  });
+
   it('counts open action items and the viewer’s share', () => {
     expect(
       countOpenItems(
