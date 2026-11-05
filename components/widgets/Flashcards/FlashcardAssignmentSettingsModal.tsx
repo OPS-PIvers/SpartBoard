@@ -29,7 +29,11 @@ import {
   rulesFromScoreVisibility,
   scoreVisibilityFromRules,
 } from '@/components/common/library/assignStepper/flashcardsRuleValues';
-import type { AssignAvailability } from '@/utils/assignAvailability';
+import {
+  resolveAvailability,
+  type AssignAvailability,
+} from '@/utils/assignAvailability';
+import { periodAccessClassEdits } from '@/utils/periodPlan';
 import {
   assignmentWindowEdit,
   windowBackwards,
@@ -73,7 +77,9 @@ export const FlashcardAssignmentSettingsModal: React.FC<
   const gates = useQuizRuleGates();
   const isCheck = assignment.kind === 'check';
   const staff = assignment.audience === 'staff';
-  const classesEditable = !staff && canEditAssignmentClasses(assignment);
+  // No rosters yet means none could show as checked, and a save would drop the rest.
+  const classesEditable =
+    !staff && rosters.length > 0 && canEditAssignmentClasses(assignment);
   const [initialClassIds] = useState(() =>
     (assignment.rosterIds ?? []).filter((id) =>
       rosters.some((r) => r.id === id)
@@ -107,6 +113,25 @@ export const FlashcardAssignmentSettingsModal: React.FC<
     : undefined;
   const classesChanged = !sameIds(classes.classIds, initialClassIds);
 
+  // A class added to a per-period session opens on the edited window, as in Quiz.
+  const classEditFor = () => {
+    const edit = planAssignmentClassEdit({
+      rosters,
+      rosterIds: classes.classIds,
+      previousRosterIds: assignment.rosterIds,
+    });
+    if (!perPeriod || !assignment.accessMode) return edit;
+    return {
+      ...edit,
+      periodAccessRows: periodAccessClassEdits({
+        periodAccess: assignment.periodAccess ?? {},
+        accessMode: assignment.accessMode,
+        rosters: selectedRosters,
+        window: resolveAvailability(availability, selectedRosters, undefined),
+      }),
+    };
+  };
+
   const handleSave = async () => {
     const w = assignmentWindowEdit({
       periodAccess: assignment.periodAccess,
@@ -119,15 +144,7 @@ export const FlashcardAssignmentSettingsModal: React.FC<
     const visibility = scoreVisibilityFromRules(rules);
     const patch: FlashcardAssignmentSettingsPatch = {
       ...(classesChanged && classesEditable
-        ? {
-            classEdit: planAssignmentClassEdit({
-              rosters,
-              rosterIds: classes.classIds,
-              previousRosterIds: assignment.rosterIds,
-              periodAccess: assignment.periodAccess,
-              accessMode: assignment.accessMode,
-            }),
-          }
+        ? { classEdit: classEditFor() }
         : {}),
       ...('openAt' in w ? { openAt: w.openAt } : {}),
       ...('closeAt' in w ? { closeAt: w.closeAt } : {}),
@@ -136,10 +153,12 @@ export const FlashcardAssignmentSettingsModal: React.FC<
         : {}),
       ...(w.due ? { dueAt: w.due.dueAt } : {}),
       ...(isCheck && rulesChanged ? { rules } : {}),
-      // What students see maps to the legacy score visibility, as at assign.
+      // What students see maps to the legacy score visibility, unless Publish or Unpublish changed it since.
       ...(isCheck &&
       rulesChanged &&
-      visibility !== scoreVisibilityFromRules(initialRules)
+      visibility !== scoreVisibilityFromRules(initialRules) &&
+      (assignment.scoreVisibility ?? 'none') ===
+        scoreVisibilityFromRules(initialRules)
         ? { scoreVisibility: visibility }
         : {}),
     };

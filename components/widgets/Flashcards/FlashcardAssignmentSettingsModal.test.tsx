@@ -115,6 +115,29 @@ describe('FlashcardAssignmentSettingsModal', () => {
     expect(savedPatch(onSave)).not.toHaveProperty('scoreVisibility');
   });
 
+  it('keeps a visibility set by Unpublish', async () => {
+    const { onSave } = renderModal(
+      assignment({
+        scoreVisibility: 'none',
+        rules: {
+          attemptLimit: 1,
+          sessionOptions: { showScoreOnSubmit: true },
+        },
+      })
+    );
+    fireEvent.click(screen.getByText('What students see'));
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Show right and wrong to students' })
+    );
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Reveal correct answer to students' })
+    );
+    save();
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(savedPatch(onSave).rules).toBeDefined();
+    expect(savedPatch(onSave)).not.toHaveProperty('scoreVisibility');
+  });
+
   it('retargets the classes through a class edit', async () => {
     const { onSave } = renderModal(assignment());
     fireEvent.click(screen.getByRole('button', { name: 'Period 1' }));

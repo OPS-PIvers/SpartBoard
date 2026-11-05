@@ -535,6 +535,9 @@ export const useFlashcardAssignments = (
         if (key in patch) shared[key] = patch[key] ?? null;
       }
       if (patch.rules) shared.rules = patch.rules;
+      const assignmentOnly: Record<string, unknown> = classEdit
+        ? { classIds: classEdit.classIds }
+        : {};
       if (patch.scoreVisibility) shared.scoreVisibility = patch.scoreVisibility;
       const sessionPatch: Record<string, unknown> = { ...shared };
       // Shuffle rides lockedSettings too, which is what the student page reads today.
@@ -542,11 +545,15 @@ export const useFlashcardAssignments = (
         sessionPatch['lockedSettings.shuffle'] =
           patch.rules.sessionOptions.shuffleQuestions === true;
       }
-      if (Object.keys(shared).length > 0 || rowWrites.length > 0) {
+      if (
+        Object.keys(shared).length > 0 ||
+        Object.keys(assignmentOnly).length > 0 ||
+        rowWrites.length > 0
+      ) {
         batchUpdateWithPaths(
           batch,
           assignmentRef,
-          { ...shared, updatedAt: now },
+          { ...shared, ...assignmentOnly, updatedAt: now },
           rowWrites
         );
       }
