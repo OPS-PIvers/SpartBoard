@@ -113,6 +113,18 @@ export const orderSectionsParentsFirst = (
   return result;
 };
 
+/** The local id for a listed share's board: `linked-{shareId}`, or a numbered one when a board already has it. */
+export const freeLinkedBoardId = (
+  shareId: string,
+  takenIds?: ReadonlySet<string>
+): string => {
+  const base = `linked-${shareId}`;
+  if (!takenIds?.has(base)) return base;
+  let n = 2;
+  while (takenIds.has(`${base}-${n}`)) n += 1;
+  return `${base}-${n}`;
+};
+
 /** A local board mirroring one listed share, before `createNewDashboard` gives it an id. */
 export const linkedBoardFromShare = (
   entry: LinkedCollectionBoard,
@@ -122,10 +134,12 @@ export const linkedBoardFromShare = (
     role: Exclude<DashboardShareRole, 'owner'>;
     fallbackName: string;
     order: number;
+    /** Local board ids already in use; the import never takes one of them. */
+    takenIds?: ReadonlySet<string>;
   }
 ): Dashboard => ({
   // Same id in every tab and device, so the board is imported once.
-  id: `linked-${entry.shareId}`,
+  id: freeLinkedBoardId(entry.shareId, opts.takenIds),
   name: safeName(entry.name, safeName(snap.name, opts.fallbackName)),
   background: snap.background,
   widgets: snap.widgets ?? [],

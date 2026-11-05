@@ -10,7 +10,9 @@ import {
 } from 'react';
 import i18n from '@/i18n';
 import { logError } from '@/utils/logError';
+import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
 import {
+  freeLinkedBoardId,
   linkedBoardFromShare,
   safeName,
   sharedBoardBelongsToLink,
@@ -153,6 +155,74 @@ const boardsOfLink = (
   );
 };
 
+interface LinkShare {
+  shareId: string;
+  /** This teacher wrote the share. */
+  mine: boolean;
+}
+
+/** Of these ids, the shares that belong to the link: created this session, or named by their own doc. */
+const confirmLinkShares = async (
+  d: Pick<LinkedCollectionSyncDeps, 'loadSharedBoard'>,
+  linkId: string,
+  uid: string,
+  ids: Iterable<string>,
+  created: ReadonlySet<string>,
+  ownIds: ReadonlySet<string>
+): Promise<LinkShare[]> => {
+  const list = [...new Set(ids)].filter(Boolean);
+  const found: LinkShare[] = [];
+  for (let i = 0; i < list.length; i += BATCH) {
+    const results = await Promise.allSettled(
+      list
+        .slice(i, i + BATCH)
+        .map(async (shareId): Promise<LinkShare | null> => {
+          if (created.has(shareId)) return { shareId, mine: true };
+          const snap = await d.loadSharedBoard(shareId);
+          // A gone doc still counts under this link's own id prefix.
+          if (!snap) {
+            return shareId.startsWith(`${linkId}_`)
+              ? { shareId, mine: ownIds.has(shareId) }
+              : null;
+          }
+          if (snap.linkedCollectionId !== linkId) return null;
+          return {
+            shareId,
+            mine: snap.originalAuthor === uid || ownIds.has(shareId),
+          };
+        })
+    );
+    results.forEach((r) => {
+      if (r.status === 'fulfilled') {
+        if (r.value) found.push(r.value);
+      } else {
+        logError('useLinkedCollectionSync.confirmShare', r.reason, { linkId });
+      }
+    });
+  }
+  return found;
+};
+
+/** Stops the members of a link's shares reading this teacher's walls. */
+const closeWallsToShares = async (
+  uid: string,
+  linkId: string,
+  shareIds: string[]
+): Promise<void> => {
+  for (let i = 0; i < shareIds.length; i += BATCH) {
+    const results = await Promise.allSettled(
+      shareIds
+        .slice(i, i + BATCH)
+        .map((id) => closeWallsToBoard(uid, id, new Set()))
+    );
+    results.forEach((r) => {
+      if (r.status === 'rejected') {
+        logError('useLinkedCollectionSync.closeWalls', r.reason, { linkId });
+      }
+    });
+  }
+};
+
 export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
   const depsRef = useRef(deps);
   useLayoutEffect(() => {
@@ -272,6 +342,7 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
       todo.forEach((e) => handledImports.current.add(e.shareId));
       const role = link.mode === 'synced' ? 'collaborator' : 'viewer';
       let order = d.dashboards.reduce((m, b) => Math.max(m, b.order ?? 0), 0);
+      const claimed = new Set<string>();
       for (let i = 0; i < todo.length; i += BATCH) {
         const batch = todo.slice(i, i + BATCH);
         const results = await Promise.allSettled(
@@ -279,13 +350,22 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
             const snap = await d.loadSharedBoard(entry.shareId);
             // Trust rule: boards[] is member-written, so the share must name this link and mode.
             if (!snap || !sharedBoardBelongsToLink(snap, link)) return;
+            // Read after the load: an import never replaces a board that already has the id.
+            const current = depsRef.current.dashboards;
+            const holder = current.find(
+              (b) => b.id === freeLinkedBoardId(entry.shareId)
+            );
+            if (holder && liveShareIdOf(holder) === entry.shareId) return;
+            const takenIds = new Set([...current.map((b) => b.id), ...claimed]);
             order += 1;
             const data = linkedBoardFromShare(entry, snap, {
               uid,
               role,
               fallbackName: root.name,
               order,
+              takenIds,
             });
+            claimed.add(data.id);
             const collectionId =
               (entry.sectionId ? keyToLocal.get(entry.sectionId) : undefined) ??
               root.id;
@@ -358,7 +438,17 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
           deletedLocally.current.add(shareId);
           if (snap && board.linkedShareRole === 'owner') {
             await d.stopSharingBoard(shareId);
+          } else if (snap && snap.originalAuthor !== ctx.uid) {
+            // No longer in this share's participants, so its members can't reach the walls.
+            await d.leaveSharedBoard(shareId).catch((err: unknown) => {
+              if (!isNotFound(err) && !isPermissionDenied(err)) {
+                logError('useLinkedCollectionSync.leaveDropped', err, {
+                  shareId,
+                });
+              }
+            });
           }
+          await closeWallsToShares(ctx.uid, link.linkId, [shareId]);
         } catch (err) {
           leaving.current.delete(board.id);
           logError('useLinkedCollectionSync.remove', err, { shareId });
@@ -699,29 +789,59 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
         });
         closedRoots.current.add(root.id);
       } finally {
-        // The host ends every listed board, including ones collaborators added; repeats are harmless.
-        if (host) {
-          const shareIds = new Set([
-            ...(link?.boards ?? []).map((b) => b.shareId),
+        // Only shares of this link: ones created here, or whose own doc names it.
+        const created = new Set(
+          [...sharedAs.current.values()].filter((id) =>
+            id.startsWith(`${linkId}_`)
+          )
+        );
+        const ownIds = new Set(
+          boards
+            .filter((b) => b.linkedShareRole === 'owner')
+            .map((b) => b.linkedShareId ?? '')
+        );
+        const shares = await confirmLinkShares(
+          d,
+          linkId,
+          d.uid ?? '',
+          [
+            ...uniqueLinkedBoards(link?.boards).map((b) => b.shareId),
             ...boards.map((b) => b.linkedShareId ?? ''),
-            ...[...sharedAs.current.values()].filter((id) =>
-              id.startsWith(`${linkId}_`)
-            ),
-          ]);
-          shareIds.delete('');
-          const list = [...shareIds];
-          for (let i = 0; i < list.length; i += BATCH) {
-            const results = await Promise.allSettled(
-              list.slice(i, i + BATCH).map((id) => d.stopSharingBoard(id))
-            );
-            results.forEach((r) => {
-              if (r.status === 'rejected') {
-                logError('useLinkedCollectionSync.stopBoard', r.reason, {
-                  linkId,
-                });
-              }
-            });
-          }
+            ...created,
+          ],
+          created,
+          ownIds
+        );
+        // The host ends every listed board, including ones collaborators added; repeats are harmless.
+        // Anyone else leaves the shares they joined, so they stop reading the others' walls.
+        const act = shares.filter((s) => host || !s.mine);
+        for (let i = 0; i < act.length; i += BATCH) {
+          const results = await Promise.allSettled(
+            act
+              .slice(i, i + BATCH)
+              .map((s) =>
+                host
+                  ? d.stopSharingBoard(s.shareId)
+                  : d.leaveSharedBoard(s.shareId)
+              )
+          );
+          results.forEach((r) => {
+            if (
+              r.status === 'rejected' &&
+              !(!host && (isNotFound(r.reason) || isPermissionDenied(r.reason)))
+            ) {
+              logError('useLinkedCollectionSync.stopBoard', r.reason, {
+                linkId,
+              });
+            }
+          });
+        }
+        if (d.uid) {
+          await closeWallsToShares(
+            d.uid,
+            linkId,
+            shares.map((s) => s.shareId)
+          );
         }
       }
     },
@@ -804,17 +924,7 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
           const link = linksRef.current.get(linkId);
           const current =
             now.collections.find((c) => c.id === collectionId) ?? root;
-          if (!asHost) {
-            // Boards this teacher added stay shared, so the others keep them.
-            const joined = boardsOfLink(now, current, linkId, link)
-              .filter((b) => b.linkedShareRole !== 'owner')
-              .map((b) => b.linkedShareId ?? '');
-            for (let i = 0; i < joined.length; i += BATCH) {
-              await Promise.allSettled(
-                joined.slice(i, i + BATCH).map((id) => now.leaveSharedBoard(id))
-              );
-            }
-          }
+          // Boards this teacher added stay shared (the others keep them); closing leaves the rest.
           await closeLocally(current, linkId, link);
         });
       } finally {

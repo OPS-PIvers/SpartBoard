@@ -167,6 +167,7 @@ export const useLinkedCollectionImport = () => {
           sectionToLocal.set(section.id, localId);
         }
 
+        const takenIds = new Set(dashboards.map((d) => d.id));
         const baseOrder = dashboards.reduce(
           (max, d) => Math.max(max, d.order ?? 0),
           0
@@ -186,6 +187,7 @@ export const useLinkedCollectionImport = () => {
                 role,
                 fallbackName: rootName,
                 order: baseOrder + i + offset + 1,
+                takenIds,
               });
               const boardId = await createNewDashboard(data.name, data, {
                 collectionId: localSection ?? rootId,
