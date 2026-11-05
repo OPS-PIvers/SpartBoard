@@ -64,15 +64,49 @@ export function getCentralDayKey(): string {
   }
 }
 
-/** True only for the widget that sent today's report, so copies can still submit. */
+/** The class part of a sheet row (lunch time and grade), without the reporter's name. */
+export function reportClassKey(lunchTime: string, gradeLabel: string): string {
+  return `${lunchTime || '??:??'} - ${gradeLabel || 'Grade ?'}`;
+}
+
+interface SubmittedMarker {
+  lastSubmittedDate?: string;
+  lastSubmittedWidgetId?: string;
+  lastSubmittedClasses?: string[];
+}
+
+/** True when this widget already sent this class today, so other classes and copies can still submit. */
 export function hasSubmittedToday(
-  config: { lastSubmittedDate?: string; lastSubmittedWidgetId?: string },
-  widgetId: string
+  config: SubmittedMarker,
+  widgetId: string,
+  classKey: string
 ): boolean {
   return (
     config.lastSubmittedDate === getCentralDayKey() &&
-    config.lastSubmittedWidgetId === widgetId
+    config.lastSubmittedWidgetId === widgetId &&
+    (config.lastSubmittedClasses === undefined ||
+      config.lastSubmittedClasses.includes(classKey))
   );
+}
+
+/** The marker to save after a successful submit; it keeps today's earlier classes. */
+export function submittedMarker(
+  config: SubmittedMarker,
+  widgetId: string,
+  dayKey: string,
+  classKey: string
+): Required<SubmittedMarker> {
+  const sameDay =
+    config.lastSubmittedDate === dayKey &&
+    config.lastSubmittedWidgetId === widgetId;
+  const earlier = sameDay ? (config.lastSubmittedClasses ?? []) : [];
+  return {
+    lastSubmittedDate: dayKey,
+    lastSubmittedWidgetId: widgetId,
+    lastSubmittedClasses: earlier.includes(classKey)
+      ? earlier
+      : [...earlier, classKey],
+  };
 }
 
 export function getCentralTimestamp(): string {
