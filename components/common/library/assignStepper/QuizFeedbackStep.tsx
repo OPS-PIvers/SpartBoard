@@ -26,9 +26,11 @@ export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
   hasManualGrading = false,
   handRaiseMode = DEFAULT_QUIZ_HAND_RAISE_MODE,
   readAloudAvailable = false,
+  flashcards = false,
 }) => {
   const { t } = useTranslation();
-  const { scoreOnSubmitOn } = useQuizRuleGates();
+  // Flashcards always scored on submit, so the row needs no Quiz flag there.
+  const scoreOnSubmitOn = useQuizRuleGates().scoreOnSubmitOn || flashcards;
   const o = value.sessionOptions;
   const patch = (next: Parameters<typeof patchQuizSessionOptions>[1]) =>
     onChange(patchQuizSessionOptions(value, next));
@@ -76,16 +78,18 @@ export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
           patch({ showCorrectAnswerToStudent })
         }
       />
-      <StepToggleRow
-        label="Group results by learning target"
-        anchor={tourFieldAttr(
-          'assign-rule.toggle',
-          'assign',
-          'learning-targets'
-        )}
-        checked={o.showLearningTargets ?? false}
-        onChange={(showLearningTargets) => patch({ showLearningTargets })}
-      />
+      {!flashcards && (
+        <StepToggleRow
+          label="Group results by learning target"
+          anchor={tourFieldAttr(
+            'assign-rule.toggle',
+            'assign',
+            'learning-targets'
+          )}
+          checked={o.showLearningTargets ?? false}
+          onChange={(showLearningTargets) => patch({ showLearningTargets })}
+        />
+      )}
       {handRaiseMode === 'teacher-choice' && (
         <StepToggleRow
           label={t('quizHandRaise.label', 'Allow students to raise a hand')}

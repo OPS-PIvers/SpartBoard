@@ -9555,6 +9555,30 @@ export type FlashcardCardSelection =
 export type FlashcardMasteryThreshold = 2 | 3 | 4;
 export type FlashcardScoreVisibility = 'none' | 'score' | 'score-and-answers';
 
+/** Quiz session options a flashcards-assign-v2 Check stamps, under Quiz's own names. */
+export type FlashcardCheckSessionOptions = Pick<
+  QuizSessionOptions,
+  | 'timeLimitMinutes'
+  | 'shuffleQuestions'
+  | 'tabWarningsEnabled'
+  | 'tabWarningThreshold'
+  | 'tabAwayLimitSeconds'
+  | 'tabAwayAutoSubmit'
+  | 'focusLevel'
+  | 'blockCopyPaste'
+  | 'blockPrint'
+  | 'showScoreOnSubmit'
+  | 'showResultToStudent'
+  | 'showCorrectAnswerToStudent'
+>;
+
+/** Check rules from the Quiz-style assign steps; absent on older sessions (one attempt, no limits). */
+export interface FlashcardCheckRules {
+  /** null = unlimited. */
+  attemptLimit: number | null;
+  sessionOptions: FlashcardCheckSessionOptions;
+}
+
 /** One graded item in a Check submission; `correct` is written by the server. */
 export interface FlashcardAnswerLogEntry {
   cardId: string;
@@ -9603,6 +9627,8 @@ export interface FlashcardSession
   speakOff?: true;
   /** Check: how the set's cards were narrowed at assign time; absent means all. */
   cardSelection?: FlashcardCardSelection;
+  /** Check: attempts, time limit, shuffle, integrity and What students see (flashcards-assign-v2). */
+  rules?: FlashcardCheckRules;
   /** Assigned by a teacher with the flashcards-test-nav flag: students get the Test question bar. */
   testNavBar?: true;
   masteryThreshold?: FlashcardMasteryThreshold;
@@ -9650,6 +9676,8 @@ export interface FlashcardAssignment
   scoreVisibility?: FlashcardScoreVisibility;
   /** Check: how the set's cards were narrowed at assign time; absent means all. */
   cardSelection?: FlashcardCardSelection;
+  /** Check: the session's rules, kept here for the edit modal. */
+  rules?: FlashcardCheckRules;
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
   targetGroupIds?: string[];

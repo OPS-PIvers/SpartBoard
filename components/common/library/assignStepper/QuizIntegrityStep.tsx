@@ -174,8 +174,9 @@ export const BlockCopyPasteRow: React.FC<{
 export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
   value,
   onChange,
+  flashcards = false,
 }) => {
-  const { stimulusQuotesOn } = useQuizRuleGates();
+  const stimulusQuotesOn = useQuizRuleGates().stimulusQuotesOn && !flashcards;
   const o = value.sessionOptions;
   const patch = (next: Parameters<typeof patchQuizSessionOptions>[1]) =>
     onChange(patchQuizSessionOptions(value, next));

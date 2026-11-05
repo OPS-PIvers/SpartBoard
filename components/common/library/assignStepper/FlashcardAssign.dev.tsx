@@ -2,7 +2,7 @@
 /* eslint-disable react-refresh/only-export-components -- default export is a harness preview record */
 import React, { useContext, useMemo, useState } from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
-import type { ClassRoster, FlashcardSet } from '@/types';
+import type { ClassRoster, FlashcardSet, Plc } from '@/types';
 import { FlashcardAssignStepper } from '@/components/widgets/Flashcards/FlashcardAssignStepper';
 import type { AssignPeriodAccessContext } from '../AssignPeriodAccessSection';
 
@@ -86,7 +86,12 @@ const AllFlags: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-const Preview: React.FC<{ set?: FlashcardSet }> = ({ set = SET }) => {
+const PLCS = [{ id: 'plc-1', name: 'World Language PLC' } as Plc];
+
+const Preview: React.FC<{ set?: FlashcardSet; plcs?: Plc[] }> = ({
+  set = SET,
+  plcs,
+}) => {
   const [open, setOpen] = useState(true);
   return (
     <div className="space-y-2 text-sm text-slate-600">
@@ -109,6 +114,7 @@ const Preview: React.FC<{ set?: FlashcardSet }> = ({ set = SET }) => {
             return Promise.resolve(true);
           }}
           periodAccess={PERIOD_CTX}
+          plcs={plcs}
         />
       )}
     </div>
@@ -117,7 +123,7 @@ const Preview: React.FC<{ set?: FlashcardSet }> = ({ set = SET }) => {
 
 const PreviewV2: React.FC = () => (
   <AllFlags>
-    <Preview set={SPANISH_SET} />
+    <Preview set={SPANISH_SET} plcs={PLCS} />
   </AllFlags>
 );
 

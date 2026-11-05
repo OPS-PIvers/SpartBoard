@@ -34,6 +34,7 @@ import type {
   FlashcardAssignment,
   FlashcardAssignmentKind,
   FlashcardCardSelection,
+  FlashcardCheckRules,
   FlashcardMasteryThreshold,
   FlashcardMode,
   FlashcardModeSettings,
@@ -72,6 +73,8 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   speakOff?: boolean;
   /** Check only: how `set.cards` was narrowed (already applied to the cards). */
   cardSelection?: FlashcardCardSelection;
+  /** Check only (flashcards-assign-v2): attempts, time limit, shuffle, integrity, What students see. */
+  rules?: FlashcardCheckRules;
 }
 
 export interface UseFlashcardAssignmentsResult {
@@ -208,6 +211,7 @@ export const useFlashcardAssignments = (
         isCheck && input.cardSelection && input.cardSelection.mode !== 'all'
           ? input.cardSelection
           : undefined;
+      const rules = isCheck && input.rules ? input.rules : undefined;
       const language = speakLanguageOf(input.set.termLanguage);
       // A Speak check prepares any card that has no pronunciation yet.
       const prepared =
@@ -247,6 +251,7 @@ export const useFlashcardAssignments = (
         ...(speak ? { speak } : {}),
         ...(speakOff ? { speakOff: true as const } : {}),
         ...(cardSelection ? { cardSelection } : {}),
+        ...(rules ? { rules } : {}),
         ...(testNavBar ? { testNavBar: true as const } : {}),
         classIds,
         classId: classIds[0] ?? '',
@@ -275,6 +280,7 @@ export const useFlashcardAssignments = (
         periodNames,
         ...(scoreVisibility ? { scoreVisibility } : {}),
         ...(cardSelection ? { cardSelection } : {}),
+        ...(rules ? { rules } : {}),
         ...(input.targetGroupIds && input.targetGroupIds.length > 0
           ? { targetGroupIds: input.targetGroupIds }
           : {}),

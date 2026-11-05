@@ -15,6 +15,8 @@ export interface QuizRuleGates {
 export interface QuizRuleStepContext extends Partial<QuizRuleGates> {
   /** A question needs a teacher grade, so "Show score on submit" is unavailable. */
   hasManualGrading?: boolean;
+  /** Flashcards Check: shuffling names cards and there is no final score. */
+  flashcards?: boolean;
 }
 
 export const patchQuizSessionOptions = (
@@ -36,7 +38,7 @@ export function formatQuizAttemptsValue(
       ? 'Unlimited attempts'
       : `${value.attemptLimit} attempt${value.attemptLimit === 1 ? '' : 's'}`,
   ];
-  if (context.finalScoreOn && value.attemptLimit !== 1) {
+  if (context.finalScoreOn && !context.flashcards && value.attemptLimit !== 1) {
     if (value.finalScore === 'highest') parts.push('highest score');
     if (value.finalScore === 'average') parts.push('average score');
   }
@@ -47,7 +49,8 @@ export function formatQuizAttemptsValue(
   const shuffleQ = o.shuffleQuestions ?? false;
   const shuffleA = o.shuffleAnswerOptions ?? true;
   if (shuffleQ && shuffleA) parts.push('Shuffled');
-  else if (shuffleQ) parts.push('Shuffled questions');
+  else if (shuffleQ)
+    parts.push(context.flashcards ? 'Shuffled cards' : 'Shuffled questions');
   else if (shuffleA) parts.push('Shuffled answers');
   return parts.join(', ');
 }

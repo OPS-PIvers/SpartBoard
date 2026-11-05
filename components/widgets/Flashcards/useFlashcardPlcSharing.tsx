@@ -45,6 +45,44 @@ export const useFlashcardPlcSharing = ({
       (user?.email ? user.email.toLowerCase() : ''),
   });
 
+  type ShareableAssignment = Pick<
+    FlashcardAssignment,
+    'id' | 'sessionId' | 'setId' | 'setTitle' | 'periodNames'
+  >;
+  const writeResultsShare = async (
+    assignment: ShareableAssignment,
+    plc: Plc
+  ): Promise<void> => {
+    if (!user) return;
+    const summary = await loadFlashcardResultSummary(assignment.sessionId);
+    const sharedAt = Date.now();
+    await writePlcFlashcardResult(plc.id, user.uid, {
+      assignmentId: assignment.id,
+      setId: assignment.setId,
+      setTitle: assignment.setTitle,
+      classLabel: flashcardAssignmentClassLabel(assignment),
+      summary,
+      sharedAt,
+      ...attribution(plc),
+    });
+    await setPlcShare(assignment.id, { plcId: plc.id, sharedAt });
+  };
+
+  /** The assign Sharing step: share a new assignment's results; false when it failed. */
+  const shareNewAssignmentResults = async (
+    assignment: ShareableAssignment,
+    plc: Plc
+  ): Promise<boolean> => {
+    if (!editablePlcs.some((p) => p.id === plc.id)) return false;
+    try {
+      await writeResultsShare(assignment, plc);
+      return true;
+    } catch (error) {
+      console.warn('[Flashcards] Failed to share results with PLC:', error);
+      return false;
+    }
+  };
+
   const open = (next: Target): void => {
     if (editablePlcs.length === 0) {
       addToast('Join a PLC to share with teammates.', 'info');
@@ -68,19 +106,7 @@ export const useFlashcardPlcSharing = ({
         outcome === 'already-shared' ? 'info' : 'success'
       );
     } else {
-      const { assignment } = target;
-      const summary = await loadFlashcardResultSummary(assignment.sessionId);
-      const sharedAt = Date.now();
-      await writePlcFlashcardResult(plcId, user.uid, {
-        assignmentId: assignment.id,
-        setId: assignment.setId,
-        setTitle: assignment.setTitle,
-        classLabel: flashcardAssignmentClassLabel(assignment),
-        summary,
-        sharedAt,
-        ...attribution(plc),
-      });
-      await setPlcShare(assignment.id, { plcId, sharedAt });
+      await writeResultsShare(target.assignment, plc);
       addToast(`Results shared with ${plc.name}.`, 'success');
     }
     setTarget(null);
@@ -127,6 +153,8 @@ export const useFlashcardPlcSharing = ({
 
   return {
     enabled,
+    editablePlcs,
+    shareNewAssignmentResults,
     shareSet: (set: FlashcardSet) => open({ kind: 'set', set }),
     shareResults: (assignment: FlashcardAssignment) =>
       open({ kind: 'results', assignment }),
