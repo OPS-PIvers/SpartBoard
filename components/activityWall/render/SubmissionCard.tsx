@@ -112,6 +112,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
       return (
         <>
           <button
+            // no-tour-anchor: one per post, generated from the wall submissions
             type="button"
             onClick={(e) => {
               e.stopPropagation();
@@ -345,6 +346,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
         >
           {onEdit && (
             <button
+              // no-tour-anchor: one per post, generated from the wall submissions
               type="button"
               aria-label="Edit post"
               onClick={() => onEdit(submission.id)}
@@ -355,6 +357,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           )}
           {onDelete && (
             <button
+              // no-tour-anchor: one per post, generated from the wall submissions
               type="button"
               aria-label="Delete post"
               onClick={() => onDelete(submission.id)}
@@ -372,6 +375,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           style={{ marginTop: scale.gap, gap: scale.gap }}
         >
           <button
+            // no-tour-anchor: one per post, generated from the wall submissions
             type="button"
             aria-label="Edit post"
             onClick={() => onEdit(submission.id)}
@@ -389,6 +393,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
         >
           {isPending && onApprove && (
             <button
+              // no-tour-anchor: one per post, generated from the wall submissions
               type="button"
               aria-label="Approve post"
               onClick={() => onApprove(submission.id)}
@@ -399,6 +404,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           )}
           {isPending && onReject && (
             <button
+              // no-tour-anchor: one per post, generated from the wall submissions
               type="button"
               aria-label="Reject post"
               onClick={() => onReject(submission.id)}
@@ -409,6 +415,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           )}
           {onPin && (
             <button
+              // no-tour-anchor: one per post, generated from the wall submissions
               type="button"
               aria-label={submission.pinned ? 'Unpin post' : 'Pin post'}
               onClick={() => onPin(submission.id, !submission.pinned)}
@@ -419,6 +426,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           )}
           {onEdit && (
             <button
+              // no-tour-anchor: one per post, generated from the wall submissions
               type="button"
               aria-label="Edit post"
               onClick={() => onEdit(submission.id)}
@@ -429,6 +437,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           )}
           {onDelete && (
             <button
+              // no-tour-anchor: one per post, generated from the wall submissions
               type="button"
               aria-label="Delete post"
               onClick={() => onDelete(submission.id)}

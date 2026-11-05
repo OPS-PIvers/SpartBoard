@@ -20,6 +20,7 @@ export const WordField: React.FC<WordFieldProps> = ({ value, onChange }) => (
       Your word or phrase
     </label>
     <input
+      // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
       id="aw-word"
       className={inputClass}
       value={value}
@@ -55,6 +56,7 @@ export const TextField: React.FC<TextFieldProps> = ({
         Title (optional)
       </label>
       <input
+        // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
         id="aw-title"
         className={inputClass}
         value={title}
@@ -68,6 +70,7 @@ export const TextField: React.FC<TextFieldProps> = ({
           Your response
         </label>
         <textarea
+          // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
           id="aw-body"
           rows={4}
           className={inputClass}
@@ -103,6 +106,7 @@ export const LinkField: React.FC<LinkFieldProps> = ({
         Link
       </label>
       <input
+        // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
         id="aw-url"
         type="url"
         inputMode="url"
@@ -117,6 +121,7 @@ export const LinkField: React.FC<LinkFieldProps> = ({
         Say something about it (optional)
       </label>
       <input
+        // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
         id="aw-link-title"
         className={inputClass}
         value={title}
@@ -171,6 +176,7 @@ export const FileField: React.FC<FileFieldProps> = ({
         )}
       </div>
       <input
+        // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
         type="file"
         accept={ACCEPT_BY_TYPE[type]}
         aria-label={FIELD_LABEL[type]}
@@ -180,6 +186,7 @@ export const FileField: React.FC<FileFieldProps> = ({
     </label>
     {file && (
       <button
+        // no-tour-anchor: student post composer field, which runs on the student wall page, not the board
         type="button"
         onClick={() => onSelect(null)}
         className="flex items-center gap-1 text-xs font-semibold text-slate-600 transition-colors hover:text-red-600"

@@ -77,6 +77,7 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
         <div className="grid grid-cols-2 gap-2">
           {requiresName && (
             <input
+              // no-tour-anchor: student comment form, which runs on the student wall page, not the board
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
@@ -86,6 +87,7 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
           )}
           {requiresPin && (
             <input
+              // no-tour-anchor: student comment form, which runs on the student wall page, not the board
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder="PIN"
@@ -97,6 +99,7 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
       )}
       <div className="flex items-end gap-2">
         <textarea
+          // no-tour-anchor: student comment form, which runs on the student wall page, not the board
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={2}
@@ -106,6 +109,7 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
           className="flex-1 resize-none rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder:text-slate-300 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
         />
         <button
+          // no-tour-anchor: student comment form, which runs on the student wall page, not the board
           type="submit"
           disabled={submitting || !content.trim()}
           className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-white/25 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-50"

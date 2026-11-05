@@ -58,3 +58,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-11-02 | claude/tour-anchors-2026-11-02 | Library and assigning (quiz student answer screens, imported-assignment setup dialog) | 4 | 27 | 0 | 462 in 171 files |
 | 2026-11-03 | claude/tour-anchors-2026-11-03 | Library and assigning (quiz paper scan viewer, read-aloud, audio recording and playback) | 8 | 18 | 0 | 436 in 164 files |
 | 2026-11-04 | claude/tour-anchors-2026-11-04 | Library and assigning (learning target picker, Push to Schoology dialog) | 14 | 11 | 0 | 411 in 157 files |
+| 2026-11-05 | claude/tour-anchors-2026-11-05 | Library and assigning (Activity Wall student wall, post cards, composer and comments) | 0 | 37 | 0 | 374 in 145 files |

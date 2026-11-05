@@ -79,6 +79,7 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
       <div className="flex items-center justify-end gap-3">
         {flags.allowLikes && (
           <button
+            // no-tour-anchor: like button on a wall post, one per post
             type="button"
             onClick={() => void toggleLike()}
             disabled={likeBusy || !writable}

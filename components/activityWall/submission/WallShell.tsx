@@ -69,6 +69,7 @@ export const WallShell: React.FC<WallShellProps> = ({
             </div>
             {imageSize && onImageSizeChange && (
               <button
+                // no-tour-anchor: student wall page header, which never shows on the board
                 type="button"
                 onClick={() => onImageSizeChange(nextWallImageSize(imageSize))}
                 aria-label={`Image size: ${WALL_IMAGE_SIZE_LABEL[imageSize]}. Click to change.`}
