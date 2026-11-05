@@ -12,7 +12,6 @@ export const cardLabel = (index: number): string => `Card ${index + 1}`;
 
 export const FLASHCARD_TOOLBAR_ANCHORS: RosterToolbarAnchors = {
   scores: tourTypeAttr('flashcards.roster-scores', 'flashcards'),
-  tabWarnings: tourTypeAttr('flashcards.roster-tab-warnings', 'flashcards'),
   proficiency: tourTypeAttr('flashcards.roster-proficiency', 'flashcards'),
   sort: tourTypeAttr('flashcards.roster-sort', 'flashcards'),
   filter: tourTypeAttr('flashcards.roster-filter', 'flashcards'),
@@ -45,7 +44,7 @@ export const orderFlashcardRoster = <T extends FlashcardRosterStudent>(
     (s) => ({
       name: nameFor(s.studentUid),
       status: BUCKET_STATUS[s.bucket],
-      score: s.score,
+      score: s.score === null ? null : Math.round(s.score),
       tabWarnings: 0,
     }),
     prefs.monitorSortBy ?? 'first',
@@ -76,7 +75,7 @@ export const flashcardMenuItems = (
     label: 'Remove student',
     confirmLabel: 'Confirm remove',
     danger: true,
-    tour: tourFieldAttr('flashcards.student-menu-item', 'flashcards', 'remove'),
+    tour: tourFieldAttr('flashcards.student-menu-item', 'flashcards', 'reset'),
     onClick: onRemove,
   },
 ];

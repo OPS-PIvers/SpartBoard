@@ -3455,7 +3455,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'flashcards.card-results': ['library.flashcards.results'],
     'flashcards.close-all': ['library.flashcards.results'],
     'flashcards.roster-scores': ['library.flashcards.results'],
-    'flashcards.roster-tab-warnings': ['library.flashcards.results'],
     'flashcards.roster-proficiency': ['library.flashcards.results'],
     'flashcards.roster-sort': ['library.flashcards.results'],
     'flashcards.roster-filter': ['library.flashcards.results'],

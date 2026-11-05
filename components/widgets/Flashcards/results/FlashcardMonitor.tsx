@@ -598,10 +598,15 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
         )
       : [];
 
-  const renderFlagsFor = (studentUid: string): React.ReactNode => {
+  const flagCountFor = (studentUid: string): number =>
+    flagsByStudent.get(studentUid)?.length ?? 0;
+  const renderFlagsFor = (
+    studentUid: string,
+    firstIndex: number
+  ): React.ReactNode => {
     const flags = flagsByStudent.get(studentUid) ?? [];
     if (flags.length === 0) return null;
-    return flags.map((flag) => renderFlag(flag, flagIndex++));
+    return flags.map((flag, i) => renderFlag(flag, firstIndex + i));
   };
 
   return (
@@ -706,6 +711,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                 onUpdatePrefs={onUpdatePrefs}
                 letInFor={letInFor}
                 onRemove={onResetStudent}
+                belowCount={flagCountFor}
                 renderBelow={renderFlagsFor}
               />
             )}
@@ -720,6 +726,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                     prefs={prefs}
                     onUpdate={onUpdatePrefs}
                     tabWarningsAllowed={false}
+                    tabsFilter={false}
                     scoreSwitches={false}
                     anchors={FLASHCARD_TOOLBAR_ANCHORS}
                   />
@@ -758,6 +765,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
           <FlashcardCardList
             session={session}
             results={results}
+            ended={ended}
             onOpen={setCardIndex}
           />
         )}

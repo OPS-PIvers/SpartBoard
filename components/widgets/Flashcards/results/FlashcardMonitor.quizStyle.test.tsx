@@ -83,6 +83,7 @@ const show = (
     prefs?: MonitorRosterPrefs;
     onUpdatePrefs?: (u: Partial<MonitorRosterPrefs>) => void;
     onResetStudent?: (uid: string) => void;
+    strict?: boolean;
   } = {}
 ) =>
   render(
@@ -106,7 +107,8 @@ const show = (
       quizStyle
       prefs={over.prefs ?? {}}
       onUpdatePrefs={over.onUpdatePrefs ?? vi.fn()}
-    />
+    />,
+    over.strict ? { wrapper: React.StrictMode } : undefined
   );
 
 const bucket = (label: string) =>
@@ -206,9 +208,17 @@ describe('FlashcardMonitor quiz style', () => {
     expect(screen.getByText('Card results')).toBeInTheDocument();
   });
 
+  it('numbers flagged-answer anchors the same under StrictMode', () => {
+    show({ strict: true });
+    fireEvent.click(bucket('Done'));
+    const accept = screen.getByRole('button', { name: 'Accept' });
+    expect(accept).toHaveAttribute('data-tour-field', 'row-1');
+  });
+
   it('marks correct answers once the assignment ends', () => {
     show({ session: session({ status: 'ended' }) });
     fireEvent.click(screen.getByRole('button', { name: /Card results/ }));
+    expect(screen.getAllByText('2 answered')).toHaveLength(2);
     fireEvent.click(screen.getByText('dos'));
     expect(screen.getByLabelText('Correct answer')).toBeInTheDocument();
     expect(

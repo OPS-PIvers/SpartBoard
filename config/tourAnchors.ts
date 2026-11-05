@@ -14433,11 +14433,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'flashcards.roster-tab-warnings': {
-    label: 'Tab warnings toggle chip in the Flashcards monitor student list',
-    perWidgetType: true,
-    panel: true,
-  },
   'flashcards.roster-proficiency': {
     label:
       'Proficiency colors toggle chip in the Flashcards monitor student list',

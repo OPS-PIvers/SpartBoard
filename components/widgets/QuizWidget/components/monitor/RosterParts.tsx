@@ -12,7 +12,8 @@ import {
 
 export interface RosterToolbarAnchors {
   scores: TourAnchorAttrs;
-  tabWarnings: TourAnchorAttrs;
+  /** Required wherever Tab warnings can show. */
+  tabWarnings?: TourAnchorAttrs;
   proficiency: TourAnchorAttrs;
   sort: TourAnchorAttrs;
   filter: TourAnchorAttrs;
@@ -55,6 +56,8 @@ export const RosterToolbar: React.FC<{
   tabWarningsAllowed: boolean;
   /** False hides Scores and Proficiency colors, e.g. where every row already shows a percent. */
   scoreSwitches?: boolean;
+  /** False drops the Left quiz tab filter where tabs are never tracked; Quiz keeps it so a saved choice still shows. */
+  tabsFilter?: boolean;
   anchors?: RosterToolbarAnchors;
 }> = ({
   bucket,
@@ -62,6 +65,7 @@ export const RosterToolbar: React.FC<{
   onUpdate,
   tabWarningsAllowed,
   scoreSwitches = true,
+  tabsFilter = true,
   anchors = QUIZ_TOOLBAR_ANCHORS,
 }) => {
   const sortBy: MonitorSortBy = prefs.monitorSortBy ?? 'first';
@@ -134,7 +138,7 @@ export const RosterToolbar: React.FC<{
         <option value="hi">Score 80%+</option>
         <option value="mid">Score 60–79%</option>
         <option value="low">Below 60%</option>
-        {tabWarningsAllowed && <option value="tabs">Left quiz tab</option>}
+        {tabsFilter && <option value="tabs">Left quiz tab</option>}
       </select>
     </div>
   );

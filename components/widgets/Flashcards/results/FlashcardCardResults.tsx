@@ -16,18 +16,28 @@ import { cardLabel } from './flashcardRoster';
 export const FlashcardCardList: React.FC<{
   session: FlashcardSession;
   results: readonly FlashcardResultRecord[];
+  ended: boolean;
   onOpen: (index: number) => void;
-}> = ({ session, results, onOpen }) => {
+}> = ({ session, results, ended, onOpen }) => {
   const items = useMemo(
     () =>
       session.cards.map((card, i) => ({
         id: card.id,
         label: cardLabel(i),
         text: flashcardPrompt(session, card),
-        answered: checkCardAnswers(results, card.id).totalAnswered,
+        answered: checkCardAnswers(results, card.id, ended).totalAnswered,
       })),
-    [results, session]
+    [ended, results, session]
   );
+  if (items.length === 0)
+    return (
+      <p
+        className="text-center font-sans text-brand-gray-primary"
+        style={{ fontSize: 'min(12px, 4cqmin)', padding: 'min(8px, 2cqmin)' }}
+      >
+        No answers yet.
+      </p>
+    );
   return (
     <ItemResultsList
       items={items}
@@ -46,8 +56,8 @@ export const FlashcardCardDetail: React.FC<{
 }> = ({ session, results, index, ended }) => {
   const card = session.cards[index];
   const answers = useMemo(
-    () => (card ? checkCardAnswers(results, card.id) : null),
-    [card, results]
+    () => (card ? checkCardAnswers(results, card.id, ended) : null),
+    [card, ended, results]
   );
   if (!card || !answers) return null;
   return (

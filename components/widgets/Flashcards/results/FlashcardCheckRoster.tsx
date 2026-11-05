@@ -41,7 +41,9 @@ export const FlashcardCheckRoster: React.FC<{
   letInFor: (studentUid: string) => (() => void) | undefined;
   onRemove: (studentUid: string) => void;
   /** Flashcards-only lines under a row, e.g. flagged answers to accept or dismiss. */
-  renderBelow: (studentUid: string) => React.ReactNode;
+  /** Lines a student has below the row, so anchor numbering is worked out up front. */
+  belowCount: (studentUid: string) => number;
+  renderBelow: (studentUid: string, firstIndex: number) => React.ReactNode;
 }> = ({
   bucket,
   students,
@@ -51,6 +53,7 @@ export const FlashcardCheckRoster: React.FC<{
   onUpdatePrefs,
   letInFor,
   onRemove,
+  belowCount,
   renderBelow,
 }) => {
   const showToolbar = bucket !== 'notStarted';
@@ -58,6 +61,13 @@ export const FlashcardCheckRoster: React.FC<{
   const showProf = (prefs.monitorShowProficiency ?? false) && bucket === 'done';
   const rows = orderFlashcardRoster(students, nameFor, prefs, showToolbar);
   const total = session.cards.length;
+  const firstBelow = rows.reduce<number[]>(
+    (starts, s, i) => [
+      ...starts,
+      i === 0 ? 0 : starts[i - 1] + belowCount(rows[i - 1].studentUid),
+    ],
+    []
+  );
   return (
     <div
       className="flex flex-col animate-in fade-in slide-in-from-top-1 duration-200"
@@ -69,6 +79,7 @@ export const FlashcardCheckRoster: React.FC<{
           prefs={prefs}
           onUpdate={onUpdatePrefs}
           tabWarningsAllowed={false}
+          tabsFilter={false}
           anchors={FLASHCARD_TOOLBAR_ANCHORS}
         />
       )}
@@ -94,7 +105,7 @@ export const FlashcardCheckRoster: React.FC<{
               'flashcards',
               field
             )}
-            below={renderBelow(s.studentUid)}
+            below={renderBelow(s.studentUid, firstBelow[rowIndex])}
           >
             {bucket === 'inProgress' && total > 0 && (
               <RosterOnQuestion index={Math.min(s.cardsDone + 1, total)} />

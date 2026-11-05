@@ -64166,29 +64166,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "flashcards.roster-tab-warnings",
-    "label": "Tab warnings toggle chip in the Flashcards monitor student list",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.results",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "flashcards.roster-proficiency",
     "label": "Proficiency colors toggle chip in the Flashcards monitor student list",
     "scope": "widget type",

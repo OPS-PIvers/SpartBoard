@@ -313,11 +313,14 @@ export interface FlashcardAnswerGroup {
 /** Students' answers to one card, grouped ignoring case and spacing, most common first. */
 export const checkCardAnswers = (
   results: readonly FlashcardResultRecord[],
-  cardId: string
+  cardId: string,
+  /** Once the assignment ends only graded answers count, so correct marks are complete. */
+  submittedOnly = false
 ): { totalAnswered: number; rows: FlashcardAnswerGroup[] } => {
   const groups = new Map<string, FlashcardAnswerGroup>();
   let totalAnswered = 0;
   for (const result of results) {
+    if (submittedOnly && typeof result.submittedAt !== 'number') continue;
     const answer = checkAnswerFor(result, cardId);
     if (!answer) continue;
     totalAnswered += 1;
