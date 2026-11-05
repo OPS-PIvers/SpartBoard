@@ -450,6 +450,28 @@ describe('ltiFindSchoologySectionsV1 link', () => {
     });
   });
 
+  it('stops linking near the time limit and reports the rest as errors', async () => {
+    let clock = Date.now();
+    const now = vi.spyOn(Date, 'now').mockImplementation(() => clock);
+    const set = courseLinks.set.bind(courseLinks);
+    const spy = vi.spyOn(courseLinks, 'set').mockImplementation((k, v) => {
+      clock += 200_000;
+      return set(k, v);
+    });
+    try {
+      const r = byRoster(
+        (await call({ auth: TEACHER, data: { rosterIds: ['r-1', 'r-2'] } }))
+          .rows
+      );
+      expect(r['r-1'].status).toBe('linked');
+      expect(r['r-2'].status).toBe('error');
+      expect(courseLinks.has('222')).toBe(false);
+    } finally {
+      spy.mockRestore();
+      now.mockRestore();
+    }
+  });
+
   it('rejects bad roster ids', async () => {
     for (const rosterIds of [[], ['a/b'], 'r-1', [1]]) {
       await expect(

@@ -28,7 +28,7 @@ const isTabVisible = () => document.visibilityState === 'visible';
 /** "Claude is editing" toast, clearing the Boards list badge on open, and recording the full-screen shape (AI boards D7, D11, D24). */
 export const useClaudeBoardActivity = (): void => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const {
     dashboards,
     activeDashboard,
@@ -38,6 +38,8 @@ export const useClaudeBoardActivity = (): void => {
     markClaudeBoardSeen,
   } = useDashboard();
   const uid = user?.uid;
+  // Only the Claude connector reads boardScreen; optional call for useAuth test doubles.
+  const recordScreen = canAccessFeature?.('claude-connector') === true;
   const canWrite =
     Boolean(uid) && !isAuthBypass && !viewAsSuppressesBackgroundWrites();
   const activeId = activeDashboard?.id ?? null;
@@ -96,7 +98,7 @@ export const useClaudeBoardActivity = (): void => {
   // Last full-screen size this tab wrote, so a resize that lands on the same shape writes nothing.
   const recordedRef = useRef<{ w: number; h: number } | null>(null);
   useEffect(() => {
-    if (!canWrite || !uid) return;
+    if (!recordScreen || !canWrite || !uid) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const record = () => {
       if (!isFullScreenWindow()) return;
@@ -127,5 +129,5 @@ export const useClaudeBoardActivity = (): void => {
       document.removeEventListener('fullscreenchange', schedule);
       window.removeEventListener('resize', schedule);
     };
-  }, [canWrite, uid]);
+  }, [recordScreen, canWrite, uid]);
 };

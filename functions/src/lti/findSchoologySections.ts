@@ -46,6 +46,9 @@ const MAX_CLASSES = 60;
 const CONCURRENCY = 5;
 /** Find returns the rows finished by then; the callable's own timeout is 120 s. */
 export const FIND_BUDGET_MS = 90_000;
+// Link mode stops starting writes here so the 120 s callable returns what it linked.
+export const LINK_FIND_BUDGET_MS = 75_000;
+export const LINK_DEADLINE_MS = 105_000;
 const ROSTER_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
 export type FoundStatus =
@@ -385,18 +388,23 @@ export const ltiFindSchoologySectionsV1 = onCall(
     const wanted = onePerClass(
       owned.filter((r) => rosterIds.includes(r.rosterId))
     );
+    const linkStart = Date.now();
     const rows = await findRows(
       db,
       callerUid,
       email,
       creds,
       wanted,
-      Date.now() + FIND_BUDGET_MS
+      linkStart + LINK_FIND_BUDGET_MS
     );
     const results: FoundRow[] = [];
     for (const [i, row] of rows.entries()) {
       if (row.status !== 'ready' || !row.contextId) {
         results.push(row);
+        continue;
+      }
+      if (Date.now() - linkStart > LINK_DEADLINE_MS) {
+        results.push({ ...row, status: 'error' });
         continue;
       }
       try {
