@@ -283,7 +283,14 @@ export async function handleFlashcardSetWrite(
       const session = parseLinkedFlashcardSession(doc.data());
       if (!session || seen.has(pairKey(session))) continue;
       seen.add(pairKey(session));
-      await markDirty(db, session.plcId, session.syncGroupId, session);
+      // A tag edit adds no results, so it never recreates a deleted assessment.
+      const live = await findLiveAssessment(
+        db,
+        session.plcId,
+        session.syncGroupId
+      );
+      if (live && live.dirtyAt == null)
+        await setDirtyAt(db, session.plcId, live.id, Date.now());
     }
   } catch (err) {
     logger.error('markPlcAssessmentDirty: flashcard set handler failed', {

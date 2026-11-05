@@ -560,4 +560,17 @@ describe('Flashcards check triggers', () => {
     );
     expect(dirtyAt()).toBe(NOW);
   });
+
+  it('never recreates a deleted assessment on a set tag edit', async () => {
+    const onFcSet = markPlcAssessmentDirtyOnFlashcardSet as unknown as Handler;
+    stub.store.set('flashcard_sessions/fc-a', check);
+    await onFcSet({
+      params: { uid: 'tA', setId: 'set-a' },
+      data: {
+        before: snap({ title: 'B', targets: [{ id: 'mn:WL.1' }] }),
+        after: snap(null),
+      },
+    });
+    expect(stub.get('plcs/plc-1/assessments/set-origin')).toBeUndefined();
+  });
 });
