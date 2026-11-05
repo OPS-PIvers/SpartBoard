@@ -64,31 +64,49 @@ export function getCentralDayKey(): string {
   }
 }
 
-/** The sheet's column B label: [Lunch Time] - [Grade] - [Teacher]. */
-export function reportRowLabel(
-  lunchTime: string,
-  gradeLabel: string,
-  teacherName: string
-): string {
-  return `${lunchTime || '??:??'} - ${gradeLabel || 'Grade ?'} - ${teacherName}`;
+/** The class part of a sheet row (lunch time and grade), without the reporter's name. */
+export function reportClassKey(lunchTime: string, gradeLabel: string): string {
+  return `${lunchTime || '??:??'} - ${gradeLabel || 'Grade ?'}`;
 }
 
-/** True only when this widget already sent this same row today, so other classes and copies can still submit. */
+interface SubmittedMarker {
+  lastSubmittedDate?: string;
+  lastSubmittedWidgetId?: string;
+  lastSubmittedClasses?: string[];
+}
+
+/** True when this widget already sent this class today, so other classes and copies can still submit. */
 export function hasSubmittedToday(
-  config: {
-    lastSubmittedDate?: string;
-    lastSubmittedWidgetId?: string;
-    lastSubmittedLabel?: string;
-  },
+  config: SubmittedMarker,
   widgetId: string,
-  label: string
+  classKey: string
 ): boolean {
   return (
     config.lastSubmittedDate === getCentralDayKey() &&
     config.lastSubmittedWidgetId === widgetId &&
-    (config.lastSubmittedLabel === undefined ||
-      config.lastSubmittedLabel === label)
+    (config.lastSubmittedClasses === undefined ||
+      config.lastSubmittedClasses.includes(classKey))
   );
+}
+
+/** The marker to save after a successful submit; it keeps today's earlier classes. */
+export function submittedMarker(
+  config: SubmittedMarker,
+  widgetId: string,
+  dayKey: string,
+  classKey: string
+): Required<SubmittedMarker> {
+  const sameDay =
+    config.lastSubmittedDate === dayKey &&
+    config.lastSubmittedWidgetId === widgetId;
+  const earlier = sameDay ? (config.lastSubmittedClasses ?? []) : [];
+  return {
+    lastSubmittedDate: dayKey,
+    lastSubmittedWidgetId: widgetId,
+    lastSubmittedClasses: earlier.includes(classKey)
+      ? earlier
+      : [...earlier, classKey],
+  };
 }
 
 export function getCentralTimestamp(): string {

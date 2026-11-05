@@ -21,7 +21,8 @@ import {
   getCentralDayKey,
   getCentralTimestamp,
   hasSubmittedToday,
-  reportRowLabel,
+  reportClassKey,
+  submittedMarker,
 } from './lunchCountFormat';
 
 export interface LunchStudent {
@@ -255,7 +256,7 @@ export function useLunchCountModel(widget: WidgetData) {
     const gradeLabel = formatGradeLabel(gradeLevel);
     const lunchTime = formatLunchTime(lunchTimeHour, lunchTimeMinute);
     const timestamp = getCentralTimestamp();
-    const label = reportRowLabel(lunchTime, gradeLabel, teacherName);
+    const label = `${reportClassKey(lunchTime, gradeLabel)} - ${teacherName}`;
     const dayKey = getCentralDayKey();
     const isIntermediate = schoolSite === 'orono-intermediate-school';
 
@@ -289,11 +290,12 @@ export function useLunchCountModel(widget: WidgetData) {
       }
 
       updateWidget(widget.id, {
-        config: {
-          lastSubmittedDate: dayKey,
-          lastSubmittedWidgetId: widget.id,
-          lastSubmittedLabel: label,
-        },
+        config: submittedMarker(
+          config,
+          widget.id,
+          dayKey,
+          reportClassKey(lunchTime, gradeLabel)
+        ),
       });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
@@ -402,10 +404,9 @@ export function useLunchCountModel(widget: WidgetData) {
     alreadySubmitted: hasSubmittedToday(
       config,
       widget.id,
-      reportRowLabel(
+      reportClassKey(
         formatLunchTime(lunchTimeHour, lunchTimeMinute),
-        formatGradeLabel(gradeLevel),
-        formatTeacherName(reportName)
+        formatGradeLabel(gradeLevel)
       )
     ),
   };

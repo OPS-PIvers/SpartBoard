@@ -3627,8 +3627,8 @@ export interface LunchCountConfig {
   lastSubmittedDate?: string;
   /** Widget that sent it, so a duplicated widget can still submit */
   lastSubmittedWidgetId?: string;
-  /** Sheet row label it sent, so another class from the same widget can still submit */
-  lastSubmittedLabel?: string;
+  /** Classes (lunch time and grade) it sent that day, so another class can still submit */
+  lastSubmittedClasses?: string[];
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;

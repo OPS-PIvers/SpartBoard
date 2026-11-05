@@ -2,40 +2,61 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getCentralDayKey,
   hasSubmittedToday,
-  reportRowLabel,
+  reportClassKey,
+  submittedMarker,
 } from './lunchCountFormat';
 
-describe('hasSubmittedToday', () => {
+describe('Lunch Count submitted marker', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  const label = reportRowLabel('11:30', 'Grade 2', 'Smith');
-  const today = () => ({
-    lastSubmittedDate: getCentralDayKey(),
-    lastSubmittedWidgetId: 'w1',
-    lastSubmittedLabel: label,
-  });
+  const classA = reportClassKey('11:30', 'GR2');
+  const classB = reportClassKey('12:00', 'GR3');
+  const sentA = () => submittedMarker({}, 'w1', getCentralDayKey(), classA);
 
-  it('blocks the same row from the same widget on the same day', () => {
-    expect(hasSubmittedToday(today(), 'w1', label)).toBe(true);
+  it('blocks the same class from the same widget on the same day', () => {
+    expect(hasSubmittedToday(sentA(), 'w1', classA)).toBe(true);
   });
 
   it('lets the same widget send a different class the same day', () => {
-    const other = reportRowLabel('12:00', 'Grade 3', 'Smith');
-    expect(hasSubmittedToday(today(), 'w1', other)).toBe(false);
+    expect(hasSubmittedToday(sentA(), 'w1', classB)).toBe(false);
+  });
+
+  it('still blocks the first class after a second one is sent', () => {
+    const both = submittedMarker(sentA(), 'w1', getCentralDayKey(), classB);
+    expect(both.lastSubmittedClasses).toEqual([classA, classB]);
+    expect(hasSubmittedToday(both, 'w1', classA)).toBe(true);
+    expect(hasSubmittedToday(both, 'w1', classB)).toBe(true);
+  });
+
+  it('ignores the reporter name, so a co-teacher on a synced board is blocked too', () => {
+    expect(classA).toBe('11:30 - GR2');
+    expect(
+      hasSubmittedToday(sentA(), 'w1', reportClassKey('11:30', 'GR2'))
+    ).toBe(true);
   });
 
   it('lets a duplicated widget submit', () => {
-    expect(hasSubmittedToday(today(), 'w2', label)).toBe(false);
+    expect(hasSubmittedToday(sentA(), 'w2', classA)).toBe(false);
   });
 
-  it('resets the next Central day', () => {
+  it('blocks on an older marker that has no class list', () => {
+    const legacy = {
+      lastSubmittedDate: getCentralDayKey(),
+      lastSubmittedWidgetId: 'w1',
+    };
+    expect(hasSubmittedToday(legacy, 'w1', classB)).toBe(true);
+  });
+
+  it('starts a fresh list on a new day', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-11-05T15:00:00Z'));
-    const config = today();
+    const yesterday = sentA();
     vi.setSystemTime(new Date('2026-11-06T15:00:00Z'));
-    expect(hasSubmittedToday(config, 'w1', label)).toBe(false);
+    expect(hasSubmittedToday(yesterday, 'w1', classA)).toBe(false);
+    const today = submittedMarker(yesterday, 'w1', getCentralDayKey(), classB);
+    expect(today.lastSubmittedClasses).toEqual([classB]);
   });
 
   it('uses the Central date near UTC midnight', () => {
