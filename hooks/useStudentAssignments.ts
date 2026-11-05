@@ -797,6 +797,13 @@ export function useStudentAssignments({
             '[useStudentAssignments] pointer session hydration failed',
             err
           );
+          reportStudentLoadIssue({
+            source: 'hydrate',
+            collection: config.collectionName,
+            code: errorCode(err),
+            attempt: 0,
+            gaveUp: false,
+          });
           hadFetchError = true;
         }
       }
