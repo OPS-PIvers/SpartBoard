@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { QuizAssignStepper } from '@/components/widgets/QuizWidget/components/QuizAssignStepper';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import type { AssignmentAudience } from '@/utils/staffAudience';
-import { defaultWhenValue } from './assignWhenValue';
+import { defaultWhenValue, type AssignWhenValue } from './assignWhenValue';
 import { SAMPLE_ROSTERS } from './assignStepperTestRosters';
 
 const Preview: React.FC = () => {
@@ -13,13 +13,13 @@ const Preview: React.FC = () => {
     classIds: ['c1'],
     studentsByClass: {},
   });
-  const [when, setWhen] = useState(() => ({
+  const [when, setWhen] = useState<AssignWhenValue>(() => ({
     ...defaultWhenValue({
       activity: 'quiz',
       bellAvailable: false,
       manualAvailable: true,
     }),
-    mode: 'manual' as const,
+    mode: 'manual',
   }));
   const [behavior, setBehavior] = useState(() => getQuizAssignPrefill(null));
 
