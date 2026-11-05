@@ -24,6 +24,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { db, isAuthBypass } from '@/config/firebase';
+import { reportStudentLoadIssue } from '@/utils/studentLoadIssue';
 import { projectHref } from '@/components/student/project/projectRoute';
 import type {
   QuizResultsOverride,
@@ -525,6 +526,16 @@ function channelForHydratedData(
 
 const CLASS_QUERY_CHUNK = 30;
 
+/** A failed listener resubscribes after each delay in turn, then gives up until the student taps Try again. */
+export const LISTENER_RETRY_DELAYS_MS: readonly number[] = [
+  3_000, 10_000, 30_000, 90_000,
+];
+
+const errorCode = (err: unknown): string =>
+  err && typeof err === 'object' && 'code' in err
+    ? String((err as { code?: unknown }).code)
+    : 'unknown';
+
 interface SubscriptionPlan {
   kind: SessionKind;
   channel: AssignmentChannel;
@@ -671,25 +682,46 @@ export function useStudentAssignments({
   useEffect(() => {
     if (isAuthBypass || !studentUid) return;
     const items = collection(db, 'student_assignments', studentUid, 'items');
-    const unsub = onSnapshot(
-      items,
-      (snap) => {
-        const next: Record<string, StudentAssignmentPointer> = {};
-        for (const d of snap.docs) {
-          next[d.id] = d.data() as StudentAssignmentPointer;
+    let unsub: (() => void) | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const subscribe = (attempt: number) => {
+      unsub = onSnapshot(
+        items,
+        (snap) => {
+          const next: Record<string, StudentAssignmentPointer> = {};
+          for (const d of snap.docs) {
+            next[d.id] = d.data() as StudentAssignmentPointer;
+          }
+          setPointerItems(next);
+          setPointerErrored(false);
+          setPointerLoadState('ready');
+        },
+        (err) => {
+          console.error('[useStudentAssignments] pointer snapshot failed', err);
+          setPointerItems({});
+          setPointerErrored(true);
+          setPointerLoadState('ready');
+          const delay = LISTENER_RETRY_DELAYS_MS[attempt];
+          reportStudentLoadIssue({
+            source: 'pointer',
+            collection: 'student_assignments',
+            code: errorCode(err),
+            attempt,
+            gaveUp: delay === undefined,
+          });
+          if (delay === undefined) return;
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            subscribe(attempt + 1);
+          }, delay);
         }
-        setPointerItems(next);
-        setPointerErrored(false);
-        setPointerLoadState('ready');
-      },
-      (err) => {
-        console.error('[useStudentAssignments] pointer snapshot failed', err);
-        setPointerItems({});
-        setPointerErrored(true);
-        setPointerLoadState('ready');
-      }
-    );
-    return () => unsub();
+      );
+    };
+    subscribe(0);
+    return () => {
+      if (retryTimer) clearTimeout(retryTimer);
+      unsub?.();
+    };
   }, [studentUid, retryNonce]);
 
   const studentClassIdsSet = useMemo(
@@ -977,11 +1009,15 @@ export function useStudentAssignments({
       markSettled(key);
     };
 
-    const handleError = (plan: SubscriptionPlan, err: unknown) => {
-      const code =
-        err && typeof err === 'object' && 'code' in err
-          ? String((err as { code?: unknown }).code)
-          : 'unknown';
+    const unsubs = new Map<string, () => void>();
+    const retryTimers = new Set<ReturnType<typeof setTimeout>>();
+
+    const handleError = (
+      plan: SubscriptionPlan,
+      attempt: number,
+      err: unknown
+    ) => {
+      const code = errorCode(err);
       const message =
         err && typeof err === 'object' && 'message' in err
           ? String((err as { message?: unknown }).message)
@@ -1000,10 +1036,24 @@ export function useStudentAssignments({
         return next;
       });
       markSettled(key);
+      const delay = LISTENER_RETRY_DELAYS_MS[attempt];
+      reportStudentLoadIssue({
+        source: 'class',
+        collection: KIND_CONFIG[plan.kind].collectionName,
+        channel: plan.channel,
+        code,
+        attempt,
+        gaveUp: delay === undefined,
+      });
+      if (delay === undefined) return;
+      const timer = setTimeout(() => {
+        retryTimers.delete(timer);
+        subscribePlan(plan, attempt + 1);
+      }, delay);
+      retryTimers.add(timer);
     };
 
-    const unsubs: Array<() => void> = [];
-    for (const plan of subs) {
+    const subscribePlan = (plan: SubscriptionPlan, attempt: number) => {
       const config = KIND_CONFIG[plan.kind];
       const q = buildQuery(
         config,
@@ -1012,17 +1062,20 @@ export function useStudentAssignments({
         plan.statusValues,
         classIdChunks[plan.chunk]
       );
-      unsubs.push(
+      unsubs.set(
+        planKey(plan),
         onSnapshot(
           q,
           (snap) => handleSnapshot(plan, snap),
-          (err) => handleError(plan, err)
+          (err) => handleError(plan, attempt, err)
         )
       );
-    }
+    };
+    for (const plan of subs) subscribePlan(plan, 0);
 
     return () => {
-      for (const u of unsubs) u();
+      for (const t of retryTimers) clearTimeout(t);
+      for (const u of unsubs.values()) u();
     };
   }, [classIdsKey, retryNonce]);
 
