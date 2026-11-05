@@ -7,6 +7,7 @@ import type {
   FlashcardScoreVisibility,
   FlashcardSet,
   FlashcardSide,
+  FlashcardSpeakChoice,
   FlashcardSpeakSettings,
   FlashcardSpeakStudentSettings,
   FlashcardsSpeakAdminConfig,
@@ -317,6 +318,42 @@ export function buildSpeakStamp(
     example: true,
     unclearConfidence: adminConfig.unclearConfidence,
     locked: lock,
+  };
+}
+
+/** The set with the assign-time Speak choice laid over its own settings (dialects stay the set's). */
+export const withSpeakChoice = <
+  T extends Pick<FlashcardSet, 'termLanguage' | 'speak'>,
+>(
+  set: T,
+  choice: FlashcardSpeakChoice | undefined
+): T =>
+  choice
+    ? { ...set, speak: { dialects: set.speak?.dialects ?? [], ...choice } }
+    : set;
+
+/** A stored choice, or undefined; buildSpeakStamp cleans each field. */
+export function parseSpeakChoice(
+  raw: unknown
+): FlashcardSpeakChoice | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const r = raw as Record<string, unknown>;
+  if (
+    typeof r.preset !== 'string' ||
+    typeof r.strict !== 'boolean' ||
+    typeof r.attempts !== 'number' ||
+    typeof r.example !== 'boolean' ||
+    !r.groups ||
+    typeof r.groups !== 'object'
+  ) {
+    return undefined;
+  }
+  return {
+    preset: r.preset as SpeakPreset,
+    strict: r.strict,
+    attempts: r.attempts,
+    example: r.example,
+    groups: r.groups,
   };
 }
 

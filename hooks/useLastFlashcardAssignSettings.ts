@@ -1,5 +1,7 @@
 import type {
   FlashcardCheckRules,
+  FlashcardSpeakChoice,
+  SpeakPreset,
   FlashcardMasteryThreshold,
   FlashcardMode,
   FlashcardScoreVisibility,
@@ -17,6 +19,8 @@ import {
   type LastAssignSettings,
   type LastAssignSettingsSpec,
 } from '@/hooks/useLastAssignSettings';
+import { SPEAK_PRESET_IDS } from '@/config/pronunciationGroups';
+import { clampSpeakAttempts } from '@/config/flashcardsSpeakAdmin';
 import { parseFlashcardCheckRules } from '@/components/common/library/assignStepper/flashcardsRuleValues';
 
 /** Profile field holding this teacher's last-used Flashcards check rules (plan D12). */
@@ -30,6 +34,31 @@ export type FlashcardAssignRules = Omit<
 > & {
   /** flashcards-assign-v2: the Quiz-style rule steps; absent before that flag. */
   rules?: FlashcardCheckRules;
+  /** flashcards-assign-v2: last Speak rules picked; groups aren't kept since they depend on the language. */
+  speak?: LastSpeakChoice;
+};
+
+export type LastSpeakChoice = Omit<FlashcardSpeakChoice, 'groups'>;
+
+const PRESETS: readonly SpeakPreset[] = [...SPEAK_PRESET_IDS, 'custom'];
+
+const parseLastSpeak = (raw: unknown): LastSpeakChoice | null => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  if (
+    !PRESETS.includes(r.preset as SpeakPreset) ||
+    typeof r.strict !== 'boolean' ||
+    typeof r.attempts !== 'number' ||
+    typeof r.example !== 'boolean'
+  ) {
+    return null;
+  }
+  return {
+    preset: r.preset as SpeakPreset,
+    strict: r.strict,
+    attempts: clampSpeakAttempts(r.attempts),
+    example: r.example,
+  };
 };
 
 const MODES: readonly FlashcardMode[] = ['flashcards', 'write', 'test'];
@@ -76,6 +105,10 @@ export function parseLastFlashcardAssignSettings(
           return rules ? { rules } : {};
         })()
       : {}),
+    ...(() => {
+      const speak = parseLastSpeak(r.speak);
+      return speak ? { speak } : {};
+    })(),
   };
 }
 
@@ -84,9 +117,10 @@ export function getFlashcardAssignPrefill(
   lastUsed: FlashcardAssignRules | null,
   deckSize: number
 ): FlashcardAssignForm & Pick<FlashcardAssignRules, 'rules'> {
+  const { speak: _speak, ...saved } = lastUsed ?? {};
   const form: FlashcardAssignForm & Pick<FlashcardAssignRules, 'rules'> = {
     ...DEFAULT_FLASHCARD_ASSIGN_FORM,
-    ...(lastUsed ?? {}),
+    ...saved,
   };
   if (!flashcardTestCountOptions(deckSize).includes(form.testCount)) {
     form.testCount = 'all';

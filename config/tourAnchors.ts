@@ -1188,6 +1188,22 @@ export const TOUR_ANCHORS = {
     label: 'Lock Speak settings switch in the Assign dialog Speak step',
     panel: true,
   },
+  'flashcards-speak.level': {
+    label: 'Speak Level dropdown in the Flashcards Assign dialog',
+    panel: true,
+  },
+  'flashcards-speak.attempts': {
+    label: 'Speak Attempts per card dropdown in the Flashcards Assign dialog',
+    panel: true,
+  },
+  'flashcards-speak.strict': {
+    label: 'Speak Strict switch in the Flashcards Assign dialog',
+    panel: true,
+  },
+  'flashcards-speak.example': {
+    label: 'Speak Hear it button switch in the Flashcards Assign dialog',
+    panel: true,
+  },
   'flashcards-cards.mode': {
     label:
       'All, random or chosen cards switch in the Flashcards assign Cards step',

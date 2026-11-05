@@ -30,6 +30,8 @@ import {
 import { speakLanguageOf } from '@/config/pronunciationGroups';
 import {
   buildSpeakStamp,
+  parseSpeakChoice,
+  withSpeakChoice,
   speakCardsFor,
   type FlashcardSpeakStamp,
 } from '@/components/widgets/Flashcards/utils/flashcardAssign';
@@ -142,7 +144,10 @@ const rewriteOpenStudySessions = async (
       sessionDoc.get('speakOff') === true
         ? undefined
         : stampFor(
-            set,
+            withSpeakChoice(
+              set,
+              parseSpeakChoice(sessionDoc.get('speakChoice'))
+            ),
             adminConfig,
             (previous as { locked?: unknown } | undefined)?.locked === true
           );
