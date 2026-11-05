@@ -247,7 +247,7 @@ describe('FlashcardEditor Speak', () => {
       {
         cardId: 'c1',
         term: 'hola',
-        ipaOverride: { 'es-419': ['ˈola', 'ˈhola'] },
+        ipaOverride: { 'es-419': 'ˈola|ˈhola' },
       },
     ]);
   });

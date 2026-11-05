@@ -21,6 +21,7 @@ import { parseFlashcardAnswerVariants } from '@/utils/flashcardMatch';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { hearIpa } from '@/utils/pronunciation/hearIpa';
 import {
+  IPA_READING_SEPARATOR,
   MAX_IPA_READINGS,
   filledIpaReadings,
   ipaReadingsOf,
@@ -99,6 +100,12 @@ export const HearItButton: React.FC<{
   const [failed, setFailed] = useState(false);
   const word = parseFlashcardAnswerVariants(term)[0] ?? '';
   const typed = ipa?.trim() && ipaOverrideValid(ipa) ? ipa.trim() : undefined;
+  // A failure belongs to what was pressed; editing the IPA clears it.
+  const [failedFor, setFailedFor] = useState(typed);
+  if (failedFor !== typed) {
+    setFailedFor(typed);
+    setFailed(false);
+  }
   if (!dialect || !word.trim() || (!typed && !hasVoice)) return null;
   const label = t('flashcards.speak.editor.hearIt');
   const play = () => {
@@ -255,7 +262,9 @@ export const SpeakCardRow: React.FC<SpeakCardRowProps> = ({
             const setReadings = (next: string[]) =>
               onIpaChange(card.id, {
                 ...ipa,
-                [dialect]: next.length === 1 ? next[0] : next,
+                [dialect]: next
+                  .map((v) => v.replaceAll(IPA_READING_SEPARATOR, ''))
+                  .join(IPA_READING_SEPARATOR),
               });
             const canAdd =
               boxes.length < MAX_IPA_READINGS &&

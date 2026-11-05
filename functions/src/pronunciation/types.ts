@@ -36,13 +36,13 @@ export interface FlashcardCardSpeak {
   reasons?: FlashcardSpeakReason[];
   dialects?: SpeakDialect[];
   confirmedAt?: number;
-  ipaOverride?: Partial<Record<SpeakDialect, string | string[]>>;
+  ipaOverride?: Partial<Record<SpeakDialect, string>>;
 }
 
 export interface SpeakLookupTerm {
   cardId: string;
   term: string;
-  ipaOverride?: Partial<Record<SpeakDialect, string | string[]>>;
+  ipaOverride?: Partial<Record<SpeakDialect, string>>;
 }
 
 export interface SpeakLookupInput {

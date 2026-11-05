@@ -18,7 +18,12 @@ import {
   type StressReading,
 } from './stressReference';
 import { tokenizeIpa, type TokenizeSuccess } from './tokenizeIpa';
-import { MAX_IPA_READINGS, filledIpaReadings, ipaValueOf } from './ipaReadings';
+import {
+  MAX_IPA_READINGS,
+  filledIpaReadings,
+  ipaReadingsOf,
+  ipaValueOf,
+} from './ipaReadings';
 import {
   createVoiceReader,
   voiceReference,
@@ -93,20 +98,18 @@ export function parseLookupInput(raw: unknown): SpeakLookupInput {
       return bad('term must be a string.');
     if (ipaOverride === undefined) return { cardId, term };
     if (!isRecord(ipaOverride)) return bad('ipaOverride must be an object.');
-    const override: Partial<Record<SpeakDialect, string | string[]>> = {};
+    const override: Partial<Record<SpeakDialect, string>> = {};
     for (const [d, value] of Object.entries(ipaOverride)) {
       if (!allowed.includes(d as SpeakDialect))
         return bad('ipaOverride has a dialect outside the language.');
-      const readings = typeof value === 'string' ? [value] : value;
+      const readings = typeof value === 'string' ? ipaReadingsOf(value) : null;
       if (
-        !Array.isArray(readings) ||
+        !readings ||
         readings.length > MAX_IPA_READINGS ||
-        !readings.every(
-          (ipa) => typeof ipa === 'string' && ipa.length <= MAX_IPA_LENGTH
-        )
+        readings.some((ipa) => ipa.length > MAX_IPA_LENGTH)
       )
         return bad('ipaOverride values must be short strings.');
-      const kept = ipaValueOf(filledIpaReadings(readings));
+      const kept = ipaValueOf(filledIpaReadings(value));
       if (kept !== undefined) override[d as SpeakDialect] = kept;
     }
     return Object.keys(override).length > 0

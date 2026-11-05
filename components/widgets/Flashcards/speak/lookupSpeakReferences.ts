@@ -29,7 +29,7 @@ export interface LookupInput {
   terms: Array<{
     cardId: string;
     term: string;
-    ipaOverride?: Partial<Record<SpeakDialect, string | string[]>>;
+    ipaOverride?: Partial<Record<SpeakDialect, string>>;
   }>;
 }
 

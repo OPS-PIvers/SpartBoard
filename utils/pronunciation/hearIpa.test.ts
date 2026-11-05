@@ -7,10 +7,7 @@ import { hearIpa } from './hearIpa';
 
 const play = vi.fn(() => Promise.resolve());
 class FakeAudio {
-  src: string;
-  constructor(src: string) {
-    this.src = src;
-  }
+  src = '';
   play = play;
   pause = vi.fn();
 }
@@ -32,7 +29,7 @@ describe('hearIpa', () => {
     expect(await hearIpa(input, call)).toBe(true);
     expect(call).toHaveBeenCalledTimes(1);
     expect(call).toHaveBeenCalledWith({ ...input, ipa: 'ˈɡɔldʒi' });
-    expect(play).toHaveBeenCalledTimes(2);
+    expect(play).toHaveBeenCalledTimes(4);
   });
 
   it('returns false and tries again next time when the voice fails', async () => {
@@ -44,5 +41,19 @@ describe('hearIpa', () => {
     expect(await hearIpa(input, call)).toBe(false);
     expect(await hearIpa(input, call)).toBe(true);
     expect(call).toHaveBeenCalledTimes(2);
+  });
+
+  it('treats a press cut off by a newer one as played', async () => {
+    let finish: (v: { audio: string }) => void = () => undefined;
+    const slow = vi.fn(
+      () => new Promise<{ audio: string }>((resolve) => (finish = resolve))
+    );
+    const first = hearIpa({ dialect: 'de-DE', ipa: 'a', term: 'a' }, slow);
+    const second = hearIpa({ dialect: 'de-DE', ipa: 'b', term: 'b' }, () =>
+      Promise.resolve({ audio: 'AQID' })
+    );
+    finish({ audio: 'AQID' });
+    expect(await first).toBe(true);
+    expect(await second).toBe(true);
   });
 });

@@ -1,18 +1,14 @@
-// A dialect's teacher IPA is one reading (string) or several (string[]); copy of utils/pronunciation/ipaReadings.ts.
+// A dialect's teacher IPA holds one or more accepted readings joined by "|", so older clients still read a string; copy of utils/pronunciation/ipaReadings.ts.
 import type { SpeakDialect } from './types';
 
-export type SpeakIpaValue = string | string[];
-export type SpeakIpaOverride = Partial<Record<SpeakDialect, SpeakIpaValue>>;
+export type SpeakIpaOverride = Partial<Record<SpeakDialect, string>>;
 
 export const MAX_IPA_READINGS = 4;
+export const IPA_READING_SEPARATOR = '|';
 
 /** Every reading for one dialect, in order, blanks kept (the editor shows them as empty boxes). */
 export const ipaReadingsOf = (value: unknown): string[] =>
-  typeof value === 'string'
-    ? [value]
-    : Array.isArray(value)
-      ? value.filter((v): v is string => typeof v === 'string')
-      : [];
+  typeof value === 'string' ? value.split(IPA_READING_SEPARATOR) : [];
 
 /** The non-blank, trimmed readings for one dialect. */
 export const filledIpaReadings = (value: unknown): string[] =>
@@ -20,12 +16,6 @@ export const filledIpaReadings = (value: unknown): string[] =>
     .map((v) => v.trim())
     .filter((v) => v !== '');
 
-/** One reading stays a string, so older saved cards keep their shape. */
-export const ipaValueOf = (
-  readings: readonly string[]
-): SpeakIpaValue | undefined =>
-  readings.length === 0
-    ? undefined
-    : readings.length === 1
-      ? readings[0]
-      : [...readings];
+/** Joins readings back into the stored string; undefined when there are none. */
+export const ipaValueOf = (readings: readonly string[]): string | undefined =>
+  readings.length === 0 ? undefined : readings.join(IPA_READING_SEPARATOR);

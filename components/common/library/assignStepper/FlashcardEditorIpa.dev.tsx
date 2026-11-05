@@ -8,7 +8,7 @@ import { FlashcardEditor } from '@/components/widgets/Flashcards/FlashcardEditor
 const speak = (
   term: string,
   tokens: string[],
-  ipaOverride?: Record<string, string | string[]>
+  ipaOverride?: Record<string, string>
 ): FlashcardCard['speak'] => ({
   term,
   refs: [{ dialect: 'en-US', tokens, stress: [] }],
@@ -36,7 +36,7 @@ const SET: FlashcardSet = {
       definition:
         'Stacked membranes that modify, sort and package proteins for transport.',
       speak: speak('Golgi apparatus', ['ɡ', 'ɔ', 'l'], {
-        'en-US': ['/ˈɡɔldʒi ˌæpəˈreɪtəs/', '/ˈɡoʊldʒi ˌæpəˈrætəs/'],
+        'en-US': '/ˈɡɔldʒi ˌæpəˈreɪtəs/|/ˈɡoʊldʒi ˌæpəˈrætəs/',
       }),
     },
   ],

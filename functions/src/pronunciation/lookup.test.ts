@@ -52,7 +52,7 @@ const DIALECTS: Record<SpeakLanguage, SpeakDialect[]> = {
 async function lookup(
   language: SpeakLanguage,
   term: string,
-  ipaOverride?: Partial<Record<SpeakDialect, string | string[]>>
+  ipaOverride?: Partial<Record<SpeakDialect, string>>
 ): Promise<FlashcardCardSpeak> {
   const out = await computeSpeakReferences({
     language,
@@ -221,7 +221,7 @@ describe('computeSpeakReferences', () => {
 
   it('accepts every reading when a teacher gives several', async () => {
     const card = await lookup('en', 'record', {
-      'en-US': ['ɹᵻkˈoːɹd', 'ɹˈɛkɚd'],
+      'en-US': 'ɹᵻkˈoːɹd|ɹˈɛkɚd',
     });
     expect(card.status).toBe('ready');
     expect(card.refs.map((r) => r.tokens.join(' '))).toEqual([
@@ -340,14 +340,14 @@ describe('parseLookupInput', () => {
           {
             cardId: 'a',
             term: 'perro',
-            ipaOverride: { 'es-419': ['pero', ' ', 'pe.ro'] },
+            ipaOverride: { 'es-419': 'pero| | pe.ro ' },
           },
         ],
       }).terms[0]
     ).toEqual({
       cardId: 'a',
       term: 'perro',
-      ipaOverride: { 'es-419': ['pero', 'pe.ro'] },
+      ipaOverride: { 'es-419': 'pero|pe.ro' },
     });
   });
 
@@ -359,7 +359,7 @@ describe('parseLookupInput', () => {
           {
             cardId: 'a',
             term: 'perro',
-            ipaOverride: { 'es-419': ['a', 'b', 'c', 'd', 'e'] },
+            ipaOverride: { 'es-419': 'a|b|c|d|e' },
           },
         ],
       })
