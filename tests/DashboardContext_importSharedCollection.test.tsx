@@ -290,6 +290,62 @@ describe('DashboardContext.importSharedCollection — rollback + partial-failure
     expect(mockSaveDashboard).toHaveBeenCalledTimes(3);
   });
 
+  it('saves imported boards without the stored host linkage or Drive file', async () => {
+    const poisoned = {
+      ...makeBoard('b1', 'Board One'),
+      driveFileId: 'victim-drive-file',
+      thumbnailUrl: 'https://host.example/thumb.png',
+      linkedShareId: 'host-share',
+      linkedShareRole: 'owner',
+      linkedShareHostUid: 'host-uid',
+      linkedShareEnded: false,
+    } as Dashboard;
+    mockLoadSharedCollection.mockResolvedValue({
+      ok: true,
+      meta: makeCopyMeta(['b1']),
+    });
+    mockLoadSharedCollectionBoards.mockResolvedValue([poisoned]);
+
+    const { callImport } = renderWithCaptured();
+    await waitFor(async () => {
+      expect(await callImport()).not.toBeNull();
+    });
+
+    const saved = mockSaveDashboard.mock.calls[0][0] as Dashboard;
+    expect(saved.driveFileId).toBeUndefined();
+    expect(saved.thumbnailUrl).toBeUndefined();
+    expect(saved.linkedShareId).toBeUndefined();
+    expect(saved.linkedShareRole).toBeUndefined();
+    expect(saved.linkedShareHostUid).toBeUndefined();
+    expect(saved.linkedShareEnded).toBeUndefined();
+    expect(saved.name).toBe('Board One (Imported)');
+  });
+
+  it('createNewDashboard never saves a Drive file id from the data it is given', async () => {
+    let create: ReturnType<typeof useDashboard>['createNewDashboard'] = () =>
+      Promise.resolve(undefined);
+    const Probe: React.FC = () => {
+      const { createNewDashboard } = useDashboard();
+      useEffect(() => {
+        create = createNewDashboard;
+      }, [createNewDashboard]);
+      return null;
+    };
+    render(
+      <DashboardProvider>
+        <Probe />
+      </DashboardProvider>
+    );
+    const data = {
+      ...makeBoard('b1', 'Board One'),
+      driveFileId: 'victim-drive-file',
+    } as Dashboard;
+    await act(() => create('Board One', data, { silent: true }));
+
+    const saved = mockSaveDashboard.mock.calls[0][0] as Dashboard;
+    expect(saved.driveFileId).toBeUndefined();
+  });
+
   it('returns null without creating a Collection when share is substitute-mode', async () => {
     // Substitute shares are view-only and cannot be imported — the path
     // should bail before Phase 1 creates anything.

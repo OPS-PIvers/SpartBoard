@@ -127,6 +127,7 @@ import {
 import {
   importedConnections,
   sanitizeBoardSnapshot,
+  withoutDriveFileId,
 } from '@/utils/dashboardSanitize';
 import {
   grantedRosters,
@@ -4031,10 +4032,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       return subscribeToSharedBoard(shareId, (remote) => {
         sharedSnapshotSeenRef.current.add(shareId);
         const known = dashboardsRef.current.find((x) => x.id === dashboardId);
+        // An ended board never re-attaches from a snapshot alone.
+        if (remote && known?.linkedShareEnded) return;
         const recordedHost = known?.linkedShareHostUid;
         // The share doc was deleted and its id re-created by someone else: treat it as ended.
         const hostChanged =
-          !!remote?.linkedShareHostUid &&
+          !!remote &&
           !!recordedHost &&
           remote.linkedShareHostUid !== recordedHost;
         if (!remote || hostChanged) {
@@ -4670,7 +4673,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const newDb: Dashboard = data
         ? {
-            ...data,
+            // A new board has no Drive file of its own; the first save creates one.
+            ...withoutDriveFileId(data),
             id: options?.keepId ? data.id : crypto.randomUUID(),
             name,
             order: data.order ?? maxOrder + 1,
@@ -5238,7 +5242,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               // Deep-clone the board so nested widget state isn't shared by
               // reference across imports.
               {
-                ...structuredClone(b),
+                ...sanitizeBoardSnapshot(structuredClone(b)),
                 id: crypto.randomUUID(),
                 order: baseOrder + idx + 1,
               },

@@ -1068,6 +1068,61 @@ describe('DashboardContext Sharing Logic', () => {
       expect(board?.linkedShareHostUid).toBeUndefined();
     });
 
+    it('never re-attaches an ended board when a share appears at its id', async () => {
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
+        linkedShareEnded: true,
+      });
+
+      emit({
+        id: 'share-sync',
+        name: 'Someone else',
+        background: 'bg-red-500',
+        widgets: [],
+        createdAt: 2,
+        linkedShareHostUid: 'host-a',
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const board = captured.current.find((d) => d.id === 'collab-board');
+      expect(board?.linkedShareEnded).toBe(true);
+      expect(board?.background).toBe('bg-slate-800');
+    });
+
+    it('treats a share doc without the recorded host as ended', async () => {
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
+      });
+
+      emit({
+        id: 'share-sync',
+        name: 'Someone else',
+        background: 'bg-red-500',
+        widgets: [],
+        createdAt: 2,
+      });
+
+      await waitFor(() => {
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareEnded).toBe(true);
+        expect(board?.background).toBe('bg-slate-800');
+      });
+    });
+
     it('viewer leaving the board (Leave button) deletes the local copy', async () => {
       const linked: Dashboard = {
         id: 'view-board',
