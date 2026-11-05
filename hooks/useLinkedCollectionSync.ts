@@ -168,7 +168,8 @@ const confirmLinkShares = async (
   ids: Iterable<string>,
   created: ReadonlySet<string>,
   ownIds: ReadonlySet<string>,
-  host = false
+  host = false,
+  joinedIds: ReadonlySet<string> = new Set()
 ): Promise<LinkShare[]> => {
   const list = [...new Set(ids)].filter(Boolean);
   const found: LinkShare[] = [];
@@ -187,6 +188,9 @@ const confirmLinkShares = async (
             if (host && ownPrefix) {
               return { shareId, mine: ownIds.has(shareId) };
             }
+            // A share held here as a member is still left after a failed read.
+            if (!host && joinedIds.has(shareId))
+              return { shareId, mine: false };
             throw err;
           }
           // A gone doc still counts under this link's own id prefix.
@@ -214,17 +218,13 @@ const closeWallsToShares = async (
   linkId: string,
   shareIds: string[]
 ): Promise<void> => {
-  for (let i = 0; i < shareIds.length; i += BATCH) {
-    const results = await Promise.allSettled(
-      shareIds
-        .slice(i, i + BATCH)
-        .map((id) => closeWallsToBoard(uid, id, new Set()))
-    );
-    results.forEach((r) => {
-      if (r.status === 'rejected') {
-        logError('useLinkedCollectionSync.closeWalls', r.reason, { linkId });
-      }
-    });
+  // One after another: each call reads then rewrites the same boardAccess doc.
+  for (const id of shareIds) {
+    try {
+      await closeWallsToBoard(uid, id, new Set());
+    } catch (err) {
+      logError('useLinkedCollectionSync.closeWalls', err, { linkId });
+    }
   }
 };
 
@@ -802,6 +802,11 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
             .filter((b) => b.linkedShareRole === 'owner')
             .map((b) => b.linkedShareId ?? '')
         );
+        const joinedIds = new Set(
+          boards
+            .filter((b) => b.linkedShareId && b.linkedShareRole !== 'owner')
+            .map((b) => b.linkedShareId ?? '')
+        );
         const shares = await confirmLinkShares(
           d,
           linkId,
@@ -813,10 +818,10 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
           ],
           created,
           ownIds,
-          host
+          host,
+          joinedIds
         );
-        // The host ends every listed board, including ones collaborators added; repeats are harmless.
-        // Anyone else leaves the shares they joined, so they stop reading the others' walls.
+        // The host ends every listed board; anyone else leaves the shares they joined.
         const act = shares.filter((s) => host || !s.mine);
         for (let i = 0; i < act.length; i += BATCH) {
           const results = await Promise.allSettled(
