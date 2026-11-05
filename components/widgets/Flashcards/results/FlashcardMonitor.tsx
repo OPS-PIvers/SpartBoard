@@ -75,6 +75,12 @@ interface FlashcardMonitorProps {
   published: boolean;
   onBack: () => void;
   onResetStudent: (studentUid: string) => void;
+  /** Unlock results for a student locked out of them. */
+  unlockFor?: (studentUid: string) => (() => void) | undefined;
+  /** Unlock attempt for a submitted student who has none left. */
+  unlockAttemptFor?: (studentUid: string) => (() => void) | undefined;
+  /** Lowers a raised hand. */
+  onClearHand?: (studentUid: string) => void;
   onResolveFlag: (
     studentUid: string,
     cardId: string,
@@ -198,6 +204,9 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   published,
   onBack,
   onResetStudent,
+  unlockFor,
+  unlockAttemptFor,
+  onClearHand,
   onResolveFlag,
   letInFor,
   onPublish,
@@ -215,6 +224,8 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   const [busyFlag, setBusyFlag] = useState<string | null>(null);
   const [ending, setEnding] = useState(false);
   const isCheck = session.kind === 'check';
+  const handOn =
+    isCheck && session.rules?.sessionOptions.handRaiseEnabled === true;
   // Speak answers have no typed text, so Speak checks keep the per-card pass rates.
   const quizCards = quizStyle && isCheck && session.checkMode !== 'speak';
   const ended = session.status === 'ended' || assignment.status === 'ended';
@@ -588,10 +599,11 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
           score: row.percent,
           cardsDone: result ? checkCardsDone(result) : 0,
           openFlags: row.openFlags,
+          hand: handOn && key === 'inProgress' && result?.handRaisedAt != null,
         });
       }
     return out;
-  }, [checkByBucket, quizStyle, results]);
+  }, [checkByBucket, handOn, quizStyle, results]);
 
   const openStudyRows =
     quizStyle && !isCheck && openBucket
@@ -677,7 +689,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
             {classControls}
             <StatusBuckets
               counts={counts}
-              handCount={0}
+              handCount={checkRoster.inProgress.filter((s) => s.hand).length}
               idleCount={idleCount}
               openBucket={openBucket}
               onToggle={(key) =>
@@ -721,6 +733,9 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                 onUpdatePrefs={onUpdatePrefs}
                 letInFor={letInFor}
                 onRemove={onResetStudent}
+                unlockFor={unlockFor}
+                unlockAttemptFor={unlockAttemptFor}
+                onClearHand={onClearHand}
                 belowCount={flagCountFor}
                 renderBelow={renderFlagsFor}
               />

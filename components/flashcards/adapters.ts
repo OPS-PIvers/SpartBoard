@@ -291,6 +291,11 @@ export type FlashcardProgressWrite = Partial<
   >
 >;
 
+export type FlashcardAttemptFields = Pick<
+  FlashcardProgressWrite,
+  'attemptStartedAt' | 'handRaisedAt' | 'tabSwitchWarnings'
+>;
+
 export interface FlashcardRating {
   cardId: string;
   correct: boolean;
@@ -354,6 +359,7 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private pending: Promise<void> = Promise.resolve();
   private paused = false;
+  private attemptFields: FlashcardAttemptFields = {};
 
   constructor(options: {
     classId: string;
@@ -474,6 +480,13 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     this.schedule();
   }
 
+  /** Saves the time limit's start, a raised hand or a tab-switch count right away. */
+  writeAttemptFields(fields: FlashcardAttemptFields): Promise<void> {
+    this.attemptFields = { ...this.attemptFields, ...fields };
+    this.dirty = true;
+    return this.writeNow();
+  }
+
   /** Holds writes (the rules would refuse them) while the student's period is shut; resuming sends them. */
   setPaused(paused: boolean): void {
     if (this.paused === paused) return;
@@ -578,14 +591,18 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     if (this.state.speakRound !== undefined) {
       payload.speakRound = this.state.speakRound;
     }
+    const attemptFields = this.attemptFields;
+    this.attemptFields = {};
+    Object.assign(payload, attemptFields);
     const rate = this.rate;
     this.pending = this.pending
       .then(() => (this.discarded ? undefined : this.write(payload)))
       .catch((error: unknown) => {
         for (const cardId of cardIds) this.dirtyCards.add(cardId);
         for (const cardId of checkIds) this.dirtyCheckLog.add(cardId);
-        // A refused Speak map (e.g. over the rules' size cap) must not block the rest of the progress.
+        // A refused Speak map or attempt field (e.g. a stale tab count) must not block the rest of the progress.
         if (!isPermissionDenied(error)) {
+          this.attemptFields = { ...attemptFields, ...this.attemptFields };
           for (const cardId of speakIds) this.dirtySpeak.add(cardId);
           for (const token of soundIds) this.dirtySounds.add(token);
         }

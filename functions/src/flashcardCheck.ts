@@ -49,10 +49,14 @@ interface RawFlag {
   response: string;
 }
 
+/** Submitted for the student when the time limit ran out or they left the tab too often. */
+export type ForcedSubmit = 'time' | 'tab';
+
 export interface SubmitFlashcardCheckInput {
   assignmentId: string;
   answerLog: RawAnswer[];
   flags: RawFlag[];
+  forced?: ForcedSubmit;
 }
 
 export interface FlashcardCheckCaller {
@@ -146,7 +150,50 @@ export function parseSubmitFlashcardCheckInput(
       response: parseResponse(flag.response),
     };
   });
-  return { assignmentId, answerLog, flags };
+  if (
+    data.forced !== undefined &&
+    data.forced !== 'time' &&
+    data.forced !== 'tab'
+  )
+    invalid('forced must be time or tab.');
+  return {
+    assignmentId,
+    answerLog,
+    flags,
+    ...(data.forced ? { forced: data.forced } : {}),
+  };
+}
+
+const sessionOptionsOf = (
+  session: Record<string, unknown>
+): Record<string, unknown> => {
+  const rules = isRecord(session.rules) ? session.rules : {};
+  return isRecord(rules.sessionOptions) ? rules.sessionOptions : {};
+};
+
+// A forced submission only stands when the teacher turned on the rule that forces it.
+export function forcedSubmitAllowed(
+  session: Record<string, unknown>,
+  forced: ForcedSubmit
+): boolean {
+  const o = sessionOptionsOf(session);
+  return forced === 'time'
+    ? isFiniteNumber(o.timeLimitMinutes) && o.timeLimitMinutes > 0
+    : o.tabAwayAutoSubmit === true ||
+        (o.tabWarningsEnabled === true && o.tabWarningThreshold !== 'off');
+}
+
+/** null = unlimited; Checks assigned before the Attempts step allow one. */
+export function attemptLimitOf(
+  session: Record<string, unknown>
+): number | null {
+  const rules = isRecord(session.rules) ? session.rules : null;
+  if (!rules || !('attemptLimit' in rules)) return 1;
+  return rules.attemptLimit === null
+    ? null
+    : isFiniteNumber(rules.attemptLimit)
+      ? Math.max(1, Math.trunc(rules.attemptLimit))
+      : 1;
 }
 
 // Mirror of utils/flashcardSchedule.ts isSpeakableCard.
@@ -405,11 +452,27 @@ export async function handleSubmitFlashcardCheck(
       strict: settings.strict,
     }).result !== 'wrong';
 
+  if (input.forced && !forcedSubmitAllowed(session, input.forced))
+    throw new HttpsError(
+      'failed-precondition',
+      'This assignment has no rule that submits for the student.'
+    );
+  // A forced submission sends what was answered; every other card counts as wrong.
+  const forced = input.forced;
+  const unlogged = (pool: FlashcardCard[]): FlashcardCard[] => {
+    const logged = new Set(input.answerLog.map((entry) => entry.cardId));
+    return pool.filter((card) => !logged.has(card.id));
+  };
+
   // Validation that does not depend on stored progress runs before the transaction.
   let graded: GradedAnswer[] = [];
   let total = cards.length;
   if (checkMode === 'write') {
-    if (input.answerLog.length !== cards.length)
+    if (
+      forced
+        ? input.answerLog.length > cards.length
+        : input.answerLog.length !== cards.length
+    )
       invalid('answerLog must include every card once.');
     const logCards = cardsForLog(input.answerLog, byId);
     graded = input.answerLog.map((entry, i) => ({
@@ -418,20 +481,32 @@ export async function handleSubmitFlashcardCheck(
       attempts: clampAttempts(entry.attempts),
       correct: typedCorrect(entry.response, logCards[i]),
     }));
+    if (forced)
+      graded.push(
+        ...unlogged(cards).map((card) => ({
+          cardId: card.id,
+          response: '',
+          attempts: 1,
+          correct: false,
+        }))
+      );
   } else if (checkMode === 'test') {
     total =
       settings.testCount === 'all'
         ? cards.length
         : Math.min(settings.testCount, cards.length);
-    if (input.answerLog.length !== total)
+    if (
+      forced ? input.answerLog.length > total : input.answerLog.length !== total
+    )
       invalid('answerLog does not match the locked question count.');
     const logCards = cardsForLog(input.answerLog, byId);
     graded = input.answerLog.map((entry, i) => {
-      const type = entry.type;
+      // A forced submission comes from saved answers, which carry no type: grade it as typed.
+      const type = entry.type ?? (forced ? 'fib' : undefined);
       if (
         type === undefined ||
         type === 'speak' ||
-        !settings.testTypes.includes(type)
+        (!settings.testTypes.includes(type) && entry.type !== undefined)
       )
         return invalid('answerLog uses a question type that is not allowed.');
       if (type === 'mc' && cards.length < MC_MIN_CARDS)
@@ -447,6 +522,17 @@ export async function handleSubmitFlashcardCheck(
             : typedCorrect(entry.response, card),
       };
     });
+    if (forced)
+      graded.push(
+        ...unlogged(cards)
+          .slice(0, total - graded.length)
+          .map((card) => ({
+            cardId: card.id,
+            response: '',
+            type: 'fib' as const,
+            correct: false,
+          }))
+      );
   } else if (checkMode === 'speak') {
     // Speak is judged on the student's device (no audio leaves it), so the server records its verdicts.
     const speakable = cards.filter(isSpeakableCard);
@@ -455,7 +541,11 @@ export async function handleSubmitFlashcardCheck(
         'failed-precondition',
         'No card in this assignment can be spoken.'
       );
-    if (input.answerLog.length !== speakable.length)
+    if (
+      forced
+        ? input.answerLog.length > speakable.length
+        : input.answerLog.length !== speakable.length
+    )
       invalid('answerLog must include every speakable card once.');
     const logCards = cardsForLog(input.answerLog, byId);
     if (!logCards.every(isSpeakableCard))
@@ -473,6 +563,17 @@ export async function handleSubmitFlashcardCheck(
         correct: entry.passed,
       };
     });
+    if (forced)
+      graded.push(
+        ...unlogged(speakable).map((card) => ({
+          cardId: card.id,
+          response: '',
+          type: 'speak' as const,
+          attempts: 1,
+          passed: false,
+          correct: false,
+        }))
+      );
   }
   const gradedIds = new Set(graded.map((entry) => entry.cardId));
   const flagged = new Set<string>();
@@ -497,18 +598,18 @@ export async function handleSubmitFlashcardCheck(
         ? session.masteryThreshold
         : DEFAULT_MASTERY_THRESHOLD;
       const progressCards = isRecord(progress.cards) ? progress.cards : {};
-      const allMastered = cards.every((card) => {
+      const masteredCount = cards.filter((card) => {
         const entry = progressCards[card.id];
         return (
           isRecord(entry) && isFiniteNumber(entry.s) && entry.s >= threshold
         );
-      });
-      if (!allMastered)
+      }).length;
+      if (masteredCount < cards.length && !forced)
         throw new HttpsError(
           'failed-precondition',
           'Every card must reach the mastery threshold first.'
         );
-      score = cards.length;
+      score = forced ? masteredCount : cards.length;
     } else {
       score = graded.filter((entry) => entry.correct).length;
     }
@@ -520,6 +621,12 @@ export async function handleSubmitFlashcardCheck(
       flags,
       submittedAt: nowMs,
       lastActiveAt: nowMs,
+      completedAttempts:
+        (isFiniteNumber(progress.completedAttempts)
+          ? progress.completedAttempts
+          : 0) + 1,
+      ...(forced ? { forcedSubmit: forced } : {}),
+      handRaisedAt: admin.firestore.FieldValue.delete(),
     };
     if (!progressSnap.exists)
       Object.assign(write, newProgressFields(access, checkMode));
@@ -527,6 +634,136 @@ export async function handleSubmitFlashcardCheck(
     return { score, total, submittedAt: nowMs };
   });
 }
+
+export interface ReopenFlashcardCheckInput {
+  assignmentId: string;
+  /** The teacher's Unlock attempt names the student; a student's Try again leaves it out. */
+  studentUid?: string;
+}
+
+export function parseReopenFlashcardCheckInput(
+  raw: unknown
+): ReopenFlashcardCheckInput {
+  const data = isRecord(raw) ? raw : {};
+  const ok = (v: unknown): v is string =>
+    typeof v === 'string' &&
+    v.length > 0 &&
+    v.length <= MAX_ID_LENGTH &&
+    !v.includes('/');
+  if (!ok(data.assignmentId)) invalid('assignmentId is required.');
+  if (data.studentUid !== undefined && !ok(data.studentUid))
+    invalid('studentUid is malformed.');
+  return {
+    assignmentId: data.assignmentId,
+    ...(data.studentUid ? { studentUid: data.studentUid } : {}),
+  };
+}
+
+const DELETE = () => admin.firestore.FieldValue.delete();
+
+// Clears a submission so the student can work again.
+const reopenFields = (): Record<string, unknown> => ({
+  submittedAt: DELETE(),
+  score: DELETE(),
+  total: DELETE(),
+  answerLog: DELETE(),
+  flags: DELETE(),
+  forcedSubmit: DELETE(),
+  attemptStartedAt: DELETE(),
+  tabSwitchWarnings: DELETE(),
+  resultsTabWarnings: DELETE(),
+  resultsLockedOut: DELETE(),
+  resultsLockedOutAt: DELETE(),
+  handRaisedAt: DELETE(),
+});
+
+/** Try again (student, within the attempts allowed) or Unlock attempt (teacher, answers kept). */
+export async function handleReopenFlashcardCheck(
+  db: admin.firestore.Firestore,
+  rawCaller: FlashcardCheckCaller | null,
+  rawInput: unknown,
+  nowMs: number
+): Promise<{ reopened: true }> {
+  if (!rawCaller) throw new HttpsError('unauthenticated', 'Sign in required.');
+  const input = parseReopenFlashcardCheckInput(rawInput);
+
+  if (input.studentUid) {
+    // The teacher's Unlock attempt: the student picks up with their saved answers.
+    if (rawCaller.studentRole)
+      throw new HttpsError('permission-denied', 'Teachers only.');
+    const sessionRef = db
+      .collection('flashcard_sessions')
+      .doc(input.assignmentId);
+    const sessionSnap = await sessionRef.get();
+    const session: Record<string, unknown> = sessionSnap.data() ?? {};
+    if (!sessionSnap.exists || session.teacherUid !== rawCaller.uid)
+      throw new HttpsError('permission-denied', 'Not your assignment.');
+    const progressRef = sessionRef.collection('progress').doc(input.studentUid);
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(progressRef);
+      const done: unknown = snap.data()?.completedAttempts;
+      if (!isFiniteNumber(snap.data()?.submittedAt))
+        throw new HttpsError('failed-precondition', 'Not submitted.');
+      // The student resumes the same attempt, so its resubmit must not count twice.
+      tx.update(progressRef, {
+        ...reopenFields(),
+        completedAttempts: Math.max(0, (isFiniteNumber(done) ? done : 1) - 1),
+        lastActiveAt: nowMs,
+      });
+    });
+    return { reopened: true };
+  }
+
+  const caller = assertStudentCaller(rawCaller);
+  const access = await loadOpenCheck(db, caller, input.assignmentId, nowMs);
+  const limit = attemptLimitOf(access.session);
+  const progressRef = access.sessionRef.collection('progress').doc(caller.uid);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(progressRef);
+    const progress: Record<string, unknown> = snap.data() ?? {};
+    if (!isFiniteNumber(progress.submittedAt))
+      throw new HttpsError('failed-precondition', 'Not submitted.');
+    const used = isFiniteNumber(progress.completedAttempts)
+      ? progress.completedAttempts
+      : 1;
+    if (limit !== null && used >= limit)
+      throw new HttpsError('failed-precondition', 'No attempts left.');
+    // As in Quiz, leaving the tab too often waits for the teacher's Unlock attempt.
+    if (progress.forcedSubmit === 'tab')
+      throw new HttpsError(
+        'failed-precondition',
+        'Ask your teacher to unlock.'
+      );
+    tx.update(progressRef, {
+      ...reopenFields(),
+      checkLog: DELETE(),
+      // A flashcards-mode Check is mastered again from the start.
+      ...(access.session.checkMode === 'flashcards'
+        ? { cards: {}, round: 1 }
+        : {}),
+      lastActiveAt: nowMs,
+    });
+  });
+  return { reopened: true };
+}
+
+export const reopenFlashcardCheckV1 = onCall(
+  {
+    memory: '256MiB',
+    timeoutSeconds: 60,
+    cors: ALLOWED_ORIGINS,
+    invoker: 'public',
+  },
+  async (request) => {
+    assertViewAsAllowed(request);
+    return handleReopenFlashcardCheck(
+      admin.firestore(),
+      await callerFrom(request.auth),
+      request.data,
+      Date.now()
+    );
+  }
+);
 
 // Mirror of utils/flashcardSchedule.ts recordFlashcardAnswer.
 const ROUND_GAPS = [1, 1, 2, 4, 8] as const;

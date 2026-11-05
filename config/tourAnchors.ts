@@ -10634,6 +10634,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'flashcards.clear-hand': {
+    label: 'Clear button on a raised hand in the Flashcards Check monitor',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'flashcards.flag-accept': {
     label: 'Accept button on a flagged answer in Flashcards results',
     perField: true,

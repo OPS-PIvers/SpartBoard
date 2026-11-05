@@ -51,7 +51,6 @@ import type {
   FlashcardMode,
   FlashcardModeSettings,
   FlashcardPublishedVisibility,
-  FlashcardScoreVisibility,
   FlashcardSession,
   FlashcardSet,
   ResultsProtection,
@@ -68,7 +67,7 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   checkMode?: FlashcardMode;
   lockedSettings?: FlashcardModeSettings;
   masteryThreshold?: FlashcardMasteryThreshold;
-  scoreVisibility?: FlashcardScoreVisibility;
+  scoreVisibility?: FlashcardPublishedVisibility;
   classIds: string[];
   periodNames: string[];
   rosterIds: string[];
@@ -104,7 +103,7 @@ export interface FlashcardAssignmentSettingsPatch {
   /** Window changes per `periodAccess` row key, written to both docs. */
   periodAccessEdits?: PeriodAccessWindowEdits;
   rules?: FlashcardCheckRules;
-  scoreVisibility?: FlashcardScoreVisibility;
+  scoreVisibility?: FlashcardPublishedVisibility;
 }
 
 export interface UseFlashcardAssignmentsResult {

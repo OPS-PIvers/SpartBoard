@@ -1,4 +1,5 @@
 import React from 'react';
+import { Hand } from 'lucide-react';
 import type { FlashcardSession } from '@/types';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import type { BucketKey } from '@/components/widgets/QuizWidget/components/monitor/StatusBuckets';
@@ -40,6 +41,11 @@ export const FlashcardCheckRoster: React.FC<{
   onUpdatePrefs: (updates: Partial<MonitorRosterPrefs>) => void;
   letInFor: (studentUid: string) => (() => void) | undefined;
   onRemove: (studentUid: string) => void;
+  /** Unlock results for a student locked out of them; undefined hides the item. */
+  unlockFor?: (studentUid: string) => (() => void) | undefined;
+  unlockAttemptFor?: (studentUid: string) => (() => void) | undefined;
+  /** Lowers a raised hand; undefined hides Clear. */
+  onClearHand?: (studentUid: string) => void;
   /** Flagged answers a student has, so anchor numbering is worked out up front. */
   belowCount: (studentUid: string) => number;
   renderBelow: (studentUid: string, firstIndex: number) => React.ReactNode;
@@ -52,6 +58,9 @@ export const FlashcardCheckRoster: React.FC<{
   onUpdatePrefs,
   letInFor,
   onRemove,
+  unlockFor,
+  unlockAttemptFor,
+  onClearHand,
   belowCount,
   renderBelow,
 }) => {
@@ -110,6 +119,42 @@ export const FlashcardCheckRoster: React.FC<{
             )}
             below={renderBelow(s.studentUid, firstBelow[rowIndex])}
           >
+            {s.hand && (
+              <span
+                className="inline-flex shrink-0 items-center font-sans font-semibold text-brand-blue-dark"
+                style={{
+                  gap: 'min(4px, 1cqmin)',
+                  fontSize: 'min(11px, 3.8cqmin)',
+                }}
+              >
+                <Hand
+                  aria-label="Raised hand"
+                  className="text-brand-blue-primary"
+                  style={{
+                    width: 'min(14px, 4.5cqmin)',
+                    height: 'min(14px, 4.5cqmin)',
+                  }}
+                />
+                {onClearHand && (
+                  <button
+                    type="button"
+                    onClick={() => onClearHand(s.studentUid)}
+                    {...tourFieldAttr(
+                      'flashcards.clear-hand',
+                      'flashcards',
+                      field
+                    )}
+                    className="rounded-md border border-brand-blue-primary font-sans font-medium text-brand-blue-primary transition-colors hover:bg-brand-blue-primary hover:text-white"
+                    style={{
+                      padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </span>
+            )}
             {bucket === 'inProgress' && total > 0 && (
               <RosterOnQuestion index={Math.min(s.cardsDone + 1, total)} />
             )}
@@ -121,8 +166,11 @@ export const FlashcardCheckRoster: React.FC<{
                 'flashcards',
                 field
               )}
-              items={flashcardMenuItems(letInFor(s.studentUid), () =>
-                onRemove(s.studentUid)
+              items={flashcardMenuItems(
+                letInFor(s.studentUid),
+                () => onRemove(s.studentUid),
+                unlockFor?.(s.studentUid),
+                unlockAttemptFor?.(s.studentUid)
               )}
             />
           </RosterRow>

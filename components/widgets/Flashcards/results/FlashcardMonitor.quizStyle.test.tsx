@@ -87,14 +87,19 @@ const show = (
     onUpdatePrefs?: (u: Partial<MonitorRosterPrefs>) => void;
     onResetStudent?: (uid: string) => void;
     strict?: boolean;
+    results?: FlashcardResultRecord[];
+    unlockAttemptFor?: (uid: string) => (() => void) | undefined;
+    onClearHand?: (uid: string) => void;
   } = {}
 ) =>
   render(
     <FlashcardMonitor
       assignment={assignment}
       session={over.session ?? session()}
-      results={results}
+      results={over.results ?? results}
       tests={{}}
+      unlockAttemptFor={over.unlockAttemptFor}
+      onClearHand={over.onClearHand}
       nameFor={(uid) => names[uid] ?? uid}
       now={NOW}
       speakLanguage={null}
@@ -177,6 +182,33 @@ describe('FlashcardMonitor quiz style', () => {
     expect(
       screen.queryByRole('button', { name: 'Reset this student' })
     ).not.toBeInTheDocument();
+  });
+
+  it('counts and clears raised hands, and offers Unlock attempt', () => {
+    const onClearHand = vi.fn();
+    const unlock = vi.fn();
+    show({
+      session: session({
+        rules: { attemptLimit: 1, sessionOptions: { handRaiseEnabled: true } },
+      }),
+      results: results.map((r) =>
+        r.studentUid === 'cy' ? { ...r, handRaisedAt: NOW - 1000 } : r
+      ),
+      onClearHand,
+      unlockAttemptFor: (uid) => (uid === 'ben' ? unlock : undefined),
+    });
+    expect(bucket('In progress')).toHaveTextContent('1 hand');
+    fireEvent.click(bucket('In progress'));
+    expect(screen.getByLabelText('Raised hand')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(onClearHand).toHaveBeenCalledWith('cy');
+
+    fireEvent.click(bucket('Done'));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Actions for Ben Young' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock attempt' }));
+    expect(unlock).toHaveBeenCalled();
   });
 
   it('drops Publish scores from the footer', () => {

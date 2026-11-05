@@ -3864,6 +3864,7 @@ describe('index barrel — deployed export set', () => {
     // Flashcards Check submission
     'submitFlashcardCheckV1',
     'recordFlashcardCheckRatingsV1',
+    'reopenFlashcardCheckV1',
     'submitMiniAppResultV1',
     'resolveFlashcardFlagV1',
     // Shared board Activity Wall editing

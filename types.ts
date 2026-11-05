@@ -9607,6 +9607,7 @@ export type FlashcardCheckSessionOptions = Pick<
   | 'showScoreOnSubmit'
   | 'showResultToStudent'
   | 'showCorrectAnswerToStudent'
+  | 'handRaiseEnabled'
 >;
 
 /** Check rules from the Quiz-style assign steps; absent on older sessions (one attempt, no limits). */
@@ -9760,6 +9761,19 @@ export interface FlashcardProgress
   flags?: FlashcardFlag[];
   /** Teacher-written: this student's results setting, overriding the class one. */
   resultsOverride?: QuizResultsOverride;
+  /** Times the student left their published results; the teacher's Unlock lowers it. */
+  resultsTabWarnings?: number;
+  resultsLockedOut?: boolean;
+  resultsLockedOutAt?: number;
+  /** Server-written: submissions so far, against `rules.attemptLimit`. */
+  completedAttempts?: number;
+  /** Server-written: submitted for the student when time ran out or they left the tab too often. */
+  forcedSubmit?: 'time' | 'tab';
+  /** When this attempt's time limit started (ms). */
+  attemptStartedAt?: number;
+  handRaisedAt?: number | null;
+  /** Times the student left the Check's tab this attempt. */
+  tabSwitchWarnings?: number;
 }
 
 /** `plcs/{plcId}/flashcard_sets/{setId}`: a set shared with a PLC, payload inline. */

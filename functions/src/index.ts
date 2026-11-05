@@ -160,6 +160,7 @@ export {
 export {
   recordFlashcardCheckRatingsV1,
   submitFlashcardCheckV1,
+  reopenFlashcardCheckV1,
 } from './flashcardCheck';
 export { submitMiniAppResultV1 } from './miniAppResults';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';

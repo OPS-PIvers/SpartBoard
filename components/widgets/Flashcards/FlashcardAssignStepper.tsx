@@ -40,6 +40,8 @@ import {
   type FlashcardsCheckValue,
 } from '@/components/common/library/assignStepper/flashcardsCheckValue';
 import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
+import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
+import { resolveQuizHandRaiseEnabled } from '@/utils/quizHandRaise';
 import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
 import {
   behaviorToFlashcardRules,
@@ -47,6 +49,7 @@ import {
   rulesFromScoreVisibility,
   scoreVisibilityFromRules,
 } from '@/components/common/library/assignStepper/flashcardsRuleValues';
+import { legacyFlashcardVisibility } from '@/utils/flashcardResultsVisibility';
 import { SharingStep } from '@/components/common/library/assignStepper/SharingStep';
 import {
   formatSharingValue,
@@ -238,11 +241,23 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       />
     ) : undefined;
   const gates = useQuizRuleGates();
-  // Rows a flag hides are not stamped, as in Quiz.
+  const handRaiseMode = useQuizHandRaiseMode();
+  // Rows a flag hides are not stamped, as in Quiz; the district's raise-hand rule wins over the switch.
   const stampedRules: FlashcardCheckRules = (() => {
-    if (gates.timeLimitOn) return rules;
-    const { timeLimitMinutes: _off, ...sessionOptions } = rules.sessionOptions;
-    return { ...rules, sessionOptions };
+    const { timeLimitMinutes, handRaiseEnabled, ...sessionOptions } =
+      rules.sessionOptions;
+    return {
+      ...rules,
+      sessionOptions: {
+        ...sessionOptions,
+        ...(gates.timeLimitOn && timeLimitMinutes != null
+          ? { timeLimitMinutes }
+          : {}),
+        ...(resolveQuizHandRaiseEnabled(handRaiseMode, handRaiseEnabled)
+          ? { handRaiseEnabled: true }
+          : {}),
+      },
+    };
   })();
 
   const speakCheckOk = v2 && speakAvailable;
@@ -414,7 +429,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       value: flashcardRulesToBehavior(rules),
       onChange: (next) => changeRules(behaviorToFlashcardRules(next)),
       gates,
-      handRaiseMode: 'force-off',
+      handRaiseMode,
       flashcards: true,
     }).map((step) => [step.id, step])
   );
@@ -527,7 +542,9 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         v2
           ? {
               ...check,
-              scoreVisibility: scoreVisibilityFromRules(rules),
+              scoreVisibility: legacyFlashcardVisibility(
+                scoreVisibilityFromRules(rules)
+              ),
               rules: stampedRules,
               ...(lastSpeak ? { speak: lastSpeak } : {}),
             }

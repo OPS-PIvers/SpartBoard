@@ -1,8 +1,8 @@
 // flashcards-assign-v2 slice 5: the submitted screen honors Quiz's three levels and per-student settings.
 import '@testing-library/jest-dom';
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type {
   FlashcardProgress,
   FlashcardPublishedVisibility,
@@ -24,6 +24,11 @@ const session = (scoreVisibility?: FlashcardPublishedVisibility) =>
     scoreVisibility,
     scorePublishedAt: scoreVisibility ? 1 : undefined,
   }) as FlashcardSession;
+
+const RULES = {
+  attemptLimit: 1,
+  sessionOptions: {},
+} as unknown as FlashcardSession['rules'];
 
 const progress = (resultsOverride?: QuizResultsOverride) =>
   ({
@@ -99,6 +104,85 @@ describe('FlashcardCheckResults', () => {
       expiresAt: Date.now() + 60_000,
     });
     expect(screen.getByText('1/2')).toBeInTheDocument();
+  });
+
+  it('shows how many cards were answered while results are hidden on a new Check', () => {
+    render(
+      <FlashcardCheckResults
+        session={{ ...session('none'), rules: RULES }}
+        progress={progress()}
+      />
+    );
+    expect(screen.getByText('of 2 cards answered')).toBeInTheDocument();
+    expect(screen.queryByText('1/2')).not.toBeInTheDocument();
+  });
+
+  it('reviews every card, right and wrong, once responses are shown', () => {
+    show('score-and-responses');
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('1 of 2 correct')).toBeInTheDocument();
+    expect(screen.getByText('one')).toBeInTheDocument();
+    expect(screen.getByText('too')).toBeInTheDocument();
+    expect(screen.getByLabelText('Correct')).toBeInTheDocument();
+    expect(screen.getByLabelText('Incorrect')).toBeInTheDocument();
+  });
+
+  it('watermarks protected results', () => {
+    const { container } = render(
+      <FlashcardCheckResults
+        session={{
+          ...session('score-only'),
+          protection: {
+            watermarkEnabled: true,
+            tabWarningEnabled: false,
+            tabWarningThreshold: 3,
+          },
+        }}
+        progress={progress()}
+      />
+    );
+    expect(container.querySelector('svg pattern')).not.toBeNull();
+  });
+
+  it('says why the Check was submitted and offers Try again', async () => {
+    const onTryAgain = vi.fn().mockRejectedValueOnce(new Error('offline'));
+    render(
+      <FlashcardCheckResults
+        session={{ ...session('none'), rules: RULES }}
+        progress={{ ...progress(), forcedSubmit: 'time' }}
+        onTryAgain={onTryAgain}
+      />
+    );
+    expect(
+      screen.getByText("Time's up. Your answers were submitted.")
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Couldn't start a new attempt. Try again.")
+      ).toBeInTheDocument()
+    );
+    expect(onTryAgain).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the score, not "mastered", on a flashcards-mode Check submitted for the student', () => {
+    render(
+      <FlashcardCheckResults
+        session={{
+          ...session('score-only'),
+          checkMode: 'flashcards',
+          rules: RULES,
+        }}
+        progress={{ ...progress(), forcedSubmit: 'tab' }}
+      />
+    );
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /You left the page too many times\. Your assignment has been submitted\./
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
   });
 
   it('falls back to the class level once a student setting has ended', () => {
