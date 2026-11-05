@@ -6296,6 +6296,8 @@ service cloud.firestore {
           incoming().sessionId == sessionId &&
           incoming().keys().hasOnly(['sessionId', 'studentAnonymousId', 'pin', 'answers', 'startedAt', 'completedAt', 'score', 'classPeriod', 'classId', 'staffEmail', 'staffName']) &&
           incoming().score == null &&
+          // Starts un-submitted, so turning in is always a later update.
+          incoming().get('completedAt', null) == null &&
           staffJoinOk(glSession(), incoming()) &&
           // Per-student publication is teacher-written only.
           incoming().get('resultsOverride', null) == null &&

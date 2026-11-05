@@ -408,19 +408,22 @@ describe('responses and progress on a per-period session', () => {
 
   const b = () => asStudent(STUDENT_UID, [CLASS_B]);
 
-  it('refuses a finished response while the seat names a closed period', async () => {
+  it('refuses a response while the seat names a closed period', async () => {
     await seedSeat(S, STUDENT_UID, CLASS_A);
     await assertFails(
       setDoc(
         doc(asStudent(), responsePath(S, STUDENT_UID)),
-        response(S, STUDENT_UID, { classId: CLASS_A })
+        response(S, STUDENT_UID, { classId: CLASS_A, completedAt: null })
       )
     );
   });
 
   it('refuses a response with no seat', async () => {
     await assertFails(
-      setDoc(doc(b(), responsePath(S, STUDENT_UID)), response(S, STUDENT_UID))
+      setDoc(
+        doc(b(), responsePath(S, STUDENT_UID)),
+        response(S, STUDENT_UID, { completedAt: null })
+      )
     );
   });
 
@@ -429,7 +432,7 @@ describe('responses and progress on a per-period session', () => {
     await assertSucceeds(
       setDoc(
         doc(b(), responsePath(S, STUDENT_UID)),
-        response(S, STUDENT_UID, { classId: CLASS_B })
+        response(S, STUDENT_UID, { classId: CLASS_B, completedAt: null })
       )
     );
   });
@@ -444,7 +447,7 @@ describe('responses and progress on a per-period session', () => {
     await assertSucceeds(
       setDoc(
         doc(asStudent(), responsePath(S, STUDENT_UID)),
-        response(S, STUDENT_UID)
+        response(S, STUDENT_UID, { completedAt: null })
       )
     );
   });
@@ -509,14 +512,17 @@ describe('a legacy guided learning session', () => {
     await assertSucceeds(
       setDoc(
         doc(asStudent(), responsePath(S, STUDENT_UID)),
-        response(S, STUDENT_UID)
+        response(S, STUDENT_UID, { completedAt: null })
       )
     );
     await assertSucceeds(
       setDoc(doc(asStudent(), progressPath(S, STUDENT_UID)), progress())
     );
     await assertSucceeds(
-      setDoc(doc(asAnon(), responsePath(S, ANON_UID)), response(S, ANON_UID))
+      setDoc(
+        doc(asAnon(), responsePath(S, ANON_UID)),
+        response(S, ANON_UID, { completedAt: null })
+      )
     );
   });
 
