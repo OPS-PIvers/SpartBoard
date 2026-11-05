@@ -9603,6 +9603,8 @@ export interface FlashcardSession
   speakOff?: true;
   /** Check: how the set's cards were narrowed at assign time; absent means all. */
   cardSelection?: FlashcardCardSelection;
+  /** Assigned by a teacher with the flashcards-test-nav flag: students get the Test question bar. */
+  testNavBar?: true;
   masteryThreshold?: FlashcardMasteryThreshold;
   termLanguage: string;
   definitionLanguage: string;
@@ -10841,6 +10843,8 @@ export type GlobalFeature =
   | 'flashcards-assign-v2'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
+  /** Flashcards Test: Question N of M bar with an All questions grid instead of the number strip. */
+  | 'flashcards-test-nav'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */

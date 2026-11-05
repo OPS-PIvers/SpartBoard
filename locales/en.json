@@ -4753,7 +4753,17 @@
       "nav": "Test questions",
       "goTo": "Go to question {{number}}",
       "numberType": "{{number}}. {{type}}",
-      "submit": "Submit test"
+      "submit": "Submit test",
+      "questionOf": "Question {{number}} of {{total}}",
+      "answeredCount": "{{count}} of {{total}} answered",
+      "allQuestions": "All questions",
+      "nextUnanswered": "Next unanswered",
+      "answered": "Answered",
+      "notAnswered": "Not answered",
+      "previous": "Previous question",
+      "next": "Next question",
+      "back": "Back",
+      "nextButton": "Next"
     },
     "characters": {
       "uppercase": "Use uppercase characters",

@@ -1,6 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   RotateCcw,
   Sparkles,
@@ -16,6 +18,7 @@ import type {
 import { matchFlashcardAnswer } from '@/utils/flashcardMatch';
 import { getFlashcardAnswerCharacters } from '@/config/flashcardCharBars';
 import { CharacterBar } from './PlayerPrimitives';
+import { TestQuestionNav } from './TestQuestionNav';
 import { cx, getFlashcardSides } from './playerUtils';
 
 interface TestModeProps {
@@ -37,6 +40,8 @@ interface TestModeProps {
   }) => void;
   /** Check · Test: one attempt, graded by the server instead of reviewed here. */
   check?: TestModeCheck;
+  /** One question at a time under a Question N of M bar (flashcards-test-nav), instead of the number strip. */
+  questionBar?: boolean;
 }
 
 export interface TestModeCheck {
@@ -128,6 +133,8 @@ interface FibAnswerProps {
   dark: boolean;
   disabled: boolean;
   onChange: (value: string) => void;
+  autoFocus?: boolean;
+  onEnter?: () => void;
 }
 
 const FibAnswer: React.FC<FibAnswerProps> = ({
@@ -137,6 +144,8 @@ const FibAnswer: React.FC<FibAnswerProps> = ({
   dark,
   disabled,
   onChange,
+  autoFocus,
+  onEnter,
 }) => {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -150,6 +159,13 @@ const FibAnswer: React.FC<FibAnswerProps> = ({
         id={`test-answer-${question.id}`}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && onEnter) {
+            event.preventDefault();
+            onEnter();
+          }
+        }}
+        autoFocus={autoFocus}
         disabled={disabled}
         autoComplete="off"
         spellCheck={false}
@@ -194,8 +210,12 @@ export const TestMode: React.FC<TestModeProps> = ({
   onRecordBatch,
   onComplete,
   check,
+  questionBar = false,
 }) => {
   const { t } = useTranslation();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [current, setCurrent] = useState(0);
+  const [focusAnswer, setFocusAnswer] = useState(false);
   const isCheck = Boolean(check);
   const checkRecordedRef = useRef(false);
   const [cycle, setCycle] = useState(0);
@@ -253,6 +273,23 @@ export const TestMode: React.FC<TestModeProps> = ({
   const allAnswered = questions.every(
     (question) => (answers[question.id] ?? '').trim().length > 0
   );
+  const answeredList = questions.map(
+    (question) => (answers[question.id] ?? '').trim().length > 0
+  );
+  const questionKey = questions.map((question) => question.id).join('|');
+  const [navKey, setNavKey] = useState(questionKey);
+  if (navKey !== questionKey) {
+    setNavKey(questionKey);
+    setCurrent(0);
+  }
+  const currentIndex = Math.min(current, Math.max(questions.length - 1, 0));
+
+  const jumpTo = (index: number): void => {
+    const target = Math.max(0, Math.min(index, questions.length - 1));
+    setCurrent(target);
+    setFocusAnswer(true);
+    scrollRef.current?.scrollTo({ top: 0 });
+  };
 
   const submit = (): void => {
     if (!allAnswered || check?.submitting) return;
@@ -471,78 +508,99 @@ export const TestMode: React.FC<TestModeProps> = ({
     );
   }
 
+  const visible = questionBar
+    ? questions.slice(currentIndex, currentIndex + 1)
+    : questions;
+  const onLast = currentIndex >= questions.length - 1;
+
   return (
-    <div className="h-full w-full overflow-y-auto bg-transparent">
+    <div
+      ref={scrollRef}
+      className="relative h-full w-full overflow-y-auto bg-transparent"
+    >
+      {questionBar && (
+        <TestQuestionNav
+          total={questions.length}
+          current={currentIndex}
+          answered={answeredList}
+          dark={dark}
+          onJump={jumpTo}
+        />
+      )}
       <div
         className="mx-auto w-full max-w-3xl"
         style={{ padding: 'min(10px, 2.5cqmin)' }}
       >
-        <nav
-          aria-label={t('flashcards.test.nav')}
-          className={cx(
-            'sticky top-0 flex flex-wrap items-center border backdrop-blur-md',
-            dark
-              ? 'border-white/15 bg-slate-950/85 text-white'
-              : 'border-slate-200 bg-white/95 text-slate-800'
-          )}
-          style={{
-            zIndex: 1,
-            gap: 'min(5px, 1cqmin)',
-            padding: 'min(8px, 2cqmin)',
-            borderRadius: 'min(16px, 3.5cqmin)',
-          }}
-        >
-          <span
-            className="font-black"
+        {!questionBar && (
+          <nav
+            aria-label={t('flashcards.test.nav')}
+            className={cx(
+              'sticky top-0 flex flex-wrap items-center border backdrop-blur-md',
+              dark
+                ? 'border-white/15 bg-slate-950/85 text-white'
+                : 'border-slate-200 bg-white/95 text-slate-800'
+            )}
             style={{
-              paddingInline: 'min(6px, 1.5cqmin)',
-              fontSize: 'min(11px, 3cqmin)',
+              zIndex: 1,
+              gap: 'min(5px, 1cqmin)',
+              padding: 'min(8px, 2cqmin)',
+              borderRadius: 'min(16px, 3.5cqmin)',
             }}
           >
-            {t('flashcards.modes.test')}
-          </span>
-          {questions.map((question, index) => {
-            const answered = Boolean(answers[question.id]?.trim());
-            return (
-              <button
-                key={question.id}
-                type="button"
-                aria-label={t('flashcards.test.goTo', { number: index + 1 })}
-                onClick={() =>
-                  document
-                    .getElementById(`flashcard-test-${question.id}`)
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                }
-                className={cx(
-                  'rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
-                  answered
-                    ? 'bg-rose-600 text-white'
-                    : dark
-                      ? 'bg-white/10 text-white'
-                      : 'bg-slate-100 text-slate-700'
-                )}
-                style={{
-                  width: 'min(28px, 6.5cqmin)',
-                  height: 'min(28px, 6.5cqmin)',
-                  fontSize: 'min(10px, 2.7cqmin)',
-                }}
-              >
-                {index + 1}
-              </button>
-            );
-          })}
-        </nav>
+            <span
+              className="font-black"
+              style={{
+                paddingInline: 'min(6px, 1.5cqmin)',
+                fontSize: 'min(11px, 3cqmin)',
+              }}
+            >
+              {t('flashcards.modes.test')}
+            </span>
+            {questions.map((question, index) => {
+              const answered = Boolean(answers[question.id]?.trim());
+              return (
+                <button // no-tour-anchor: student test player
+                  key={question.id}
+                  type="button"
+                  aria-label={t('flashcards.test.goTo', { number: index + 1 })}
+                  onClick={() =>
+                    document
+                      .getElementById(`flashcard-test-${question.id}`)
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  }
+                  className={cx(
+                    'rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
+                    answered
+                      ? 'bg-rose-600 text-white'
+                      : dark
+                        ? 'bg-white/10 text-white'
+                        : 'bg-slate-100 text-slate-700'
+                  )}
+                  style={{
+                    width: 'min(28px, 6.5cqmin)',
+                    height: 'min(28px, 6.5cqmin)',
+                    fontSize: 'min(10px, 2.7cqmin)',
+                  }}
+                >
+                  {index + 1}
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         <div
           className="grid"
           style={{ gap: 'min(13px, 3cqmin)', marginTop: 'min(13px, 3cqmin)' }}
         >
-          {questions.map((question, index) => {
+          {visible.map((question, visibleIndex) => {
+            const index = questionBar ? currentIndex : visibleIndex;
             const sides = getFlashcardSides(question.card, showFirst);
             return (
               <section
                 id={`flashcard-test-${question.id}`}
                 key={question.id}
+                data-test-index={index}
                 className={cx(
                   'rounded-[min(22px,5cqmin)] border shadow-xs',
                   dark
@@ -613,12 +671,72 @@ export const TestMode: React.FC<TestModeProps> = ({
                     dark={dark}
                     disabled={false}
                     onChange={(value) => answer(question, value)}
+                    autoFocus={questionBar && focusAnswer}
+                    onEnter={
+                      questionBar && !onLast
+                        ? () => jumpTo(currentIndex + 1)
+                        : undefined
+                    }
                   />
                 )}
               </section>
             );
           })}
         </div>
+
+        {questionBar && (
+          <div
+            className="flex items-center justify-between"
+            style={{ marginTop: 'min(13px, 3cqmin)' }}
+          >
+            <button // no-tour-anchor: student test player
+              type="button"
+              onClick={() => jumpTo(currentIndex - 1)}
+              disabled={currentIndex === 0}
+              className={cx(
+                'flex items-center rounded-lg border font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300 disabled:invisible',
+                dark
+                  ? 'border-white/20 text-white hover:bg-white/10'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              )}
+              style={{
+                gap: 'min(4px, 1cqmin)',
+                padding: 'min(9px, 2.2cqmin) min(14px, 3.2cqmin)',
+                fontSize: 'min(13px, 3.4cqmin)',
+              }}
+            >
+              <ChevronLeft
+                aria-hidden="true"
+                style={{
+                  width: 'min(16px, 4cqmin)',
+                  height: 'min(16px, 4cqmin)',
+                }}
+              />
+              {t('flashcards.test.back')}
+            </button>
+            {!onLast && (
+              <button // no-tour-anchor: student test player
+                type="button"
+                onClick={() => jumpTo(currentIndex + 1)}
+                className="flex items-center rounded-lg bg-rose-600 font-bold text-white transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300"
+                style={{
+                  gap: 'min(4px, 1cqmin)',
+                  padding: 'min(9px, 2.2cqmin) min(14px, 3.2cqmin)',
+                  fontSize: 'min(13px, 3.4cqmin)',
+                }}
+              >
+                {t('flashcards.test.nextButton')}
+                <ChevronRight
+                  aria-hidden="true"
+                  style={{
+                    width: 'min(16px, 4cqmin)',
+                    height: 'min(16px, 4cqmin)',
+                  }}
+                />
+              </button>
+            )}
+          </div>
+        )}
 
         {check?.error && (
           <p
@@ -635,47 +753,49 @@ export const TestMode: React.FC<TestModeProps> = ({
             {check.error}
           </p>
         )}
-        <button
-          type="button"
-          onClick={submit}
-          disabled={!allAnswered || check?.submitting}
-          className="mx-auto flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/20 transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
-          style={{
-            gap: 'min(7px, 1.5cqmin)',
-            marginTop: 'min(16px, 3.5cqmin)',
-            marginBottom: 'min(10px, 2cqmin)',
-            padding: 'min(12px, 3cqmin) min(22px, 5cqmin)',
-            fontSize: 'min(13px, 3.4cqmin)',
-          }}
-        >
-          {check?.submitting ? (
-            <Loader2
-              aria-hidden="true"
-              className="animate-spin"
-              style={{
-                width: 'min(18px, 4cqmin)',
-                height: 'min(18px, 4cqmin)',
-              }}
-            />
-          ) : allAnswered ? (
-            <CheckCircle2
-              aria-hidden="true"
-              style={{
-                width: 'min(18px, 4cqmin)',
-                height: 'min(18px, 4cqmin)',
-              }}
-            />
-          ) : (
-            <XCircle
-              aria-hidden="true"
-              style={{
-                width: 'min(18px, 4cqmin)',
-                height: 'min(18px, 4cqmin)',
-              }}
-            />
-          )}
-          {t('flashcards.test.submit')}
-        </button>
+        {(!questionBar || onLast || allAnswered) && (
+          <button // no-tour-anchor: student test player
+            type="button"
+            onClick={submit}
+            disabled={!allAnswered || check?.submitting}
+            className="mx-auto flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/20 transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
+            style={{
+              gap: 'min(7px, 1.5cqmin)',
+              marginTop: 'min(16px, 3.5cqmin)',
+              marginBottom: 'min(10px, 2cqmin)',
+              padding: 'min(12px, 3cqmin) min(22px, 5cqmin)',
+              fontSize: 'min(13px, 3.4cqmin)',
+            }}
+          >
+            {check?.submitting ? (
+              <Loader2
+                aria-hidden="true"
+                className="animate-spin"
+                style={{
+                  width: 'min(18px, 4cqmin)',
+                  height: 'min(18px, 4cqmin)',
+                }}
+              />
+            ) : allAnswered ? (
+              <CheckCircle2
+                aria-hidden="true"
+                style={{
+                  width: 'min(18px, 4cqmin)',
+                  height: 'min(18px, 4cqmin)',
+                }}
+              />
+            ) : (
+              <XCircle
+                aria-hidden="true"
+                style={{
+                  width: 'min(18px, 4cqmin)',
+                  height: 'min(18px, 4cqmin)',
+                }}
+              />
+            )}
+            {t('flashcards.test.submit')}
+          </button>
+        )}
       </div>
     </div>
   );

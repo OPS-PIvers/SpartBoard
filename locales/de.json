@@ -3446,7 +3446,17 @@
       "nav": "Testfragen",
       "goTo": "Zu Frage {{number}}",
       "numberType": "{{number}}. {{type}}",
-      "submit": "Test abgeben"
+      "submit": "Test abgeben",
+      "questionOf": "Frage {{number}} von {{total}}",
+      "answeredCount": "{{count}} von {{total}} beantwortet",
+      "allQuestions": "Alle Fragen",
+      "nextUnanswered": "Nächste unbeantwortete",
+      "answered": "Beantwortet",
+      "notAnswered": "Nicht beantwortet",
+      "previous": "Vorherige Frage",
+      "next": "Nächste Frage",
+      "back": "Zurück",
+      "nextButton": "Weiter"
     },
     "characters": {
       "uppercase": "Großbuchstaben verwenden",

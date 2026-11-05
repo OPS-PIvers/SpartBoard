@@ -130,6 +130,8 @@ export interface FlashcardPlayerProps {
   framed?: boolean;
   theme?: 'light' | 'present';
   seed?: string;
+  /** Test shows one question at a time under a question bar (flashcards-test-nav). */
+  testQuestionBar?: boolean;
   onSettingsChange?: (settings: FlashcardModeSettings) => void;
   onBack?: () => void;
 }
@@ -164,6 +166,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   framed = false,
   theme = 'light',
   seed = 'flashcards',
+  testQuestionBar,
   onSettingsChange,
   onBack,
 }) => {
@@ -801,6 +804,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             testCount={settings.testCount}
             dark={dark}
             seed={seed}
+            questionBar={testQuestionBar}
             onRecordBatch={recordBatch}
             check={{
               submitting: check.submitting,
@@ -958,6 +962,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             testCount={settings.testCount}
             dark={dark}
             seed={seed}
+            questionBar={testQuestionBar}
             onRecordBatch={recordBatch}
             onComplete={recordTest}
           />

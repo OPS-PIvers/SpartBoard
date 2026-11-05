@@ -290,6 +290,39 @@ describe('useFlashcardAssignments', () => {
     ]);
   });
 
+  it('stamps the Test question bar only for a teacher with the flag', async () => {
+    const auth = {
+      canAccessFeature: (id: string) => id === 'flashcards-test-nav',
+    } as unknown as React.ContextType<typeof AuthContext>;
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(AuthContext.Provider, { value: auth }, children);
+    const flagged = renderHook(() => useFlashcardAssignments(TEACHER), {
+      wrapper,
+    });
+    await act(async () => {
+      await flagged.result.current.createAssignment({
+        ...baseInput,
+        kind: 'check',
+        checkMode: 'test',
+      });
+    });
+    expect((batches[0][0].data as Record<string, unknown>).testNavBar).toBe(
+      true
+    );
+
+    const plain = renderHook(() => useFlashcardAssignments(TEACHER));
+    await act(async () => {
+      await plain.result.current.createAssignment({
+        ...baseInput,
+        kind: 'check',
+        checkMode: 'test',
+      });
+    });
+    expect(
+      'testNavBar' in (batches[1][0].data as Record<string, unknown>)
+    ).toBe(false);
+  });
+
   describe('Speak check', () => {
     const speakAuth = {
       canAccessFeature: (id: string) => id === 'flashcards-speak',
