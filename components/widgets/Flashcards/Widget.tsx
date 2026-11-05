@@ -394,7 +394,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         `${failed} set${failed === 1 ? '' : 's'} failed to delete.`,
         'error'
       );
-    return true;
+    return succeeded > 0;
   };
 
   const handleAssign = (set: FlashcardSet): void => {

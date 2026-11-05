@@ -48,6 +48,7 @@ import type { LibraryBadge, LibraryTab } from '@/components/common/library';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 import { FlashcardAssignmentRow } from './FlashcardAssignmentRow';
+import { flashcardAssignmentPaused } from './utils/flashcardAssignmentRow';
 
 interface FlashcardLibraryProps {
   /** Signed-in teacher, for the folder view's last-folder preference. */
@@ -171,6 +172,15 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   const [bulkBusy, setBulkBusy] = useState(false);
   // Selection belongs to the Library tab only.
   const selectionMode = quizStyle && selectionOn && tab === 'library';
+  // Leaving the Library tab ends selection, as Quiz does.
+  const [selectionTab, setSelectionTab] = useState(tab);
+  if (selectionTab !== tab) {
+    setSelectionTab(tab);
+    if (tab !== 'library' && selectionOn) {
+      setSelectionOn(false);
+      selection.clear();
+    }
+  }
   const { t } = useTranslation();
   const voiceFills = useVoiceFillProgress();
   const setStatus = (set: FlashcardSet): string => {
@@ -443,7 +453,9 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   // Quiz's row chips: "Live now" opens the monitor, "Results" the latest results.
   const quizStyleBadges = (set: FlashcardSet): LibraryBadge[] => {
     const related = assignmentsBySetId.get(set.id) ?? [];
-    const live = related.find((a) => a.status === 'active');
+    const live = related.find(
+      (a) => a.status === 'active' && !flashcardAssignmentPaused(a)
+    );
     const ended = related
       .filter((a) => a.status !== 'active')
       .sort((a, b) => (b.endedAt ?? b.createdAt) - (a.endedAt ?? a.createdAt));

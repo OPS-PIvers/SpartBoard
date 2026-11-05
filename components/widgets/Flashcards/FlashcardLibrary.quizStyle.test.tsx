@@ -240,3 +240,15 @@ describe('FlashcardLibrary library tab with Quiz-style rows', () => {
     );
   });
 });
+
+describe('FlashcardLibrary Quiz-style review fixes', () => {
+  it('does not mark a set Live now while its per-period assignment is paused', () => {
+    renderLibrary({
+      tab: 'library',
+      assignments: [assignment({ periodAccess: { p3: period('paused') } })],
+    });
+    expect(
+      screen.queryByRole('button', { name: 'Open live monitor' })
+    ).toBeNull();
+  });
+});
