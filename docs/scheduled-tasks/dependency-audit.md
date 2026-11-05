@@ -3,9 +3,11 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-10-29_
+_Last audited: 2026-11-05_
 _Last action: 2026-09-15 — HIGH `browserslist`/`baseline-browser-mapping` resolved: added `pnpm.overrides.browserslist: "^4.28.7"` to both `package.json` and `functions/package.json`, clearing two HIGH + one moderate advisory in the Babel/Jest build-toolchain chain. PR opened against dev-paul. Item moved to Completed._
 
+
+_2026-11-05: Thursday Audit B2 (read-only). Root: 4 moderate vulnerabilities (`glob` AbortSignal bypass, `minimatch` DoS via typescript-eslint and firebase-admin chains) covered by existing toolchain/minimatch items; `functions/`: 2 moderate (`minimatch` via firebase-admin>google-gax). No high advisories reported (the `zod` HIGH no longer appears). `pnpm outdated`: patch/minor only (firebase 13.1→13.2, vitest 5.1, lucide-react, i18n); majors behind unchanged (eslint 9→10, typescript 6→7); `crypto-js`/`fluent-ffmpeg` deprecated (existing LOW item). 0 new issues._
 _2026-10-29: Thursday Audit B2 (read-only). Root: 4 vulnerabilities (1 low | 2 moderate | 1 high) — the `fast-uri` advisories no longer appear. Open: HIGH `zod` via `@imgly/background-removal` (unchanged), moderate `qs` (<6.16.1, root via `@google/genai>@modelcontextprotocol/sdk>express`; `functions/` via `functions-framework>body-parser`; covered by the existing `qs` item, now needs >=6.16.1), and a new moderate `@hono/node-server` item. `functions/`: 2 (1 low | 1 moderate, both `qs`). `pnpm outdated`: patch/minor only for typescript-eslint, i18next family, postcss, lucide-react 1.61→1.63, onnxruntime-web, `@anthropic-ai/sdk` 1.1→1.3; majors behind unchanged (eslint 9→10, `@eslint/js`, tailwindcss 3→4, typescript 6→7, firebase-admin 13→14). `crypto-js`/`fluent-ffmpeg` deprecated in functions (already tracked)._
 
 _2026-10-27: Tuesday Audit B2 (read-only). Root: 5 vulnerabilities (2 low | 2 moderate | 1 high) — new `zod` HIGH and four `fast-uri` advisories; `functions/`: 4 (2 low | 2 moderate), all `fast-uri`. The prior `braces`/`sprintf-js` advisories no longer appear. `pnpm outdated`: patch/minor only for typescript-eslint, i18next family, postcss, onnxruntime-web, `@anthropic-ai/sdk` 1.1.0→1.3.0; majors for eslint/@eslint/js 9→10, firebase-admin 13→14, tailwindcss 3→4, typescript 6→7 (already tracked). `crypto-js` and `fluent-ffmpeg` (functions) remain deprecated._
