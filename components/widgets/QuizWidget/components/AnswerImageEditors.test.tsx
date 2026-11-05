@@ -110,6 +110,14 @@ describe('ChoiceOptionsEditor pictures', () => {
     );
   });
 
+  // Unpositioned, its hit area stretches over the whole editor and takes every click.
+  it('keeps the add button hit area on the button', () => {
+    render(<ChoiceHarness initial={mc} upload={vi.fn()} />);
+    expect(
+      screen.getByRole('button', { name: 'Add image to option A' })
+    ).toHaveClass('relative', 'touch-target-expand');
+  });
+
   it('hides the buttons without an upload', () => {
     render(<ChoiceHarness initial={mc} />);
     expect(
