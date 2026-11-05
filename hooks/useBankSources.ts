@@ -5,6 +5,7 @@ import type {
   PlcQuestionBankEntry,
   QuestionBankData,
   QuestionBankMetadata,
+  QuizBankSlot,
   QuizData,
   SyncedQuestionBank,
 } from '@/types';
@@ -54,22 +55,40 @@ export function toBankContent(
   };
 }
 
-/** Canonical copy of a shared bank; throws when the owner deleted or unshared it. */
+/** Canonical copy of a shared bank; throws when the owner deleted or unshared it, or when `expectedOwnerUid` is given and owns a different doc. */
 export async function loadSyncedBankContent(
-  syncGroupId: string
+  syncGroupId: string,
+  expectedOwnerUid?: string
 ): Promise<BankContent> {
   const snap = await getDoc(doc(db, SYNCED_BANKS_COLLECTION, syncGroupId));
   if (!snap.exists()) {
     throw new Error('This shared bank is no longer available.');
   }
-  return toBankContent(snap.data() as SyncedQuestionBank);
+  const data = snap.data() as SyncedQuestionBank;
+  if (expectedOwnerUid && data.ownerUid !== expectedOwnerUid) {
+    throw new Error('This shared bank is no longer available.');
+  }
+  return toBankContent(data);
+}
+
+/** Sharer a slot is bound to; a slot without a recorded sharer is bound to `userId` when it points at that user's own synced bank, else unbound. */
+export function expectedSlotOwner(
+  slot: Pick<QuizBankSlot, 'bankId' | 'syncGroupId' | 'syncOwnerUid'>,
+  banks: readonly Pick<QuestionBankMetadata, 'id' | 'sync'>[],
+  userId: string | undefined
+): string | undefined {
+  if (slot.syncOwnerUid) return slot.syncOwnerUid;
+  if (!userId) return undefined;
+  const own = banks.find((b) => b.id === slot.bankId);
+  return own?.sync?.groupId === slot.syncGroupId ? userId : undefined;
 }
 
 /** One entry per random slot keyed by bankSlotKey(slot); a slot whose bank can't be loaded is absent. */
 export async function loadBankContentsFor(
   quiz: Pick<QuizData, 'bankSlots'>,
-  banks: readonly Pick<QuestionBankMetadata, 'id' | 'driveFileId'>[],
-  loadBankData: (driveFileId: string) => Promise<QuestionBankData>
+  banks: readonly Pick<QuestionBankMetadata, 'id' | 'driveFileId' | 'sync'>[],
+  loadBankData: (driveFileId: string) => Promise<QuestionBankData>,
+  userId?: string
 ): Promise<Map<string, BankContent>> {
   const out = new Map<string, BankContent>();
   const slotsByKey = new Map(
@@ -79,7 +98,13 @@ export async function loadBankContentsFor(
     [...slotsByKey].map(async ([key, slot]) => {
       try {
         if (slot.syncGroupId) {
-          out.set(key, await loadSyncedBankContent(slot.syncGroupId));
+          out.set(
+            key,
+            await loadSyncedBankContent(
+              slot.syncGroupId,
+              expectedSlotOwner(slot, banks, userId)
+            )
+          );
           return;
         }
         const meta = banks.find((b) => b.id === slot.bankId);
@@ -150,14 +175,14 @@ export function useBankSources(
       }
     }
     rows.sort((a, b) => b.entry.sharedAt - a.entry.sharedAt);
-    return mergeBankSources(banks, rows);
-  }, [banks, plcs, sharedByPlc]);
+    return mergeBankSources(banks, rows, userId);
+  }, [banks, plcs, sharedByPlc, userId]);
 
   const loadBankContent = useCallback(
     async (source: BankSource): Promise<BankContent> => {
       if (source.kind === 'plc') {
         if (!source.syncGroupId) throw new Error('Shared bank has no group id');
-        return loadSyncedBankContent(source.syncGroupId);
+        return loadSyncedBankContent(source.syncGroupId, source.syncOwnerUid);
       }
       if (!source.driveFileId) throw new Error('Bank has no Drive file');
       const data = await loadBankData(source.driveFileId);
@@ -168,8 +193,8 @@ export function useBankSources(
 
   const loadBankContentsForQuiz = useCallback(
     (quiz: Pick<QuizData, 'bankSlots'>) =>
-      loadBankContentsFor(quiz, banks, loadBankData),
-    [banks, loadBankData]
+      loadBankContentsFor(quiz, banks, loadBankData, userId),
+    [banks, loadBankData, userId]
   );
 
   return {

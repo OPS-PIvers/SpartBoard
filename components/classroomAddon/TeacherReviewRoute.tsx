@@ -265,7 +265,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   const waitForBanks = !!resolvedDriveFileId && banksLoading;
   // Read at load time so a bank list change doesn't re-download the quiz.
   const loadBankContents = useEffectEvent((quiz: Pick<QuizData, 'bankSlots'>) =>
-    loadBankContentsFor(quiz, banks, loadBankData)
+    loadBankContentsFor(quiz, banks, loadBankData, user?.uid)
   );
   useEffect(() => {
     const quizId = session?.quizId;

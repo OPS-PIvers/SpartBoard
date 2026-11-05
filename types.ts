@@ -4706,6 +4706,8 @@ export interface QuizBankSlot {
   bankId: string;
   /** Resolve from `/synced_question_banks/{syncGroupId}` when set. */
   syncGroupId?: string;
+  /** Uid of the sharer who owns the synced doc; a doc owned by anyone else is refused. Absent on older slots. */
+  syncOwnerUid?: string;
   bankTitle: string;
   mode: 'selected' | 'random';
   /** selected mode: the picks; random mode: draws only from these ids (absent = whole bank) */

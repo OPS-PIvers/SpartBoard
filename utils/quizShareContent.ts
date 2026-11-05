@@ -140,7 +140,11 @@ export async function restoreSharedQuizContent(
     bankSlots = slots.map((slot) => {
       const id = newIdByKey.get(bankSlotKey(slot));
       if (!id) return slot;
-      const { syncGroupId: _syncGroupId, ...own } = slot;
+      const {
+        syncGroupId: _syncGroupId,
+        syncOwnerUid: _syncOwnerUid,
+        ...own
+      } = slot;
       return { ...own, bankId: id };
     });
   }

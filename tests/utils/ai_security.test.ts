@@ -16,6 +16,44 @@ import {
 
 describe('DashboardContext AI Security Helpers', () => {
   describe('sanitizeAIConfig', () => {
+    it('drops a PDF url the model supplies', () => {
+      const sanitized = sanitizeAIConfig('pdf', {
+        activePdfUrl: 'https://evil.example/phish.html',
+        activePdfId: 'x',
+        activePdfName: 'n',
+      }) as Record<string, unknown>;
+      expect(sanitized).toEqual({});
+    });
+
+    it('gives a widget type with no AI keys an empty config', () => {
+      expect(
+        sanitizeAIConfig('links', {
+          urls: [{ url: 'https://evil.example' }],
+        })
+      ).toEqual({});
+    });
+
+    it('keeps only the keys a widget type may receive', () => {
+      const sanitized = sanitizeAIConfig('random', {
+        visualStyle: 'wheel',
+        iframeSrc: 'https://evil.example',
+      }) as Record<string, unknown>;
+      expect(sanitized).toEqual({ visualStyle: 'wheel' });
+      expect(
+        sanitizeAIConfig('clock', { format24: false, glow: true })
+      ).toEqual({ format24: false, glow: true });
+    });
+
+    it('ignores inherited keys', () => {
+      const polluted = Object.create({ content: 'x' }) as Record<
+        string,
+        unknown
+      >;
+      expect(sanitizeAIConfig('text', polluted)).toEqual({
+        content: '',
+      });
+    });
+
     it('removes html and activeApp from miniApp config', () => {
       const config = {
         html: '<script>alert("XSS")</script>',
