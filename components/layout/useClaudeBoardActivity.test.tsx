@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   setDoc: vi.fn(() => Promise.resolve()),
   addToast: vi.fn(),
   loadDashboard: vi.fn(),
+  connectorOn: true,
   dash: {
     dashboards: [] as Dashboard[],
     activeDashboard: null as Dashboard | null,
@@ -23,7 +24,11 @@ vi.mock('@/utils/viewAsTab', () => ({
   viewAsSuppressesBackgroundWrites: () => false,
 }));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'u1' } }),
+  useAuth: () => ({
+    user: { uid: 'u1' },
+    canAccessFeature: (id: string) =>
+      id === 'claude-connector' && mocks.connectorOn,
+  }),
 }));
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -52,6 +57,7 @@ const setBoards = (boards: Dashboard[], activeId: string) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.connectorOn = true;
   mocks.dash.loading = false;
   setBoards([], '');
 });
@@ -142,6 +148,21 @@ describe('useClaudeBoardActivity', () => {
       { boardScreen: { w: 1600, h: 1000, at: expect.any(Number) as number } },
       { merge: true }
     );
+    Reflect.deleteProperty(document, 'fullscreenElement');
+  });
+
+  it('records nothing without the Claude connector', () => {
+    vi.useFakeTimers();
+    mocks.connectorOn = false;
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => document.documentElement,
+    });
+    window.innerWidth = 1600;
+    window.innerHeight = 1000;
+    renderHook(() => useClaudeBoardActivity());
+    vi.advanceTimersByTime(1100);
+    expect(mocks.setDoc).not.toHaveBeenCalled();
     Reflect.deleteProperty(document, 'fullscreenElement');
   });
 
