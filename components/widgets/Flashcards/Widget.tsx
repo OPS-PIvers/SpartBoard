@@ -428,12 +428,15 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     const sharePlc = extras?.sharePlc;
     try {
       const sessionId = await createAssignment(
-        sharePlc && input.kind === 'check'
+        sharePlc && input.kind === 'check' && input.audience !== 'staff'
           ? {
               ...input,
               plcLink: {
                 plcId: sharePlc.id,
-                syncGroupId: set.plcOriginSetId ?? set.id,
+                syncGroupId:
+                  set.plcOrigin?.plcId === sharePlc.id
+                    ? set.plcOrigin.setId
+                    : set.id,
               },
             }
           : input

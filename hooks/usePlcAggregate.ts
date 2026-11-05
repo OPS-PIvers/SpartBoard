@@ -215,6 +215,8 @@ export function parsePlcAggregate(
   id: string,
   data: Record<string, unknown>
 ): PlcAssessmentAggregate | null {
+  // Flashcards check results get their own rows; until then they stay out of Quiz's views.
+  if (data.kind === 'flashcard-check') return null;
   if (
     typeof data.schemaVersion !== 'number' ||
     data.schemaVersion < 1 ||

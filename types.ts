@@ -9402,7 +9402,7 @@ export interface FlashcardSet {
   /** Where Import got this set (IMPORT.md D7); never copied to the public snapshot. */
   importedFrom?: ImportAttribution;
   /** The PLC set this copy came from, so teammates' checks pool into one PLC result. */
-  plcOriginSetId?: string;
+  plcOrigin?: { plcId: string; setId: string };
   createdAt: number;
   updatedAt: number;
 }

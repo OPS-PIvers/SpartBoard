@@ -19,9 +19,9 @@ describe('toPersonalFlashcardSet', () => {
       createdAt: 1,
       updatedAt: 1,
     };
-    const copy = toPersonalFlashcardSet(entry);
+    const copy = toPersonalFlashcardSet(entry, 'plc-1');
     expect(copy.id).not.toBe('plc-set-1');
-    expect(copy.plcOriginSetId).toBe('plc-set-1');
+    expect(copy.plcOrigin).toEqual({ plcId: 'plc-1', setId: 'plc-set-1' });
     expect(copy.cards[0].id).toBe('c1');
   });
 });
