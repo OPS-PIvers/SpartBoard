@@ -611,7 +611,7 @@ describe('content/questions', () => {
 describe('content/readAloud', () => {
   const S = 'pa-read-aloud';
   const raPath = `quiz_sessions/${S}/content/readAloud`;
-  const withState = (state: string) =>
+  const withState = (state: 'open' | 'paused' | 'closed') =>
     seedSession(S, {
       accessMode: 'assignment',
       periodAccess: { [CLASS_A]: period({ state }) },
