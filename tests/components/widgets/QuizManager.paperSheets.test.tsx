@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizManager';
-import type { QuizConfig, QuizMetadata } from '@/types';
+import type { QuizAssignment, QuizConfig, QuizMetadata } from '@/types';
 
 vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({ plcs: [] }),
@@ -98,26 +98,18 @@ describe('QuizManager — paper answer sheets', () => {
     renderLibrary();
     expect(screen.queryByRole('button', { name: 'Paper test' })).toBeNull();
     openRowMenu();
-    expect(screen.queryByText('Print response sheets')).toBeNull();
+    expect(screen.queryByText('Assign on paper')).toBeNull();
     expect(screen.queryByText('Import questions')).toBeNull();
   });
 
-  it('offers Print response sheets in the row menu when the feature is on', () => {
-    const onPrintPaperSheets = vi.fn();
-    renderLibrary({ onPrintPaperSheets });
+  it('offers Assign on paper in the row menu when the feature is on', () => {
+    const onAssignOnPaper = vi.fn();
+    renderLibrary({ onAssignOnPaper });
     openRowMenu();
-    fireEvent.click(screen.getByText('Print response sheets'));
-    expect(onPrintPaperSheets).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'quiz-1' })
-    );
-  });
-
-  it('offers Import responses in the row menu when wired', () => {
-    const onImportPaperScan = vi.fn();
-    renderLibrary({ onImportPaperScan });
-    openRowMenu();
-    fireEvent.click(screen.getByText('Import responses'));
-    expect(onImportPaperScan).toHaveBeenCalledWith(
+    expect(screen.queryByText('Print response sheets')).toBeNull();
+    expect(screen.queryByText('Import responses')).toBeNull();
+    fireEvent.click(screen.getByText('Assign on paper'));
+    expect(onAssignOnPaper).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'quiz-1' })
     );
   });
@@ -132,24 +124,7 @@ describe('QuizManager — paper answer sheets', () => {
     );
   });
 
-  it('New Quiz always opens a Create / Import / Paper test menu', () => {
-    const onNewPaperTest = vi.fn();
-    const onNew = vi.fn();
-    renderLibrary({ onNewPaperTest, onNew });
-    expect(screen.queryByRole('tab', { name: /paper/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Paper test' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'New Quiz' }));
-    expect(onNew).not.toHaveBeenCalled();
-    const items = screen.getAllByRole('menuitem').map((el) => el.textContent);
-    expect(items).toEqual(['Create', 'Import', 'Paper test']);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper test' }));
-    expect(onNewPaperTest).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button', { name: 'New Quiz' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Create' }));
-    expect(onNew).toHaveBeenCalledTimes(1);
-  });
-
-  it('offers Create and Import when paper is off, with no Import button', () => {
+  it('New Quiz opens a Create / Import menu with no Paper test', () => {
     const onImport = vi.fn();
     renderLibrary({ onImport });
     expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
@@ -159,6 +134,57 @@ describe('QuizManager — paper answer sheets', () => {
     );
     fireEvent.click(screen.getByRole('menuitem', { name: 'Import' }));
     expect(onImport).toHaveBeenCalledTimes(1);
+  });
+});
+
+const PAPER: QuizAssignment = {
+  id: 'qa-paper',
+  quizId: 'quiz-1',
+  quizTitle: 'Unit 3 Test',
+  quizDriveFileId: 'drive-1',
+  teacherUid: 'teacher-1',
+  code: 'KQ100',
+  sessionMode: 'student',
+  sessionOptions: {},
+  status: 'paused',
+  paper: true,
+  paperBatchId: 'batch-1',
+  periodNames: ['Period 1', 'Period 2'],
+  createdAt: 1000,
+  updatedAt: 1000,
+};
+
+const renderTab = (
+  managerTab: 'active' | 'archive',
+  assignment: QuizAssignment,
+  overrides: Partial<React.ComponentProps<typeof QuizManager>> = {}
+) =>
+  renderLibrary({
+    managerTab,
+    assignments: [assignment],
+    assignmentsLoading: false,
+    ...overrides,
+  });
+
+describe('QuizManager — paper assignment card', () => {
+  it('shows Paper with Import responses instead of Start, and no join code', () => {
+    const onImportPaperResponses = vi.fn();
+    renderTab('active', PAPER, { onImportPaperResponses });
+    expect(screen.getByText('Paper')).toBeTruthy();
+    expect(screen.queryByText('Paused')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Start/ })).toBeNull();
+    expect(screen.queryByText('KQ100')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Import responses/ }));
+    expect(onImportPaperResponses).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'qa-paper' })
+    );
+  });
+
+  it('reads like any other completed card once imported', () => {
+    renderTab('archive', { ...PAPER, status: 'inactive' });
+    expect(screen.queryByText('Paper')).toBeNull();
+    expect(screen.getByText('Ended')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Results/ })).toBeTruthy();
   });
 });
 

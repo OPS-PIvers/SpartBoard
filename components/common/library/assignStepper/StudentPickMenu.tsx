@@ -13,6 +13,7 @@ import {
   isTargetableRow,
   rosterGroupMembers,
   useRosterStudentRows,
+  type StudentRefFor,
 } from './useRosterStudentRows';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
@@ -24,6 +25,8 @@ export interface StudentPickMenuProps {
   onChange: (next: AssignClassesValue) => void;
   /** Live-tour anchor for one class's student menu button, keyed by class id. */
   rowAnchor?: (classId: string) => TourAnchorAttrs;
+  /** Paper sheets need no sign-in, so the caller can make every student pickable. */
+  refFor?: StudentRefFor;
 }
 
 /** Under the class picker, one "All students" menu per picked class (D5a). */
@@ -32,6 +35,7 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
   value,
   onChange,
   rowAnchor,
+  refFor,
 }) => {
   const picked = rosters.filter((r) => value.classIds.includes(r.id));
   if (picked.length === 0) return null;
@@ -44,6 +48,7 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
           rowKey={`row-${rowIndex + 1}`}
           anchor={rowAnchor?.(roster.id)}
           refs={value.studentsByClass[roster.id] ?? null}
+          refFor={refFor}
           onChange={(refs) =>
             onChange(withClassStudents(value, roster.id, refs))
           }
@@ -59,7 +64,8 @@ const ClassStudentRow: React.FC<{
   refs: StudentTargetRef[] | null;
   onChange: (refs: StudentTargetRef[] | null) => void;
   anchor?: TourAnchorAttrs;
-}> = ({ roster, rowKey, refs, onChange, anchor }) => {
+  refFor?: StudentRefFor;
+}> = ({ roster, rowKey, refs, onChange, anchor, refFor }) => {
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
   const narrowed = !!refs && refs.length > 0;
@@ -103,6 +109,7 @@ const ClassStudentRow: React.FC<{
             id={menuId}
             roster={roster}
             refs={refs ?? []}
+            refFor={refFor}
             onChange={onChange}
             onAllStudents={() => {
               onChange(null);
@@ -121,9 +128,10 @@ const StudentMenu: React.FC<{
   refs: StudentTargetRef[];
   onChange: (refs: StudentTargetRef[] | null) => void;
   onAllStudents: () => void;
-}> = ({ id, roster, refs, onChange, onAllStudents }) => {
+  refFor?: StudentRefFor;
+}> = ({ id, roster, refs, onChange, onAllStudents, refFor }) => {
   const [search, setSearch] = useState('');
-  const rows = useRosterStudentRows(roster, search);
+  const rows = useRosterStudentRows(roster, search, refFor);
   const pickedKeys = new Set(refs.map(studentTargetRefKey));
   // Tour keys count only the students who can be picked, so row-1 is the first checkbox.
   const pickableRowKeys = new Map(
@@ -167,7 +175,7 @@ const StudentMenu: React.FC<{
             Groups
           </div>
           {groups.map((group) => {
-            const { targetable } = rosterGroupMembers(roster, group);
+            const { targetable } = rosterGroupMembers(roster, group, refFor);
             const added =
               targetable.length > 0 &&
               targetable.every((m) =>

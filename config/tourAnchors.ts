@@ -1008,6 +1008,10 @@ export const TOUR_ANCHORS = {
     label: 'Speak step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.sheets': {
+    label: 'Answer sheets step header in the Assign on paper dialog',
+    panel: true,
+  },
   'assign-step.sharing': {
     label: 'Sharing step header in the Assign dialog',
     panel: true,
@@ -15835,8 +15839,13 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   // Quiz library kebab items that open dialogs.
+  'quiz-library.assign-paper': {
+    label: 'Assign on paper item in a quiz card menu',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-library.import-responses': {
-    label: 'Import responses item in a quiz card menu',
+    label: 'Import responses button on a paper assignment card',
     perWidgetType: true,
     panel: true,
   },

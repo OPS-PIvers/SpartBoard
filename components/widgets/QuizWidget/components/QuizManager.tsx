@@ -19,7 +19,12 @@ import React, {
 } from 'react';
 import { useQuizTranslations } from '@/hooks/useQuizTranslations';
 import { useTranslation } from 'react-i18next';
-import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import {
+  tourAttr,
+  tourFieldAttr,
+  tourTypeAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 import {
   Plus,
   PencilLine,
@@ -281,16 +286,14 @@ interface QuizManagerProps {
   error: string | null;
   onNew: () => void;
   onImport: () => void;
-  /** Open the paper answer-sheet print flow. Absent when the feature is off. */
-  onPrintPaperSheets?: (quiz: QuizMetadata) => void;
-  /** Import a scanned stack of those sheets; `undefined` hides the entry. */
-  onImportPaperScan?: (quiz: QuizMetadata) => void;
   /** OCR the printed test paper into question text; `undefined` hides the entry. */
   onReadPaperQuestions?: (quiz: QuizMetadata) => void;
   /** Fill missing answers from a key file; shown only on quizzes that need one (R31). */
   onAddAnswerKey?: (quiz: QuizMetadata) => void;
-  /** Start a paper-only quiz stub. Absent when the feature is off. */
-  onNewPaperTest?: () => void;
+  /** Open the paper assign flow for a library quiz. Absent when the feature is off. */
+  onAssignOnPaper?: (quiz: QuizMetadata) => void;
+  /** Open the scan import for a paper assignment. */
+  onImportPaperResponses?: (assignment: QuizAssignment) => void;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
   /** Take the quiz as students see it. Absent when the feature is off. */
@@ -536,8 +539,11 @@ interface QuizManagerProps {
 
 function resolveStatus(
   status: QuizAssignment['status'],
-  isViewOnly: boolean
+  isViewOnly: boolean,
+  paper = false
 ): AssignmentStatusBadge {
+  if (paper && status !== 'inactive')
+    return { label: 'Paper', tone: 'neutral' };
   // View-only shares get share-flavored labels so the active/archive UI
   // doesn't pretend submissions are happening when they aren't. "Closed"
   // is the cross-widget archive label (cf. MiniAppManager.statusBadge).
@@ -648,11 +654,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   error,
   onNew,
   onImport,
-  onPrintPaperSheets,
-  onImportPaperScan,
   onReadPaperQuestions,
   onAddAnswerKey,
-  onNewPaperTest,
+  onAssignOnPaper,
+  onImportPaperResponses,
   onEdit,
   onPreview,
   onStudentView,
@@ -1205,24 +1210,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: BarChart3,
         onClick: () => onResults(quiz),
       },
-      ...(onPrintPaperSheets
+      ...(onAssignOnPaper
         ? [
             {
-              id: 'print-paper',
-              label: 'Print response sheets',
+              id: 'assign-paper',
+              label: 'Assign on paper',
               icon: Printer,
-              onClick: () => onPrintPaperSheets(quiz),
-            },
-          ]
-        : []),
-      ...(onImportPaperScan
-        ? [
-            {
-              id: 'import-paper',
-              label: 'Import responses',
-              icon: ScanLine,
-              onClick: () => onImportPaperScan(quiz),
-              anchor: tourTypeAttr('quiz-library.import-responses', 'quiz'),
+              onClick: () => onAssignOnPaper(quiz),
+              anchor: tourTypeAttr('quiz-library.assign-paper', 'quiz'),
             },
           ]
         : []),
@@ -1439,6 +1434,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       onClick: () => void;
       badgeCount?: number;
       badgeAriaLabel?: string;
+      anchor?: TourAnchorAttrs;
     } | null;
     secondaries: LibraryMenuAction[];
   } => {
@@ -1521,6 +1517,34 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           ? secondaries.filter((m) => m.label !== primary.label)
           : secondaries,
       };
+    }
+
+    if (mode === 'active' && a.paper) {
+      const primary = {
+        label: 'Import responses',
+        icon: ScanLine,
+        onClick: () => (onImportPaperResponses ?? noop)(a),
+        anchor: tourTypeAttr('quiz-library.import-responses', 'quiz'),
+      };
+      secondaries.push({
+        id: 'delete',
+        label: 'Delete',
+        icon: Trash2,
+        destructive: true,
+        anchor: tourTypeAttr('quiz-library.archive-delete', 'quiz'),
+        onClick: async () => {
+          const ok = await showConfirm(
+            'Delete this assignment and all responses? This cannot be undone.',
+            {
+              title: 'Delete Assignment',
+              variant: 'danger',
+              confirmLabel: 'Delete',
+            }
+          );
+          if (ok) await (onArchiveDelete ?? noop)(a);
+        },
+      });
+      return { primary, secondaries };
     }
 
     if (mode === 'active') {
@@ -2251,16 +2275,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     label: 'Import bank',
                     icon: FileUp,
                     onClick: onImportBank,
-                  },
-                ]
-              : []),
-            ...(onNewPaperTest
-              ? [
-                  {
-                    id: 'item-3',
-                    label: 'Paper test',
-                    icon: Printer,
-                    onClick: onNewPaperTest,
                   },
                 ]
               : []),
@@ -3056,6 +3070,7 @@ const AssignmentsList: React.FC<{
       onClick: () => void;
       badgeCount?: number;
       badgeAriaLabel?: string;
+      anchor?: TourAnchorAttrs;
     } | null;
     secondaries: LibraryMenuAction[];
   };
@@ -3138,6 +3153,7 @@ interface QuizArchiveRowProps {
       onClick: () => void;
       badgeCount?: number;
       badgeAriaLabel?: string;
+      anchor?: TourAnchorAttrs;
     } | null;
     secondaries: LibraryMenuAction[];
   };
@@ -3174,7 +3190,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   // persisted PII-free count so the marker survives a reload.
   const skippedCount = skippedTargets?.length ?? a.targetSkippedCount ?? 0;
   const { primary, secondaries } = buildActions(a, mode);
-  const status = resolveStatus(a.status, assignmentIsViewOnly);
+  const status = resolveStatus(a.status, assignmentIsViewOnly, !!a.paper);
   // Schoology LTI assignments get `periodNames` written onto the assignment doc
   // too (by the picker at creation and the launch-exchange CF as a backstop), so
   // the section shows here with no extra client read — same source as a
@@ -3194,7 +3210,8 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   // `share-link-tracking` global permission.
   const { canSeeShareTracking, canAccessFeature } = useAuth();
   const trackingEnabled = canSeeShareTracking();
-  const showJoinCode = urlLive && canAccessFeature('anonymous-join');
+  const showJoinCode =
+    urlLive && !a.paper && canAccessFeature('anonymous-join');
   const { count } = useSessionViewCount(
     'quiz_sessions',
     // Quiz assignment id is also the underlying session id (1:1 — see the
@@ -3344,6 +3361,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
               onClick: primary.onClick,
               badgeCount: primary.badgeCount,
               badgeAriaLabel: primary.badgeAriaLabel,
+              anchor: primary.anchor,
             }
           : undefined
       }

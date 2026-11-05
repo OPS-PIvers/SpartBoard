@@ -116,8 +116,12 @@ interface PaperImportModalProps {
   rosters: ClassRoster[];
   /** Administrations of this quiz the scan may attach to (plan Q24). */
   assignments: QuizAssignment[];
-  /** Create a fresh paper administration; returns its id. */
-  onCreateAssignment: () => Promise<string>;
+  /** Create a fresh paper administration; returns its id. Absent when the administration is locked. */
+  onCreateAssignment?: () => Promise<string>;
+  /** Opened from a paper assignment's card: its batch and administration are fixed. */
+  lockedAssignmentId?: string;
+  /** Runs once the first import of this scan lands. */
+  onImported?: (assignmentId: string) => void;
   onImport: (
     batchId: string,
     assignmentId: string,
@@ -205,6 +209,8 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   rosters,
   assignments,
   onCreateAssignment,
+  lockedAssignmentId,
+  onImported,
   onImport,
   onUploadCrop,
   loadRemoteCrop,
@@ -221,7 +227,9 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
 }) => {
   const [step, setStep] = useState<Step>('setup');
   const [batchId, setBatchId] = useState(batches[0]?.id ?? '');
-  const [assignmentId, setAssignmentId] = useState(NEW_ADMINISTRATION);
+  const [assignmentId, setAssignmentId] = useState(
+    lockedAssignmentId ?? NEW_ADMINISTRATION
+  );
   const [progress, setProgress] = useState('');
   const [assembled, setAssembled] = useState<AssembleResult | null>(null);
   const [crops, setCrops] = useState<Map<string, string>>(new Map());
@@ -775,12 +783,13 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       nextQuiz = applyTargetsToQuiz(nextQuiz, targets, now);
       if (nextQuiz !== quiz) await onSaveQuiz(nextQuiz);
       const target =
-        assignmentId === NEW_ADMINISTRATION
+        assignmentId === NEW_ADMINISTRATION && onCreateAssignment
           ? await onCreateAssignment()
           : assignmentId;
       setImportedAssignmentId(target);
       setLastPayload(payload);
       setResult(await runImport(payload, target));
+      onImported?.(target);
       await discardPending();
       setStep('done');
     } catch (err) {
@@ -904,51 +913,58 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         </p>
       ) : (
         <>
-          <label className="block">
-            <span className={labelClass}>Printed batch</span>
-            <select
-              {...tourTypeAttr('quiz-import.paper-batch', 'quiz')}
-              value={batchId}
-              onChange={(e) => setBatchId(e.target.value)}
-              className={fieldClass}
-            >
-              {batches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {formatDate(b.createdAt)} ·{' '}
-                  {Object.keys(b.seats).length + b.spareSeats.length} sheets ·{' '}
-                  {b.questionCount} questions
-                  {b.printedByName ? ` · printed by ${b.printedByName}` : ''}
-                </option>
-              ))}
-            </select>
-            {batch?.printedByName && (
-              <span className="mt-1 block text-xs text-slate-500">
-                {batch.printedByName} printed this stack for you from your PLC.
-              </span>
-            )}
-          </label>
-          <label className="block">
-            <span className={labelClass}>Administration</span>
-            <select
-              {...tourTypeAttr('quiz-import.paper-assignment', 'quiz')}
-              value={assignmentId}
-              onChange={(e) => setAssignmentId(e.target.value)}
-              className={fieldClass}
-            >
-              <option value={NEW_ADMINISTRATION}>
-                New paper administration
-              </option>
-              {assignments.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {formatDate(a.createdAt)} ·{' '}
-                  {a.className?.trim() ? a.className : a.code}
-                </option>
-              ))}
-            </select>
-            <span className="mt-1 block text-xs text-slate-500">
-              Pick an existing one to add paper make-ups to it.
-            </span>
-          </label>
+          {!lockedAssignmentId && (
+            <>
+              <label className="block">
+                <span className={labelClass}>Printed batch</span>
+                <select
+                  {...tourTypeAttr('quiz-import.paper-batch', 'quiz')}
+                  value={batchId}
+                  onChange={(e) => setBatchId(e.target.value)}
+                  className={fieldClass}
+                >
+                  {batches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {formatDate(b.createdAt)} ·{' '}
+                      {Object.keys(b.seats).length + b.spareSeats.length} sheets
+                      · {b.questionCount} questions
+                      {b.printedByName
+                        ? ` · printed by ${b.printedByName}`
+                        : ''}
+                    </option>
+                  ))}
+                </select>
+                {batch?.printedByName && (
+                  <span className="mt-1 block text-xs text-slate-500">
+                    {batch.printedByName} printed this stack for you from your
+                    PLC.
+                  </span>
+                )}
+              </label>
+              <label className="block">
+                <span className={labelClass}>Administration</span>
+                <select
+                  {...tourTypeAttr('quiz-import.paper-assignment', 'quiz')}
+                  value={assignmentId}
+                  onChange={(e) => setAssignmentId(e.target.value)}
+                  className={fieldClass}
+                >
+                  <option value={NEW_ADMINISTRATION}>
+                    New paper administration
+                  </option>
+                  {assignments.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {formatDate(a.createdAt)} ·{' '}
+                      {a.className?.trim() ? a.className : a.code}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-slate-500">
+                  Pick an existing one to add paper make-ups to it.
+                </span>
+              </label>
+            </>
+          )}
           {resumable && (
             <section className="rounded-xl border border-brand-blue-primary/30 bg-brand-blue-lighter/20 p-3">
               <p className="flex items-center gap-2 text-sm font-bold text-slate-900">
