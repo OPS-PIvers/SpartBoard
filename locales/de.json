@@ -3457,6 +3457,7 @@
       "readyTitle": "Bereit zum Abgeben",
       "readyFlashcards": "Alle Karten haben das Ziel deiner Lehrkraft erreicht. Gib ab, um diese Überprüfung abzuschließen.",
       "readyWrite": "Du hast alle Karten richtig beantwortet. Gib ab, um diese Überprüfung abzuschließen.",
+      "readySpeak": "Du hast jede Karte gesagt. Gib ab, um diese Überprüfung abzuschließen.",
       "flagged_one": "{{count}} Antwort für deine Lehrkraft markiert",
       "flagged_other": "{{count}} Antworten für deine Lehrkraft markiert",
       "submit": "Abgeben",

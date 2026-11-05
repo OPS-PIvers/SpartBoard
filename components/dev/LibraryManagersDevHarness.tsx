@@ -173,13 +173,20 @@ const FLASHCARD_SETS: FlashcardSet[] = range((i) => ({
   updatedAt: NOW - i * 3600_000,
 }));
 
+const FC_MODES = ['write', 'speak', 'test', 'flashcards'] as const;
+const FC_PERIODS = [['Period 3'], ['Period 3', 'Period 5'], ['Period 4'], []];
+
 const FLASHCARD_ASSIGNMENTS: FlashcardAssignment[] = range((i) => ({
   id: `fca-${i}`,
   sessionId: `fcs-${i}`,
   setId: `fc-${i}`,
   setTitle: `Vocabulary set ${i + 1}`,
   teacherUid: 'mock-user-id',
-  kind: 'study',
+  kind: i % 5 === 4 ? 'study' : 'check',
+  ...(i % 5 === 4 ? {} : { checkMode: FC_MODES[i % 4] }),
+  ...(i % 3 === 1 ? { cardSelection: { mode: 'random', count: 10 } } : {}),
+  periodNames: FC_PERIODS[i % 4],
+  ...(i % 4 === 1 ? { scoreVisibility: 'score' } : {}),
   status: i % 2 === 0 ? 'active' : 'ended',
   createdAt: NOW - i * 3600_000,
   updatedAt: NOW - i * 3600_000,
@@ -575,6 +582,7 @@ const FlashcardsView: React.FC = () => {
       onShareWithPlc={noop}
       onAssignmentShareWithPlc={noop}
       onAssignmentStopSharingWithPlc={noop}
+      quizStyle={new URLSearchParams(window.location.search).get('v2') === '1'}
     />
   );
 };

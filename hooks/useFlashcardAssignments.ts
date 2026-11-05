@@ -18,6 +18,9 @@ import {
   buildSpeakStamp,
   speakCardsFor,
 } from '@/components/widgets/Flashcards/utils/flashcardAssign';
+import { attachSpeakReferences } from '@/components/widgets/Flashcards/speak/lookupSpeakReferences';
+import { speakLanguageOf } from '@/config/pronunciationGroups';
+import { isSpeakableCard } from '@/utils/flashcardSchedule';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import { audienceSessionFields } from '@/utils/staffAudience';
@@ -30,6 +33,7 @@ import type {
   AudienceSessionFields,
   FlashcardAssignment,
   FlashcardAssignmentKind,
+  FlashcardCardSelection,
   FlashcardMasteryThreshold,
   FlashcardMode,
   FlashcardModeSettings,
@@ -66,6 +70,8 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   speakLocked?: boolean;
   /** Study only: Speak is hidden for this assignment and stays hidden on set saves. */
   speakOff?: boolean;
+  /** Check only: how `set.cards` was narrowed (already applied to the cards). */
+  cardSelection?: FlashcardCardSelection;
 }
 
 export interface UseFlashcardAssignmentsResult {
@@ -177,10 +183,11 @@ export const useFlashcardAssignments = (
         isCheck && input.checkMode ? input.checkMode : undefined;
       const scoreVisibility =
         isCheck && input.scoreVisibility ? input.scoreVisibility : undefined;
-      // F1: Speak is a Study mode only, so a Check never carries a stamp.
+      // A Check carries a stamp only in Speak mode, locked so students use the teacher's settings.
+      const speakCheck = isCheck && checkMode === 'speak';
       const speakOff = !isCheck && input.speakOff === true;
       const adminConfig =
-        isCheck || speakOff
+        (isCheck && !speakCheck) || speakOff
           ? null
           : await speakAdminConfigFor(input.set, canSpeak);
       const speak = adminConfig
@@ -188,10 +195,35 @@ export const useFlashcardAssignments = (
             input.set,
             true,
             adminConfig,
-            input.speakLocked === true
+            speakCheck || input.speakLocked === true
           )
         : undefined;
-      const cards = speakCardsFor(input.set.cards, speak);
+      if (speakCheck && !speak) {
+        throw new Error(
+          'Speak mode is unavailable. Speak is not set up for this language.'
+        );
+      }
+      const cardSelection =
+        isCheck && input.cardSelection && input.cardSelection.mode !== 'all'
+          ? input.cardSelection
+          : undefined;
+      const language = speakLanguageOf(input.set.termLanguage);
+      // A Speak check prepares any card that has no pronunciation yet.
+      const prepared =
+        speakCheck && speak && language
+          ? await attachSpeakReferences(
+              input.set.cards,
+              language,
+              speak.dialects,
+              {}
+            )
+          : input.set.cards;
+      if (speakCheck && !prepared.some(isSpeakableCard)) {
+        throw new Error(
+          'Speak mode is unavailable. These cards could not be set up for Speak. Try again in a minute.'
+        );
+      }
+      const cards = speakCardsFor(prepared, speak);
 
       const session: FlashcardSession = {
         id,
@@ -213,6 +245,7 @@ export const useFlashcardAssignments = (
         ...(periodGate ? { cardsInContent: true, ...periodGate } : {}),
         ...(speak ? { speak } : {}),
         ...(speakOff ? { speakOff: true as const } : {}),
+        ...(cardSelection ? { cardSelection } : {}),
         classIds,
         classId: classIds[0] ?? '',
         ...(periodNames.length > 0 ? { periodNames } : {}),
@@ -239,6 +272,7 @@ export const useFlashcardAssignments = (
         classIds,
         periodNames,
         ...(scoreVisibility ? { scoreVisibility } : {}),
+        ...(cardSelection ? { cardSelection } : {}),
         ...(input.targetGroupIds && input.targetGroupIds.length > 0
           ? { targetGroupIds: input.targetGroupIds }
           : {}),

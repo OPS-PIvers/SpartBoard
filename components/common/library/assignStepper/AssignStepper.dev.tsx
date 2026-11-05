@@ -34,6 +34,7 @@ const VALUES: Record<AssignStepId, string> = {
   feedback: 'Their score',
   video: 'Rewind on wrong answer',
   check: 'Flashcards, hide until I publish',
+  cards: 'All 24 cards',
   speak: 'On',
   sheets: '2 spares, answer key',
   sharing: 'Not shared',

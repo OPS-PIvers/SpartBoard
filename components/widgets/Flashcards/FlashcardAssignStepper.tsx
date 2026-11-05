@@ -33,11 +33,24 @@ import {
   whenBackwards,
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
-import { FlashcardsCheckStep } from '@/components/common/library/assignStepper/FlashcardsCheckStep';
+import {
+  FlashcardsCheckStep,
+  FlashcardsFeedbackStep,
+} from '@/components/common/library/assignStepper/FlashcardsCheckStep';
 import {
   formatFlashcardsCheckValue,
+  formatFlashcardsFeedbackValue,
+  formatFlashcardsModeValue,
   type FlashcardsCheckValue,
 } from '@/components/common/library/assignStepper/flashcardsCheckValue';
+import { FlashcardsCardsStep } from '@/components/common/library/assignStepper/FlashcardsCardsStep';
+import {
+  DEFAULT_FLASHCARDS_CARDS_VALUE,
+  formatFlashcardsCardsValue,
+  resolveSelectedCards,
+  selectedCardCount,
+  type FlashcardsCardsValue,
+} from '@/components/common/library/assignStepper/flashcardsCardsValue';
 import { FlashcardsSpeakStep } from '@/components/common/library/assignStepper/FlashcardsSpeakStep';
 import {
   DEFAULT_FLASHCARDS_SPEAK_VALUE,
@@ -113,6 +126,10 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   const speakAvailable =
     (auth?.canAccessFeature('flashcards-speak') ?? false) &&
     speakLanguageOf(set.termLanguage) !== null;
+  const v2 = auth?.canAccessFeature('flashcards-assign-v2') ?? false;
+  const [cards, setCards] = useState<FlashcardsCardsValue>(
+    DEFAULT_FLASHCARDS_CARDS_VALUE
+  );
 
   const [check, setCheck] = useState<FlashcardsCheckValue>(() => {
     const { collectSubmission: _kind, ...rules } = getFlashcardAssignPrefill(
@@ -138,7 +155,16 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     setCheck(next);
   };
 
-  const form = { ...check, collectSubmission: kind === 'work' };
+  const speakCheckOk = v2 && speakAvailable;
+  const effectiveCheck: FlashcardsCheckValue =
+    check.checkMode === 'speak' && !speakCheckOk
+      ? { ...check, checkMode: 'flashcards' }
+      : check;
+  const form = { ...effectiveCheck, collectSubmission: kind === 'work' };
+  const useCardChoice = v2 && kind === 'work';
+  const chosenCount = useCardChoice
+    ? selectedCardCount(cards, set.cards)
+    : cardCount;
   const audienceState = useAssignAudience();
   const staff = audienceState.audience === 'staff';
   const pickedRosters = useMemo(
@@ -150,23 +176,28 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
           ),
     [rosters, classes.classIds, staff]
   );
-  const formError = validateFlashcardAssignForm(form, cardCount);
+  const formError = validateFlashcardAssignForm(
+    form,
+    cardCount === 0 ? 0 : chosenCount || cardCount
+  );
   const hasSsoClass = pickedRosters.some(rosterHasSsoClass);
   const disabledReason =
     formError === 'no-cards'
       ? 'Add cards to this set before assigning it.'
-      : formError === 'no-test-types'
-        ? 'Choose at least one question type.'
-        : !hasSsoClass && !staff
-          ? 'Choose at least one ClassLink class.'
-          : whenBackwards(when, pickedRosters, periodAccess?.bellWindow, kind)
-            ? t(
-                'assignAvailability.closesBeforeOpens',
-                'Closes before it opens.'
-              )
-            : undefined;
+      : chosenCount === 0
+        ? 'Choose at least one card.'
+        : formError === 'no-test-types'
+          ? 'Choose at least one question type.'
+          : !hasSsoClass && !staff
+            ? 'Choose at least one ClassLink class.'
+            : whenBackwards(when, pickedRosters, periodAccess?.bellWindow, kind)
+              ? t(
+                  'assignAvailability.closesBeforeOpens',
+                  'Closes before it opens.'
+                )
+              : undefined;
 
-  const ctx = { kind, speak: speakAvailable };
+  const ctx = { kind, speak: speakAvailable, flashcardsV2: v2 };
   const whenVariant = kind === 'resource' ? 'available' : 'when';
   const manualAvailable = whenVariant === 'when' && !!periodAccess;
 
@@ -231,14 +262,34 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         />
       ),
     },
+    cards: {
+      value: formatFlashcardsCardsValue(cards, set.cards),
+      body: (
+        <FlashcardsCardsStep
+          value={cards}
+          onChange={setCards}
+          cards={set.cards}
+        />
+      ),
+    },
     check: {
-      value: formatFlashcardsCheckValue(check),
+      value: v2
+        ? formatFlashcardsModeValue(effectiveCheck)
+        : formatFlashcardsCheckValue(effectiveCheck),
       body: (
         <FlashcardsCheckStep
-          value={check}
+          value={effectiveCheck}
           onChange={changeCheck}
-          cardCount={cardCount}
+          cardCount={chosenCount}
+          v2={v2}
+          speakAvailable={speakCheckOk}
         />
+      ),
+    },
+    feedback: {
+      value: formatFlashcardsFeedbackValue(effectiveCheck),
+      body: (
+        <FlashcardsFeedbackStep value={effectiveCheck} onChange={changeCheck} />
       ),
     },
     speak: {
@@ -277,9 +328,12 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         workKind: { default: kind, locked: true },
       }
     );
+    const assignedSet = useCardChoice
+      ? { ...set, cards: resolveSelectedCards(cards, set.cards) }
+      : set;
     const submission = buildFlashcardAssignSubmission({
-      set,
-      form,
+      set: assignedSet,
+      form: useCardChoice ? { ...form, testCount: 'all' } : form,
       rosters,
       rosterIds: staff ? [] : classes.classIds,
       targeting: resolved.targeting,
@@ -288,6 +342,9 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       manualStart,
     });
     if (staff) submission.input.audience = 'staff';
+    if (useCardChoice && cards.mode !== 'all') {
+      submission.input.cardSelection = cards;
+    }
     const studySpeak = speakAvailable && kind === 'resource';
     const ok = await onAssign(
       studySpeak
