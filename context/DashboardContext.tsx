@@ -624,6 +624,30 @@ const saveBaselineOf = (d: Dashboard): SaveBaseline => {
   };
 };
 
+/** True only when the server says no share doc exists; offline or an error reads as not gone. */
+const shareIsGone = async (shareId: string): Promise<boolean> => {
+  if (isAuthBypass) return true;
+  try {
+    return !(await getDoc(doc(db, 'shared_boards', shareId))).exists();
+  } catch {
+    return false;
+  }
+};
+
+/** True only when the server says the share doc exists and `hostUid` wrote it. */
+const shareIsHostedBy = async (
+  shareId: string,
+  hostUid: string
+): Promise<boolean> => {
+  if (isAuthBypass) return true;
+  try {
+    const snap = await getDoc(doc(db, 'shared_boards', shareId));
+    return snap.exists() && snap.data()?.originalAuthor === hostUid;
+  } catch {
+    return false;
+  }
+};
+
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -4029,12 +4053,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
 
-      return subscribeToSharedBoard(shareId, (remote) => {
-        sharedSnapshotSeenRef.current.add(shareId);
+      let latest: SharedBoardSnapshot | null = null;
+      let confirming = false;
+      const handleSnapshot = (
+        remote: SharedBoardSnapshot | null,
+        serverConfirmed: boolean
+      ) => {
         const known = dashboardsRef.current.find((x) => x.id === dashboardId);
-        // An ended board never re-attaches from a snapshot alone.
-        if (remote && known?.linkedShareEnded) return;
         const recordedHost = known?.linkedShareHostUid;
+        // An ended board re-attaches only when the server confirms the recorded host's share is back.
+        if (remote && known?.linkedShareEnded && !serverConfirmed) {
+          if (
+            !confirming &&
+            recordedHost &&
+            remote.linkedShareHostUid === recordedHost
+          ) {
+            confirming = true;
+            void shareIsHostedBy(shareId, recordedHost).then((hosted) => {
+              confirming = false;
+              if (hosted && latest) handleSnapshot(latest, true);
+            });
+          }
+          return;
+        }
         // The share doc was deleted and its id re-created by someone else: treat it as ended.
         const hostChanged =
           !!remote &&
@@ -4293,6 +4334,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             return prev;
           }
           return prev.map((b) => (b.id === dashboardId ? next : b));
+        });
+      };
+
+      return subscribeToSharedBoard(shareId, (remote) => {
+        sharedSnapshotSeenRef.current.add(shareId);
+        latest = remote;
+        if (remote) {
+          handleSnapshot(remote, false);
+          return;
+        }
+        // A cache miss or listener error also reports null: end the board only once the server confirms it.
+        if (confirming) return;
+        confirming = true;
+        void shareIsGone(shareId).then((gone) => {
+          confirming = false;
+          if (gone && latest === null) handleSnapshot(null, true);
         });
       });
     },
