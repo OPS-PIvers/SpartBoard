@@ -30,6 +30,7 @@ import type {
   AudienceSessionFields,
   FlashcardAssignment,
   FlashcardAssignmentKind,
+  FlashcardCardSelection,
   FlashcardMasteryThreshold,
   FlashcardMode,
   FlashcardModeSettings,
@@ -66,6 +67,8 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   speakLocked?: boolean;
   /** Study only: Speak is hidden for this assignment and stays hidden on set saves. */
   speakOff?: boolean;
+  /** Check only: how `set.cards` was narrowed (already applied to the cards). */
+  cardSelection?: FlashcardCardSelection;
 }
 
 export interface UseFlashcardAssignmentsResult {
@@ -177,10 +180,11 @@ export const useFlashcardAssignments = (
         isCheck && input.checkMode ? input.checkMode : undefined;
       const scoreVisibility =
         isCheck && input.scoreVisibility ? input.scoreVisibility : undefined;
-      // F1: Speak is a Study mode only, so a Check never carries a stamp.
+      // A Check carries a stamp only in Speak mode, locked so students use the teacher's settings.
+      const speakCheck = isCheck && checkMode === 'speak';
       const speakOff = !isCheck && input.speakOff === true;
       const adminConfig =
-        isCheck || speakOff
+        (isCheck && !speakCheck) || speakOff
           ? null
           : await speakAdminConfigFor(input.set, canSpeak);
       const speak = adminConfig
@@ -188,9 +192,16 @@ export const useFlashcardAssignments = (
             input.set,
             true,
             adminConfig,
-            input.speakLocked === true
+            speakCheck || input.speakLocked === true
           )
         : undefined;
+      if (speakCheck && !speak) {
+        throw new Error('Speak is not available for this set');
+      }
+      const cardSelection =
+        isCheck && input.cardSelection && input.cardSelection.mode !== 'all'
+          ? input.cardSelection
+          : undefined;
       const cards = speakCardsFor(input.set.cards, speak);
 
       const session: FlashcardSession = {
@@ -213,6 +224,7 @@ export const useFlashcardAssignments = (
         ...(periodGate ? { cardsInContent: true, ...periodGate } : {}),
         ...(speak ? { speak } : {}),
         ...(speakOff ? { speakOff: true as const } : {}),
+        ...(cardSelection ? { cardSelection } : {}),
         classIds,
         classId: classIds[0] ?? '',
         ...(periodNames.length > 0 ? { periodNames } : {}),
@@ -239,6 +251,7 @@ export const useFlashcardAssignments = (
         classIds,
         periodNames,
         ...(scoreVisibility ? { scoreVisibility } : {}),
+        ...(cardSelection ? { cardSelection } : {}),
         ...(input.targetGroupIds && input.targetGroupIds.length > 0
           ? { targetGroupIds: input.targetGroupIds }
           : {}),

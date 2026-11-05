@@ -4764,6 +4764,7 @@
       "readyTitle": "Ready to submit",
       "readyFlashcards": "Every card has reached your teacher's goal. Submit to finish this check.",
       "readyWrite": "You've answered every card correctly. Submit to finish this check.",
+      "readySpeak": "You've said every card. Submit to finish this check.",
       "flagged_one": "{{count}} answer flagged for your teacher",
       "flagged_other": "{{count}} answers flagged for your teacher",
       "submit": "Submit",

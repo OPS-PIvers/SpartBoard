@@ -858,3 +858,73 @@ describe('handleSubmitFlashcardCheck staff audience', () => {
     );
   });
 });
+
+describe('handleSubmitFlashcardCheck speak mode', () => {
+  const speakLog = (passed: Record<string, boolean>) =>
+    Object.entries(passed).map(([cardId, ok]) => ({
+      cardId,
+      response: '',
+      type: 'speak',
+      attempts: 2,
+      passed: ok,
+    }));
+
+  it('scores the device verdicts over the cards the student said', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: session({ checkMode: 'speak' }),
+    };
+    const result = await handleSubmitFlashcardCheck(
+      makeDb(docs),
+      student,
+      {
+        assignmentId: 'a1',
+        answerLog: speakLog({ c1: true, c2: false, c3: true }),
+      },
+      NOW
+    );
+    expect(result).toMatchObject({ score: 2, total: 3 });
+    expect((docs[PROGRESS_PATH].answerLog as Doc[])[1]).toEqual({
+      cardId: 'c2',
+      response: '',
+      type: 'speak',
+      attempts: 2,
+      passed: false,
+      correct: false,
+    });
+  });
+
+  it('rejects an empty log, a missing verdict, unknown or repeated cards', async () => {
+    for (const answerLog of [
+      [],
+      [{ cardId: 'c1', response: '', type: 'speak' }],
+      [{ cardId: 'c1', response: '', passed: true }],
+      speakLog({ nope: true }),
+      [...speakLog({ c1: true }), ...speakLog({ c1: false })],
+    ]) {
+      await expectCode(
+        handleSubmitFlashcardCheck(
+          makeDb({ [SESSION_PATH]: session({ checkMode: 'speak' }) }),
+          student,
+          { assignmentId: 'a1', answerLog },
+          NOW
+        ),
+        'invalid-argument'
+      );
+    }
+  });
+
+  it('refuses Speak answers in a test check', async () => {
+    await expectCode(
+      handleSubmitFlashcardCheck(
+        makeDb({ [SESSION_PATH]: session({ checkMode: 'test' }) }),
+        student,
+        {
+          assignmentId: 'a1',
+          answerLog: speakLog({ c1: true, c2: true, c3: true, c4: true }),
+        },
+        NOW
+      ),
+      'invalid-argument'
+    );
+  });
+});

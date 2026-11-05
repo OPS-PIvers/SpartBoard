@@ -203,7 +203,10 @@ const TrackedPlayer: React.FC<{
     }
   };
 
-  const speakFixes = useSpeakWordFixes(!isCheck && Boolean(session.speak));
+  const speakCheck = isCheck && session.checkMode === 'speak';
+  const speakFixes = useSpeakWordFixes(
+    (!isCheck || speakCheck) && Boolean(session.speak)
+  );
   const player = (
     <FlashcardPlayer
       key={tracked.resetCount}
@@ -212,7 +215,7 @@ const TrackedPlayer: React.FC<{
       definitionLanguage={session.definitionLanguage}
       adapter={adapter}
       seed={`${session.id}:${studentUid}`}
-      speak={isCheck ? undefined : session.speak}
+      speak={isCheck && !speakCheck ? undefined : session.speak}
       speakFixes={speakFixes}
       framed={framed}
       lockedSettings={isCheck ? session.lockedSettings : undefined}

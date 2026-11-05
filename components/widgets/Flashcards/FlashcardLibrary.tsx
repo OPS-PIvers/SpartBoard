@@ -5,16 +5,19 @@ import { useVoiceFillProgress } from './speak/speakVoiceFill';
 import {
   BarChart3,
   BookOpen,
+  Calendar,
   Copy,
   EyeOff,
   FileUp,
   Layers,
   Link2,
   Loader2,
+  Monitor,
   MonitorPlay,
   Pencil,
   Plus,
   PowerOff,
+  Radio,
   RotateCcw,
   Send,
   Share2,
@@ -76,6 +79,8 @@ interface FlashcardLibraryProps {
   onShareWithPlc?: (set: FlashcardSet) => void;
   onAssignmentShareWithPlc?: (assignment: FlashcardAssignment) => void;
   onAssignmentStopSharingWithPlc?: (assignment: FlashcardAssignment) => void;
+  /** flashcards-assign-v2: In progress and Completed tabs laid out like Quiz's. */
+  quizStyle?: boolean;
 }
 
 const assignmentSubtitle = (assignment: FlashcardAssignment): string =>
@@ -92,6 +97,72 @@ const assignmentMeta = (assignment: FlashcardAssignment): string => {
     parts.push(`Closes ${new Date(assignment.closeAt).toLocaleDateString()}`);
   }
   return parts.join(' · ');
+};
+
+const MODE_LABELS: Record<
+  NonNullable<FlashcardAssignment['checkMode']>,
+  string
+> = {
+  flashcards: 'Flashcards',
+  write: 'Write',
+  test: 'Test',
+  speak: 'Speak',
+};
+
+/** v2 subtitle: what students do, in the stepper's words. */
+const quizStyleSubtitle = (assignment: FlashcardAssignment): string => {
+  if (assignment.kind !== 'check') return 'Study resource';
+  const mode = MODE_LABELS[assignment.checkMode ?? 'write'];
+  const selection = assignment.cardSelection;
+  if (selection?.mode === 'random')
+    return `${mode}, ${selection.count} random cards`;
+  if (selection?.mode === 'pick') {
+    const n = selection.cardIds.length;
+    return `${mode}, ${n} chosen ${n === 1 ? 'card' : 'cards'}`;
+  }
+  return mode;
+};
+
+const QuizStyleMeta: React.FC<{
+  assignment: FlashcardAssignment;
+  live: boolean;
+}> = ({ assignment, live }) => {
+  const classes = (assignment.periodNames ?? []).filter(Boolean).join(', ');
+  const icon = { width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' };
+  return (
+    <>
+      <span
+        className="inline-flex items-center"
+        style={{ gap: 'min(2px, 0.5cqmin)' }}
+      >
+        <Calendar style={icon} />
+        {new Date(assignment.createdAt).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}
+      </span>
+      {classes ? (
+        <span
+          className="truncate font-semibold"
+          style={{ maxWidth: 'min(160px, 30cqmin)' }}
+          title={classes}
+        >
+          {classes}
+        </span>
+      ) : assignment.audience === 'staff' ? (
+        <span className="font-semibold">Staff</span>
+      ) : null}
+      {assignment.dueAt ? (
+        <span>Due {new Date(assignment.dueAt).toLocaleDateString()}</span>
+      ) : null}
+      {live && (
+        <span className="inline-flex items-center">
+          <Radio style={icon} />
+        </span>
+      )}
+    </>
+  );
 };
 
 const titleComparator = (
@@ -145,6 +216,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onShareWithPlc,
   onAssignmentShareWithPlc,
   onAssignmentStopSharingWithPlc,
+  quizStyle = false,
 }) => {
   const [folderTarget, setFolderTarget] = useState<FlashcardSet | null>(null);
   const { t } = useTranslation();
@@ -219,6 +291,131 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   const tabAssignments =
     tab === 'archive' ? endedAssignments : activeAssignments;
 
+  const plcAction = (assignment: FlashcardAssignment) =>
+    onAssignmentShareWithPlc && onAssignmentStopSharingWithPlc
+      ? [
+          assignment.plcShare
+            ? {
+                id: 'stop-plc-share',
+                label: 'Stop sharing with PLC',
+                icon: Users2,
+                onClick: () => onAssignmentStopSharingWithPlc(assignment),
+              }
+            : {
+                id: 'plc-share',
+                label: 'Share results with PLC',
+                icon: Users2,
+                onClick: () => onAssignmentShareWithPlc(assignment),
+              },
+        ]
+      : [];
+
+  // v2 mirrors QuizManager's archive rows: Monitor while open, Results once ended, scores after.
+  const renderQuizStyleCard = (
+    assignment: FlashcardAssignment,
+    index: number
+  ) => {
+    const archived = tab === 'archive';
+    const isCheck = assignment.kind === 'check';
+    const published =
+      !!assignment.scoreVisibility && assignment.scoreVisibility !== 'none';
+    return (
+      <AssignmentArchiveCard<FlashcardAssignment>
+        key={assignment.id}
+        assignment={assignment}
+        tourIndex={index}
+        tourWidgetType="flashcards"
+        mode={archived ? 'archive' : 'active'}
+        status={
+          archived
+            ? { label: 'Ended', tone: 'neutral' }
+            : { label: 'Live', tone: 'success', dot: true }
+        }
+        title={assignment.setTitle || 'Untitled set'}
+        subtitle={quizStyleSubtitle(assignment)}
+        meta={<QuizStyleMeta assignment={assignment} live={!archived} />}
+        primaryAction={
+          archived
+            ? {
+                label: 'Results',
+                icon: BarChart3,
+                onClick: () => onAssignmentResults(assignment),
+              }
+            : {
+                label: 'Monitor',
+                icon: Monitor,
+                onClick: () => onAssignmentResults(assignment),
+              }
+        }
+        secondaryActions={
+          archived
+            ? [
+                ...(isCheck
+                  ? [
+                      {
+                        id: 'publish-scores',
+                        label: published
+                          ? 'Update published scores'
+                          : 'Publish scores',
+                        icon: Send,
+                        onClick: () => onAssignmentPublishScores(assignment),
+                      },
+                      ...(published
+                        ? [
+                            {
+                              id: 'unpublish-scores',
+                              label: 'Unpublish scores',
+                              icon: EyeOff,
+                              onClick: () =>
+                                onAssignmentUnpublishScores(assignment),
+                            },
+                          ]
+                        : []),
+                    ]
+                  : []),
+                ...plcAction(assignment),
+                {
+                  id: 'reopen',
+                  label: 'Reopen',
+                  icon: RotateCcw,
+                  onClick: () => onAssignmentReopen(assignment),
+                },
+                {
+                  id: 'delete',
+                  label: 'Delete',
+                  icon: Trash2,
+                  destructive: true,
+                  onClick: () => onAssignmentDelete(assignment),
+                },
+              ]
+            : [
+                {
+                  id: 'copy-link',
+                  label: 'Copy Student Link',
+                  icon: Copy,
+                  onClick: () => onAssignmentCopyLink(assignment),
+                },
+                ...plcAction(assignment),
+                {
+                  id: 'end',
+                  label: 'End',
+                  icon: PowerOff,
+                  destructive: true,
+                  onClick: () => onAssignmentEnd(assignment),
+                },
+                {
+                  id: 'delete',
+                  label: 'Delete',
+                  icon: Trash2,
+                  destructive: true,
+                  onClick: () => onAssignmentDelete(assignment),
+                },
+              ]
+        }
+      />
+    );
+  };
+
   const assignmentsContent = assignmentsLoading ? (
     <div
       className="flex items-center justify-center text-slate-400"
@@ -236,7 +433,13 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       iconSize="min(52px, 14cqmin)"
       titleClassName="text-slate-800"
       subtitleClassName="max-w-md mx-auto text-slate-500"
-      title={tab === 'archive' ? 'Nothing ended yet' : 'Nothing assigned yet'}
+      title={
+        tab === 'archive'
+          ? quizStyle
+            ? 'Nothing completed yet'
+            : 'Nothing ended yet'
+          : 'Nothing assigned yet'
+      }
       subtitle={
         tab === 'archive'
           ? 'Assignments you end show up here.'
@@ -245,97 +448,102 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     />
   ) : (
     <div className="flex flex-col">
-      {tabAssignments.map((assignment, index) => (
-        <AssignmentArchiveCard<FlashcardAssignment>
-          key={assignment.id}
-          assignment={assignment}
-          tourIndex={index}
-          tourWidgetType="flashcards"
-          mode={tab === 'archive' ? 'archive' : 'active'}
-          status={
-            tab === 'archive'
-              ? { label: 'Ended', tone: 'neutral' }
-              : { label: 'Open', tone: 'success', dot: true }
-          }
-          title={assignment.setTitle || 'Untitled set'}
-          subtitle={assignmentSubtitle(assignment)}
-          meta={assignmentMeta(assignment)}
-          primaryAction={{
-            label: 'Results',
-            icon: BarChart3,
-            onClick: () => onAssignmentResults(assignment),
-          }}
-          secondaryActions={[
-            ...(tab === 'archive'
-              ? []
-              : [
-                  {
-                    id: 'copy-link',
-                    label: 'Copy link',
-                    icon: Copy,
-                    onClick: () => onAssignmentCopyLink(assignment),
+      {tabAssignments.map((assignment, index) =>
+        quizStyle ? (
+          renderQuizStyleCard(assignment, index)
+        ) : (
+          <AssignmentArchiveCard<FlashcardAssignment>
+            key={assignment.id}
+            assignment={assignment}
+            tourIndex={index}
+            tourWidgetType="flashcards"
+            mode={tab === 'archive' ? 'archive' : 'active'}
+            status={
+              tab === 'archive'
+                ? { label: 'Ended', tone: 'neutral' }
+                : { label: 'Open', tone: 'success', dot: true }
+            }
+            title={assignment.setTitle || 'Untitled set'}
+            subtitle={assignmentSubtitle(assignment)}
+            meta={assignmentMeta(assignment)}
+            primaryAction={{
+              label: 'Results',
+              icon: BarChart3,
+              onClick: () => onAssignmentResults(assignment),
+            }}
+            secondaryActions={[
+              ...(tab === 'archive'
+                ? []
+                : [
+                    {
+                      id: 'copy-link',
+                      label: 'Copy link',
+                      icon: Copy,
+                      onClick: () => onAssignmentCopyLink(assignment),
+                    },
+                  ]),
+              ...(assignment.kind === 'check'
+                ? [
+                    assignment.scoreVisibility &&
+                    assignment.scoreVisibility !== 'none'
+                      ? {
+                          id: 'unpublish-scores',
+                          label: 'Hide scores',
+                          icon: EyeOff,
+                          onClick: () =>
+                            onAssignmentUnpublishScores(assignment),
+                        }
+                      : {
+                          id: 'publish-scores',
+                          label: 'Publish scores',
+                          icon: Send,
+                          onClick: () => onAssignmentPublishScores(assignment),
+                        },
+                  ]
+                : []),
+              ...(onAssignmentShareWithPlc && onAssignmentStopSharingWithPlc
+                ? [
+                    assignment.plcShare
+                      ? {
+                          id: 'stop-plc-share',
+                          label: 'Stop sharing with PLC',
+                          icon: Users2,
+                          onClick: () =>
+                            onAssignmentStopSharingWithPlc(assignment),
+                        }
+                      : {
+                          id: 'plc-share',
+                          label: 'Share results with PLC',
+                          icon: Users2,
+                          onClick: () => onAssignmentShareWithPlc(assignment),
+                        },
+                  ]
+                : []),
+              tab === 'archive'
+                ? {
+                    id: 'reopen',
+                    label: 'Reopen',
+                    icon: RotateCcw,
+                    onClick: () => onAssignmentReopen(assignment),
+                  }
+                : {
+                    id: 'end',
+                    label: 'End assignment',
+                    icon: PowerOff,
+                    destructive: true,
+                    onClick: () => onAssignmentEnd(assignment),
                   },
-                ]),
-            ...(assignment.kind === 'check'
-              ? [
-                  assignment.scoreVisibility &&
-                  assignment.scoreVisibility !== 'none'
-                    ? {
-                        id: 'unpublish-scores',
-                        label: 'Hide scores',
-                        icon: EyeOff,
-                        onClick: () => onAssignmentUnpublishScores(assignment),
-                      }
-                    : {
-                        id: 'publish-scores',
-                        label: 'Publish scores',
-                        icon: Send,
-                        onClick: () => onAssignmentPublishScores(assignment),
-                      },
-                ]
-              : []),
-            ...(onAssignmentShareWithPlc && onAssignmentStopSharingWithPlc
-              ? [
-                  assignment.plcShare
-                    ? {
-                        id: 'stop-plc-share',
-                        label: 'Stop sharing with PLC',
-                        icon: Users2,
-                        onClick: () =>
-                          onAssignmentStopSharingWithPlc(assignment),
-                      }
-                    : {
-                        id: 'plc-share',
-                        label: 'Share results with PLC',
-                        icon: Users2,
-                        onClick: () => onAssignmentShareWithPlc(assignment),
-                      },
-                ]
-              : []),
-            tab === 'archive'
-              ? {
-                  id: 'reopen',
-                  label: 'Reopen',
-                  icon: RotateCcw,
-                  onClick: () => onAssignmentReopen(assignment),
-                }
-              : {
-                  id: 'end',
-                  label: 'End assignment',
-                  icon: PowerOff,
-                  destructive: true,
-                  onClick: () => onAssignmentEnd(assignment),
-                },
-            {
-              id: 'delete',
-              label: 'Delete',
-              icon: Trash2,
-              destructive: true,
-              onClick: () => onAssignmentDelete(assignment),
-            },
-          ]}
-        />
-      ))}
+              {
+                id: 'delete',
+                label: 'Delete',
+                icon: Trash2,
+                destructive: true,
+                onClick: () => onAssignmentDelete(assignment),
+              },
+            ]}
+          />
+        )
+      )}
     </div>
   );
 
@@ -445,6 +653,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       tab={tab}
       onTabChange={onTabChange}
       visibleTabs={['library', 'active', 'archive']}
+      tabLabels={quizStyle ? { archive: 'Completed' } : undefined}
       counts={{
         library: sets.length,
         active: activeAssignments.length,

@@ -286,6 +286,77 @@ describe('Speak mode', () => {
     expect(adapter.load().speakSounds?.r).toEqual({ n: 1, m: 0, f: 1 });
   });
 
+  it('runs a Speak check once through the cards, then submits each verdict', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const onCheckWrite = vi.fn();
+    renderPlayer(
+      {
+        speak: stamp({ locked: true }),
+        check: { mode: 'speak', submitting: false, onSubmit, onCheckWrite },
+      },
+      'speak-check'
+    );
+    expect(screen.queryByRole('button', { name: 'Flashcards' })).toBeNull();
+    fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+    await user.click(
+      await screen.findByRole('button', { name: 'Start speaking' })
+    );
+    expect(await screen.findByText('Exact')).toBeTruthy();
+    expect(onCheckWrite).toHaveBeenCalledWith('perro', {
+      response: '',
+      attempts: 1,
+      done: true,
+      passed: true,
+    });
+    // The next card listens on its own once the microphone has worked.
+    fake.queue({ tokens: ['a'] });
+    fake.queue({ tokens: ['a'] });
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+    await user.click(await screen.findByRole('button', { name: 'Continue' }));
+    await user.click(await screen.findByRole('button', { name: /round/i }));
+    await user.click(await screen.findByRole('button', { name: 'Submit' }));
+    expect(onSubmit).toHaveBeenCalledWith({
+      answerLog: [
+        {
+          cardId: 'perro',
+          response: '',
+          type: 'speak',
+          attempts: 1,
+          passed: true,
+        },
+        {
+          cardId: 'hola',
+          response: '',
+          type: 'speak',
+          attempts: 2,
+          passed: false,
+        },
+      ],
+      flags: [],
+    });
+  });
+
+  it('goes straight to Submit when every card was already said', () => {
+    renderPlayer(
+      {
+        speak: stamp({ locked: true }),
+        check: {
+          mode: 'speak',
+          submitting: false,
+          onSubmit: vi.fn(),
+          initialCheckLog: {
+            perro: { response: '', attempts: 1, done: true, passed: true },
+            hola: { response: '', attempts: 2, done: true, passed: false },
+          },
+        },
+      },
+      'speak-check-resume'
+    );
+    expect(screen.getByText('Ready to submit')).toBeTruthy();
+  });
+
   it('gives Not yet, then decides on the last attempt', async () => {
     const user = userEvent.setup();
     const adapter = renderPlayer();

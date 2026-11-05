@@ -170,8 +170,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   const { t } = useTranslation();
   const dark = theme === 'present';
   const locked = Boolean(lockedSettings);
+  const speakCheck = check?.mode === 'speak';
   const speakLanguage =
-    speak && !check && requestedModes.includes('speak')
+    speak && (check ? speakCheck : requestedModes.includes('speak'))
       ? speakLanguageOf(termLanguage)
       : null;
   const cards = useMemo(
@@ -207,6 +208,18 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   const [checkLog, setCheckLog] = useState<
     Record<string, FlashcardCheckWriteEntry>
   >(() => check?.initialCheckLog ?? {});
+  // A Speak check asks each undecided card once, in deck order; its round summary leads to Submit.
+  const [speakCheckCards] = useState<FlashcardCard[]>(() =>
+    speakCheck
+      ? cards.filter(
+          (card) =>
+            isSpeakableCard(card) && !check?.initialCheckLog?.[card.id]?.done
+        )
+      : []
+  );
+  const [speakCheckFinished, setSpeakCheckFinished] = useState(
+    () => speakCheck && speakCheckCards.length === 0
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [speakPrefs, setSpeakPrefs] = useState<SpeakPrefs>({});
   const [deckSignature, setDeckSignature] = useState(() =>
@@ -367,6 +380,16 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     tries: number,
     tally: FlashcardSpeakTally
   ): void => {
+    if (speakCheck) {
+      const entry: FlashcardCheckWriteEntry = {
+        response: '',
+        attempts: Math.max(1, tries),
+        done: true,
+        passed,
+      };
+      setCheckLog((log) => ({ ...log, [cardId]: entry }));
+      check?.onCheckWrite?.(cardId, entry);
+    }
     const study = adapter.recordSpeak(
       cardId,
       passed,
@@ -473,6 +496,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
 
   const speaking = mode === 'speak' && speakLanguage !== null && Boolean(speak);
   const speakableCards = speaking ? cards.filter(isSpeakableCard) : [];
+  const speakCheckDone = speakCheck && speakCheckFinished;
   const speakSettings: FlashcardSpeakStudentSettings | null = speak
     ? speak.locked
       ? speak
@@ -777,6 +801,34 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               onAnswer: answerCheckTest,
             }}
           />
+        ) : speakCheckDone &&
+          check &&
+          cards.some((card) => checkLog[card.id]?.done) ? (
+          <CheckSubmitPanel
+            mode="speak"
+            dark={dark}
+            submitting={check.submitting}
+            error={check.error}
+            flaggedCount={0}
+            onSubmit={() =>
+              submitCheck(
+                cards.flatMap((card) => {
+                  const entry = checkLog[card.id];
+                  return entry?.done && entry.passed !== undefined
+                    ? [
+                        {
+                          cardId: card.id,
+                          response: '',
+                          type: 'speak' as const,
+                          attempts: Math.max(1, entry.attempts),
+                          passed: entry.passed,
+                        },
+                      ]
+                    : [];
+                })
+              )
+            }
+          />
         ) : check?.mode === 'flashcards' && session.roundCards.length === 0 ? (
           <CheckSubmitPanel
             mode="flashcards"
@@ -816,7 +868,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 </p>
               </section>
             </div>
-          ) : session.speakCards.length === 0 ? (
+          ) : !speakCheck && session.speakCards.length === 0 ? (
             emptyView
           ) : (
             <Suspense
@@ -831,9 +883,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               }
             >
               <SpeakMode
-                key={speakKey}
-                cards={session.speakCards}
-                round={session.speakRound}
+                key={speakCheck ? 'check-speak' : speakKey}
+                cards={speakCheck ? speakCheckCards : session.speakCards}
+                round={speakCheck ? 1 : session.speakRound}
                 language={speakLanguage}
                 settings={speakSettings}
                 framed={framed}
@@ -842,8 +894,10 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 dark={dark}
                 onRecord={recordSpeak}
                 onStar={star}
-                onNextRound={nextRound}
-                onRestart={onRestart}
+                onNextRound={
+                  speakCheck ? () => setSpeakCheckFinished(true) : nextRound
+                }
+                onRestart={speakCheck ? undefined : onRestart}
                 onSaveHeard={onSaveHeard}
                 paused={settingsOpen}
                 autoContinue={!onSaveHeard && (speakPrefs.autoContinue ?? true)}

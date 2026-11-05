@@ -21,6 +21,10 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface FlashcardsCheckContext {
   cardCount: number;
+  /** flashcards-assign-v2: Cards and What students see own count and scores; Speak is a mode. */
+  v2?: boolean;
+  /** v2: Speak is available for this set (flag and language). */
+  speakAvailable?: boolean;
 }
 
 export interface FlashcardsCheckStepProps extends FlashcardsCheckContext {
@@ -48,6 +52,8 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
   value,
   onChange,
   cardCount,
+  v2 = false,
+  speakAvailable = false,
 }) => {
   const update = (patch: Partial<FlashcardsCheckValue>): void =>
     onChange({ ...value, ...patch });
@@ -62,6 +68,11 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
         ? [...value.testTypes.filter((t) => t !== type), type]
         : value.testTypes.filter((t) => t !== type),
     });
+  const modeOptions =
+    v2 && speakAvailable
+      ? [...FLASHCARD_MODE_OPTIONS, { value: 'speak' as const, label: 'Speak' }]
+      : FLASHCARD_MODE_OPTIONS;
+  const speakMode = value.checkMode === 'speak';
   const noTestTypes =
     value.checkMode === 'test' &&
     !value.testTypes.some((type) => type !== 'mc' || mcAvailable);
@@ -74,24 +85,32 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
           role="radiogroup"
           ariaLabel="Mode"
           anchor={tourAttr('flashcards-check.mode')}
-          options={FLASHCARD_MODE_OPTIONS}
+          options={modeOptions}
           value={value.checkMode}
           onChange={(checkMode) => update({ checkMode })}
         />
       </div>
-      <div className={ROW_CLASS}>
-        <span className={LABEL_CLASS}>Show first</span>
-        <SegmentedControl
-          role="radiogroup"
-          ariaLabel="Show first"
-          anchor={tourAttr('flashcards-check.show-first')}
-          options={FLASHCARD_SIDE_OPTIONS}
-          value={value.showFirst}
-          onChange={(showFirst) => update({ showFirst })}
-        />
-      </div>
+      {speakMode && (
+        <p className="text-sm text-slate-600">
+          Students say each term aloud. Tries per card come from this
+          set&rsquo;s Speak settings.
+        </p>
+      )}
+      {!speakMode && (
+        <div className={ROW_CLASS}>
+          <span className={LABEL_CLASS}>Show first</span>
+          <SegmentedControl
+            role="radiogroup"
+            ariaLabel="Show first"
+            anchor={tourAttr('flashcards-check.show-first')}
+            options={FLASHCARD_SIDE_OPTIONS}
+            value={value.showFirst}
+            onChange={(showFirst) => update({ showFirst })}
+          />
+        </div>
+      )}
 
-      {value.checkMode !== 'flashcards' && (
+      {value.checkMode !== 'flashcards' && !speakMode && (
         <div className={ROW_CLASS}>
           <span className={LABEL_CLASS}>Strict mode</span>
           <Toggle
@@ -154,31 +173,33 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
               </p>
             )}
           </div>
-          <div className={ROW_CLASS}>
-            <label htmlFor="flashcards-check-count" className={LABEL_CLASS}>
-              Questions
-            </label>
-            <select
-              id="flashcards-check-count"
-              {...tourAttr('flashcards-check.questions')}
-              value={String(testCount)}
-              onChange={(event) =>
-                update({
-                  testCount:
-                    event.target.value === 'all'
-                      ? 'all'
-                      : Number(event.target.value),
-                })
-              }
-              className={`${SELECT_CLASS} w-28`}
-            >
-              {countOptions.map((count) => (
-                <option key={String(count)} value={String(count)}>
-                  {count === 'all' ? `All (${cardCount})` : count}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!v2 && (
+            <div className={ROW_CLASS}>
+              <label htmlFor="flashcards-check-count" className={LABEL_CLASS}>
+                Questions
+              </label>
+              <select
+                id="flashcards-check-count"
+                {...tourAttr('flashcards-check.questions')}
+                value={String(testCount)}
+                onChange={(event) =>
+                  update({
+                    testCount:
+                      event.target.value === 'all'
+                        ? 'all'
+                        : Number(event.target.value),
+                  })
+                }
+                className={`${SELECT_CLASS} w-28`}
+              >
+                {countOptions.map((count) => (
+                  <option key={String(count)} value={String(count)}>
+                    {count === 'all' ? `All (${cardCount})` : count}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </>
       )}
 
@@ -207,31 +228,63 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
         </div>
       )}
 
-      <div className={ROW_CLASS}>
-        <label
-          htmlFor="flashcards-check-score-visibility"
-          className={LABEL_CLASS}
-        >
-          Score visibility
-        </label>
-        <select
-          id="flashcards-check-score-visibility"
-          {...tourAttr('flashcards-check.score-visibility')}
-          value={value.scoreVisibility}
-          onChange={(event) =>
-            update({
-              scoreVisibility: event.target.value as FlashcardScoreVisibility,
-            })
-          }
-          className={`${SELECT_CLASS} w-56`}
-        >
-          {FLASHCARD_SCORE_VISIBILITY_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {!v2 && (
+        <div className={ROW_CLASS}>
+          <label
+            htmlFor="flashcards-check-score-visibility"
+            className={LABEL_CLASS}
+          >
+            Score visibility
+          </label>
+          <select
+            id="flashcards-check-score-visibility"
+            {...tourAttr('flashcards-check.score-visibility')}
+            value={value.scoreVisibility}
+            onChange={(event) =>
+              update({
+                scoreVisibility: event.target.value as FlashcardScoreVisibility,
+              })
+            }
+            className={`${SELECT_CLASS} w-56`}
+          >
+            {FLASHCARD_SCORE_VISIBILITY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   );
 };
+
+/** v2's What students see step: the score visibility choice on its own. */
+export const FlashcardsFeedbackStep: React.FC<{
+  value: FlashcardsCheckValue;
+  onChange: (value: FlashcardsCheckValue) => void;
+}> = ({ value, onChange }) => (
+  <div className={ROW_CLASS}>
+    <label htmlFor="flashcards-check-score-visibility" className={LABEL_CLASS}>
+      Score visibility
+    </label>
+    <select
+      id="flashcards-check-score-visibility"
+      {...tourAttr('flashcards-check.score-visibility')}
+      value={value.scoreVisibility}
+      onChange={(event) =>
+        onChange({
+          ...value,
+          scoreVisibility: event.target.value as FlashcardScoreVisibility,
+        })
+      }
+      className={`${SELECT_CLASS} w-56`}
+    >
+      {FLASHCARD_SCORE_VISIBILITY_OPTIONS.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
