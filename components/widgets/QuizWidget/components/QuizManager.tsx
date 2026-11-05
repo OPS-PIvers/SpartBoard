@@ -1953,7 +1953,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       },
       {
         mode: assignWhen.mode,
-        manualAvailable: !assignToStaff,
+        manualAvailable: true,
         rosters: validRosters,
         bellWindow,
       }
@@ -1977,7 +1977,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       perClassDue,
       {
         classes: { classIds: validRosterIds, studentsByClass },
-        manualStart: !assignToStaff && assignWhen.mode === 'manual',
+        manualStart: assignWhen.mode === 'manual',
         ...(assignToStaff ? { audience: 'staff' as const } : {}),
       }
     );
@@ -3279,7 +3279,9 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
         {showJoinCode && (
           <span className="font-mono tracking-wider">{a.code}</span>
         )}
-        {noPeriods ? (
+        {noPeriods && a.audience === 'staff' ? (
+          <span className="font-semibold">Staff</span>
+        ) : noPeriods ? (
           <span
             className="font-semibold text-amber-600 truncate"
             style={{ maxWidth: 'min(120px, 30cqmin)' }}

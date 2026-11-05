@@ -62,11 +62,14 @@ export function formatWhenValue(
     variant,
     rosterCount,
     manualAvailable,
+    staff = false,
     t,
   }: {
     variant: AssignWhenVariant;
     rosterCount: number;
     manualAvailable: boolean;
+    /** Staff audience: Manual starts the whole assignment, not each class. */
+    staff?: boolean;
     t: TFunction;
   }
 ): string {
@@ -75,9 +78,13 @@ export function formatWhenValue(
       defaultValue: 'You start it from the board',
     });
   if (variant === 'when' && value.mode === 'manual' && manualAvailable)
-    return t('assignWhen.manualValue', {
-      defaultValue: 'Manual. You start and pause each class.',
-    });
+    return staff
+      ? t('assignWhen.manualValueStaff', {
+          defaultValue: 'Manual. You start and pause it.',
+        })
+      : t('assignWhen.manualValue', {
+          defaultValue: 'Manual. You start and pause each class.',
+        });
   const available = variant === 'available';
   if (value.availability.byRoster && rosterCount > 1)
     return available

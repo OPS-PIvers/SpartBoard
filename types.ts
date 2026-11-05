@@ -7026,7 +7026,8 @@ export interface QuizAssignment
   extends
     QuizAssignmentSettings,
     SubLaunchedSessionFields,
-    PeriodAccessSessionFields {
+    PeriodAccessSessionFields,
+    AudienceSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
   /** Owning widget, written on create. */
