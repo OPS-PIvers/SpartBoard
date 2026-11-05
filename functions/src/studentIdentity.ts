@@ -14,6 +14,7 @@ import { chunk } from './shared';
 import { computeAssignmentPseudonym } from './assignmentPseudonym';
 import {
   ALLOWED_ORIGINS,
+  CLASSLINK_TIMEOUT_MS,
   ONEROSTER_BASE,
   computeStudentUid,
   getOAuthHeaders,
@@ -1213,7 +1214,6 @@ export const PIN_INDEX_MAX_ENTRIES = 200;
 
 const ONEROSTER_PAGE_LIMIT = 200;
 const ONEROSTER_MAX_PAGES = 10;
-const CLASSLINK_TIMEOUT_MS = 20000;
 
 /** Every page of a OneRoster list endpoint, or null if it ran past the page cap. */
 async function fetchOneRosterPages<T>(
@@ -1305,21 +1305,14 @@ export async function loadTeacherClassIds(
     const teacher = (userResp.data.users ?? []).find(isOneRosterStaff);
     if (!teacher?.sourcedId) return null;
 
-    // Unpaged, like getClassLinkRosterV1, so any class the import dialog listed is found here.
-    const classesUrl = `${base}/users/${encodeURIComponent(teacher.sourcedId)}/classes`;
-    const classesHeaders = getOAuthHeaders(
-      classesUrl,
-      {},
-      'GET',
-      creds.classlinkClientId,
-      creds.classlinkClientSecret
+    const classes = await fetchOneRosterPages<ClassLinkClass>(
+      `${base}/users/${encodeURIComponent(teacher.sourcedId)}/classes`,
+      'classes',
+      creds
     );
-    const classesResp = await axios.get<{ classes?: ClassLinkClass[] }>(
-      classesUrl,
-      { headers: { ...classesHeaders }, timeout: CLASSLINK_TIMEOUT_MS }
-    );
+    if (!classes) throw new Error('class list truncated');
     return new Set(
-      (classesResp.data.classes ?? [])
+      classes
         .map((c) => c.sourcedId)
         .filter((id): id is string => typeof id === 'string' && id.length > 0)
     );

@@ -10,10 +10,14 @@ import {
 import {
   ALLOWED_ORIGINS,
   computeStudentUid,
+  CLASSLINK_TOTAL_BUDGET_MS,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
 } from './classlinkShared';
-import { isTestClassAuthority } from './studentAssignmentTargets';
+import {
+  MAX_TAUGHT_CLASSES,
+  isTestClassAuthority,
+} from './studentAssignmentTargets';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isTeacherShapedToken, type AiCallerToken } from './aiCallerGate';
 import { loadClassStudentIds, loadTeacherClassIds } from './studentIdentity';
@@ -208,8 +212,6 @@ async function allowedTestEmails(
   return allowed;
 }
 
-const MAX_TAUGHT_CLASSES = 60;
-
 /**
  * Sourced ids ClassLink enrolls in any class the caller teaches; empty when the caller teaches none.
  * Throws unless the caller is a verified non-student teacher.
@@ -230,20 +232,34 @@ async function taughtStudentIds(
     tenantUrl: CLASSLINK_TENANT_URL.value(),
   };
   // Group payloads are client-written, so ClassLink decides which students the caller may place.
+  const started = Date.now();
   const taught = await loadTeacherClassIds(email, creds);
   if (!taught) return new Set();
-  const lists = await Promise.all(
-    [...taught]
-      .slice(0, MAX_TAUGHT_CLASSES)
-      .map((classId) => loadClassStudentIds(classId, creds))
-  );
-  return new Set(lists.flatMap((list) => [...list]));
+  // Never place against part of the caller's classes: past the ceiling the commit fails.
+  if (taught.size > MAX_TAUGHT_CLASSES) {
+    throw new HttpsError('unavailable', 'Roster service unavailable.');
+  }
+  const enrolled = new Set<string>();
+  const classIds = [...taught];
+  for (let i = 0; i < classIds.length; i += 10) {
+    if (Date.now() - started > CLASSLINK_TOTAL_BUDGET_MS) {
+      throw new HttpsError('unavailable', 'Roster service unavailable.');
+    }
+    const lists = await Promise.all(
+      classIds
+        .slice(i, i + 10)
+        .map((classId) => loadClassStudentIds(classId, creds))
+    );
+    for (const list of lists) for (const id of list) enrolled.add(id);
+  }
+  return enrolled;
 }
 
 /** Teacher-only. Writes the groups it was handed and deletes only the ids named in `deleteGroupIds` (D9). */
 export const commitProjectGroupsV1 = onCall(
   {
     memory: '256MiB',
+    timeoutSeconds: 120,
     secrets: [
       STUDENT_PSEUDONYM_HMAC_SECRET,
       CLASSLINK_CLIENT_ID,

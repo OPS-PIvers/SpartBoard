@@ -36,6 +36,7 @@ vi.mock('firebase-functions/logger', () => ({
   error: vi.fn(),
 }));
 
+import * as logger from 'firebase-functions/logger';
 import { computeStudentUid } from '../classlinkShared';
 import {
   __resetClassLinkSweepCache,
@@ -66,6 +67,8 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ classlinkClassIds: [], testClassIds: [] });
   loadTestClassMembership.mockReset().mockResolvedValue(noTestClasses);
+  vi.mocked(logger.warn).mockClear();
+  vi.mocked(logger.error).mockClear();
 });
 
 describe('loadClassStudentUids', () => {
@@ -136,6 +139,17 @@ describe('loadClassStudentUids', () => {
       authorized: false,
     });
     expect((await loadClassStudentUids(db, 'owner', 'slug')).uids.size).toBe(0);
+  });
+
+  it('treats a ClassLink timeout as roster-unavailable so the caller retries', async () => {
+    loadClassLinkMembership.mockRejectedValue(
+      Object.assign(new Error('timeout of 20000ms exceeded'), {
+        code: 'ECONNABORTED',
+      })
+    );
+    await expect(
+      loadClassStudentUids(db, 'owner', 'class-1')
+    ).rejects.toBeInstanceOf(RosterUnavailableError);
   });
 
   it('falls back to test classes when ClassLink throws, and flags the result as degraded', async () => {
@@ -325,20 +339,33 @@ describe('drainDirtySessions when the class roster is unavailable', () => {
     expect(queued?.failures).toBeUndefined();
   });
 
-  it('does not let entries backing off crowd due ones out of the batch', async () => {
+  it('moves dirtyAt to retryAt so a backed-off entry sorts behind newer work', async () => {
+    loadClassLinkMembership.mockRejectedValue(new Error('503'));
+    const stub = makeStubFirestore(project);
+    const typed = stub.db as unknown as Parameters<
+      typeof drainDirtySessions
+    >[0];
+    await drainDirtySessions(typed);
+    const queued = stub.get('grade_index_sessions/projects__t1_p1');
+    expect(queued?.retryAt).toBeGreaterThan(Date.now());
+    expect(queued?.dirtyAt).toBe(queued?.retryAt);
+  });
+
+  it('drains a due entry that sits behind many backed-off ones', async () => {
     const backing = (n: number) => ({
       [`grade_index_sessions/projects__old${n}`]: {
         kind: 'projects',
         sessionId: `old${n}`,
-        dirtyAt: n,
-        retryAt: Date.now() + 600_000,
+        dirtyAt: Date.now() + 600_000 + n,
+        retryAt: Date.now() + 600_000 + n,
+        unavailable: 1,
       },
     });
     const stub = makeStubFirestore({
       ...project,
       ...backing(0),
-      ...backing(0.1),
-      ...backing(0.2),
+      ...backing(1),
+      ...backing(2),
     });
     loadClassLinkMembership.mockResolvedValue(new Map([['u1', 'c1']]));
     const typed = stub.db as unknown as Parameters<
@@ -346,6 +373,52 @@ describe('drainDirtySessions when the class roster is unavailable', () => {
     >[0];
     await drainDirtySessions(typed, 2);
     expect(stub.has('grade_index_sessions/projects__t1_p1')).toBe(false);
+    expect(stub.has('grade_index_sessions/projects__old0')).toBe(true);
+  });
+
+  it('keeps an entry queued at the longest backoff, and logs an error, after a day of outage', async () => {
+    loadClassLinkMembership.mockRejectedValue(new Error('503'));
+    const stub = makeStubFirestore({
+      ...project,
+      'grade_index_sessions/projects__t1_p1': {
+        kind: 'projects',
+        sessionId: 't1_p1',
+        dirtyAt: 1,
+        unavailable: 30,
+      },
+    });
+    const typed = stub.db as unknown as Parameters<
+      typeof drainDirtySessions
+    >[0];
+    const before = Date.now();
+    await drainDirtySessions(typed);
+    const queued = stub.get('grade_index_sessions/projects__t1_p1');
+    expect(queued?.unavailable).toBe(31);
+    expect(queued?.retryAt).toBeGreaterThanOrEqual(before + 60 * 60_000);
+    expect(queued?.retryAt).toBeLessThanOrEqual(Date.now() + 60 * 60_000);
+    expect(logger.error).toHaveBeenCalled();
+  });
+
+  it('only warns while the outage is younger than a day', async () => {
+    loadClassLinkMembership.mockRejectedValue(new Error('503'));
+    const stub = makeStubFirestore({
+      ...project,
+      'grade_index_sessions/projects__t1_p1': {
+        kind: 'projects',
+        sessionId: 't1_p1',
+        dirtyAt: 1,
+        unavailable: 24,
+      },
+    });
+    const typed = stub.db as unknown as Parameters<
+      typeof drainDirtySessions
+    >[0];
+    await drainDirtySessions(typed);
+    expect(stub.get('grade_index_sessions/projects__t1_p1')?.unavailable).toBe(
+      25
+    );
+    expect(logger.warn).toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('skips an entry still backing off, and drains it once the roster answers', async () => {

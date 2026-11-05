@@ -806,7 +806,8 @@ export const RECOMPUTE_BUDGET_MS = 420_000;
 
 /** Drains the dirty queue; a session re-dirtied mid-run stays queued. */
 const MAX_RECOMPUTE_FAILURES = 5;
-const BACKOFF_FETCH_FACTOR = 3;
+/** Roughly a day of outage; past this many retries the log escalates to an error. */
+const ROSTER_UNAVAILABLE_ERROR_AFTER = 26;
 const ROSTER_RETRY_BASE_MS = 5 * 60_000;
 const ROSTER_RETRY_MAX_MS = 60 * 60_000;
 
@@ -817,23 +818,21 @@ export async function drainDirtySessions(
   const snap = await db
     .collection(GRADE_INDEX_QUEUE)
     .orderBy('dirtyAt', 'asc')
-    .limit(limit * BACKOFF_FETCH_FACTOR)
+    .limit(limit)
     .get();
   let recomputed = 0;
   let failed = 0;
-  let due = 0;
   const started = Date.now();
   for (const doc of snap.docs) {
-    if (Date.now() - started > RECOMPUTE_BUDGET_MS || due >= limit) break;
+    if (Date.now() - started > RECOMPUTE_BUDGET_MS) break;
     const data = doc.data();
     const kind = data.kind as GradeKind;
     if (!(kind in SESSION_COLLECTION)) {
       await doc.ref.delete();
       continue;
     }
-    // Entries backing off are skipped without using up a slot; the query reads extra to make room.
+    // An entry still backing off is not due yet.
     if (typeof data.retryAt === 'number' && data.retryAt > Date.now()) continue;
-    due++;
     try {
       await recomputeSession(db, kind, asString(data.sessionId) || doc.id);
       recomputed++;
@@ -845,29 +844,29 @@ export async function drainDirtySessions(
     } catch (err) {
       failed++;
       if (err instanceof RosterUnavailableError) {
-        // The roster service being down is not the session's fault: back off, never give up.
+        // The roster service being down is not the session's fault: back off up to an hour, never drop it.
         const unavailable = (Number(data.unavailable) || 0) + 1;
-        logger.warn(
-          'gradeIndex: class roster unavailable, session kept queued',
-          {
-            sessionId: asString(data.sessionId) || doc.id,
-            kind,
-            unavailable,
-          }
-        );
+        const log =
+          unavailable > ROSTER_UNAVAILABLE_ERROR_AFTER
+            ? logger.error
+            : logger.warn;
+        log('gradeIndex: class roster unavailable, session kept queued', {
+          sessionId: asString(data.sessionId) || doc.id,
+          kind,
+          unavailable,
+        });
+        const retryAt =
+          Date.now() +
+          Math.min(
+            ROSTER_RETRY_BASE_MS * 2 ** (unavailable - 1),
+            ROSTER_RETRY_MAX_MS
+          );
         await db.runTransaction(async (tx) => {
           const current = await tx.get(doc.ref);
           if (!current.exists || current.data()?.dirtyAt !== data.dirtyAt)
             return;
-          tx.update(doc.ref, {
-            unavailable,
-            retryAt:
-              Date.now() +
-              Math.min(
-                ROSTER_RETRY_BASE_MS * 2 ** (unavailable - 1),
-                ROSTER_RETRY_MAX_MS
-              ),
-          });
+          // dirtyAt moves to retryAt so newer work sorts ahead of the backed-off entry.
+          tx.update(doc.ref, { unavailable, retryAt, dirtyAt: retryAt });
         });
         continue;
       }
