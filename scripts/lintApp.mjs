@@ -66,16 +66,13 @@ async function main() {
   // `eslint/bin` is not in the package's exports map, so resolve it from the main entry (lib/api.js).
   const eslintApi = createRequire(import.meta.url).resolve('eslint');
   const eslintBin = join(dirname(eslintApi), '../bin/eslint.js');
+  // A heap size already set in NODE_OPTIONS (CI's lint shards) wins over the 6 GB default.
+  const heapFlag = /--max-old-space-size/.test(process.env.NODE_OPTIONS ?? '')
+    ? []
+    : ['--max-old-space-size=6144'];
   const result = spawnSync(
     process.execPath,
-    [
-      '--max-old-space-size=6144',
-      eslintBin,
-      ...targets,
-      '--max-warnings',
-      '0',
-      ...args,
-    ],
+    [...heapFlag, eslintBin, ...targets, '--max-warnings', '0', ...args],
     { stdio: 'inherit' }
   );
   process.exitCode = result.status ?? 1;
