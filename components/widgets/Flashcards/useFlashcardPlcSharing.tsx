@@ -73,7 +73,7 @@ export const useFlashcardPlcSharing = ({
     assignment: ShareableAssignment,
     plc: Plc
   ): Promise<boolean> => {
-    if (!editablePlcs.some((p) => p.id === plc.id)) return false;
+    if (!user || !editablePlcs.some((p) => p.id === plc.id)) return false;
     try {
       await writeResultsShare(assignment, plc);
       return true;

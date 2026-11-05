@@ -482,6 +482,16 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       });
       setAssigningSet(null);
 
+      const url = flashcardAssignmentUrl(sessionId, input.audience);
+      try {
+        await navigator.clipboard.writeText(url);
+        addToast(
+          `“${set.title}” assigned. Link copied to clipboard.`,
+          'success'
+        );
+      } catch {
+        addToast(`“${set.title}” assigned.`, 'success');
+      }
       const sharePlc = extras?.sharePlc;
       if (
         sharePlc &&
@@ -500,17 +510,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           `Assigned, but the results could not be shared with ${sharePlc.name}.`,
           'error'
         );
-      }
-
-      const url = flashcardAssignmentUrl(sessionId, input.audience);
-      try {
-        await navigator.clipboard.writeText(url);
-        addToast(
-          `“${set.title}” assigned. Link copied to clipboard.`,
-          'success'
-        );
-      } catch {
-        addToast(`“${set.title}” assigned.`, 'success');
       }
       return true;
     } catch (error) {

@@ -439,7 +439,15 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       sharePlc ? { sharePlc } : undefined
     );
     if (ok !== false && kind === 'work') {
-      lastUsed.save(v2 ? { ...check, rules: stampedRules } : check);
+      lastUsed.save(
+        v2
+          ? {
+              ...check,
+              scoreVisibility: scoreVisibilityFromRules(rules),
+              rules: stampedRules,
+            }
+          : check
+      );
     }
   };
 
