@@ -19,7 +19,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { gradeAnswer, paperTranscriptFor } from '@/hooks/useQuizSession';
-import { DRIVE_APP_FOLDER } from '@/config/constants';
+import { DRIVE_APP_FOLDER } from '@/config/devProject';
 import { authError } from './driveAuthErrors';
 import {
   buildResultsSheetData as buildResultsSheetDataShared,

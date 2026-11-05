@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { GoogleDriveService } from '@/utils/googleDriveService';
 import { isDriveAuthError, onDriveTokenChange } from '@/utils/driveAuthErrors';
-import { APP_NAME, DRIVE_APP_FOLDER, IS_DEV_PROJECT } from '@/config/constants';
+import { APP_NAME } from '@/config/constants';
+import { DRIVE_APP_FOLDER, IS_DEV_PROJECT } from '@/config/devProject';
 import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 
 const BACKGROUNDS_FOLDER = 'Backgrounds';

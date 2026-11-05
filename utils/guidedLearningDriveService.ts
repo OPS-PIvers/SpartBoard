@@ -10,7 +10,7 @@
  */
 
 import { GuidedLearningSet } from '@/types';
-import { DRIVE_APP_FOLDER } from '@/config/constants';
+import { DRIVE_APP_FOLDER } from '@/config/devProject';
 import { authError } from '@/utils/driveAuthErrors';
 import { isInAppFolder, type DriveParentMeta } from '@/utils/driveAppFolder';
 

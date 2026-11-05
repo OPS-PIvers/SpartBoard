@@ -1,4 +1,5 @@
-import { APP_NAME, DRIVE_APP_FOLDER } from '@/config/constants';
+import { APP_NAME } from '@/config/constants';
+import { DRIVE_APP_FOLDER } from '@/config/devProject';
 
 /** The parts of a Drive file's metadata the folder check reads. */
 export interface DriveParentMeta {

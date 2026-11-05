@@ -211,7 +211,7 @@ import {
   getAnnotationWorldRect,
 } from '@/utils/annotationSize';
 import { STANDARD_COLORS } from '@/config/colors';
-import { IS_DEV_PROJECT } from '@/config/constants';
+import { IS_DEV_PROJECT } from '@/config/devProject';
 import { DevProdDriveWriteError } from '@/utils/devDriveWriteGuard';
 import { tourDemoConfig } from '@/config/tourDemoContent';
 import {

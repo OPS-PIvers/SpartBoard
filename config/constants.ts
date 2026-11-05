@@ -1,11 +1,5 @@
 export const APP_NAME = 'SpartBoard';
 
-export const IS_DEV_PROJECT =
-  import.meta.env.VITE_FIREBASE_PROJECT_ID === 'spartboard-dev';
-
-// Dev files live in their own Drive folder so dev can never write a prod file (utils/devDriveWriteGuard.ts).
-export const DRIVE_APP_FOLDER = IS_DEV_PROJECT ? 'SpartBoard Dev' : APP_NAME;
-
 /**
  * When true, anonymous students opening a ClassLink-rostered quiz session
  * (the session carries `classIds`) are steered to Google SSO sign-in by

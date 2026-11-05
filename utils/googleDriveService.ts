@@ -1,4 +1,4 @@
-import { DRIVE_APP_FOLDER } from '@/config/constants';
+import { DRIVE_APP_FOLDER } from '@/config/devProject';
 import { Dashboard } from '@/types';
 import { authError } from './driveAuthErrors';
 import { isInAppFolder, type DriveParentMeta } from './driveAppFolder';

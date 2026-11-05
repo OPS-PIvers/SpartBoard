@@ -1,5 +1,5 @@
 // Dev only: Google file writes may touch only files under the dev Drive folder or made in this tab, never a prod file.
-import { DRIVE_APP_FOLDER, IS_DEV_PROJECT } from '@/config/constants';
+import { DRIVE_APP_FOLDER, IS_DEV_PROJECT } from '@/config/devProject';
 
 const FILE_API_HOSTS = new Set([
   'www.googleapis.com',
