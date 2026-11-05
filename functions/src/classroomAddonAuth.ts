@@ -29,6 +29,7 @@
  *     stub them without a live Classroom install. Uses raw `fetch` + Bearer
  *     (mirrors `getDriveHeaders` in index.ts) — no `googleapis` dependency.
  */
+import { studentFirstName } from './studentFirstName';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from './firebaseAdmin';
@@ -110,6 +111,7 @@ interface GoogleUserInfo {
   // the student view requests it). Used ONLY as a transient watermark label,
   // returned to the student's own client; never persisted (PII gate).
   name?: string;
+  given_name?: string;
 }
 
 /**
@@ -1160,6 +1162,7 @@ export const classroomAddonLoginV1 = onCall(
         studentRole: true,
         orgId,
         classIds,
+        firstName: studentFirstName(info.given_name, info.name),
       });
     } catch (err) {
       console.error('[classroomAddonLoginV1] createCustomToken failed:', err);

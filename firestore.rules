@@ -2043,6 +2043,12 @@ service cloud.firestore {
         'parentCommentId'
       ]);
     }
+    // A student token's first name, or 'Student', is the only label it may post under.
+    function wallLabelOk() {
+      let n = request.auth.token.get('firstName', null);
+      let l = incoming().get('participantLabel', 'Student');
+      return n == null || l == n || l == 'Student';
+    }
     function wallLikeKeysOk() {
       return incoming().keys().hasOnly([
         'id', 'submissionId', 'authorUid', 'createdAt'
@@ -2145,6 +2151,7 @@ service cloud.firestore {
           incoming().content.size() > 0 &&
           incoming().content.size() <= 2000 &&
           isStr('participantLabel') &&
+          wallLabelOk() &&
           incoming().authorUid == authUid() &&
           isInt('createdAt');
         // Commenter can delete their own comment; share owner / admin can
@@ -6624,6 +6631,7 @@ service cloud.firestore {
           isInt('submittedAt') &&
           incoming().status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
           awFieldTypesOk() &&
+          wallLabelOk() &&
           // authorUid is an ownership claim on every session shape, not just padlet ones.
           (!('authorUid' in incoming()) ||
            (incoming().authorUid == authUid() &&
@@ -6822,6 +6830,7 @@ service cloud.firestore {
           incoming().content.size() <= 2000 &&
           isStr('participantLabel') &&
           incoming().participantLabel.size() <= 200 &&
+          wallLabelOk() &&
           incoming().authorUid == authUid() &&
           isInt('createdAt');
         allow delete: if signedIn() &&
