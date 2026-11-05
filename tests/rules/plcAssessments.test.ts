@@ -577,3 +577,77 @@ describe('plcs/{plcId}/aggregates — member read, client writes denied', () => 
     await assertFails(deleteDoc(aggRef(asMember())));
   });
 });
+
+// Flashcards checks: the server creates `kind: 'flashcard-check'` assessments; clients only read and edit working fields.
+describe('plcs/{plcId}/assessments — flashcard-check kind', () => {
+  const flashcardAssessment = () =>
+    validAssessment({ kind: 'flashcard-check', syncGroupId: 'set-1' });
+  const seedFlashcard = () =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `plcs/${PLC_ID}/assessments/${ASSESSMENT_ID}`),
+        flashcardAssessment()
+      );
+      await setDoc(
+        doc(ctx.firestore(), `plcs/${PLC_ID}/aggregates/${ASSESSMENT_ID}`),
+        { assessmentId: ASSESSMENT_ID, kind: 'flashcard-check' }
+      );
+    });
+
+  it('a member reads the assessment and its aggregate', async () => {
+    await seedFlashcard();
+    await assertSucceeds(getDoc(assessmentRef(asMember())));
+    await assertSucceeds(
+      getDoc(doc(asMember(), `plcs/${PLC_ID}/aggregates/${ASSESSMENT_ID}`))
+    );
+  });
+
+  it('a non-member reads neither', async () => {
+    await seedFlashcard();
+    await assertFails(getDoc(assessmentRef(asNonMember())));
+    await assertFails(
+      getDoc(doc(asNonMember(), `plcs/${PLC_ID}/aggregates/${ASSESSMENT_ID}`))
+    );
+  });
+
+  it('a member renames, closes and files it', async () => {
+    await seedFlashcard();
+    await assertSucceeds(
+      updateDoc(assessmentRef(asOtherMember()), {
+        title: 'Unit 4 vocab',
+        status: 'closed',
+        folderId: 'f1',
+        updatedAt: 3000,
+      })
+    );
+  });
+
+  it('a member cannot turn it into a quiz assessment', async () => {
+    await seedFlashcard();
+    await assertFails(
+      updateDoc(assessmentRef(asMember()), { kind: 'quiz', updatedAt: 3000 })
+    );
+  });
+
+  it('a non-member cannot edit it', async () => {
+    await seedFlashcard();
+    await assertFails(
+      updateDoc(assessmentRef(asNonMember()), { title: 'x', updatedAt: 3000 })
+    );
+  });
+
+  it('a client cannot create one', async () => {
+    await assertFails(setDoc(assessmentRef(asMember()), flashcardAssessment()));
+  });
+
+  it('a client cannot write its aggregate', async () => {
+    await seedFlashcard();
+    await assertFails(
+      setDoc(doc(asMember(), `plcs/${PLC_ID}/aggregates/${ASSESSMENT_ID}`), {
+        assessmentId: ASSESSMENT_ID,
+        kind: 'flashcard-check',
+        teamAveragePercent: 100,
+      })
+    );
+  });
+});

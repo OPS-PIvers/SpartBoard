@@ -128,6 +128,9 @@ export function servedFibAnswers(
   );
 }
 
+/** `flashcard-check` aggregates come from plcFlashcardAggregate.ts, not computeAssessmentAggregate. */
+export type AssessmentKind = 'quiz' | 'video-activity' | 'flashcard-check';
+
 export interface ComputeInput {
   assessmentId: string;
   title: string;
@@ -186,7 +189,7 @@ export interface AggregatePayload {
   assessmentId: string;
   schemaVersion: number;
   title: string;
-  kind: 'quiz' | 'video-activity';
+  kind: AssessmentKind;
   teacherCount: number;
   studentCount: number;
   teamAveragePercent: number;

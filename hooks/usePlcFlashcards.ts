@@ -144,9 +144,10 @@ export function parsePlcFlashcardResultEntry(
   };
 }
 
-/** Portable copy for "Add to my library": fresh id, no attribution. */
+/** Portable copy for "Add to my library": fresh id, no attribution, origin kept for PLC results. */
 export function toPersonalFlashcardSet(
-  entry: PlcFlashcardSetEntry
+  entry: PlcFlashcardSetEntry,
+  plcId: string
 ): FlashcardSet {
   const now = Date.now();
   return {
@@ -155,6 +156,7 @@ export function toPersonalFlashcardSet(
     termLanguage: entry.termLanguage,
     definitionLanguage: entry.definitionLanguage,
     cards: entry.cards.map((card) => ({ ...card })),
+    plcOrigin: { plcId, setId: entry.id },
     folderId: null,
     createdAt: now,
     updatedAt: now,

@@ -431,8 +431,22 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     extras?: FlashcardAssignExtras
   ): Promise<boolean> => {
     const { set } = input;
+    const sharePlc = extras?.sharePlc;
     try {
-      const sessionId = await createAssignment(input);
+      const sessionId = await createAssignment(
+        sharePlc && input.kind === 'check' && input.audience !== 'staff'
+          ? {
+              ...input,
+              plcLink: {
+                plcId: sharePlc.id,
+                syncGroupId:
+                  set.plcOrigin?.plcId === sharePlc.id
+                    ? set.plcOrigin.setId
+                    : set.id,
+              },
+            }
+          : input
+      );
       const payload = studentTargetClassIds
         ? buildMixedTargetsPayload(undefined, {
             targeting: expandedTargeting,
@@ -498,7 +512,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       } catch {
         addToast(`“${set.title}” assigned.`, 'success');
       }
-      const sharePlc = extras?.sharePlc;
       if (
         sharePlc &&
         !(await plcSharing.shareNewAssignmentResults(

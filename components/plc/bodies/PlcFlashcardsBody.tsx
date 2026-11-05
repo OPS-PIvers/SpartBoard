@@ -329,7 +329,7 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
       if (!entry) return;
       setBusyId(entryId);
       try {
-        await saveSet(toPersonalFlashcardSet(entry));
+        await saveSet(toPersonalFlashcardSet(entry, plc.id));
         addToast(
           t('plcDashboard.flashcards.imported', {
             title: entry.title,

@@ -27,8 +27,11 @@ import { recomputeOnePlcAssessment } from './recomputePlcAssessments';
 import {
   ensureAssessment,
   markDirty,
+  markPlcAssessmentDirtyOnFlashcardProgress,
+  markPlcAssessmentDirtyOnFlashcardSession,
   markPlcAssessmentDirtyOnResponse,
   markPlcAssessmentDirtyOnSession,
+  parseLinkedFlashcardSession,
   parseLinkedSession,
 } from './markPlcAssessmentDirty';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
@@ -427,5 +430,110 @@ describe('markPlcAssessmentDirtyOnSession', () => {
     await expect(
       onSession(sessionEvent(null, linkedSession))
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('Flashcards check triggers', () => {
+  const onFcSession =
+    markPlcAssessmentDirtyOnFlashcardSession as unknown as Handler;
+  const onFcProgress =
+    markPlcAssessmentDirtyOnFlashcardProgress as unknown as Handler;
+  const check: StubData = {
+    kind: 'check',
+    checkMode: 'write',
+    teacherUid: 'tA',
+    setId: 'set-a',
+    title: 'Unit 4 vocab',
+    status: 'active',
+    plcId: 'plc-1',
+    syncGroupId: 'set-origin',
+  };
+  const progressEvent = (before: StubData | null, after: StubData | null) => ({
+    params: { sessionId: 'fc-a', studentUid: 's1' },
+    data: { before: snap(before), after: snap(after) },
+  });
+
+  it('only links check sessions', () => {
+    expect(parseLinkedFlashcardSession({ ...check, kind: 'study' })).toBeNull();
+    expect(parseLinkedFlashcardSession({ ...check, plcId: '' })).toBeNull();
+    expect(parseLinkedFlashcardSession(check)).toMatchObject({
+      kind: 'flashcard-check',
+      plcId: 'plc-1',
+      syncGroupId: 'set-origin',
+      quizTitle: 'Unit 4 vocab',
+    });
+  });
+
+  it('creates a flashcard-check assessment with no quiz pointer', async () => {
+    await onFcSession(sessionEvent(null, check));
+    expect(stub.get('plcs/plc-1/assessments/set-origin')).toEqual({
+      id: 'set-origin',
+      title: 'Unit 4 vocab',
+      kind: 'flashcard-check',
+      syncGroupId: 'set-origin',
+      status: 'active',
+      createdBy: 'tA',
+      createdAt: 'SERVER_TS',
+      updatedAt: 'SERVER_TS',
+      dirtyAt: NOW,
+    });
+    expect(recompute).toHaveBeenCalledWith(stub.db, 'plc-1', 'set-origin');
+  });
+
+  it('ignores study sessions and unlinked checks', async () => {
+    await onFcSession(sessionEvent(null, { ...check, kind: 'study' }));
+    await onFcSession(sessionEvent(null, { ...check, plcId: undefined }));
+    expect(stub.get('plcs/plc-1/assessments/set-origin')).toBeUndefined();
+  });
+
+  it('marks dirty on a submit, a regrade and a reset, not on study writes', async () => {
+    stub.store.set('flashcard_sessions/fc-a', check);
+    const clean = () =>
+      stub.store.set('plcs/plc-1/assessments/set-origin', {
+        syncGroupId: 'set-origin',
+        dirtyAt: null,
+      });
+    const dirtyAt = () =>
+      stub.get('plcs/plc-1/assessments/set-origin')?.dirtyAt;
+    const studying = { round: 1, cards: {} };
+    const submitted = {
+      ...studying,
+      submittedAt: NOW,
+      score: 3,
+      total: 4,
+      answerLog: [{ cardId: 'c1', correct: false }],
+    };
+
+    clean();
+    await onFcProgress(progressEvent(studying, { ...studying, round: 2 }));
+    expect(dirtyAt()).toBeNull();
+
+    await onFcProgress(progressEvent(studying, submitted));
+    expect(dirtyAt()).toBe(NOW);
+
+    clean();
+    await onFcProgress(
+      progressEvent(submitted, {
+        ...submitted,
+        answerLog: [{ cardId: 'c1', correct: true }],
+      })
+    );
+    expect(dirtyAt()).toBe(NOW);
+
+    clean();
+    await onFcProgress(progressEvent(submitted, null));
+    expect(dirtyAt()).toBe(NOW);
+
+    clean();
+    await onFcProgress(progressEvent(null, studying));
+    expect(dirtyAt()).toBeNull();
+  });
+
+  it('skips progress on an unlinked session', async () => {
+    stub.store.set('flashcard_sessions/fc-a', { ...check, plcId: undefined });
+    await onFcProgress(
+      progressEvent(null, { submittedAt: NOW, score: 1, total: 1 })
+    );
+    expect(stub.get('plcs/plc-1/assessments/set-origin')).toBeUndefined();
   });
 });

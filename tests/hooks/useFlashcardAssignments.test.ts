@@ -230,6 +230,27 @@ describe('useFlashcardAssignments', () => {
     });
   });
 
+  it('stamps the PLC link on a check session only', async () => {
+    const { result } = renderHook(() => useFlashcardAssignments(TEACHER));
+    const plcLink = { plcId: 'plc-1', syncGroupId: 'origin-set' };
+    await act(async () => {
+      await result.current.createAssignment({
+        ...baseInput,
+        kind: 'check',
+        checkMode: 'write',
+        plcLink,
+      });
+      await result.current.createAssignment({
+        ...baseInput,
+        kind: 'study',
+        plcLink,
+      });
+    });
+    expect(batches[0][0].data).toMatchObject(plcLink);
+    expect('plcId' in (batches[1][0].data as object)).toBe(false);
+    expect('plcId' in (batches[0][1].data as object)).toBe(false);
+  });
+
   it('rejects without a user or with an empty set', async () => {
     const { result: noUser } = renderHook(() =>
       useFlashcardAssignments(undefined)

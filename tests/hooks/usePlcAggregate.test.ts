@@ -89,6 +89,12 @@ beforeEach(() => {
 });
 
 describe('parsePlcAggregate — tolerant parsing', () => {
+  it('keeps Flashcards check aggregates out of the Quiz views', () => {
+    expect(
+      parsePlcAggregate('a', validAggregateData({ kind: 'flashcard-check' }))
+    ).toBeNull();
+  });
+
   it('parses a fully valid doc and keys assessmentId off the doc id', () => {
     const parsed = parsePlcAggregate('assess-7', validAggregateData());
     expect(parsed).not.toBeNull();
