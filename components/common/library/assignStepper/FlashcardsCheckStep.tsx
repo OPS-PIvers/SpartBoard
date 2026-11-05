@@ -92,7 +92,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
       </div>
       {speakMode && (
         <p className="text-sm text-slate-600">
-          Students say each term aloud. Tries per card come from this
+          Students say each term aloud. Attempts per card come from this
           set&rsquo;s Speak settings.
         </p>
       )}
