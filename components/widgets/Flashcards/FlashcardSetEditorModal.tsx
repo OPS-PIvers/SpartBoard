@@ -446,7 +446,7 @@ export const FlashcardSetEditorModal: React.FC<
       <div>
         {listHeader}
         <div
-          className="grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-end border border-transparent"
+          className="grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-start border border-transparent"
           style={{
             gap: 'min(8px, 2cqmin)',
             padding: '0 min(10px, 2.5cqmin) min(6px, 1.5cqmin)',
@@ -468,6 +468,7 @@ export const FlashcardSetEditorModal: React.FC<
           </span>
           <FlashcardLanguageField
             label="Term language"
+            heading="Term"
             value={termLanguage}
             onChange={(tag) => {
               setPickedLanguage((p) => ({ ...p, term: true }));
@@ -477,6 +478,7 @@ export const FlashcardSetEditorModal: React.FC<
           />
           <FlashcardLanguageField
             label="Definition language"
+            heading="Definition"
             value={definitionLanguage}
             onChange={(tag) => {
               setPickedLanguage((p) => ({ ...p, definition: true }));
