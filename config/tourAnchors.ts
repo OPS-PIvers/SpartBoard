@@ -1004,6 +1004,10 @@ export const TOUR_ANCHORS = {
     label: 'Check step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.cards': {
+    label: 'Cards step header in the Assign dialog',
+    panel: true,
+  },
   'assign-step.speak': {
     label: 'Speak step header in the Assign dialog',
     panel: true,
@@ -1182,6 +1186,31 @@ export const TOUR_ANCHORS = {
   },
   'flashcards-speak.lock': {
     label: 'Lock Speak settings switch in the Assign dialog Speak step',
+    panel: true,
+  },
+  'flashcards-cards.mode': {
+    label:
+      'All, random or chosen cards switch in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'flashcards-cards.count': {
+    label: 'Number of cards box in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'flashcards-cards.search': {
+    label: 'Search cards box in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'flashcards-cards.select-all': {
+    label: 'Select all button in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'flashcards-cards.clear': {
+    label: 'Clear button in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'flashcards-cards.list': {
+    label: 'Card list in the Flashcards assign Cards step',
     panel: true,
   },
   'flashcards-check.score-visibility': {

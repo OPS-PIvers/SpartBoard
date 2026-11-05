@@ -13,13 +13,15 @@ import { assertViewAsAllowed } from './viewAsGuard';
 import { verifiedStaffIdentity, type StaffIdentity } from './staffAudience';
 
 // Local mirrors of the root types.ts shapes; functions cannot import root code.
-type FlashcardMode = 'flashcards' | 'write' | 'test';
+type FlashcardMode = 'flashcards' | 'write' | 'test' | 'speak';
 type FlashcardTestType = 'mc' | 'fib';
+type FlashcardAnswerType = FlashcardTestType | 'speak';
 
 interface FlashcardCard {
   id: string;
   term: string;
   definition: string;
+  speak?: unknown;
 }
 
 interface LockedSettings {
@@ -32,8 +34,10 @@ interface LockedSettings {
 interface RawAnswer {
   cardId: string;
   response: string;
-  type?: FlashcardTestType;
+  type?: FlashcardAnswerType;
   attempts?: number;
+  /** Speak only: the student's device judged the card said correctly. */
+  passed?: boolean;
 }
 
 interface GradedAnswer extends RawAnswer {
@@ -87,6 +91,9 @@ const isFiniteNumber = (value: unknown): value is number =>
 const isTestType = (value: unknown): value is FlashcardTestType =>
   TEST_TYPES.includes(value as FlashcardTestType);
 
+const isAnswerType = (value: unknown): value is FlashcardAnswerType =>
+  value === 'speak' || isTestType(value);
+
 const parseCardId = (value: unknown): string =>
   typeof value === 'string' && value.length > 0 && value.length <= MAX_ID_LENGTH
     ? value
@@ -118,10 +125,15 @@ export function parseSubmitFlashcardCheckInput(
       response: parseResponse(entry.response),
     };
     if (entry.type !== undefined) {
-      if (!isTestType(entry.type)) invalid('Unknown answer type.');
+      if (!isAnswerType(entry.type)) invalid('Unknown answer type.');
       parsed.type = entry.type;
     }
     if (isFiniteNumber(entry.attempts)) parsed.attempts = entry.attempts;
+    if (entry.passed !== undefined) {
+      if (typeof entry.passed !== 'boolean')
+        invalid('passed must be true or false.');
+      parsed.passed = entry.passed;
+    }
     return parsed;
   });
   const rawFlags = data.flags ?? [];
@@ -135,6 +147,21 @@ export function parseSubmitFlashcardCheckInput(
     };
   });
   return { assignmentId, answerLog, flags };
+}
+
+// Mirror of utils/flashcardSchedule.ts isSpeakableCard.
+function isSpeakableCard(card: FlashcardCard): boolean {
+  const speak = isRecord(card.speak) ? card.speak : null;
+  return (
+    !!speak &&
+    speak.status !== 'unavailable' &&
+    speak.term === card.term &&
+    Array.isArray(speak.refs) &&
+    speak.refs.some(
+      (ref) =>
+        isRecord(ref) && Array.isArray(ref.tokens) && ref.tokens.length > 0
+    )
+  );
 }
 
 function sessionCards(raw: unknown): FlashcardCard[] {
@@ -358,7 +385,8 @@ export async function handleSubmitFlashcardCheck(
   if (
     checkMode !== 'flashcards' &&
     checkMode !== 'write' &&
-    checkMode !== 'test'
+    checkMode !== 'test' &&
+    checkMode !== 'speak'
   )
     throw new HttpsError('failed-precondition', 'Unknown Check mode.');
   const cards = await loadCheckCards(access);
@@ -400,7 +428,11 @@ export async function handleSubmitFlashcardCheck(
     const logCards = cardsForLog(input.answerLog, byId);
     graded = input.answerLog.map((entry, i) => {
       const type = entry.type;
-      if (type === undefined || !settings.testTypes.includes(type))
+      if (
+        type === undefined ||
+        type === 'speak' ||
+        !settings.testTypes.includes(type)
+      )
         return invalid('answerLog uses a question type that is not allowed.');
       if (type === 'mc' && cards.length < MC_MIN_CARDS)
         invalid('Multiple choice needs at least four cards.');
@@ -413,6 +445,32 @@ export async function handleSubmitFlashcardCheck(
           type === 'mc'
             ? entry.response === answerFor(card)
             : typedCorrect(entry.response, card),
+      };
+    });
+  } else if (checkMode === 'speak') {
+    // Speak is judged on the student's device (no audio leaves it), so the server records its verdicts.
+    const speakable = cards.filter(isSpeakableCard);
+    if (speakable.length === 0)
+      throw new HttpsError(
+        'failed-precondition',
+        'No card in this assignment can be spoken.'
+      );
+    if (input.answerLog.length !== speakable.length)
+      invalid('answerLog must include every speakable card once.');
+    const logCards = cardsForLog(input.answerLog, byId);
+    if (!logCards.every(isSpeakableCard))
+      invalid('answerLog includes a card that cannot be spoken.');
+    total = speakable.length;
+    graded = input.answerLog.map((entry) => {
+      if (entry.type !== 'speak' || entry.passed === undefined)
+        return invalid('Each Speak answer needs a result.');
+      return {
+        cardId: entry.cardId,
+        response: '',
+        type: 'speak',
+        attempts: clampAttempts(entry.attempts),
+        passed: entry.passed,
+        correct: entry.passed,
       };
     });
   }

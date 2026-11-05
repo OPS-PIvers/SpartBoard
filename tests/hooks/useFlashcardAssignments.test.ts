@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import React from 'react';
 import { act, renderHook } from '@testing-library/react';
+import { AuthContext } from '@/context/AuthContextValue';
+import { attachSpeakReferences } from '@/components/widgets/Flashcards/speak/lookupSpeakReferences';
 import {
   collection,
   doc,
@@ -27,6 +30,16 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('@/config/firebase', () => ({ db: { __mock: 'db' } }));
 vi.mock('@/utils/firestorePaging', () => ({ readAllDocsPaged: vi.fn() }));
+vi.mock('@/hooks/useFlashcardSets', () => ({
+  speakAdminConfigFor: vi.fn((_set: unknown, canSpeak: boolean) =>
+    Promise.resolve(
+      canSpeak ? { attempts: 3, unclearConfidence: 0.5, languages: {} } : null
+    )
+  ),
+}));
+vi.mock('@/components/widgets/Flashcards/speak/lookupSpeakReferences', () => ({
+  attachSpeakReferences: vi.fn(),
+}));
 
 interface BatchOp {
   op: 'set' | 'update' | 'delete';
@@ -275,5 +288,63 @@ describe('useFlashcardAssignments', () => {
       { op: 'delete', ref: 'flashcard_sessions/a1' },
       { op: 'delete', ref: `users/${TEACHER}/flashcard_assignments/a1` },
     ]);
+  });
+
+  describe('Speak check', () => {
+    const speakAuth = {
+      canAccessFeature: (id: string) => id === 'flashcards-speak',
+    } as unknown as React.ContextType<typeof AuthContext>;
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(AuthContext.Provider, { value: speakAuth }, children);
+    const prepared = {
+      id: 'c1',
+      term: 'la manzana',
+      definition: 'apple',
+      speak: {
+        term: 'la manzana',
+        refs: [{ dialect: 'es-419' as const, tokens: ['l', 'a'], stress: [] }],
+        g2pVersion: 'test',
+        status: 'ready' as const,
+      },
+    };
+
+    it('prepares cards for Speak when the check is assigned', async () => {
+      (attachSpeakReferences as Mock).mockResolvedValue([prepared]);
+      const { result } = renderHook(() => useFlashcardAssignments(TEACHER), {
+        wrapper,
+      });
+      await act(async () => {
+        await result.current.createAssignment({
+          ...baseInput,
+          kind: 'check',
+          checkMode: 'speak',
+        });
+      });
+      expect(attachSpeakReferences).toHaveBeenCalledWith(
+        set.cards,
+        'es',
+        expect.any(Array),
+        {}
+      );
+      const session = batches[0][0].data as Record<string, unknown>;
+      expect(session.checkMode).toBe('speak');
+      expect(session.cards).toEqual([prepared]);
+      expect(session.speak).toMatchObject({ locked: true });
+    });
+
+    it('says why Speak is unavailable when no card could be prepared', async () => {
+      (attachSpeakReferences as Mock).mockResolvedValue(set.cards);
+      const { result } = renderHook(() => useFlashcardAssignments(TEACHER), {
+        wrapper,
+      });
+      await expect(
+        result.current.createAssignment({
+          ...baseInput,
+          kind: 'check',
+          checkMode: 'speak',
+        })
+      ).rejects.toThrow(/^Speak mode is unavailable\./);
+      expect(batches).toHaveLength(0);
+    });
   });
 });

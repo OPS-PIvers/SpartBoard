@@ -3457,6 +3457,7 @@
       "readyTitle": "Prêt à rendre",
       "readyFlashcards": "Toutes les cartes ont atteint l’objectif de ton enseignant. Rends ton travail pour terminer ce contrôle.",
       "readyWrite": "Tu as bien répondu à toutes les cartes. Rends ton travail pour terminer ce contrôle.",
+      "readySpeak": "Tu as dit toutes les cartes. Rends ton travail pour terminer ce contrôle.",
       "flagged_one": "{{count}} réponse signalée à ton enseignant",
       "flagged_other": "{{count}} réponses signalées à ton enseignant",
       "submit": "Rendre",

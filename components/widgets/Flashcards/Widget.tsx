@@ -133,7 +133,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const config = widget.config as FlashcardsConfig;
-  const { user, ensureGoogleScope } = useAuth();
+  const { user, ensureGoogleScope, canAccessFeature } = useAuth();
   const claudeReview = useClaudeReview('flashcard_sets');
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -755,6 +755,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                     ? (a) => void plcSharing.stopSharingResults(a)
                     : undefined
                 }
+                quizStyle={canAccessFeature('flashcards-assign-v2')}
               />
             )}
           </div>

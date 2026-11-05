@@ -9,6 +9,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-import-versions',
   'quiz-import-versions-plain',
   'paper-answer-sheets',
+  'flashcards-assign-v2',
   'roster-groups',
   'quiz-document-import',
   'tab-away-timer',

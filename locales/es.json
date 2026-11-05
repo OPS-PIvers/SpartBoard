@@ -3457,6 +3457,7 @@
       "readyTitle": "Lista para entregar",
       "readyFlashcards": "Todas las tarjetas alcanzaron la meta de tu docente. Entrega para terminar esta evaluación.",
       "readyWrite": "Respondiste bien todas las tarjetas. Entrega para terminar esta evaluación.",
+      "readySpeak": "Ya dijiste todas las tarjetas. Entrega para terminar esta evaluación.",
       "flagged_one": "{{count}} respuesta marcada para tu docente",
       "flagged_other": "{{count}} respuestas marcadas para tu docente",
       "submit": "Entregar",

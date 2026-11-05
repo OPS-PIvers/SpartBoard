@@ -78,6 +78,18 @@ export const FlashcardCheckResults: React.FC<FlashcardCheckResultsProps> = ({
                       const card = cardsById.get(entry.cardId);
                       if (!card) return null;
                       const sides = getFlashcardSides(card, showFirst);
+                      // A Speak miss has no typed answer; the term is what to practice.
+                      if (entry.type === 'speak') {
+                        return (
+                          <li
+                            key={`${entry.cardId}:speak`}
+                            className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-950"
+                          >
+                            <p className="font-black">{card.term}</p>
+                            <p className="mt-1">{card.definition}</p>
+                          </li>
+                        );
+                      }
                       return (
                         <li
                           key={`${entry.cardId}:${entry.type ?? 'write'}`}

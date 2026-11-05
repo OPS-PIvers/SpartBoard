@@ -1182,6 +1182,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
+  'flashcards-assign-v2': {
+    label: 'Flashcards: Quiz-style assignments',
+    icon: Layers,
+    description:
+      'Choose which cards a submission uses, check with Speak, and manage assignments like Quiz.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // The flag only hides the Behavior switch; teachers turn spell check off themselves.
   'spell-check-setting': {
     label: 'Spell check switch',

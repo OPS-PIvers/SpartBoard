@@ -9547,6 +9547,11 @@ export interface FlashcardStudyState {
 }
 
 export type FlashcardAssignmentKind = 'check' | 'study';
+/** Which cards a Check uses; `random` is drawn once at assign time. */
+export type FlashcardCardSelection =
+  | { mode: 'all' }
+  | { mode: 'random'; count: number }
+  | { mode: 'pick'; cardIds: string[] };
 export type FlashcardMasteryThreshold = 2 | 3 | 4;
 export type FlashcardScoreVisibility = 'none' | 'score' | 'score-and-answers';
 
@@ -9554,8 +9559,10 @@ export type FlashcardScoreVisibility = 'none' | 'score' | 'score-and-answers';
 export interface FlashcardAnswerLogEntry {
   cardId: string;
   response: string;
-  type?: FlashcardTestType;
+  /** `speak` entries carry the device's verdict in `passed` and an empty response. */
+  type?: FlashcardTestType | 'speak';
   attempts?: number;
+  passed?: boolean;
   correct?: boolean;
 }
 
@@ -9572,6 +9579,8 @@ export interface FlashcardCheckWriteEntry {
   attempts: number;
   done: boolean;
   flagged?: boolean;
+  /** Speak checks: the device's verdict once the card is decided. */
+  passed?: boolean;
 }
 
 /** `flashcard_sessions/{assignmentId}`: what assigned students load. */
@@ -9592,6 +9601,8 @@ export interface FlashcardSession
   speak?: FlashcardSpeakStudentSettings & { locked: boolean };
   /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
   speakOff?: true;
+  /** Check: how the set's cards were narrowed at assign time; absent means all. */
+  cardSelection?: FlashcardCardSelection;
   masteryThreshold?: FlashcardMasteryThreshold;
   termLanguage: string;
   definitionLanguage: string;
@@ -9635,6 +9646,8 @@ export interface FlashcardAssignment
   classIds?: string[];
   periodNames?: string[];
   scoreVisibility?: FlashcardScoreVisibility;
+  /** Check: how the set's cards were narrowed at assign time; absent means all. */
+  cardSelection?: FlashcardCardSelection;
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
   targetGroupIds?: string[];
@@ -10826,6 +10839,8 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
+  /** Flashcards submission assignments: card choice, Speak checks and Quiz-style In progress and Completed tabs. */
+  | 'flashcards-assign-v2'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
