@@ -89,6 +89,27 @@ describe('PaperReprintModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('stays open until the print window has its images', () => {
+    const { print, onClose } = setup({
+      ...QUIZ,
+      paperSheetStimuli: [
+        {
+          id: 'st1',
+          label: 'Map',
+          source: 'image',
+          driveFileId: 'file-1',
+          widthPx: 100,
+          heightPx: 100,
+        },
+      ],
+    });
+    fireEvent.click(screen.getByLabelText('Baker, Jo'));
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    expect(onClose).not.toHaveBeenCalled();
+    print.mock.calls[0][0].onImagesReady?.();
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('refuses when the quiz changed since the sheets printed', () => {
     const { print } = setup({ ...QUIZ, questions: [mc('q1'), mc('q3')] });
     expect(

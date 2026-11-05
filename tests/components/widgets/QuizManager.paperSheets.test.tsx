@@ -226,6 +226,15 @@ describe('QuizManager — paper assignment card', () => {
     );
   });
 
+  it('offers no import on a Paper card once paper sheets are off', () => {
+    renderTab('active', PAPER);
+    expect(screen.getByText('Paper')).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: /Import responses/ })
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: /Start/ })).toBeNull();
+  });
+
   it('reads like any other completed card once imported', () => {
     renderTab('archive', { ...PAPER, status: 'inactive' });
     expect(screen.queryByText('Paper')).toBeNull();

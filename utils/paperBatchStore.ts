@@ -3,7 +3,7 @@
  * `users/{teacherUid}/paper_batches/{batchId}`.
  *
  * Plain functions rather than a hook: printing writes one doc and walks away,
- * and the import half (Increment 2) reads by quiz. Nothing here subscribes.
+ * and the import half (Increment 2) reads by quiz. Only the library's stack index subscribes.
  */
 
 import {
@@ -14,6 +14,7 @@ import {
   getDoc,
   getDocs,
   limit,
+  onSnapshot,
   orderBy,
   query,
   setDoc,
@@ -49,12 +50,23 @@ export async function getPaperBatch(
   return snap.exists() ? (snap.data() as PaperBatch) : null;
 }
 
-/** Every stack this teacher has, newest first; the library uses it to spot stacks with no Paper card. */
-export async function listPaperBatches(userId: string): Promise<PaperBatch[]> {
-  const snap = await getDocs(batchesRef(userId));
-  return snap.docs
-    .map((d) => d.data() as PaperBatch)
-    .sort((a, b) => b.createdAt - a.createdAt);
+/** Each stack's id and quiz, live; the library uses it to spot stacks with no Paper card. */
+export function subscribePaperBatchIndex(
+  userId: string,
+  onChange: (index: { id: string; quizId: string }[]) => void,
+  onError: (err: unknown) => void
+): () => void {
+  return onSnapshot(
+    batchesRef(userId),
+    (snap) =>
+      onChange(
+        snap.docs.map((d) => ({
+          id: d.id,
+          quizId: (d.data() as PaperBatch).quizId,
+        }))
+      ),
+    onError
+  );
 }
 
 /** Every batch printed for one quiz, newest first. */

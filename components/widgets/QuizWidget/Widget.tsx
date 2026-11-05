@@ -204,7 +204,7 @@ import type {
 import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
 import {
   deletePaperBatchesForQuiz,
-  listPaperBatches,
+  subscribePaperBatchIndex,
   savePaperBatch,
   listPaperBatchesForQuiz,
   savePendingReview,
@@ -815,7 +815,6 @@ const TeacherQuizWidget: React.FC<{
   const [paperBatchIndex, setPaperBatchIndex] = useState<
     { id: string; quizId: string }[]
   >([]);
-  const [paperBatchesVersion, setPaperBatchesVersion] = useState(0);
   // Paper assignments made here whose listener row may not have arrived yet.
   const createdPaperIdsRef = useRef(new Set<string>());
   // Assign on paper offers Sharing only when the quiz already syncs with a PLC.
@@ -829,19 +828,10 @@ const TeacherQuizWidget: React.FC<{
   const paperUid = paperSheets.enabled && !isReview ? user?.uid : undefined;
   useEffect(() => {
     if (!paperUid) return;
-    let live = true;
-    listPaperBatches(paperUid)
-      .then((batches) => {
-        if (live)
-          setPaperBatchIndex(
-            batches.map((b) => ({ id: b.id, quizId: b.quizId }))
-          );
-      })
-      .catch((err: unknown) => console.warn('[QuizWidget] paper stacks:', err));
-    return () => {
-      live = false;
-    };
-  }, [paperUid, paperBatchesVersion]);
+    return subscribePaperBatchIndex(paperUid, setPaperBatchIndex, (err) =>
+      console.warn('[QuizWidget] paper stacks:', err)
+    );
+  }, [paperUid]);
   const [paperReprint, setPaperReprint] = useState<{
     quiz: QuizData;
     batch: PaperBatch;
@@ -4595,7 +4585,6 @@ const TeacherQuizWidget: React.FC<{
             setPaperPrintQuiz(null);
             setPaperPrintBanks(null);
             setPaperPrintMeta(null);
-            setPaperBatchesVersion((v) => v + 1);
           }}
           onError={(message) => addToast(message, 'error')}
         />
@@ -4685,7 +4674,6 @@ const TeacherQuizWidget: React.FC<{
           onPickFromDrive={pickScanFromDrive}
           onClose={() => {
             setPaperImport(null);
-            setPaperBatchesVersion((v) => v + 1);
           }}
           onError={(message) => addToast(message, 'error')}
         />

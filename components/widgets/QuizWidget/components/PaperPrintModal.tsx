@@ -950,8 +950,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         pageMaps = plan.pageMaps;
       }
 
+      const unassigned =
+        assign && !committedRef.current?.assigned ? committedRef.current : null;
       const planned = planPaperBatch({
-        batchId: crypto.randomUUID(),
+        // A replan before the assignment exists overwrites the stack it saved, so none is left behind.
+        batchId: unassigned?.batch.id ?? crypto.randomUUID(),
         quizId: quiz.id,
         selections: selectionsForPrint,
         questionCount,
@@ -981,9 +984,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ]),
         spareCount,
         includeKeySheet,
+        sheetStimuli,
+        boxSizes,
+        questionTextLayout,
       ]);
       const saved = assign ? committedRef.current : null;
-      // A saved stack is reused only for the same picks, or once its assignment exists.
+      // A saved stack is reused only for the same picks and setup, or once its assignment exists.
       const committed =
         saved && (saved.assigned || saved.picks === picks) ? saved : null;
       const { batch, sheets } = committed ?? planned;

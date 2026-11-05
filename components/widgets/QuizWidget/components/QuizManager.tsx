@@ -1540,12 +1540,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     }
 
     if (mode === 'active' && a.paper) {
-      const primary = {
-        label: 'Import responses',
-        icon: ScanLine,
-        onClick: () => (onImportPaperResponses ?? noop)(a),
-        anchor: tourTypeAttr('quiz-library.import-responses', 'quiz'),
-      };
+      // With paper sheets switched off the card keeps its badge but offers no import.
+      const primary = onImportPaperResponses
+        ? {
+            label: 'Import responses',
+            icon: ScanLine,
+            onClick: () => onImportPaperResponses(a),
+            anchor: tourTypeAttr('quiz-library.import-responses', 'quiz'),
+          }
+        : null;
       if (onReprintPaperSheets && a.paperBatchId) {
         secondaries.push({
           id: 'reprint-paper',

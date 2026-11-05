@@ -144,11 +144,13 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
           ? {
               ...(sheetStimuli.length > 0 ? { sheetStimuli } : {}),
               stimulusImageSrc: sheetImages.src,
+              // Closing revokes the image URLs, so wait until the print window has them.
+              onImagesReady: onClose,
             }
           : {}),
         sheets: reprintSheets(classes, picked),
       });
-      onClose();
+      if (imageStimuli.length === 0) onClose();
     } catch (err) {
       onError(
         err instanceof Error ? err.message : 'Could not print response sheets.'

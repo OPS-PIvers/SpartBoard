@@ -1527,7 +1527,7 @@ describe('PaperPrintModal on the Assign on paper stepper', () => {
     );
   });
 
-  it('saves a new stack when the picks change before a retry', async () => {
+  it('replans over the saved stack when the picks change before a retry', async () => {
     const onCreateAssignment = vi
       .fn()
       .mockRejectedValueOnce(new Error('offline'))
@@ -1548,6 +1548,7 @@ describe('PaperPrintModal on the Assign on paper stepper', () => {
     expect(onSaveBatch).toHaveBeenCalledTimes(2);
     const batch = onSaveBatch.mock.calls[1][0];
     expect(batch.spareSeats).toHaveLength(5);
+    expect(batch.id).toBe(onSaveBatch.mock.calls[0][0].id);
     expect(onCreateAssignment).toHaveBeenLastCalledWith(
       expect.objectContaining({ batchId: batch.id, rosterIds: ['r1'] })
     );
