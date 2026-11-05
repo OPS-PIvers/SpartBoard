@@ -59,7 +59,7 @@ async function main() {
   const eslintBin = join(dirname(eslintApi), '../bin/eslint.js');
   const result = spawnSync(
     process.execPath,
-    [eslintBin, ...targets, '--max-warnings', '0', ...args],
+    ['--max-old-space-size=6144', eslintBin, ...targets, '--max-warnings', '0', ...args],
     { stdio: 'inherit' }
   );
   process.exitCode = result.status ?? 1;
