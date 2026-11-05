@@ -22,6 +22,8 @@ import {
   type ClassLinkStudent,
   pinIndexKey,
   isBridgeablePin,
+  normalizeEmailDomain,
+  resolveOrgIdForDomain,
 } from './classlinkShared';
 import { normalizeQuizCode } from './quizCode';
 import { quizJoinCodeOwner } from './quizJoinCodeOwner';
@@ -39,7 +41,6 @@ import {
   targetRefsFromAssignment,
 } from './studentAssignmentTargets';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { isAiTeacherCaller } from './aiCallerGate';
 import { isTestClassAuthority } from './studentAssignmentTargets';
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { studentFirstName } from './studentFirstName';
@@ -95,51 +96,72 @@ export function __resetRosterOwnerCache(): void {
   rosterOwnerCache.clear();
 }
 
-/** The uids (of `uids`) whose Auth account is a verified district staff member or admin; Auth is read 100 at a time. */
-async function verifiedRosterOwners(
+/** The uids (of `uids`) that are not positively ruled out as roster owners; Auth is read 100 at a time. */
+async function acceptedRosterOwners(
   db: FirebaseFirestore.Firestore,
   uids: Iterable<string>
 ): Promise<Set<string>> {
-  const verified = new Set<string>();
+  const accepted = new Set<string>();
   const unknown: string[] = [];
   const now = Date.now();
   for (const uid of new Set(uids)) {
     const cached = rosterOwnerCache.get(uid);
     if (cached && now - cached.at < ROSTER_OWNER_TTL_MS) {
-      if (cached.ok) verified.add(uid);
+      if (cached.ok) accepted.add(uid);
     } else {
       unknown.push(uid);
     }
   }
   // An Auth outage throws: it must not read as "not a teacher".
+  const orgByDomain = new Map<string, Promise<string | null>>();
+  const orgFor = (domain: string): Promise<string | null> => {
+    let org = orgByDomain.get(domain);
+    if (!org) {
+      org = resolveOrgIdForDomain(db, domain);
+      orgByDomain.set(domain, org);
+    }
+    return org;
+  };
   await Promise.all(
     chunk(unknown, AUTH_GET_USERS_MAX).map(async (uidChunk) => {
       const res = await admin.auth().getUsers(uidChunk.map((uid) => ({ uid })));
+      // A missing account, or one without a verified email, is not a teacher; so are student, PIN and disabled accounts.
       const verdicts = new Map<string, boolean>(
         uidChunk.map((uid): [string, boolean] => [uid, false])
       );
       await Promise.all(
         res.users.map(async (user) => {
-          verdicts.set(
-            user.uid,
-            !!user.email &&
-              (await isAiTeacherCaller(db, {
-                email: user.email,
-                email_verified: user.emailVerified === true,
-              }))
-          );
+          const claims = (user.customClaims ?? {}) as Record<string, unknown>;
+          const email = (user.email ?? '').trim().toLowerCase();
+          const domain = normalizeEmailDomain(email);
+          if (
+            !email ||
+            !domain ||
+            user.emailVerified !== true ||
+            user.disabled === true ||
+            claims.studentRole === true ||
+            claims.pinLogin === true
+          ) {
+            return;
+          }
+          // Only a student member doc rules the account out; no doc, an inactive doc or an unmapped domain stay accepted.
+          const orgId = await orgFor(domain);
+          const member = orgId
+            ? await db.doc(`organizations/${orgId}/members/${email}`).get()
+            : null;
+          verdicts.set(user.uid, member?.data()?.roleId !== 'student');
         })
       );
       for (const [uid, ok] of verdicts) {
         rosterOwnerCache.set(uid, { ok, at: Date.now() });
-        if (ok) verified.add(uid);
+        if (ok) accepted.add(uid);
       }
     })
   );
-  return verified;
+  return accepted;
 }
 
-/** Roster docs owned by verified teachers whose `classlinkClassId` is in `ids`, grouped by that id. */
+/** Roster docs whose owner is not ruled out as a teacher, whose `classlinkClassId` is in `ids`, grouped by that id. */
 async function lookupRostersBySection(
   db: FirebaseFirestore.Firestore,
   ids: readonly string[]
@@ -150,7 +172,7 @@ async function lookupRostersBySection(
     classId: string,
     docs: readonly RosterSnap[]
   ): Promise<void> => {
-    const verified = await verifiedRosterOwners(db, docs.map(ownerOf));
+    const verified = await acceptedRosterOwners(db, docs.map(ownerOf));
     for (const doc of docs) {
       if (!verified.has(ownerOf(doc))) continue;
       const value: unknown = doc.get('classlinkClassId');
@@ -174,7 +196,7 @@ async function lookupRostersBySection(
     classIds.map((classId) => pageQuery(classId).get())
   );
   // One Auth batch for every class's first page.
-  await verifiedRosterOwners(
+  await acceptedRosterOwners(
     db,
     firstPages.flatMap((page) => page.docs.map(ownerOf))
   );

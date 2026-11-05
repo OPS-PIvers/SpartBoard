@@ -305,6 +305,24 @@ describe('runClassLinkRosterSync', () => {
     ]);
   });
 
+  it('leaves the pin index alone on a not-a-teacher verdict in dry run', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/attacker/rosters/r1',
+        'attacker',
+        [student('Ada', '01', 's1')],
+        [up('s1', 'Ada')]
+      ),
+    ]);
+    harness.taught.set('attacker', null);
+    const out = await runClassLinkRosterSync(harness.db, harness.deps, {
+      enabled: true,
+      dryRun: true,
+    });
+    expect(out.skippedNotTeacher).toBe(1);
+    expect(harness.pinIndexCalls).toEqual([]);
+  });
+
   it('skips a roster whose owner is not a verified teacher at all', async () => {
     harness = buildHarness([
       classlinkRoster(
