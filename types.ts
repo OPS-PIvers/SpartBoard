@@ -4500,6 +4500,8 @@ export interface QuizQuestion {
   enforceWordLimit?: boolean;
   /** Free Response only. True turns off the browser's spelling and grammar underlines in the answer. */
   noSpellCheck?: boolean;
+  /** FIB and Free Response: the student keyboard (`student-keyboards` flag). Absent = plain typing. */
+  answerKeyboard?: AnswerKeyboard;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
   /** Free Response only. What prints inside the paper answer box; absent = lines. */
@@ -5194,6 +5196,12 @@ export interface ReviewLaunchSettings {
  * session docs at create time, so editing these later only affects FUTURE
  * assigns (freeze-live).
  */
+/** Accent key sets offered to students; ids are the language's primary subtag. */
+export type AccentSetId = 'es' | 'fr' | 'de' | 'it' | 'pt';
+
+/** A typed question's student keyboard: equation boxes, or one language's accent keys. */
+export type AnswerKeyboard = 'math' | AccentSetId;
+
 export interface QuizBehaviorSettings {
   sessionMode: QuizSessionMode;
   sessionOptions: QuizSessionOptions;
@@ -5248,6 +5256,8 @@ export interface QuizPublicQuestion {
   enforceWordLimit?: boolean;
   /** Free Response only: turns off the browser's spelling and grammar underlines */
   noSpellCheck?: boolean;
+  /** FIB and Free Response: the student keyboard. */
+  answerKeyboard?: AnswerKeyboard;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
@@ -5478,6 +5488,7 @@ export interface QuizSession
   handRaiseEnabled?: boolean;
   /** Snapshot of `QuizData.language` at assign time; absent = 'en-US'. */
   language?: string;
+
   /** Reviewed stimulus text by id; the only stimulus text the synth function may speak (plan §3). */
   readAloudTextByStimulusId?: Record<string, string>;
   /** Written by `prepareQuizReadAloudV1`; absent on pre-feature sessions (plan §3). */
@@ -7520,6 +7531,7 @@ export type VideoActivityQuestion = Omit<
   | 'minWords'
   | 'enforceWordLimit'
   | 'noSpellCheck'
+  | 'answerKeyboard'
   | 'paperBoxSize'
   | 'paperBoxStyle'
   | 'paperBoxImage'
@@ -10893,6 +10905,8 @@ export type GlobalFeature =
   | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
+  /** Math keyboard and accent keys on student answer boxes, set per quiz. */
+  | 'student-keyboards'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */

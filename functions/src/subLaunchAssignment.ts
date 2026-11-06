@@ -325,6 +325,7 @@ interface KeyQuestion {
   maxWords?: number;
   enforceWordLimit?: boolean;
   noSpellCheck?: boolean;
+  answerKeyboard?: unknown;
   stimulusIds?: string[];
 }
 
@@ -336,6 +337,9 @@ function shuffled<T>(items: T[]): T[] {
   }
   return out;
 }
+
+// Mirrors AnswerKeyboard in types.ts and ACCENT_SETS in config/studentKeyboards.ts.
+const ANSWER_KEYBOARDS = new Set(['math', 'es', 'fr', 'de', 'it', 'pt']);
 
 /**
  * Server mirror of the student-safe projection in `toPublicQuestion`
@@ -424,6 +428,12 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
     if (q.noSpellCheck === true) base.noSpellCheck = true;
     if (q.points && q.points > 0) base.points = q.points;
   }
+  if (
+    (q.type === 'FIB' || q.type === 'free-response') &&
+    typeof q.answerKeyboard === 'string' &&
+    ANSWER_KEYBOARDS.has(q.answerKeyboard)
+  )
+    base.answerKeyboard = q.answerKeyboard;
   if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];
   return base;
 }

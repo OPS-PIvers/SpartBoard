@@ -95,6 +95,8 @@ export function questionTypeChangeUpdates(
     placeholder: isWritten ? q.placeholder : undefined,
     maxWords: isWritten ? q.maxWords : undefined,
     noSpellCheck: isWritten ? q.noSpellCheck : undefined,
+    answerKeyboard:
+      isWritten || nextType === 'FIB' ? q.answerKeyboard : undefined,
     rubricId: isWritten ? q.rubricId : undefined,
     rubricSnapshot: isWritten ? q.rubricSnapshot : undefined,
     rubricVisibleToStudents: isWritten ? q.rubricVisibleToStudents : undefined,

@@ -9,6 +9,7 @@ import {
   Bot,
   Building2,
   Cast,
+  Keyboard,
   ClipboardCheck,
   Download,
   Eye,
@@ -603,6 +604,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Calculator stimulus',
     icon: Calculator,
     description: 'Teachers attach a Desmos calculator to quiz questions.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Student math keyboard and accent keys. Admin-only until Paul has tested it in prod.
+  'student-keyboards': {
+    label: 'Student keyboards',
+    icon: Keyboard,
+    description:
+      'Teachers turn on a math keyboard or accent keys for a quiz question.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
