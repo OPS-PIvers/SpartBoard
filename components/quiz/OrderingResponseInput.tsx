@@ -31,6 +31,11 @@ import {
   AnswerLabel,
 } from './AnswerImage';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
+import {
+  SIDE_BANK_PANEL,
+  SIDE_BANK_WRAPPER,
+  hasSideBank,
+} from './structuredLayout';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
 
@@ -476,7 +481,9 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
       collisionDetection={rectIntersection}
       onDragEnd={handleDragEnd}
     >
-      <div className="space-y-4">
+      <div
+        className={`space-y-4 ${hasSideBank(question) ? SIDE_BANK_WRAPPER : ''}`}
+      >
         <div className="space-y-2">
           {slots.map((slot, i) => {
             const label =
@@ -509,7 +516,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
           })}
         </div>
 
-        <BankDropZone light={light}>
+        <BankDropZone light={light} side={hasSideBank(question)}>
           <div className="flex items-center justify-between mb-2">
             <span
               className={`text-xs uppercase tracking-wider font-bold ${light ? 'text-slate-500' : 'text-slate-400'}`}
@@ -541,7 +548,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
               return (
                 <span
                   key={itemIndex}
-                  className={`inline-flex ${images ? 'items-stretch' : 'items-center'} gap-1 rounded-xl ${isHighlighted(items[itemIndex]) ? READ_ALOUD_HIGHLIGHT_CLASS : ''}`}
+                  className={`inline-flex ${images?.[itemIndex] ? 'items-stretch' : 'items-center self-center'} gap-1 rounded-xl ${isHighlighted(items[itemIndex]) ? READ_ALOUD_HIGHLIGHT_CLASS : ''}`}
                 >
                   <DraggableChip
                     id={`bank-${itemIndex}`}
@@ -567,12 +574,13 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
 const BankDropZone: React.FC<{
   children: React.ReactNode;
   light?: boolean;
-}> = ({ children, light }) => {
+  side?: boolean;
+}> = ({ children, light, side }) => {
   const { isOver, setNodeRef } = useDroppable({ id: BANK_ID });
   return (
     <div
       ref={setNodeRef}
-      className={`p-3 rounded-2xl border-2 border-dashed transition-colors ${
+      className={`p-3 rounded-2xl border-2 border-dashed transition-colors ${side ? SIDE_BANK_PANEL : ''} ${
         isOver
           ? light
             ? 'border-brand-blue-light bg-brand-blue-lighter'

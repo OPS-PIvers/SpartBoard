@@ -206,6 +206,7 @@ import {
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { CrossOutChoiceButton } from './CrossOutChoiceButton';
 import { AnswerImage, AnswerImageZoomButton } from './AnswerImage';
+import { hasSideBank } from './structuredLayout';
 import {
   crossOutStorageKey,
   useCrossedOutChoices,
@@ -3931,7 +3932,9 @@ export const ActiveQuiz: React.FC<{
               ? 'max-w-[1700px]'
               : currentQuestion.type === 'free-response'
                 ? 'max-w-7xl'
-                : 'max-w-2xl'
+                : hasSideBank(currentQuestion)
+                  ? 'max-w-2xl lg:max-w-7xl'
+                  : 'max-w-2xl'
           }`}
         >
           {/* Header */}

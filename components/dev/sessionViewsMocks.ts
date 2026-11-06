@@ -798,6 +798,9 @@ const POSTER_ITEMS = [
   'Watch and Wait',
   'Signal the Mode',
   'Check for Task Understanding',
+  'Get Noticed',
+  'Lead and Empower',
+  'Linger and Look Back',
 ];
 
 /** Self-paced Ordering, Matching and multiple choice questions whose answers carry pictures. */
@@ -819,15 +822,17 @@ export function makeOptionImagesQuizSession(
     type: 'Matching' as const,
     text: 'Match each poster to its routine.',
     timeLimit: 0,
-    matchingLeft: POSTER_ITEMS.slice(0, 3),
-    matchingLeftImages: images.slice(0, 3),
+    matchingLeft: POSTER_ITEMS.slice(0, 5),
+    matchingLeftImages: images.slice(0, 5),
     matchingRight: [
       'Before work time',
       'During work time',
       'After work time',
       'At lunch',
+      'At recess',
+      'In the hallway',
     ],
-    matchingRightImages: [images[3], images[4], images[0], ''],
+    matchingRightImages: [images[5], images[6], images[7], '', '', ''],
   };
   const mc = {
     id: 'img-mc',
