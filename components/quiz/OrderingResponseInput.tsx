@@ -201,7 +201,11 @@ const Slot: React.FC<{
           aria-label={`${filledLabel}, ${slotPosition}`}
           aria-pressed={selectedHere}
         >
-          <AnswerLabel label={filledLabel} image={filledImage} />
+          <AnswerLabel
+            label={filledLabel}
+            image={filledImage}
+            layout="compact"
+          />
         </button>
       ) : (
         <button

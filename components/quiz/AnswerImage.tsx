@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { ZoomIn } from 'lucide-react';
 import { ImageLightbox } from '@/components/common/ImageLightbox';
 
-/** Tile: picture fills the top of a word-bank chip. Row: picture at the left of a full-width answer row. */
-export type AnswerImageLayout = 'tile' | 'row';
+/** Tile: picture across the top of a word-bank chip. Row: beside an answer row. Compact: smaller row for placed items and terms. */
+export type AnswerImageLayout = 'tile' | 'row' | 'compact';
 
 const SIZE: Record<AnswerImageLayout, string> = {
   tile: 'w-full h-32 sm:h-48',
   row: 'h-24 w-32 sm:h-32 sm:w-44',
+  compact: 'h-16 w-20 sm:h-24 sm:w-32',
 };
 
 /** Picture on an answer; the text names it, and chips must not start a native image drag. */
@@ -38,7 +39,7 @@ export const AnswerLabel: React.FC<{
     </span>
   ) : (
     <span className="flex items-center gap-3">
-      <AnswerImage src={image} layout="row" />
+      <AnswerImage src={image} layout={layout} />
       <span className="min-w-0 wrap-break-word">{label}</span>
     </span>
   );
@@ -83,10 +84,11 @@ export const AnswerImageZoomButton: React.FC<{
 };
 
 /** A picture that is not part of a button (a Matching term): tapping it enlarges it. */
-export const ZoomableAnswerImage: React.FC<{ src: string; label: string }> = ({
-  src,
-  label,
-}) => {
+export const ZoomableAnswerImage: React.FC<{
+  src: string;
+  label: string;
+  layout?: AnswerImageLayout;
+}> = ({ src, label, layout = 'row' }) => {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -98,7 +100,7 @@ export const ZoomableAnswerImage: React.FC<{ src: string; label: string }> = ({
         title="Enlarge picture"
         className="relative shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
       >
-        <AnswerImage src={src} layout="row" />
+        <AnswerImage src={src} layout={layout} />
         <span className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-white/95 text-slate-700 shadow-xs">
           <ZoomIn className="h-4 w-4" aria-hidden="true" />
         </span>

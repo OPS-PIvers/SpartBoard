@@ -77,6 +77,8 @@ interface DraggableChipProps {
    */
   ariaLabel?: string;
   light?: boolean;
+  /** Placed in a match zone: a compact row with the picture beside the text. */
+  placed?: boolean;
 }
 
 const DraggableChip: React.FC<DraggableChipProps> = ({
@@ -88,9 +90,11 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
   onTap,
   ariaLabel,
   light,
+  placed,
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id, disabled });
+  const tile = Boolean(image) && !placed;
   const style: React.CSSProperties = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : {};
@@ -103,7 +107,7 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
         if (!disabled) onTap();
       }}
       style={style}
-      className={`min-h-[44px] rounded-xl text-sm font-bold border-2 select-none touch-none transition-colors ${image ? `${ANSWER_TILE_WIDTH} flex flex-col p-2` : 'px-3 py-2'} ${
+      className={`min-h-[44px] rounded-xl text-sm font-bold border-2 select-none touch-none transition-colors ${tile ? `${ANSWER_TILE_WIDTH} flex flex-col p-2` : placed && image ? 'flex-1 p-2 text-left' : 'px-3 py-2'} ${
         isDragging
           ? 'opacity-40'
           : selected
@@ -120,10 +124,25 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
       aria-label={ariaLabel ?? label}
       title={label}
     >
-      <AnswerLabel label={label} image={image} layout="tile" />
+      <AnswerLabel
+        label={label}
+        image={image}
+        layout={tile ? 'tile' : 'compact'}
+      />
     </button>
   );
   if (!image) return chip;
+  if (placed)
+    return (
+      <span className="flex flex-1 items-center gap-1">
+        {chip}
+        <AnswerImageZoomButton
+          src={image}
+          label={label}
+          className={isDragging ? 'invisible' : ''}
+        />
+      </span>
+    );
   return (
     <span className="relative inline-flex">
       {chip}
@@ -470,13 +489,14 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
             return (
               <div key={term} className="flex items-center gap-3">
                 <span
-                  className={`flex w-1/2 gap-2 rounded-xl text-sm font-bold wrap-break-word ${termImages?.[termIndex] ? 'flex-col items-start' : 'items-center'} ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
+                  className={`flex w-1/2 gap-2 rounded-xl text-sm font-bold wrap-break-word items-center ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
                   title={term}
                 >
                   {termImages?.[termIndex] && (
                     <ZoomableAnswerImage
                       src={termImages[termIndex]}
                       label={term}
+                      layout="compact"
                     />
                   )}
                   <span className="min-w-0 flex-1">{term}</span>
@@ -499,6 +519,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                       onTap={() => handleZoneChipTap(term)}
                       ariaLabel={`${placedLabel}, matched to ${term}`}
                       light={light}
+                      placed
                     />
                     {speaker('matchingRight', placedLabel)}
                   </span>
