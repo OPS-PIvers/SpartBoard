@@ -34,8 +34,6 @@ import {
   detectStimulusTypeFromUrl,
   isPlayLimitedType,
   questionsUsingStimulus,
-  stimulusShareMessage,
-  STIMULUS_SHARE_CONFIRM,
 } from '@/utils/quizStimuli';
 import { extractGoogleFileId } from '@/utils/urlHelpers';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -70,20 +68,14 @@ const MAX_STIMULUS_BYTES = 200 * 1024 * 1024;
 
 /**
  * Shared intake used by both entry points. Returns the created stimulus
- * or null when the teacher declined the sharing prompt / an error hit.
+ * or null when an error hit.
  */
 function useStimulusIntake(state: QuizEditorController) {
   const { driveService, userDomain } = useGoogleDrive();
   const { openPicker } = useGooglePicker();
   const { ensureGoogleScope } = useAuth();
-  const { showConfirm, showAlert } = useDialog();
+  const { showAlert } = useDialog();
   const [busy, setBusy] = useState(false);
-
-  const confirmShare = useCallback(
-    async (what: string): Promise<boolean> =>
-      showConfirm(stimulusShareMessage(what), STIMULUS_SHARE_CONFIRM),
-    [showConfirm]
-  );
 
   const addFromFile = useCallback(
     async (file: File): Promise<QuizStimulus | null> => {
@@ -116,12 +108,6 @@ function useStimulusIntake(state: QuizEditorController) {
           `stimulus-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`,
           'Assets/QuizStimuli'
         );
-        const shared = await confirmShare(file.name);
-        if (!shared) {
-          // Attach cancelled — remove the just-uploaded orphan.
-          await driveService.deleteFile(driveFile.id).catch(() => undefined);
-          return null;
-        }
         // undefined domain forces type:'anyone' — anonymous live-session
         // students have no Workspace identity a domain grant could match.
         await driveService.makePublic(driveFile.id, undefined);
@@ -144,7 +130,7 @@ function useStimulusIntake(state: QuizEditorController) {
         setBusy(false);
       }
     },
-    [driveService, confirmShare, showAlert, state]
+    [driveService, showAlert, state]
   );
 
   const addFromUrl = useCallback(
@@ -159,8 +145,6 @@ function useStimulusIntake(state: QuizEditorController) {
       setBusy(true);
       try {
         if (driveFileId && driveService) {
-          const shared = await confirmShare('this Drive file');
-          if (!shared) return null;
           try {
             await driveService.makePublic(driveFileId, undefined);
           } catch {
@@ -183,7 +167,7 @@ function useStimulusIntake(state: QuizEditorController) {
         setBusy(false);
       }
     },
-    [driveService, confirmShare, showAlert, state]
+    [driveService, showAlert, state]
   );
 
   const addFromDrive = useCallback(async (): Promise<QuizStimulus | null> => {
@@ -229,8 +213,6 @@ function useStimulusIntake(state: QuizEditorController) {
       );
       return null;
     }
-    const shared = await confirmShare(picked.name);
-    if (!shared) return null;
     setBusy(true);
     try {
       if (driveService) {
@@ -259,7 +241,6 @@ function useStimulusIntake(state: QuizEditorController) {
     ensureGoogleScope,
     openPicker,
     addFromUrl,
-    confirmShare,
     driveService,
     showAlert,
     state,

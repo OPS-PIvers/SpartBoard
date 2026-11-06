@@ -103,7 +103,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   latest = [];
   mocks.ensureGoogleScope.mockResolvedValue('token');
-  mocks.showConfirm.mockResolvedValue(true);
   mocks.makePublic.mockResolvedValue(undefined);
   mocks.uploadFile.mockResolvedValue({ id: 'up1' });
 });
@@ -143,20 +142,19 @@ describe('Stimuli tab sources', () => {
     });
   });
 
-  it('adds nothing when the share prompt is declined', async () => {
+  it('shares a Drive-picked image without asking', async () => {
     mocks.openPicker.mockResolvedValue({
       id: 'drv1',
       name: 'Map.png',
       mimeType: 'image/png',
     });
-    mocks.showConfirm.mockResolvedValue(false);
     render(<Harness />);
     await userEvent.click(
       screen.getByRole('button', { name: 'Choose from Drive' })
     );
-    await waitFor(() => expect(mocks.showConfirm).toHaveBeenCalled());
-    expect(mocks.makePublic).not.toHaveBeenCalled();
-    expect(latest).toHaveLength(0);
+    await waitFor(() => expect(latest).toHaveLength(1));
+    expect(mocks.showConfirm).not.toHaveBeenCalled();
+    expect(mocks.makePublic).toHaveBeenCalledWith('drv1', undefined);
   });
 
   it('adds a Drive-picked Google Doc as an embed', async () => {
