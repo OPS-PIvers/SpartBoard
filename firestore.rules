@@ -383,7 +383,14 @@ service cloud.firestore {
              request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
              viewAsAdminOk() &&
+             !operatorMemberRevoked() &&
              (isLegacySuperAdmin() || isMemberSuperAdmin());
+    }
+
+    // A deactivated operator member keeps roleId, so super-admin standing (legacy list too) must check status.
+    function operatorMemberRevoked() {
+      return operatorMember() != null &&
+             operatorMember().data.get('status', 'active') in ['inactive', 'removed'];
     }
 
     function isLegacySuperAdmin() {

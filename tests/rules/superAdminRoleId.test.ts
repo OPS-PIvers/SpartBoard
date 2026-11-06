@@ -22,7 +22,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, doc } from 'firebase/firestore';
+import { setDoc, getDoc, doc, updateDoc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-superadmin-roleid';
 const ORG_ID = 'orono';
@@ -128,6 +128,36 @@ describe('LO2 — super admin via member roleId (not in legacy list)', () => {
 
   it('member with roleId super_admin can read any org', async () => {
     await assertSucceeds(getDoc(doc(asRoleSuper(), `organizations/${ORG_ID}`)));
+  });
+
+  it('deactivated super_admin cannot reactivate their own member doc, even on the legacy list', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await updateDoc(
+        doc(db, `organizations/${ORG_ID}/members/${ROLE_SUPER_EMAIL}`),
+        { status: 'inactive' }
+      );
+      await setDoc(doc(db, 'admin_settings/user_roles'), {
+        superAdmins: [ROLE_SUPER_EMAIL],
+      });
+    });
+    await assertFails(
+      updateDoc(
+        doc(
+          asRoleSuper(),
+          `organizations/${ORG_ID}/members/${ROLE_SUPER_EMAIL}`
+        ),
+        { status: 'active' }
+      )
+    );
+    await assertFails(
+      setDoc(doc(asRoleSuper(), 'admin_settings/view_as'), { enabled: true })
+    );
+    await assertFails(
+      setDoc(doc(asRoleSuper(), 'admin_settings/user_roles'), {
+        superAdmins: [ROLE_SUPER_EMAIL],
+      })
+    );
   });
 
   it('plain teacher member is NOT granted super-admin access (org create denied)', async () => {

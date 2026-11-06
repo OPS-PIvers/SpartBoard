@@ -60,13 +60,18 @@ export const STRICT_SUPER_ADMIN_ROLE_IDS: readonly string[] = ['super_admin'];
 /** Strict super admin, mirroring the rules' isSuperAdmin(): operator-org member roleId or legacy user_roles list. */
 export async function isStrictSuperAdmin(
   db: admin.firestore.Firestore,
-  emailLower: string
+  emailLower: string,
+  includeRevoked = false
 ): Promise<boolean> {
   const [operatorSnap, legacySnap] = await Promise.all([
     db.doc(`organizations/${OPERATOR_ORG_ID}/members/${emailLower}`).get(),
     db.doc('admin_settings/user_roles').get(),
   ]);
   if (operatorSnap.exists) {
+    // A deactivated operator member loses both grants, legacy list included; includeRevoked is for target protection only.
+    if (!includeRevoked && isRevokedMemberStatus(operatorSnap.get('status'))) {
+      return false;
+    }
     const roleId: unknown = operatorSnap.get('roleId');
     if (
       typeof roleId === 'string' &&

@@ -1442,9 +1442,11 @@ export async function isTestClassAuthority(
       .get(),
     db.doc(`organizations/${orgId}/members/${teacherEmailLower}`).get(),
   ]);
-  const legacyList: unknown = legacyDoc.exists
-    ? legacyDoc.get('superAdmins')
-    : null;
+  const operatorRevoked =
+    operatorMemberDoc.exists &&
+    isRevokedMemberStatus(operatorMemberDoc.get('status'));
+  const legacyList: unknown =
+    legacyDoc.exists && !operatorRevoked ? legacyDoc.get('superAdmins') : null;
   if (
     Array.isArray(legacyList) &&
     legacyList.some(
@@ -1453,7 +1455,9 @@ export async function isTestClassAuthority(
   ) {
     return true;
   }
-  if (roleIdOf(operatorMemberDoc) === 'super_admin') return true;
+  if (!operatorRevoked && roleIdOf(operatorMemberDoc) === 'super_admin') {
+    return true;
+  }
   return (
     roleIdOf(memberDoc) === 'domain_admin' &&
     !isRevokedMemberStatus(memberDoc.get('status'))

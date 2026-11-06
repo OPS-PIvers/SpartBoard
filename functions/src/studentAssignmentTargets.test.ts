@@ -2009,6 +2009,15 @@ describe('isTestClassAuthority', () => {
     });
     await expect(check()).resolves.toBe(true);
   });
+
+  it('denies a deactivated operator super admin, even on the legacy list', async () => {
+    state.docs.set('admin_settings/user_roles', { superAdmins: [EMAIL] });
+    state.docs.set(`organizations/orono/members/${EMAIL}`, {
+      roleId: 'super_admin',
+      status: 'inactive',
+    });
+    await expect(check()).resolves.toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
