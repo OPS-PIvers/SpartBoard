@@ -301,6 +301,119 @@ describe('AuthContext — offline grant probe', () => {
   });
 });
 
+describe('AuthContext — offline grant answer stays current', () => {
+  const stubFailingGis = (): void => {
+    vi.stubGlobal('google', {
+      accounts: {
+        oauth2: {
+          initTokenClient: vi.fn((config: { error_callback: () => void }) => ({
+            requestAccessToken: () => config.error_callback(),
+          })),
+        },
+      },
+    });
+  };
+
+  const mountPresent = async (): Promise<void> => {
+    vi.mocked(refreshAccessTokenViaBackend).mockResolvedValue({
+      status: 'ok',
+      token: 'backend-token',
+      expiresIn: 3600,
+    });
+    seedLiveToken();
+    await mountSignedIn();
+    expect(getCtx().offlineGrantPresent).toBe(true);
+  };
+
+  it('clears the answer for the next teacher on the tab', async () => {
+    await mountPresent();
+    vi.mocked(refreshAccessTokenViaBackend).mockResolvedValue({
+      status: 'error',
+      message: 'network',
+    });
+
+    const onAuthMock = vi.mocked(firebaseAuth.onAuthStateChanged);
+    const listener = onAuthMock.mock.calls[
+      onAuthMock.mock.calls.length - 1
+    ]?.[1] as (u: User | null) => void;
+    const nextTeacher = { ...buildFakeUser('next@example.com'), uid: 'next' };
+    Object.defineProperty(auth, 'currentUser', {
+      configurable: true,
+      writable: true,
+      value: nextTeacher,
+    });
+    await act(async () => {
+      listener(nextTeacher);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getCtx().user?.uid).toBe('next');
+    expect(getCtx().offlineGrantPresent).toBe(false);
+  });
+
+  it('forgets the answer when Drive is disconnected', async () => {
+    await mountPresent();
+
+    await act(async () => {
+      await getCtx().disconnectGoogleDrive();
+    });
+
+    expect(getCtx().offlineGrantPresent).toBe(false);
+    expect(sessionStorage.getItem(PROBED_KEY)).toBeNull();
+  });
+
+  it('records a grant captured by a Drive reconnect', async () => {
+    vi.mocked(refreshAccessTokenViaBackend).mockResolvedValue({
+      status: 'needs-consent',
+      cause: 'no-stored-token',
+    });
+    vi.mocked(requestAndExchangeAuthCode).mockResolvedValue({
+      kind: 'success',
+      result: {
+        accessToken: 'granted-token',
+        expiresIn: 3600,
+        hasRefreshToken: true,
+      },
+    });
+    seedLiveToken();
+    await mountSignedIn();
+    expect(getCtx().offlineGrantMissing).toBe(true);
+
+    stubFailingGis();
+    await act(async () => {
+      await getCtx().refreshGoogleToken(false);
+    });
+
+    expect(getCtx().offlineGrantMissing).toBe(false);
+    expect(getCtx().offlineGrantPresent).toBe(true);
+    expect(sessionStorage.getItem(PROBED_KEY)).toMatch(/:present$/);
+  });
+
+  it('records a grant proven by a backend refresh', async () => {
+    vi.mocked(refreshAccessTokenViaBackend).mockResolvedValue({
+      status: 'needs-consent',
+      cause: 'no-stored-token',
+    });
+    seedLiveToken();
+    await mountSignedIn();
+    expect(getCtx().offlineGrantMissing).toBe(true);
+
+    stubFailingGis();
+    vi.mocked(refreshAccessTokenViaBackend).mockResolvedValue({
+      status: 'ok',
+      token: 'backend-token',
+      expiresIn: 3600,
+    });
+    await act(async () => {
+      await getCtx().refreshGoogleToken(false);
+    });
+
+    expect(getCtx().offlineGrantMissing).toBe(false);
+    expect(sessionStorage.getItem(PROBED_KEY)).toMatch(/:present$/);
+  });
+});
+
 describe('AuthContext — captureOfflineGrant', () => {
   beforeEach(() => {
     vi.mocked(refreshAccessTokenViaBackend).mockResolvedValue({
