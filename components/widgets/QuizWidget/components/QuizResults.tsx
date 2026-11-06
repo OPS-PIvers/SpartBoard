@@ -3961,6 +3961,8 @@ const StudentDrilldownPanel: React.FC<{
   sessionId?: string;
   /** The session's sections, so an earlier attempt's choose-N picks are its own. */
   sections?: readonly QuizSessionSection[];
+  /** Hybrid paper quiz: unscanned paper answers keep an attempt's score open. */
+  paperWrittenQuestionIds?: readonly string[];
 }> = ({
   id,
   quizTitle,
@@ -3977,6 +3979,7 @@ const StudentDrilldownPanel: React.FC<{
   showFeedback,
   sessionId,
   sections,
+  paperWrittenQuestionIds,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const { canAccessFeature } = useAuth();
@@ -3997,7 +4000,12 @@ const StudentDrilldownPanel: React.FC<{
   const attemptOptions = useMemo((): (readonly [string, string])[] => {
     if (earlier.length === 0) return [];
     const label = (n: number, r: QuizResponse): string => {
-      const raw = quizLiveRaw(r, questions, fibGrading);
+      const raw = quizLiveRaw(
+        r,
+        questions,
+        fibGrading,
+        paperWrittenQuestionIds
+      );
       return raw.points !== null && raw.max
         ? `${n} · ${Math.round((raw.points / raw.max) * 100)}%`
         : String(n);
@@ -4013,7 +4021,14 @@ const StudentDrilldownPanel: React.FC<{
       ),
       ['current', label(currentN, liveResponse)] as const,
     ];
-  }, [earlier, liveResponse, questions, fibGrading, sections]);
+  }, [
+    earlier,
+    liveResponse,
+    questions,
+    fibGrading,
+    sections,
+    paperWrittenQuestionIds,
+  ]);
   const drilldown = useMemo(
     () =>
       computeStudentDrilldown(
@@ -4899,6 +4914,7 @@ const StudentsScreen: React.FC<{
                   showFeedback={showStudentFeedback}
                   sessionId={session?.id}
                   sections={session?.sections}
+                  paperWrittenQuestionIds={session?.paperWrittenQuestionIds}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl
