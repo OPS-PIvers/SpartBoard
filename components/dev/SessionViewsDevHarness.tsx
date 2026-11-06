@@ -60,6 +60,8 @@ import {
   makeReviewGameResponses,
   makeReviewGameSession,
   makeQuizData,
+  makeOrderingQuizData,
+  makeOrderingResponses,
   makeQuizConfig,
   makeVaSession,
   makeVaResponses,
@@ -306,6 +308,20 @@ const SessionView: React.FC<{
         session={makeReviewGameSession()}
         onBack={() => undefined}
         variant="review"
+      />
+    );
+  }
+
+  if (view === 'quiz-results' && state === 'ordering') {
+    return (
+      <QuizResults
+        quiz={makeOrderingQuizData()}
+        responses={makeOrderingResponses()}
+        config={makeQuizConfig()}
+        session={makeQuizSession('ended')}
+        onBack={() => undefined}
+        onSubmitStudent={noop}
+        studentResultsActions={HARNESS_RESULTS_ACTIONS}
       />
     );
   }
