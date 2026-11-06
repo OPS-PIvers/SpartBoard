@@ -5,6 +5,7 @@ vi.mock('./functionsInit', () => ({}));
 import {
   OPEN_SOURCES,
   addRosterTeachers,
+  keepTaughtOwners,
   buildActiveStudentRows,
   latestOpensByStudent,
   mapWithConcurrency,
@@ -154,7 +155,7 @@ describe('orderSectionsForNameLookup cover', () => {
 });
 
 describe('addRosterTeachers', () => {
-  it('adds the teachers who imported a student class without overwriting opens', () => {
+  it('adds the teachers who imported a student class, dated by the later of open and sign-in', () => {
     const opens = new Map([['a', new Map([['t1', 30]])]]);
     const result = addRosterTeachers(
       opens,
@@ -169,7 +170,7 @@ describe('addRosterTeachers', () => {
       ])
     );
     expect([...(result.get('a') ?? [])]).toEqual([
-      ['t1', 30],
+      ['t1', 50],
       ['t2', 50],
     ]);
     expect([...(result.get('b') ?? [])]).toEqual([
@@ -178,5 +179,21 @@ describe('addRosterTeachers', () => {
       ['t3', 40],
     ]);
     expect(result.has('c')).toBe(false);
+  });
+});
+
+describe('keepTaughtOwners', () => {
+  it('drops a roster owner ClassLink does not list as teaching the class', () => {
+    const owners = keepTaughtOwners(
+      new Map([
+        ['s1', new Set(['real', 'claimed'])],
+        ['s2', new Set(['claimed'])],
+      ]),
+      new Map([
+        ['real', new Set(['s1'])],
+        ['claimed', new Set(['other'])],
+      ])
+    );
+    expect([...owners]).toEqual([['s1', new Set(['real'])]]);
   });
 });

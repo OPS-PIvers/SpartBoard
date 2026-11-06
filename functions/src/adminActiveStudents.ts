@@ -17,6 +17,7 @@ import {
   type ClassLinkStudent,
 } from './classlinkShared';
 import { isRevokedMemberStatus, isSiteWideAdmin } from './authz';
+import { loadTeacherClassIds } from './studentIdentity';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 // Admin-only drill-down behind the Active Students KPIs: teachers come from assignments opened and imported rosters; names come live from ClassLink.
@@ -173,9 +174,11 @@ export function addRosterTeachers(
     const byTeacher = opensByStudent.get(s.uid) ?? new Map<string, number>();
     for (const id of s.sectionIds) {
       for (const teacherUid of rosterOwners.get(id) ?? []) {
-        // No open to date it by, so the sign-in keeps it on the daily list.
-        if (!byTeacher.has(teacherUid))
-          byTeacher.set(teacherUid, s.lastSignInMs);
+        // Dated by the later of their open and the sign-in, so the daily list keeps every class teacher.
+        byTeacher.set(
+          teacherUid,
+          Math.max(byTeacher.get(teacherUid) ?? 0, s.lastSignInMs)
+        );
       }
     }
     if (byTeacher.size > 0) opensByStudent.set(s.uid, byTeacher);
@@ -602,19 +605,32 @@ async function loadNames(
     }
   );
 
-  for (const s of active) {
-    const hit = nameCache.get(s.uid);
-    if (hit) namesByUid.set(s.uid, hit.name);
-  }
-  const unnamed = active.filter((s) => !namesByUid.has(s.uid));
-  if (unnamed.length === 0) return { partial, namesByUid, rosterOwners };
-
   const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
   const clientId = CLASSLINK_CLIENT_ID.value();
   const clientSecret = CLASSLINK_CLIENT_SECRET.value();
   const tenantUrl = CLASSLINK_TENANT_URL.value().replace(/\/$/, '');
   if (!hmacSecret || !clientId || !clientSecret || !tenantUrl) {
-    return { partial: true, namesByUid, rosterOwners };
+    return { partial: true, namesByUid, rosterOwners: new Map() };
+  }
+  // Roster docs are client-written, so ClassLink confirms each owner teaches the class; runs alongside the name walk.
+  const verified = verifyRosterOwners(rosterOwners, deadline, {
+    classlinkClientId: clientId,
+    classlinkClientSecret: clientSecret,
+    tenantUrl,
+  });
+
+  for (const s of active) {
+    const hit = nameCache.get(s.uid);
+    if (hit) namesByUid.set(s.uid, hit.name);
+  }
+  const unnamed = active.filter((s) => !namesByUid.has(s.uid));
+  if (unnamed.length === 0) {
+    const v = await verified;
+    return {
+      partial: partial || v.partial,
+      namesByUid,
+      rosterOwners: v.owners,
+    };
   }
   const wanted = new Set(unnamed.map((s) => s.uid));
   // Classes nobody imported come last, for students no imported class covers.
@@ -686,5 +702,54 @@ async function loadNames(
       }
     }
   );
-  return { partial, namesByUid, rosterOwners };
+  const v = await verified;
+  return { partial: partial || v.partial, namesByUid, rosterOwners: v.owners };
+}
+
+/** Keeps only (class, teacher) pairs ClassLink confirms; an owner it can't check is dropped. */
+async function verifyRosterOwners(
+  rosterOwners: ReadonlyMap<string, ReadonlySet<string>>,
+  deadline: number,
+  creds: Parameters<typeof loadTeacherClassIds>[1]
+): Promise<{ partial: boolean; owners: Map<string, Set<string>> }> {
+  let partial = false;
+  const uids = [
+    ...new Set([...rosterOwners.values()].flatMap((set) => [...set])),
+  ];
+  const taughtBy = new Map<string, Set<string>>();
+  for (const ids of chunk(uids, 100)) {
+    const users = await admin
+      .auth()
+      .getUsers(ids.map((uid) => ({ uid })))
+      .catch(() => null);
+    if (!users) {
+      partial = true;
+      continue;
+    }
+    await mapWithConcurrency(users.users, CLASSLINK_CONCURRENCY, async (u) => {
+      if (!u.email || !u.emailVerified) return;
+      if (Date.now() >= deadline) {
+        partial = true;
+        return;
+      }
+      const taught = await loadTeacherClassIds(u.email, creds).catch(
+        () => null
+      );
+      if (taught) taughtBy.set(u.uid, taught);
+    });
+  }
+  return { partial, owners: keepTaughtOwners(rosterOwners, taughtBy) };
+}
+
+/** Roster owners whose ClassLink class list includes that class. */
+export function keepTaughtOwners(
+  rosterOwners: ReadonlyMap<string, ReadonlySet<string>>,
+  taughtBy: ReadonlyMap<string, ReadonlySet<string>>
+): Map<string, Set<string>> {
+  const owners = new Map<string, Set<string>>();
+  for (const [sectionId, set] of rosterOwners) {
+    const ok = [...set].filter((uid) => taughtBy.get(uid)?.has(sectionId));
+    if (ok.length > 0) owners.set(sectionId, new Set(ok));
+  }
+  return owners;
 }
