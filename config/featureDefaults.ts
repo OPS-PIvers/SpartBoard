@@ -776,18 +776,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Per-question "Spell check" switch on Free Response questions.
-  'quiz-spell-check-toggle': {
-    label: 'Spell check switch in quizzes',
-    icon: SpellCheck,
-    description:
-      'Teachers can turn off spelling and grammar underlines on a Free Response question.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',
