@@ -5525,6 +5525,8 @@ export interface QuizSession
   allowStimulusQuotes?: boolean;
   /** Stamped only with the quiz-cross-out flag; absent = no cross-out buttons. */
   allowCrossOut?: boolean;
+  /** Stamped only with the quiz-ordering-list flag; Ordering shows one list to drag into order. */
+  orderingList?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
   showResultToStudent?: boolean;
   /** Reveal the correct answer text to students after submit (default false) */
@@ -10933,6 +10935,8 @@ export type GlobalFeature =
   | 'quiz-submit-for-student'
   /** Quiz answers of every type: a picture on each, plus pasting images into a question. */
   | 'quiz-ordering-images'
+  /** Ordering questions: students drag one list into order instead of filling slots from a word bank. */
+  | 'quiz-ordering-list'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */

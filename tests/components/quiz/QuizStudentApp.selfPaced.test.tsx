@@ -727,6 +727,98 @@ describe('QuizStudentApp — self-paced flow', () => {
   });
 });
 
+describe('QuizStudentApp — one-list Ordering (quiz-ordering-list)', () => {
+  const ordering: QuizPublicQuestion = {
+    id: 'qo',
+    type: 'Ordering',
+    text: 'Put these in order',
+    timeLimit: 0,
+    orderingItems: ['First', 'Second', 'Third'],
+  };
+
+  it('shows one list with no word bank and submits the order shown', async () => {
+    const user = userEvent.setup();
+    hookState.session = {
+      ...buildSession({
+        publicQuestions: [ordering, QUESTIONS[1]],
+        totalQuestions: 2,
+      }),
+      orderingList: true,
+    };
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Put these in order/i)).toBeInTheDocument();
+    expect(screen.queryByText('Word Bank')).not.toBeInTheDocument();
+    const shown = screen
+      .getAllByRole('listitem')
+      .map((li) =>
+        ['First', 'Second', 'Third'].find((w) => li.textContent?.includes(w))
+      );
+
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
+      'qo',
+      shown.join('|'),
+      undefined,
+      undefined
+    );
+  });
+
+  it('autosaves the shown order of an untouched list as a draft', async () => {
+    hookState.session = {
+      ...buildSession({
+        publicQuestions: [ordering, QUESTIONS[1]],
+        totalQuestions: 2,
+      }),
+      orderingList: true,
+    };
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Put these in order/i)).toBeInTheDocument();
+    const shown = screen
+      .getAllByRole('listitem')
+      .map((li) =>
+        ['First', 'Second', 'Third'].find((w) => li.textContent?.includes(w))
+      );
+
+    await waitFor(
+      () =>
+        expect(mockSubmitAnswer).toHaveBeenCalledWith(
+          'qo',
+          shown.join('|'),
+          undefined,
+          { isDraft: true }
+        ),
+      { timeout: 3000 }
+    );
+  });
+
+  it('restores a saved order and submits a move', async () => {
+    const user = userEvent.setup();
+    hookState.session = {
+      ...buildSession({
+        publicQuestions: [ordering, QUESTIONS[1]],
+        totalQuestions: 2,
+      }),
+      orderingList: true,
+    };
+    appendAnswer('qo', 'Third|Second|First');
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Put these in order/i)).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Move position 3 up' })
+    );
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
+      'qo',
+      'Third|First|Second',
+      undefined,
+      undefined
+    );
+  });
+});
+
 // ─── In-memory answer cache (#2 fix) ──────────────────────────────────────────
 //
 // The cache makes question navigation read from local state instead of

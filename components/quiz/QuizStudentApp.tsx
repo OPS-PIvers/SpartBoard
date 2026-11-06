@@ -207,6 +207,8 @@ import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { CrossOutChoiceButton } from './CrossOutChoiceButton';
 import { AnswerImage, AnswerImageZoomButton } from './AnswerImage';
 import { hasSideBank } from './structuredLayout';
+import { OrderingListInput } from './OrderingListInput';
+import { orderFromSaved, startingOrder } from './orderingListOrder';
 import {
   crossOutStorageKey,
   useCrossedOutChoices,
@@ -3932,7 +3934,11 @@ export const ActiveQuiz: React.FC<{
               ? 'max-w-[1700px]'
               : currentQuestion.type === 'free-response'
                 ? 'max-w-7xl'
-                : hasSideBank(currentQuestion)
+                : hasSideBank(currentQuestion) &&
+                    !(
+                      session.orderingList === true &&
+                      currentQuestion.type === 'Ordering'
+                    )
                   ? 'max-w-2xl lg:max-w-7xl'
                   : 'max-w-2xl'
           }`}
@@ -4652,6 +4658,7 @@ export const ActiveQuiz: React.FC<{
                   currentQuestion.type === 'Ordering') && (
                   <StructuredQuestionInput
                     key={`${currentQuestion.id}:${activeLocale ?? 'en'}`}
+                    orderingList={session.orderingList === true}
                     question={displayQuestion}
                     submitted={submitted}
                     isAutoSubmitted={
@@ -4944,6 +4951,8 @@ const StructuredQuestionInput: React.FC<{
   saveError?: string | null;
   /** Per-item speaker controls (D8); absent when read-aloud is off. */
   readAloud?: ReadAloudItemControls;
+  /** Ordering as one drag-to-order list (quiz-ordering-list flag). */
+  orderingList?: boolean;
 }> = ({
   question,
   submitted,
@@ -4958,8 +4967,10 @@ const StructuredQuestionInput: React.FC<{
   onNext,
   saveError,
   readAloud,
+  orderingList,
 }) => {
   const isMatching = question.type === 'Matching';
+  const isList = !isMatching && orderingList === true;
 
   // Items come from the pre-computed public question fields — no correctAnswer needed
   const leftItems: string[] = isMatching
@@ -4970,7 +4981,18 @@ const StructuredQuestionInput: React.FC<{
   // `canSubmit` derives from this string: every term/slot must be filled
   // (the structured inputs emit blank segments — `term:` or `||` — when a
   // zone is empty, so we check for any blank token).
-  const [currentAnswer, setCurrentAnswer] = useState<string>(savedAnswer ?? '');
+  // One-list Ordering starts complete, so an untouched list submits the order shown.
+  const [listStart] = useState<number[]>(() =>
+    isList ? startingOrder(leftItems, savedAnswer) : []
+  );
+  const [initialAnswer] = useState<string>(() =>
+    isList ? listStart.map((i) => leftItems[i]).join('|') : (savedAnswer ?? '')
+  );
+  const [currentAnswer, setCurrentAnswer] = useState<string>(initialAnswer);
+  const answerToSubmit =
+    isList && !orderFromSaved(leftItems, currentAnswer)
+      ? listStart.map((i) => leftItems[i]).join('|')
+      : currentAnswer;
 
   // Mirror every change up to the parent ref so timer auto-submit can
   // capture partial placements. We can't use the inline setter (the parent
@@ -4981,18 +5003,17 @@ const StructuredQuestionInput: React.FC<{
     onAnswerChange?.(answer);
   };
 
-  // Seed the parent ref with the hydrated savedAnswer on mount so timer
-  // auto-submit on a never-touched revisit still preserves the saved work.
+  // Seed the parent with the starting answer so timer auto-submit and autosave keep untouched work.
   useEffect(() => {
-    if (savedAnswer) onAnswerChange?.(savedAnswer);
+    if (initialAnswer) onAnswerChange?.(initialAnswer);
     // Intentionally only on mount — the child component's onChange covers
     // every subsequent update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const canSubmit = useMemo(() => {
-    if (!currentAnswer) return false;
-    const segments = currentAnswer.split('|');
+    if (!answerToSubmit) return false;
+    const segments = answerToSubmit.split('|');
     if (isMatching) {
       if (segments.length !== leftItems.length) return false;
       return segments.every((s) => {
@@ -5004,13 +5025,13 @@ const StructuredQuestionInput: React.FC<{
       segments.length === leftItems.length &&
       segments.every((s) => s.length > 0)
     );
-  }, [currentAnswer, isMatching, leftItems.length]);
+  }, [answerToSubmit, isMatching, leftItems.length]);
 
   const handleSubmitStructured = () => {
     if (isStudentPaced) {
-      onSubmitAndAdvance(currentAnswer);
+      onSubmitAndAdvance(answerToSubmit);
     } else {
-      onSubmit(currentAnswer);
+      onSubmit(answerToSubmit);
     }
   };
 
@@ -5030,6 +5051,15 @@ const StructuredQuestionInput: React.FC<{
             <MatchingResponseInput
               question={question}
               savedAnswer={savedAnswer}
+              onChange={handleAnswerChange}
+              disabled={submitting}
+              light={isStudentPaced}
+              readAloud={readAloud}
+            />
+          ) : isList ? (
+            <OrderingListInput
+              question={question}
+              initialOrder={listStart}
               onChange={handleAnswerChange}
               disabled={submitting}
               light={isStudentPaced}
