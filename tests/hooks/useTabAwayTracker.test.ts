@@ -5,6 +5,12 @@ import {
   type UseTabAwayTrackerArgs,
 } from '@/hooks/useTabAwayTracker';
 import { TAB_EXITS_MAX, type TabExit } from '@/types';
+import {
+  isHandedOff,
+  markHandedOff,
+  markPopOutPending,
+  resetHandOffForTests,
+} from '@/utils/attemptHandOff';
 
 let hasFocus = true;
 let visibility: DocumentVisibilityState = 'visible';
@@ -82,6 +88,7 @@ describe('useTabAwayTracker', () => {
     });
   });
   afterEach(() => {
+    resetHandOffForTests();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -353,5 +360,62 @@ describe('useTabAwayTracker', () => {
       });
       expect(lastSaved()[0].outcome).toBe('returned');
     });
+  });
+
+  it('hands off instead of timing out when another tab closes the open exit', async () => {
+    const { hook, base, onAwayTooLong, saveExits } = setup({
+      limitMs: 30_000,
+      autoSubmit: true,
+    });
+    leave();
+    await flush();
+    const writes = saveExits.mock.calls.length;
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    hook.rerender({
+      ...base,
+      serverExits: [
+        {
+          leftAt: 1_000_000,
+          attempt: 0,
+          questionIndex: 2,
+          returnedAt: 1_005_000,
+          durationMs: 5_000,
+          outcome: 'returned',
+        },
+      ],
+    });
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(onAwayTooLong).not.toHaveBeenCalled();
+    expect(saveExits.mock.calls.length).toBe(writes);
+    expect(isHandedOff()).toBe(true);
+    expect(hook.result.current.away).toBeNull();
+    expect(hook.result.current.handedOff).toBe(true);
+  });
+
+  it('ignores leaving once handed off', async () => {
+    const { onLeave, saveExits } = setup();
+    act(() => {
+      markHandedOff();
+    });
+    leave();
+    await flush();
+    expect(onLeave).not.toHaveBeenCalled();
+    expect(saveExits).not.toHaveBeenCalled();
+  });
+
+  it('ignores leaving while waiting for the student to pop out', async () => {
+    const { onLeave, saveExits } = setup();
+    act(() => {
+      markPopOutPending();
+    });
+    leave();
+    await flush();
+    expect(onLeave).not.toHaveBeenCalled();
+    expect(saveExits).not.toHaveBeenCalled();
+    expect(isHandedOff()).toBe(true);
   });
 });
