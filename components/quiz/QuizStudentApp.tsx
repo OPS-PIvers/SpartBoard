@@ -229,6 +229,7 @@ import {
   useMyQuizAttempts,
 } from '@/hooks/useQuizResponseAttempts';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { isHandedOff } from '@/utils/attemptHandOff';
 import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
 import {
@@ -2038,7 +2039,8 @@ export const ActiveQuiz: React.FC<{
   const timeUpInFlightRef = useRef(false);
   const [timeUpInFlight, setTimeUpInFlight] = useState(false);
   const attemptTimeUpSubmit = useCallback(async () => {
-    if (timeUpInFlightRef.current) return;
+    // The tab the attempt moved to submits it; this stale copy must not.
+    if (timeUpInFlightRef.current || isHandedOff()) return;
     timeUpInFlightRef.current = true;
     setTimeUpInFlight(true);
     timeUpTriggeredRef.current = true;

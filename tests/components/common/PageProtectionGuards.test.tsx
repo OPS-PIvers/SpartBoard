@@ -156,17 +156,40 @@ describe('FullscreenCover', () => {
       get: () => false,
     });
     vi.spyOn(window, 'top', 'get').mockReturnValue({} as Window);
+    const open = vi
+      .spyOn(window, 'open')
+      .mockReturnValue({ opener: window } as unknown as Window);
     render(<PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />);
-    const link = screen.getByRole('link', { name: 'Open in a new tab' });
-    expect(link.getAttribute('target')).toBe('_blank');
     act(() => {
-      fireEvent.click(link);
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Open in a new tab' })
+      );
     });
+    expect(open).toHaveBeenCalledWith(window.location.href, '_blank');
     expect(isHandedOff()).toBe(true);
     expect(
       screen.getByRole('dialog', {
         name: 'This activity is open in another tab',
       })
+    ).toBeTruthy();
+  });
+
+  it('stays put and says so when the new tab is blocked', () => {
+    Object.defineProperty(document, 'fullscreenEnabled', {
+      configurable: true,
+      get: () => false,
+    });
+    vi.spyOn(window, 'top', 'get').mockReturnValue({} as Window);
+    vi.spyOn(window, 'open').mockReturnValue(null);
+    render(<PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />);
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Open in a new tab' })
+      );
+    });
+    expect(isHandedOff()).toBe(false);
+    expect(
+      screen.getByText("The new tab didn't open. Try again.")
     ).toBeTruthy();
   });
 
@@ -183,13 +206,16 @@ describe('FullscreenCover', () => {
 });
 
 describe('popOutUrl', () => {
-  it('reopens a Schoology launch as a quiz link without the one-time code', () => {
-    const loc = new URL(
-      'https://spartboard.web.app/lti/student?lc=abc&code=QZ12&teacher=t1'
-    ) as unknown as Location;
-    expect(popOutUrl(loc)).toBe(
-      'https://spartboard.web.app/quiz?code=QZ12&teacher=t1'
-    );
+  it('leaves Schoology and Classroom launches to the host page pop out', () => {
+    for (const path of [
+      '/lti/student?lc=abc&code=QZ12',
+      '/classroom-addon/student?code=Q',
+    ]) {
+      const loc = new URL(
+        `https://spartboard.web.app${path}`
+      ) as unknown as Location;
+      expect(popOutUrl(loc)).toBeNull();
+    }
   });
 
   it('keeps any other address', () => {

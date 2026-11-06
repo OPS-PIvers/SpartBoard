@@ -12,7 +12,7 @@ import type { PageProtections } from '@/utils/pageProtections';
 import {
   isFramedWindow,
   isHandedOff,
-  markHandedOff,
+  popOut,
   popOutUrl,
   subscribeHandOff,
 } from '@/utils/attemptHandOff';
@@ -50,34 +50,53 @@ export const HandedOffCover: React.FC = () => {
 };
 
 /** Fullscreen can't open inside a frame without permission, so a framed page sends the student to a new tab. */
-const PopOutCover: React.FC = () => (
-  <div
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="pop-out-cover-title"
-    className={`${COVER_CLASS} z-overlay`}
-  >
-    <Maximize className="h-12 w-12 text-brand-blue-primary" aria-hidden />
-    <h2 id="pop-out-cover-title" className="text-2xl font-black text-slate-800">
-      Open this activity in a new tab
-    </h2>
-    <p className="max-w-sm text-sm text-slate-600">
-      Your teacher asked for fullscreen. Fullscreen does not work on this page.
-    </p>
-    {/* no-tour-anchor: student page; live tours run in the teacher app */}
-    <a
-      href={popOutUrl()}
-      target="_blank"
-      rel="noopener noreferrer"
-      // Before the new tab takes focus, so leaving for it isn't a tab warning.
-      onClick={markHandedOff}
-      className="inline-flex items-center gap-2 rounded-xl bg-brand-blue-primary px-8 py-3 font-bold text-white transition-transform active:scale-95"
+const PopOutCover: React.FC = () => {
+  const [failed, setFailed] = useState(false);
+  const url = popOutUrl();
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pop-out-cover-title"
+      className={`${COVER_CLASS} z-overlay`}
     >
-      <ExternalLink className="h-5 w-5" aria-hidden />
-      Open in a new tab
-    </a>
-  </div>
-);
+      <Maximize className="h-12 w-12 text-brand-blue-primary" aria-hidden />
+      <h2
+        id="pop-out-cover-title"
+        className="text-2xl font-black text-slate-800"
+      >
+        Open this activity in a new tab
+      </h2>
+      <p className="max-w-sm text-sm text-slate-600">
+        Your teacher asked for fullscreen. Fullscreen does not work on this
+        page.
+      </p>
+      {url === null ? (
+        <p className="max-w-sm text-sm font-semibold text-slate-700">
+          Use the pop out button on your class page.
+        </p>
+      ) : (
+        <>
+          {failed && (
+            <p className="text-sm font-semibold text-brand-red-primary">
+              The new tab didn&apos;t open. Try again.
+            </p>
+          )}
+          {/* no-tour-anchor: student page; live tours run in the teacher app */}
+          <button
+            type="button"
+            // Hands off before the new tab takes focus, so leaving for it isn't a tab warning.
+            onClick={() => setFailed(!popOut(url))}
+            className="inline-flex items-center gap-2 rounded-xl bg-brand-blue-primary px-8 py-3 font-bold text-white transition-transform active:scale-95"
+          >
+            <ExternalLink className="h-5 w-5" aria-hidden />
+            Open in a new tab
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
 
 /** Covers the page until the student is in fullscreen; skipped where fullscreen isn't available. */
 export const FullscreenCover: React.FC<{ required: boolean }> = ({

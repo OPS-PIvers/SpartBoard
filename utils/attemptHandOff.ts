@@ -29,12 +29,21 @@ export function isFramedWindow(): boolean {
   }
 }
 
-/** The address a new tab opens this attempt at; a Schoology launch code works once, so that route reopens as a quiz link. */
-export function popOutUrl(loc: Location = window.location): string {
-  if (loc.pathname.startsWith('/lti/student')) {
-    const params = new URLSearchParams(loc.search);
-    params.delete('lc');
-    return `${loc.origin}/quiz?${params.toString()}`;
-  }
+/** Where a new tab can reopen this attempt as the same student, or null where only the host site's own pop out keeps the sign-in (Schoology, Classroom). */
+export function popOutUrl(loc: Location = window.location): string | null {
+  if (
+    loc.pathname.startsWith('/lti/') ||
+    loc.pathname.startsWith('/classroom-addon/')
+  )
+    return null;
   return loc.href;
+}
+
+/** Opens the attempt in a new tab and hands off; false when the browser or frame blocked the tab. */
+export function popOut(url: string): boolean {
+  const win = window.open(url, '_blank');
+  if (!win) return false;
+  win.opener = null;
+  markHandedOff();
+  return true;
 }
