@@ -387,7 +387,7 @@ export const TrackedPlayer: React.FC<{
       adapter={adapter}
       seed={`${session.id}:${studentUid}`}
       speak={isCheck && !speakCheck ? undefined : session.speak}
-      testQuestionBar={session.testNavBar === true}
+      testQuestionBar
       speakFixes={speakFixes}
       framed={framed}
       lockedSettings={isCheck ? session.lockedSettings : undefined}
@@ -522,7 +522,7 @@ const UntrackedPlayer: React.FC<{
       definitionLanguage={session.definitionLanguage}
       adapter={adapter}
       seed={`${session.id}:${studentUid}`}
-      testQuestionBar={session.testNavBar === true}
+      testQuestionBar
       speak={session.kind === 'check' ? undefined : session.speak}
       speakFixes={speakFixes}
       framed={framed}
