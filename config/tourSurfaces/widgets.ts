@@ -15,15 +15,6 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'blooms-taxonomy',
     needs: ['widget-on-stage'],
   },
-  'widgets.blooms-taxonomy.settings': {
-    label: "Bloom's Taxonomy settings",
-    kind: 'settings-drawer',
-    files: ['components/widgets/BloomsTaxonomy/settingsFields.tsx'],
-    opensWith: 'widget.settings-opener',
-    parent: 'widgets.blooms-taxonomy.face',
-    widgetType: 'blooms-taxonomy',
-    needs: ['widget-on-stage'],
-  },
   'widgets.breathing.face': {
     label: 'Breathing widget',
     kind: 'widget',

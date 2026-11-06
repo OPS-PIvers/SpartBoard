@@ -485,7 +485,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "arts-letters-agenda#textSizePreset",
       "arts-letters-agenda#version",
       "blending-board#managedNotice",
-      "blooms-taxonomy#enabledCategories",
       "breathing#cardColor",
       "breathing#color",
       "breathing#fontColor",
@@ -809,7 +808,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "activity-wall#content",
       "arts-letters-agenda#content",
       "blending-board#content",
-      "blooms-taxonomy#content",
       "breathing#content",
       "breathing#display",
       "calendar#behavior",
@@ -3288,45 +3286,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.checklist.face",
         "kind": "widget",
         "widget_type": "checklist",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "blooms-taxonomy.ai-topic",
-    "label": "AI topic box in Bloom's Taxonomy",
-    "scope": "widget type",
-    "keys": [
-      "blooms-taxonomy"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.blooms-taxonomy.face",
-        "kind": "widget",
-        "widget_type": "blooms-taxonomy",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "blooms-taxonomy.ai-dismiss",
-    "label": "Dismiss AI result button in Bloom's Taxonomy",
-    "scope": "widget type",
-    "destructive": true,
-    "keys": [
-      "blooms-taxonomy"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.blooms-taxonomy.face",
-        "kind": "widget",
-        "widget_type": "blooms-taxonomy",
         "path": [],
         "needs": [
           "widget-on-stage"
@@ -17884,25 +17843,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.settings",
         "kind": "settings-drawer",
         "widget_type": "quiz",
-        "path": [
-          "widget.settings-opener"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "widget-settings.blooms.category",
-    "label": "Category checkboxes in Blooms Taxonomy settings",
-    "scope": "widget",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "widgets.blooms-taxonomy.settings",
-        "kind": "settings-drawer",
-        "widget_type": "blooms-taxonomy",
         "path": [
           "widget.settings-opener"
         ],

@@ -10903,7 +10903,6 @@ export type GlobalFeature =
   | 'webcam-ai'
   | 'blooms-ai'
   | 'flashcards-ai'
-  | 'blooms-question-starters'
   | 'dashboard-layout'
   | 'instructional-routine'
   | 'ocr'
