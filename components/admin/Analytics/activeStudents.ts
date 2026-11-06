@@ -2,7 +2,7 @@ export type StudentKpiCategory = 'monthlyStudents' | 'dailyStudents';
 
 export interface ActiveStudentRow {
   name: string;
-  // Teachers whose assignments the student opened, with the latest open.
+  // Teachers whose assignments the student opened (latest open) or who imported their class.
   teachers: { name: string; lastOpenedMs: number }[];
   lastSignInMs: number;
 }

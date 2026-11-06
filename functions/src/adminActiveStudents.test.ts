@@ -4,6 +4,7 @@ vi.mock('./functionsInit', () => ({}));
 
 import {
   OPEN_SOURCES,
+  addRosterTeachers,
   buildActiveStudentRows,
   latestOpensByStudent,
   mapWithConcurrency,
@@ -149,5 +150,33 @@ describe('orderSectionsForNameLookup cover', () => {
       new Set(['a'])
     );
     expect(order).toEqual(['s2']);
+  });
+});
+
+describe('addRosterTeachers', () => {
+  it('adds the teachers who imported a student class without overwriting opens', () => {
+    const opens = new Map([['a', new Map([['t1', 30]])]]);
+    const result = addRosterTeachers(
+      opens,
+      [
+        { uid: 'a', sectionIds: ['s1'], lastSignInMs: 50 },
+        { uid: 'b', sectionIds: ['s1', 's2'], lastSignInMs: 40 },
+        { uid: 'c', sectionIds: ['lunch'], lastSignInMs: 20 },
+      ],
+      new Map([
+        ['s1', new Set(['t1', 't2'])],
+        ['s2', new Set(['t3'])],
+      ])
+    );
+    expect([...(result.get('a') ?? [])]).toEqual([
+      ['t1', 30],
+      ['t2', 50],
+    ]);
+    expect([...(result.get('b') ?? [])]).toEqual([
+      ['t1', 40],
+      ['t2', 40],
+      ['t3', 40],
+    ]);
+    expect(result.has('c')).toBe(false);
   });
 });
