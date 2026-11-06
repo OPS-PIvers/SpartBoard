@@ -119,7 +119,46 @@ const h = vi.hoisted(() => {
       return Promise.resolve('practice');
     }),
   };
+  type BoardRow = {
+    id: string;
+    name: string;
+    createdAt: number;
+    collectionId?: string;
+  };
+  type CollectionRow = {
+    id: string;
+    name: string;
+    createdAt: number;
+    linkedCollectionId?: string;
+  };
+  const boards: BoardRow[] = [{ id: 'board-1', name: 'Mine', createdAt: 0 }];
+  const collections: CollectionRow[] = [];
+  const boardActions = {
+    loadDashboard: vi.fn((id: string) => {
+      board.id = id;
+      emit();
+    }),
+    deleteDashboard: vi.fn((id: string) => {
+      const i = boards.findIndex((b) => b.id === id);
+      if (i >= 0) boards.splice(i, 1);
+      emit();
+      return Promise.resolve();
+    }),
+    deleteCollection: vi.fn((id: string, _mode: string) => {
+      const i = collections.findIndex((c) => c.id === id);
+      if (i >= 0) collections.splice(i, 1);
+      emit();
+      return Promise.resolve();
+    }),
+  };
   const reset = () => {
+    boards.splice(0, boards.length, {
+      id: 'board-1',
+      name: 'Mine',
+      createdAt: 0,
+    });
+    collections.splice(0, collections.length);
+    Object.values(boardActions).forEach((fn) => fn.mockClear());
     board.id = 'board-1';
     board.widgets = [];
     board.readOnly = false;
@@ -133,6 +172,10 @@ const h = vi.hoisted(() => {
   return {
     board,
     actions,
+    boards,
+    collections,
+    boardActions,
+    emit,
     reset,
     canAccess: vi.fn((_id: string) => true),
     loadTour: vi.fn(),
@@ -193,6 +236,13 @@ vi.mock('@/context/useDashboard', () => ({
       activeRosterId: 'class-1',
       selectedWidgetId: h.board.selectedWidgetId,
       activeDashboard: { id: h.board.id, widgets: h.board.widgets },
+      dashboards: [...h.boards],
+      loadDashboard: h.boardActions.loadDashboard,
+      deleteDashboard: h.boardActions.deleteDashboard,
+      collectionsApi: {
+        collections: [...h.collections],
+        deleteCollection: h.boardActions.deleteCollection,
+      },
     };
   },
 }));
@@ -3787,5 +3837,93 @@ describe('LiveTourRunner drag and resize steps', () => {
     );
     await frames(AUTO_NEXT_WAIT_MS + 5000);
     expect(progress()).toBe('1 / 2');
+  });
+});
+
+describe('LiveTourRunner boards a tour made', () => {
+  const twoSteps = () =>
+    makeSet([
+      { anchor: 'sidebar.boards', action: 'observe' },
+      { anchor: 'sidebar.boards', action: 'observe' },
+    ]);
+  const finishTour = async () => {
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+  };
+  const makeBoard = (id: string, extra: Record<string, unknown> = {}) => {
+    act(() => {
+      h.boards.push({
+        id,
+        name: `Board ${id}`,
+        createdAt: Date.now(),
+        ...extra,
+      });
+      h.emit();
+    });
+  };
+
+  it('asks to keep a board the run made, and Remove deletes only that board', async () => {
+    await start(twoSteps());
+    makeBoard('new-1');
+    // A switch to the run's own board keeps the tour going.
+    act(() => h.boardActions.loadDashboard('new-1'));
+    await frames();
+    expect(progress()).toBe('1 / 2');
+    await finishTour();
+    expect(screen.getByText('Keep the board you made?')).toBeInTheDocument();
+    expect(screen.getByText('Board new-1')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tour-remove-boards'));
+    await frames();
+    expect(h.boardActions.loadDashboard).toHaveBeenLastCalledWith('board-1');
+    expect(h.boardActions.deleteDashboard.mock.calls).toEqual([['new-1']]);
+    expect(screen.queryByTestId('tour-keep-boards')).not.toBeInTheDocument();
+  });
+
+  it('Keep leaves the boards alone', async () => {
+    await start(twoSteps());
+    makeBoard('new-1');
+    await finishTour();
+    fireEvent.click(screen.getByTestId('tour-keep-boards'));
+    await frames();
+    expect(h.boardActions.deleteDashboard).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('tour-keep-boards')).not.toBeInTheDocument();
+  });
+
+  it('removes a new collection by moving its boards up, and never counts a shared one', async () => {
+    await start(twoSteps());
+    act(() => {
+      h.collections.push(
+        { id: 'c-new', name: 'Unit 1', createdAt: Date.now() },
+        {
+          id: 'c-shared',
+          name: 'From a teammate',
+          createdAt: Date.now(),
+          linkedCollectionId: 'l1',
+        }
+      );
+      h.boards.push({
+        id: 'shared-board',
+        name: 'Shared',
+        createdAt: Date.now(),
+        collectionId: 'c-shared',
+      });
+      h.emit();
+    });
+    await finishTour();
+    expect(screen.getByText('Unit 1')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tour-remove-boards'));
+    await frames();
+    expect(h.boardActions.deleteCollection.mock.calls).toEqual([
+      ['c-new', 'move-to-parent'],
+    ]);
+    expect(h.boardActions.deleteDashboard).not.toHaveBeenCalled();
+  });
+
+  it('asks nothing when the run made no boards', async () => {
+    await start(twoSteps());
+    await finishTour();
+    expect(screen.queryByTestId('tour-keep-boards')).not.toBeInTheDocument();
   });
 });
