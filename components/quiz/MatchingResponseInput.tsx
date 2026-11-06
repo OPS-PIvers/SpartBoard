@@ -27,7 +27,12 @@ import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { QuizPublicQuestion } from '@/types';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
-import { AnswerImage, AnswerLabel } from './AnswerImage';
+import {
+  ANSWER_TILE_WIDTH,
+  AnswerImageZoomButton,
+  AnswerLabel,
+  ZoomableAnswerImage,
+} from './AnswerImage';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
@@ -84,7 +89,7 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
   const style: React.CSSProperties = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : {};
-  return (
+  const chip = (
     <button
       type="button"
       ref={setNodeRef}
@@ -93,7 +98,7 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
         if (!disabled) onTap();
       }}
       style={style}
-      className={`min-h-[44px] px-3 py-2 rounded-xl text-sm font-bold border-2 select-none touch-none transition-colors ${
+      className={`min-h-[44px] rounded-xl text-sm font-bold border-2 select-none touch-none transition-colors ${image ? `${ANSWER_TILE_WIDTH} flex flex-col p-2` : 'px-3 py-2'} ${
         isDragging
           ? 'opacity-40'
           : selected
@@ -110,8 +115,19 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
       aria-label={ariaLabel ?? label}
       title={label}
     >
-      <AnswerLabel label={label} image={image} />
+      <AnswerLabel label={label} image={image} layout="tile" />
     </button>
+  );
+  if (!image) return chip;
+  return (
+    <span className="relative inline-flex">
+      {chip}
+      <AnswerImageZoomButton
+        src={image}
+        label={label}
+        className={`absolute right-3 top-3 ${isDragging ? 'invisible' : ''}`}
+      />
+    </span>
   );
 };
 
@@ -447,11 +463,14 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
             return (
               <div key={term} className="flex items-center gap-3">
                 <span
-                  className={`flex w-1/2 items-center gap-2 rounded-xl text-sm font-bold wrap-break-word ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
+                  className={`flex w-1/2 items-center gap-2 rounded-xl text-sm font-bold wrap-break-word ${termImages?.[termIndex] ? 'flex-col sm:flex-row' : ''} ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
                   title={term}
                 >
                   {termImages?.[termIndex] && (
-                    <AnswerImage src={termImages[termIndex]} />
+                    <ZoomableAnswerImage
+                      src={termImages[termIndex]}
+                      label={term}
+                    />
                   )}
                   <span className="min-w-0 flex-1">{term}</span>
                   {speaker('matchingLeft', term)}
@@ -526,7 +545,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
               return (
                 <span
                   key={optionIndex}
-                  className={`inline-flex items-center gap-1 rounded-xl ${rowHighlight('matchingRight', allOptions[optionIndex])}`}
+                  className={`inline-flex ${optionImages ? 'items-stretch' : 'items-center'} gap-1 rounded-xl ${rowHighlight('matchingRight', allOptions[optionIndex])}`}
                 >
                   <DraggableChip
                     id={`bank-${optionIndex}`}

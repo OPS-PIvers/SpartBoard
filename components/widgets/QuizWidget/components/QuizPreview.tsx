@@ -426,8 +426,8 @@ const PreviewAnswerImage: React.FC<{ src?: string }> = ({ src }) =>
       alt=""
       className="rounded-lg object-contain bg-white shrink-0"
       style={{
-        width: 'min(48px, 12cqmin)',
-        height: 'min(48px, 12cqmin)',
+        width: 'min(160px, 32cqmin)',
+        height: 'min(120px, 24cqmin)',
       }}
     />
   ) : null;

@@ -63,7 +63,7 @@ import {
 } from '@/utils/quizGame';
 import { CollapsibleStimuli } from '../QuizStimulusView';
 import { FibMultiBlankInput, NumberedBlanksText } from '../FibMultiBlankInput';
-import { AnswerImage, AnswerLabel } from '../AnswerImage';
+import { AnswerImageZoomButton, AnswerLabel } from '../AnswerImage';
 import { MatchingResponseInput } from '../MatchingResponseInput';
 import { OrderingResponseInput } from '../OrderingResponseInput';
 import { loadGamePicks, saveGamePicks } from './gamePicks';
@@ -739,16 +739,28 @@ const GameQuestion: React.FC<{
       {question.type === 'MC' && (
         <div className="grid gap-3 sm:grid-cols-2">
           {choices.map((choice, i) => (
-            <button
-              // no-tour-anchor: student quiz screen; tours walk teachers
-              key={choice}
-              type="button"
-              disabled={submitting}
-              onClick={() => onSubmit(choice)}
-              className="min-h-14 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-left font-bold text-slate-800 transition-colors hover:border-brand-blue-primary hover:bg-brand-blue-lighter disabled:opacity-60"
-            >
-              <AnswerLabel label={choice} image={choiceImages?.[i]} large />
-            </button>
+            <div key={choice} className="relative flex">
+              <button
+                // no-tour-anchor: student quiz screen; tours walk teachers
+                type="button"
+                disabled={submitting}
+                onClick={() => onSubmit(choice)}
+                className="min-h-14 flex-1 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-left font-bold text-slate-800 transition-colors hover:border-brand-blue-primary hover:bg-brand-blue-lighter disabled:opacity-60"
+              >
+                <AnswerLabel
+                  label={choice}
+                  image={choiceImages?.[i]}
+                  layout="tile"
+                />
+              </button>
+              {choiceImages?.[i] && (
+                <AnswerImageZoomButton
+                  src={choiceImages[i]}
+                  label={choice}
+                  className="absolute right-5 top-4"
+                />
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -758,40 +770,51 @@ const GameQuestion: React.FC<{
           {choices.map((choice, i) => {
             const on = picked.has(choice);
             return (
-              <button
-                // no-tour-anchor: student quiz screen; tours walk teachers
-                key={choice}
-                type="button"
-                role="checkbox"
-                aria-checked={on}
-                disabled={submitting}
-                onClick={() => {
-                  const next = new Set(picked);
-                  if (on) next.delete(choice);
-                  else next.add(choice);
-                  onDraft(encodeMultiAnswer(next, choices));
-                }}
-                className={`flex min-h-14 items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left font-bold transition-colors disabled:opacity-60 ${
-                  on
-                    ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-dark'
-                    : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300'
-                }`}
-              >
-                <span
-                  aria-hidden
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${
+              <div key={choice} className="relative flex">
+                <button
+                  // no-tour-anchor: student quiz screen; tours walk teachers
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  disabled={submitting}
+                  onClick={() => {
+                    const next = new Set(picked);
+                    if (on) next.delete(choice);
+                    else next.add(choice);
+                    onDraft(encodeMultiAnswer(next, choices));
+                  }}
+                  className={`flex min-h-14 flex-1 items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left font-bold transition-colors disabled:opacity-60 ${
                     on
-                      ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
-                      : 'border-slate-300'
+                      ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-dark'
+                      : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300'
                   }`}
                 >
-                  {on && <Check className="h-3.5 w-3.5" />}
-                </span>
+                  <span
+                    aria-hidden
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${
+                      on
+                        ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
+                        : 'border-slate-300'
+                    }`}
+                  >
+                    {on && <Check className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <AnswerLabel
+                      label={choice}
+                      image={choiceImages?.[i]}
+                      layout="tile"
+                    />
+                  </span>
+                </button>
                 {choiceImages?.[i] && (
-                  <AnswerImage src={choiceImages[i]} large />
+                  <AnswerImageZoomButton
+                    src={choiceImages[i]}
+                    label={choice}
+                    className="absolute right-5 top-4"
+                  />
                 )}
-                {choice}
-              </button>
+              </div>
             );
           })}
         </div>

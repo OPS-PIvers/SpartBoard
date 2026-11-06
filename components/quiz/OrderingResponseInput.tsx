@@ -25,7 +25,11 @@ import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { QuizPublicQuestion } from '@/types';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
-import { AnswerLabel } from './AnswerImage';
+import {
+  ANSWER_TILE_WIDTH,
+  AnswerImageZoomButton,
+  AnswerLabel,
+} from './AnswerImage';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
@@ -66,7 +70,7 @@ const DraggableChip: React.FC<{
   const style: React.CSSProperties = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : {};
-  return (
+  const chip = (
     <button
       type="button"
       ref={setNodeRef}
@@ -75,7 +79,7 @@ const DraggableChip: React.FC<{
         if (!disabled) onTap();
       }}
       style={style}
-      className={`min-h-[44px] px-3 py-2 rounded-xl text-sm font-bold border-2 select-none touch-none transition-colors ${
+      className={`min-h-[44px] rounded-xl text-sm font-bold border-2 select-none touch-none transition-colors ${image ? `${ANSWER_TILE_WIDTH} flex flex-col p-2` : 'px-3 py-2'} ${
         isDragging
           ? 'opacity-40'
           : selected
@@ -92,8 +96,21 @@ const DraggableChip: React.FC<{
       aria-label={ariaLabel ?? label}
       title={label}
     >
-      <AnswerLabel label={label} image={image} />
+      <AnswerLabel label={label} image={image} layout="tile" />
     </button>
+  );
+  if (!image) return chip;
+  return (
+    <span className="relative inline-flex">
+      {chip}
+      {!isDragging && (
+        <AnswerImageZoomButton
+          src={image}
+          label={label}
+          className="absolute right-3 top-3"
+        />
+      )}
+    </span>
   );
 };
 
@@ -203,6 +220,13 @@ const Slot: React.FC<{
           Drop here
         </button>
       )}
+      {filledLabel && filledImage ? (
+        <AnswerImageZoomButton
+          src={filledImage}
+          label={filledLabel}
+          className={isDragging ? 'invisible' : ''}
+        />
+      ) : null}
       {filledLabel ? speaker : null}
       <div className="flex flex-col">
         <button
@@ -517,7 +541,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
               return (
                 <span
                   key={itemIndex}
-                  className={`inline-flex items-center gap-1 rounded-xl ${isHighlighted(items[itemIndex]) ? READ_ALOUD_HIGHLIGHT_CLASS : ''}`}
+                  className={`inline-flex ${images ? 'items-stretch' : 'items-center'} gap-1 rounded-xl ${isHighlighted(items[itemIndex]) ? READ_ALOUD_HIGHLIGHT_CLASS : ''}`}
                 >
                   <DraggableChip
                     id={`bank-${itemIndex}`}
