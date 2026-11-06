@@ -5,7 +5,7 @@ export interface OrderingSpot {
   text: string;
   /** Index in the key, or -1 for an empty slot or an item not in the key. */
   correctIndex: number;
-  /** Part of the longest correctly ordered run, the one partial credit counts. */
+  /** In the longest correctly ordered run partial credit counts, or in its exact spot. */
   inOrder: boolean;
 }
 
@@ -75,7 +75,8 @@ export function placeOrderingAnswer(
     .filter((e) => e.idx >= 0);
   const run = bestRun(mapped);
   mapped.forEach((e, k) => {
-    spots[e.pos].inOrder = run.has(k);
+    // An item already in its exact spot never reads as misplaced.
+    spots[e.pos].inOrder = run.has(k) || e.pos === e.idx;
   });
 
   const placedAt: (number | null)[] = correct.map(() => null);

@@ -40,6 +40,10 @@ describe('placeOrderingAnswer', () => {
     expect(p.misplaced).toEqual([false, true, true]);
   });
 
+  it('never marks an item that sits in its exact spot', () => {
+    expect(marks('a|b|c|d|e', 'd|e|c|a|b')[2]).toBe('c');
+  });
+
   it('pairs duplicate items left to right, like the grader', () => {
     expect(marks('a|b|a', 'a|b|a')).toEqual(['a', 'b', 'a']);
   });
