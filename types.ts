@@ -10927,8 +10927,6 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Find my Schoology courses: link each class to its Schoology section by SIS id (docs/plans/shipped/SCHOOLOGY_AUTO_LINK.md). */
-  | 'schoology-auto-link'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */
