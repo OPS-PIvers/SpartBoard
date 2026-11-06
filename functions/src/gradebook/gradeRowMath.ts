@@ -9,6 +9,7 @@ import {
   type ManualGrade,
   type QuestionTargetSnapshot,
   type RawAnswer,
+  paperAnswerOwed,
 } from '../plcAssessmentMath';
 import {
   currentShortAnswerGrading,
@@ -309,11 +310,12 @@ export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
       pointsEarned = g.pointsEarned;
       state = g.state;
     }
-    // A hybrid paper answer not yet scanned is owed a grade, never a 0.
+    // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
     if (
       state === 'not-attempted' &&
-      input.paperWrittenQuestionIds?.includes(q.id) &&
-      answer?.paperTranscript !== 'blank'
+      (paperAnswerOwed(answer?.paperTranscript) ||
+        (input.paperWrittenQuestionIds?.includes(q.id) &&
+          answer?.paperTranscript !== 'blank'))
     )
       state = 'awaiting-grade';
     if (state === 'no-key') noKey = true;

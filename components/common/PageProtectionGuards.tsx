@@ -12,7 +12,7 @@ import type { PageProtections } from '@/utils/pageProtections';
 import {
   clearPopOutPending,
   getHandOffState,
-  isFramedWindow,
+  isSchoologyFrame,
   markPopOutPending,
   subscribeHandOff,
 } from '@/utils/attemptHandOff';
@@ -105,7 +105,8 @@ export const FullscreenCover: React.FC<{ required: boolean }> = ({
   }, [required]);
 
   if (!required || isFullscreen) return null;
-  if (!fullscreenSupported()) return isFramedWindow() ? <PopOutCover /> : null;
+  if (!fullscreenSupported())
+    return isSchoologyFrame() ? <PopOutCover /> : null;
 
   const enter = () => {
     setFailed(false);

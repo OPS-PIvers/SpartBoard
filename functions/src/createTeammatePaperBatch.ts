@@ -285,7 +285,7 @@ async function readTargetRosters(
   );
 }
 
-function toPaperQuestion(raw: unknown): PaperQuestion | null {
+export function toPaperQuestion(raw: unknown): PaperQuestion | null {
   if (!isRecord(raw) || typeof raw.id !== 'string' || !raw.id) return null;
   return {
     id: raw.id,
@@ -309,7 +309,21 @@ function toPaperQuestion(raw: unknown): PaperQuestion | null {
     ...(isPaperBoxStyle(raw.paperBoxStyle)
       ? { paperBoxStyle: raw.paperBoxStyle }
       : {}),
+    ...(isRecord(raw.paperBoxImage)
+      ? { paperBoxImage: toPaperBoxImage(raw.paperBoxImage) }
+      : {}),
   };
+}
+
+function toPaperBoxImage(
+  img: Record<string, unknown>
+): NonNullable<PaperQuestion['paperBoxImage']> {
+  const out: Record<string, string> = {};
+  for (const key of ['id', 'source', 'driveFileId', 'url'] as const) {
+    const v = img[key];
+    if (typeof v === 'string') out[key] = v;
+  }
+  return out;
 }
 
 interface QuizContent {

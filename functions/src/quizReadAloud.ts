@@ -204,8 +204,8 @@ const UNIT_WORDS: Record<string, string> = {
 
 /** Plain math between ⟦ and ⟧ as words; mirrored in utils/quizReadAloudApi.ts. */
 function speakPromptMath(math: string): string {
-  return ` ${math} `
-    .replace(/(^|[\s(=<>+*/])-/g, '$1 negative ')
+  const unary = math.trim().replace(/(^|[(=<>+*/])\s*-/g, '$1 negative ');
+  return ` ${unary} `
     .replace(/sqrt/g, ' square root of ')
     .replace(/\^\s*2(?!\d)/g, ' squared ')
     .replace(/\^\s*3(?!\d)/g, ' cubed ')

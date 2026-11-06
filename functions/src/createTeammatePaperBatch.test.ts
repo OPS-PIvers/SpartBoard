@@ -45,6 +45,7 @@ vi.mock('./plcQuizSyncJoin', () => ({
 import {
   handleCreateTeammatePaperBatch,
   handleWithdrawTeammatePaperBatch,
+  toPaperQuestion,
   type TeammatePrintWriteDeps,
 } from './createTeammatePaperBatch';
 import type { DelegatedPrintCaller } from './getTeammatePrintContext';
@@ -894,5 +895,21 @@ describe('withdrawTeammatePaperBatchV1 (D22)', () => {
   it('reports a batch that is already gone', async () => {
     const { go } = run(withdrawState(undefined));
     await expect(go()).rejects.toMatchObject({ code: 'not-found' });
+  });
+});
+
+describe('toPaperQuestion', () => {
+  it('keeps a custom image box so the teammate sheet prints the image', () => {
+    const q = toPaperQuestion({
+      id: 'q1',
+      type: 'FRQ',
+      paperBoxStyle: 'image',
+      paperBoxImage: { id: 'img1', source: 'image', url: 'https://x/y.png' },
+    });
+    expect(q?.paperBoxImage).toEqual({
+      id: 'img1',
+      source: 'image',
+      url: 'https://x/y.png',
+    });
   });
 });

@@ -72,6 +72,10 @@ export interface ManualGrade {
   scoredCriterionIds: string[];
 }
 
+/** A scanned paper answer with no text yet (in transcription or kept as an image) waits for the teacher. */
+export const paperAnswerOwed = (state: RawAnswer['paperTranscript']): boolean =>
+  state === 'pending' || state === 'image';
+
 export interface RawAnswer {
   questionId: string;
   answer: string;
@@ -82,7 +86,7 @@ export interface RawAnswer {
   unresponded?: unknown;
   takeIndex?: number;
   /** Set on handwritten paper answers; `blank` is a scanned empty box. */
-  paperTranscript?: 'pending' | 'blank' | 'done';
+  paperTranscript?: 'pending' | 'blank' | 'done' | 'image';
 }
 
 export interface CompletedResponse {
@@ -1058,11 +1062,11 @@ export function computeAssessmentAggregate(
             ? servedFibAnswers(session, r.studentUid, sessionQid)
             : undefined
         );
-        // A hybrid paper answer not yet scanned is owed a grade, never a 0.
+        // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
         const paperOwed =
           grade.state === 'not-attempted' &&
-          paperWritten.has(sessionQid) &&
-          a?.paperTranscript !== 'blank';
+          (paperAnswerOwed(a?.paperTranscript) ||
+            (paperWritten.has(sessionQid) && a?.paperTranscript !== 'blank'));
         if (
           grade.state === 'no-key' ||
           grade.state === 'awaiting-grade' ||
