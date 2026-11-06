@@ -67,6 +67,8 @@ export const Z_INDEX = {
 
   // Critical layers
   critical: 20000, // Overlays that must block everything (e.g. Dock expanded, Critical Errors)
+  mathKeyboard: 20100, // MathLive on-screen math keyboard, above every modal and the dock
+  mathKeyboardPopup: 20110, // MathLive key variants popup (its scrim), above the math keyboard
   viewAsBanner: 20500, // Super admin View as banner, never covered
   cursor: 21000, // Custom cursors
 } as const;

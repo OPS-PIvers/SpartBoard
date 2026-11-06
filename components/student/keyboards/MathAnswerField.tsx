@@ -67,6 +67,18 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
         mf.style.background = 'transparent';
         mf.style.border = 'none';
         mf.style.outline = 'none';
+        // Light colors on dark-mode devices, and no shading behind the fraction being typed.
+        mf.style.setProperty(
+          '--contains-highlight-background-color',
+          'transparent'
+        );
+        mf.style.setProperty(
+          '--selection-background-color',
+          'hsl(212, 70%, 85%)'
+        );
+        mf.style.setProperty('--selection-color', '#000');
+        mf.style.setProperty('--caret-color', 'hsl(212, 40%, 49%)');
+        mf.style.setProperty('--smart-fence-color', 'currentColor');
         mf.value =
           start.initialLatex ?? ml.convertAsciiMathToLatex(start.value);
         const current = mf;
@@ -78,6 +90,8 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
           }
         });
         host.append(current);
+        // Hide the formatting menu: its colors, fonts and text mode don't grade.
+        current.menuItems = [];
         fieldRef.current = current;
         setReady(true);
         if (
