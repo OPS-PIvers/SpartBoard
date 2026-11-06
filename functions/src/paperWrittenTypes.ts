@@ -42,7 +42,8 @@ export interface PaperPageMap {
 }
 
 export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
-export type PaperBoxStyle = 'lines' | 'blank' | 'graph' | 'coordinate';
+export type PaperBoxStyle =
+  'lines' | 'blank' | 'graph' | 'coordinate' | 'image';
 export type PaperTranscriptState = 'pending' | 'done' | 'blank';
 export type PaperPrivateStatus =
   'pending' | 'done' | 'failed' | 'blank' | 'over-quota';
@@ -63,6 +64,8 @@ export interface PaperPrivateAnswer {
   editedAt?: number;
   /** A rescan whose box was not applied because this answer was graded or edited (D28). */
   newerScan?: { scanId: string; page: number; state: 'ink' | 'blank' };
+  /** A custom image box: graded from the scan, archived but never transcribed. */
+  noTranscript?: true;
   updatedAt: number;
 }
 

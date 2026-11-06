@@ -809,7 +809,12 @@ export function readPaperPage(
           label: item.label,
           page: marker.page,
           boxMm: item.boxMm,
-          state: inkMm2 >= READER_THRESHOLDS.writtenMinInkMm2 ? 'ink' : 'blank',
+          // A custom image box is never blank-checked: the printed image would read as ink anyway.
+          state:
+            item.style === 'image' ||
+            inkMm2 >= READER_THRESHOLDS.writtenMinInkMm2
+              ? 'ink'
+              : 'blank',
           inkMm2,
           crop: pixelBounds(
             map,

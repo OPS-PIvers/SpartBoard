@@ -788,6 +788,49 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     );
   });
 
+  it('files a custom image box as graded from the scan: no transcription, no quota', async () => {
+    const docs = v2Docs();
+    const batch = docs[`users/${UID}/paper_batches/${BATCH}`];
+    const maps = batch.pageMaps as Doc[];
+    (maps[0].items as Doc[])[1] = {
+      kind: 'written',
+      questionId: 'q2',
+      label: '2',
+      style: 'image',
+    };
+    const { result } = await callV2(docs, [v2Sheet(1)]);
+    // Page 1 now holds only the image box, so nothing is queued for Gemini.
+    expect(result).toMatchObject({ jobsCreated: 2, pagesQueued: 0 });
+    const q2 = (docs[RESP].answers as Doc[]).find((a) => a.questionId === 'q2');
+    expect(q2).toMatchObject({ paperTranscript: 'done', answer: '' });
+    expect(docs[`${RESP}/paperPrivate/q2`]).toEqual({
+      scanId: SCAN,
+      seat: 1,
+      status: 'done',
+      noTranscript: true,
+      attempts: 0,
+      charged: false,
+      updatedAt: NOW,
+    });
+    // The job still carries the box, so the worker archives its crop.
+    expect(docs[`${JOBS}/${SCAN}_1_1_0`]).toMatchObject({
+      boxes: [{ questionId: 'q2', storagePath: crop(SCAN, 1, 'q2') }],
+    });
+  });
+
+  it('never takes the image-box flag from the payload', async () => {
+    const sheet1 = v2Sheet(1, {
+      written: [
+        { questionId: 'q2', page: 1, state: 'ink', noTranscript: true },
+      ],
+    });
+    const docs = v2Docs();
+    await callV2(docs, [sheet1]);
+    expect(docs[`${RESP}/paperPrivate/q2`]).toMatchObject({
+      status: 'pending',
+    });
+  });
+
   it('keeps the client crop type only from the allowlist', async () => {
     const png = v2Sheet(1, {
       written: [

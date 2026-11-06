@@ -345,6 +345,11 @@ describe('client/server page map parity (layoutVersion 2)', () => {
       free('f3', { paperBoxSize: 'full' }),
       free('f4', { maxWords: 500, paperBoxStyle: 'graph' }),
       free('f5', { paperBoxStyle: 'lines' }),
+      free('f6', { paperBoxStyle: 'image' }),
+      free('f7', {
+        paperBoxStyle: 'image',
+        paperBoxImage: { id: 'i', label: 'Map', source: 'image', url: 'u' },
+      }),
       free('rec', { recording: { maxDurationSeconds: 60 } as never }),
       QUESTIONS[1],
     ];
@@ -360,7 +365,15 @@ describe('client/server page map parity (layoutVersion 2)', () => {
         client.writtenRefusals.map((r) => r.label)
       );
     }
-    expect(clientAnalyze(quiz, { written: true }).written).toHaveLength(5);
+    const styled = clientAnalyze(quiz, { written: true });
+    expect(styled.written).toHaveLength(7);
+    expect(
+      styled.entries.flatMap((e) =>
+        e.kind === 'written' && e.questionId.startsWith('f')
+          ? [e.style ?? 'lines']
+          : []
+      )
+    ).toEqual(['lines', 'lines', 'lines', 'graph', 'lines', 'lines', 'image']);
   });
 
   it('refuses the same written questions inside an "answer any" section', () => {

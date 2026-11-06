@@ -329,7 +329,7 @@ async function transcribePresentCrops(
   };
 }
 
-/** A box the import read as blank, still on this scan; it is archived but never transcribed. */
+/** A box the import read as blank or a custom image box, still on this scan; it is archived but never transcribed. */
 export function isBlankBox(
   answers: readonly StoredAnswer[],
   privateData: Record<string, unknown> | undefined,
@@ -339,7 +339,8 @@ export function isBlankBox(
   const answer = answers.find((a) => a?.questionId === questionId);
   return (
     answer?.paperScanId === scanId &&
-    privateData?.status === 'blank' &&
+    (privateData?.status === 'blank' ||
+      (privateData?.status === 'done' && privateData.noTranscript === true)) &&
     (privateData.scanId === undefined || privateData.scanId === scanId)
   );
 }

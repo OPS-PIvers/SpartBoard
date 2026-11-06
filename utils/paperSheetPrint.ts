@@ -110,6 +110,8 @@ export interface PaperPrintJob {
   pageMaps?: readonly PaperPageMap[];
   /** Stem per written question id, printed in its header when the header has room. */
   writtenTexts?: Readonly<Record<string, string>>;
+  /** Image `src` per written question id, printed lightly inside a custom image box. */
+  writtenImages?: Readonly<Record<string, string>>;
   /** What each prompt page prints, by its page map's `prompt` id (QUIZ_IMPORT_VERSIONS.md V25). */
   prompts?: Readonly<Record<string, PaperPromptPage>>;
   /** Per-version text, chosen by each sheet's `versionIndex`; keys stay the page maps' ids (V24). */
@@ -163,6 +165,9 @@ export interface SheetWrittenFill {
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
+
+/** Gap between a custom image and its box outline. */
+const WRITTEN_IMAGE_INSET_MM = 2;
 
 /** `BUBBLE_LETTER_GREY` as a CSS colour, so the print and the reader's floor share one number. */
 const letterGrey = (): string =>
@@ -510,7 +515,8 @@ function writtenItemHtml(
   isKeySheet: boolean,
   stem?: string,
   fill?: SheetWrittenFill,
-  prompt?: WrittenPrompt
+  prompt?: WrittenPrompt,
+  imageSrc?: string
 ): string {
   const h = item.headerMm;
   const pointsW = fill?.points ? WRITTEN_POINTS_MM : 0;
@@ -577,6 +583,14 @@ function writtenItemHtml(
   }
   // The outline shows students where to stay; the reader's inset keeps it out of the ink check.
   parts.push(`<div class="wr-outline" style="${box}"></div>`);
+  if (item.style === 'image' && imageSrc) {
+    const pad = WRITTEN_IMAGE_INSET_MM;
+    parts.push(
+      `<img class="wr-img" style="left:${mm(b.x + pad)};top:${mm(b.y + pad)};width:${mm(
+        b.w - pad * 2
+      )};height:${mm(b.h - pad * 2)}" src="${escapeHtml(imageSrc)}" alt="">`
+    );
+  }
   const bands = writtenBoxBandsMm(item);
   for (const r of bands.rows) {
     parts.push(
@@ -713,7 +727,8 @@ function mapPageBodyHtml(
           fill?.written?.[item.questionId],
           page && !ownPromptPage
             ? { page, label: versionLabel, imageSrc: job.stimulusImageSrc }
-            : undefined
+            : undefined,
+          job.writtenImages?.[item.questionId]
         )
       );
     }
@@ -806,8 +821,9 @@ const SHEET_STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-stem-box, .qt-choice, .wr-rule, .wr-outline, .wr-key { position: absolute; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-stem-box, .qt-choice, .wr-rule, .wr-outline, .wr-img, .wr-key { position: absolute; }
   .wr-rule { background: ${letterGrey()}; }
+  .wr-img { object-fit: contain; opacity: 0.35; filter: grayscale(1); }
   .wr-outline { box-sizing: border-box; border: ${WRITTEN_OUTLINE_MM}mm solid ${letterGrey()}; }
   .wr-key {
     background: #e5e5e5;
@@ -976,7 +992,10 @@ export function printPaperSheets(
       styles: STYLES,
       body: buildPaperSheetsHtml(job),
       // A remote image that has not decoded yet prints as an empty box.
-      awaitImages: !!job.sheetStimuli?.length || hasPromptImages(job),
+      awaitImages:
+        !!job.sheetStimuli?.length ||
+        hasPromptImages(job) ||
+        Object.keys(job.writtenImages ?? {}).length > 0,
       ...(job.onImagesReady ? { onImagesReady: job.onImagesReady } : {}),
     },
     openWindow

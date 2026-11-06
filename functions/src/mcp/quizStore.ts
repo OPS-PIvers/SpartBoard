@@ -149,6 +149,7 @@ const TYPE_BOUND_EXTRAS = [
   'noSpellCheck',
   'paperBoxSize',
   'paperBoxStyle',
+  'paperBoxImage',
   'paperOwnTest',
 ] as const;
 

@@ -173,6 +173,24 @@ describe('buildPaperSheetsHtml with page maps', () => {
     );
   });
 
+  it('prints a custom image lightly inside its outline, and nothing without one', () => {
+    const maps = mapsFor([mc(1), wr(4, 'M', 'image')]);
+    const box = writtenItemsOf(maps[0])[0].boxMm;
+    const page = pages(
+      buildPaperSheetsHtml(job(maps, { writtenImages: { q4: 'blob:map' } }))
+    )[0];
+    const img = page.match(
+      /<img class="wr-img" style="([^"]+)" src="blob:map"/
+    );
+    expect(img?.[1]).toBe(
+      `left:${(box.x + 2).toFixed(3)}mm;top:${(box.y + 2).toFixed(3)}mm;width:${(box.w - 4).toFixed(3)}mm;height:${(box.h - 4).toFixed(3)}mm`
+    );
+    expect(page).not.toContain('class="wr-rule"');
+    const bare = pages(buildPaperSheetsHtml(job(maps)))[0];
+    expect(bare).not.toContain('wr-img');
+    expect(bare).toContain('wr-outline');
+  });
+
   it('leaves lines off the map item so older maps are unchanged', () => {
     const maps = mapsFor([mc(1), wr(4, 'M', 'lines')]);
     expect('style' in writtenItemsOf(maps[0])[0]).toBe(false);
