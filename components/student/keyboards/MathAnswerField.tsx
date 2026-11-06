@@ -78,6 +78,10 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
         );
         mf.style.setProperty('--selection-color', '#000');
         mf.style.setProperty('--caret-color', 'hsl(212, 40%, 49%)');
+        mf.style.setProperty(
+          '--contains-highlight-color',
+          'hsl(212, 40%, 49%)'
+        );
         mf.style.setProperty('--smart-fence-color', 'currentColor');
         mf.value =
           start.initialLatex ?? ml.convertAsciiMathToLatex(start.value);
@@ -108,6 +112,8 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
       });
     return () => {
       cancelled = true;
+      // A field removed while focused never fires the blur that hides the keyboard.
+      if (mf?.hasFocus()) window.mathVirtualKeyboard.hide();
       mf?.remove();
       fieldRef.current = null;
     };

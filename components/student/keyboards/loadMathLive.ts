@@ -19,13 +19,15 @@ function applyOverrides(): void {
   const root = document.documentElement.style;
   root.setProperty('--keyboard-zindex', String(Z_INDEX.mathKeyboard));
   root.setProperty('--scrim-zindex', String(Z_INDEX.mathKeyboardPopup));
-  // The app is light-only; keep MathLive's keyboard light on dark-mode devices too.
+  // Keep MathLive's keyboard light on dark-mode devices, matching our light UI.
   document.body.setAttribute('theme', 'light');
   if (document.querySelector('style[data-mathlive-overrides]')) return;
   const style = document.createElement('style');
   style.setAttribute('data-mathlive-overrides', '');
-  // MathLive re-shows its menu button on every render, so hide it with a rule.
-  style.textContent = 'math-field::part(menu-toggle){display:none !important}';
+  // Hide the menu button (MathLive re-shows it each render) and undo dark-mode keyboard leftovers.
+  style.textContent =
+    'math-field::part(menu-toggle){display:none !important}' +
+    'body[theme=light] .ML__keyboard{--keyboard-toolbar-background-hover:#eee;--keycap-secondary-border:#c5c9d0;--keycap-secondary-border-bottom:#989da6}';
   document.head.append(style);
 }
 

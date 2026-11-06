@@ -100,6 +100,7 @@ export default {
         toast: Z_INDEX.toast.toString(),
         dialog: Z_INDEX.dialog.toString(),
         critical: Z_INDEX.critical.toString(),
+        'quiz-lock': Z_INDEX.quizLockOverlay.toString(),
         cursor: Z_INDEX.cursor.toString(),
         'sticker-control': Z_INDEX.stickerControl.toString(),
         'widget-resize': Z_INDEX.widgetResize.toString(),
