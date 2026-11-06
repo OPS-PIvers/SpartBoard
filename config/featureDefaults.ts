@@ -34,6 +34,7 @@ import {
   RefreshCw,
   Send,
   ImagePlus,
+  ListOrdered,
   Share2,
   Smartphone,
   Smile,
@@ -1081,6 +1082,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ImagePlus,
     description:
       'Add or paste an image on any answer, and paste images into a question.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Ordering as one drag-to-order list. Admin-only until Paul has tested it in prod.
+  'quiz-ordering-list': {
+    label: 'Ordering: one list',
+    icon: ListOrdered,
+    description:
+      'Students drag one list into order instead of moving items from a word bank into numbered slots.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
