@@ -289,8 +289,7 @@ export async function performStep(
   return true;
 }
 
-/** A select or type step with no recorded value has nothing for Autopilot to enter. */
-// A drag or resize is the teacher's to feel, so Autopilot leaves it to them.
+/** A select or type step with no recorded value has nothing for Autopilot to enter, and a drag or resize is the teacher's to do. */
 export const canPerform = (binding: StepBinding): boolean =>
   binding.action === 'drag' || binding.action === 'resize'
     ? false
