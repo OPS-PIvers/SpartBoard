@@ -4,7 +4,8 @@ import type { HelpResourceItem } from '@/types/helpCenter';
 
 vi.mock('@/config/firebase', () => ({ db: {}, isConfigured: false }));
 
-const { resolveGettingStartedTours } = await import('./useGettingStarted');
+const { gettingStartedNext, resolveGettingStartedTours } =
+  await import('./useGettingStarted');
 
 const item = (id: string, setId?: string) =>
   ({
@@ -78,5 +79,44 @@ describe('resolveGettingStartedTours', () => {
       { ...facts, isExternalUser: true }
     );
     expect(tours.map((t) => t.itemId)).toEqual(['ok']);
+  });
+});
+
+describe('gettingStartedNext', () => {
+  const tour = (setId: string, done = false) => ({
+    ...entry(setId),
+    item: item(setId, setId),
+    setId,
+    done,
+  });
+
+  it('offers the next Essentials tour that is not done, never the one just finished', () => {
+    const essentials = [tour('a'), tour('b', true), tour('c'), tour('d')];
+    expect(gettingStartedNext(essentials, [], 'a')).toMatchObject({
+      kind: 'tour',
+      tour: { setId: 'c' },
+    });
+  });
+
+  it('comes back to a skipped earlier tour once the later ones are done', () => {
+    const essentials = [tour('a'), tour('b', true), tour('c')];
+    expect(gettingStartedNext(essentials, [], 'c')).toMatchObject({
+      kind: 'tour',
+      tour: { setId: 'a' },
+    });
+  });
+
+  it('offers Next steps once every other Essentials tour is done', () => {
+    const essentials = [tour('a', true), tour('b')];
+    expect(gettingStartedNext(essentials, [tour('n')], 'b')).toEqual({
+      kind: 'next-steps',
+    });
+    expect(gettingStartedNext(essentials, [], 'b')).toEqual({ kind: 'none' });
+  });
+
+  it('offers nothing after a Next steps tour', () => {
+    expect(gettingStartedNext([tour('a')], [tour('n')], 'n')).toEqual({
+      kind: 'none',
+    });
   });
 });

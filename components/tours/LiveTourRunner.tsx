@@ -32,6 +32,7 @@ import {
 import { getOpenTourMaterials, requestOpenTourMaterial } from './tourMaterials';
 import { TourMaterialPicks } from './TourMaterialPicks';
 import { useTourConditions } from './useTourConditions';
+import { GettingStartedNextOffer } from '@/components/gettingStarted/GettingStartedNextOffer';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import {
@@ -381,6 +382,9 @@ export const LiveTourRunner: React.FC = () => {
   // Set when a run reaches its last step, so the closing prompt can cheer.
   const [finished, setFinished] = useState(false);
   const [cheering, setCheering] = useState(false);
+  // The set a Getting Started launch started; finishing it offers the next tour there.
+  const chainRef = useRef<string | null>(null);
+  const [chainOffer, setChainOffer] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   // Counts step entries, so going Back to a step opens it afresh.
   const [visit, setVisit] = useState(0);
@@ -1013,6 +1017,8 @@ export const LiveTourRunner: React.FC = () => {
     if (!req?.setId || startingRef.current || isTourRunning()) return;
     startingRef.current = true;
     setResumeOffer(null);
+    setChainOffer(null);
+    chainRef.current = req.chain === 'getting-started' ? req.setId : null;
     // A failed launch drops any saved run, so it does not come back later.
     const launchFailed = () => {
       clearSavedTour();
@@ -1115,6 +1121,7 @@ export const LiveTourRunner: React.FC = () => {
     undoPrerequisites();
     endTourSandbox();
     endTourFrame();
+    chainRef.current = null;
     setTour(null);
   };
 
@@ -1175,6 +1182,15 @@ export const LiveTourRunner: React.FC = () => {
         canAccess('getting-started')
       ) {
         void recordTourFinished(uid, tour.set.id);
+      }
+      if (
+        done &&
+        chainRef.current === tour.set.id &&
+        !tour.draft &&
+        !tour.edit &&
+        !tour.test
+      ) {
+        setChainOffer(tour.set.id);
       }
     }
     setFinished(done);
@@ -2099,6 +2115,26 @@ export const LiveTourRunner: React.FC = () => {
 
   if (typeof document === 'undefined') return null;
   if (!tour && !offeringResume) {
+    if (chainOffer) {
+      return createPortal(
+        <div
+          data-tour-ignore=""
+          data-click-outside-ignore="true"
+          onClick={(e) => e.stopPropagation()}
+          className="contents"
+        >
+          <GettingStartedNextOffer
+            key={chainOffer}
+            finishedSetId={chainOffer}
+            onClose={() => {
+              setChainOffer(null);
+              setCheering(false);
+            }}
+          />
+        </div>,
+        document.body
+      );
+    }
     if (!cheering) return null;
     return createPortal(
       <div

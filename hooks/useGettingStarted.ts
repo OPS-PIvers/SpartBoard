@@ -71,6 +71,28 @@ export function resolveGettingStartedTours(
   });
 }
 
+export type GettingStartedNext =
+  | { kind: 'tour'; tour: GettingStartedTour }
+  | { kind: 'next-steps' }
+  | { kind: 'none' };
+
+/** What to offer when a tour finishes: the next Essentials tour not done, Next steps once Essentials are, or nothing after a Next steps tour (D1, D8). */
+export function gettingStartedNext(
+  essentials: readonly GettingStartedTour[],
+  nextSteps: readonly GettingStartedTour[],
+  finishedSetId: string
+): GettingStartedNext {
+  const at = essentials.findIndex((tour) => tour.setId === finishedSetId);
+  if (at < 0) return { kind: 'none' };
+  // The finished tour's own checkmark can lag, so it never offers itself.
+  const open = (tour: GettingStartedTour) =>
+    !tour.done && tour.setId !== finishedSetId;
+  const next =
+    essentials.slice(at + 1).find(open) ?? essentials.slice(0, at).find(open);
+  if (next) return { kind: 'tour', tour: next };
+  return nextSteps.length > 0 ? { kind: 'next-steps' } : { kind: 'none' };
+}
+
 /** Live view of the admin's curated list and sidebar switch. */
 export function useGettingStartedSettings(): GettingStartedSettings & {
   loading: boolean;
