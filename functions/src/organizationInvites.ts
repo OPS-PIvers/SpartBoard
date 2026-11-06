@@ -630,14 +630,22 @@ export function evaluateClaim({
         'Invitation is valid but no matching member record exists. Contact an administrator.',
     };
   }
+  // A deactivated member needs an admin's re-invite or status edit, never a claim.
+  if (isRevokedMemberStatus(member.status)) {
+    return {
+      ok: false,
+      code: 'failed-precondition',
+      message: 'This account has been deactivated. Contact an administrator.',
+    };
+  }
   const nowIso = now.toISOString();
   return {
     ok: true,
-    memberPatch: {
-      uid: signedInUid,
-      status: 'active',
-      lastActive: nowIso,
-    },
+    // Already active (sign-in activated it): just consume the token, leaving the member untouched.
+    memberPatch:
+      member.status === 'active'
+        ? {}
+        : { uid: signedInUid, status: 'active', lastActive: nowIso },
     invitationPatch: {
       claimedAt: nowIso,
       claimedByUid: signedInUid,
@@ -1107,7 +1115,9 @@ export const claimOrganizationInvite = onCall(
         throw new HttpsError(verdict.code, verdict.message);
       }
 
-      tx.update(memberRef, verdict.memberPatch);
+      if (Object.keys(verdict.memberPatch).length > 0) {
+        tx.update(memberRef, verdict.memberPatch);
+      }
       tx.update(invitationRef, verdict.invitationPatch);
 
       // `member` is defined here — evaluateClaim only returns ok when member

@@ -863,6 +863,41 @@ describe('evaluateClaim', () => {
     }
   });
 
+  it.each(['inactive', 'removed'])(
+    'refuses to reactivate a %s member holding an unclaimed invitation',
+    (status) => {
+      const verdict = evaluateClaim({
+        invitation: validInvitation,
+        member: { ...validMember, status } as MemberRecord,
+        signedInEmailLower: 'user@ex.com',
+        signedInEmailVerified: true,
+        signedInUid: 'uid',
+        now,
+      });
+      expect(verdict.ok).toBe(false);
+      if (!verdict.ok) expect(verdict.code).toBe('failed-precondition');
+    }
+  );
+
+  it('consumes the invitation without touching an already-active member', () => {
+    const verdict = evaluateClaim({
+      invitation: validInvitation,
+      member: { ...validMember, status: 'active', uid: 'original-uid' },
+      signedInEmailLower: 'user@ex.com',
+      signedInEmailVerified: true,
+      signedInUid: 'firebase-uid-42',
+      now,
+    });
+    expect(verdict.ok).toBe(true);
+    if (verdict.ok) {
+      expect(verdict.memberPatch).toEqual({});
+      expect(verdict.invitationPatch).toEqual({
+        claimedAt: '2026-04-19T12:00:00.000Z',
+        claimedByUid: 'firebase-uid-42',
+      });
+    }
+  });
+
   // Regression: an unverified caller must never claim an invitation, even one
   // addressed to a real (possibly admin) email they don't own — email/password
   // sign-in lets an attacker self-report any address. Sibling fix to
