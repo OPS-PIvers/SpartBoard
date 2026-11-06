@@ -29,6 +29,11 @@ import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/Quiz
 import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResults';
 import { QuizAttemptSourceContext } from '@/hooks/useQuizResponseAttempts';
 import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor';
+import { VideoAssignmentSettingsModal } from '@/components/widgets/VideoActivityWidget/components/VideoAssignmentSettingsModal';
+import { QuizAssignmentSettingsModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentSettingsModal';
+import { ASSIGNMENT as QUIZ_ASSIGNMENT } from '@/components/common/library/assignStepper/QuizAssignSettings.dev';
+import { ASSIGNMENT as VIDEO_ASSIGNMENT } from '@/components/common/library/assignStepper/VideoAssignSettings.dev';
+import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assignStepperTestRosters';
 import { Results as VideoActivityResults } from '@/components/widgets/VideoActivityWidget/components/Results';
 import { toVideoActivityPublicQuestion } from '@/utils/videoActivityPublicQuestions';
 import type {
@@ -121,12 +126,56 @@ const QuizMonitorDev: React.FC<
   >
 > = (props) => {
   const [config, setConfig] = useState(makeQuizConfig);
+  const [editing, setEditing] = useState(false);
   return (
-    <QuizLiveMonitor
-      {...props}
-      config={config}
-      onUpdateConfig={(updates) => setConfig((c) => ({ ...c, ...updates }))}
-    />
+    <>
+      <QuizLiveMonitor
+        {...props}
+        config={config}
+        onUpdateConfig={(updates) => setConfig((c) => ({ ...c, ...updates }))}
+        onEditAssignmentSettings={() => setEditing(true)}
+      />
+      {editing && (
+        <QuizAssignmentSettingsModal
+          assignment={QUIZ_ASSIGNMENT}
+          rosters={SAMPLE_ROSTERS}
+          onClose={() => setEditing(false)}
+          onSave={() => setEditing(false)}
+        />
+      )}
+    </>
+  );
+};
+
+/** Opens the real Settings dialog from the monitor's Settings button. */
+const VaMonitorDev: React.FC<
+  Pick<
+    React.ComponentProps<typeof VideoActivityLiveMonitor>,
+    'session' | 'responses'
+  >
+> = ({ session, responses }) => {
+  const [editing, setEditing] = useState(false);
+  return (
+    <>
+      <VideoActivityLiveMonitor
+        session={session}
+        responses={responses}
+        onEnd={noop}
+        onPause={noop}
+        onResume={noop}
+        onUnlockStudent={noop}
+        onBack={() => undefined}
+        onEditSettings={() => setEditing(true)}
+      />
+      {editing && (
+        <VideoAssignmentSettingsModal
+          assignment={VIDEO_ASSIGNMENT}
+          rosters={SAMPLE_ROSTERS}
+          onClose={() => setEditing(false)}
+          onSave={() => setEditing(false)}
+        />
+      )}
+    </>
   );
 };
 
@@ -371,17 +420,7 @@ const SessionView: React.FC<{
         : multi
           ? makeVaMultiClassResponses()
           : makeVaResponses();
-    return (
-      <VideoActivityLiveMonitor
-        session={session}
-        responses={responses}
-        onEnd={noop}
-        onPause={noop}
-        onResume={noop}
-        onUnlockStudent={noop}
-        onBack={() => undefined}
-      />
-    );
+    return <VaMonitorDev session={session} responses={responses} />;
   }
 
   // va-results
