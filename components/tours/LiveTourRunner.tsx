@@ -1298,14 +1298,19 @@ export const LiveTourRunner: React.FC = () => {
     ) {
       d.loadDashboard(start.boardId);
     }
-    // One failure doesn't stop the rest; moving children up keeps a board the teacher filed in a new collection.
-    const results = await Promise.allSettled([
-      ...made.boards.map((board) => d.deleteDashboard(board.id)),
-      ...made.collections.map((collection) =>
+    // Boards first, so a collection's move-up never touches one being deleted; one failure doesn't stop the rest.
+    const boardResults = await Promise.allSettled(
+      made.boards.map((board) => d.deleteDashboard(board.id))
+    );
+    // Moving children up keeps a board the teacher filed in a new collection.
+    const collectionResults = await Promise.allSettled(
+      made.collections.map((collection) =>
         d.collectionsApi.deleteCollection(collection.id, 'move-to-parent')
-      ),
-    ]);
-    const failed = results.filter((r) => r.status === 'rejected');
+      )
+    );
+    const failed = [...boardResults, ...collectionResults].filter(
+      (r) => r.status === 'rejected'
+    );
     if (failed.length > 0) {
       console.error('Live tour: could not remove boards', failed);
       d.addToast(latest.current.t('tours.removeBoardsFailed'), 'error');

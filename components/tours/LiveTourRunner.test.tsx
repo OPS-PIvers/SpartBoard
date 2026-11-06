@@ -3941,6 +3941,37 @@ describe('LiveTourRunner boards a tour made', () => {
     );
   });
 
+  it('deletes the boards before moving a new collection up', async () => {
+    await start(twoSteps());
+    const order: string[] = [];
+    h.boardActions.deleteDashboard.mockImplementationOnce((id: string) => {
+      order.push(`board ${id}`);
+      return Promise.resolve();
+    });
+    h.boardActions.deleteCollection.mockImplementationOnce((id: string) => {
+      order.push(`collection ${id}`);
+      return Promise.resolve();
+    });
+    act(() => {
+      h.collections.push({
+        id: 'c-new',
+        name: 'Unit 1',
+        createdAt: Date.now(),
+      });
+      h.boards.push({
+        id: 'new-1',
+        name: 'Board new-1',
+        createdAt: Date.now(),
+        collectionId: 'c-new',
+      });
+      h.emit();
+    });
+    await finishTour();
+    fireEvent.click(screen.getByTestId('tour-remove-boards'));
+    await frames();
+    expect(order).toEqual(['board new-1', 'collection c-new']);
+  });
+
   it('asks nothing when the run made no boards', async () => {
     await start(twoSteps());
     await finishTour();
