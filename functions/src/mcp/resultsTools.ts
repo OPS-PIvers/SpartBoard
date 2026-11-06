@@ -179,6 +179,9 @@ async function quizSessionSummary(
           assignment.overridesByStudentUid
         ),
         sections: parseChooseSections(s.sections),
+        paperWrittenQuestionIds: recompute.parsePaperWrittenQuestionIds(
+          s.paperWrittenQuestionIds
+        ),
       }
     )),
   };

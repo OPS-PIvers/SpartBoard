@@ -193,6 +193,14 @@ export function parseLocalizedFibAnswers(
 }
 
 /** Only the served `language` off each student override; the rest is irrelevant here. */
+/** `QuizSession.paperWrittenQuestionIds`, tolerant of a malformed value. */
+export function parsePaperWrittenQuestionIds(
+  raw: unknown
+): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.filter((id): id is string => typeof id === 'string');
+}
+
 export function parseServedLanguages(
   raw: unknown
 ): Record<string, { language?: string }> | undefined {
@@ -403,11 +411,9 @@ export async function recomputeOnePlcAssessment(
         assignmentData?.overridesByStudentUid
       ),
       sections: parseChooseSections(s.sections),
-      paperWrittenQuestionIds: Array.isArray(s.paperWrittenQuestionIds)
-        ? s.paperWrittenQuestionIds.filter(
-            (id): id is string => typeof id === 'string'
-          )
-        : undefined,
+      paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
+        s.paperWrittenQuestionIds
+      ),
     });
   }
 

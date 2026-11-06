@@ -13,6 +13,7 @@ import {
 import {
   currentShortAnswerGrading,
   parseCompletedResponse,
+  parsePaperWrittenQuestionIds,
   parseManualGrades,
 } from '../recomputePlcAssessments';
 import { notChosenIds, parseChooseSections } from '../quizSectionsChosen';
@@ -424,11 +425,9 @@ export function scoreQuizResponse(
     manualGrades: parsed.manualGrades,
     fibAnswersByQuestion: ctx.fibAnswersByStudent(studentUid),
     sectionsRaw: session.sections,
-    paperWrittenQuestionIds: Array.isArray(session.paperWrittenQuestionIds)
-      ? session.paperWrittenQuestionIds.filter(
-          (id): id is string => typeof id === 'string'
-        )
-      : undefined,
+    paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
+      session.paperWrittenQuestionIds
+    ),
   });
   const base = {
     classId: parsed.classId ?? null,
