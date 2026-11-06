@@ -1332,18 +1332,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'import-quiz': {
-    label: 'Import: Quiz and question bank',
-    icon: ClipboardCheck,
-    description:
-      'Offers Quiz and Question bank for test files and Schoology exports.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    requires: 'universal-import',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'import-flashcards': {
     label: 'Import: Flashcards',
     icon: Layers,
