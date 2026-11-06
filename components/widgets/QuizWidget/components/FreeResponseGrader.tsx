@@ -9,6 +9,7 @@
  * primary recording slot, so nothing already in `grading` changes meaning.
  */
 
+import { MathText } from '@/components/common/MathText';
 import React, {
   useCallback,
   useContext,
@@ -1660,7 +1661,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               </span>
             </div>
             <p className="text-sm font-semibold leading-snug text-slate-900">
-              {question.text}
+              <MathText text={question.text} />
             </p>
             <CollapsibleStimuli
               stimuli={resolveStimuli(question.stimulusIds, quiz.stimuli)}

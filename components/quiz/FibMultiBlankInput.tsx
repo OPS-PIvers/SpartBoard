@@ -1,4 +1,5 @@
 import React from 'react';
+import { MathText } from '@/components/common/MathText';
 import { joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
 
 const MathAnswerField = React.lazy(
@@ -27,7 +28,13 @@ export const NumberedBlanksText: React.FC<{ text: string; light: boolean }> = ({
   return (
     <>
       {text.split(BLANK_RUN).map((part, i) => {
-        if (i % 2 === 0) return <React.Fragment key={i}>{part}</React.Fragment>;
+        if (i % 2 === 0) {
+          return (
+            <React.Fragment key={i}>
+              <MathText text={part} />
+            </React.Fragment>
+          );
+        }
         return (
           <span key={i} className="whitespace-nowrap">
             <BlankBadge n={(i + 1) / 2} light={light} />

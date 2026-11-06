@@ -1,3 +1,4 @@
+import { plainPromptText } from './promptMath';
 /**
  * Turns a quiz and a roster selection into the sheets to print and the
  * `PaperBatch` that records what was printed.
@@ -197,7 +198,7 @@ export function analyzePaperQuiz(
   );
   const describe = (question: QuizQuestion): string =>
     `${TYPE_LABELS[question.type] ?? question.type}: ${
-      question.text || 'Untitled question'
+      plainPromptText(question.text) || 'Untitled question'
     }`;
 
   questions.forEach((question, index) => {
