@@ -15,7 +15,7 @@ import {
 import { MARK_LABEL } from '@/utils/quizStudentReportPrint';
 import { formatExportPoints } from '@/utils/assignmentExportShared';
 import { tourFieldAttr } from '@/config/tourAnchors';
-import { ordinal, placeOrderingAnswer } from '@/utils/quizOrderingPlacement';
+import { placeOrderingAnswer } from '@/utils/quizOrderingPlacement';
 
 const SMALL_TEXT = { fontSize: 'min(11px, 3.8cqmin)' } as const;
 const BODY_TEXT = { fontSize: 'min(12px, 4cqmin)' } as const;
@@ -111,10 +111,18 @@ const OrderingAnswer: React.FC<{ given: string[]; expected: string[] }> = ({
                 )}
                 {out && spot.correctIndex >= 0 && (
                   <span
-                    className="font-normal text-brand-gray-dark"
-                    style={SMALL_TEXT}
+                    aria-label={`Belongs at ${spot.correctIndex + 1}`}
+                    data-testid={`ordering-spot-${i}-belongs`}
+                    className="inline-flex items-center justify-center align-middle rounded-sm border border-emerald-600 bg-emerald-50 font-semibold text-emerald-800 tabular-nums"
+                    style={{
+                      ...SMALL_TEXT,
+                      minWidth: 'min(18px, 4.5cqmin)',
+                      padding: '0 min(4px, 1cqmin)',
+                      marginLeft: 'min(6px, 1.5cqmin)',
+                      lineHeight: 1.3,
+                    }}
                   >
-                    {` · belongs ${ordinal(spot.correctIndex + 1)}`}
+                    {spot.correctIndex + 1}
                   </span>
                 )}
               </span>
