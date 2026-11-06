@@ -90,6 +90,8 @@ export interface ImportPaperSheet {
 
 export type ParsedWrittenBox = Omit<PaperWrittenPayloadBox, 'storagePath'> & {
   mimeType: CropMime;
+  /** Set server-side from the batch map, never from the payload: a custom image box. */
+  noTranscript?: true;
 };
 
 export interface ImportPaperResponsesInput {
@@ -311,6 +313,7 @@ function seatMapIndex(
     written: new Map(
       [...index.written].map(([id, page]) => [swap(id), page] as const)
     ),
+    image: new Set([...index.image].map(swap)),
   };
 }
 
@@ -318,18 +321,26 @@ interface BatchMapIndex {
   mc: Set<string>;
   /** questionId -> the page its written box printed on. */
   written: Map<string, number>;
+  /** Written boxes that printed a custom image: graded from the scan, never transcribed. */
+  image: Set<string>;
 }
 
 function indexPageMaps(pageMaps: unknown): BatchMapIndex {
-  const index: BatchMapIndex = { mc: new Set(), written: new Map() };
+  const index: BatchMapIndex = {
+    mc: new Set(),
+    written: new Map(),
+    image: new Set(),
+  };
   if (!Array.isArray(pageMaps)) return index;
   for (const map of pageMaps as Partial<PaperPageMap>[]) {
     if (!isRecord(map) || !Array.isArray(map.items)) continue;
     for (const item of map.items) {
       if (!isRecord(item) || typeof item.questionId !== 'string') continue;
       if (item.kind === 'mc') index.mc.add(item.questionId);
-      else if (item.kind === 'written' && typeof map.page === 'number')
+      else if (item.kind === 'written' && typeof map.page === 'number') {
         index.written.set(item.questionId, map.page);
+        if (item.style === 'image') index.image.add(item.questionId);
+      }
     }
   }
   return index;
@@ -443,6 +454,7 @@ export async function handleImportPaperResponses(
         invalid('A sheet references a question not in this session.');
       if (seatIndex?.written.get(box.questionId) !== box.page)
         invalid('A written answer is not a box on that page of this batch.');
+      if (seatIndex?.image.has(box.questionId)) box.noTranscript = true;
     }
   }
 
@@ -512,7 +524,7 @@ export async function handleImportPaperResponses(
     [
       ...new Set(
         (sheet.written ?? [])
-          .filter((b) => b.state === 'ink')
+          .filter((b) => b.state === 'ink' && !b.noTranscript)
           .map((b) => b.page)
       ),
     ]
@@ -782,7 +794,11 @@ async function importSeat(
       answeredAt: ctx.now,
       status: 'submitted',
       paperScanId: scanId,
-      paperTranscript: box.state === 'blank' ? 'blank' : 'pending',
+      paperTranscript: box.noTranscript
+        ? 'done'
+        : box.state === 'blank'
+          ? 'blank'
+          : 'pending',
       artifacts: [
         {
           id: `hw_${scanId}_${box.questionId}`,
@@ -797,7 +813,12 @@ async function importSeat(
     const privateDoc: PaperPrivateAnswer = {
       scanId,
       seat: sheet.seat,
-      status: box.state === 'blank' ? 'blank' : 'pending',
+      status: box.noTranscript
+        ? 'done'
+        : box.state === 'blank'
+          ? 'blank'
+          : 'pending',
+      ...(box.noTranscript ? { noTranscript: true as const } : {}),
       attempts: 0,
       charged: false,
       updatedAt: ctx.now,
@@ -811,7 +832,7 @@ async function importSeat(
     const boxes = jobBoxes.get(box.page) ?? [];
     boxes.push({ questionId: box.questionId, storagePath });
     jobBoxes.set(box.page, boxes);
-    if (box.state === 'ink') inkPages.add(box.page);
+    if (box.state === 'ink' && !box.noTranscript) inkPages.add(box.page);
   });
 
   const answers = [

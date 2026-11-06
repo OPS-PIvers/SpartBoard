@@ -43,6 +43,13 @@ export interface PaperQuestion {
   maxWords?: number;
   paperBoxSize?: PaperBoxSize;
   paperBoxStyle?: PaperBoxStyle;
+  /** Mirrors `QuizQuestion.paperBoxImage`; only its presence matters here. */
+  paperBoxImage?: {
+    id?: string;
+    source?: string;
+    driveFileId?: string;
+    url?: string;
+  };
 }
 
 export interface PaperSeatAssignment {
@@ -276,7 +283,21 @@ export const isPaperBoxStyle = (value: unknown): value is PaperBoxStyle =>
   value === 'lines' ||
   value === 'blank' ||
   value === 'graph' ||
-  value === 'coordinate';
+  value === 'coordinate' ||
+  value === 'image';
+
+/** Mirrors `paperBoxStyleOf`: an image box with no printable image is lines. */
+export function paperBoxStyleOf(question: PaperQuestion): PaperBoxStyle {
+  if (!isPaperBoxStyle(question.paperBoxStyle)) return 'lines';
+  if (question.paperBoxStyle !== 'image') return question.paperBoxStyle;
+  const img = question.paperBoxImage;
+  return img &&
+    img.source === 'image' &&
+    !!img.id &&
+    !!(img.driveFileId || img.url)
+    ? 'image'
+    : 'lines';
+}
 
 /** Mirrors `defaultPaperBoxSize` in `utils/paperWritten.ts`. */
 export function defaultPaperBoxSize(maxWords?: number): PaperBoxSize {
@@ -367,9 +388,7 @@ export function analyzePaperQuiz(
       const size = isPaperBoxSize(question.paperBoxSize)
         ? question.paperBoxSize
         : defaultPaperBoxSize(question.maxWords);
-      const style = isPaperBoxStyle(question.paperBoxStyle)
-        ? question.paperBoxStyle
-        : 'lines';
+      const style = paperBoxStyleOf(question);
       written.push({ questionId: question.id, label, size });
       entries.push({
         kind: 'written',

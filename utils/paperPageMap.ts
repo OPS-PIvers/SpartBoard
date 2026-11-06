@@ -529,7 +529,7 @@ export function writtenBoxBandsMm(
 ): { rows: WrittenBand[]; cols: WrittenBand[] } {
   const b = item.boxMm;
   const style = item.style ?? 'lines';
-  if (style === 'blank') return { rows: [], cols: [] };
+  if (style === 'blank' || style === 'image') return { rows: [], cols: [] };
   if (style === 'lines') {
     return {
       rows: writtenRuleYsMm(item).map((y) => ({

@@ -12848,6 +12848,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-print.written-box-image",
+    "label": "Written answer custom image select in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-print",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.assign-paper:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-print.written-box-lines",
     "label": "Written box custom line count in the Quiz widget",
     "scope": "field",

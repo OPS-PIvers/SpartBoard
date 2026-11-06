@@ -1,6 +1,7 @@
 import type {
   PaperBoxSize,
   PaperBoxStyle,
+  PaperSheetStimulus,
   QuizQuestion,
   PaperPrivateAnswer,
   PaperPrivateStatus,
@@ -87,33 +88,60 @@ export function isPaperBoxStyle(value: unknown): value is PaperBoxStyle {
     value === 'lines' ||
     value === 'blank' ||
     value === 'graph' ||
-    value === 'coordinate'
+    value === 'coordinate' ||
+    value === 'image'
   );
 }
 
 /** What a free-response box prints inside it; lines unless a valid style is saved. */
 export function paperBoxStyleOf(
-  question: Pick<QuizQuestion, 'paperBoxStyle'>
+  question: Pick<QuizQuestion, 'paperBoxStyle' | 'paperBoxImage'>
 ): PaperBoxStyle {
-  return isPaperBoxStyle(question.paperBoxStyle)
-    ? question.paperBoxStyle
-    : 'lines';
+  if (!isPaperBoxStyle(question.paperBoxStyle)) return 'lines';
+  // An image box with no image left to print falls back to lines.
+  if (question.paperBoxStyle === 'image' && !hasPaperBoxImage(question))
+    return 'lines';
+  return question.paperBoxStyle;
 }
 
-/** Questions with the print dialog's box styles applied; lines drops the key. */
+/** The question carries an image an `'image'` box can print. */
+export function hasPaperBoxImage(
+  question: Pick<QuizQuestion, 'paperBoxImage'>
+): boolean {
+  const img = question.paperBoxImage;
+  return (
+    !!img &&
+    img.source === 'image' &&
+    !!(img.driveFileId ?? img.url) &&
+    !!img.id
+  );
+}
+
+/** A box style picked in the print dialog; an image style carries its image. */
+export interface PaperBoxStylePick {
+  style: PaperBoxStyle;
+  image?: PaperSheetStimulus;
+}
+
+/** Questions with the print dialog's box styles applied; lines drops the key, and only an image box keeps an image. */
 export function withPaperBoxStyles<T extends { questions: QuizQuestion[] }>(
   holder: T,
-  styles: Readonly<Record<string, PaperBoxStyle>>
+  styles: Readonly<Record<string, PaperBoxStylePick>>
 ): T {
   if (Object.keys(styles).length === 0) return holder;
   return {
     ...holder,
     questions: holder.questions.map((q) => {
-      const style = styles[q.id];
-      if (!style) return q;
-      if (style !== 'lines') return { ...q, paperBoxStyle: style };
-      const { paperBoxStyle: _drop, ...rest } = q;
-      return rest;
+      const pick = styles[q.id];
+      if (!pick) return q;
+      const { paperBoxStyle: _style, paperBoxImage: _image, ...rest } = q;
+      return {
+        ...rest,
+        ...(pick.style !== 'lines' ? { paperBoxStyle: pick.style } : {}),
+        ...(pick.style === 'image' && pick.image
+          ? { paperBoxImage: pick.image }
+          : {}),
+      };
     }),
   };
 }

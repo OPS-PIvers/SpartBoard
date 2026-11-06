@@ -1238,12 +1238,52 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(onSavePrintSetup).toHaveBeenCalledWith({
       stimuli: [],
       boxSizes: {},
-      boxStyles: { w2: 'coordinate' },
+      boxStyles: { w2: { style: 'coordinate' } },
     });
     const styles = onSaveBatch.mock.calls[0][0].pageMaps?.flatMap((m) =>
       m.items.flatMap((i) => (i.kind === 'written' ? [i.style] : []))
     );
     expect(styles).toEqual(['graph', 'coordinate', undefined]);
+  });
+
+  it('prints a custom image from the quiz and saves it on the question', async () => {
+    sheetImages = { src: { map: 'blob:map' }, failed: [], loading: false };
+    const onSavePrintSetup = vi.fn().mockResolvedValue(undefined);
+    const { onSaveBatch, print } = setup({
+      quiz: quiz({
+        questions: [fr('w1')],
+        stimuli: [
+          {
+            id: 'map',
+            type: 'image',
+            label: 'Blank map',
+            url: 'https://example.com/map.png',
+          },
+        ],
+      }),
+      onSavePrintSetup,
+    });
+    fireEvent.change(screen.getByLabelText('Question 1 answer style'), {
+      target: { value: 'image' },
+    });
+    expect(screen.getByLabelText('Question 1 image')).toHaveValue('map');
+    await printIt(print);
+    const image = {
+      id: 'map',
+      label: 'Blank map',
+      source: 'image',
+      url: 'https://example.com/map.png',
+    };
+    expect(onSavePrintSetup).toHaveBeenCalledWith({
+      stimuli: [],
+      boxSizes: {},
+      boxStyles: { w1: { style: 'image', image } },
+    });
+    const items = onSaveBatch.mock.calls[0][0].pageMaps?.flatMap((m) =>
+      m.items.flatMap((i) => (i.kind === 'written' ? [i.style] : []))
+    );
+    expect(items).toEqual(['image']);
+    expect(print.mock.calls[0][0].writtenImages).toEqual({ w1: 'blob:map' });
   });
 
   it('does not save the quiz when no box size changed', async () => {

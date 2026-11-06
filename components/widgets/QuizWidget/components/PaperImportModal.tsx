@@ -851,11 +851,18 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     const writtenKeys = payload.flatMap((s) =>
       (s.written ?? []).map((w) => writtenCropKey(s.seat, w.questionId))
     );
-    // One transcription call per page with ink (D24), so quota counts pages.
+    // One transcription call per page with ink (D24), so quota counts pages; custom image boxes are never transcribed.
+    const imageBoxes = new Set(
+      (batch.pageMaps ?? []).flatMap((m) =>
+        m.items.flatMap((i) =>
+          i.kind === 'written' && i.style === 'image' ? [i.questionId] : []
+        )
+      )
+    );
     const inkPages = new Set(
       payload.flatMap((s) =>
         (s.written ?? [])
-          .filter((w) => w.state === 'ink')
+          .filter((w) => w.state === 'ink' && !imageBoxes.has(w.questionId))
           .map((w) => `${s.seat}:${w.page}`)
       )
     ).size;

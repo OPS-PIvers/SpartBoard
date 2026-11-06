@@ -4504,6 +4504,8 @@ export interface QuizQuestion {
   paperBoxSize?: PaperBoxSize;
   /** Free Response only. What prints inside the paper answer box; absent = lines. */
   paperBoxStyle?: PaperBoxStyle;
+  /** Free Response only. The image an `'image'` box prints lightly for students to label. */
+  paperBoxImage?: PaperSheetStimulus;
   /**
    * Free Response only (M12 rubrics). Id of the rubric in the teacher's
    * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
@@ -5867,7 +5869,12 @@ export interface QuizResponseAnswer {
 export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
 
 /** What prints inside a handwritten answer box: rule lines, nothing, a 5 mm grid, or a grid with x and y axes. */
-export type PaperBoxStyle = 'lines' | 'blank' | 'graph' | 'coordinate';
+export type PaperBoxStyle =
+  | 'lines'
+  | 'blank'
+  | 'graph'
+  | 'coordinate'
+  | 'image';
 
 /** Public transcription state on a paper written answer. */
 export type PaperTranscriptState = 'pending' | 'done' | 'blank';
@@ -5892,6 +5899,8 @@ export interface PaperPrivateAnswer {
   editedAt?: number;
   /** A rescan whose box was not applied because this answer was graded or edited (D28). */
   newerScan?: { scanId: string; page: number; state: 'ink' | 'blank' };
+  /** A custom image box: graded from the scan, archived but never transcribed. */
+  noTranscript?: true;
   updatedAt: number;
 }
 
@@ -7517,6 +7526,7 @@ export type VideoActivityQuestion = Omit<
   | 'noSpellCheck'
   | 'paperBoxSize'
   | 'paperBoxStyle'
+  | 'paperBoxImage'
 > & {
   type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */

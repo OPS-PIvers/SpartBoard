@@ -313,6 +313,13 @@ describe.each<PaperBoxStyle>(['lines', 'blank', 'graph', 'coordinate'])(
   }
 );
 
+describe('the written ink check on a custom image box', () => {
+  it('reads every image box as answered, so it is never skipped as blank', () => {
+    const maps = plan([mc(1), written(2, 'M', 'image')], 2);
+    expect(read(maps, paint(maps[0]), 2).written[0].state).toBe('ink');
+  });
+});
+
 describe('cropWrittenBox', () => {
   const maps = plan([mc(1), written(2, 'M')], 2);
   const corner: SyntheticWriting = {
