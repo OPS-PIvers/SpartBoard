@@ -56,6 +56,14 @@ service cloud.firestore {
              viewAsAdminOk() &&
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
     }
+    // Site admin as storage.rules isSiteAdmin(): a synced building_admin never reaches other teachers' student data.
+    function isSiteAdmin() {
+      return isAdmin() && siteAdminDoc(get(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())).data);
+    }
+    function siteAdminDoc(a) {
+      return a.get('source', '') != 'organizationMembersSync' ||
+             (a.get('orgId', '') == 'orono' && a.get('roleId', '') in ['super_admin', 'domain_admin']);
+    }
 
     // ---- Super admin "View as" (docs/plans/shipped/ADMIN_VIEW_AS.md D7) ----
     // A view-as tab is signed in as its target with a server-minted `viewAs`
@@ -820,7 +828,7 @@ service cloud.firestore {
       // read only, for support/debugging.
       match /pin_index/{indexKey} {
         allow read: if signedIn() &&
-          (authUid() == userId || isAdmin());
+          (authUid() == userId || isSiteAdmin());
         allow write: if false;
       }
     }
@@ -4654,7 +4662,7 @@ service cloud.firestore {
         // ownership without server-side logic; students create/update only their own
         // record (heartbeats/disconnects); only teacher and admins delete.
         allow read: if signedIn() &&
-          (authUid() == userId || authUid() == studentId || isAdmin());
+          (authUid() == userId || authUid() == studentId || isSiteAdmin());
         // Matches the client's exact write shape (useLiveSession.ts `newStudent`) - without
         // it, any caller who learns a sessionId could spray unbounded arbitrary-shape docs
         // into a teacher's live roster. pin is capped at MAX_PIN_LENGTH (10).
@@ -4681,7 +4689,7 @@ service cloud.firestore {
         // to 'active', so a fabricated rejoin can't escape a freeze or self-freeze.
         allow update: if signedIn() &&
           (
-            ((authUid() == userId || isAdmin()) &&
+            ((authUid() == userId || isSiteAdmin()) &&
              changedOnly(['status']) &&
              incoming().status in ['active', 'frozen', 'disconnected']) ||
             (authUid() == studentId &&
@@ -4693,7 +4701,7 @@ service cloud.firestore {
              isValidLiveStudentPayload(incoming()))
           );
         allow delete: if signedIn() &&
-          (authUid() == userId || isAdmin());
+          (authUid() == userId || isSiteAdmin());
       }
     }
 
@@ -5085,7 +5093,7 @@ service cloud.firestore {
         // stays a hard prerequisite for studentRole users.
         allow read: if signedIn() && (
           authUid() == sessionTeacherUid() ||
-          isAdmin() ||
+          isSiteAdmin() ||
           isSubMonitor(sessionData()) ||
           (passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
            (resource == null ? responseKey == authUid() : authUid() == existing().studentUid))
@@ -5322,10 +5330,10 @@ service cloud.firestore {
            (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
           // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
           authUid() == sessionTeacherUid() ||
-          (isAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'backTranslations']))
+          (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'backTranslations']))
         );
         allow delete: if signedIn() &&
-          (authUid() == sessionTeacherUid() || isAdmin());
+          (authUid() == sessionTeacherUid() || isSiteAdmin());
 
         // Append-only snapshot log of overwritten answers — captures a prior
         // answers[i] before it's replaced (see submitAnswer in useQuizSession.ts),
@@ -5337,7 +5345,7 @@ service cloud.firestore {
           }
           // Read: teacher, admin, or the owning student.
           allow read: if signedIn() && (
-            isAdmin() ||
+            isSiteAdmin() ||
             authUid() == sessionTeacherUid() ||
             authUid() == parentStudentUid()
           );
@@ -5356,7 +5364,7 @@ service cloud.firestore {
           // Immutable from clients. Teachers/admins may clean up.
           allow update: if false;
           allow delete: if signedIn() &&
-            (authUid() == sessionTeacherUid() || isAdmin());
+            (authUid() == sessionTeacherUid() || isSiteAdmin());
         }
 
         // Handwritten paper answers: AI transcript internals. Session teacher reads; only the server writes.
@@ -5368,10 +5376,10 @@ service cloud.firestore {
         // Each finished attempt's copy; the server writes it and the session teacher or an admin may grade an earlier (closed) one.
         match /attempts/{attemptId} {
           allow read: if signedIn() && (
-            authUid() == sessionTeacherUid() || isAdmin() ||
+            authUid() == sessionTeacherUid() || isSiteAdmin() ||
             isSubMonitor(sessionData())
           );
-          allow update: if signedIn() && (authUid() == sessionTeacherUid() || isAdmin()) &&
+          allow update: if signedIn() && (authUid() == sessionTeacherUid() || isSiteAdmin()) &&
             existing().get('closed', false) == true &&
             incoming().diff(existing()).affectedKeys().hasOnly(['grading']) &&
             isMap('grading');
@@ -5383,7 +5391,7 @@ service cloud.firestore {
       // session's teacher writes; a reader must be seated on their own response here.
       match /live/{docId} {
         allow read: if signedIn() && (
-          authUid() == sessionTeacherUid() || isAdmin() ||
+          authUid() == sessionTeacherUid() || isSiteAdmin() ||
           isSubMonitor(sessionData()) ||
           get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/seats/$(authUid())).data.responseKey)).data.studentUid == authUid()
         );
@@ -5393,7 +5401,7 @@ service cloud.firestore {
       // Per-attempt scores beside the response, since students can read their response before release.
       match /attemptScores/{responseKey} {
         allow read: if signedIn() && (
-          authUid() == sessionTeacherUid() || isAdmin() ||
+          authUid() == sessionTeacherUid() || isSiteAdmin() ||
           isSubMonitor(sessionData())
         );
         allow write: if false;
@@ -5432,20 +5440,20 @@ service cloud.firestore {
           return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid;
         }
         allow read: if signedIn() && (
-          authUid() == sessionTeacherUidArch() || isAdmin()
+          authUid() == sessionTeacherUidArch() || isSiteAdmin()
         );
         // Teacher or admin can archive (symmetric with the parent delete rule,
         // else an admin's archive+delete batch rolls back). archivedBy ==
         // auth.uid (no proxy writes); archiveReason constrained to a small set.
         allow create: if signedIn() &&
-          (authUid() == sessionTeacherUidArch() || isAdmin()) &&
+          (authUid() == sessionTeacherUidArch() || isSiteAdmin()) &&
           incoming().archivedBy == authUid() &&
           isNumber('archivedAt') &&
           incoming().get('archiveReason', '') in
             ['teacher-removed', 'session-ended', 'idle-auto-submit-failed'];
         // Archive is otherwise immutable from the client. Future
         // cleanup (delete after N days) will run via admin SDK only.
-        allow update, delete: if isAdmin();
+        allow update, delete: if isSiteAdmin();
       }
 
       // View tracking for view-only Share links — each pageview appends an
@@ -5504,7 +5512,7 @@ service cloud.firestore {
         resource == null ||
         authUid() == existing().studentUid ||
         authUid() == existing().teacherUid ||
-        isAdmin() ||
+        isSiteAdmin() ||
         authUid() == ledgerS('quiz_sessions', ledgerId).teacherUid
       );
       // Student creates their own entry on first completion (see ledgerCreateOk).
@@ -5534,7 +5542,7 @@ service cloud.firestore {
          incoming().get('completedAttempts', 0) <=
            existing().get('completedAttempts', 0))
         ||
-        isAdmin()
+        isSiteAdmin()
       );
       // Teacher or admin may delete (monitor "Reset"/"Remove student"); students
       // can't (they'd wipe their own cap). resource == null makes deleting a
@@ -5545,7 +5553,7 @@ service cloud.firestore {
       // teacherUid naming the student never lets them undo their own cap.
       allow delete: if signedIn() && (
         resource == null ||
-        (authUid() == existing().teacherUid && authUid() != existing().studentUid) || isAdmin() ||
+        (authUid() == existing().teacherUid && authUid() != existing().studentUid) || isSiteAdmin() ||
         authUid() == ledgerS('quiz_sessions', ledgerId).teacherUid
       );
     }
@@ -5559,7 +5567,7 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource == null ||
         authUid() == existing().studentUid ||
-        isAdmin() ||
+        isSiteAdmin() ||
         (!isStudentRoleUser() &&
          (authUid() == existing().teacherUid ||
           authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid))
@@ -5587,14 +5595,14 @@ service cloud.firestore {
          incoming().get('completedAttempts', 0) <=
            existing().get('completedAttempts', 0))
         ||
-        isAdmin()
+        isSiteAdmin()
       );
       // resource == null no-op mirrors quiz_attempt_ledger (avoids a null-deref
       // deny). VA has no ledger-deleting remove path today, but keeps the two
       // ledgers symmetric.
       allow delete: if signedIn() && (
         resource == null ||
-        isAdmin() ||
+        isSiteAdmin() ||
         (!isStudentRoleUser() &&
          ((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
           authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid))
@@ -5850,7 +5858,7 @@ service cloud.firestore {
         // Only teacher and admin can read/delete entries (buffer processing)
         // Path-based ownership check ensures query safety for the teacher's listener
         allow read, delete: if signedIn() &&
-                            (isAdmin() || sessionId.matches(authUid() + '_.*'));
+                            (isSiteAdmin() || sessionId.matches(authUid() + '_.*'));
       }
     }
 
@@ -5861,7 +5869,7 @@ service cloud.firestore {
       }
       // Student tokens are non-anonymous, so they never count as the owner.
       function vaOwner(s) {
-        return signedIn() && ((s.teacherUid == authUid() && !isStudentRoleUser()) || isAdmin());
+        return signedIn() && ((s.teacherUid == authUid() && !isStudentRoleUser()) || isSiteAdmin());
       }
       // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
       // caller can't enumerate every teacher's sessions.
@@ -6133,7 +6141,7 @@ service cloud.firestore {
         // summaryHidden (immutable) keeps the summary teacher-only; the student
         // reads their receipt below instead.
         allow read: if signedIn() && (
-          isAdmin() ||
+          isSiteAdmin() ||
           maOwner() ||
           (existing().studentUid == authUid() &&
             maSessionData().get('summaryHidden', false) != true)
@@ -6173,14 +6181,14 @@ service cloud.firestore {
         // Only the owning teacher or an admin may delete submissions —
         // used when a teacher wipes an assignment.
         allow delete: if signedIn() && (
-          isAdmin() ||
+          isSiteAdmin() ||
           maOwner()
         );
 
         // v2 attempt history, written only by submitMiniAppResultV1.
         match /attempts/{attemptId} {
           allow read, delete: if signedIn() && (
-            isAdmin() ||
+            isSiteAdmin() ||
             maOwner()
           );
           allow create, update: if false;
@@ -6269,7 +6277,7 @@ service cloud.firestore {
         return passesStudentClassGateCompat(glSession().get('classIds', []), glSession().get('classId', ''));
       }
       function glIsTeacher() {
-        return isAdmin() || (glSession().teacherUid == authUid() && !isStudentRoleUser());
+        return isSiteAdmin() || (glSession().teacherUid == authUid() && !isStudentRoleUser());
       }
       // GL stores assignment mode under `assignmentMode` (its `mode` is
       // play-mode: structured/guided/explore); other widgets use `mode`.
@@ -6405,23 +6413,15 @@ service cloud.firestore {
                             notDeactivated() &&
                             ((sessionId.matches(authUid() + '_.*') &&
                                 incoming().get('teacherUid', authUid()) == authUid()) ||
-                              awSiteAdmin());
+                              isSiteAdmin());
       allow delete: if false;
 
-      // Site admin as storage.rules isSiteAdmin(): a narrowed synced admin can't publish or moderate another teacher's wall.
-      function awSiteAdmin() {
-        return isAdmin() && awSiteAdminDoc(get(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())).data);
-      }
-      function awSiteAdminDoc(a) {
-        return a.get('source', '') != 'organizationMembersSync' ||
-               (a.get('orgId', '') == 'orono' && a.get('roleId', '') in ['super_admin', 'domain_admin']);
-      }
       // Merged student page helpers (shared by submissions, likes, comments).
       function awParentSession() {
         return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data;
       }
       function awIsOwner() {
-        return sessionId.matches(authUid() + '_.*') || awSiteAdmin();
+        return sessionId.matches(authUid() + '_.*') || isSiteAdmin();
       }
       // Padlet-lite audience: an enrolled studentRole user, or anyone once the
       // teacher opted into guests. Legacy sessions (no layout) never match.
@@ -6706,7 +6706,7 @@ service cloud.firestore {
         // audience reads approved posts while the teacher keeps the wall visible.
         allow read: if signedIn() &&
                             (sessionId.matches(authUid() + '_.*') ||
-                             awSiteAdmin() ||
+                             isSiteAdmin() ||
                              (awSession().get('publiclyShared', false) == true &&
                               (!awIsPadletSession() ||
                                existing().status == 'approved')) ||
@@ -6717,7 +6717,7 @@ service cloud.firestore {
                              awBoardMemberOk(true) ||
                              (existing().status == 'approved' && awBoardMemberOk(false)));
         allow delete: if signedIn() &&
-                            (sessionId.matches(authUid() + '_.*') || awSiteAdmin());
+                            (sessionId.matches(authUid() + '_.*') || isSiteAdmin());
         // Students may retract their own post while the wall is open and the
         // teacher enabled deletion (Padlet-lite sessions only).
         allow delete: if signedIn() &&
@@ -6732,7 +6732,7 @@ service cloud.firestore {
         // doc AFTER merge - untouched existing fields (e.g. driveFileId) stay present and
         // must pass the whitelist too. See create's comment for why an extra field matters.
         allow update: if signedIn() &&
-                            (sessionId.matches(authUid() + '_.*') || awSiteAdmin()) &&
+                            (sessionId.matches(authUid() + '_.*') || isSiteAdmin()) &&
                             incoming().keys().hasOnly([
                               'id', 'activityId', 'content', 'submittedAt', 'status',
                               'participantLabel', 'storagePath', 'archiveStatus',
@@ -6953,12 +6953,12 @@ service cloud.firestore {
           answerTargetsOpenTextQuestion();
 
         allow read: if signedIn() &&
-          (isAdmin() ||
+          (isSiteAdmin() ||
             sessionId.matches(authUid() + '_.*') ||
             answerId.matches('[0-9]+_' + authUid()));
 
         allow delete: if signedIn() &&
-          (isAdmin() || sessionId.matches(authUid() + '_.*'));
+          (isSiteAdmin() || sessionId.matches(authUid() + '_.*'));
       }
 
       // Word cloud words the session owner hid, one doc per question id. They
@@ -6966,7 +6966,7 @@ service cloud.firestore {
       // that every member of a shared board can read.
       match /hidden_words/{questionId} {
         allow read, delete: if signedIn() &&
-          (isAdmin() || sessionId.matches(authUid() + '_.*'));
+          (isSiteAdmin() || sessionId.matches(authUid() + '_.*'));
         allow create, update: if signedIn() &&
           notAnon() &&
           sessionId.matches(authUid() + '_.*') &&
