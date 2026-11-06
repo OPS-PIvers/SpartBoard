@@ -8737,7 +8737,7 @@ export type GuidedLearningPublicNarration = Pick<
 >;
 
 export type GuidedLearningTourAction =
-  'click' | 'observe' | 'toggle' | 'select' | 'type';
+  'click' | 'observe' | 'toggle' | 'select' | 'type' | 'drag' | 'resize';
 
 /** Where a live tour plays; absent = 'spartboard'. */
 export type GuidedLearningTourSurface = 'spartboard' | 'web';
@@ -8839,7 +8839,7 @@ export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
   anchor: string;
   fallback?: { role: string; name: string };
-  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them. */
+  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them; drag and resize move on once the widget moved or changed size. */
   action: GuidedLearningTourAction;
   /** toggle: target state; select: option value; type: text Autopilot enters. */
   value?: boolean | string;

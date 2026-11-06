@@ -57,10 +57,10 @@ describe('buildStepTextParts', () => {
     });
   });
 
-  it('names the recorded toggle, select and type kinds', () => {
+  it('names the toggle, select, type, drag and resize kinds', () => {
     const parts = buildStepTextParts(
       parseStepTextRequest({
-        steps: ['toggle', 'select', 'type'].map((action) => ({
+        steps: ['toggle', 'select', 'type', 'drag', 'resize'].map((action) => ({
           ...STEP,
           action,
         })),
@@ -71,6 +71,8 @@ describe('buildStepTextParts', () => {
       'Step 1: switch "Clock"',
       'Step 2: choose an option in "Clock"',
       'Step 3: type into "Clock"',
+      'Step 4: drag "Clock"',
+      'Step 5: resize by its corner "Clock"',
     ]);
   });
 });

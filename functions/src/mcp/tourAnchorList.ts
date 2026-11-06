@@ -181,6 +181,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget.resize-handle",
+    "label": "Resize handle on a widget's bottom-right corner",
+    "scope": "widget",
+    "requires": "widget-restored",
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget.toolbar",
     "label": "Widget toolbar",
     "scope": "widget",

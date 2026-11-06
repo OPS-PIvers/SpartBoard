@@ -194,7 +194,15 @@ export const stepInput = z
     tour: z
       .object({
         anchor: z.string().max(200),
-        action: z.enum(['click', 'observe', 'toggle', 'select', 'type']),
+        action: z.enum([
+          'click',
+          'observe',
+          'toggle',
+          'select',
+          'type',
+          'drag',
+          'resize',
+        ]),
         value: z.union([z.boolean(), z.string().max(500)]).optional(),
         fallback: z
           .object({
@@ -356,6 +364,15 @@ export function mergeSteps(
     }
     if (s.tour?.anchor === 'board.whole' && s.tour.action !== 'observe')
       throw new ToolError(`${at}.tour: "board.whole" steps observe.`);
+    // The runner measures a drag on the widget window and a resize on its corner handle.
+    const wants = { drag: 'widget.window', resize: 'widget.resize-handle' };
+    if (
+      (s.tour?.action === 'drag' || s.tour?.action === 'resize') &&
+      s.tour.anchor.split(':')[0] !== wants[s.tour.action]
+    )
+      throw new ToolError(
+        `${at}.tour: ${s.tour.action} steps point at "${wants[s.tour.action]}:<type>".`
+      );
     // A whole-board step plays as a plain card, which has no control to wait on.
     if (s.tour?.anchor === 'board.whole' && s.tour.doneWhen)
       throw new ToolError(

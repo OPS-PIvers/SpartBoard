@@ -50,6 +50,8 @@ export const TOUR_ACTIONS: readonly GuidedLearningTourAction[] = [
   'toggle',
   'select',
   'type',
+  'drag',
+  'resize',
   'observe',
 ];
 

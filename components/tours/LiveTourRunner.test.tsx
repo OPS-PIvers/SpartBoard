@@ -262,7 +262,8 @@ vi.mock('./settingsTab', () => ({
 
 type Binding = {
   anchor: string;
-  action: 'click' | 'observe' | 'toggle' | 'select' | 'type';
+  action:
+    'click' | 'observe' | 'toggle' | 'select' | 'type' | 'drag' | 'resize';
   value?: boolean | string;
   teacherMustClick?: boolean;
   fallback?: { role: string; name: string };
@@ -320,7 +321,14 @@ const Fixture: React.FC = () => {
       </div>
       <button>Elsewhere</button>
       {widgets.map((w) => (
-        <div key={w.id} {...tourAttr('widget.window', w.id)}>
+        <div
+          key={w.id}
+          data-draggable-window=""
+          {...tourAttr('widget.window', w.id, w.type)}
+        >
+          <div {...tourAttr('widget.resize-handle', w.id, w.type)}>
+            Resize {w.id}
+          </div>
           <button {...tourAttr('widget.settings-opener', w.id, w.type)}>
             Settings {w.id}
           </button>
@@ -367,7 +375,10 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
     function (this: HTMLElement) {
       const size = this.closest('[hidden]') ? 0 : 40;
-      return new DOMRect(10, 10, size, size);
+      // A test moves or resizes an element by setting these.
+      const x = Number(this.dataset.testX ?? 10);
+      const w = Number(this.dataset.testW ?? size);
+      return new DOMRect(x, 10, w, this.dataset.testW ? w : size);
     }
   );
   scrollIntoView.mockClear();
@@ -3711,5 +3722,70 @@ describe('LiveTourRunner Getting Started chaining', () => {
     fireEvent.click(barButton('Exit tour'));
     await frames();
     expect(screen.queryByTestId('next-offer')).not.toBeInTheDocument();
+  });
+});
+
+describe('LiveTourRunner drag and resize steps', () => {
+  const windowOf = (id: string): HTMLElement => {
+    const el = document.querySelector<HTMLElement>(
+      `[data-tour="widget.window"][data-tour-widget="${id}"]`
+    );
+    if (!el) throw new Error(`No window for ${id}`);
+    return el;
+  };
+
+  it('a drag step moves on once the widget is let go somewhere else', async () => {
+    h.board.widgets = [{ id: 'w1', type: 'dice' }];
+    await start(
+      makeSet([
+        { anchor: 'widget.window:dice', action: 'drag' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    expect(progress()).toBe('1 / 2');
+    expect(screen.queryByTestId('tour-tip-next')).not.toBeInTheDocument();
+    const win = windowOf('w1');
+    // A tap that doesn't move it isn't a drag.
+    fireEvent.pointerDown(win);
+    fireEvent.pointerUp(window);
+    await frames(700);
+    expect(progress()).toBe('1 / 2');
+    fireEvent.pointerDown(win);
+    win.dataset.testX = '200';
+    fireEvent.pointerUp(window);
+    await frames(700);
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('a resize step measures the widget, not the handle', async () => {
+    h.board.widgets = [{ id: 'w1', type: 'dice' }];
+    await start(
+      makeSet([
+        { anchor: 'widget.resize-handle:dice', action: 'resize' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    const handle = screen.getByText('Resize w1');
+    fireEvent.pointerDown(handle);
+    windowOf('w1').dataset.testW = '120';
+    fireEvent.pointerUp(window);
+    await frames(700);
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('Autopilot leaves a drag to the teacher', async () => {
+    h.board.widgets = [{ id: 'w1', type: 'dice' }];
+    await start(
+      makeSet(
+        [
+          { anchor: 'widget.window:dice', action: 'drag' },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    await frames(AUTO_NEXT_WAIT_MS + 5000);
+    expect(progress()).toBe('1 / 2');
   });
 });

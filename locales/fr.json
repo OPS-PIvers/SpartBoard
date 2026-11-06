@@ -2855,6 +2855,8 @@
     "tourAction_toggle": "Attendre l'interrupteur",
     "tourAction_select": "Attendre le choix",
     "tourAction_type": "Attendre la saisie",
+    "tourAction_drag": "Attendre le déplacement",
+    "tourAction_resize": "Attendre le redimensionnement",
     "tourValueToggle": "Autopilot le règle sur",
     "tourValueOn": "Activé",
     "tourValueOff": "Désactivé",
