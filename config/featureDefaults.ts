@@ -672,6 +672,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Device quiz with written answers on paper; also needs paper-handwritten-responses.
+  'paper-written-hybrid': {
+    label: 'Written answers on paper',
+    icon: TextCursorInput,
+    description:
+      'Multiple choice on the device and written answers on a printed sheet, scanned in for grading.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Written answers on paper',
+    group: 'questions',
+    requires: 'paper-handwritten-responses',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Web tours played on other websites by the Chrome extension (CHROME_EXTENSION.md T12); will gate authoring and /tour/{setId}.
   'web-tours': {
     label: 'Web tours',
