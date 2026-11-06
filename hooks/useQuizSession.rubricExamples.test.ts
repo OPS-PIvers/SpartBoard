@@ -36,8 +36,7 @@ describe('scoring-guide examples stay off the student session', () => {
   it('strips examples from a rubric shown to students, in every language', () => {
     const projected = toPublicQuestion(
       { ...fr, rubricVisibleToStudents: true },
-      { es: { text: 'Identifica.', rubricSnapshot: rubric } },
-      { hideRubricUnlessShown: true }
+      { es: { text: 'Identifica.', rubricSnapshot: rubric } }
     );
     expect(projected.rubricSnapshot?.criteria[0].guide).toEqual({});
     expect(projected.rubricSnapshot?.criteria[0].description).toBe(
@@ -48,7 +47,7 @@ describe('scoring-guide examples stay off the student session', () => {
     );
   });
 
-  it('strips examples when the visibility gate is off', () => {
+  it('strips examples when the rubric is hidden', () => {
     expect(JSON.stringify(toPublicQuestion(fr))).not.toContain(
       'The study is a meta-analysis.'
     );
