@@ -2170,7 +2170,7 @@ export interface RandomConfig {
   cardOpacity?: number;
   /** Shuffle mode: name text colour; unset keeps the default slate. */
   fontColor?: string;
-  /** Groups mode: prefer groupings that split up recent partners (`random-avoid-repeats`). */
+  /** Groups mode: prefer groupings that split up recent partners. */
   avoidRecentPartners?: boolean;
   /** Groups mode: the last few rounds per class, newest last; names, so Drive-only PII. */
   recentGroupings?: { scope: string; groups: { names: string[] }[] }[];
@@ -10965,8 +10965,6 @@ export type GlobalFeature =
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
   | 'widget-connections'
-  /** Randomizer groups setting that splits up students grouped together lately. */
-  | 'random-avoid-repeats'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
