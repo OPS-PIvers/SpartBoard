@@ -288,7 +288,7 @@ describe('get_live_tour and update_live_tour', () => {
   });
 
   it('takes drag and resize only on the controls the runner measures', () => {
-    const stepWith = (anchor: string, action: string) => ({
+    const stepWith = (anchor: string, action: 'drag' | 'resize') => ({
       id: 'a',
       tour: { anchor, action },
     });
