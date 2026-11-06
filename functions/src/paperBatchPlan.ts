@@ -713,7 +713,9 @@ export function planPaperPages(
         );
       });
       cursor += Math.min(height, chunk.length);
+      // Mirrors the client: an empty row before a written question.
       if (!tail) cursor = capacity;
+      else if (boxFollows) cursor = Math.min(cursor + 1, capacity);
     }
   }
 

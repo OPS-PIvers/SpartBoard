@@ -332,7 +332,9 @@ export function planPaperPages(
         );
       });
       cursor += Math.min(height, chunk.length);
+      // An empty row before a written question so its header does not sit on the bubbles.
       if (!tail) cursor = capacity;
+      else if (boxFollows) cursor = Math.min(cursor + 1, capacity);
     }
   }
 
