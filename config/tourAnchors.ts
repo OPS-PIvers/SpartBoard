@@ -2162,6 +2162,28 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.prompt-equation': {
+    label: 'Equation link on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation-cancel': {
+    label: 'Cancel button in the prompt equation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation-save': {
+    label:
+      'Insert or Update button in the prompt equation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-math-preview': {
+    label:
+      'Drawn preview of a question prompt with equations in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.prompt-accents': {
     label: 'Accents switch on the question prompt in the Quiz editor',
     perWidgetType: true,

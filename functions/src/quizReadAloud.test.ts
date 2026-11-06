@@ -223,6 +223,14 @@ const classStudent = { ...student, classIds: ['c1'] };
 beforeEach(() => vi.clearAllMocks());
 
 describe('normalizeReadAloudText (R11)', () => {
+  it('reads equations as words', () => {
+    expect(normalizeReadAloudText('Solve ⟦(x+1)/2=3⟧.')).toBe(
+      'Solve (x plus 1) over 2 equals 3.'
+    );
+    expect(normalizeReadAloudText('Find ⟦sqrt(16)-x^2⟧')).toBe(
+      'Find square root of (16) minus x squared'
+    );
+  });
   it('strips markdown and HTML, speaks blanks, fractions, exponents and units', () => {
     expect(normalizeReadAloudText('What is **2 + 2**?')).toBe('What is 2 + 2?');
     expect(normalizeReadAloudText('The sky is ____.')).toBe(

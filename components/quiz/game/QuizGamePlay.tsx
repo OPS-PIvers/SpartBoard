@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { MathText } from '@/components/common/MathText';
 import { httpsCallable } from 'firebase/functions';
 import {
   ArrowRight,
@@ -732,7 +733,7 @@ const GameQuestion: React.FC<{
         {multiBlank ? (
           <NumberedBlanksText text={question.text} light />
         ) : (
-          question.text
+          <MathText text={question.text} />
         )}
       </h2>
 
@@ -1049,7 +1050,9 @@ const SectionDivider: React.FC<{
                   >
                     {on && <Check className="h-3.5 w-3.5" />}
                   </span>
-                  <span className="line-clamp-3">{q.text}</span>
+                  <span className="line-clamp-3">
+                    <MathText text={q.text} />
+                  </span>
                 </button>
               );
             })}

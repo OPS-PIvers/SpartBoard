@@ -130,9 +130,29 @@ const UNIT_WORDS: Record<string, string> = {
   '°F': 'degrees Fahrenheit',
 };
 
+/** Plain math between ⟦ and ⟧ as words; mirrored in functions/src/quizReadAloud.ts. */
+function speakPromptMath(math: string): string {
+  return ` ${math} `
+    .replace(/sqrt/g, ' square root of ')
+    .replace(/\^\s*2(?!\d)/g, ' squared ')
+    .replace(/\^\s*3(?!\d)/g, ' cubed ')
+    .replace(/<=/g, ' is less than or equal to ')
+    .replace(/>=/g, ' is greater than or equal to ')
+    .replace(/!=/g, ' is not equal to ')
+    .replace(/=/g, ' equals ')
+    .replace(/</g, ' is less than ')
+    .replace(/>/g, ' is greater than ')
+    .replace(/\*/g, ' times ')
+    .replace(/\+/g, ' plus ')
+    .replace(/([\w)])\s*-\s*/g, '$1 minus ')
+    .replace(/(^|[\s(])-/g, '$1negative ')
+    .replace(/\s*\/\s*/g, ' over ');
+}
+
 /** Client mirror of the server's R11 normalizer (functions/src/quizReadAloud.ts); both sides must chunk the same input. */
 export function normalizeReadAloudText(raw: string): string {
   let s = raw;
+  s = s.replace(/⟦([^⟦⟧]*)⟧/g, (_m, math: string) => speakPromptMath(math));
   s = s.replace(/<[^>]+>/g, ' ');
   s = s.replace(/_{3,}/g, ' blank ');
   s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');

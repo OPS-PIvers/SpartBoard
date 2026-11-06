@@ -6,6 +6,7 @@
  * through the controller object the modal hands them.
  */
 
+import { MathText } from '@/components/common/MathText';
 import {
   STUDENT_KEYBOARDS_FEATURE,
   accentSetForLanguage,
@@ -710,7 +711,9 @@ const QuestionRow = React.memo(function QuestionRow({
       )}
       <span className="flex-1 min-w-0 flex flex-col gap-0.5">
         <span className="text-sm text-slate-700 truncate">
-          {question.text || (
+          {question.text ? (
+            <MathText text={question.text} />
+          ) : (
             <span className="italic text-slate-400">Untitled question</span>
           )}
         </span>
@@ -962,7 +965,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           {typeMeta?.label ?? q.type}
         </div>
         <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
-          {q.text.trim() || `Question ${selectedIndex + 1}`}
+          {q.text.trim() ? (
+            <MathText text={q.text} />
+          ) : (
+            `Question ${selectedIndex + 1}`
+          )}
         </h4>
       </div>
 
@@ -976,6 +983,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           }
           textareaRef={promptRef}
           promptAccents={keyboardsOn ? defaultAccents : undefined}
+          promptMath={keyboardsOn}
         />
 
         {/* Learning targets */}

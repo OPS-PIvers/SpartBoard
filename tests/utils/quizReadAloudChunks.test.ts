@@ -45,6 +45,14 @@ describe('chunkReadAloudText', () => {
 });
 
 describe('normalizeReadAloudText', () => {
+  it('reads equations as words', () => {
+    expect(normalizeReadAloudText('Solve ⟦(x+1)/2=3⟧.')).toBe(
+      'Solve (x plus 1) over 2 equals 3.'
+    );
+    expect(normalizeReadAloudText('Find ⟦sqrt(16)-x^2⟧')).toBe(
+      'Find square root of (16) minus x squared'
+    );
+  });
   it('mirrors the server normalizer so chunk boundaries cannot drift', () => {
     expect(normalizeReadAloudText('<b>Hi</b>  there')).toBe('Hi there');
     expect(normalizeReadAloudText('# Heading\n\n> quoted')).toBe(

@@ -1,6 +1,6 @@
 // Question fields shared by the Quiz and Video Activity editors (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md slice 1).
 import React from 'react';
-import { AlertCircle, Plus, Tag } from 'lucide-react';
+import { AlertCircle, Plus, Sigma, Tag } from 'lucide-react';
 import type {
   QuestionTargetTag,
   QuizQuestion,
@@ -22,6 +22,16 @@ import { QUESTION_TYPES, fibPromptUpdate } from './questionFieldUpdates';
 import { AccentLanguageRow, KeyboardLink } from './AnswerKeyboardControls';
 import { AccentKeysArea } from '@/components/student/keyboards/AccentKeys';
 import type { AccentSetId } from '@/types';
+import {
+  hasPromptMath,
+  splitPromptMath,
+  wrapPromptMath,
+} from '@/utils/promptMath';
+import {
+  PromptEquationPanel,
+  PromptMathPreview,
+  type PromptEquationDraft,
+} from './PromptEquations';
 
 const MathAnswerField = React.lazy(
   () => import('@/components/student/keyboards/MathAnswerField')
@@ -37,6 +47,8 @@ interface QuestionPromptFieldProps {
   anchor?: TourAnchorAttrs;
   /** Accent keys teachers can open under the prompt; the default language. */
   promptAccents?: AccentSetId;
+  /** Shows the Equation link that puts drawn equations in the prompt. */
+  promptMath?: boolean;
 }
 
 export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
@@ -47,8 +59,41 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   allowBlanks = true,
   anchor = tourTypeAttr('quiz-editor.prompt', 'quiz'),
   promptAccents,
+  promptMath = false,
 }) => {
   const [accents, setAccents] = React.useState<AccentSetId | null>(null);
+  const [equation, setEquation] = React.useState<PromptEquationDraft | null>(
+    null
+  );
+  const setText = (text: string) =>
+    onChange(allowBlanks ? fibPromptUpdate(q, text) : { text });
+  const openNewEquation = () => {
+    const el = textareaRef.current;
+    const start = el?.selectionStart ?? q.text.length;
+    const end = el?.selectionEnd ?? start;
+    setEquation({ start, end, math: '', editing: false });
+  };
+  const openEquation = (index: number) => {
+    const part = splitPromptMath(q.text).filter((p) => p.kind === 'math')[
+      index
+    ];
+    if (part?.kind !== 'math') return;
+    setEquation({
+      start: part.start,
+      end: part.end,
+      math: part.math,
+      editing: true,
+    });
+  };
+  const saveEquation = () => {
+    if (!equation) return;
+    const math = equation.math.trim();
+    const before = q.text.slice(0, equation.start);
+    const after = q.text.slice(equation.end);
+    const pad = math && before && !/\s$/.test(before) ? ' ' : '';
+    setText(`${before}${pad}${math ? wrapPromptMath(math) : ''}${after}`);
+    setEquation(null);
+  };
   const textarea = (
     <textarea
       ref={textareaRef}
@@ -72,6 +117,16 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       <div className="flex items-center justify-between">
         <label className={labelClass}>Question prompt</label>
         <span className="flex items-center gap-3">
+          {promptMath && (
+            <KeyboardLink
+              on={equation !== null}
+              onClick={() => (equation ? setEquation(null) : openNewEquation())}
+              anchor={tourTypeAttr('quiz-editor.prompt-equation', 'quiz')}
+            >
+              <Sigma className="w-3.5 h-3.5" aria-hidden />
+              Equation
+            </KeyboardLink>
+          )}
           {promptAccents && (
             <KeyboardLink
               on={accents !== null}
@@ -126,6 +181,18 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
         </AccentKeysArea>
       ) : (
         textarea
+      )}
+      {equation && (
+        <PromptEquationPanel
+          key={`${equation.start}:${equation.editing}`}
+          draft={equation}
+          onDraftChange={(math) => setEquation((d) => (d ? { ...d, math } : d))}
+          onCancel={() => setEquation(null)}
+          onSave={saveEquation}
+        />
+      )}
+      {hasPromptMath(q.text) && (
+        <PromptMathPreview text={q.text} onEdit={openEquation} />
       )}
     </div>
   );

@@ -19,6 +19,7 @@
  *     the period from the classId via the roster.
  */
 
+import { MathText } from '@/components/common/MathText';
 import React, {
   useState,
   useEffect,
@@ -4084,7 +4085,7 @@ export const ActiveQuiz: React.FC<{
                     light={light}
                   />
                 ) : (
-                  displayQuestion.text
+                  <MathText text={displayQuestion.text} />
                 )}
               </h2>
               <ReadAloudButton
@@ -4102,7 +4103,7 @@ export const ActiveQuiz: React.FC<{
               {(currentQuestion.blankCount ?? 0) >= 2 ? (
                 <NumberedBlanksText text={displayQuestion.text} light={light} />
               ) : (
-                displayQuestion.text
+                <MathText text={displayQuestion.text} />
               )}
             </h2>
           )}
@@ -5373,7 +5374,7 @@ const ReviewPhase: React.FC<{
           {totalQuestions ?? session.totalQuestions}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
-          {currentQuestion.text}
+          <MathText text={currentQuestion.text} />
         </h2>
 
         {/* Correct answer */}

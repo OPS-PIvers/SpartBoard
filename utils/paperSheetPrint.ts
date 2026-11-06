@@ -1,3 +1,4 @@
+import { plainPromptText } from './promptMath';
 /**
  * Renders paper answer sheets as a print document and hands it to the browser.
  *
@@ -327,7 +328,7 @@ function questionTextHtml(
     `<div class="qt-stem-box" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(
       origin.y
     )};width:${mm(QUESTION_STEM_W_MM)};height:${mm(QUESTION_STEM_H_MM)}"><div class="qt-stem-line">${number}<div class="qt-stem">${escapeHtml(
-      q.text
+      plainPromptText(q.text)
     )}</div></div></div>`,
   ];
   // A stub's options are just the bubble letters, which say nothing to a student.
