@@ -1,4 +1,6 @@
 import React from 'react';
+import { MathText } from '@/components/common/MathText';
+import { plainPromptText } from '@/utils/promptMath';
 import {
   CheckCircle2,
   Circle,
@@ -15,6 +17,7 @@ import {
 import { MARK_LABEL } from '@/utils/quizStudentReportPrint';
 import { formatExportPoints } from '@/utils/assignmentExportShared';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { placeOrderingAnswer } from '@/utils/quizOrderingPlacement';
 
 const SMALL_TEXT = { fontSize: 'min(11px, 3.8cqmin)' } as const;
 const BODY_TEXT = { fontSize: 'min(12px, 4cqmin)' } as const;
@@ -59,6 +62,87 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({
   </div>
 );
 
+/** The student's order, one item per line, with the items out of order marked. */
+const OrderingAnswer: React.FC<{ given: string[]; expected: string[] }> = ({
+  given,
+  expected,
+}) => {
+  const { spots, placedAt } = placeOrderingAnswer(expected, given);
+  const leftOut = expected.filter(
+    (text, i) => text.trim() !== '' && placedAt[i] === null
+  );
+  return (
+    <>
+      <ol className="flex flex-col" style={{ gap: 'min(2px, 0.5cqmin)' }}>
+        {spots.map((spot, i) => {
+          const out = !spot.inOrder;
+          return (
+            <li
+              key={i}
+              data-testid={`ordering-spot-${i}`}
+              data-in-order={out ? 'false' : 'true'}
+              className="flex items-start"
+              style={{ gap: 'min(6px, 1.5cqmin)' }}
+            >
+              <span
+                className="font-sans text-brand-gray-primary tabular-nums shrink-0 text-right"
+                style={{ ...SMALL_TEXT, minWidth: 'min(16px, 4cqmin)' }}
+              >
+                {i + 1}.
+              </span>
+              {out ? (
+                <XCircle
+                  role="img"
+                  aria-label="Out of order"
+                  className="shrink-0 text-brand-red-primary"
+                  style={{ ...SMALL_ICON, marginTop: 'min(2px, 0.5cqmin)' }}
+                />
+              ) : (
+                <CheckCircle2
+                  role="img"
+                  aria-label="In order"
+                  className="shrink-0 text-emerald-700"
+                  style={{ ...SMALL_ICON, marginTop: 'min(2px, 0.5cqmin)' }}
+                />
+              )}
+              <span
+                className={`min-w-0 flex-1 wrap-break-word ${out ? 'font-semibold text-brand-red-dark' : ''}`}
+              >
+                {spot.text || (
+                  <span className="italic font-normal text-brand-gray-primary">
+                    Empty
+                  </span>
+                )}
+                {out && spot.correctIndex >= 0 && (
+                  <span
+                    data-testid={`ordering-spot-${i}-belongs`}
+                    className="inline-flex items-center justify-center align-middle rounded-sm border border-brand-gray-light bg-brand-gray-lightest font-semibold text-brand-gray-darkest tabular-nums"
+                    style={{
+                      ...SMALL_TEXT,
+                      minWidth: 'min(18px, 4.5cqmin)',
+                      padding: '0 min(4px, 1cqmin)',
+                      marginLeft: 'min(6px, 1.5cqmin)',
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    <span className="sr-only">Belongs at </span>
+                    {spot.correctIndex + 1}
+                  </span>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      {leftOut.length > 0 && (
+        <p className="text-brand-red-dark" style={SMALL_TEXT}>
+          {`Left out: ${leftOut.map((t) => t.trim()).join(', ')}`}
+        </p>
+      )}
+    </>
+  );
+};
+
 function answerLabel(line: StudentQuestionLine): string {
   if (line.recorded)
     return `${line.recorded === 'audio' ? 'Audio' : 'Video'} recording`;
@@ -71,9 +155,21 @@ export const StudentAnswerLine: React.FC<{
   onOpenGrader?: () => void;
   /** Teacher comment and rubric levels under a written answer. */
   showFeedback?: boolean;
-}> = ({ line, onOpenGrader, showFeedback = false }) => {
+  /** Ordering answers list each item and mark the ones out of order (quiz-ordering-results). */
+  orderingByItem?: boolean;
+}> = ({ line, onOpenGrader, showFeedback = false, orderingByItem = false }) => {
   const { icon: MarkIcon, className } = MARK_STYLE[line.mark];
   const answer = answerLabel(line);
+  const orderSpots =
+    orderingByItem &&
+    line.type === 'Ordering' &&
+    line.order &&
+    line.order.given.length > 0 &&
+    (line.mark === 'correct' ||
+      line.mark === 'partial' ||
+      line.mark === 'incorrect')
+      ? line.order
+      : null;
   const grade = showFeedback ? line.writtenGrade : undefined;
   const comment = grade?.overallComment?.trim();
   const rubricRows =
@@ -110,13 +206,13 @@ export const StudentAnswerLine: React.FC<{
           className="font-sans font-medium text-brand-gray-darkest flex-1 min-w-0 wrap-break-word"
           style={BODY_TEXT}
         >
-          {line.text}
+          <MathText text={line.text} />
         </p>
         {onOpenGrader && (
           <button
             type="button"
             onClick={onOpenGrader}
-            aria-label={`Grade Q${line.number}: ${line.text}`}
+            aria-label={`Grade Q${line.number}: ${plainPromptText(line.text)}`}
             {...tourFieldAttr(
               'quiz-grading.answer-grade',
               'quiz',
@@ -155,13 +251,20 @@ export const StudentAnswerLine: React.FC<{
         }}
       >
         <Field label="Answer">
-          {answer || (
-            <span className="italic text-brand-gray-primary">
-              {line.mark === 'notChosen' ? 'Not chosen' : 'No answer'}
-            </span>
+          {orderSpots ? (
+            <OrderingAnswer
+              given={orderSpots.given}
+              expected={orderSpots.expected}
+            />
+          ) : (
+            answer || (
+              <span className="italic text-brand-gray-primary">
+                {line.mark === 'notChosen' ? 'Not chosen' : 'No answer'}
+              </span>
+            )
           )}
         </Field>
-        {showsMissedKey(line) && (
+        {!orderSpots && showsMissedKey(line) && (
           <Field label="Correct answer">{line.correctAnswerText}</Field>
         )}
         {comment && <Field label="Comment">{comment}</Field>}

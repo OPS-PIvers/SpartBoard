@@ -27,7 +27,12 @@ import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
-import { withPaperBoxSizes } from '@/utils/paperWritten';
+import {
+  PAPER_HANDWRITING_AI_FEATURE,
+  PAPER_HANDWRITTEN_FEATURE,
+  withPaperBoxSizes,
+  withPaperBoxStyles,
+} from '@/utils/paperWritten';
 import { useDashboard } from '@/context/useDashboard';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { followingScoreboard, followLeaderId } from '@/utils/connectionEngine';
@@ -204,6 +209,14 @@ import type {
 } from '@/utils/paperImportPlan';
 import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
 import {
+  PAPER_WRITTEN_HYBRID_FEATURE,
+  hybridPrintJob,
+  planHybridWrittenBatch,
+} from '@/utils/paperWrittenHybrid';
+import { printPaperSheets } from '@/utils/paperSheetPrint';
+import { MAX_PAGE } from '@/utils/paperSheetMarker';
+import {
+  deletePaperBatch,
   deletePaperBatchesForQuiz,
   subscribePaperBatchIndex,
   savePaperBatch,
@@ -714,6 +727,8 @@ const TeacherQuizWidget: React.FC<{
     useState<QuizAssignment | null>(null);
   const [editingAssignment, setEditingAssignment] =
     useState<QuizAssignment | null>(null);
+  // Bumped after the monitor's in-place settings save so the steps reload from the saved assignment.
+  const [inlineSettingsRev, setInlineSettingsRev] = useState(0);
   // Ephemeral modal state for the per-assignment "Publish Scores" picker.
   const [publishingAssignment, setPublishingAssignment] =
     useState<QuizAssignment | null>(null);
@@ -827,6 +842,11 @@ const TeacherQuizWidget: React.FC<{
   })();
 
   const paperUid = paperSheets.enabled && !isReview ? user?.uid : undefined;
+  // Written answers on paper: device quiz, written questions on a printed sheet.
+  const writtenOnPaperOn =
+    !!paperUid &&
+    canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
+    canAccessFeature(PAPER_WRITTEN_HYBRID_FEATURE);
   useEffect(() => {
     if (!paperUid) return;
     return subscribePaperBatchIndex(paperUid, setPaperBatchIndex, (err) =>
@@ -836,6 +856,7 @@ const TeacherQuizWidget: React.FC<{
   const [paperReprint, setPaperReprint] = useState<{
     quiz: QuizData;
     batch: PaperBatch;
+    writtenOnly: boolean;
   } | null>(null);
   const paperAssignmentMeta = (assignment: QuizAssignment): QuizMetadata =>
     quizzes.find((q) => q.id === assignment.quizId) ?? {
@@ -2237,7 +2258,6 @@ const TeacherQuizWidget: React.FC<{
       // A question bank has no review table of its own, so the test-document
       // tile is offered on the quiz import only.
       canImportDocuments,
-      canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
@@ -2410,6 +2430,140 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
+  // The live session's Tab warnings value wins, since the old monitor switch wrote only the session.
+  const withLiveTabWarnings = (a: QuizAssignment): QuizAssignment =>
+    liveSession?.id === a.id && liveSession.tabWarningsEnabled !== undefined
+      ? {
+          ...a,
+          sessionOptions: {
+            ...a.sessionOptions,
+            tabWarningsEnabled: liveSession.tabWarningsEnabled,
+          },
+        }
+      : a;
+  const renderAssignmentSettings = (
+    target: QuizAssignment,
+    inline: boolean
+  ) => (
+    <QuizAssignmentSettingsModal
+      assignment={withLiveTabWarnings(
+        assignments.find((a) => a.id === target.id) ?? target
+      )}
+      rosters={rosters}
+      canShareWithPlc={plcs.length > 0}
+      onShareResults={() => setSharePlcResultsTarget(target)}
+      onStopSharing={() => handleStopSharingPlc(target)}
+      inline={inline}
+      onClose={() => {
+        // Inline, onClose runs only after a save; reload the steps from the saved assignment.
+        if (inline) setInlineSettingsRev((n) => n + 1);
+        else setEditingAssignment(null);
+      }}
+      onSave={async (patch) => {
+        try {
+          // Class targeting must be dual-written to BOTH the assignment
+          // doc AND the live session doc (rosterIds/classIds/classId/
+          // classPeriodByClassId) so SSO + PIN join keep working after an
+          // edit — `updateAssignmentSettings` only mirrors periodNames to
+          // the session doc, which would leave `sessionData.rosterIds`
+          // stale and break `pinLoginV1`. Route targeting through
+          // `setAssignmentRosters` (the same dual-write the create flow
+          // uses), and send the remaining settings through
+          // `updateAssignmentSettings`.
+          // Destructure (rather than delete) so `settingsPatch` is
+          // type-narrowed to exclude the targeting fields — a future
+          // targeting field added to the patch can't silently leak into
+          // `updateAssignmentSettings`.
+          const {
+            rosterIds,
+            periodName: _periodName,
+            periodNames: _periodNames,
+            periodAccessRows,
+            ...settingsPatch
+          } = patch;
+          // These are two separate writeBatch.commit()s, not one
+          // transaction. To keep the non-atomic window benign, apply the
+          // secondary settings FIRST and the class targeting LAST. Targeting
+          // (rosterIds/classIds on the session doc, which pinLoginV1 + SSO
+          // join read) moves as a single all-or-nothing batch inside
+          // setAssignmentRosters, so if its commit fails the assignment
+          // keeps its prior targeting intact — students still join with the
+          // old classes — and the modal stays open for retry. The only
+          // residual inconsistency is updated settings against old
+          // targeting, which is harmless. Folding both into one batch
+          // (a combined hook method) is a tracked follow-up.
+          if (Object.keys(settingsPatch).length > 0) {
+            await updateAssignmentSettings(
+              target.id,
+              settingsPatch,
+              settingsPatch.dueAtByRosterId
+                ? dueAtByClassIdFromRosters(
+                    settingsPatch.dueAtByRosterId,
+                    rosters
+                  )
+                : undefined
+            );
+          }
+          if (rosterIds !== undefined) {
+            const selectedRosterIds = new Set(rosterIds);
+            const targets = deriveSessionTargetsFromRosters(
+              rosters.filter((r) => selectedRosterIds.has(r.id))
+            );
+            // Per-period rows ride the targeting batch so a class and its row move together.
+            const removedRosterNames = rosters
+              .filter(
+                (r) =>
+                  (target.rosterIds ?? []).includes(r.id) &&
+                  !selectedRosterIds.has(r.id)
+              )
+              .map((r) => r.name);
+            await setAssignmentRosters(
+              target.id,
+              targets,
+              periodAccessRows,
+              removedRosterNames
+            );
+          }
+          addToast('Assignment settings saved.', 'success');
+          if (!inline) setEditingAssignment(null);
+        } catch (err) {
+          addToast(
+            err instanceof Error ? err.message : 'Failed to save settings',
+            'error'
+          );
+          // Re-throw so the modal's handleAssign sees the failure and
+          // skips its onClose() — keeping the modal open with the
+          // user's edits intact so they can retry. Without this,
+          // toast appears, modal disappears, edits are lost.
+          throw err;
+        }
+      }}
+    />
+  );
+  const sharePlcResultsModal = sharePlcResultsTarget ? (
+    <SharePlcResultsModal
+      plcs={plcs}
+      assignment={{
+        id: sharePlcResultsTarget.id,
+        quizId: sharePlcResultsTarget.quizId,
+        quizTitle: sharePlcResultsTarget.quizTitle,
+        syncGroupId: sharePlcResultsTarget.sync?.groupId,
+      }}
+      onClose={() => setSharePlcResultsTarget(null)}
+      onConfirm={async (plc, poolSyncGroupId) => {
+        await shareAssignmentWithPlc(sharePlcResultsTarget.id, {
+          plc,
+          poolSyncGroupId,
+        });
+        addToast(`Results now pool with ${plc.name}.`, 'success');
+        setSharePlcResultsTarget(null);
+      }}
+    />
+  ) : null;
+  const assignmentSettingsModal = editingAssignment
+    ? renderAssignmentSettings(editingAssignment, false)
+    : null;
+
   if (view === 'monitor' && liveSession) {
     // M17 E2 F2: resolve the active assignment's per-student overrides so
     // RosterList can honor per-student tab-warning-threshold accommodations.
@@ -2483,89 +2637,103 @@ const TeacherQuizWidget: React.FC<{
       );
     }
     return (
-      <QuizLiveMonitor
-        widgetId={widget.id}
-        session={liveSession}
-        responses={responses}
-        quizData={loadedQuizData}
-        onAdvance={async () => {
-          await advanceQuestion();
-        }}
-        onEnd={async () => {
-          // "End" now deactivates at the assignment level so the URL
-          // dies but responses are preserved. Confirmation happens inside
-          // QuizLiveMonitor.
-          const assignmentId = config.activeAssignmentId;
-          if (assignmentId) {
-            await deactivateAssignment(assignmentId);
-          } else {
-            await endQuizSession();
+      <>
+        <QuizLiveMonitor
+          widgetId={widget.id}
+          session={liveSession}
+          responses={responses}
+          quizData={loadedQuizData}
+          onAdvance={async () => {
+            await advanceQuestion();
+          }}
+          onEnd={async () => {
+            // "End" now deactivates at the assignment level so the URL
+            // dies but responses are preserved. Confirmation happens inside
+            // QuizLiveMonitor.
+            const assignmentId = config.activeAssignmentId;
+            if (assignmentId) {
+              await deactivateAssignment(assignmentId);
+            } else {
+              await endQuizSession();
+            }
+            updateWidget(widget.id, {
+              config: {
+                ...config,
+                view: 'manager',
+                managerTab: 'archive',
+              },
+            });
+          }}
+          onPause={
+            config.activeAssignmentId
+              ? async () => {
+                  const id = config.activeAssignmentId;
+                  if (!id) return;
+                  await pauseAssignment(id);
+                  addToast('Assignment paused.', 'success');
+                }
+              : undefined
           }
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'manager',
-              managerTab: 'archive',
-            },
-          });
-        }}
-        onPause={
-          config.activeAssignmentId
-            ? async () => {
-                const id = config.activeAssignmentId;
-                if (!id) return;
-                await pauseAssignment(id);
-                addToast('Assignment paused.', 'success');
-              }
-            : undefined
-        }
-        onResume={
-          config.activeAssignmentId
-            ? async () => {
-                const id = config.activeAssignmentId;
-                if (!id) return;
-                await resumeAssignment(id);
-                addToast('Assignment resumed.', 'success');
-              }
-            : undefined
-        }
-        config={config}
-        rosters={rosters}
-        assessmentOnly={liveAssessmentOnly}
-        hideLiveScoreboard={quizDropsScoreboard}
-        liveScoreboardLink={liveScoreboardLink}
-        onUpdateConfig={handleUpdateQuizConfig}
-        onRemoveStudent={removeStudent}
-        onUnlockStudent={unlockStudentAttempt}
-        onSubmitForStudent={canSubmitForStudent ? submitForStudent : undefined}
-        onUnlockResultsForStudent={unlockResultsForStudent}
-        onClearHand={clearHandForStudent}
-        onRevealAnswer={revealAnswer}
-        onHideAnswer={hideAnswer}
-        onBack={() => {
-          // Navigate back to the In Progress tab without ending the quiz.
-          // The assignment stays active/paused — students are unaffected.
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'manager',
-              managerTab: 'active',
-            },
-          });
-        }}
-        overridesBySourcedId={
-          monitorActiveAssignment?.overridesBySourcedId ?? null
-        }
-        overridesByStudentUid={
-          monitorActiveAssignment?.overridesByStudentUid ?? null
-        }
-        servedLanguageByStudentUid={
-          monitorActiveAssignment?.servedLanguageByStudentUid ?? null
-        }
-        localizedFibAnswers={
-          monitorActiveAssignment?.localizedFibAnswers ?? null
-        }
-      />
+          onResume={
+            config.activeAssignmentId
+              ? async () => {
+                  const id = config.activeAssignmentId;
+                  if (!id) return;
+                  await resumeAssignment(id);
+                  addToast('Assignment resumed.', 'success');
+                }
+              : undefined
+          }
+          config={config}
+          rosters={rosters}
+          assessmentOnly={liveAssessmentOnly}
+          hideLiveScoreboard={quizDropsScoreboard}
+          liveScoreboardLink={liveScoreboardLink}
+          onUpdateConfig={handleUpdateQuizConfig}
+          onRemoveStudent={removeStudent}
+          onUnlockStudent={unlockStudentAttempt}
+          onSubmitForStudent={
+            canSubmitForStudent ? submitForStudent : undefined
+          }
+          onUnlockResultsForStudent={unlockResultsForStudent}
+          onClearHand={clearHandForStudent}
+          onRevealAnswer={revealAnswer}
+          onHideAnswer={hideAnswer}
+          onBack={() => {
+            // Navigate back to the In Progress tab without ending the quiz.
+            // The assignment stays active/paused — students are unaffected.
+            updateWidget(widget.id, {
+              config: {
+                ...config,
+                view: 'manager',
+                managerTab: 'active',
+              },
+            });
+          }}
+          overridesBySourcedId={
+            monitorActiveAssignment?.overridesBySourcedId ?? null
+          }
+          overridesByStudentUid={
+            monitorActiveAssignment?.overridesByStudentUid ?? null
+          }
+          servedLanguageByStudentUid={
+            monitorActiveAssignment?.servedLanguageByStudentUid ?? null
+          }
+          localizedFibAnswers={
+            monitorActiveAssignment?.localizedFibAnswers ?? null
+          }
+          assignmentSettings={
+            monitorActiveAssignment &&
+            getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz' ? (
+              <React.Fragment key={inlineSettingsRev}>
+                {renderAssignmentSettings(monitorActiveAssignment, true)}
+              </React.Fragment>
+            ) : undefined
+          }
+        />
+        {assignmentSettingsModal}
+        {sharePlcResultsModal}
+      </>
     );
   }
 
@@ -2578,7 +2746,6 @@ const TeacherQuizWidget: React.FC<{
             quiz={studentView.quiz}
             behavior={studentView.behavior}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
-            hideRubricUnlessShown={canAccessFeature('quiz-rubric-visibility')}
             orderingListOn={canAccessFeature('quiz-ordering-list')}
             onExit={() => setStudentView(null)}
           />
@@ -2693,7 +2860,12 @@ const TeacherQuizWidget: React.FC<{
                 const batch = (
                   await listPaperBatchesForQuiz(paperUid, assignment.quizId)
                 ).find((b) => b.id === assignment.paperBatchId);
-                if (batch) setPaperReprint({ quiz: data, batch });
+                if (batch)
+                  setPaperReprint({
+                    quiz: data,
+                    batch,
+                    writtenOnly: !!assignment.writtenOnPaper,
+                  });
                 else addToast('Could not find these response sheets.', 'error');
               }
             : undefined
@@ -2711,6 +2883,7 @@ const TeacherQuizWidget: React.FC<{
             : undefined
         }
         hasLooseStack={(quizId) => looseStackQuizIds.has(quizId)}
+        writtenOnPaperAvailable={writtenOnPaperOn}
         onAddAnswerKey={
           canImportDocuments
             ? async (meta) => {
@@ -3005,6 +3178,63 @@ const TeacherQuizWidget: React.FC<{
             }
           }
 
+          let paperWritten: {
+            batchId: string;
+            questionIds: string[];
+            seats: number;
+          } | null = null;
+          let printWritten: (() => void) | null = null;
+          if (stepper?.writtenOnPaper && user && writtenOnPaperOn) {
+            const plan = planHybridWrittenBatch({
+              quiz: { ...data, questions: assignQuestions },
+              classes: stepper.classes,
+              rosters,
+              spareCount: stepper.writtenOnPaper.spares,
+              batchId: crypto.randomUUID(),
+              now: Date.now(),
+            });
+            if (!plan.ok && plan.reason === 'too-many-pages') {
+              addToast(
+                `This sheet needs ${plan.pageCount} pages. The most one sheet can print is ${MAX_PAGE}.`,
+                'error'
+              );
+              return;
+            }
+            if (!plan.ok) {
+              addToast(
+                'None of the assigned questions are written. Choose On the device for written answers.',
+                'error'
+              );
+              return;
+            }
+            try {
+              await savePaperBatch(user.uid, plan.batch);
+            } catch (err) {
+              logError('QuizWidget.assignment.writtenOnPaper', err, {
+                quizId: meta.id,
+              });
+              addToast(
+                'Could not save the written answer sheets. Try again.',
+                'error'
+              );
+              return;
+            }
+            paperWritten = {
+              batchId: plan.batch.id,
+              questionIds: plan.questionIds,
+              seats: Object.keys(plan.batch.seats).length,
+            };
+            printWritten = () =>
+              printPaperSheets(
+                hybridPrintJob(
+                  { ...data, questions: assignQuestions },
+                  plan.batch,
+                  plan.sheets
+                )
+              );
+          }
+
+          let assignmentSaved = false;
           try {
             const { id: assignmentId, code } = await createAssignment(
               {
@@ -3043,6 +3273,7 @@ const TeacherQuizWidget: React.FC<{
                     }
                   : {}),
                 ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
+                ...(paperWritten ? { paperWritten } : {}),
                 ...(stepper?.audience === 'staff'
                   ? { audience: 'staff' as const }
                   : {}),
@@ -3078,13 +3309,10 @@ const TeacherQuizWidget: React.FC<{
                   : {}),
               }
             );
+            assignmentSaved = true;
+            printWritten?.();
             const finalScore = behavior.finalScore ?? 'latest';
-            if (
-              finalScore !== 'latest' &&
-              attemptLimit !== 1 &&
-              canAccessFeature('quiz-attempt-history') &&
-              user?.uid
-            ) {
+            if (finalScore !== 'latest' && attemptLimit !== 1 && user?.uid) {
               saveAttemptPolicy(
                 user.uid,
                 assignmentId,
@@ -3230,6 +3458,12 @@ const TeacherQuizWidget: React.FC<{
               );
             }
           } catch (err) {
+            // Drop the written-sheet batch when its assignment never saved.
+            if (paperWritten && !assignmentSaved && user) {
+              void deletePaperBatch(user.uid, paperWritten.batchId).catch(
+                () => undefined
+              );
+            }
             addToast(
               err instanceof Error ? err.message : 'Failed to start session',
               'error'
@@ -4010,98 +4244,7 @@ const TeacherQuizWidget: React.FC<{
           onResolve={resolveSyncConflict}
         />
       )}
-      {editingAssignment && (
-        <QuizAssignmentSettingsModal
-          assignment={
-            assignments.find((a) => a.id === editingAssignment.id) ??
-            editingAssignment
-          }
-          rosters={rosters}
-          canShareWithPlc={plcs.length > 0}
-          onShareResults={() => setSharePlcResultsTarget(editingAssignment)}
-          onStopSharing={() => handleStopSharingPlc(editingAssignment)}
-          onClose={() => setEditingAssignment(null)}
-          onSave={async (patch) => {
-            try {
-              // Class targeting must be dual-written to BOTH the assignment
-              // doc AND the live session doc (rosterIds/classIds/classId/
-              // classPeriodByClassId) so SSO + PIN join keep working after an
-              // edit — `updateAssignmentSettings` only mirrors periodNames to
-              // the session doc, which would leave `sessionData.rosterIds`
-              // stale and break `pinLoginV1`. Route targeting through
-              // `setAssignmentRosters` (the same dual-write the create flow
-              // uses), and send the remaining settings through
-              // `updateAssignmentSettings`.
-              // Destructure (rather than delete) so `settingsPatch` is
-              // type-narrowed to exclude the targeting fields — a future
-              // targeting field added to the patch can't silently leak into
-              // `updateAssignmentSettings`.
-              const {
-                rosterIds,
-                periodName: _periodName,
-                periodNames: _periodNames,
-                periodAccessRows,
-                ...settingsPatch
-              } = patch;
-              // These are two separate writeBatch.commit()s, not one
-              // transaction. To keep the non-atomic window benign, apply the
-              // secondary settings FIRST and the class targeting LAST. Targeting
-              // (rosterIds/classIds on the session doc, which pinLoginV1 + SSO
-              // join read) moves as a single all-or-nothing batch inside
-              // setAssignmentRosters, so if its commit fails the assignment
-              // keeps its prior targeting intact — students still join with the
-              // old classes — and the modal stays open for retry. The only
-              // residual inconsistency is updated settings against old
-              // targeting, which is harmless. Folding both into one batch
-              // (a combined hook method) is a tracked follow-up.
-              if (Object.keys(settingsPatch).length > 0) {
-                await updateAssignmentSettings(
-                  editingAssignment.id,
-                  settingsPatch,
-                  settingsPatch.dueAtByRosterId
-                    ? dueAtByClassIdFromRosters(
-                        settingsPatch.dueAtByRosterId,
-                        rosters
-                      )
-                    : undefined
-                );
-              }
-              if (rosterIds !== undefined) {
-                const selectedRosterIds = new Set(rosterIds);
-                const targets = deriveSessionTargetsFromRosters(
-                  rosters.filter((r) => selectedRosterIds.has(r.id))
-                );
-                // Per-period rows ride the targeting batch so a class and its row move together.
-                const removedRosterNames = rosters
-                  .filter(
-                    (r) =>
-                      (editingAssignment.rosterIds ?? []).includes(r.id) &&
-                      !selectedRosterIds.has(r.id)
-                  )
-                  .map((r) => r.name);
-                await setAssignmentRosters(
-                  editingAssignment.id,
-                  targets,
-                  periodAccessRows,
-                  removedRosterNames
-                );
-              }
-              addToast('Assignment settings saved.', 'success');
-              setEditingAssignment(null);
-            } catch (err) {
-              addToast(
-                err instanceof Error ? err.message : 'Failed to save settings',
-                'error'
-              );
-              // Re-throw so the modal's handleAssign sees the failure and
-              // skips its onClose() — keeping the modal open with the
-              // user's edits intact so they can retry. Without this,
-              // toast appears, modal disappears, edits are lost.
-              throw err;
-            }
-          }}
-        />
-      )}
+      {assignmentSettingsModal}
       {publishingAssignment && (
         <PublishScoresModal
           assignmentTitle={publishingAssignment.quizTitle}
@@ -4230,8 +4373,7 @@ const TeacherQuizWidget: React.FC<{
                   teacherUid: user?.uid,
                   uid: user?.uid,
                 },
-                canAccessFeature('gradebook'),
-                canAccessFeature('quiz-attempt-history')
+                canAccessFeature('gradebook')
               );
               const withFinal = (
                 entries: ClassroomGradeEntry[],
@@ -4247,7 +4389,12 @@ const TeacherQuizWidget: React.FC<{
                   (uid) => {
                     const r = byUid.get(uid);
                     return r
-                      ? quizLiveRaw(r, data.questions, publishFibGrading)
+                      ? quizLiveRaw(
+                          r,
+                          data.questions,
+                          publishFibGrading,
+                          pushPaperIds
+                        )
                       : null;
                   },
                   Date.now()
@@ -4259,6 +4406,10 @@ const TeacherQuizWidget: React.FC<{
               )
                 .then((snap) => snap.data() as QuizSession | undefined)
                 .catch(() => undefined);
+              // Fall back to the assignment's mirror when the session read fails.
+              const pushPaperIds =
+                pushSession?.paperWrittenQuestionIds ??
+                target.paperWrittenQuestionIds;
               const pushMaxPoints = quizMaxPoints(
                 data.questions,
                 pushSession?.sections ?? sessionSectionsFor(data),
@@ -4283,7 +4434,8 @@ const TeacherQuizWidget: React.FC<{
                           responses,
                           data.questions,
                           mp,
-                          publishFibGrading
+                          publishFibGrading,
+                          pushPaperIds
                         ),
                         responses,
                         mp
@@ -4297,7 +4449,8 @@ const TeacherQuizWidget: React.FC<{
                       responses,
                       data.questions,
                       mp,
-                      publishFibGrading
+                      publishFibGrading,
+                      pushPaperIds
                     ),
                     responses,
                     mp
@@ -4396,26 +4549,7 @@ const TeacherQuizWidget: React.FC<{
             />
           );
         })()}
-      {sharePlcResultsTarget && (
-        <SharePlcResultsModal
-          plcs={plcs}
-          assignment={{
-            id: sharePlcResultsTarget.id,
-            quizId: sharePlcResultsTarget.quizId,
-            quizTitle: sharePlcResultsTarget.quizTitle,
-            syncGroupId: sharePlcResultsTarget.sync?.groupId,
-          }}
-          onClose={() => setSharePlcResultsTarget(null)}
-          onConfirm={async (plc, poolSyncGroupId) => {
-            await shareAssignmentWithPlc(sharePlcResultsTarget.id, {
-              plc,
-              poolSyncGroupId,
-            });
-            addToast(`Results now pool with ${plc.name}.`, 'success');
-            setSharePlcResultsTarget(null);
-          }}
-        />
-      )}
+      {sharePlcResultsModal}
       {shareWithPlcTargets.length > 0 && (
         <PlcShareTargetModal
           plcs={plcs}
@@ -4555,12 +4689,12 @@ const TeacherQuizWidget: React.FC<{
           inPlcGroup={!!paperPrintMeta.sync}
           onSavePrintSetup={
             paperPrintMeta
-              ? async ({ stimuli: paperSheetStimuli, boxSizes }) => {
+              ? async ({ stimuli: paperSheetStimuli, boxSizes, boxStyles }) => {
                   // Dropping the key rather than writing an empty array, so
                   // clearing the last one clears it everywhere it synced to.
-                  const next: QuizData = withPaperBoxSizes(
-                    { ...paperPrintQuiz },
-                    boxSizes
+                  const next: QuizData = withPaperBoxStyles(
+                    withPaperBoxSizes({ ...paperPrintQuiz }, boxSizes),
+                    boxStyles
                   );
                   if (paperSheetStimuli.length > 0)
                     next.paperSheetStimuli = paperSheetStimuli;
@@ -4661,13 +4795,17 @@ const TeacherQuizWidget: React.FC<{
               ? `data:${res.data.mimeType ?? 'image/webp'};base64,${res.data.data}`
               : null;
           }}
-          checkQuota={() =>
-            readPaperImportQuota(firestoreDocData, {
+          checkQuota={async () => {
+            const quota = await readPaperImportQuota(firestoreDocData, {
               uid: user.uid,
               isAdmin: isAdmin === true,
               nowMs: Date.now(),
-            })
-          }
+            });
+            // Transcription switched off by an admin: crops import for grading by eye.
+            return canAccessFeature(PAPER_HANDWRITING_AI_FEATURE)
+              ? quota
+              : { ...quota, disabled: true };
+          }}
           onSaveQuiz={async (data) => {
             await saveQuiz(data, paperImport.meta.driveFileId);
           }}
@@ -4685,6 +4823,7 @@ const TeacherQuizWidget: React.FC<{
         <PaperReprintModal
           quiz={paperReprint.quiz}
           batch={paperReprint.batch}
+          writtenOnly={paperReprint.writtenOnly}
           rosters={rosters}
           onClose={() => setPaperReprint(null)}
           onError={(message) => addToast(message, 'error')}

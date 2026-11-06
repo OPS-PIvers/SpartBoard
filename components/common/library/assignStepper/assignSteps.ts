@@ -12,6 +12,7 @@ export type AssignStepId =
   | 'cards'
   | 'speak'
   | 'sheets'
+  | 'written'
   | 'sharing';
 
 export type AssignActivity = 'quiz' | 'video' | 'gl' | 'flashcards' | 'miniapp';
@@ -24,8 +25,6 @@ export interface AssignStepContext {
   inPlc?: boolean;
   /** Flashcards Study: Speak is available for this set (flag and language). */
   speak?: boolean;
-  /** Flashcards: the Quiz-style steps (flag flashcards-assign-v2). */
-  flashcardsV2?: boolean;
   /** Video Activity: the rule steps belong to the assignment; self-paced only. */
   rules?: boolean;
   /** Video Activity: the player honors shuffle and answer feedback (slice 5). */
@@ -61,17 +60,14 @@ export function getAssignSteps(
     if (ctx.videoAnswerRows) steps.push('feedback');
   }
   if (activity === 'flashcards') {
-    steps.push(
-      ...(ctx.flashcardsV2
-        ? (['cards', 'check', 'attempts', 'integrity', 'feedback'] as const)
-        : (['check'] as const))
-    );
+    steps.push('cards', 'check', 'attempts', 'integrity', 'feedback');
   }
-  const plcSharing =
-    activity === 'quiz' ||
-    activity === 'video' ||
-    (activity === 'flashcards' && ctx.flashcardsV2);
-  if (plcSharing && ctx.inPlc) {
+  if (
+    (activity === 'quiz' ||
+      activity === 'video' ||
+      activity === 'flashcards') &&
+    ctx.inPlc
+  ) {
     steps.push('sharing');
   }
   return steps;
@@ -88,6 +84,7 @@ const TITLES: Record<AssignStepId, string> = {
   cards: 'Cards',
   speak: 'Speak',
   sheets: 'Answer sheets',
+  written: 'Written answers',
   sharing: 'Sharing',
 };
 

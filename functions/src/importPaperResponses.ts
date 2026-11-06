@@ -32,6 +32,7 @@ import {
 } from './classlinkShared';
 import { withQuizSessionContent } from './quizSessionContent';
 import {
+  PAPER_HANDWRITING_AI_FEATURE,
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
   paperCropStoragePath,
@@ -90,6 +91,8 @@ export interface ImportPaperSheet {
 
 export type ParsedWrittenBox = Omit<PaperWrittenPayloadBox, 'storagePath'> & {
   mimeType: CropMime;
+  /** Set server-side from the batch map, never from the payload: a custom image box. */
+  noTranscript?: true;
 };
 
 export interface ImportPaperResponsesInput {
@@ -311,6 +314,7 @@ function seatMapIndex(
     written: new Map(
       [...index.written].map(([id, page]) => [swap(id), page] as const)
     ),
+    image: new Set([...index.image].map(swap)),
   };
 }
 
@@ -318,18 +322,26 @@ interface BatchMapIndex {
   mc: Set<string>;
   /** questionId -> the page its written box printed on. */
   written: Map<string, number>;
+  /** Written boxes that printed a custom image: graded from the scan, never transcribed. */
+  image: Set<string>;
 }
 
 function indexPageMaps(pageMaps: unknown): BatchMapIndex {
-  const index: BatchMapIndex = { mc: new Set(), written: new Map() };
+  const index: BatchMapIndex = {
+    mc: new Set(),
+    written: new Map(),
+    image: new Set(),
+  };
   if (!Array.isArray(pageMaps)) return index;
   for (const map of pageMaps as Partial<PaperPageMap>[]) {
     if (!isRecord(map) || !Array.isArray(map.items)) continue;
     for (const item of map.items) {
       if (!isRecord(item) || typeof item.questionId !== 'string') continue;
       if (item.kind === 'mc') index.mc.add(item.questionId);
-      else if (item.kind === 'written' && typeof map.page === 'number')
+      else if (item.kind === 'written' && typeof map.page === 'number') {
         index.written.set(item.questionId, map.page);
+        if (item.style === 'image') index.image.add(item.questionId);
+      }
     }
   }
   return index;
@@ -359,7 +371,9 @@ export async function handleImportPaperResponses(
   db: admin.firestore.Firestore,
   caller: ImportPaperCaller | null,
   raw: unknown,
-  now: number
+  now: number,
+  /** AI transcription (`paper-handwriting-ai`); off, inked pages are neither queued nor over quota. */
+  transcriptionGranted: () => Promise<boolean> = () => Promise.resolve(true)
 ): Promise<ImportPaperResponsesResult> {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
   if (caller.studentRole || caller.anonymous)
@@ -398,11 +412,16 @@ export async function handleImportPaperResponses(
     );
   if (!batchV2 && input.layoutVersion === 2)
     invalid('This batch was not printed with a page map.');
-  if (batch.quizId !== assignmentSnap.data()?.quizId)
+  const assignment = assignmentSnap.data() ?? {};
+  if (batch.quizId !== assignment.quizId)
     throw new HttpsError(
       'failed-precondition',
       'This batch was printed for a different quiz.'
     );
+  // Written answers on paper: this stack merges onto device responses instead of replacing them.
+  const hybrid =
+    assignment.writtenOnPaper === true &&
+    assignment.paperBatchId === input.batchId;
 
   const questionIds = new Set(
     (Array.isArray(session.publicQuestions) ? session.publicQuestions : [])
@@ -438,6 +457,7 @@ export async function handleImportPaperResponses(
         invalid('A sheet references a question not in this session.');
       if (seatIndex?.written.get(box.questionId) !== box.page)
         invalid('A written answer is not a box on that page of this batch.');
+      if (seatIndex?.image.has(box.questionId)) box.noTranscript = true;
     }
   }
 
@@ -507,7 +527,7 @@ export async function handleImportPaperResponses(
     [
       ...new Set(
         (sheet.written ?? [])
-          .filter((b) => b.state === 'ink')
+          .filter((b) => b.state === 'ink' && !b.noTranscript)
           .map((b) => b.page)
       ),
     ]
@@ -515,7 +535,8 @@ export async function handleImportPaperResponses(
       .map((page) => `${sheet.seat}:${page}`)
   );
   const allowedPages = new Set<string>();
-  if (inkPages.length > 0) {
+  const transcribe = inkPages.length > 0 && (await transcriptionGranted());
+  if (transcribe) {
     const isAdmin = caller.email
       ? (await db.collection('admins').doc(caller.email).get()).exists
       : false;
@@ -542,6 +563,8 @@ export async function handleImportPaperResponses(
         allowedPages,
         servedQuestionIds:
           versionBySeat.get(r.sheet.seat)?.servedQuestionIds ?? null,
+        hybrid,
+        transcribe,
         now,
       })
     )
@@ -569,13 +592,24 @@ export async function handleImportPaperResponses(
     anyWritten ||= o.hasWritten;
   }
   if (written.length > 0) {
+    // Recounted rather than incremented, so a rescan or a retried call never double counts.
+    const scanned = hybrid
+      ? (
+          await responses
+            .where('paperWrittenBatchId', '==', input.batchId)
+            .count()
+            .get()
+        ).data().count
+      : null;
     await userRef
       .collection('quiz_assignments')
       .doc(input.assignmentId)
       .set(
         {
-          hasPaperResponses: true,
+          // A hybrid assignment already reaches its classes; publish needs no paper pointers.
+          ...(hybrid ? {} : { hasPaperResponses: true }),
           ...(anyWritten ? { hasPaperWritten: true } : {}),
+          ...(scanned !== null ? { paperWrittenScanned: scanned } : {}),
         },
         { merge: true }
       );
@@ -608,6 +642,10 @@ interface SeatContext {
   allowedPages: ReadonlySet<string>;
   /** The version this seat printed, saved so Results scores what the student saw (V24). */
   servedQuestionIds: string[] | null;
+  /** Written-answers-only stack of a device assignment; see `hybridResponseFields`. */
+  hybrid: boolean;
+  /** Transcription is on, so inked pages count as queued or over quota. */
+  transcribe: boolean;
   now: number;
 }
 
@@ -640,6 +678,34 @@ const DEVICE_ATTEMPT_FIELDS = [
   'preSyncVersion',
 ] as const;
 
+// Hybrid: add written answers, keep the device attempt; a scan-first row starts unsubmitted, without lastWriteAt so the idle sweep skips it.
+function hybridResponseFields(
+  ctx: SeatContext,
+  existing: admin.firestore.DocumentData | null,
+  answers: AnswerEntry[]
+): Record<string, unknown> {
+  const { sheet, studentUid, classId } = ctx.resolved;
+  const paper = {
+    answers,
+    paperWrittenBatchId: ctx.batchId,
+    paperWrittenSeat: sheet.seat,
+  };
+  if (existing) return paper;
+  return {
+    studentUid,
+    pin: sheet.pin,
+    ...(sheet.classPeriod ? { classPeriod: sheet.classPeriod } : {}),
+    ...(classId ? { classId } : {}),
+    joinedAt: ctx.now,
+    status: 'joined',
+    score: null,
+    submittedAt: null,
+    completedAttempts: 0,
+    preSyncVersion: 0,
+    ...paper,
+  };
+}
+
 // D28: MC answers always replace; a written answer replaces only when ungraded and unedited.
 async function importSeat(
   tx: admin.firestore.Transaction,
@@ -658,6 +724,7 @@ async function importSeat(
   const snap = await tx.get(ctx.ref);
   const existing = snap.exists ? (snap.data() ?? {}) : null;
   if (
+    !ctx.hybrid &&
     existing &&
     existing.paperBatchId !== ctx.batchId &&
     !sheet.replaceExisting
@@ -734,7 +801,11 @@ async function importSeat(
       answeredAt: ctx.now,
       status: 'submitted',
       paperScanId: scanId,
-      paperTranscript: box.state === 'blank' ? 'blank' : 'pending',
+      paperTranscript: box.noTranscript
+        ? 'image'
+        : box.state === 'blank'
+          ? 'blank'
+          : 'pending',
       artifacts: [
         {
           id: `hw_${scanId}_${box.questionId}`,
@@ -749,7 +820,12 @@ async function importSeat(
     const privateDoc: PaperPrivateAnswer = {
       scanId,
       seat: sheet.seat,
-      status: box.state === 'blank' ? 'blank' : 'pending',
+      status: box.noTranscript
+        ? 'image'
+        : box.state === 'blank'
+          ? 'blank'
+          : 'pending',
+      ...(box.noTranscript ? { noTranscript: true as const } : {}),
       attempts: 0,
       charged: false,
       updatedAt: ctx.now,
@@ -763,7 +839,7 @@ async function importSeat(
     const boxes = jobBoxes.get(box.page) ?? [];
     boxes.push({ questionId: box.questionId, storagePath });
     jobBoxes.set(box.page, boxes);
-    if (box.state === 'ink') inkPages.add(box.page);
+    if (box.state === 'ink' && !box.noTranscript) inkPages.add(box.page);
   });
 
   const answers = [
@@ -774,33 +850,37 @@ async function importSeat(
   ];
   tx.set(
     ctx.ref,
-    {
-      studentUid,
-      pin: sheet.pin,
-      ...(sheet.classPeriod ? { classPeriod: sheet.classPeriod } : {}),
-      ...(classId ? { classId } : {}),
-      joinedAt:
-        typeof existing?.joinedAt === 'number' ? existing.joinedAt : ctx.now,
-      submittedAt: ctx.now,
-      status: 'completed',
-      score: null,
-      answers,
-      completedAttempts: 1,
-      paperBatchId: ctx.batchId,
-      paperSeat: sheet.seat,
-      lastWriteAt: admin.firestore.FieldValue.serverTimestamp(),
-      ...(existing && existing.paperBatchId !== ctx.batchId
-        ? Object.fromEntries(
-            DEVICE_ATTEMPT_FIELDS.map((f) => [
-              f,
-              admin.firestore.FieldValue.delete(),
-            ])
-          )
-        : {}),
-      ...(ctx.servedQuestionIds
-        ? { servedQuestionIds: ctx.servedQuestionIds }
-        : {}),
-    },
+    ctx.hybrid
+      ? hybridResponseFields(ctx, existing, answers)
+      : {
+          studentUid,
+          pin: sheet.pin,
+          ...(sheet.classPeriod ? { classPeriod: sheet.classPeriod } : {}),
+          ...(classId ? { classId } : {}),
+          joinedAt:
+            typeof existing?.joinedAt === 'number'
+              ? existing.joinedAt
+              : ctx.now,
+          submittedAt: ctx.now,
+          status: 'completed',
+          score: null,
+          answers,
+          completedAttempts: 1,
+          paperBatchId: ctx.batchId,
+          paperSeat: sheet.seat,
+          lastWriteAt: admin.firestore.FieldValue.serverTimestamp(),
+          ...(existing && existing.paperBatchId !== ctx.batchId
+            ? Object.fromEntries(
+                DEVICE_ATTEMPT_FIELDS.map((f) => [
+                  f,
+                  admin.firestore.FieldValue.delete(),
+                ])
+              )
+            : {}),
+          ...(ctx.servedQuestionIds
+            ? { servedQuestionIds: ctx.servedQuestionIds }
+            : {}),
+        },
     { merge: true }
   );
   for (const w of privateWrites) {
@@ -826,7 +906,7 @@ async function importSeat(
       job
     );
     outcome.jobs += 1;
-    if (!inkPages.has(page)) continue;
+    if (!inkPages.has(page) || !ctx.transcribe) continue;
     // The quota check is advisory; the worker re-checks before any Gemini call.
     if (ctx.allowedPages.has(`${sheet.seat}:${page}`)) outcome.queued += 1;
     else outcome.overQuota += 1;
@@ -1012,7 +1092,17 @@ export const importPaperResponsesV1 = onCall(
       admin.firestore(),
       caller,
       request.data,
-      Date.now()
+      Date.now(),
+      async () => {
+        if (!caller) return false;
+        const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+        return isGlobalFeatureGranted(
+          admin.firestore(),
+          PAPER_HANDWRITING_AI_FEATURE,
+          caller.email ?? null,
+          caller.uid
+        );
+      }
     );
   }
 );

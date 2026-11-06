@@ -29,6 +29,11 @@ import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/Quiz
 import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResults';
 import { QuizAttemptSourceContext } from '@/hooks/useQuizResponseAttempts';
 import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor';
+import { VideoAssignmentSettingsModal } from '@/components/widgets/VideoActivityWidget/components/VideoAssignmentSettingsModal';
+import { QuizAssignmentSettingsModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentSettingsModal';
+import { ASSIGNMENT as QUIZ_ASSIGNMENT } from '@/components/common/library/assignStepper/QuizAssignSettings.dev';
+import { ASSIGNMENT as VIDEO_ASSIGNMENT } from '@/components/common/library/assignStepper/VideoAssignSettings.dev';
+import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assignStepperTestRosters';
 import { Results as VideoActivityResults } from '@/components/widgets/VideoActivityWidget/components/Results';
 import { toVideoActivityPublicQuestion } from '@/utils/videoActivityPublicQuestions';
 import type {
@@ -60,6 +65,8 @@ import {
   makeReviewGameResponses,
   makeReviewGameSession,
   makeQuizData,
+  makeOrderingQuizData,
+  makeOrderingResponses,
   makeQuizConfig,
   makeVaSession,
   makeVaResponses,
@@ -124,7 +131,48 @@ const QuizMonitorDev: React.FC<
       {...props}
       config={config}
       onUpdateConfig={(updates) => setConfig((c) => ({ ...c, ...updates }))}
+      assignmentSettings={
+        <QuizAssignmentSettingsModal
+          inline
+          assignment={QUIZ_ASSIGNMENT}
+          rosters={SAMPLE_ROSTERS}
+          onClose={() => undefined}
+          onSave={() => undefined}
+        />
+      }
     />
+  );
+};
+
+/** Opens the real Settings dialog from the monitor's Settings button. */
+const VaMonitorDev: React.FC<
+  Pick<
+    React.ComponentProps<typeof VideoActivityLiveMonitor>,
+    'session' | 'responses'
+  >
+> = ({ session, responses }) => {
+  const [editing, setEditing] = useState(false);
+  return (
+    <>
+      <VideoActivityLiveMonitor
+        session={session}
+        responses={responses}
+        onEnd={noop}
+        onPause={noop}
+        onResume={noop}
+        onUnlockStudent={noop}
+        onBack={() => undefined}
+        onEditSettings={() => setEditing(true)}
+      />
+      {editing && (
+        <VideoAssignmentSettingsModal
+          assignment={VIDEO_ASSIGNMENT}
+          rosters={SAMPLE_ROSTERS}
+          onClose={() => setEditing(false)}
+          onSave={() => setEditing(false)}
+        />
+      )}
+    </>
   );
 };
 
@@ -310,6 +358,20 @@ const SessionView: React.FC<{
     );
   }
 
+  if (view === 'quiz-results' && state === 'ordering') {
+    return (
+      <QuizResults
+        quiz={makeOrderingQuizData()}
+        responses={makeOrderingResponses()}
+        config={makeQuizConfig()}
+        session={makeQuizSession('ended')}
+        onBack={() => undefined}
+        onSubmitStudent={noop}
+        studentResultsActions={HARNESS_RESULTS_ACTIONS}
+      />
+    );
+  }
+
   if (view === 'quiz-results') {
     const responses = state === 'empty' ? [] : makeQuizResponses();
     return (
@@ -355,17 +417,7 @@ const SessionView: React.FC<{
         : multi
           ? makeVaMultiClassResponses()
           : makeVaResponses();
-    return (
-      <VideoActivityLiveMonitor
-        session={session}
-        responses={responses}
-        onEnd={noop}
-        onPause={noop}
-        onResume={noop}
-        onUnlockStudent={noop}
-        onBack={() => undefined}
-      />
-    );
+    return <VaMonitorDev session={session} responses={responses} />;
   }
 
   // va-results

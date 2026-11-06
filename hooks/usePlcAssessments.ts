@@ -195,7 +195,7 @@ export function usePlcAssessments(
   }, [plcId, user, fromProvider]);
 
   return useMemo(() => {
-    // Flashcards check results show only where a caller opts in (flashcards-assign-v2).
+    // Flashcards check results show only where a caller opts in.
     const keep = (list: PlcCommonAssessment[]) =>
       flashcards ? list : list.filter((a) => a.kind !== 'flashcard-check');
     if (fromProvider) {

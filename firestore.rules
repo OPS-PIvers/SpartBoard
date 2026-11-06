@@ -5144,6 +5144,8 @@ service cloud.firestore {
           incoming().get('backTranslations', null) == null &&
           incoming().get('paperSeat', null) == null &&
           incoming().get('paperBatchId', null) == null &&
+          incoming().get('paperWrittenBatchId', null) == null &&
+          incoming().get('paperWrittenSeat', null) == null &&
           // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
           incoming().get('game', null) == null &&
           // Media archive bookkeeping is server-written; the hourly sweep trusts its Drive ids.
@@ -5325,7 +5327,7 @@ service cloud.firestore {
            (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
           // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
           authUid() == sessionTeacherUid() ||
-          (isAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'backTranslations']))
+          (isAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations']))
         );
         allow delete: if signedIn() &&
           (authUid() == sessionTeacherUid() || isAdmin());

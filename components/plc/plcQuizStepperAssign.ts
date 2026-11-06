@@ -146,23 +146,15 @@ export function savePlcStepperFinalScore({
   uid,
   assignmentId,
   behavior,
-  attemptHistoryEnabled,
   logScope,
 }: {
   uid: string;
   assignmentId: string;
   behavior: QuizBehaviorSettings;
-  attemptHistoryEnabled: boolean;
   logScope: string;
 }): void {
   const finalScore = behavior.finalScore ?? 'latest';
-  if (
-    finalScore === 'latest' ||
-    behavior.attemptLimit === 1 ||
-    !attemptHistoryEnabled
-  ) {
-    return;
-  }
+  if (finalScore === 'latest' || behavior.attemptLimit === 1) return;
   saveAttemptPolicy(uid, assignmentId, 'quiz', finalScore).catch(
     (err: unknown) => logError(`${logScope}.finalScore`, err, { assignmentId })
   );

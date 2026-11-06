@@ -133,7 +133,8 @@ import { normalizePenColors } from '@/utils/penColors';
  * Deliberately only caches a resolved orgId — a "no org" result is never
  * cached so a user who gets invited mid-session picks up their org on the
  * next load without needing a new browser session. */
-const RESOLVED_ORG_CACHE_PREFIX = 'spart_resolved_org:';
+// v2: older clients cached an orgId for roster students, which would skip the student check.
+const RESOLVED_ORG_CACHE_PREFIX = 'spart_resolved_org:v2:';
 
 /**
  * Resolves which organization a signed-in user belongs to from their verified
@@ -145,22 +146,25 @@ const RESOLVED_ORG_CACHE_PREFIX = 'spart_resolved_org:';
  * failure so callers can apply their own resilience fallback (the operator-org
  * lookup).
  */
-async function resolveOrgIdForUser(emailLower: string): Promise<string | null> {
+async function resolveOrgIdForUser(
+  emailLower: string
+): Promise<{ orgId: string | null; rosterStudent?: true }> {
   try {
     const cached = sessionStorage.getItem(
       RESOLVED_ORG_CACHE_PREFIX + emailLower
     );
-    if (cached) return cached;
+    if (cached) return { orgId: cached };
   } catch {
     // sessionStorage unavailable (private mode / SSR) — fall through to the call.
   }
 
   const callable = httpsCallable<
     unknown,
-    { orgId: string | null; enrollFailed?: true }
+    { orgId: string | null; enrollFailed?: true; rosterStudent?: true }
   >(functions, 'resolveOrgForUser');
   const { data } = await callable({});
   const orgId = data?.orgId ?? null;
+  if (data?.rosterStudent) return { orgId, rosterStudent: true };
 
   // A failed enrollment isn't cached, so the next load retries it.
   if (orgId && !data?.enrollFailed) {
@@ -170,7 +174,7 @@ async function resolveOrgIdForUser(emailLower: string): Promise<string | null> {
       // Best-effort cache only.
     }
   }
-  return orgId;
+  return { orgId };
 }
 
 /**
@@ -1638,9 +1642,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     resolveOrgIdForUser(emailLower)
-      .then((resolvedOrgId) => {
+      .then(({ orgId: resolvedOrgId, rosterStudent }) => {
         if (cancelled || auth.currentUser?.uid !== startUid) return;
-        if (resolvedOrgId) {
+        if (rosterStudent) {
+          // A roster student with no member doc: AppContent signs them out and sends them to /my-assignments.
+          setOrgId(null);
+          setRoleId('student');
+          setBuildingIds([]);
+          setMembershipResolved(true);
+        } else if (resolvedOrgId) {
           subscribeToMembership(resolvedOrgId);
         } else {
           // Domain isn't registered to any org — free/no-org tier. Nothing to

@@ -33,7 +33,6 @@ export function quizRuleStepDefs({
   const title = (id: 'attempts' | 'integrity' | 'feedback') =>
     getAssignStepTitle(id, flashcards ? 'flashcards' : 'quiz', {
       kind: 'work',
-      flashcardsV2: flashcards,
     });
   const ctx = { ...gates, flashcards };
   return [

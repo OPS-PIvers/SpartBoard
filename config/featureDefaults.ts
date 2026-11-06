@@ -9,10 +9,10 @@ import {
   Bot,
   Building2,
   Cast,
+  Keyboard,
   ClipboardCheck,
   Download,
   Eye,
-  History,
   SpellCheck,
   FileText,
   FileUp,
@@ -55,9 +55,7 @@ import {
   Calculator,
   Utensils,
   CloudSun,
-  Triangle,
   Workflow,
-  Shuffle,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -495,17 +493,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Suggested learning targets in the test-import review. Admin-only until Paul has imported with it.
-  'quiz-import-suggested-targets': {
-    label: 'Suggested learning targets on quiz import',
-    icon: Target,
-    description: 'Suggests learning targets found in imported tests.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Multi-version test import (QUIZ_IMPORT_VERSIONS V26). Admin-only until Paul has imported with it.
   'quiz-import-versions': {
     label: 'Multi-version test import',
@@ -624,6 +611,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Student math keyboard and accent keys. Admin-only until Paul has tested it in prod.
+  'student-keyboards': {
+    label: 'Student keyboards',
+    icon: Keyboard,
+    description:
+      'Teachers turn on a math keyboard or accent keys for a quiz question.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -682,6 +682,39 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     modalLabel: 'Handwritten answers',
     group: 'questions',
     requires: 'paper-answer-sheets',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // AI transcription of scanned handwriting. Off for everyone, admins too, until saved on; off grades the crop.
+  'paper-handwriting-ai': {
+    label: 'Transcribe handwritten answers',
+    icon: Sparkles,
+    description:
+      'Use AI to convert handwritten responses to type, preserving spelling and grammar as accurately as possible.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Transcribe handwritten answers',
+    group: 'questions',
+    requires: 'paper-handwritten-responses',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: false,
+    missingDocPublic: false,
+    failClosedForAdmins: true,
+  },
+  // Device quiz with written answers on paper; also needs paper-handwritten-responses.
+  'paper-written-hybrid': {
+    label: 'Written answers on paper',
+    icon: TextCursorInput,
+    description:
+      'Multiple choice on the device and written answers on a printed sheet, scanned in for grading.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Written answers on paper',
+    group: 'questions',
+    requires: 'paper-handwritten-responses',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -764,30 +797,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Quiz attempt history and the Final score setting (docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md).
-  'quiz-attempt-history': {
-    label: 'Quiz attempt history',
-    icon: History,
-    description:
-      'Teachers and students can look back at every quiz attempt, and teachers choose which score counts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Per-question "Spell check" switch on Free Response questions.
-  'quiz-spell-check-toggle': {
-    label: 'Spell check switch in quizzes',
-    icon: SpellCheck,
-    description:
-      'Teachers can turn off spelling and grammar underlines on a Free Response question.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',
@@ -844,17 +853,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     widget: 'quiz',
     modalLabel: 'Time limit',
     group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Rubrics hidden from students unless shown per question. Admin-only until Paul has used it.
-  'quiz-rubric-visibility': {
-    label: 'Rubric visibility for students',
-    icon: Eye,
-    description: 'Rubrics stay hidden unless a question shows them.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -952,17 +950,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'blooms-question-starters': {
-    label: "Bloom's Taxonomy: question starters",
-    icon: Triangle,
-    description: 'Level tabs with question starters and key words.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'blooms-taxonomy',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'dashboard-layout': {
     label: 'Magic Layout: AI',
     icon: Sparkles,
@@ -1042,18 +1029,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Find each class's Schoology section by its ClassLink id (SCHOOLOGY_AUTO_LINK.md D3).
-  'schoology-auto-link': {
-    label: 'Find my Schoology courses',
-    icon: GraduationCap,
-    description: 'Links each class to its Schoology course in one step.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Inert while Mini App assignments are view-only in Organization settings.
   'mini-app-results': {
     label: 'Mini App results',
@@ -1102,6 +1077,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Ordering results by item. Admin-only until Paul has tested it in prod.
+  'quiz-ordering-results': {
+    label: 'Ordering results by item',
+    icon: ListOrdered,
+    description:
+      'Question and student results list each Ordering item and mark the ones students put out of order.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Lunch Count redesign. Admin-only until Paul has used it in prod.
   'lunch-count-redesign': {
     label: 'Lunch Count redesign',
@@ -1120,17 +1108,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     description: 'Dew point, humidity, wind and more on the Weather widget.',
     stage: 'preview',
     afterLaunch: 'keep',
-    widget: 'weather',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'weather-gear-layout': {
-    label: 'Weather recess gear redesign',
-    icon: CloudSun,
-    description: 'A larger recess gear picture and message that fit any size.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     widget: 'weather',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
@@ -1209,38 +1186,13 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
-  'flashcards-assign-v2': {
-    label: 'Flashcards: Quiz-style assignments',
-    icon: Layers,
-    description:
-      'Choose which cards a submission uses, check with Speak, and manage assignments like Quiz.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Draft with AI in the Quiz-style set editor. Admin-only until Paul has used it in prod.
+  // Admin-only until saved, like Guided Learning AI; the server denies non-admins while no doc exists.
   'flashcards-ai': {
     label: 'Flashcards: AI',
     icon: Sparkles,
     description: 'Drafts flashcards from a topic in the set editor.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Flashcards Test question bar. Admin-only until Paul has used it in prod.
-  'flashcards-test-nav': {
-    label: 'Flashcards: Test question bar',
-    icon: ListChecks,
-    description:
-      'Test mode shows one question at a time with Question N of M and an All questions grid.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     widget: 'flashcards',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
@@ -1275,17 +1227,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Workflow,
     description:
       'A Connect button on each widget links widgets so one starts or changes another.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'random-avoid-repeats': {
-    label: 'Randomizer: avoid recent partners',
-    icon: Shuffle,
-    description:
-      'A Groups setting that keeps students apart from recent groupmates.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1347,18 +1288,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: FileUp,
     description:
       'Opens Add to board when a file, link or text is dropped onto a board.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    requires: 'universal-import',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'import-quiz': {
-    label: 'Import: Quiz and question bank',
-    icon: ClipboardCheck,
-    description:
-      'Offers Quiz and Question bank for test files and Schoology exports.',
     stage: 'preview',
     afterLaunch: 'retire',
     requires: 'universal-import',

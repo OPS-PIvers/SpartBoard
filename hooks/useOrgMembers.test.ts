@@ -285,6 +285,7 @@ describe('useOrgMembers', () => {
         { email: 'b@x.com', roleId: 'domain_admin', buildingIds: [] },
       ],
       message: undefined,
+      skipExisting: true,
     });
   });
 

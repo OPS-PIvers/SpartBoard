@@ -1,3 +1,4 @@
+import { plainPromptText } from './promptMath';
 /**
  * Renders paper answer sheets as a print document and hands it to the browser.
  *
@@ -50,7 +51,12 @@ import {
   type PointMm,
   type RectMm,
 } from './paperSheetLayout';
-import { isStimulusFreePage, mcItemsOf, writtenRuleYsMm } from './paperPageMap';
+import {
+  WRITTEN_OUTLINE_MM,
+  isStimulusFreePage,
+  mcItemsOf,
+  writtenBoxBandsMm,
+} from './paperPageMap';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { encodePaperMarker, paperBatchTag } from './paperSheetMarker';
 import type { PaperSheetPlan } from './paperSheetPlan';
@@ -105,6 +111,8 @@ export interface PaperPrintJob {
   pageMaps?: readonly PaperPageMap[];
   /** Stem per written question id, printed in its header when the header has room. */
   writtenTexts?: Readonly<Record<string, string>>;
+  /** Image `src` per written question id, printed lightly inside a custom image box. */
+  writtenImages?: Readonly<Record<string, string>>;
   /** What each prompt page prints, by its page map's `prompt` id (QUIZ_IMPORT_VERSIONS.md V25). */
   prompts?: Readonly<Record<string, PaperPromptPage>>;
   /** Per-version text, chosen by each sheet's `versionIndex`; keys stay the page maps' ids (V24). */
@@ -159,8 +167,8 @@ export interface SheetWrittenFill {
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
 
-/** Rule line weight in a written box; drawn at the letter grey so the reader's cut drops it. */
-export const WRITTEN_RULE_MM = 0.3;
+/** Gap between a custom image and its box outline. */
+const WRITTEN_IMAGE_INSET_MM = 2;
 
 /** `BUBBLE_LETTER_GREY` as a CSS colour, so the print and the reader's floor share one number. */
 const letterGrey = (): string =>
@@ -320,7 +328,7 @@ function questionTextHtml(
     `<div class="qt-stem-box" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(
       origin.y
     )};width:${mm(QUESTION_STEM_W_MM)};height:${mm(QUESTION_STEM_H_MM)}"><div class="qt-stem-line">${number}<div class="qt-stem">${escapeHtml(
-      q.text
+      plainPromptText(q.text)
     )}</div></div></div>`,
   ];
   // A stub's options are just the bubble letters, which say nothing to a student.
@@ -488,9 +496,9 @@ function promptHeaderHtml(
     top += PROMPT_LABEL_MM;
   }
   const textH = h.y + h.h - top;
-  const pt = promptFontPt(prompt.page.text, w, textH);
+  const pt = promptFontPt(plainPromptText(prompt.page.text), w, textH);
   parts.push(
-    `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(textH)};font-size:${pt}pt">${escapeHtml(prompt.page.text)}</div>`
+    `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(textH)};font-size:${pt}pt">${escapeHtml(plainPromptText(prompt.page.text))}</div>`
   );
   for (const item of placed) {
     const r = item.rect;
@@ -508,7 +516,8 @@ function writtenItemHtml(
   isKeySheet: boolean,
   stem?: string,
   fill?: SheetWrittenFill,
-  prompt?: WrittenPrompt
+  prompt?: WrittenPrompt,
+  imageSrc?: string
 ): string {
   const h = item.headerMm;
   const pointsW = fill?.points ? WRITTEN_POINTS_MM : 0;
@@ -529,7 +538,7 @@ function writtenItemHtml(
       `<div class="qt-stem wr-stem" style="left:${mm(x)};top:${mm(h.y)};width:${mm(
         h.x + h.w - x - pointsW
       )};height:${mm(shown * STEM_LINE_MM)};-webkit-line-clamp:${shown}">${escapeHtml(
-        stem
+        plainPromptText(stem)
       )}</div>`
     );
   }
@@ -573,11 +582,29 @@ function writtenItemHtml(
     }
     return parts.join('');
   }
-  for (const y of writtenRuleYsMm(item)) {
+  // The outline shows students where to stay; the reader's inset keeps it out of the ink check.
+  parts.push(`<div class="wr-outline" style="${box}"></div>`);
+  if (item.style === 'image' && imageSrc) {
+    const pad = WRITTEN_IMAGE_INSET_MM;
+    parts.push(
+      `<img class="wr-img" style="left:${mm(b.x + pad)};top:${mm(b.y + pad)};width:${mm(
+        b.w - pad * 2
+      )};height:${mm(b.h - pad * 2)}" src="${escapeHtml(imageSrc)}" alt="">`
+    );
+  }
+  const bands = writtenBoxBandsMm(item);
+  for (const r of bands.rows) {
     parts.push(
       `<div class="wr-rule" style="left:${mm(b.x)};top:${mm(
-        y - WRITTEN_RULE_MM
-      )};width:${mm(b.w)}"></div>`
+        r.centreMm - r.weightMm / 2
+      )};width:${mm(b.w)};height:${mm(r.weightMm)}"></div>`
+    );
+  }
+  for (const c of bands.cols) {
+    parts.push(
+      `<div class="wr-rule" style="left:${mm(c.centreMm - c.weightMm / 2)};top:${mm(
+        b.y
+      )};width:${mm(c.weightMm)};height:${mm(b.h)}"></div>`
     );
   }
   return parts.join('');
@@ -642,9 +669,9 @@ function promptPageHtml(
     top += 7;
   }
   const h = band.y + band.h - top;
-  const pt = promptFontPt(prompt.text, w, h);
+  const pt = promptFontPt(plainPromptText(prompt.text), w, h);
   parts.push(
-    `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(h)};font-size:${pt}pt">${escapeHtml(prompt.text)}</div>`
+    `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(h)};font-size:${pt}pt">${escapeHtml(plainPromptText(prompt.text))}</div>`
   );
   for (const item of placed) {
     const r = item.rect;
@@ -701,7 +728,8 @@ function mapPageBodyHtml(
           fill?.written?.[item.questionId],
           page && !ownPromptPage
             ? { page, label: versionLabel, imageSrc: job.stimulusImageSrc }
-            : undefined
+            : undefined,
+          job.writtenImages?.[item.questionId]
         )
       );
     }
@@ -794,8 +822,10 @@ const SHEET_STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-stem-box, .qt-choice, .wr-rule, .wr-key { position: absolute; }
-  .wr-rule { height: ${WRITTEN_RULE_MM}mm; background: ${letterGrey()}; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-stem-box, .qt-choice, .wr-rule, .wr-outline, .wr-img, .wr-key { position: absolute; }
+  .wr-rule { background: ${letterGrey()}; }
+  .wr-img { object-fit: contain; opacity: 0.35; filter: grayscale(1); }
+  .wr-outline { box-sizing: border-box; border: ${WRITTEN_OUTLINE_MM}mm solid ${letterGrey()}; }
   .wr-key {
     background: #e5e5e5;
     display: flex;
@@ -963,7 +993,10 @@ export function printPaperSheets(
       styles: STYLES,
       body: buildPaperSheetsHtml(job),
       // A remote image that has not decoded yet prints as an empty box.
-      awaitImages: !!job.sheetStimuli?.length || hasPromptImages(job),
+      awaitImages:
+        !!job.sheetStimuli?.length ||
+        hasPromptImages(job) ||
+        Object.keys(job.writtenImages ?? {}).length > 0,
       ...(job.onImagesReady ? { onImagesReady: job.onImagesReady } : {}),
     },
     openWindow

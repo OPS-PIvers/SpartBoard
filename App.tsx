@@ -447,6 +447,13 @@ const WhiteboardReplayDevHarness = import.meta.env.DEV
     )
   : null;
 
+const StudentKeyboardsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/StudentKeyboardsDevHarness').then((module) => ({
+        default: module.StudentKeyboardsDevHarness,
+      }))
+    )
+  : null;
 const WhiteboardDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/WhiteboardDevHarness').then((module) => ({
@@ -1402,6 +1409,18 @@ const App: React.FC = () => {
   }
 
   // DEV-ONLY: the student whiteboard canvas with fixture starting pages.
+  if (
+    import.meta.env.DEV &&
+    StudentKeyboardsDevHarness &&
+    pathname === '/student-keyboards-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <StudentKeyboardsDevHarness />
+      </Suspense>
+    );
+  }
+
   if (
     import.meta.env.DEV &&
     WhiteboardDevHarness &&

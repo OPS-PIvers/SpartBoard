@@ -4,6 +4,7 @@
  * Allows exporting to Google Sheets.
  */
 
+import { MathText } from '@/components/common/MathText';
 import React, {
   useState,
   useRef,
@@ -155,9 +156,11 @@ import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
 import { ResultsPrintModal } from './ResultsPrintModal';
 import {
   computeQuestionDrilldowns,
+  type DrilldownOrderingItemRow,
   type DrilldownStudent,
   type QuestionDrilldown,
 } from '@/utils/quizQuestionDrilldown';
+import { ordinal } from '@/utils/quizOrderingPlacement';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
 import {
   PAPER_CROP_CALLABLE,
@@ -529,7 +532,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       finalOverlay,
       (uid) => {
         const r = byUid.get(uid);
-        return r ? quizLiveRaw(r, quiz.questions, fibGrading) : null;
+        return r
+          ? quizLiveRaw(
+              r,
+              quiz.questions,
+              fibGrading,
+              session?.paperWrittenQuestionIds
+            )
+          : null;
       },
       // eslint-disable-next-line react-hooks/purity -- called from export handlers, not during render
       Date.now()
@@ -581,7 +591,6 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     setLastInitialExportedAttempts(initialExportedAttempts);
     setExportedAttempts(initialExportedAttempts ?? null);
   }
-  const attemptHistoryOn = canAccessFeature('quiz-attempt-history');
   const [updatingSheet, setUpdatingSheet] = useState(false);
   const [exportError, setExportError] = useState<ExportErrorState | null>(null);
   const [showGrader, setShowGrader] = useState(false);
@@ -1011,8 +1020,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // provisional — the ungraded slot counts as 0 until the teacher grades it.
   const avgIsProvisional = useMemo(
     () =>
-      filteredScoreable.some((r) => isResponseAwaitingGrade(r, quiz.questions)),
-    [filteredScoreable, quiz.questions]
+      filteredScoreable.some((r) =>
+        isResponseAwaitingGrade(
+          r,
+          quiz.questions,
+          session?.paperWrittenQuestionIds
+        )
+      ),
+    [filteredScoreable, quiz.questions, session?.paperWrittenQuestionIds]
   );
   const firstTryAccuracy = useMemo(
     () => (isGame ? classFirstTryAccuracy(filteredCompleted) : null),
@@ -1240,9 +1255,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     };
   });
   useEffect(() => {
-    if (!printOpen || !attemptHistoryOn) return;
+    if (!printOpen) return;
     return loadPrintAttempts();
-  }, [printOpen, attemptHistoryOn]);
+  }, [printOpen]);
   const printGradeFn = useMemo(
     () => makeQuestionGradeFn(fibGrading),
     [fibGrading]
@@ -1314,10 +1329,15 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       // Classroom push (`buildQuizClassroomGradeEntries`).
       const pushable = selectPushableResponses(
         filteredCompleted,
-        quiz.questions
+        quiz.questions,
+        session?.paperWrittenQuestionIds
       );
       const awaitingCount = filteredCompleted.filter((r) =>
-        isResponseAwaitingGrade(r, quiz.questions)
+        isResponseAwaitingGrade(
+          r,
+          quiz.questions,
+          session?.paperWrittenQuestionIds
+        )
       ).length;
       const awaitingNote =
         awaitingCount > 0
@@ -1501,7 +1521,6 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     if (
       exportsToSharedSheet ||
       !session?.id ||
-      !attemptHistoryOn ||
       !responses.some(hasEarlierAttempts)
     )
       return undefined;
@@ -1604,7 +1623,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       const exportedIds = responses.map((r) => getResponseDocKey(r));
       setExportedResponseIds(exportedIds);
       const exportedAttemptMap = attemptSnapshot();
-      if (exportedAttemptMap) setExportedAttempts(exportedAttemptMap);
+      setExportedAttempts(exportedAttemptMap);
       if (onExportUrlSaved) {
         // Fire-and-forget: lower-stakes than the exported-IDs persist
         // below. Worst case the button reverts to EXPORT on next remount.
@@ -1730,18 +1749,16 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   };
 
   // Finished attempts per key, saved with each PLC sheet write so a retake can force a rebuild.
-  const attemptSnapshot = (): Record<string, number> | undefined =>
-    attemptHistoryOn
-      ? Object.fromEntries(
-          responses.map((r) => [
-            getResponseDocKey(r),
-            r.completedAttempts ?? (r.status === 'completed' ? 1 : 0),
-          ])
-        )
-      : undefined;
+  const attemptSnapshot = (): Record<string, number> =>
+    Object.fromEntries(
+      responses.map((r) => [
+        getResponseDocKey(r),
+        r.completedAttempts ?? (r.status === 'completed' ? 1 : 0),
+      ])
+    );
   // Exported students who have finished a newer attempt since; their sheet rows are stale.
   const retakenSinceExport = useMemo(() => {
-    if (!attemptHistoryOn || !exportUrl || !exportedAttempts) return 0;
+    if (!exportUrl || !exportedAttempts) return 0;
     return responses.filter((r) => {
       const was = exportedAttempts[getResponseDocKey(r)];
       return (
@@ -1751,7 +1768,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         (r.completedAttempts ?? 1) > was
       );
     }).length;
-  }, [attemptHistoryOn, exportUrl, exportedAttempts, responses]);
+  }, [exportUrl, exportedAttempts, responses]);
 
   const newResponsesToAppend = useMemo(() => {
     if (!exportUrl) return [];
@@ -1887,7 +1904,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       const allIds = responses.map((r) => getResponseDocKey(r));
       setExportedResponseIds(allIds);
       const allAttempts = attemptSnapshot();
-      if (allAttempts) setExportedAttempts(allAttempts);
+      setExportedAttempts(allAttempts);
       if (onExportedResponseIdsSaved) {
         // Await: same rationale as handleExport — fire-and-forget here
         // would let UPDATE SHEET silently re-append duplicate rows on
@@ -1995,7 +2012,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             completed,
             quiz.questions,
             maxPoints,
-            fibGrading
+            fibGrading,
+            session?.paperWrittenQuestionIds
           ),
           maxPoints
         )
@@ -2027,7 +2045,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           completed,
           quiz.questions,
           maxPoints,
-          fibGrading
+          fibGrading,
+          session?.paperWrittenQuestionIds
         ),
       confirm: () =>
         showConfirm(
@@ -2070,7 +2089,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       completed,
       quiz.questions,
       quizMaxPoints(quiz.questions, session?.sections, session?.bankSlots),
-      fibGrading
+      fibGrading,
+      session?.paperWrittenQuestionIds
     );
   }, [
     ltiAttachment,
@@ -2079,6 +2099,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     fibGrading,
     session?.sections,
     session?.bankSlots,
+    session?.paperWrittenQuestionIds,
   ]);
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment || !session?.id) return;
@@ -2092,7 +2113,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         completed,
         quiz.questions,
         maxPoints,
-        fibGrading
+        fibGrading,
+        session?.paperWrittenQuestionIds
       ),
       maxPoints
     );
@@ -2190,7 +2212,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           completed,
           quiz.questions,
           maxPoints,
-          fibGrading
+          fibGrading,
+          session?.paperWrittenQuestionIds
         ),
         maxPoints
       );
@@ -2528,6 +2551,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               showStudentNames={!plcView}
               onSelectStudents={handleSelectStudents}
               onOpenStudent={handleOpenStudent}
+              orderingByItem={canAccessFeature('quiz-ordering-results')}
             />
           )}
           {effectiveScreen === 'targets' && hasTargetResults && (
@@ -2859,9 +2883,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           sessionId={session?.id}
           writtenReturnMode={session?.writtenReturnMode}
           resolvePaperCrop={resolvePaperCrop}
-          earlierAttempts={
-            attemptHistoryOn ? (printAttempts ?? undefined) : undefined
-          }
+          earlierAttempts={printAttempts ?? undefined}
           onClose={() => {
             setPrintSelection(undefined);
             setPrintAttempts(null);
@@ -3161,6 +3183,136 @@ const DistributionRow: React.FC<{
   );
 };
 
+/** One Ordering key item: how many had it in order, and who had it out of order. */
+const OrderingItemRow: React.FC<{
+  row: DrilldownOrderingItemRow;
+  total: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  showStudentNames: boolean;
+  formatStudentName: (student: DrilldownStudent) => string;
+  onSelectStudents?: (keys: string[]) => void;
+  onOpenStudent?: (responseKey: string) => void;
+}> = ({
+  row,
+  total,
+  isOpen,
+  onToggle,
+  showStudentNames,
+  formatStudentName,
+  onSelectStudents,
+  onOpenStudent,
+}) => {
+  const pct = pctOf(row.inOrderCount, total);
+  const outCount = row.outOfOrder.length;
+  const canOpen = showStudentNames && outCount > 0;
+  const outText =
+    outCount === 0
+      ? null
+      : `${outCount} out of order${row.usualSpot === null ? '' : `, ${outCount === 1 ? 'put' : 'often put'} ${ordinal(row.usualSpot)}`}`;
+  const outLine = outText && (
+    <span
+      className="flex items-center font-sans font-medium text-brand-red-dark"
+      style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
+    >
+      {canOpen && (
+        <ChevronRight
+          aria-hidden
+          className={`shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+          style={SMALL_ICON}
+        />
+      )}
+      <XCircle aria-hidden className="shrink-0" style={SMALL_ICON} />
+      {outText}
+    </span>
+  );
+  return (
+    <li
+      className="grid"
+      data-testid={`ordering-item-${row.position}`}
+      style={{
+        gridTemplateColumns: 'min(20px, 5cqmin) minmax(0, 1fr)',
+        columnGap: 'min(6px, 1.5cqmin)',
+      }}
+    >
+      <span
+        className="font-sans font-semibold text-brand-gray-primary tabular-nums text-right"
+        style={SMALL_TEXT}
+      >
+        {row.position}.
+      </span>
+      <div className="min-w-0">
+        <span
+          className="flex items-start justify-between"
+          style={{ gap: 'min(8px, 2cqmin)' }}
+        >
+          <span
+            className="font-sans text-brand-gray-darkest min-w-0 wrap-break-word"
+            style={SMALL_TEXT}
+          >
+            {row.label}
+          </span>
+          <span
+            className="font-sans text-brand-gray-dark tabular-nums shrink-0"
+            style={SMALL_TEXT}
+          >
+            {`${row.inOrderCount} in order · ${pct}%`}
+          </span>
+        </span>
+        <span
+          aria-hidden
+          className="block bg-brand-gray-lightest rounded-full overflow-hidden"
+          style={{
+            height: 'min(6px, 1.5cqmin)',
+            marginTop: 'min(3px, 0.8cqmin)',
+          }}
+        >
+          <span
+            className="block h-full rounded-full bg-emerald-500"
+            style={{ width: `${pct}%` }}
+          />
+        </span>
+        {outLine &&
+          (canOpen ? (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-expanded={isOpen}
+              {...tourFieldAttr(
+                'quiz-results.ordering-item-row',
+                'quiz',
+                String(row.position)
+              )}
+              className="block text-left rounded-sm hover:bg-brand-gray-lightest/60 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+              style={{ marginTop: 'min(3px, 0.8cqmin)' }}
+            >
+              {outLine}
+            </button>
+          ) : (
+            <span className="block" style={{ marginTop: 'min(3px, 0.8cqmin)' }}>
+              {outLine}
+            </span>
+          ))}
+        {canOpen && isOpen && (
+          <div role="group" aria-label={`Out of order: ${row.label}`}>
+            <DrilldownNameList
+              students={row.outOfOrder}
+              formatStudentName={formatStudentName}
+              onOpenStudent={onOpenStudent}
+            />
+            {onSelectStudents && (
+              <SelectStudentsButton
+                students={row.outOfOrder}
+                onSelect={onSelectStudents}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+};
+
 const OUTCOME_COLUMNS: {
   key: 'correct' | 'partial' | 'incorrect';
   label: string;
@@ -3204,6 +3356,7 @@ const QuestionDrilldownPanel: React.FC<{
   formatStudentName: (student: DrilldownStudent) => string;
   onSelectStudents?: (keys: string[]) => void;
   onOpenStudent?: (responseKey: string) => void;
+  orderingByItem?: boolean;
 }> = ({
   id,
   drilldown,
@@ -3211,6 +3364,7 @@ const QuestionDrilldownPanel: React.FC<{
   formatStudentName,
   onSelectStudents,
   onOpenStudent,
+  orderingByItem = false,
 }) => {
   const openStudent = showStudentNames ? onOpenStudent : undefined;
   const selectStudents = showStudentNames ? onSelectStudents : undefined;
@@ -3254,6 +3408,35 @@ const QuestionDrilldownPanel: React.FC<{
       )}
 
       {servedCount > 0 &&
+        orderingByItem &&
+        (drilldown.orderingItems?.length ?? 0) > 0 && (
+          <div>
+            <p
+              className="font-sans font-semibold text-brand-gray-primary uppercase tracking-wider"
+              style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+            >
+              Items in the correct order
+            </p>
+            <ol
+              className="flex flex-col"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                marginTop: 'min(4px, 1cqmin)',
+              }}
+            >
+              {drilldown.orderingItems?.map((row) => (
+                <OrderingItemRow
+                  key={row.key}
+                  {...rowProps(`item:${row.key}`)}
+                  row={row}
+                />
+              ))}
+            </ol>
+          </div>
+        )}
+
+      {servedCount > 0 &&
+        !orderingByItem &&
         distribution.kind !== 'none' &&
         distribution.rows.length > 0 && (
           <div>
@@ -3389,6 +3572,8 @@ const QuestionsScreen: React.FC<{
   showStudentNames: boolean;
   onSelectStudents?: (keys: string[]) => void;
   onOpenStudent?: (responseKey: string) => void;
+  /** Ordering lists each item and who had it out of order (quiz-ordering-results). */
+  orderingByItem?: boolean;
 }> = ({
   questions,
   responses,
@@ -3398,6 +3583,7 @@ const QuestionsScreen: React.FC<{
   showStudentNames,
   onSelectStudents,
   onOpenStudent,
+  orderingByItem = false,
 }) => {
   const { t } = useTranslation();
   const [sortBy, setSortBy] = useState<QuestionSort>('order');
@@ -3504,7 +3690,11 @@ const QuestionsScreen: React.FC<{
                 n: stats.graded,
                 m: stats.manualTotal,
               });
-        const commonWrong = drilldown?.commonWrongAnswer ?? null;
+        const byItem = orderingByItem && q.type === 'Ordering';
+        const commonWrong = byItem
+          ? null
+          : (drilldown?.commonWrongAnswer ?? null);
+        const oftenOut = byItem ? (drilldown?.oftenOutOfOrder ?? []) : [];
 
         return (
           <div
@@ -3574,7 +3764,7 @@ const QuestionsScreen: React.FC<{
                 className="block font-sans text-brand-gray-dark truncate"
                 style={{ fontSize: 'min(13px, 4.5cqmin)' }}
               >
-                {q.text}
+                <MathText text={q.text} />
               </span>
             </button>
 
@@ -3594,6 +3784,25 @@ const QuestionsScreen: React.FC<{
                 />
                 <span className="truncate">
                   {`Common wrong answer: ${commonWrong.label}`}
+                </span>
+              </p>
+            )}
+            {oftenOut.length > 0 && (
+              <p
+                className="flex items-start font-sans font-medium text-amber-800 min-w-0"
+                style={{
+                  ...SMALL_TEXT,
+                  gap: 'min(4px, 1cqmin)',
+                  marginTop: 'min(4px, 1cqmin)',
+                }}
+              >
+                <AlertTriangle
+                  aria-hidden
+                  className="shrink-0"
+                  style={{ ...SMALL_ICON, marginTop: 'min(1px, 0.3cqmin)' }}
+                />
+                <span className="min-w-0 wrap-break-word">
+                  {`Often out of order: ${oftenOut.join(', ')}`}
                 </span>
               </p>
             )}
@@ -3702,6 +3911,7 @@ const QuestionsScreen: React.FC<{
                 formatStudentName={formatStudentName}
                 onSelectStudents={onSelectStudents}
                 onOpenStudent={onOpenStudent}
+                orderingByItem={byItem}
               />
             )}
           </div>
@@ -3752,6 +3962,8 @@ const StudentDrilldownPanel: React.FC<{
   sessionId?: string;
   /** The session's sections, so an earlier attempt's choose-N picks are its own. */
   sections?: readonly QuizSessionSection[];
+  /** Hybrid paper quiz: unscanned paper answers keep an attempt's score open. */
+  paperWrittenQuestionIds?: readonly string[];
 }> = ({
   id,
   quizTitle,
@@ -3768,15 +3980,13 @@ const StudentDrilldownPanel: React.FC<{
   showFeedback,
   sessionId,
   sections,
+  paperWrittenQuestionIds,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const { canAccessFeature } = useAuth();
+  const orderingByItem = canAccessFeature('quiz-ordering-results');
   const liveKey = getResponseDocKey(liveResponse) as string;
-  const copies = useQuizResponseAttempts(
-    sessionId,
-    liveKey,
-    canAccessFeature('quiz-attempt-history')
-  );
+  const copies = useQuizResponseAttempts(sessionId, liveKey, true);
   const earlier = useMemo(
     () => (copies ?? []).filter((c) => c.closed === true),
     [copies]
@@ -3791,7 +4001,12 @@ const StudentDrilldownPanel: React.FC<{
   const attemptOptions = useMemo((): (readonly [string, string])[] => {
     if (earlier.length === 0) return [];
     const label = (n: number, r: QuizResponse): string => {
-      const raw = quizLiveRaw(r, questions, fibGrading);
+      const raw = quizLiveRaw(
+        r,
+        questions,
+        fibGrading,
+        paperWrittenQuestionIds
+      );
       return raw.points !== null && raw.max
         ? `${n} · ${Math.round((raw.points / raw.max) * 100)}%`
         : String(n);
@@ -3807,7 +4022,14 @@ const StudentDrilldownPanel: React.FC<{
       ),
       ['current', label(currentN, liveResponse)] as const,
     ];
-  }, [earlier, liveResponse, questions, fibGrading, sections]);
+  }, [
+    earlier,
+    liveResponse,
+    questions,
+    fibGrading,
+    sections,
+    paperWrittenQuestionIds,
+  ]);
   const drilldown = useMemo(
     () =>
       computeStudentDrilldown(
@@ -3892,6 +4114,7 @@ const StudentDrilldownPanel: React.FC<{
                 key={line.questionId}
                 line={line}
                 showFeedback={showFeedback}
+                orderingByItem={orderingByItem}
                 onOpenGrader={
                   gradable
                     ? () =>
@@ -4204,14 +4427,32 @@ const StudentsScreen: React.FC<{
             canShowResultsScore(r, questions, session);
           // The total counts an ungraded written answer as 0, so flag it as
           // provisional rather than letting it read as the final grade.
+          // Written answers on paper whose sheet has not been scanned in yet.
+          const paperNotScanned =
+            scoreable &&
+            r.status === 'completed' &&
+            (session?.paperWrittenQuestionIds?.length ?? 0) > 0 &&
+            !r.paperWrittenBatchId;
           const awaitingGrade =
-            scoreable && !isGame && isResponseAwaitingGrade(r, questions);
+            !paperNotScanned &&
+            scoreable &&
+            !isGame &&
+            isResponseAwaitingGrade(
+              r,
+              questions,
+              session?.paperWrittenQuestionIds
+            );
           const final =
             finalOverlay && r.studentUid && !isGame
               ? finalScoreFor(
                   finalOverlay,
                   r.studentUid,
-                  quizLiveRaw(r, questions, fibGrading),
+                  quizLiveRaw(
+                    r,
+                    questions,
+                    fibGrading,
+                    session?.paperWrittenQuestionIds
+                  ),
                   overlayNow
                 )
               : null;
@@ -4503,6 +4744,17 @@ const StudentsScreen: React.FC<{
                             <SessionBadge tone="warn" label="Provisional" />
                           </span>
                         )}
+                        {paperNotScanned && (
+                          <span
+                            className="inline-flex"
+                            style={{ marginTop: 'min(2px, 0.5cqmin)' }}
+                          >
+                            <SessionBadge
+                              tone="neutral"
+                              label="Paper not scanned"
+                            />
+                          </span>
+                        )}
                         {/* Fresh responses now carry preSyncVersion: 0
                          * so the server-side sync query
                          * (`where('preSyncVersion', '==', 0)`) can find
@@ -4681,6 +4933,7 @@ const StudentsScreen: React.FC<{
                   showFeedback={showStudentFeedback}
                   sessionId={session?.id}
                   sections={session?.sections}
+                  paperWrittenQuestionIds={session?.paperWrittenQuestionIds}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl

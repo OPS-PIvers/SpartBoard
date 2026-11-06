@@ -1,8 +1,5 @@
 import type { FlashcardAssignForm } from '@/components/widgets/Flashcards/utils/flashcardAssign';
-import {
-  FLASHCARD_MODE_OPTIONS,
-  FLASHCARD_SCORE_VISIBILITY_OPTIONS,
-} from '@/components/widgets/Flashcards/utils/flashcardAssignOptions';
+import { FLASHCARD_MODE_OPTIONS } from '@/components/widgets/Flashcards/utils/flashcardAssignOptions';
 
 /** Check settings; the top switch owns `collectSubmission` (D9). */
 export type FlashcardsCheckValue = Omit<
@@ -10,31 +7,11 @@ export type FlashcardsCheckValue = Omit<
   'collectSubmission'
 >;
 
-const optionLabel = <T>(
-  options: Array<{ value: T; label: string }>,
-  value: T
-): string => options.find((option) => option.value === value)?.label ?? '';
-
-export const formatFlashcardsCheckValue = (
-  value: FlashcardsCheckValue
-): string => {
-  const score = optionLabel(
-    FLASHCARD_SCORE_VISIBILITY_OPTIONS,
-    value.scoreVisibility
-  );
-  return `${optionLabel(FLASHCARD_MODE_OPTIONS, value.checkMode)}, ${score.charAt(0).toLowerCase()}${score.slice(1)}`;
-};
-
-/** v2 summary for How students are checked: the mode alone (Speak included). */
+/** Summary for How students are checked: the mode alone (Speak included). */
 export const formatFlashcardsModeValue = (
   value: FlashcardsCheckValue
 ): string =>
   value.checkMode === 'speak'
     ? 'Speak'
-    : optionLabel(FLASHCARD_MODE_OPTIONS, value.checkMode);
-
-/** v2 summary for What students see. */
-export const formatFlashcardsFeedbackValue = (
-  value: FlashcardsCheckValue
-): string =>
-  optionLabel(FLASHCARD_SCORE_VISIBILITY_OPTIONS, value.scoreVisibility);
+    : (FLASHCARD_MODE_OPTIONS.find((option) => option.value === value.checkMode)
+        ?.label ?? '');

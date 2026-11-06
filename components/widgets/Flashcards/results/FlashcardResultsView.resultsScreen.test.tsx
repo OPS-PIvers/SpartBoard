@@ -1,11 +1,10 @@
-// flashcards-assign-v2: Results opens a Check's Results screen; Monitor and study assignments keep the monitor.
+// Results opens a Check's Results screen; Monitor and study assignments keep the monitor.
 import '@testing-library/jest-dom';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { FlashcardAssignment, FlashcardSession } from '@/types';
 
-const auth = vi.hoisted(() => ({ v2: true }));
 const state = vi.hoisted((): { session: unknown } => ({ session: null }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -14,7 +13,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     isExternalUser: false,
     ensureGoogleScope: vi.fn(),
-    canAccessFeature: (id: string) => auth.v2 && id === 'flashcards-assign-v2',
+    canAccessFeature: () => false,
   }),
 }));
 vi.mock('@/context/useDashboard', () => ({
@@ -79,15 +78,12 @@ const show = (screenName?: 'monitor' | 'results') =>
     <FlashcardResultsView
       assignment={assignment}
       onBack={vi.fn()}
-      onPublishScores={vi.fn()}
-      onUnpublishScores={vi.fn()}
       screen={screenName}
     />
   );
 
 describe('FlashcardResultsView screens', () => {
   beforeEach(() => {
-    auth.v2 = true;
     state.session = session();
   });
 
@@ -97,18 +93,13 @@ describe('FlashcardResultsView screens', () => {
     expect(screen.getByText('Results')).toBeInTheDocument();
   });
 
-  it('keeps the monitor for Monitor, study assignments and the flag off', () => {
+  it('keeps the monitor for Monitor and study assignments', () => {
     const { unmount } = show('monitor');
     expect(
       screen.getByRole('button', { name: /Card results/ })
     ).toBeInTheDocument();
     unmount();
     state.session = session({ kind: 'study' });
-    const second = show('results');
-    expect(screen.queryByText('No data available yet')).toBeNull();
-    second.unmount();
-    auth.v2 = false;
-    state.session = session();
     show('results');
     expect(screen.queryByText('No data available yet')).toBeNull();
   });

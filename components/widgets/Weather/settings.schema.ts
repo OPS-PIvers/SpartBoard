@@ -31,8 +31,6 @@ const enabledDetails = (ctx: FieldCtx): WeatherDetailField[] =>
 // Details already replace the recess gear card.
 const detailsShown = (ctx: FieldCtx) =>
   detailsVisible(ctx) && enabledDetails(ctx).length > 0;
-const showClothing = (ctx: FieldCtx) =>
-  ctx.config.hideClothing !== true && !detailsShown(ctx);
 // One toggle per reading; detailFields keeps the canonical order.
 const detailToggle = (field: WeatherDetailField) => ({
   key: `detail_${field}` as const,
@@ -153,15 +151,6 @@ export default defineSettings<WeatherSettingsKeys>({
               ? ctx.config.fontColor
               : '#334155',
           fallbackLabel: 'matchText',
-        },
-        {
-          key: 'cardColor',
-          type: 'surfaceColor',
-          label: 'clothingCard',
-          opacityKey: 'cardOpacity',
-          // The redesigned recess gear has no card.
-          visibleWhen: (ctx) =>
-            showClothing(ctx) && !ctx.canAccessFeature('weather-gear-layout'),
         },
       ],
     },

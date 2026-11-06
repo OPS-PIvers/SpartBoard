@@ -20,6 +20,13 @@ vi.mock('@/context/useDashboard', () => ({
   }),
 }));
 const features = vi.hoisted(() => new Set<string>());
+// The quiz final-score overlay reads Firestore; these tests don't cover it.
+vi.mock('@/hooks/gradebook/useFinalScoreOverlay', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/hooks/gradebook/useFinalScoreOverlay')
+  >()),
+  useFinalScoreOverlay: () => null,
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessQuizMediaResponse: () => false,

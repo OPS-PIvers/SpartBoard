@@ -47,6 +47,13 @@ function parseAnswer(raw: unknown): RawAnswer | null {
     status: r.status === 'draft' ? 'draft' : undefined,
     unresponded: r.unresponded ?? undefined,
     takeIndex: typeof r.takeIndex === 'number' ? r.takeIndex : undefined,
+    paperTranscript:
+      r.paperTranscript === 'pending' ||
+      r.paperTranscript === 'blank' ||
+      r.paperTranscript === 'done' ||
+      r.paperTranscript === 'image'
+        ? r.paperTranscript
+        : undefined,
   };
 }
 
@@ -184,6 +191,14 @@ export function parseLocalizedFibAnswers(
     if (Object.keys(locales).length > 0) out[questionId] = locales;
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** `QuizSession.paperWrittenQuestionIds`, tolerant of a malformed value. */
+export function parsePaperWrittenQuestionIds(
+  raw: unknown
+): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.filter((id): id is string => typeof id === 'string');
 }
 
 /** Only the served `language` off each student override; the rest is irrelevant here. */
@@ -397,6 +412,9 @@ export async function recomputeOnePlcAssessment(
         assignmentData?.overridesByStudentUid
       ),
       sections: parseChooseSections(s.sections),
+      paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
+        s.paperWrittenQuestionIds
+      ),
     });
   }
 

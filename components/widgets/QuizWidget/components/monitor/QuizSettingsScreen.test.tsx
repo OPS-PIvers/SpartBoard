@@ -39,3 +39,18 @@ describe('QuizSettingsScreen live scores', () => {
     expect(onEdit).toHaveBeenCalledOnce();
   });
 });
+
+describe('QuizSettingsScreen with assignment settings', () => {
+  it('shows only the assign steps, not the monitor switches', () => {
+    render(
+      <QuizSettingsScreen
+        {...base}
+        config={{} as QuizConfig}
+        assignmentSettings={<div>Assign steps</div>}
+      />
+    );
+    expect(screen.getByText('Assign steps')).toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Board view' })).toBeNull();
+    expect(screen.queryByRole('switch', { name: 'Tab warnings' })).toBeNull();
+  });
+});

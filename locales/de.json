@@ -2203,6 +2203,9 @@
     "start": "Teil {{part}} starten",
     "startFailed": "Teil {{part}} konnte nicht gestartet werden. Versuche es noch einmal."
   },
+  "quizPaperWritten": {
+    "writeOnSheet": "Schreib deine Antwort auf deinen Antwortbogen aus Papier."
+  },
   "quizReadAloud": {
     "label": "Vorlesen",
     "help": "Nur für angemeldete Schüler.",
@@ -2499,7 +2502,8 @@
         "paper-pending": "Wird transkribiert",
         "paper-failed": "Fehlgeschlagen",
         "paper-over-quota": "Tageslimit",
-        "paper-blank": "Leer"
+        "paper-blank": "Leer",
+        "paper-image": "Nicht transkribiert"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2664,6 +2668,7 @@
           "failed": "Fehlgeschlagen",
           "over-quota": "Tageslimit",
           "blank": "Leer",
+          "image": "Nicht transkribiert",
           "edited": "Bearbeitet"
         },
         "errors": {

@@ -40,7 +40,6 @@ const renderLibrary = (
     onAssignmentResults: vi.fn(),
     onAssignmentPublishScores: vi.fn(),
     onAssignmentUnpublishScores: vi.fn(),
-    onAssignmentCopyLink: vi.fn(),
     onAssignmentEnd: vi.fn(),
     onAssignmentReopen: vi.fn(),
     onAssignmentDelete: vi.fn(),
@@ -70,55 +69,6 @@ const renderLibrary = (
 };
 
 describe('FlashcardLibrary assignment tabs', () => {
-  it('offers Publish scores on a Check and never on a Study', () => {
-    const check = assignment({ kind: 'check', checkMode: 'write' });
-    const handlers = renderLibrary({ assignments: [check] });
-    fireEvent.click(screen.getByRole('button', { name: /more/i }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Publish scores' }));
-    expect(handlers.onAssignmentPublishScores).toHaveBeenCalledWith(check);
-  });
-
-  it('switches a published Check to Hide scores', () => {
-    const published = assignment({
-      kind: 'check',
-      scoreVisibility: 'score',
-    });
-    const handlers = renderLibrary({ assignments: [published] });
-    fireEvent.click(screen.getByRole('button', { name: /more/i }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Hide scores' }));
-    expect(handlers.onAssignmentUnpublishScores).toHaveBeenCalledWith(
-      published
-    );
-  });
-
-  it('lists active assignments and ends one from the menu', () => {
-    const handlers = renderLibrary();
-    expect(screen.getByText('Spanish verbs')).toBeTruthy();
-    expect(screen.getByText('Open')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Results' }));
-    expect(handlers.onAssignmentResults).toHaveBeenCalledWith(assignment());
-
-    fireEvent.click(screen.getByRole('button', { name: /more/i }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy link' }));
-    expect(handlers.onAssignmentCopyLink).toHaveBeenCalledWith(assignment());
-
-    fireEvent.click(screen.getByRole('button', { name: /more/i }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'End assignment' }));
-    expect(handlers.onAssignmentEnd).toHaveBeenCalledWith(assignment());
-  });
-
-  it('keeps ended assignments in the archive tab with a reopen action', () => {
-    const ended = assignment({ status: 'ended', endedAt: 5 });
-    const handlers = renderLibrary({ tab: 'archive', assignments: [ended] });
-    expect(screen.getByText('Ended')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: /more/i }));
-    expect(screen.queryByRole('menuitem', { name: 'Copy link' })).toBeNull();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
-    expect(handlers.onAssignmentReopen).toHaveBeenCalledWith(ended);
-  });
-
   it('shows an empty state and switches tabs', () => {
     const handlers = renderLibrary({ assignments: [] });
     expect(screen.getByText('Nothing assigned yet')).toBeTruthy();
@@ -194,7 +144,6 @@ describe('FlashcardLibrary set-library grid card identity', () => {
         onAssignmentResults={vi.fn()}
         onAssignmentPublishScores={vi.fn()}
         onAssignmentUnpublishScores={vi.fn()}
-        onAssignmentCopyLink={vi.fn()}
         onAssignmentEnd={vi.fn()}
         onAssignmentReopen={vi.fn()}
         onAssignmentDelete={vi.fn()}
@@ -207,7 +156,7 @@ describe('FlashcardLibrary set-library grid card identity', () => {
       name: 'More actions',
     });
     fireEvent.click(moreButtons[1]);
-    expect(screen.getByText('Manage public link')).toBeTruthy();
+    expect(screen.getByRole('menu')).toBeTruthy();
 
     // Set B removed; without a stable key, React would reuse its instance (and open menu) for Set C.
     rerender(
@@ -229,7 +178,6 @@ describe('FlashcardLibrary set-library grid card identity', () => {
         onAssignmentResults={vi.fn()}
         onAssignmentPublishScores={vi.fn()}
         onAssignmentUnpublishScores={vi.fn()}
-        onAssignmentCopyLink={vi.fn()}
         onAssignmentEnd={vi.fn()}
         onAssignmentReopen={vi.fn()}
         onAssignmentDelete={vi.fn()}
@@ -278,7 +226,6 @@ describe('FlashcardLibrary folder move error handling', () => {
         onAssignmentResults={vi.fn()}
         onAssignmentPublishScores={vi.fn()}
         onAssignmentUnpublishScores={vi.fn()}
-        onAssignmentCopyLink={vi.fn()}
         onAssignmentEnd={vi.fn()}
         onAssignmentReopen={vi.fn()}
         onAssignmentDelete={vi.fn()}
@@ -324,34 +271,5 @@ describe('FlashcardLibrary PLC sharing', () => {
     fireEvent.click(screen.getByRole('button', { name: /more/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Share with PLC' }));
     expect(onShareWithPlc).toHaveBeenCalledWith(set);
-  });
-
-  it('shares assignment results with a PLC', () => {
-    const share = vi.fn();
-    renderLibrary({
-      assignments: [assignment()],
-      onAssignmentShareWithPlc: share,
-      onAssignmentStopSharingWithPlc: vi.fn(),
-    });
-    fireEvent.click(screen.getByRole('button', { name: /more/i }));
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: 'Share results with PLC' })
-    );
-    expect(share).toHaveBeenCalledWith(assignment());
-  });
-
-  it('offers Stop sharing on a shared assignment', () => {
-    const stop = vi.fn();
-    const shared = assignment({ plcShare: { plcId: 'plc-1', sharedAt: 1 } });
-    renderLibrary({
-      assignments: [shared],
-      onAssignmentShareWithPlc: vi.fn(),
-      onAssignmentStopSharingWithPlc: stop,
-    });
-    fireEvent.click(screen.getByRole('button', { name: /more/i }));
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: 'Stop sharing with PLC' })
-    );
-    expect(stop).toHaveBeenCalledWith(shared);
   });
 });

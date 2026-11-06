@@ -731,15 +731,6 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
-  'blooms-taxonomy.ai-topic': {
-    label: "AI topic box in Bloom's Taxonomy",
-    perWidgetType: true,
-  },
-  'blooms-taxonomy.ai-dismiss': {
-    label: "Dismiss AI result button in Bloom's Taxonomy",
-    perWidgetType: true,
-    destructive: true,
-  },
   'calendar.start-timer': {
     label: 'Start countdown to event button in Calendar',
     perWidgetType: true,
@@ -1016,6 +1007,10 @@ export const TOUR_ANCHORS = {
     label: 'Answer sheets step header in the Assign on paper dialog',
     panel: true,
   },
+  'assign-step.written': {
+    label: 'Written answers step header in the Quiz Assign dialog',
+    panel: true,
+  },
   'assign-step.sharing': {
     label: 'Sharing step header in the Assign dialog',
     panel: true,
@@ -1064,6 +1059,12 @@ export const TOUR_ANCHORS = {
   },
   'assign-rule.final-score': {
     label: 'Final score option in the Assign dialog quiz steps',
+    perField: true,
+    panel: true,
+  },
+  'assign-rule.written-where': {
+    label:
+      'Written answers option (on the device or on paper) in the Quiz Assign dialog',
     perField: true,
     panel: true,
   },
@@ -1171,10 +1172,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'flashcards-check.questions': {
-    label: 'Questions dropdown in the Assign dialog flashcards check step',
-    panel: true,
-  },
   'flashcards-check.mastery': {
     label:
       'Correct in a row to master box in the Assign dialog flashcards check step',
@@ -1243,11 +1240,6 @@ export const TOUR_ANCHORS = {
   },
   'flashcards-cards.list': {
     label: 'Card list in the Flashcards assign Cards step',
-    panel: true,
-  },
-  'flashcards-check.score-visibility': {
-    label:
-      'Score visibility dropdown in the Assign dialog flashcards check step',
     panel: true,
   },
   'assign-mods.open': {
@@ -2152,6 +2144,53 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.spell-check': {
     label: 'Spell check toggle in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-math': {
+    label: 'Math answer switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-accents': {
+    label: 'Accents answer switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-accent-language': {
+    label: 'Accent language row for an answer in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation': {
+    label: 'Equation link on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation-cancel': {
+    label: 'Cancel button in the prompt equation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation-save': {
+    label:
+      'Insert or Update button in the prompt equation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-math-preview': {
+    label:
+      'Drawn preview of a question prompt with equations in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-accents': {
+    label: 'Accents switch on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-accent-language': {
+    label: 'Accent language row on the question prompt in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -3121,6 +3160,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-print.written-box-style': {
+    label: 'Written answer style select in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.written-box-image': {
+    label: 'Written answer custom image select in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
   'quiz-print.written-box-lines': {
     label: 'Written box custom line count in the Quiz widget',
     perField: true,
@@ -3328,6 +3377,10 @@ export const TOUR_ANCHORS = {
   },
   'quiz-results.outcome-row': {
     label: 'Distribution row toggle in Quiz results, by position',
+    perField: true,
+  },
+  'quiz-results.ordering-item-row': {
+    label: 'Ordering item out-of-order toggle in Quiz results, by position',
     perField: true,
   },
   'quiz-results.question-sort': {
@@ -4122,6 +4175,10 @@ export const TOUR_ANCHORS = {
     label: 'Tab warnings toggle chip in the Quiz monitor roster',
     perWidgetType: true,
   },
+  'quiz-monitor.roster-board-view': {
+    label: 'Board view toggle chip in the Quiz monitor roster',
+    perWidgetType: true,
+  },
   'quiz-monitor.roster-proficiency': {
     label: 'Proficiency colors toggle chip in the Quiz monitor roster',
     perWidgetType: true,
@@ -4248,11 +4305,6 @@ export const TOUR_ANCHORS = {
   },
   'quiz-settings.manager-view': {
     label: 'Manager view button in Quiz settings',
-    perWidget: true,
-    panel: true,
-  },
-  'widget-settings.blooms.category': {
-    label: 'Category checkboxes in Blooms Taxonomy settings',
     perWidget: true,
     panel: true,
   },
@@ -10441,20 +10493,9 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
-  'flashcards.editor-back': {
-    label: 'Back button in the Flashcards editor',
-    perWidgetType: true,
-    panel: true,
-  },
   'flashcards.editor-paste': {
     label: 'Paste button in the Flashcards editor',
     perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.editor-save': {
-    label: 'Save button in the Flashcards editor',
-    perWidgetType: true,
-    persists: true,
     panel: true,
   },
   'flashcards-editor.draft-ai': {
@@ -10510,51 +10551,6 @@ export const TOUR_ANCHORS = {
   'flashcards.editor-description': {
     label: 'Description box in the Flashcards editor',
     perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.panel': {
-    label: 'Speak settings in the Flashcards editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.dialects': {
-    label: 'Accents to accept menu in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.dialect': {
-    label: 'An accent in the Accents to accept menu of the Flashcards editor',
-    perField: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.level': {
-    label: 'Level dropdown in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.attempts': {
-    label: 'Attempts per card box in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.strict': {
-    label: 'Strict switch in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.example': {
-    label: 'Hear it button switch in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.advanced': {
-    label: 'Advanced button in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.group': {
-    label: 'Sound row dropdown in the Flashcards editor Speak settings',
-    perField: true,
     panel: true,
   },
   'flashcards-speak-editor.review': {
@@ -10663,28 +10659,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     destructive: true,
     persists: true,
-    panel: true,
-  },
-  'flashcards.publish-scores': {
-    label: 'Publish or Hide scores button in Flashcards results',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
-  'flashcards.scores-cancel': {
-    label: 'Cancel button in the Flashcards publish scores dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.publish-confirm': {
-    label: 'Publish button in the Flashcards publish scores dialog',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
-  'flashcards.scores-visibility': {
-    label: 'Score visibility option in the Flashcards publish scores dialog',
-    perField: true,
     panel: true,
   },
   'flashcards.paste-close': {
@@ -11176,6 +11150,10 @@ export const TOUR_ANCHORS = {
   },
   'video-activity.monitor-question-results': {
     label: 'Question results button in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-settings': {
+    label: 'Settings button in the video activity monitor',
     perWidgetType: true,
   },
   'video-activity.monitor-question-result': {
@@ -14576,6 +14554,10 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.monitor-settings': {
+    label: 'Settings button in the Flashcards monitor footer',
+    perWidgetType: true,
+  },
   'flashcards.card-results': {
     label: 'Card results button in the Flashcards monitor',
     perWidgetType: true,
@@ -16240,6 +16222,18 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.reprint-sheets': {
     label: 'Print response sheets item in a paper assignment menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.import-written-answers': {
+    label:
+      'Import written answers item in a quiz assignment menu, for written answers on paper',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.reprint-written-sheets': {
+    label:
+      'Print written answer sheets item in a quiz assignment menu, for written answers on paper',
     perWidgetType: true,
     panel: true,
   },

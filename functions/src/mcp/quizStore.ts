@@ -147,7 +147,10 @@ const TYPE_BOUND_EXTRAS = [
   'rubricVisibleToStudents',
   'enforceWordLimit',
   'noSpellCheck',
+  'answerKeyboard',
   'paperBoxSize',
+  'paperBoxStyle',
+  'paperBoxImage',
   'paperOwnTest',
 ] as const;
 

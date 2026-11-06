@@ -72,6 +72,10 @@ export interface ManualGrade {
   scoredCriterionIds: string[];
 }
 
+/** A scanned paper answer with no text yet (in transcription or kept as an image) waits for the teacher. */
+export const paperAnswerOwed = (state: RawAnswer['paperTranscript']): boolean =>
+  state === 'pending' || state === 'image';
+
 export interface RawAnswer {
   questionId: string;
   answer: string;
@@ -81,6 +85,8 @@ export interface RawAnswer {
   status?: 'draft' | 'submitted';
   unresponded?: unknown;
   takeIndex?: number;
+  /** Set on handwritten paper answers; `blank` is a scanned empty box. */
+  paperTranscript?: 'pending' | 'blank' | 'done' | 'image';
 }
 
 export interface CompletedResponse {
@@ -111,6 +117,8 @@ export interface SessionInput {
   overridesByStudentUid?: Record<string, { language?: string }>;
   /** The session's sections; a choose-N section leaves unchosen questions out. */
   sections?: ChooseSection[];
+  /** Hybrid paper quiz: written questions answered on a printed sheet. */
+  paperWrittenQuestionIds?: string[];
 }
 
 /** Accepted FIB answers for the locale the TEACHER served, never a client-asserted one. */
@@ -1006,6 +1014,7 @@ export function computeAssessmentAggregate(
       teachers.set(session.teacherUid, teacher);
     }
 
+    const paperWritten = new Set(session.paperWrittenQuestionIds ?? []);
     for (const r of completed) {
       studentCount++;
       teacher.studentCount++;
@@ -1053,7 +1062,16 @@ export function computeAssessmentAggregate(
             ? servedFibAnswers(session, r.studentUid, sessionQid)
             : undefined
         );
-        if (grade.state === 'no-key' || grade.state === 'awaiting-grade') {
+        // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
+        const paperOwed =
+          grade.state === 'not-attempted' &&
+          (paperAnswerOwed(a?.paperTranscript) ||
+            (paperWritten.has(sessionQid) && a?.paperTranscript !== 'blank'));
+        if (
+          grade.state === 'no-key' ||
+          grade.state === 'awaiting-grade' ||
+          paperOwed
+        ) {
           gradable = false;
         } else {
           earned += grade.pointsEarned;

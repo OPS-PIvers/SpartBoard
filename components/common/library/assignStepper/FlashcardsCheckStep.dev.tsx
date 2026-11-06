@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { DEFAULT_FLASHCARD_ASSIGN_FORM } from '@/components/widgets/Flashcards/utils/flashcardAssign';
 import { FlashcardsCheckStep } from './FlashcardsCheckStep';
 import {
-  formatFlashcardsCheckValue,
+  formatFlashcardsModeValue,
   type FlashcardsCheckValue,
 } from './flashcardsCheckValue';
 
@@ -22,7 +22,7 @@ const Demo: React.FC<{ initial: FlashcardsCheckValue; cardCount: number }> = ({
           How students are checked
         </span>
         <span className="text-sm text-slate-500">
-          {formatFlashcardsCheckValue(value)}
+          {formatFlashcardsModeValue(value)}
         </span>
       </div>
       <FlashcardsCheckStep

@@ -575,7 +575,7 @@ describe('LinkSchoologyModal', () => {
     expect(document.getElementById('schoology-found-rB')).toBeChecked();
   });
 
-  it('hides Find without the flag', () => {
+  it('hides Find unless the opener asks for it', () => {
     render(
       <LinkSchoologyModal
         isOpen

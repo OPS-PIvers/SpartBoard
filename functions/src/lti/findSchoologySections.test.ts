@@ -127,17 +127,12 @@ vi.mock('./config', async (orig) => ({
 const tokenMock = vi.hoisted(() => vi.fn());
 vi.mock('./ags', () => ({ getAgsAccessToken: tokenMock }));
 
-const { fetchNrpsMembershipMock, grantedMock, sectionMock, periodMock } =
-  vi.hoisted(() => ({
-    fetchNrpsMembershipMock: vi.fn(),
-    grantedMock: vi.fn(),
-    sectionMock: vi.fn(),
-    periodMock: vi.fn(),
-  }));
-vi.mock('./nrps', () => ({ fetchNrpsMembership: fetchNrpsMembershipMock }));
-vi.mock('../quizMediaArchive', () => ({
-  isGlobalFeatureGranted: grantedMock,
+const { fetchNrpsMembershipMock, sectionMock, periodMock } = vi.hoisted(() => ({
+  fetchNrpsMembershipMock: vi.fn(),
+  sectionMock: vi.fn(),
+  periodMock: vi.fn(),
 }));
+vi.mock('./nrps', () => ({ fetchNrpsMembership: fetchNrpsMembershipMock }));
 vi.mock('../schoology/restClient', () => ({
   getSectionBySisId: sectionMock,
   getGradingPeriod: periodMock,
@@ -187,7 +182,6 @@ beforeEach(() => {
     { id: 'r-test', data: { testClassId: 'mock-p1' } },
   ];
   courseLinks.clear();
-  grantedMock.mockReset().mockResolvedValue(true);
   tokenMock.mockReset().mockResolvedValue('nrps-token');
   sectionMock
     .mockReset()
@@ -344,13 +338,6 @@ describe('ltiFindSchoologySectionsV1 find', () => {
     const r = byRoster((await call({ auth: TEACHER, data: {} })).rows);
     expect(r['r-1'].status).toBe('error');
     expect(r['r-2'].status).toBe('ready');
-  });
-
-  it('is behind the flag', async () => {
-    grantedMock.mockResolvedValue(false);
-    await expect(call({ auth: TEACHER, data: {} })).rejects.toMatchObject({
-      code: 'permission-denied',
-    });
   });
 
   it('needs the REST key', async () => {

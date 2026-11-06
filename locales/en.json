@@ -3499,6 +3499,9 @@
     "start": "Start Part {{part}}",
     "startFailed": "Couldn't start Part {{part}}. Try again."
   },
+  "quizPaperWritten": {
+    "writeOnSheet": "Write your answer on your paper answer sheet."
+  },
   "quizReadAloud": {
     "label": "Read aloud",
     "help": "Signed-in students only.",
@@ -3795,7 +3798,8 @@
         "paper-pending": "Transcribing",
         "paper-failed": "Failed",
         "paper-over-quota": "Daily limit",
-        "paper-blank": "Blank"
+        "paper-blank": "Blank",
+        "paper-image": "Not transcribed"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -3964,6 +3968,7 @@
           "failed": "Failed",
           "over-quota": "Daily limit",
           "blank": "Blank",
+          "image": "Not transcribed",
           "edited": "Edited"
         },
         "errors": {

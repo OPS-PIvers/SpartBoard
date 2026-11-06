@@ -60,12 +60,7 @@ const assignment = (
 
 const show = (over: Partial<FlashcardAssignment> = {}) =>
   render(
-    <FlashcardResultsView
-      assignment={assignment(over)}
-      onBack={vi.fn()}
-      onPublishScores={vi.fn()}
-      onUnpublishScores={vi.fn()}
-    />
+    <FlashcardResultsView assignment={assignment(over)} onBack={vi.fn()} />
   );
 
 describe('FlashcardResultsView — who started the run', () => {

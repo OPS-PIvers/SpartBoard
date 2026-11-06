@@ -1,3 +1,4 @@
+import { plainPromptText } from './promptMath';
 /**
  * Turns a quiz and a roster selection into the sheets to print and the
  * `PaperBatch` that records what was printed.
@@ -26,7 +27,7 @@ import {
 } from './paperSheetLayout';
 import { MAX_SEAT } from './paperSheetMarker';
 import type { PaperSheetEntry } from './paperPageMap';
-import { paperBoxSizeOf } from './paperWritten';
+import { paperBoxSizeOf, paperBoxStyleOf } from './paperWritten';
 import { rowsFromQuestion } from './quizChoiceRows';
 import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
 
@@ -197,7 +198,7 @@ export function analyzePaperQuiz(
   );
   const describe = (question: QuizQuestion): string =>
     `${TYPE_LABELS[question.type] ?? question.type}: ${
-      question.text || 'Untitled question'
+      plainPromptText(question.text) || 'Untitled question'
     }`;
 
   questions.forEach((question, index) => {
@@ -215,8 +216,15 @@ export function analyzePaperQuiz(
         return;
       }
       const size = paperBoxSizeOf(question);
+      const style = paperBoxStyleOf(question);
       written.push({ questionId: question.id, label, size });
-      entries.push({ kind: 'written', questionId: question.id, label, size });
+      entries.push({
+        kind: 'written',
+        questionId: question.id,
+        label,
+        size,
+        ...(style !== 'lines' ? { style } : {}),
+      });
       return;
     }
     if (question.type !== 'MC') {

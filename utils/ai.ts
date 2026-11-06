@@ -812,21 +812,6 @@ export function buildPromptWithFileContext(
   return prompt ? `${prefix}\n\n${prompt}` : prefix;
 }
 
-/**
- * Generates Bloom's Taxonomy content for a given level and topic.
- *
- * @param prompt - The prompt describing the level and topic.
- * @returns A promise resolving to the generated text content.
- */
-export async function generateBloomsContent(prompt: string): Promise<string> {
-  const data = await callAI(
-    { type: 'blooms-ai', prompt },
-    "Failed to generate Bloom's Taxonomy content."
-  );
-
-  return data.text ?? '';
-}
-
 export interface StepTextDraftInput {
   imageBase64: string;
   mimeType: string;

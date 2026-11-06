@@ -79,11 +79,9 @@ const renderLibrary = (
     onAssignmentMonitor: vi.fn(),
     onAssignmentPublishScores: vi.fn(),
     onAssignmentUnpublishScores: vi.fn(),
-    onAssignmentCopyLink: vi.fn(),
     onAssignmentEnd: vi.fn(),
     onAssignmentReopen: vi.fn(),
     onAssignmentDelete: vi.fn(),
-    onAssignmentShareWithPlc: vi.fn(),
     onAssignmentStopSharingWithPlc: vi.fn(),
     onBulkDelete: vi.fn().mockResolvedValue(true),
     onTabChange: vi.fn(),
@@ -101,7 +99,6 @@ const renderLibrary = (
       onPresent={vi.fn()}
       onAssign={vi.fn()}
       onDelete={vi.fn()}
-      quizStyle
       {...handlers}
       {...props}
     />

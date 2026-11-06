@@ -67,6 +67,7 @@ import {
   hasReachedTabWarningThreshold,
 } from '@/utils/tabWarningThreshold';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { isHandedOff } from '@/utils/attemptHandOff';
 import { isFramedWindow } from './speak/micAccess';
 import {
   FlashcardPlayer,
@@ -251,7 +252,7 @@ export const TrackedPlayer: React.FC<{
     }
   };
 
-  // flashcards-assign-v2 rules: time limit, tab warnings, page protections and raise hand.
+  // Check rules: time limit, tab warnings, page protections and raise hand.
   const options = isCheck ? checkOptionsOf(session) : null;
   const multiplier = override?.timeMultiplier;
   const timeLimited = checkDeadline(options, 0, multiplier) !== null;
@@ -284,6 +285,8 @@ export const TrackedPlayer: React.FC<{
   }, [adapter, paused, hasProgress, subsetKey, stampedKey]);
 
   const submitForced = (by: 'time' | 'tab') => {
+    // The tab the attempt moved to submits it; this stale copy must not.
+    if (isHandedOff()) return;
     const now = Date.now();
     if (now - forcedTriedAtRef.current < FORCED_RETRY_MS) return;
     forcedTriedAtRef.current = now;
@@ -387,7 +390,7 @@ export const TrackedPlayer: React.FC<{
       adapter={adapter}
       seed={`${session.id}:${studentUid}`}
       speak={isCheck && !speakCheck ? undefined : session.speak}
-      testQuestionBar={session.testNavBar === true}
+      testQuestionBar
       speakFixes={speakFixes}
       framed={framed}
       lockedSettings={isCheck ? session.lockedSettings : undefined}
@@ -522,7 +525,7 @@ const UntrackedPlayer: React.FC<{
       definitionLanguage={session.definitionLanguage}
       adapter={adapter}
       seed={`${session.id}:${studentUid}`}
-      testQuestionBar={session.testNavBar === true}
+      testQuestionBar
       speak={session.kind === 'check' ? undefined : session.speak}
       speakFixes={speakFixes}
       framed={framed}

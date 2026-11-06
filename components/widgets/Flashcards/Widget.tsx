@@ -75,7 +75,6 @@ import {
   LIBRARY_ITEM_NOUNS,
   useLibraryDeleteConfirm,
 } from '@/components/common/library/useLibraryDeleteConfirm';
-import { FlashcardEditor } from './FlashcardEditor';
 import { FlashcardSetEditorModal } from './FlashcardSetEditorModal';
 import { flashcardSetIncompleteReason } from './useFlashcardEditorState';
 import {
@@ -84,10 +83,6 @@ import {
 } from './utils/pastedDrafts';
 import { FlashcardLibrary } from './FlashcardLibrary';
 import { FlashcardResultsView } from './results';
-import {
-  FlashcardPublishScoresModal,
-  type PublishableFlashcardVisibility,
-} from './results/FlashcardPublishScoresModal';
 import {
   createFlashcardImportAdapter,
   type FlashcardImportData,
@@ -179,12 +174,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     updateAssignmentSettings,
     setPlcShare,
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
-  const quizStyle = canAccessFeature('flashcards-assign-v2');
   const plcSharing = useFlashcardPlcSharing({
     enabled: !inShare,
     addToast,
     setPlcShare,
-    linkChecks: quizStyle,
     linkCheck: (assignment, plc) =>
       updateDoc(
         doc(db, FLASHCARD_SESSIONS_COLLECTION, assignment.sessionId),
@@ -218,7 +211,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     flashcardSets.fillSpeakVoices(set);
     setEditingSet(set);
   };
-  const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const importHandoff = useImportHandoff(widget.id);
   const closeImport = () => {
@@ -364,38 +356,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     [loadSheet, pickSheet, saveImportedSet]
   );
 
-  const handleSave = async (set: FlashcardSet): Promise<void> => {
-    setSaving(true);
-    try {
-      const rewritten = await flashcardSets.saveSet(set);
-      closeEditor();
-      addToast(
-        rewritten > 0
-          ? `“${set.title}” saved. ${rewritten} open Study assignment${rewritten === 1 ? '' : 's'} updated.`
-          : `“${set.title}” saved.`,
-        'success'
-      );
-    } catch (error) {
-      if (error instanceof FlashcardStudySyncError) {
-        closeEditor();
-        addToast(
-          `“${set.title}” saved, but open Study assignments still show the old cards.`,
-          'error'
-        );
-        return;
-      }
-      addToast(
-        error instanceof Error
-          ? error.message
-          : 'Flashcard set could not be saved.',
-        'error'
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const editorV2 = canAccessFeature('flashcards-assign-v2');
   const editorAiEnabled =
     canAccessFeature('gemini-functions') && canAccessFeature('flashcards-ai');
   const editingIsNew =
@@ -473,7 +433,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('Add cards to this set before assigning it.', 'error');
       return;
     }
-    const incomplete = editorV2 ? flashcardSetIncompleteReason(set) : null;
+    const incomplete = flashcardSetIncompleteReason(set);
     if (incomplete) {
       addToast(`Not ready to use yet: ${incomplete}`, 'error');
       return;
@@ -605,20 +565,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         'error'
       );
       return false;
-    }
-  };
-
-  const assignmentLink = (assignment: FlashcardAssignment): string =>
-    flashcardAssignmentUrl(assignment.sessionId, assignment.audience);
-
-  const copyAssignmentLink = async (
-    assignment: FlashcardAssignment
-  ): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(assignmentLink(assignment));
-      addToast('Link copied to clipboard.', 'success');
-    } catch {
-      addToast(assignmentLink(assignment), 'info');
     }
   };
 
@@ -755,33 +701,19 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const handleUnpublishScores = async (
     assignment: FlashcardAssignment
   ): Promise<void> => {
-    // flashcards-assign-v2 confirms and reports with Quiz's Unpublish scores wording.
-    if (canAccessFeature('flashcards-assign-v2')) {
-      const ok = await showConfirm(
-        'Students will no longer be able to see their scores or responses. You can republish anytime.',
-        {
-          title: 'Unpublish scores',
-          variant: 'danger',
-          confirmLabel: 'Unpublish',
-        }
-      );
-      if (!ok) return;
-      await runAssignmentAction(
-        () => unpublishScores(assignment.id),
-        'Scores unpublished.',
-        'Failed to unpublish scores'
-      );
-      return;
-    }
-    const confirmed = await showConfirm(
-      `Hide scores for “${assignment.setTitle}”? Students stop seeing their results.`,
-      { title: 'Hide scores', variant: 'warning', confirmLabel: 'Hide scores' }
+    const ok = await showConfirm(
+      'Students will no longer be able to see their scores or responses. You can republish anytime.',
+      {
+        title: 'Unpublish scores',
+        variant: 'danger',
+        confirmLabel: 'Unpublish',
+      }
     );
-    if (!confirmed) return;
+    if (!ok) return;
     await runAssignmentAction(
       () => unpublishScores(assignment.id),
-      'Scores hidden.',
-      'Scores could not be hidden.'
+      'Scores unpublished.',
+      'Failed to unpublish scores'
     );
   };
 
@@ -861,8 +793,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 key={openResults.id}
                 assignment={openResults}
                 onBack={showLibrary}
-                onPublishScores={publishScores}
-                onUnpublishScores={unpublishScores}
                 syncPlcShare={plcSharing.enabled}
                 onEnd={() => endAssignment(openResults.id)}
                 screen={config.resultsScreen}
@@ -870,6 +800,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onUpdateMonitorPrefs={(updates) =>
                   updateWidget(widget.id, { config: updates })
                 }
+                onEditSettings={() => setSettingsTarget(openResults)}
               />
             ) : view === 'present' && presentSet ? (
               inShare ? (
@@ -885,14 +816,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
               ) : (
                 presentPlayer
               )
-            ) : editingSet && !editorV2 ? (
-              <FlashcardEditor
-                key={editingSet.id}
-                initialSet={editingSet}
-                saving={saving}
-                onCancel={closeEditor}
-                onSave={handleSave}
-              />
             ) : (
               <FlashcardLibrary
                 userId={inShare ? undefined : user?.uid}
@@ -931,17 +854,12 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 }
                 onAssignmentResults={(a) => showResults(a, 'results')}
                 onAssignmentMonitor={(a) => showResults(a, 'monitor')}
-                onAssignmentSettings={
-                  canAccessFeature('flashcards-assign-v2')
-                    ? setSettingsTarget
-                    : undefined
-                }
+                onAssignmentSettings={setSettingsTarget}
                 onBulkDelete={handleBulkDelete}
                 onAssignmentPublishScores={setPublishTarget}
                 onAssignmentUnpublishScores={(a) =>
                   void handleUnpublishScores(a)
                 }
-                onAssignmentCopyLink={(a) => void copyAssignmentLink(a)}
                 onAssignmentEnd={(a) => void handleAssignmentEnd(a)}
                 onAssignmentReopen={(a) =>
                   void runAssignmentAction(
@@ -955,15 +873,11 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onShareWithPlc={
                   plcSharing.enabled ? plcSharing.shareSet : undefined
                 }
-                onAssignmentShareWithPlc={
-                  plcSharing.enabled ? plcSharing.shareResults : undefined
-                }
                 onAssignmentStopSharingWithPlc={
                   plcSharing.enabled
                     ? (a) => void plcSharing.stopSharingResults(a)
                     : undefined
                 }
-                quizStyle={quizStyle}
               />
             )}
           </div>
@@ -983,7 +897,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         }}
       />
 
-      {editingSet && editorV2 && (
+      {editingSet && (
         <FlashcardSetEditorModal
           key={editingSet.id}
           set={editingSet}
@@ -1002,7 +916,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         onNotice={addToast}
       />
 
-      {publishTarget && canAccessFeature('flashcards-assign-v2') && (
+      {publishTarget && (
         <PublishScoresModal
           assignmentTitle={publishTarget.setTitle || 'Untitled set'}
           currentVisibility={flashcardClassVisibility(
@@ -1037,22 +951,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 logError('Flashcards.updateAppSettings.lastProtection', err);
               }
             }
-          }}
-        />
-      )}
-
-      {publishTarget && !canAccessFeature('flashcards-assign-v2') && (
-        <FlashcardPublishScoresModal
-          assignmentTitle={publishTarget.setTitle || 'Untitled set'}
-          currentVisibility={publishTarget.scoreVisibility}
-          onClose={() => setPublishTarget(null)}
-          onConfirm={async (visibility: PublishableFlashcardVisibility) => {
-            await runAssignmentAction(
-              () => publishScores(publishTarget.id, visibility),
-              'Scores published.',
-              'Scores could not be published.'
-            );
-            setPublishTarget(null);
           }}
         />
       )}

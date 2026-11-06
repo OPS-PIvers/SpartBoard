@@ -485,7 +485,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "arts-letters-agenda#textSizePreset",
       "arts-letters-agenda#version",
       "blending-board#managedNotice",
-      "blooms-taxonomy#enabledCategories",
       "breathing#cardColor",
       "breathing#color",
       "breathing#fontColor",
@@ -705,7 +704,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "time-tool#timerEndVoiceLevel",
       "time-tool#visualType",
       "url#urls",
-      "weather#cardColor",
       "weather#condition",
       "weather#fontColor",
       "weather#fontFamily",
@@ -809,7 +807,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "activity-wall#content",
       "arts-letters-agenda#content",
       "blending-board#content",
-      "blooms-taxonomy#content",
       "breathing#content",
       "breathing#display",
       "calendar#behavior",
@@ -3296,45 +3293,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "blooms-taxonomy.ai-topic",
-    "label": "AI topic box in Bloom's Taxonomy",
-    "scope": "widget type",
-    "keys": [
-      "blooms-taxonomy"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.blooms-taxonomy.face",
-        "kind": "widget",
-        "widget_type": "blooms-taxonomy",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "blooms-taxonomy.ai-dismiss",
-    "label": "Dismiss AI result button in Bloom's Taxonomy",
-    "scope": "widget type",
-    "destructive": true,
-    "keys": [
-      "blooms-taxonomy"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.blooms-taxonomy.face",
-        "kind": "widget",
-        "widget_type": "blooms-taxonomy",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "calendar.start-timer",
     "label": "Start countdown to event button in Calendar",
     "scope": "widget type",
@@ -4337,6 +4295,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.written",
+    "label": "Written answers step header in the Quiz Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.sharing",
     "label": "Sharing step header in the Assign dialog",
     "scope": "board",
@@ -4549,6 +4520,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-rule.written-where",
+    "label": "Written answers option (on the device or on paper) in the Quiz Assign dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-rule.number",
     "label": "Setting number box in the Assign dialog quiz steps",
     "scope": "field",
@@ -4556,7 +4540,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "assign#away-seconds",
       "assign#tab-switch-threshold",
-      "assign#time-limit"
+      "assign#time-limit",
+      "assign#written-spares"
     ],
     "routes": [
       {
@@ -4902,28 +4887,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "flashcards-check.test-type",
     "label": "Question type switch in the Assign dialog flashcards check step",
     "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1",
-          "assign-step.check"
-        ],
-        "reveal": "assign-step.check",
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-check.questions",
-    "label": "Questions dropdown in the Assign dialog flashcards check step",
-    "scope": "board",
     "panel": true,
     "routes": [
       {
@@ -5308,28 +5271,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-step.cards"
         ],
         "reveal": "assign-step.cards",
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-check.score-visibility",
-    "label": "Score visibility dropdown in the Assign dialog flashcards check step",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1",
-          "assign-step.check"
-        ],
-        "reveal": "assign-step.check",
         "needs": [
           "library-item",
           "class",
@@ -6565,16 +6506,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "activity-wall.empty-open-library",
           "library-shell.new:activity-wall"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
         ],
         "needs": [
           "widget-on-stage"
@@ -8793,6 +8724,204 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-editor.spell-check",
     "label": "Spell check toggle in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.answer-math",
+    "label": "Math answer switch in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.answer-accents",
+    "label": "Accents answer switch in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.answer-accent-language",
+    "label": "Accent language row for an answer in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-equation",
+    "label": "Equation link on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-equation-cancel",
+    "label": "Cancel button in the prompt equation box in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-equation-save",
+    "label": "Insert or Update button in the prompt equation box in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-math-preview",
+    "label": "Drawn preview of a question prompt with equations in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-accents",
+    "label": "Accents switch on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-accent-language",
+    "label": "Accent language row on the question prompt in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -12897,6 +13026,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-print.written-box-style",
+    "label": "Written answer style select in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-print",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.assign-paper:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.written-box-image",
+    "label": "Written answer custom image select in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-print",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.assign-paper:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-print.written-box-lines",
     "label": "Written box custom line count in the Quiz widget",
     "scope": "field",
@@ -13897,6 +14066,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-results.outcome-row",
     "label": "Distribution row toggle in Quiz results, by position",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "quiz.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.drill-questions:quiz"
+        ],
+        "reveal": "quiz-results.drill-questions:quiz",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.ordering-item-row",
+    "label": "Ordering item out-of-order toggle in Quiz results, by position",
     "scope": "field",
     "routes": [
       {
@@ -17241,6 +17432,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.roster-board-view",
+    "label": "Board view toggle chip in the Quiz monitor roster",
+    "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.roster-proficiency",
     "label": "Proficiency colors toggle chip in the Quiz monitor roster",
     "scope": "widget type",
@@ -17862,25 +18076,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.settings",
         "kind": "settings-drawer",
         "widget_type": "quiz",
-        "path": [
-          "widget.settings-opener"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "widget-settings.blooms.category",
-    "label": "Category checkboxes in Blooms Taxonomy settings",
-    "scope": "widget",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "widgets.blooms-taxonomy.settings",
-        "kind": "settings-drawer",
-        "widget_type": "blooms-taxonomy",
         "path": [
           "widget.settings-opener"
         ],
@@ -46294,53 +46489,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "flashcards.editor-back",
-    "label": "Back button in the Flashcards editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "flashcards.editor-paste",
     "label": "Paste button in the Flashcards editor",
     "scope": "widget type",
     "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.editor-save",
-    "label": "Save button in the Flashcards editor",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
     "keys": [
       "flashcards"
     ],
@@ -46575,189 +46727,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "flashcards"
     ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.panel",
-    "label": "Speak settings in the Flashcards editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.dialects",
-    "label": "Accents to accept menu in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.dialect",
-    "label": "An accent in the Accents to accept menu of the Flashcards editor",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.level",
-    "label": "Level dropdown in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.attempts",
-    "label": "Attempts per card box in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.strict",
-    "label": "Strict switch in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.example",
-    "label": "Hear it button switch in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.advanced",
-    "label": "Advanced button in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.group",
-    "label": "Sound row dropdown in the Flashcards editor Speak settings",
-    "scope": "field",
-    "panel": true,
     "routes": [
       {
         "surface": "library.flashcards.editor",
@@ -47038,6 +47007,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "destructive": true,
     "persists": true,
+    "keys": [
+      "flashcards#let-in",
+      "flashcards#reset",
+      "flashcards#unlock-attempt",
+      "flashcards#unlock-results"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.results",
@@ -47157,100 +47132,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.publish-scores",
-    "label": "Publish or Hide scores button in Flashcards results",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.results",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.scores-cancel",
-    "label": "Cancel button in the Flashcards publish scores dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.publish-scores",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1",
-          "flashcards.publish-scores:flashcards"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.publish-confirm",
-    "label": "Publish button in the Flashcards publish scores dialog",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.publish-scores",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1",
-          "flashcards.publish-scores:flashcards"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.scores-visibility",
-    "label": "Score visibility option in the Flashcards publish scores dialog",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.publish-scores",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1",
-          "flashcards.publish-scores:flashcards"
         ],
         "needs": [
           "student-data",
@@ -49390,6 +49271,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "video-activity.monitor-question-results",
     "label": "Question results button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-settings",
+    "label": "Settings button in the video activity monitor",
     "scope": "widget type",
     "routes": [
       {
@@ -64755,6 +64655,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.monitor-settings",
+    "label": "Settings button in the Flashcards monitor footer",
+    "scope": "widget type",
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.card-results",
     "label": "Card results button in the Flashcards monitor",
     "scope": "widget type",
@@ -72077,6 +71999,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-library.reprint-sheets",
     "label": "Print response sheets item in a paper assignment menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.import-written-answers",
+    "label": "Import written answers item in a quiz assignment menu, for written answers on paper",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.reprint-written-sheets",
+    "label": "Print written answer sheets item in a quiz assignment menu, for written answers on paper",
     "scope": "widget type",
     "panel": true,
     "keys": [
