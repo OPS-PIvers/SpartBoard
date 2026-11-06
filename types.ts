@@ -7089,6 +7089,10 @@ export interface QuizAssignment
   writtenOnPaper?: true;
   /** Mirrored on the session: the written questions on that stack. */
   paperWrittenQuestionIds?: string[];
+  /** Student seats printed on that stack, set at assign. */
+  paperWrittenSeats?: number;
+  /** Responses carrying a scan from that stack, recounted by each import. */
+  paperWrittenScanned?: number;
   /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
   createdAt: number;

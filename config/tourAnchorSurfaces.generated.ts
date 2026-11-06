@@ -3910,6 +3910,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-library.import-responses': ['quiz.face'],
     'quiz-library.import-stack': ['quiz.face'],
     'quiz-library.reprint-sheets': ['quiz.face'],
+    'quiz-library.import-written-answers': ['quiz.face'],
     'quiz-library.reprint-written-sheets': ['quiz.face'],
     'quiz-library.import-questions': ['quiz.face'],
     'quiz-library.archive-monitor': ['quiz.face'],

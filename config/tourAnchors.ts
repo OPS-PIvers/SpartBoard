@@ -16168,6 +16168,12 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-library.import-written-answers': {
+    label:
+      'Import written answers item in a quiz assignment menu, for written answers on paper',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-library.reprint-written-sheets': {
     label:
       'Print written answer sheets item in a quiz assignment menu, for written answers on paper',

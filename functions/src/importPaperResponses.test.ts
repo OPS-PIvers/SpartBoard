@@ -74,24 +74,34 @@ function makeDb(docs: Record<string, Doc>) {
       return Promise.resolve();
     },
   });
-  // Only the `where(field, '>', '')` shape the publish path uses: direct
-  // children of the collection carrying a non-empty string at `field`.
+  // The `where(field, '>', '')` shape the publish path uses and the import's
+  // `where(field, '==', value).count()`, over direct children of the collection.
   const collectionRef = (path: string) => ({
     doc: (id: string) => docRef(`${path}/${id}`),
-    where: (field: string) => ({
-      get: () =>
-        Promise.resolve({
-          docs: Object.entries(docs)
-            .filter(
-              ([p, d]) =>
-                p.startsWith(`${path}/`) &&
-                !p.slice(path.length + 1).includes('/') &&
-                typeof d[field] === 'string' &&
-                d[field] > ''
-            )
-            .map(([p, d]) => ({ id: p.slice(path.length + 1), data: () => d })),
+    where: (field: string, op: string, value: unknown) => {
+      const matches = () =>
+        Object.entries(docs).filter(
+          ([p, d]) =>
+            p.startsWith(`${path}/`) &&
+            !p.slice(path.length + 1).includes('/') &&
+            (op === '=='
+              ? d[field] === value
+              : typeof d[field] === 'string' && d[field] > '')
+        );
+      return {
+        get: () =>
+          Promise.resolve({
+            docs: matches().map(([p, d]) => ({
+              id: p.slice(path.length + 1),
+              data: () => d,
+            })),
+          }),
+        count: () => ({
+          get: () =>
+            Promise.resolve({ data: () => ({ count: matches().length }) }),
         }),
-    }),
+      };
+    },
   });
   const docRef = (
     path: string
@@ -1166,6 +1176,7 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
       const assignment = after[`users/${UID}/quiz_assignments/${ASSIGNMENT}`];
       expect(assignment.hasPaperWritten).toBe(true);
       expect(assignment).not.toHaveProperty('hasPaperResponses');
+      expect(assignment.paperWrittenScanned).toBe(1);
     });
 
     it('scanned mid-attempt, leaves the device attempt open', async () => {
@@ -1219,6 +1230,10 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
       });
       expect(result.collisions).toEqual([]);
       expect(docs[RESP1].status).toBe('joined');
+      await callV2(docs, [hybridSheet(2)], { scanId: 'scan-3' });
+      expect(
+        docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`].paperWrittenScanned
+      ).toBe(2);
       expect(
         (docs[RESP1].answers as Doc[]).find((a) => a.questionId === 'q2')
       ).toMatchObject({ paperScanId: 'scan-2' });

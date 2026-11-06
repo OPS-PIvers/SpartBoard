@@ -3176,8 +3176,11 @@ const TeacherQuizWidget: React.FC<{
             }
           }
 
-          let paperWritten: { batchId: string; questionIds: string[] } | null =
-            null;
+          let paperWritten: {
+            batchId: string;
+            questionIds: string[];
+            seats: number;
+          } | null = null;
           let printWritten: (() => void) | null = null;
           if (stepper?.writtenOnPaper && user && writtenOnPaperOn) {
             const plan = planHybridWrittenBatch({
@@ -3217,6 +3220,7 @@ const TeacherQuizWidget: React.FC<{
             paperWritten = {
               batchId: plan.batch.id,
               questionIds: plan.questionIds,
+              seats: Object.keys(plan.batch.seats).length,
             };
             printWritten = () =>
               printPaperSheets(

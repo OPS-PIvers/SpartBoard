@@ -575,6 +575,15 @@ export async function handleImportPaperResponses(
     anyWritten ||= o.hasWritten;
   }
   if (written.length > 0) {
+    // Recounted rather than incremented, so a rescan or a retried call never double counts.
+    const scanned = hybrid
+      ? (
+          await responses
+            .where('paperWrittenBatchId', '==', input.batchId)
+            .count()
+            .get()
+        ).data().count
+      : null;
     await userRef
       .collection('quiz_assignments')
       .doc(input.assignmentId)
@@ -583,6 +592,7 @@ export async function handleImportPaperResponses(
           // A hybrid assignment already reaches its classes; publish needs no paper pointers.
           ...(hybrid ? {} : { hasPaperResponses: true }),
           ...(anyWritten ? { hasPaperWritten: true } : {}),
+          ...(scanned !== null ? { paperWrittenScanned: scanned } : {}),
         },
         { merge: true }
       );
