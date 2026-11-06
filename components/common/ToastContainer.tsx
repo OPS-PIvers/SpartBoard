@@ -95,7 +95,7 @@ export const ToastContainer: React.FC = () => {
                     {toast.action.label}
                   </button>
                   {toast.action.secondary && (
-                    <button
+                    <button // no-tour-anchor: transient toast action
                       onClick={(e) => {
                         e.stopPropagation();
                         toast.action?.secondary?.onClick();
@@ -111,7 +111,7 @@ export const ToastContainer: React.FC = () => {
             </div>
             {/* Explicit dismiss control so SR/keyboard users can close a toast
                 before it auto-dismisses (the whole card is also clickable). */}
-            <button
+            <button // no-tour-anchor: transient toast dismiss
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
