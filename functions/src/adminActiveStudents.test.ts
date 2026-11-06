@@ -123,3 +123,31 @@ describe('mapWithConcurrency', () => {
     expect(seen.sort()).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });
+
+describe('orderSectionsForNameLookup cover', () => {
+  it('puts a greedy cover first so redundant sections come last', () => {
+    const order = orderSectionsForNameLookup(
+      [
+        { uid: 'a', sectionIds: ['big', 'x'], lastSignInMs: NOW },
+        { uid: 'b', sectionIds: ['big', 'x'], lastSignInMs: NOW },
+        { uid: 'c', sectionIds: ['big', 'y'], lastSignInMs: NOW },
+        { uid: 'd', sectionIds: ['z'], lastSignInMs: NOW },
+      ],
+      new Set(['big', 'x', 'y', 'z'])
+    );
+    expect(order.slice(0, 2)).toEqual(['big', 'z']);
+    expect(order.slice(2).sort()).toEqual(['x', 'y']);
+  });
+
+  it('skips students who already have a name', () => {
+    const order = orderSectionsForNameLookup(
+      [
+        { uid: 'a', sectionIds: ['s1'], lastSignInMs: NOW },
+        { uid: 'b', sectionIds: ['s2'], lastSignInMs: NOW },
+      ],
+      new Set(['s1', 's2']),
+      new Set(['a'])
+    );
+    expect(order).toEqual(['s2']);
+  });
+});

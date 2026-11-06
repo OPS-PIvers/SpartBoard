@@ -43,15 +43,12 @@ export function buildStudentViewSession(
   quiz: QuizData,
   behavior: QuizBehaviorSettings,
   tabAwayTimerOn: boolean,
-  hideRubricUnlessShown = false,
   orderingListOn = false
 ): QuizSession {
   const opts = behavior.sessionOptions;
   const questions = dedupeQuestionsById(quiz.questions);
   const publicQuestions = questions.map((q) => {
-    const { targets, ...rest } = toPublicQuestion(q, undefined, {
-      hideRubricUnlessShown,
-    });
+    const { targets, ...rest } = toPublicQuestion(q);
     return opts.showLearningTargets && targets ? { ...rest, targets } : rest;
   });
   const hasRecording = publicQuestions.some((q) => !!q.recording);
