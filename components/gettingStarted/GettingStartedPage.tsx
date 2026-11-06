@@ -123,7 +123,8 @@ const TourRow: React.FC<{
 export const GettingStartedPage: React.FC = () => {
   const { t } = useTranslation();
   const { user, isAdmin } = useAuth();
-  const { showConfirm } = useDialog();
+  const { showConfirm, currentDialog } = useDialog();
+  const dialogOpen = currentDialog !== null;
   const { addToast } = useDashboard();
   const showSparty = useShowSparty();
   const canRun = useCanRunLiveTour();
@@ -133,12 +134,14 @@ export const GettingStartedPage: React.FC = () => {
   const close = useCallback(() => spaNavigate('/'), []);
 
   useEffect(() => {
+    // The Restart confirm handles its own Escape.
+    if (dialogOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [close]);
+  }, [close, dialogOpen]);
 
   const startTour = (tour: GettingStartedTour) => {
     void incrementHelpOpenCount(tour.itemId);
