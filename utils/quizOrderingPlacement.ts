@@ -21,7 +21,7 @@ export interface OrderingPlacement {
 function bestRun(entries: { pos: number; idx: number }[]): Set<number> {
   const n = entries.length;
   const len = new Array<number>(n).fill(1);
-  const exact = entries.map((e) => (e.pos === e.idx ? 1 : 0));
+  const exact = entries.map((e): number => (e.pos === e.idx ? 1 : 0));
   const prev = new Array<number>(n).fill(-1);
   const better = (l: number, x: number, k: number) =>
     l > len[k] || (l === len[k] && x > exact[k]);
