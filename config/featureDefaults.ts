@@ -676,7 +676,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   'paper-handwriting-ai': {
     label: 'Transcribe handwritten answers',
     icon: Sparkles,
-    description: 'AI types out scanned handwritten answers for grading.',
+    description: 'Use AI to convert handwritten responses to type, preserving spelling and grammar as accurately as possible.',
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
