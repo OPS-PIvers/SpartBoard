@@ -34,8 +34,6 @@ import {
   detectStimulusTypeFromUrl,
   isPlayLimitedType,
   questionsUsingStimulus,
-  stimulusShareMessage,
-  STIMULUS_SHARE_CONFIRM,
 } from '@/utils/quizStimuli';
 import { extractGoogleFileId } from '@/utils/urlHelpers';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -70,19 +68,41 @@ const MAX_STIMULUS_BYTES = 200 * 1024 * 1024;
 
 /**
  * Shared intake used by both entry points. Returns the created stimulus
- * or null when the teacher declined the sharing prompt / an error hit.
+ * or null when an error hit.
  */
 function useStimulusIntake(state: QuizEditorController) {
   const { driveService, userDomain } = useGoogleDrive();
   const { openPicker } = useGooglePicker();
   const { ensureGoogleScope } = useAuth();
-  const { showConfirm, showAlert } = useDialog();
+  const { showAlert } = useDialog();
   const [busy, setBusy] = useState(false);
 
-  const confirmShare = useCallback(
-    async (what: string): Promise<boolean> =>
-      showConfirm(stimulusShareMessage(what), STIMULUS_SHARE_CONFIRM),
-    [showConfirm]
+  // Shares a copy so picking or linking a file never changes the original's sharing.
+  const shareCopy = useCallback(
+    async (fileId: string, name: string): Promise<string | null> => {
+      if (!driveService) return null;
+      let copyId: string | null = null;
+      try {
+        const copy = await driveService.copyFile(
+          fileId,
+          `stimulus-${Date.now()}-${name.replace(/[^\w.-]+/g, '_')}`,
+          'Assets/QuizStimuli'
+        );
+        copyId = copy.id;
+        await driveService.makePublic(copy.id, undefined);
+        return copy.id;
+      } catch {
+        // Don't leave a private copy behind when sharing it failed.
+        if (copyId)
+          await driveService.deleteFile(copyId).catch(() => undefined);
+        await showAlert(
+          "Couldn't update sharing (you may not own this file). Make sure it's set to \"anyone with the link\" in Drive, or students won't see it.",
+          { variant: 'warning' }
+        );
+        return null;
+      }
+    },
+    [driveService, showAlert]
   );
 
   const addFromFile = useCallback(
@@ -116,12 +136,6 @@ function useStimulusIntake(state: QuizEditorController) {
           `stimulus-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`,
           'Assets/QuizStimuli'
         );
-        const shared = await confirmShare(file.name);
-        if (!shared) {
-          // Attach cancelled — remove the just-uploaded orphan.
-          await driveService.deleteFile(driveFile.id).catch(() => undefined);
-          return null;
-        }
         // undefined domain forces type:'anyone' — anonymous live-session
         // students have no Workspace identity a domain grant could match.
         await driveService.makePublic(driveFile.id, undefined);
@@ -144,7 +158,7 @@ function useStimulusIntake(state: QuizEditorController) {
         setBusy(false);
       }
     },
-    [driveService, confirmShare, showAlert, state]
+    [driveService, showAlert, state]
   );
 
   const addFromUrl = useCallback(
@@ -158,23 +172,15 @@ function useStimulusIntake(state: QuizEditorController) {
           : undefined;
       setBusy(true);
       try {
-        if (driveFileId && driveService) {
-          const shared = await confirmShare('this Drive file');
-          if (!shared) return null;
-          try {
-            await driveService.makePublic(driveFileId, undefined);
-          } catch {
-            await showAlert(
-              "Couldn't update sharing (you may not own this file). Make sure it's set to \"anyone with the link\" in Drive, or students won't see it.",
-              { variant: 'warning' }
-            );
-          }
-        }
+        const copyId = driveFileId
+          ? await shareCopy(driveFileId, label ?? driveFileId)
+          : null;
+        const fileId = copyId ?? driveFileId;
         const stimulus: QuizStimulus = {
           id: crypto.randomUUID(),
           type,
-          url,
-          ...(driveFileId ? { driveFileId } : {}),
+          url: copyId ? `https://drive.google.com/file/d/${copyId}/view` : url,
+          ...(fileId ? { driveFileId: fileId } : {}),
           label: label ?? url.replace(/^https?:\/\//, '').slice(0, 60),
         };
         state.addStimulus(stimulus);
@@ -183,7 +189,7 @@ function useStimulusIntake(state: QuizEditorController) {
         setBusy(false);
       }
     },
-    [driveService, confirmShare, showAlert, state]
+    [shareCopy, state]
   );
 
   const addFromDrive = useCallback(async (): Promise<QuizStimulus | null> => {
@@ -229,25 +235,14 @@ function useStimulusIntake(state: QuizEditorController) {
       );
       return null;
     }
-    const shared = await confirmShare(picked.name);
-    if (!shared) return null;
     setBusy(true);
     try {
-      if (driveService) {
-        try {
-          await driveService.makePublic(picked.id, undefined);
-        } catch {
-          await showAlert(
-            "Couldn't update sharing (you may not own this file). Make sure it's set to \"anyone with the link\" in Drive, or students won't see it.",
-            { variant: 'warning' }
-          );
-        }
-      }
+      const fileId = (await shareCopy(picked.id, picked.name)) ?? picked.id;
       const stimulus: QuizStimulus = {
         id: crypto.randomUUID(),
         type,
-        url: `https://drive.google.com/file/d/${picked.id}/view`,
-        driveFileId: picked.id,
+        url: `https://drive.google.com/file/d/${fileId}/view`,
+        driveFileId: fileId,
         label: picked.name,
       };
       state.addStimulus(stimulus);
@@ -255,15 +250,7 @@ function useStimulusIntake(state: QuizEditorController) {
     } finally {
       setBusy(false);
     }
-  }, [
-    ensureGoogleScope,
-    openPicker,
-    addFromUrl,
-    confirmShare,
-    driveService,
-    showAlert,
-    state,
-  ]);
+  }, [ensureGoogleScope, openPicker, addFromUrl, shareCopy, showAlert, state]);
 
   // userDomain intentionally unused today: stimulus sharing is always
   // type:'anyone' (anonymous students), never domain-scoped.

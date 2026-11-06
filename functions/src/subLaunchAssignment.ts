@@ -46,6 +46,7 @@ type LaunchKind = (typeof LAUNCHABLE_KINDS)[number];
 const MAX_ROSTERS = 20;
 const STIMULUS_QUOTES_FEATURE = 'quiz-stimulus-quotes';
 const CROSS_OUT_FEATURE = 'quiz-cross-out';
+const ORDERING_LIST_FEATURE = 'quiz-ordering-list';
 const ANONYMOUS_JOIN_FEATURE = 'anonymous-join';
 /** A session doc is capped at ~1 MiB by Firestore; stay well inside it. */
 const MAX_PAYLOAD_BYTES = 700_000;
@@ -1315,6 +1316,11 @@ export async function handleLaunchSubAssignment(
     STIMULUS_QUOTES_FEATURE
   );
   const crossOutOn = await deps.hostHasFeature(db, hostUid, CROSS_OUT_FEATURE);
+  const orderingListOn = await deps.hostHasFeature(
+    db,
+    hostUid,
+    ORDERING_LIST_FEATURE
+  );
   const publicQuestions = publicQuestionsFromKey(keyQuiz.questions);
   const quizTitle =
     typeof keyQuiz.title === 'string' && keyQuiz.title ? keyQuiz.title : 'Quiz';
@@ -1330,6 +1336,7 @@ export async function handleLaunchSubAssignment(
     showLearningTargets: false,
     ...(stimulusQuotesOn ? { allowStimulusQuotes: true } : {}),
     ...(crossOutOn ? { allowCrossOut: true } : {}),
+    ...(orderingListOn ? { orderingList: true } : {}),
     ...(Array.isArray(keyQuiz.stimuli) ? { stimuli: keyQuiz.stimuli } : {}),
     ...(typeof keyQuiz.language === 'string'
       ? { language: keyQuiz.language }

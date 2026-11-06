@@ -786,13 +786,20 @@ export class GoogleDriveService {
   }
 
   /** Copy a file the app can open into the user's Drive under a new name. */
-  async copyFile(fileId: string, name: string): Promise<DriveFile> {
+  async copyFile(
+    fileId: string,
+    name: string,
+    folderPath?: string
+  ): Promise<DriveFile> {
+    const parents = folderPath
+      ? [await this.getFolderPath(folderPath)]
+      : undefined;
     const response = await this.fetchWithRetry(
       `${DRIVE_API_URL}/files/${fileId}/copy?fields=id,name,mimeType,webViewLink`,
       {
         method: 'POST',
         headers: this.headers,
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(parents ? { name, parents } : { name }),
       }
     );
     if (!response.ok) {

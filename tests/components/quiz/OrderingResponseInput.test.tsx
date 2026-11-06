@@ -143,4 +143,35 @@ describe('OrderingResponseInput', () => {
       screen.getByRole('button', { name: /C, in word bank/ })
     ).toBeInTheDocument();
   });
+  it('enlarges an item picture without picking the item', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <OrderingResponseInput
+        question={{
+          ...makeQuestion(['First', 'Second']),
+          orderingImages: ['https://img.test/1.png', ''],
+        }}
+        savedAnswer={null}
+        onChange={onChange}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: /Enlarge picture: Second/ })
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Enlarge picture: First' })
+    );
+    const dialog = screen.getByRole('dialog', { name: 'First' });
+    expect(dialog.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://img.test/1.png'
+    );
+    expect(
+      screen.getByRole('button', { name: /First, in word bank/ })
+    ).toHaveAttribute('aria-pressed', 'false');
+    await user.click(screen.getByRole('button', { name: 'Close image' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

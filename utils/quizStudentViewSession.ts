@@ -43,7 +43,8 @@ export function buildStudentViewSession(
   quiz: QuizData,
   behavior: QuizBehaviorSettings,
   tabAwayTimerOn: boolean,
-  hideRubricUnlessShown = false
+  hideRubricUnlessShown = false,
+  orderingListOn = false
 ): QuizSession {
   const opts = behavior.sessionOptions;
   const questions = dedupeQuestionsById(quiz.questions);
@@ -92,6 +93,7 @@ export function buildStudentViewSession(
       : {}),
     ...(quiz.language ? { language: quiz.language } : {}),
     ...(opts.handRaiseEnabled ? { handRaiseEnabled: true } : {}),
+    ...(orderingListOn ? { orderingList: true } : {}),
     ...focusSessionFields(focusSettingsFrom(behavior), tabAwayTimerOn),
     showResultToStudent: opts.showResultToStudent ?? false,
     showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,

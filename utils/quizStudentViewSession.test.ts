@@ -109,4 +109,13 @@ describe('withFocusSettings', () => {
     expect(s).not.toHaveProperty('mediaResponseEnabled');
     expect(s).not.toHaveProperty('whiteboardResponseEnabled');
   });
+
+  it('stamps the one-list Ordering marker only when the teacher has the flag', () => {
+    expect(buildStudentViewSession(QUIZ, BEHAVIOR, false)).not.toHaveProperty(
+      'orderingList'
+    );
+    expect(
+      buildStudentViewSession(QUIZ, BEHAVIOR, false, false, true).orderingList
+    ).toBe(true);
+  });
 });
