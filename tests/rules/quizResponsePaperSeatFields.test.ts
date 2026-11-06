@@ -10,7 +10,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, doc } from 'firebase/firestore';
+import { getDoc, setDoc, updateDoc, doc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-quiz-archive-fields-test';
 const SESSION_ID = 'session-archive-fields';
@@ -74,6 +74,8 @@ const SEEDED_FIELDS: Record<string, unknown> = {
   hasStuckArchive: true,
   paperSeat: 4,
   paperBatchId: 'batch-1',
+  paperWrittenBatchId: 'batch-1',
+  paperWrittenSeat: 4,
 };
 
 beforeAll(async () => {
@@ -175,5 +177,64 @@ describe('quiz response UPDATE — server-owned archive fields', () => {
         updateDoc(doc(asAnonStudent(), RESPONSE_PATH), { [field]: value })
       );
     }
+  });
+});
+
+describe('quiz response — a written-answer scan that landed before the student joined', () => {
+  const SSO_PATH = `quiz_sessions/${SESSION_ID}/responses/${SSO_UID}`;
+  const scanned = {
+    ...baseResponse(SSO_UID),
+    classId: CLASS_ID,
+    paperWrittenBatchId: 'batch-1',
+    paperWrittenSeat: 4,
+    answers: [
+      {
+        questionId: 'q2',
+        answer: '',
+        status: 'submitted',
+        paperScanId: 'scan-1',
+        paperTranscript: 'pending',
+      },
+    ],
+  };
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), SSO_PATH), scanned);
+    });
+  });
+
+  it('the student reads it, answers on the device and submits', async () => {
+    const db = asStudentRole();
+    await assertSucceeds(getDoc(doc(db, SSO_PATH)));
+    await assertSucceeds(
+      updateDoc(doc(db, SSO_PATH), {
+        status: 'in-progress',
+        answers: [
+          ...scanned.answers,
+          { questionId: 'q1', answer: 'B', status: 'submitted' },
+        ],
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, SSO_PATH), {
+        status: 'completed',
+        submittedAt: Date.now(),
+        completedAttempts: 1,
+      })
+    );
+  });
+
+  it('no other student can read it, and the student cannot move the scan fields', async () => {
+    await assertFails(getDoc(doc(asAnonStudent(), SSO_PATH)));
+    await assertFails(
+      updateDoc(doc(asStudentRole(), SSO_PATH), { paperWrittenBatchId: null })
+    );
+    await assertFails(
+      updateDoc(doc(asStudentRole(), SSO_PATH), { paperWrittenSeat: 9 })
+    );
+  });
+
+  it('the teacher reads it', async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), SSO_PATH)));
   });
 });
