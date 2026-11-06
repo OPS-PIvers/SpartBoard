@@ -30,8 +30,9 @@
  * (/admins). A domain's `staff` role is the admin panel's default, so it is
  * not a signal. Numeric-local (student-ID) emails, student-only domains and
  * any address ClassLink or a mock class lists as a student are skipped,
- * existing docs are never touched (admin roles and 'inactive' lockouts
- * survive), the email claim must be verified, and an org can opt out via
+ * existing docs keep their role and buildings (admin roles and 'inactive'
+ * lockouts survive; an 'invited' staff doc only flips to active), the email
+ * claim must be verified, and an org can opt out via
  * `autoEnrollDomainUsers: false` on its org doc. Anyone else joins by invite.
  * Enrollment failures are logged but never fail resolution.
  */
@@ -163,7 +164,7 @@ async function isStudentDomain(
 
 /**
  * Upserts nothing — strictly CREATES the caller's member doc when absent.
- * Existing docs (any role, any status) are left untouched so this can never
+ * Existing docs keep role and buildings (only 'invited' flips to active) so this can never
  * demote an admin or resurrect a deactivated member. Uses `create()` so a
  * concurrent duplicate loses cleanly (ALREADY_EXISTS is swallowed).
  */
@@ -180,7 +181,10 @@ async function autoEnrollMember(
 
   const memberRef = db.doc(`organizations/${orgId}/members/${email}`);
   const memberSnap = await memberRef.get();
-  if (memberSnap.exists) return;
+  if (memberSnap.exists) {
+    await activateInvitedMember(memberRef, memberSnap, uid);
+    return;
+  }
 
   // Per-org opt-out: only read the org doc on the rare doc-missing path.
   const orgSnap = await db.doc(`organizations/${orgId}`).get();
@@ -213,6 +217,25 @@ async function autoEnrollMember(
   } catch (err) {
     // gRPC 6 = ALREADY_EXISTS: a concurrent call won the create race.
     if ((err as { code?: number }).code !== 6) throw err;
+  }
+}
+
+/** Signing in with the invited address claims the invite: only status, uid and lastActive change, and only on an unchanged 'invited' doc. */
+async function activateInvitedMember(
+  memberRef: admin.firestore.DocumentReference,
+  memberSnap: admin.firestore.DocumentSnapshot,
+  uid: string
+): Promise<void> {
+  if (memberSnap.get('status') !== 'invited') return;
+  if (memberSnap.get('roleId') === 'student') return;
+  try {
+    await memberRef.update(
+      { status: 'active', uid, lastActive: new Date().toISOString() },
+      { lastUpdateTime: memberSnap.updateTime }
+    );
+  } catch (err) {
+    // gRPC 9 = FAILED_PRECONDITION: an admin edited the doc mid-call; the next sign-in retries.
+    if ((err as { code?: number }).code !== 9) throw err;
   }
 }
 

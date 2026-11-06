@@ -8,9 +8,12 @@ const resolveOrgIdForDomainMock = vi.fn();
 // create can be scripted per test.
 const docGetMock = vi.fn();
 const docCreateMock = vi.fn();
+const docUpdateMock = vi.fn();
 const docMock = vi.fn((path: string) => ({
   get: () => docGetMock(path) as Promise<unknown>,
   create: (data: unknown) => docCreateMock(path, data) as Promise<unknown>,
+  update: (data: unknown, pre: unknown) =>
+    docUpdateMock(path, data, pre) as Promise<unknown>,
 }));
 
 // Collection queries: mock-class membership and the matched domain doc.
@@ -146,8 +149,9 @@ describe('resolveOrgForUser callable', () => {
     resolveOrgIdForDomainMock.mockReset();
     docGetMock.mockReset();
     // Resolution tests: the caller is already a member, so nothing enrolls.
-    docGetMock.mockResolvedValue({ exists: true });
+    docGetMock.mockResolvedValue({ exists: true, get: () => 'active' });
     docCreateMock.mockReset();
+    docUpdateMock.mockReset();
     docMock.mockClear();
   });
 
@@ -290,6 +294,7 @@ describe('resolveOrgForUser auto-enrollment', () => {
     resolveOrgIdForDomainMock.mockReset();
     docGetMock.mockReset();
     docCreateMock.mockReset();
+    docUpdateMock.mockReset();
     docMock.mockClear();
     resolveOrgIdForDomainMock.mockResolvedValue('orono');
     fetchOneRosterUsersMock.mockReset();
@@ -302,13 +307,19 @@ describe('resolveOrgForUser auto-enrollment', () => {
     memberExists: boolean;
     autoEnrollDomainUsers?: boolean;
     isAdmin?: boolean;
+    member?: Record<string, unknown>;
   }): void => {
     docGetMock.mockImplementation((path: string) => {
       if (path === 'admins/new.teacher@orono.k12.mn.us') {
         return Promise.resolve({ exists: opts.isAdmin === true });
       }
       if (path === MEMBER_PATH) {
-        return Promise.resolve({ exists: opts.memberExists });
+        const member = opts.member ?? {};
+        return Promise.resolve({
+          exists: opts.memberExists,
+          updateTime: 'T1',
+          get: (field: string) => member[field],
+        });
       }
       if (path === ORG_PATH) {
         return Promise.resolve({
@@ -437,6 +448,49 @@ describe('resolveOrgForUser auto-enrollment', () => {
     const res = await handler({ auth: verifiedAuth, data: {} });
     expect(res).toEqual({ orgId: 'orono' });
     expect(docCreateMock).not.toHaveBeenCalled();
+    expect(docUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('marks an invited staff member active on sign-in, keeping role and buildings', async () => {
+    scriptDocs({
+      memberExists: true,
+      member: { status: 'invited', roleId: 'teacher', buildingIds: ['b1'] },
+    });
+    docUpdateMock.mockResolvedValue(undefined);
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
+    const [path, data, pre] = docUpdateMock.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+      unknown,
+    ];
+    expect(path).toBe(MEMBER_PATH);
+    expect(Object.keys(data).sort()).toEqual(['lastActive', 'status', 'uid']);
+    expect(data).toMatchObject({ status: 'active', uid: 'uid-1' });
+    expect(pre).toEqual({ lastUpdateTime: 'T1' });
+  });
+
+  it('never activates a deactivated, student or already active member doc', async () => {
+    for (const member of [
+      { status: 'inactive', roleId: 'teacher' },
+      { status: 'invited', roleId: 'student' },
+      { status: 'active', roleId: 'teacher' },
+    ]) {
+      scriptDocs({ memberExists: true, member });
+      await handler({ auth: verifiedAuth, data: {} });
+    }
+    expect(docUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores a lost race with an admin edit', async () => {
+    scriptDocs({
+      memberExists: true,
+      member: { status: 'invited', roleId: 'teacher' },
+    });
+    docUpdateMock.mockRejectedValue(Object.assign(new Error('x'), { code: 9 }));
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
   });
 
   it('skips student-ID-shaped emails entirely', async () => {
