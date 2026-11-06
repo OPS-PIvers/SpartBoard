@@ -188,9 +188,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { canAccessFeature } = useAuth();
   const connectionsOn = canAccessFeature('widget-connections');
   useNamesFromStations(widget, connectionsOn);
-  const avoidRecentPartners =
-    canAccessFeature('random-avoid-repeats') &&
-    config.avoidRecentPartners === true;
+  const avoidRecentPartners = config.avoidRecentPartners === true;
   // Read in the deferred pick callback; a migrated widget's auto-start became a Sequence.
   const useLegacy = usesLegacyToggles(connectionsOn, widget.config);
   const useLegacyRef = useRef(useLegacy);
