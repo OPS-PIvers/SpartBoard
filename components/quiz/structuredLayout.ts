@@ -17,5 +17,5 @@ export function hasSideBank(question: QuizPublicQuestion): boolean {
 /** Wrapper and bank classes for the side-by-side layout (lg and up only). */
 export const SIDE_BANK_WRAPPER =
   'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0';
-export const SIDE_BANK_PANEL =
-  'lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto';
+// No overflow here: a scrolling panel would clip a chip while it is dragged out of the bank.
+export const SIDE_BANK_PANEL = 'lg:sticky lg:top-4';
