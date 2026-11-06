@@ -106,7 +106,7 @@ export const DriveDisconnectBanner: React.FC = () => {
           <p className="flex-1 min-w-0 text-xs font-bold text-slate-800 leading-tight">
             {VIEW_AS_DRIVE_UNAVAILABLE}
           </p>
-          <button
+          <button // no-tour-anchor: system banner shown only when Drive drops
             onClick={handleDismiss}
             className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
             aria-label="Dismiss notification"
@@ -137,7 +137,7 @@ export const DriveDisconnectBanner: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <button
+          <button // no-tour-anchor: system banner shown only when Drive drops
             onClick={() => void handleConnect()}
             disabled={isConnecting}
             className="flex items-center gap-1 px-2.5 py-1.5 bg-brand-blue-primary text-white text-xxxs font-black uppercase tracking-widest rounded-lg hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
@@ -149,7 +149,7 @@ export const DriveDisconnectBanner: React.FC = () => {
             )}
           </button>
 
-          <button
+          <button // no-tour-anchor: system banner shown only when Drive drops
             onClick={handleDismiss}
             className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
             title="Dismiss for 5 minutes"
