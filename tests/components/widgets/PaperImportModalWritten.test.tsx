@@ -527,4 +527,66 @@ describe('PaperImportModal with handwritten answers', () => {
     );
     expect(screen.getByText('Uploaded')).toBeInTheDocument();
   });
+
+  it('imports a written-only stack onto a device assignment without asking for a key', async () => {
+    const plan = planPaperPages({
+      entries: [{ kind: 'written', questionId: 's3', label: '3', size: 'M' }],
+      grid: 2,
+      stems: false,
+    });
+    if (!plan.ok) throw new Error('plan refused');
+    const writtenOnly: PaperBatch = {
+      ...batch,
+      pageMaps: plan.pageMaps,
+      keySheetSeat: 3,
+    };
+    const page = (seat: number, writing: SyntheticWriting[]) =>
+      paintSyntheticSheet({
+        marker: {
+          batchTag: paperBatchTag(batch.id),
+          seat,
+          page: 1,
+          isKeySheet: false,
+          readByMap: true,
+        },
+        questionCount: 0,
+        choiceCount: 4,
+        pageMap: plan.pageMaps[0],
+        marks: [],
+        writing,
+        pxPerMm: 4,
+        seed: seat,
+      });
+    const { onImport } = setup({
+      batches: [writtenOnly],
+      assignments: [
+        {
+          id: 'device-1',
+          quizId: 'quiz-1',
+          writtenOnPaper: true,
+          paperBatchId: batch.id,
+        } as React.ComponentProps<typeof PaperImportModal>['assignments'][0],
+      ],
+      lockedAssignmentId: 'device-1',
+      onCreateAssignment: undefined,
+      rasterize: rasterizer([
+        page(1, [{ questionId: 's3' }]),
+        page(2, [{ questionId: 's3' }]),
+      ]),
+    });
+    chooseFile();
+    await reviewReady();
+    expect(screen.queryByText(/ANSWER KEY sheet/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Learning targets')).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: /^Import 2 sheets$/ });
+    await waitFor(() => expect(button).not.toBeDisabled());
+    fireEvent.click(button);
+    await waitFor(() => expect(onImport).toHaveBeenCalledOnce());
+    const [, assignmentId, sheets] = onImport.mock.calls[0];
+    expect(assignmentId).toBe('device-1');
+    for (const s of sheets) {
+      expect(s.answers).toEqual([]);
+      expect(s.written).toHaveLength(1);
+    }
+  });
 });

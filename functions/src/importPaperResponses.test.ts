@@ -1066,6 +1066,187 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     ]);
   });
 
+  describe('written answers on paper (hybrid)', () => {
+    const DEVICE = `quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`;
+    const hybridDocs = (): Record<string, Doc> => {
+      const docs = v2Docs();
+      docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`] = {
+        quizId: 'quiz-1',
+        writtenOnPaper: true,
+        paperBatchId: BATCH,
+        paperWrittenQuestionIds: ['q2', 'q4'],
+      };
+      docs[`users/${UID}/paper_batches/${BATCH}`] = {
+        ...docs[`users/${UID}/paper_batches/${BATCH}`],
+        pageMaps: [
+          {
+            page: 1,
+            grid: 0,
+            items: [{ kind: 'written', questionId: 'q2', label: '2' }],
+          },
+          {
+            page: 2,
+            grid: 0,
+            items: [{ kind: 'written', questionId: 'q4', label: '4' }],
+          },
+        ],
+      };
+      return docs;
+    };
+    const hybridSheet = (seat: number, over: Doc = {}) =>
+      v2Sheet(seat, { answers: [], ...over });
+    const deviceRow = (over: Doc = {}): Doc => ({
+      studentUid: 'pseudo-s2',
+      classId: 'class-1',
+      joinedAt: 100,
+      status: 'completed',
+      submittedAt: 5000,
+      completedAttempts: 1,
+      score: null,
+      preSyncVersion: 0,
+      lastWriteAt: 'DEVICE_TS',
+      tabSwitchWarnings: 2,
+      tabExits: [{ at: 1 }],
+      unlocked: false,
+      autoSubmitted: true,
+      resultsLockedOut: true,
+      servedQuestionIds: ['q1', 'q2', 'q3', 'q4'],
+      answers: [
+        { questionId: 'q1', answer: 'B', answeredAt: 10, status: 'submitted' },
+        { questionId: 'q3', answer: 'A', answeredAt: 11, status: 'submitted' },
+      ],
+      ...over,
+    });
+
+    it('merges onto a submitted device response and keeps every device field', async () => {
+      const docs = hybridDocs();
+      const before = deviceRow();
+      docs[DEVICE] = { ...before };
+      const { result, docs: after } = await callV2(docs, [hybridSheet(2)]);
+      expect(result.collisions).toEqual([]);
+      expect(result.written).toEqual([2]);
+      const doc = after[DEVICE];
+      for (const field of [
+        'studentUid',
+        'classId',
+        'joinedAt',
+        'status',
+        'submittedAt',
+        'completedAttempts',
+        'lastWriteAt',
+        'tabSwitchWarnings',
+        'tabExits',
+        'unlocked',
+        'autoSubmitted',
+        'resultsLockedOut',
+        'servedQuestionIds',
+      ])
+        expect(doc[field]).toEqual(before[field]);
+      expect(doc).not.toHaveProperty('paperBatchId');
+      expect(doc).not.toHaveProperty('paperSeat');
+      expect(doc).not.toHaveProperty('pin');
+      expect(doc.paperWrittenBatchId).toBe(BATCH);
+      expect(doc.paperWrittenSeat).toBe(2);
+      const answers = doc.answers as Doc[];
+      expect(answers.map((a) => a.questionId)).toEqual([
+        'q1',
+        'q3',
+        'q2',
+        'q4',
+      ]);
+      expect(answers[0]).toEqual((before.answers as Doc[])[0]);
+      expect(answers[2]).toMatchObject({
+        paperScanId: SCAN,
+        paperTranscript: 'pending',
+      });
+      expect(after[`${DEVICE}/paperPrivate/q2`]).toMatchObject({
+        status: 'pending',
+        seat: 2,
+      });
+      const assignment = after[`users/${UID}/quiz_assignments/${ASSIGNMENT}`];
+      expect(assignment.hasPaperWritten).toBe(true);
+      expect(assignment).not.toHaveProperty('hasPaperResponses');
+    });
+
+    it('scanned mid-attempt, leaves the device attempt open', async () => {
+      const docs = hybridDocs();
+      docs[DEVICE] = deviceRow({
+        status: 'in-progress',
+        submittedAt: null,
+        completedAttempts: 0,
+      });
+      const { docs: after } = await callV2(docs, [hybridSheet(2)]);
+      expect(after[DEVICE]).toMatchObject({
+        status: 'in-progress',
+        submittedAt: null,
+        completedAttempts: 0,
+        lastWriteAt: 'DEVICE_TS',
+        paperWrittenBatchId: BATCH,
+      });
+    });
+
+    it('scanned before the student joins, starts an unsubmitted row the idle sweep skips', async () => {
+      const { docs: after } = await callV2(hybridDocs(), [hybridSheet(2)]);
+      const doc = after[DEVICE];
+      expect(doc).toMatchObject({
+        studentUid: 'pseudo-s2',
+        classId: 'class-1',
+        classPeriod: 'Period 1',
+        joinedAt: NOW,
+        status: 'joined',
+        submittedAt: null,
+        score: null,
+        completedAttempts: 0,
+        preSyncVersion: 0,
+        paperWrittenBatchId: BATCH,
+        paperWrittenSeat: 2,
+      });
+      expect(doc).not.toHaveProperty('lastWriteAt');
+      expect(doc).not.toHaveProperty('paperBatchId');
+      expect((doc.answers as Doc[]).map((a) => a.questionId)).toEqual([
+        'q2',
+        'q4',
+      ]);
+    });
+
+    it('a student who answered on paper only still imports, and a rescan merges again', async () => {
+      const docs = hybridDocs();
+      await callV2(docs, [hybridSheet(1)]);
+      const RESP1 = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`;
+      expect(docs[RESP1]).toMatchObject({ status: 'joined', pin: '0001' });
+      const { result } = await callV2(docs, [hybridSheet(1)], {
+        scanId: 'scan-2',
+      });
+      expect(result.collisions).toEqual([]);
+      expect(docs[RESP1].status).toBe('joined');
+      expect(
+        (docs[RESP1].answers as Doc[]).find((a) => a.questionId === 'q2')
+      ).toMatchObject({ paperScanId: 'scan-2' });
+    });
+
+    it('refuses bubble answers, which a written-only stack never printed', async () => {
+      const docs = hybridDocs();
+      await expect(
+        callV2(docs, [
+          hybridSheet(2, { answers: [{ questionId: 'q1', answer: 'B' }] }),
+        ])
+      ).rejects.toThrow(/bubble row/);
+      expect(docs[DEVICE]).toBeUndefined();
+    });
+
+    it('another stack imported onto a hybrid assignment keeps the full-paper path', async () => {
+      const docs = hybridDocs();
+      docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`] = {
+        ...docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`],
+        paperBatchId: 'other-batch',
+      };
+      docs[DEVICE] = deviceRow();
+      const { result } = await callV2(docs, [hybridSheet(2)]);
+      expect(result.collisions).toHaveLength(1);
+      expect(docs[DEVICE]).not.toHaveProperty('paperWrittenBatchId');
+    });
+  });
+
   it('reports pages past the daily page quota, and admins are unlimited', async () => {
     const docs = v2Docs();
     docs[`ai_usage/${UID}_paper-handwritten-responses_2026-09-18`] = {
