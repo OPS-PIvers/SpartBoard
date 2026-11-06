@@ -606,11 +606,6 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'accentColor',
     },
     {
-      anchor: 'settings.field:weather#cardColor',
-      label: 'Clothing card',
-      kind: 'surfaceColor',
-    },
-    {
       anchor: 'settings.field:weather#fontFamily',
       label: 'Font',
       kind: 'fontFamily',
