@@ -17,7 +17,15 @@ import type { useStandardsFromPrompt } from '@/components/quiz/targets/useStanda
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
 import { AlternateAnswersEditor } from './AlternateAnswersEditor';
+import { AnswerKeyKeyboard, type KeyboardSettings } from './AnswerKeyKeyboard';
 import { QUESTION_TYPES, fibPromptUpdate } from './questionFieldUpdates';
+import { AccentLanguageRow, KeyboardLink } from './AnswerKeyboardControls';
+import { AccentKeysArea } from '@/components/student/keyboards/AccentKeys';
+import type { AccentSetId } from '@/types';
+
+const MathAnswerField = React.lazy(
+  () => import('@/components/student/keyboards/MathAnswerField')
+);
 
 interface QuestionPromptFieldProps {
   question: QuizQuestion;
@@ -27,6 +35,8 @@ interface QuestionPromptFieldProps {
   /** FIB prompts take `___` blanks; off where only one typed answer is stored. */
   allowBlanks?: boolean;
   anchor?: TourAnchorAttrs;
+  /** Accent keys teachers can open under the prompt; the default language. */
+  promptAccents?: AccentSetId;
 }
 
 export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
@@ -36,35 +46,10 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   textareaRef,
   allowBlanks = true,
   anchor = tourTypeAttr('quiz-editor.prompt', 'quiz'),
-}) => (
-  <div>
-    <div className="flex items-center justify-between">
-      <label className={labelClass}>Question prompt</label>
-      {allowBlanks && q.type === 'FIB' && (
-        <button
-          type="button"
-          onClick={() => {
-            const el = textareaRef.current;
-            const at = el?.selectionStart ?? q.text.length;
-            const end = el?.selectionEnd ?? at;
-            const before = q.text.slice(0, at);
-            const pad = before && !/\s$/.test(before) ? ' ' : '';
-            const text = `${before}${pad}___${q.text.slice(end)}`;
-            onChange(fibPromptUpdate(q, text));
-            requestAnimationFrame(() => {
-              const caret = at + pad.length + 3;
-              el?.focus();
-              el?.setSelectionRange(caret, caret);
-            });
-          }}
-          className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
-          {...tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Blank
-        </button>
-      )}
-    </div>
+  promptAccents,
+}) => {
+  const [accents, setAccents] = React.useState<AccentSetId | null>(null);
+  const textarea = (
     <textarea
       ref={textareaRef}
       value={q.text}
@@ -81,8 +66,70 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       className={`${inputClass} resize-none`}
       {...anchor}
     />
-  </div>
-);
+  );
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <label className={labelClass}>Question prompt</label>
+        <span className="flex items-center gap-3">
+          {promptAccents && (
+            <KeyboardLink
+              on={accents !== null}
+              onClick={() => setAccents(accents ? null : promptAccents)}
+              anchor={tourTypeAttr('quiz-editor.prompt-accents', 'quiz')}
+            >
+              <span aria-hidden>á</span>
+              Accents
+            </KeyboardLink>
+          )}
+          {allowBlanks && q.type === 'FIB' && (
+            <button
+              type="button"
+              onClick={() => {
+                const el = textareaRef.current;
+                const at = el?.selectionStart ?? q.text.length;
+                const end = el?.selectionEnd ?? at;
+                const before = q.text.slice(0, at);
+                const pad = before && !/\s$/.test(before) ? ' ' : '';
+                const text = `${before}${pad}___${q.text.slice(end)}`;
+                onChange(fibPromptUpdate(q, text));
+                requestAnimationFrame(() => {
+                  const caret = at + pad.length + 3;
+                  el?.focus();
+                  el?.setSelectionRange(caret, caret);
+                });
+              }}
+              className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
+              {...tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Blank
+            </button>
+          )}
+        </span>
+      </div>
+      {accents ? (
+        <AccentKeysArea
+          accents={accents}
+          beforeKeys={
+            <AccentLanguageRow
+              value={accents}
+              onChange={setAccents}
+              anchor={tourTypeAttr(
+                'quiz-editor.prompt-accent-language',
+                'quiz'
+              )}
+            />
+          }
+        >
+          {textarea}
+        </AccentKeysArea>
+      ) : (
+        textarea
+      )}
+    </div>
+  );
+};
 
 interface QuestionTargetsFieldProps {
   question: Pick<QuizQuestion, 'id' | 'text' | 'targets'>;
@@ -201,6 +248,8 @@ interface FibAnswerFieldProps {
   question: QuizQuestion;
   onChange: (updates: Partial<QuizQuestion>) => void;
   answerAnchor?: TourAnchorAttrs;
+  /** Math and Accents switches; absent where the student keyboard isn't offered. */
+  keyboard?: KeyboardSettings;
 }
 
 /** One typed answer: Correct Answer, plus Other accepted answers for FIB. */
@@ -208,32 +257,56 @@ export const FibAnswerField: React.FC<FibAnswerFieldProps> = ({
   question: q,
   onChange,
   answerAnchor = tourTypeAttr('quiz-editor.fib-answer', 'quiz'),
+  keyboard,
 }) => (
-  <div>
-    <label className="block font-bold text-emerald-700 mb-1 text-xs uppercase tracking-wider">
-      Correct Answer
-    </label>
-    <input
-      type="text"
-      value={q.correctAnswer}
-      onChange={(e) => onChange({ correctAnswer: e.target.value })}
-      className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 text-sm"
-      placeholder="Enter the definitive answer"
-      {...answerAnchor}
-    />
-    <NeedsAnswerNotice
-      question={q}
-      className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
-    />
-    {q.type === 'FIB' && (
-      <AlternateAnswersEditor
-        alternates={q.alternateAnswers ?? []}
-        onChange={(next) =>
-          onChange({
-            alternateAnswers: next.length > 0 ? next : undefined,
-          })
-        }
-      />
+  <AnswerKeyKeyboard question={q} onChange={onChange} keyboard={keyboard}>
+    {({ links, renderInput }) => (
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block font-bold text-emerald-700 text-xs uppercase tracking-wider">
+            Correct Answer
+          </label>
+          {links}
+        </div>
+        {renderInput ? (
+          <React.Suspense fallback={null}>
+            <MathAnswerField
+              key={q.id}
+              value={q.correctAnswer}
+              onChange={(plain) => onChange({ correctAnswer: plain })}
+              ariaLabel="Correct answer"
+              anchor={answerAnchor}
+              normalize
+              className="min-h-11! py-0! px-3! border-2! rounded-lg! bg-white border-emerald-500/30 text-emerald-800 focus-within:border-emerald-500"
+            />
+          </React.Suspense>
+        ) : (
+          <input
+            type="text"
+            value={q.correctAnswer}
+            onChange={(e) => onChange({ correctAnswer: e.target.value })}
+            className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 text-sm"
+            placeholder="Enter the definitive answer"
+            {...answerAnchor}
+          />
+        )}
+        <NeedsAnswerNotice
+          question={q}
+          className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
+        />
+        {q.type === 'FIB' && (
+          <AlternateAnswersEditor
+            key={renderInput ? 'math' : 'text'}
+            alternates={q.alternateAnswers ?? []}
+            renderInput={renderInput}
+            onChange={(next) =>
+              onChange({
+                alternateAnswers: next.length > 0 ? next : undefined,
+              })
+            }
+          />
+        )}
+      </div>
     )}
-  </div>
+  </AnswerKeyKeyboard>
 );

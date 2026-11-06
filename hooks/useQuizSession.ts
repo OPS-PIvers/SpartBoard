@@ -7,6 +7,7 @@
  * useQuizSessionStudent — Student joins and submits answers.
  */
 
+import { isAnswerKeyboard } from '@/config/studentKeyboards';
 import { alignedOrderingImages } from '@/utils/quizOrderingImages';
 import { imagesForLabels } from '@/utils/quizAnswerImages';
 import { stripRubricExamples } from '@/utils/rubricGuide';
@@ -569,6 +570,11 @@ export function toPublicQuestion(
     timeLimit: q.timeLimit,
   };
   if (q.targets?.length) base.targets = q.targets.map((t) => ({ ...t }));
+  if (
+    (q.type === 'FIB' || isFreeResponseType(q.type)) &&
+    isAnswerKeyboard(q.answerKeyboard)
+  )
+    base.answerKeyboard = q.answerKeyboard;
   if (q.type === 'MC') {
     const english = [q.correctAnswer, ...q.incorrectAnswers.filter(Boolean)];
     const permutation = randomPermutation(english.length);

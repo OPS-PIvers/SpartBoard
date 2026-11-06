@@ -1,6 +1,10 @@
 import React from 'react';
 import { joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
 
+const MathAnswerField = React.lazy(
+  () => import('@/components/student/keyboards/MathAnswerField')
+);
+
 const BLANK_RUN = /(_{2,})/;
 
 const badgeCls = (light: boolean) =>
@@ -44,7 +48,18 @@ export const FibMultiBlankInput: React.FC<{
   disabled: boolean;
   light: boolean;
   inputClassName: string;
-}> = ({ count, value, onChange, onEnter, disabled, light, inputClassName }) => {
+  /** Each blank is an equation box. */
+  math?: boolean;
+}> = ({
+  count,
+  value,
+  onChange,
+  onEnter,
+  disabled,
+  light,
+  inputClassName,
+  math = false,
+}) => {
   const parts = splitBlanks(value);
   const update = (index: number, text: string) => {
     const next = Array.from({ length: count }, (_, i) =>
@@ -59,23 +74,36 @@ export const FibMultiBlankInput: React.FC<{
           <span className="text-xl leading-none">
             <BlankBadge n={i + 1} light={light} />
           </span>
-          <input
-            // no-tour-anchor: student quiz screen; tours walk teachers
-            type="text"
-            aria-label={`Blank ${i + 1}`}
-            value={parts[i] ?? ''}
-            onChange={(e) => update(i, e.target.value)}
-            disabled={disabled}
-            className={`flex-1 min-w-0 px-5 py-4 border-2 rounded-2xl text-sm focus:outline-hidden focus:ring-0 disabled:opacity-50 ${inputClassName}`}
-            onKeyDown={(e) => {
-              if (e.key !== 'Enter') return;
-              const nextInput = e.currentTarget
-                .closest('label')
-                ?.nextElementSibling?.querySelector('input');
-              if (nextInput) nextInput.focus();
-              else onEnter();
-            }}
-          />
+          {math ? (
+            <React.Suspense fallback={null}>
+              <MathAnswerField
+                value={parts[i] ?? ''}
+                onChange={(plain) => update(i, plain)}
+                onEnter={i === count - 1 ? onEnter : undefined}
+                disabled={disabled}
+                ariaLabel={`Blank ${i + 1}`}
+                className={`flex-1 min-w-0 ${inputClassName}`}
+              />
+            </React.Suspense>
+          ) : (
+            <input
+              // no-tour-anchor: student quiz screen; tours walk teachers
+              type="text"
+              aria-label={`Blank ${i + 1}`}
+              value={parts[i] ?? ''}
+              onChange={(e) => update(i, e.target.value)}
+              disabled={disabled}
+              className={`flex-1 min-w-0 px-5 py-4 border-2 rounded-2xl text-sm focus:outline-hidden focus:ring-0 disabled:opacity-50 ${inputClassName}`}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                const nextInput = e.currentTarget
+                  .closest('label')
+                  ?.nextElementSibling?.querySelector('input');
+                if (nextInput) nextInput.focus();
+                else onEnter();
+              }}
+            />
+          )}
         </label>
       ))}
     </div>

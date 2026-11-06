@@ -2147,6 +2147,31 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.answer-math': {
+    label: 'Math answer switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-accents': {
+    label: 'Accents answer switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-accent-language': {
+    label: 'Accent language row for an answer in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-accents': {
+    label: 'Accents switch on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-accent-language': {
+    label: 'Accent language row on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.section-drag': {
     label: 'Drag handle, section in the Quiz editor',
     perWidgetType: true,

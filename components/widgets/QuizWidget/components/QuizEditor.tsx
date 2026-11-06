@@ -6,6 +6,15 @@
  * through the controller object the modal hands them.
  */
 
+import {
+  STUDENT_KEYBOARDS_FEATURE,
+  accentSetForLanguage,
+  answerAccents,
+} from '@/config/studentKeyboards';
+import {
+  AccentLanguageRow,
+  AnswerKeyboardLinks,
+} from './AnswerKeyboardControls';
 import React, {
   useCallback,
   useLayoutEffect,
@@ -74,6 +83,7 @@ import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
 import { FibBlanksEditor } from './FibBlanksEditor';
+import { AnswerKeyKeyboard } from './AnswerKeyKeyboard';
 import { isMultiBlank } from '@/utils/quizFibBlanks';
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
@@ -818,6 +828,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   });
   const uploadWhiteboardImage = useWhiteboardImageUpload();
   const answerImagesOn = canAccessFeature('quiz-ordering-images');
+  const keyboardsOn = canAccessFeature(STUDENT_KEYBOARDS_FEATURE);
+  const defaultAccents = accentSetForLanguage(state.language) ?? 'es';
   const uploadAnswerImage = useCallback(
     async (file: File): Promise<string | null> => {
       // A neutral name: a timestamp or original file name could give away the order.
@@ -963,6 +975,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             void promptStandards.onPromptBlur(q.id, q.text, q.targets)
           }
           textareaRef={promptRef}
+          promptAccents={keyboardsOn ? defaultAccents : undefined}
         />
 
         {/* Learning targets */}
@@ -1179,22 +1192,45 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   question={q}
                   onChange={(updates) => updateQuestion(q.id, updates)}
                 />
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={q.noSpellCheck !== true}
-                    onChange={(e) =>
-                      updateQuestion(q.id, {
-                        noSpellCheck: e.target.checked ? undefined : true,
-                      })
+                <div className="flex items-center justify-between gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={q.noSpellCheck !== true}
+                      onChange={(e) =>
+                        updateQuestion(q.id, {
+                          noSpellCheck: e.target.checked ? undefined : true,
+                        })
+                      }
+                      className="w-4 h-4 accent-brand-blue-primary"
+                      {...tourTypeAttr('quiz-editor.spell-check', 'quiz')}
+                    />
+                    <span className="font-bold text-xs text-slate-700">
+                      Spell check
+                    </span>
+                  </label>
+                  {keyboardsOn && (
+                    <AnswerKeyboardLinks
+                      value={q.answerKeyboard}
+                      onChange={(answerKeyboard) =>
+                        updateQuestion(q.id, { answerKeyboard })
+                      }
+                      defaultAccents={defaultAccents}
+                    />
+                  )}
+                </div>
+                {keyboardsOn && answerAccents(q.answerKeyboard) && (
+                  <AccentLanguageRow
+                    value={answerAccents(q.answerKeyboard) ?? defaultAccents}
+                    onChange={(answerKeyboard) =>
+                      updateQuestion(q.id, { answerKeyboard })
                     }
-                    className="w-4 h-4 accent-brand-blue-primary"
-                    {...tourTypeAttr('quiz-editor.spell-check', 'quiz')}
+                    anchor={tourTypeAttr(
+                      'quiz-editor.answer-accent-language',
+                      'quiz'
+                    )}
                   />
-                  <span className="font-bold text-xs text-slate-700">
-                    Spell check
-                  </span>
-                </label>
+                )}
               </>
             )}
             <div>
@@ -1253,10 +1289,21 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         ) : isMultiBlank(q) ? (
           <div>
-            <FibBlanksEditor
+            <AnswerKeyKeyboard
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
-            />
+              keyboard={keyboardsOn ? { defaultAccents } : undefined}
+            >
+              {({ links, renderInput }) => (
+                <FibBlanksEditor
+                  key={renderInput ? 'math' : 'text'}
+                  question={q}
+                  onChange={(updates) => updateQuestion(q.id, updates)}
+                  headerExtra={links}
+                  renderInput={renderInput}
+                />
+              )}
+            </AnswerKeyKeyboard>
             <NeedsAnswerNotice
               question={q}
               className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
@@ -1266,6 +1313,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <FibAnswerField
             question={q}
             onChange={(updates) => updateQuestion(q.id, updates)}
+            keyboard={keyboardsOn ? { defaultAccents } : undefined}
           />
         )}
 
