@@ -1,4 +1,4 @@
-// Which cards a Flashcards submission assignment uses (flag flashcards-assign-v2).
+// Which cards a Flashcards submission assignment uses.
 import type { FlashcardCard, FlashcardCardSelection } from '@/types';
 
 export type FlashcardsCardsValue = FlashcardCardSelection;

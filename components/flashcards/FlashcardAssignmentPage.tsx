@@ -251,7 +251,7 @@ export const TrackedPlayer: React.FC<{
     }
   };
 
-  // flashcards-assign-v2 rules: time limit, tab warnings, page protections and raise hand.
+  // Check rules: time limit, tab warnings, page protections and raise hand.
   const options = isCheck ? checkOptionsOf(session) : null;
   const multiplier = override?.timeMultiplier;
   const timeLimited = checkDeadline(options, 0, multiplier) !== null;

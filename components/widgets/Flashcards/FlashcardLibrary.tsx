@@ -3,21 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useVoiceFillProgress } from './speak/speakVoiceFill';
 import {
-  BarChart3,
   BookOpen,
-  Copy,
-  EyeOff,
   FileUp,
   Layers,
-  Link2,
   Loader2,
   MonitorPlay,
   Pencil,
   PencilLine,
   Play,
   Plus,
-  PowerOff,
-  RotateCcw,
   Send,
   Share2,
   Trash2,
@@ -27,7 +21,6 @@ import type { FlashcardAssignment, FlashcardSet } from '@/types';
 import type { UseFoldersResult } from '@/hooks/useFolders';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import {
-  AssignmentArchiveCard,
   BulkActionBar,
   FolderPickerPopover,
   FolderSidebar,
@@ -75,40 +68,20 @@ interface FlashcardLibraryProps {
   onAssignmentResults: (assignment: FlashcardAssignment) => void;
   onAssignmentPublishScores: (assignment: FlashcardAssignment) => void;
   onAssignmentUnpublishScores: (assignment: FlashcardAssignment) => void;
-  onAssignmentCopyLink: (assignment: FlashcardAssignment) => void;
   onAssignmentEnd: (assignment: FlashcardAssignment) => void;
   onAssignmentReopen: (assignment: FlashcardAssignment) => void;
   onAssignmentDelete: (assignment: FlashcardAssignment) => void;
   /** Surfaces a failed folder move as a toast. */
   onError?: (message: string) => void;
   onShareWithPlc?: (set: FlashcardSet) => void;
-  onAssignmentShareWithPlc?: (assignment: FlashcardAssignment) => void;
   onAssignmentStopSharingWithPlc?: (assignment: FlashcardAssignment) => void;
-  /** flashcards-assign-v2: every tab laid out like Quiz's. */
-  quizStyle?: boolean;
-  /** v2: the live monitor; Results opens the results screen. */
+  /** The live monitor; Results opens the results screen. */
   onAssignmentMonitor?: (assignment: FlashcardAssignment) => void;
-  /** v2: reopens the assign modal to edit the assignment. */
+  /** Reopens the assign modal to edit the assignment. */
   onAssignmentSettings?: (assignment: FlashcardAssignment) => void;
-  /** v2 bulk delete; resolves true when the sets were deleted. */
+  /** Bulk delete; resolves true when the sets were deleted. */
   onBulkDelete?: (sets: FlashcardSet[]) => Promise<boolean>;
 }
-
-const assignmentSubtitle = (assignment: FlashcardAssignment): string =>
-  assignment.kind === 'check'
-    ? `Check · ${assignment.checkMode ?? 'write'}`
-    : 'Study';
-
-const assignmentMeta = (assignment: FlashcardAssignment): string => {
-  const parts = [(assignment.periodNames ?? []).join(', ')].filter(Boolean);
-  if (assignment.dueAt) {
-    parts.push(`Due ${new Date(assignment.dueAt).toLocaleDateString()}`);
-  }
-  if (assignment.closeAt) {
-    parts.push(`Closes ${new Date(assignment.closeAt).toLocaleDateString()}`);
-  }
-  return parts.join(' · ');
-};
 
 const titleComparator = (
   a: FlashcardSet,
@@ -153,15 +126,12 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onAssignmentResults,
   onAssignmentPublishScores,
   onAssignmentUnpublishScores,
-  onAssignmentCopyLink,
   onAssignmentEnd,
   onAssignmentReopen,
   onAssignmentDelete,
   onError,
   onShareWithPlc,
-  onAssignmentShareWithPlc,
   onAssignmentStopSharingWithPlc,
-  quizStyle = false,
   onAssignmentMonitor,
   onAssignmentSettings,
   onBulkDelete,
@@ -171,7 +141,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   const [selectionOn, setSelectionOn] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   // Selection belongs to the Library tab only.
-  const selectionMode = quizStyle && selectionOn && tab === 'library';
+  const selectionMode = selectionOn && tab === 'library';
   // Leaving the Library tab ends selection, as Quiz does.
   const [selectionTab, setSelectionTab] = useState(tab);
   if (selectionTab !== tab) {
@@ -257,7 +227,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     () => new Map(sets.map((set) => [set.id, set])),
     [sets]
   );
-  const renderQuizStyleCard = (
+  const renderAssignmentRow = (
     assignment: FlashcardAssignment,
     index: number
   ) => (
@@ -304,11 +274,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       titleClassName="text-slate-800"
       subtitleClassName="max-w-md mx-auto text-slate-500"
       title={
-        tab === 'archive'
-          ? quizStyle
-            ? 'Nothing completed yet'
-            : 'Nothing ended yet'
-          : 'Nothing assigned yet'
+        tab === 'archive' ? 'Nothing completed yet' : 'Nothing assigned yet'
       }
       subtitle={
         tab === 'archive'
@@ -319,100 +285,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   ) : (
     <div className="flex flex-col">
       {tabAssignments.map((assignment, index) =>
-        quizStyle ? (
-          renderQuizStyleCard(assignment, index)
-        ) : (
-          <AssignmentArchiveCard<FlashcardAssignment>
-            key={assignment.id}
-            assignment={assignment}
-            tourIndex={index}
-            tourWidgetType="flashcards"
-            mode={tab === 'archive' ? 'archive' : 'active'}
-            status={
-              tab === 'archive'
-                ? { label: 'Ended', tone: 'neutral' }
-                : { label: 'Open', tone: 'success', dot: true }
-            }
-            title={assignment.setTitle || 'Untitled set'}
-            subtitle={assignmentSubtitle(assignment)}
-            meta={assignmentMeta(assignment)}
-            primaryAction={{
-              label: 'Results',
-              icon: BarChart3,
-              onClick: () => onAssignmentResults(assignment),
-            }}
-            secondaryActions={[
-              ...(tab === 'archive'
-                ? []
-                : [
-                    {
-                      id: 'copy-link',
-                      label: 'Copy link',
-                      icon: Copy,
-                      onClick: () => onAssignmentCopyLink(assignment),
-                    },
-                  ]),
-              ...(assignment.kind === 'check'
-                ? [
-                    assignment.scoreVisibility &&
-                    assignment.scoreVisibility !== 'none'
-                      ? {
-                          id: 'unpublish-scores',
-                          label: 'Hide scores',
-                          icon: EyeOff,
-                          onClick: () =>
-                            onAssignmentUnpublishScores(assignment),
-                        }
-                      : {
-                          id: 'publish-scores',
-                          label: 'Publish scores',
-                          icon: Send,
-                          onClick: () => onAssignmentPublishScores(assignment),
-                        },
-                  ]
-                : []),
-              ...(onAssignmentShareWithPlc && onAssignmentStopSharingWithPlc
-                ? [
-                    assignment.plcShare
-                      ? {
-                          id: 'stop-plc-share',
-                          label: 'Stop sharing with PLC',
-                          icon: Users2,
-                          onClick: () =>
-                            onAssignmentStopSharingWithPlc(assignment),
-                        }
-                      : {
-                          id: 'plc-share',
-                          label: 'Share results with PLC',
-                          icon: Users2,
-                          onClick: () => onAssignmentShareWithPlc(assignment),
-                        },
-                  ]
-                : []),
-              tab === 'archive'
-                ? {
-                    id: 'reopen',
-                    label: 'Reopen',
-                    icon: RotateCcw,
-                    onClick: () => onAssignmentReopen(assignment),
-                  }
-                : {
-                    id: 'end',
-                    label: 'End assignment',
-                    icon: PowerOff,
-                    destructive: true,
-                    onClick: () => onAssignmentEnd(assignment),
-                  },
-              {
-                id: 'delete',
-                label: 'Delete',
-                icon: Trash2,
-                destructive: true,
-                onClick: () => onAssignmentDelete(assignment),
-              },
-            ]}
-          />
-        )
+        renderAssignmentRow(assignment, index)
       )}
     </div>
   );
@@ -451,7 +324,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   }, [assignments]);
 
   // Quiz's row chips: "Live now" opens the monitor, "Results" the latest results.
-  const quizStyleBadges = (set: FlashcardSet): LibraryBadge[] => {
+  const setBadges = (set: FlashcardSet): LibraryBadge[] => {
     const related = assignmentsBySetId.get(set.id) ?? [];
     const live = related.find(
       (a) => a.status === 'active' && !flashcardAssignmentPaused(a)
@@ -531,17 +404,13 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       title={set.title || 'Untitled set'}
       tourIndex={index}
       tourWidgetType="flashcards"
-      badges={quizStyle ? quizStyleBadges(set) : badgesFor?.(set)}
+      badges={setBadges(set)}
       subtitle={
-        quizStyle ? (
-          <LibraryRowSubtitle
-            countLabel={`${set.cards.length} ${set.cards.length === 1 ? 'card' : 'cards'}`}
-            status={setStatus(set)}
-            lastAssignedAt={lastAssigned.get(set.id)}
-          />
-        ) : (
-          `${set.cards.length} card${set.cards.length === 1 ? '' : 's'} · ${setStatus(set)}`
-        )
+        <LibraryRowSubtitle
+          countLabel={`${set.cards.length} ${set.cards.length === 1 ? 'card' : 'cards'}`}
+          status={setStatus(set)}
+          lastAssignedAt={lastAssigned.get(set.id)}
+        />
       }
       thumbnail={
         <div className="flex h-full w-full items-center justify-center bg-rose-50 text-rose-600">
@@ -555,7 +424,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       }
       primaryAction={{
         label: 'Assign',
-        icon: quizStyle ? Play : Link2,
+        icon: Play,
         onClick: () => onAssign(set),
       }}
       secondaryActions={[
@@ -573,21 +442,13 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
         },
         {
           id: 'share',
-          label: quizStyle
-            ? 'Share'
-            : set.publicShareId
-              ? 'Manage public link'
-              : 'Share link',
+          label: 'Share',
           icon: Share2,
           onClick: () => onShare(set),
         },
-        ...(quizStyle
-          ? [
-              buildMoveToFolderAction({
-                onOpenPicker: () => setFolderTarget(set),
-              }),
-            ]
-          : []),
+        buildMoveToFolderAction({
+          onOpenPicker: () => setFolderTarget(set),
+        }),
         ...(onShareWithPlc
           ? [
               {
@@ -598,13 +459,6 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
               },
             ]
           : []),
-        ...(quizStyle
-          ? []
-          : [
-              buildMoveToFolderAction({
-                onOpenPicker: () => setFolderTarget(set),
-              }),
-            ]),
         {
           id: 'delete',
           label: 'Delete',
@@ -630,41 +484,34 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       tab={tab}
       onTabChange={onTabChange}
       visibleTabs={['library', 'active', 'archive']}
-      tabLabels={quizStyle ? { archive: 'Completed' } : undefined}
+      tabLabels={{ archive: 'Completed' }}
       counts={{
         library: sets.length,
         active: activeAssignments.length,
         archive: endedAssignments.length,
       }}
       primaryAction={
-        !quizStyle
-          ? { label: 'New set', icon: Plus, onClick: onNew }
-          : tab === 'library'
-            ? {
-                label: 'New set',
-                icon: Plus,
-                onClick: onNew,
-                menuItems: [
-                  {
-                    id: 'item-1',
-                    label: 'Create',
-                    icon: PencilLine,
-                    onClick: onNew,
-                  },
-                  {
-                    id: 'item-2',
-                    label: 'Import',
-                    icon: FileUp,
-                    onClick: onImport,
-                  },
-                ],
-              }
-            : undefined
-      }
-      secondaryActions={
-        quizStyle
-          ? undefined
-          : [{ label: 'Import', icon: FileUp, onClick: onImport }]
+        tab === 'library'
+          ? {
+              label: 'New set',
+              icon: Plus,
+              onClick: onNew,
+              menuItems: [
+                {
+                  id: 'item-1',
+                  label: 'Create',
+                  icon: PencilLine,
+                  onClick: onNew,
+                },
+                {
+                  id: 'item-2',
+                  label: 'Import',
+                  icon: FileUp,
+                  onClick: onImport,
+                },
+              ],
+            }
+          : undefined
       }
       toolbarSlot={
         tab !== 'library' ? undefined : (
@@ -677,23 +524,14 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
               { key: 'title', label: 'Title', defaultDir: 'asc' },
             ]}
             rightSlot={
-              quizStyle ? (
-                <LibrarySelectToggle
-                  selectionMode={selectionMode}
-                  onChange={(next) => {
-                    if (!next) selection.clear();
-                    setSelectionOn(next);
-                  }}
-                  anchor={tourTypeAttr('flashcards.select-mode', 'flashcards')}
-                />
-              ) : (
-                <span
-                  className="font-bold text-slate-400"
-                  style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                >
-                  {view.visibleItems.length} of {sets.length}
-                </span>
-              )
+              <LibrarySelectToggle
+                selectionMode={selectionMode}
+                onChange={(next) => {
+                  if (!next) selection.clear();
+                  setSelectionOn(next);
+                }}
+                anchor={tourTypeAttr('flashcards.select-mode', 'flashcards')}
+              />
             }
           />
         )

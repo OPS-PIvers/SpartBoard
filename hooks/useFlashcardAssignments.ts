@@ -84,11 +84,11 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   speakLocked?: boolean;
   /** Study only: Speak is hidden for this assignment and stays hidden on set saves. */
   speakOff?: boolean;
-  /** flashcards-assign-v2: Speak rules picked when assigning, used instead of the set's. */
+  /** Speak rules picked when assigning, used instead of the set's. */
   speakChoice?: FlashcardSpeakChoice;
   /** Check only: how `set.cards` was narrowed (already applied to the cards). */
   cardSelection?: FlashcardCardSelection;
-  /** Check only (flashcards-assign-v2): attempts, time limit, shuffle, integrity, What students see. */
+  /** Check only: attempts, time limit, shuffle, integrity, What students see. */
   rules?: FlashcardCheckRules;
   /** Check only: the PLC its results pool into. */
   plcLink?: { plcId: string; syncGroupId: string };

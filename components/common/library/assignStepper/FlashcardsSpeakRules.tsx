@@ -1,4 +1,4 @@
-// Speak's Level, Attempts per card, Strict and Hear it, picked when assigning (flashcards-assign-v2).
+// Speak's Level, Attempts per card, Strict and Hear it, picked when assigning.
 import React, { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {

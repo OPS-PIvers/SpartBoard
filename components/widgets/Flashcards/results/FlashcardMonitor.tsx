@@ -3,10 +3,8 @@ import {
   ArrowLeft,
   BarChart3,
   ChevronDown,
-  EyeOff,
   Loader2,
   Mic,
-  Send,
   Square,
 } from 'lucide-react';
 import type {
@@ -14,7 +12,6 @@ import type {
   FlashcardSession,
   SpeakLanguage,
 } from '@/types';
-import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
 import {
   StatusBuckets,
   type BucketKey,
@@ -60,9 +57,6 @@ import {
 const STUDY_BUCKET_LABELS: Partial<Record<BucketKey, string>> = {
   done: 'Mastered',
 };
-const CHECK_BUCKET_LABELS: Partial<Record<BucketKey, string>> = {
-  done: 'Submitted',
-};
 
 interface FlashcardMonitorProps {
   assignment: FlashcardAssignment;
@@ -73,7 +67,6 @@ interface FlashcardMonitorProps {
   nameFor: (studentUid: string) => string;
   now: number;
   speakLanguage: SpeakLanguage | null;
-  published: boolean;
   onBack: () => void;
   onResetStudent: (studentUid: string) => void;
   /** Unlock results for a student locked out of them. */
@@ -88,14 +81,11 @@ interface FlashcardMonitorProps {
     accept: boolean
   ) => Promise<void>;
   letInFor: (studentUid: string) => (() => void) | undefined;
-  onPublish: () => void;
   /** Confirms, then ends the assignment for every class; `onConfirmed` fires once the teacher agrees. */
   onEnd?: (onConfirmed: () => void) => Promise<void>;
   /** Class picker row, or null with a single class. */
   classControls: React.ReactNode;
   launchedBy: React.ReactNode;
-  /** flashcards-assign-v2: the Quiz monitor's student list, row menu, footer and card results. */
-  quizStyle?: boolean;
   prefs?: MonitorRosterPrefs;
   onUpdatePrefs?: (updates: Partial<MonitorRosterPrefs>) => void;
 }
@@ -161,30 +151,6 @@ const PercentPill: React.FC<{ percent: number }> = ({ percent }) => (
   </span>
 );
 
-const RowMenu: React.FC<{
-  name: string;
-  anchor: Record<string, string>;
-  letIn?: () => void;
-  onReset: () => void;
-}> = ({ name, anchor, letIn, onReset }) => (
-  <OverflowMenu
-    ariaLabel={`Actions for ${name}`}
-    tourId="flashcards.student-menu-item"
-    tourScope="flashcards"
-    triggerProps={anchor}
-    triggerClassName="rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark"
-    items={[
-      ...(letIn ? [{ id: 'let-in', label: 'Let in now', onClick: letIn }] : []),
-      {
-        id: 'reset',
-        label: 'Reset this student',
-        destructive: true,
-        onClick: onReset,
-      },
-    ]}
-  />
-);
-
 const EmptyLine: React.FC<{ message: string }> = ({ message }) => (
   <p
     className="text-center font-sans text-brand-gray-primary"
@@ -202,7 +168,6 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   nameFor,
   now,
   speakLanguage,
-  published,
   onBack,
   onResetStudent,
   unlockFor,
@@ -210,11 +175,9 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   onClearHand,
   onResolveFlag,
   letInFor,
-  onPublish,
   onEnd,
   classControls,
   launchedBy,
-  quizStyle = false,
   prefs = NO_PREFS,
   onUpdatePrefs = noop,
 }) => {
@@ -228,7 +191,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   const handOn =
     isCheck && session.rules?.sessionOptions.handRaiseEnabled === true;
   // Speak answers have no typed text, so Speak checks keep the per-card pass rates.
-  const quizCards = quizStyle && isCheck && session.checkMode !== 'speak';
+  const quizCards = isCheck && session.checkMode !== 'speak';
   const ended = session.status === 'ended' || assignment.status === 'ended';
 
   const studyRows = useMemo(
@@ -276,7 +239,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   const byBucket = isCheck ? checkByBucket : studyByBucket;
   // As in Quiz: an In progress Check student with no saved answer for 2 minutes.
   const idleCount = useMemo(() => {
-    if (!quizStyle || !isCheck) return 0;
+    if (!isCheck) return 0;
     const inProgress = new Set(
       checkByBucket.inProgress.map((row) => row.studentUid)
     );
@@ -286,7 +249,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
         typeof r.lastActiveAt === 'number' &&
         now - r.lastActiveAt > STUCK_THRESHOLD_MS
     ).length;
-  }, [checkByBucket, isCheck, now, quizStyle, results]);
+  }, [checkByBucket, isCheck, now, results]);
   const counts = {
     notStarted: byBucket.notStarted.length,
     inProgress: byBucket.inProgress.length,
@@ -387,30 +350,17 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
             style={{ gap: 'min(6px, 1.5cqmin)' }}
           >
             <PercentPill percent={row.masteredPercent} />
-            {quizStyle ? (
-              <RosterRowMenu
-                ariaLabel={`Actions for ${name}`}
-                triggerAnchor={tourFieldAttr(
-                  'flashcards.student-actions',
-                  'flashcards',
-                  `row-${rowIndex + 1}`
-                )}
-                items={flashcardMenuItems(letInFor(row.studentUid), () =>
-                  onResetStudent(row.studentUid)
-                )}
-              />
-            ) : (
-              <RowMenu
-                name={name}
-                anchor={tourFieldAttr(
-                  'flashcards.student-actions',
-                  'flashcards',
-                  `row-${rowIndex + 1}`
-                )}
-                letIn={letInFor(row.studentUid)}
-                onReset={() => onResetStudent(row.studentUid)}
-              />
-            )}
+            <RosterRowMenu
+              ariaLabel={`Actions for ${name}`}
+              triggerAnchor={tourFieldAttr(
+                'flashcards.student-actions',
+                'flashcards',
+                `row-${rowIndex + 1}`
+              )}
+              items={flashcardMenuItems(letInFor(row.studentUid), () =>
+                onResetStudent(row.studentUid)
+              )}
+            />
           </div>
         </div>
         {open && (
@@ -526,71 +476,11 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
     );
   };
 
-  let flagIndex = 0;
-  const renderCheckRow = (row: FlashcardCheckRow, rowIndex: number) => {
-    const name = nameFor(row.studentUid);
-    const flags = flagsByStudent.get(row.studentUid) ?? [];
-    return (
-      <div
-        key={row.studentUid}
-        className="flex flex-col rounded-lg border border-brand-gray-lightest bg-white"
-      >
-        <div
-          className="flex items-center justify-between"
-          style={rowStyle}
-          {...tourFieldAttr(
-            'flashcards.score-row',
-            'flashcards',
-            `row-${rowIndex + 1}`
-          )}
-        >
-          <div className="min-w-0">
-            <p
-              className="truncate font-sans font-medium text-brand-gray-dark"
-              style={text.name}
-            >
-              {name}
-            </p>
-            {row.submittedAt !== null && (
-              <p
-                className="wrap-break-word font-sans text-brand-gray-primary"
-                style={text.sub}
-              >
-                {row.score}/{row.total} · submitted{' '}
-                {new Date(row.submittedAt).toLocaleString()}
-              </p>
-            )}
-          </div>
-          <div
-            className="flex shrink-0 items-center"
-            style={{ gap: 'min(6px, 1.5cqmin)' }}
-          >
-            {row.submittedAt !== null && (
-              <PercentPill percent={row.percent ?? 0} />
-            )}
-            <RowMenu
-              name={name}
-              anchor={tourFieldAttr(
-                'flashcards.student-actions',
-                'flashcards',
-                `row-${rowIndex + 1}`
-              )}
-              letIn={letInFor(row.studentUid)}
-              onReset={() => onResetStudent(row.studentUid)}
-            />
-          </div>
-        </div>
-        {flags.map((flag) => renderFlag(flag, flagIndex++))}
-      </div>
-    );
-  };
-
   const openList = openBucket ? byBucket[openBucket] : [];
 
   const checkRoster = useMemo(() => {
     const byUid = new Map(results.map((r) => [r.studentUid, r]));
     const out = emptyBuckets<FlashcardRosterStudent>();
-    if (!quizStyle) return out;
     for (const key of ['notStarted', 'inProgress', 'done'] as const)
       for (const row of checkByBucket[key]) {
         const result = byUid.get(row.studentUid);
@@ -605,10 +495,10 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
         });
       }
     return out;
-  }, [checkByBucket, handOn, quizStyle, results, session]);
+  }, [checkByBucket, handOn, results, session]);
 
   const openStudyRows =
-    quizStyle && !isCheck && openBucket
+    !isCheck && openBucket
       ? orderFlashcardRoster(
           studyByBucket[openBucket].map((row) => ({
             ...row,
@@ -697,13 +587,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
               onToggle={(key) =>
                 setOpenBucket((cur) => (cur === key ? null : key))
               }
-              labels={
-                isCheck
-                  ? quizStyle
-                    ? undefined
-                    : CHECK_BUCKET_LABELS
-                  : STUDY_BUCKET_LABELS
-              }
+              labels={isCheck ? undefined : STUDY_BUCKET_LABELS}
               notes={
                 isCheck && openFlagCount > 0
                   ? {
@@ -725,7 +609,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                 tourFieldAttr('flashcards.status-bucket', 'flashcards', key)
               }
             />
-            {openBucket && quizStyle && isCheck && (
+            {openBucket && isCheck && (
               <FlashcardCheckRoster
                 bucket={openBucket}
                 students={checkRoster[openBucket]}
@@ -742,7 +626,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                 renderBelow={renderFlagsFor}
               />
             )}
-            {openBucket && quizStyle && !isCheck && (
+            {openBucket && !isCheck && (
               <div
                 className="flex flex-col animate-in fade-in slide-in-from-top-1 duration-200"
                 style={{ gap: 'min(8px, 2cqmin)' }}
@@ -768,20 +652,6 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                   />
                 ) : (
                   openStudyRows.map(renderStudyRow)
-                )}
-              </div>
-            )}
-            {openBucket && !quizStyle && (
-              <div
-                className="flex flex-col animate-in fade-in slide-in-from-top-1 duration-200"
-                style={{ gap: 'min(8px, 2cqmin)' }}
-              >
-                {openList.length === 0 ? (
-                  <EmptyLine message="No students here yet." />
-                ) : isCheck ? (
-                  (openList as FlashcardCheckRow[]).map(renderCheckRow)
-                ) : (
-                  (openList as FlashcardStudyRow[]).map(renderStudyRow)
                 )}
               </div>
             )}
@@ -859,22 +729,6 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
             padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
           }}
         >
-          {isCheck && !quizStyle && (
-            <button
-              type="button"
-              onClick={onPublish}
-              {...tourTypeAttr('flashcards.publish-scores', 'flashcards')}
-              className={`${footerButton} bg-brand-blue-primary text-white hover:bg-brand-blue-light`}
-              style={footerButtonStyle}
-            >
-              {published ? (
-                <EyeOff aria-hidden style={icon} />
-              ) : (
-                <Send aria-hidden style={icon} />
-              )}
-              {published ? 'Hide scores' : 'Publish scores'}
-            </button>
-          )}
           {onEnd && !ended && (
             <button
               type="button"

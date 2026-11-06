@@ -100,7 +100,7 @@ const AttemptActions: React.FC<{
   );
 };
 
-/** flashcards-assign-v2: Quiz's submitted screen and full review, behind its results protection. */
+/** Quiz's submitted screen and full review, behind its results protection. */
 const QuizStyleResults: React.FC<FlashcardCheckResultsProps> = ({
   session,
   progress,
@@ -319,7 +319,7 @@ const ReviewItem: React.FC<{
   );
 };
 
-/** Checks from before flashcards-assign-v2 keep their score and missed-cards list. */
+/** Checks from before Quiz-style rules keep their score and missed-cards list. */
 const LegacyResults: React.FC<FlashcardCheckResultsProps> = ({
   session,
   progress,

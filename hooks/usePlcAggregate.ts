@@ -367,7 +367,7 @@ export function usePlcAggregate(
   }, [plcId, user, fromProvider]);
 
   const raw = fromProvider ? fromProvider.data : aggregates;
-  // Flashcards check results show only where a caller opts in (flashcards-assign-v2).
+  // Flashcards check results show only where a caller opts in.
   const list = useMemo(
     () => (flashcards ? raw : raw.filter((a) => a.kind !== 'flashcard-check')),
     [raw, flashcards]

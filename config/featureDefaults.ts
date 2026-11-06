@@ -1139,18 +1139,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
-  'flashcards-assign-v2': {
-    label: 'Flashcards: Quiz-style assignments',
-    icon: Layers,
-    description:
-      'Choose which cards a submission uses, check with Speak, and manage assignments like Quiz.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Admin-only until saved, like Guided Learning AI; the server denies non-admins while no doc exists.
   'flashcards-ai': {
     label: 'Flashcards: AI',

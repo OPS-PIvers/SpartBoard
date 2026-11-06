@@ -4879,28 +4879,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "flashcards-check.questions",
-    "label": "Questions dropdown in the Assign dialog flashcards check step",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1",
-          "assign-step.check"
-        ],
-        "reveal": "assign-step.check",
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "flashcards-check.mastery",
     "label": "Correct in a row to master box in the Assign dialog flashcards check step",
     "scope": "board",
@@ -5266,28 +5244,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-step.cards"
         ],
         "reveal": "assign-step.cards",
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-check.score-visibility",
-    "label": "Score visibility dropdown in the Assign dialog flashcards check step",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1",
-          "assign-step.check"
-        ],
-        "reveal": "assign-step.check",
         "needs": [
           "library-item",
           "class",
@@ -6523,16 +6479,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "activity-wall.empty-open-library",
           "library-shell.new:activity-wall"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
         ],
         "needs": [
           "widget-on-stage"
@@ -46255,53 +46201,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "flashcards.editor-back",
-    "label": "Back button in the Flashcards editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "flashcards.editor-paste",
     "label": "Paste button in the Flashcards editor",
     "scope": "widget type",
     "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.editor-save",
-    "label": "Save button in the Flashcards editor",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
     "keys": [
       "flashcards"
     ],
@@ -46536,189 +46439,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "flashcards"
     ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.panel",
-    "label": "Speak settings in the Flashcards editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.dialects",
-    "label": "Accents to accept menu in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.dialect",
-    "label": "An accent in the Accents to accept menu of the Flashcards editor",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.level",
-    "label": "Level dropdown in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.attempts",
-    "label": "Attempts per card box in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.strict",
-    "label": "Strict switch in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.example",
-    "label": "Hear it button switch in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.advanced",
-    "label": "Advanced button in the Flashcards editor Speak settings",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-speak-editor.group",
-    "label": "Sound row dropdown in the Flashcards editor Speak settings",
-    "scope": "field",
-    "panel": true,
     "routes": [
       {
         "surface": "library.flashcards.editor",
@@ -46999,6 +46719,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "destructive": true,
     "persists": true,
+    "keys": [
+      "flashcards#let-in",
+      "flashcards#reset",
+      "flashcards#unlock-attempt",
+      "flashcards#unlock-results"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.results",
@@ -47118,100 +46844,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.publish-scores",
-    "label": "Publish or Hide scores button in Flashcards results",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.results",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.scores-cancel",
-    "label": "Cancel button in the Flashcards publish scores dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.publish-scores",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1",
-          "flashcards.publish-scores:flashcards"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.publish-confirm",
-    "label": "Publish button in the Flashcards publish scores dialog",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.publish-scores",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1",
-          "flashcards.publish-scores:flashcards"
-        ],
-        "needs": [
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.scores-visibility",
-    "label": "Score visibility option in the Flashcards publish scores dialog",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.publish-scores",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:flashcards#archive",
-          "library-shell.archive-primary-action:flashcards#row-1",
-          "flashcards.publish-scores:flashcards"
         ],
         "needs": [
           "student-data",

@@ -248,11 +248,10 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Flashcard set editor',
     kind: 'editor',
     files: [
-      'components/widgets/Flashcards/FlashcardEditor.tsx',
       'components/widgets/Flashcards/FlashcardSetEditorModal.tsx',
+      'components/widgets/Flashcards/SortableCardRow.tsx',
       'components/widgets/Flashcards/FlashcardAiOverlay.tsx',
       'components/widgets/Flashcards/FlashcardLanguageField.tsx',
-      'components/widgets/Flashcards/speak/SpeakSettingsPanel.tsx',
       'components/widgets/Flashcards/speak/SpeakCardStatus.tsx',
       'components/widgets/Flashcards/speak/SpeakReviewList.tsx',
     ],
@@ -283,9 +282,7 @@ export const SURFACES: TourSurfaceMap = {
       'flashcards-check.show-first': 'assign-step.check',
       'flashcards-check.strict': 'assign-step.check',
       'flashcards-check.test-type': 'assign-step.check',
-      'flashcards-check.questions': 'assign-step.check',
       'flashcards-check.mastery': 'assign-step.check',
-      'flashcards-check.score-visibility': 'assign-step.check',
       'flashcards-speak.show': 'assign-step.speak',
       'flashcards-speak.lock': 'assign-step.speak',
       'flashcards-speak.level': 'assign-step.speak',
@@ -358,14 +355,6 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'library-shell.archive-menu-item:flashcards#row-1-item-2',
     parent: 'library.flashcards',
     needs: ['library-item'],
-  },
-  'library.flashcards.publish-scores': {
-    label: 'Flashcards publish scores dialog',
-    kind: 'modal',
-    files: [
-      'components/widgets/Flashcards/results/FlashcardPublishScoresModal.tsx',
-    ],
-    opensWith: 'flashcards.publish-scores:flashcards',
   },
 
   'library.activity-wall': {

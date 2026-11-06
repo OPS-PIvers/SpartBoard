@@ -44,7 +44,7 @@ import {
 import { DEFAULT_QUIZ_LANGUAGE } from '@/config/quizReadAloud';
 import { PasteImportDrawer } from './PasteImportDrawer';
 import { SpeakReviewList } from './speak/SpeakReviewList';
-import { SortableCardRow } from './FlashcardEditor';
+import { SortableCardRow } from './SortableCardRow';
 import type { SpeakLookupCall } from './speak/lookupSpeakReferences';
 import {
   MAX_FLASHCARDS_PER_SET,

@@ -611,19 +611,14 @@ const FlashcardsView: React.FC = () => {
         onAssignmentResults={noop}
         onAssignmentPublishScores={noop}
         onAssignmentUnpublishScores={noop}
-        onAssignmentCopyLink={noop}
         onAssignmentEnd={noop}
         onAssignmentReopen={noop}
         onAssignmentDelete={noop}
         onShareWithPlc={noop}
-        onAssignmentShareWithPlc={noop}
         onAssignmentStopSharingWithPlc={noop}
         onAssignmentMonitor={noop}
         onAssignmentSettings={setSettingsFor}
         onBulkDelete={() => Promise.resolve(false)}
-        quizStyle={
-          new URLSearchParams(window.location.search).get('v2') === '1'
-        }
       />
     </>
   );

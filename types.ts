@@ -9479,7 +9479,7 @@ export interface FlashcardSpeakSettings {
   example: boolean;
 }
 
-/** flashcards-assign-v2: Speak rules the teacher picks when assigning; groups belong to the set's language. */
+/** Speak rules the teacher picks when assigning; groups belong to the set's language. */
 export type FlashcardSpeakChoice = Pick<
   FlashcardSpeakSettings,
   'preset' | 'strict' | 'groups' | 'attempts' | 'example'
@@ -9598,11 +9598,11 @@ export type FlashcardCardSelection =
 export type FlashcardMasteryThreshold = 2 | 3 | 4;
 export type FlashcardScoreVisibility = 'none' | 'score' | 'score-and-answers';
 
-/** A published Check level: today's assign-time values, or Quiz's levels from Publish scores (flashcards-assign-v2). */
+/** A published Check level: today's assign-time values, or Quiz's levels from Publish scores. */
 export type FlashcardPublishedVisibility =
   FlashcardScoreVisibility | QuizScoreVisibility;
 
-/** Quiz session options a flashcards-assign-v2 Check stamps, under Quiz's own names. */
+/** Quiz session options a Check stamps, under Quiz's own names. */
 export type FlashcardCheckSessionOptions = Pick<
   QuizSessionOptions,
   | 'timeLimitMinutes'
@@ -9677,7 +9677,7 @@ export interface FlashcardSession
   speakChoice?: FlashcardSpeakChoice;
   /** Check: how the set's cards were narrowed at assign time; absent means all. */
   cardSelection?: FlashcardCardSelection;
-  /** Check: attempts, time limit, shuffle, integrity and What students see (flashcards-assign-v2). */
+  /** Check: attempts, time limit, shuffle, integrity and What students see. */
   rules?: FlashcardCheckRules;
   /** Check shared with a PLC: pools into `plcs/{plcId}/assessments/{syncGroupId}`. */
   plcId?: string;
@@ -9698,7 +9698,7 @@ export interface FlashcardSession
   closeAt?: number | null;
   scoreVisibility?: FlashcardPublishedVisibility;
   scorePublishedAt?: number;
-  /** Results watermark and tab lockout from Publish scores (flashcards-assign-v2). */
+  /** Results watermark and tab lockout from Publish scores. */
   protection?: ResultsProtection;
   individualTargeting?: boolean;
   createdAt: number;
@@ -10943,8 +10943,6 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
-  /** Flashcards submission assignments: card choice, Speak checks and Quiz-style In progress and Completed tabs. */
-  | 'flashcards-assign-v2'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
