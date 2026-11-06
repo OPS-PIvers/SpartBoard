@@ -449,9 +449,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const versionsOn = canAccessFeature('quiz-import-versions');
   // Handwritten box sizes are a print choice, so they are picked here rather than in the editor.
   const [boxSizes, setBoxSizes] = useState<Record<string, PaperBoxSize>>({});
-  const [boxStyles, setBoxStyles] = useState<
-    Record<string, PaperBoxStylePick>
-  >({});
+  const [boxStyles, setBoxStyles] = useState<Record<string, PaperBoxStylePick>>(
+    {}
+  );
   const quiz = useMemo(
     () => withPaperBoxStyles(withPaperBoxSizes(savedQuiz, boxSizes), boxStyles),
     [savedQuiz, boxSizes, boxStyles]

@@ -820,7 +820,9 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
 
   it('never takes the image-box flag from the payload', async () => {
     const sheet1 = v2Sheet(1, {
-      written: [{ questionId: 'q2', page: 1, state: 'ink', noTranscript: true }],
+      written: [
+        { questionId: 'q2', page: 1, state: 'ink', noTranscript: true },
+      ],
     });
     const docs = v2Docs();
     await callV2(docs, [sheet1]);

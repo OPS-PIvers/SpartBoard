@@ -179,7 +179,9 @@ describe('buildPaperSheetsHtml with page maps', () => {
     const page = pages(
       buildPaperSheetsHtml(job(maps, { writtenImages: { q4: 'blob:map' } }))
     )[0];
-    const img = page.match(/<img class="wr-img" style="([^"]+)" src="blob:map"/);
+    const img = page.match(
+      /<img class="wr-img" style="([^"]+)" src="blob:map"/
+    );
     expect(img?.[1]).toBe(
       `left:${(box.x + 2).toFixed(3)}mm;top:${(box.y + 2).toFixed(3)}mm;width:${(box.w - 4).toFixed(3)}mm;height:${(box.h - 4).toFixed(3)}mm`
     );

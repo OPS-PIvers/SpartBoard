@@ -43,11 +43,7 @@ export interface PaperPageMap {
 
 export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
 export type PaperBoxStyle =
-  | 'lines'
-  | 'blank'
-  | 'graph'
-  | 'coordinate'
-  | 'image';
+  'lines' | 'blank' | 'graph' | 'coordinate' | 'image';
 export type PaperTranscriptState = 'pending' | 'done' | 'blank';
 export type PaperPrivateStatus =
   'pending' | 'done' | 'failed' | 'blank' | 'over-quota';

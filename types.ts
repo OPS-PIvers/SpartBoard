@@ -5870,11 +5870,7 @@ export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
 
 /** What prints inside a handwritten answer box: rule lines, nothing, a 5 mm grid, or a grid with x and y axes. */
 export type PaperBoxStyle =
-  | 'lines'
-  | 'blank'
-  | 'graph'
-  | 'coordinate'
-  | 'image';
+  'lines' | 'blank' | 'graph' | 'coordinate' | 'image';
 
 /** Public transcription state on a paper written answer. */
 export type PaperTranscriptState = 'pending' | 'done' | 'blank';
