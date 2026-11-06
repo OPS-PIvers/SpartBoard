@@ -764,6 +764,42 @@ describe('QuizStudentApp — one-list Ordering (quiz-ordering-list)', () => {
     );
   });
 
+  it('autosaves the shown order of an untouched list as a draft', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      hookState.session = {
+        ...buildSession({
+          publicQuestions: [ordering, QUESTIONS[1]],
+          totalQuestions: 2,
+        }),
+        orderingList: true,
+      };
+
+      render(<QuizStudentApp />);
+      expect(
+        await screen.findByText(/Put these in order/i)
+      ).toBeInTheDocument();
+      const shown = screen
+        .getAllByRole('listitem')
+        .map((li) =>
+          ['First', 'Second', 'Third'].find((w) => li.textContent?.includes(w))
+        );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
+      });
+
+      expect(mockSubmitAnswer).toHaveBeenCalledWith(
+        'qo',
+        shown.join('|'),
+        undefined,
+        { isDraft: true }
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('restores a saved order and submits a move', async () => {
     const user = userEvent.setup();
     hookState.session = {

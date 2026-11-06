@@ -4981,11 +4981,14 @@ const StructuredQuestionInput: React.FC<{
   // `canSubmit` derives from this string: every term/slot must be filled
   // (the structured inputs emit blank segments — `term:` or `||` — when a
   // zone is empty, so we check for any blank token).
-  const [currentAnswer, setCurrentAnswer] = useState<string>(savedAnswer ?? '');
   // One-list Ordering starts complete, so an untouched list submits the order shown.
   const [listStart] = useState<number[]>(() =>
     isList ? startingOrder(leftItems, savedAnswer) : []
   );
+  const [initialAnswer] = useState<string>(() =>
+    isList ? listStart.map((i) => leftItems[i]).join('|') : (savedAnswer ?? '')
+  );
+  const [currentAnswer, setCurrentAnswer] = useState<string>(initialAnswer);
   const answerToSubmit =
     isList && !orderFromSaved(leftItems, currentAnswer)
       ? listStart.map((i) => leftItems[i]).join('|')
@@ -5000,10 +5003,9 @@ const StructuredQuestionInput: React.FC<{
     onAnswerChange?.(answer);
   };
 
-  // Seed the parent ref with the hydrated savedAnswer on mount so timer
-  // auto-submit on a never-touched revisit still preserves the saved work.
+  // Seed the parent with the starting answer so timer auto-submit and autosave keep untouched work.
   useEffect(() => {
-    if (savedAnswer) onAnswerChange?.(savedAnswer);
+    if (initialAnswer) onAnswerChange?.(initialAnswer);
     // Intentionally only on mount — the child component's onChange covers
     // every subsequent update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
