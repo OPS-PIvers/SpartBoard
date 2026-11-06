@@ -12,7 +12,6 @@ import {
   ClipboardCheck,
   Download,
   Eye,
-  History,
   SpellCheck,
   FileText,
   FileUp,
@@ -747,18 +746,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     widget: 'quiz',
     modalLabel: 'Score on submit',
     group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Quiz attempt history and the Final score setting (docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md).
-  'quiz-attempt-history': {
-    label: 'Quiz attempt history',
-    icon: History,
-    description:
-      'Teachers and students can look back at every quiz attempt, and teachers choose which score counts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

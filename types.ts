@@ -10881,7 +10881,6 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
-  | 'quiz-attempt-history'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */

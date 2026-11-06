@@ -155,10 +155,8 @@ export const QuizAssignmentSettingsModal: React.FC<
   const { t } = useTranslation();
   const ruleGates = useQuizRuleGates();
   const user = useContext(AuthContext)?.user;
-  const finalScoreOn = ruleGates.finalScoreOn === true;
   const [savedPolicy, setSavedPolicy] = useState<AttemptPolicy | null>(null);
   useEffect(() => {
-    if (!finalScoreOn) return;
     let cancelled = false;
     void loadAttemptPolicy(assignment.id).then((p) => {
       if (!cancelled) setSavedPolicy(p);
@@ -166,7 +164,7 @@ export const QuizAssignmentSettingsModal: React.FC<
     return () => {
       cancelled = true;
     };
-  }, [assignment.id, finalScoreOn]);
+  }, [assignment.id]);
   // Until the teacher picks one, the Final score row shows the Gradebook's saved choice.
   const shownBehavior: QuizBehaviorSettings =
     behavior.finalScore === undefined && savedPolicy
@@ -283,12 +281,7 @@ export const QuizAssignmentSettingsModal: React.FC<
       await onSave(patch);
       const picked = behavior.finalScore;
       // Until the saved choice has loaded, any explicit pick is written.
-      if (
-        finalScoreOn &&
-        user?.uid &&
-        picked !== undefined &&
-        picked !== savedPolicy
-      ) {
+      if (user?.uid && picked !== undefined && picked !== savedPolicy) {
         await saveAttemptPolicy(user.uid, assignment.id, 'quiz', picked);
       }
       onClose();

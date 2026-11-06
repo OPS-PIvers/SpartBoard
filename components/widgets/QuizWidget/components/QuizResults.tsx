@@ -583,7 +583,6 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     setLastInitialExportedAttempts(initialExportedAttempts);
     setExportedAttempts(initialExportedAttempts ?? null);
   }
-  const attemptHistoryOn = canAccessFeature('quiz-attempt-history');
   const [updatingSheet, setUpdatingSheet] = useState(false);
   const [exportError, setExportError] = useState<ExportErrorState | null>(null);
   const [showGrader, setShowGrader] = useState(false);
@@ -1242,9 +1241,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     };
   });
   useEffect(() => {
-    if (!printOpen || !attemptHistoryOn) return;
+    if (!printOpen) return;
     return loadPrintAttempts();
-  }, [printOpen, attemptHistoryOn]);
+  }, [printOpen]);
   const printGradeFn = useMemo(
     () => makeQuestionGradeFn(fibGrading),
     [fibGrading]
@@ -1503,7 +1502,6 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     if (
       exportsToSharedSheet ||
       !session?.id ||
-      !attemptHistoryOn ||
       !responses.some(hasEarlierAttempts)
     )
       return undefined;
@@ -1606,7 +1604,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       const exportedIds = responses.map((r) => getResponseDocKey(r));
       setExportedResponseIds(exportedIds);
       const exportedAttemptMap = attemptSnapshot();
-      if (exportedAttemptMap) setExportedAttempts(exportedAttemptMap);
+      setExportedAttempts(exportedAttemptMap);
       if (onExportUrlSaved) {
         // Fire-and-forget: lower-stakes than the exported-IDs persist
         // below. Worst case the button reverts to EXPORT on next remount.
@@ -1732,18 +1730,16 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   };
 
   // Finished attempts per key, saved with each PLC sheet write so a retake can force a rebuild.
-  const attemptSnapshot = (): Record<string, number> | undefined =>
-    attemptHistoryOn
-      ? Object.fromEntries(
-          responses.map((r) => [
-            getResponseDocKey(r),
-            r.completedAttempts ?? (r.status === 'completed' ? 1 : 0),
-          ])
-        )
-      : undefined;
+  const attemptSnapshot = (): Record<string, number> =>
+    Object.fromEntries(
+      responses.map((r) => [
+        getResponseDocKey(r),
+        r.completedAttempts ?? (r.status === 'completed' ? 1 : 0),
+      ])
+    );
   // Exported students who have finished a newer attempt since; their sheet rows are stale.
   const retakenSinceExport = useMemo(() => {
-    if (!attemptHistoryOn || !exportUrl || !exportedAttempts) return 0;
+    if (!exportUrl || !exportedAttempts) return 0;
     return responses.filter((r) => {
       const was = exportedAttempts[getResponseDocKey(r)];
       return (
@@ -1753,7 +1749,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         (r.completedAttempts ?? 1) > was
       );
     }).length;
-  }, [attemptHistoryOn, exportUrl, exportedAttempts, responses]);
+  }, [exportUrl, exportedAttempts, responses]);
 
   const newResponsesToAppend = useMemo(() => {
     if (!exportUrl) return [];
@@ -1889,7 +1885,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       const allIds = responses.map((r) => getResponseDocKey(r));
       setExportedResponseIds(allIds);
       const allAttempts = attemptSnapshot();
-      if (allAttempts) setExportedAttempts(allAttempts);
+      setExportedAttempts(allAttempts);
       if (onExportedResponseIdsSaved) {
         // Await: same rationale as handleExport — fire-and-forget here
         // would let UPDATE SHEET silently re-append duplicate rows on
@@ -2862,9 +2858,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           sessionId={session?.id}
           writtenReturnMode={session?.writtenReturnMode}
           resolvePaperCrop={resolvePaperCrop}
-          earlierAttempts={
-            attemptHistoryOn ? (printAttempts ?? undefined) : undefined
-          }
+          earlierAttempts={printAttempts ?? undefined}
           onClose={() => {
             setPrintSelection(undefined);
             setPrintAttempts(null);
@@ -3964,11 +3958,7 @@ const StudentDrilldownPanel: React.FC<{
   const { canAccessFeature } = useAuth();
   const orderingByItem = canAccessFeature('quiz-ordering-results');
   const liveKey = getResponseDocKey(liveResponse) as string;
-  const copies = useQuizResponseAttempts(
-    sessionId,
-    liveKey,
-    canAccessFeature('quiz-attempt-history')
-  );
+  const copies = useQuizResponseAttempts(sessionId, liveKey, true);
   const earlier = useMemo(
     () => (copies ?? []).filter((c) => c.closed === true),
     [copies]

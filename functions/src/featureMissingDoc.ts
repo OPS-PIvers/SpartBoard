@@ -21,7 +21,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'video-activity-live',
   'quiz-student-view',
   'quiz-score-on-submit',
-  'quiz-attempt-history',
   'gradebook',
   'student-gradebook',
   'student-overview-resources',

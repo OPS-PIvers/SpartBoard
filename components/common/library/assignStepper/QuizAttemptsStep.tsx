@@ -36,9 +36,7 @@ export const QuizAttemptsStep: React.FC<QuizRuleStepProps> = ({
   flashcards = false,
 }) => {
   const { t } = useTranslation();
-  const gates = useQuizRuleGates();
-  const { timeLimitOn } = gates;
-  const finalScoreOn = gates.finalScoreOn && !flashcards;
+  const { timeLimitOn } = useQuizRuleGates();
   const o = value.sessionOptions;
   const minutes = clampQuizTimeLimitMinutes(o.timeLimitMinutes);
   const timeLabel = t('quizTimeLimit.label', 'Time limit');
@@ -52,7 +50,7 @@ export const QuizAttemptsStep: React.FC<QuizRuleStepProps> = ({
           onChange={(attemptLimit) => onChange({ ...value, attemptLimit })}
         />
       </div>
-      {finalScoreOn && value.attemptLimit !== 1 && (
+      {!flashcards && value.attemptLimit !== 1 && (
         <div className="flex min-h-8 items-center justify-between gap-3">
           <span className="text-sm font-bold text-brand-blue-dark">
             Final score
