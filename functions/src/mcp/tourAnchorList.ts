@@ -2357,6 +2357,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "behavior.sparty-toggle",
+    "label": "Show Sparty switch",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.profile-behavior",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.profile-settings",
+          "profile.tab-behavior"
+        ]
+      }
+    ]
+  },
+  {
     "id": "language.options",
     "label": "Language choices",
     "scope": "board",

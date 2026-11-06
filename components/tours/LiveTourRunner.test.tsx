@@ -3978,3 +3978,55 @@ describe('LiveTourRunner boards a tour made', () => {
     expect(screen.queryByTestId('tour-keep-boards')).not.toBeInTheDocument();
   });
 });
+
+describe('LiveTourRunner Sparty on the tip', () => {
+  afterEach(() => {
+    h.sparty = false;
+  });
+
+  const pose = () =>
+    screen.queryByTestId('tour-tip-sparty')?.getAttribute('data-pose');
+
+  it('points on a step to do, thinks on one to read, and cheers at the end', async () => {
+    h.sparty = true;
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    expect(pose()).toBe('point');
+    fireEvent.click(screen.getByText('Boards'));
+    await frames();
+    expect(pose()).toBe('think');
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+    expect(pose()).toBe('cheer');
+  });
+
+  it('cheers when a waiting step gets its result', async () => {
+    h.sparty = true;
+    conds.facts.set('building-saved', false);
+    await start(
+      makeSet([
+        {
+          anchor: 'sidebar.boards',
+          action: 'click',
+          doneWhen: 'building-saved',
+        },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    expect(pose()).toBe('point');
+    act(() => conds.set('building-saved', true));
+    await frames();
+    expect(pose()).toBe('cheer');
+  });
+
+  it('stays off when Sparty is off for the teacher', async () => {
+    h.sparty = false;
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
+    expect(screen.queryByTestId('tour-tip-sparty')).not.toBeInTheDocument();
+  });
+});

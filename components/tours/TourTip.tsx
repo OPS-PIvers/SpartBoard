@@ -6,6 +6,15 @@ import { CALLOUT_IN_MS } from '@/components/widgets/GuidedLearning/utils/motion'
 import type { TetherArrow } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
 import { chromeMuted, chromeSurface } from '@/components/common/lightChrome';
 import { primaryBtn, secondaryBtn } from './tourButtons';
+import { Sparty } from '@/components/sparty/Sparty';
+import type { SpartyPose } from '@/components/sparty/spartyFrames';
+import {
+  SPARTY_LEAN,
+  SPARTY_RISE,
+  SPARTY_SIZE,
+  spartyPerch,
+  type Box,
+} from './spartyPerch';
 
 export interface TourTipStatus {
   text: string;
@@ -40,6 +49,10 @@ interface TourTipProps {
   next?: { onNext: () => void; last: boolean };
   /** Shown on a step waiting for a real result, so the teacher is never stuck. */
   skip?: { onSkip: () => void };
+  /** Sparty perched on the tip, when the caller has checked `useShowSparty` (D20). */
+  sparty?: SpartyPose;
+  /** The step's target, which Sparty never covers. */
+  avoid?: Box | null;
 }
 
 const ARROW_W = 18;
@@ -86,8 +99,15 @@ export const TourTip: React.FC<TourTipProps> = ({
   confirm,
   next,
   skip,
+  sparty,
+  avoid,
 }) => {
   const { t } = useTranslation();
+  // Near the screen's left edge he leans out less, so he's never cut off.
+  const lean = Math.min(SPARTY_LEAN, Math.max(0, left - 4));
+  const perch = sparty
+    ? spartyPerch({ x: left, y: top, w: width }, avoid, tether, lean)
+    : null;
   return (
     <div
       ref={boxRef}
@@ -122,13 +142,42 @@ export const TourTip: React.FC<TourTipProps> = ({
           <path d={`M0 ${ARROW_H} L${ARROW_W / 2} 0 L${ARROW_W} ${ARROW_H}`} />
         </svg>
       )}
+      {sparty && perch !== 'inline' && (
+        <div
+          aria-hidden="true"
+          data-testid="tour-tip-sparty"
+          data-perch={perch}
+          data-pose={sparty}
+          className="pointer-events-none absolute"
+          style={{
+            top: -SPARTY_RISE,
+            ...(perch === 'left' ? { left: -lean } : { right: -SPARTY_LEAN }),
+          }}
+        >
+          <Sparty
+            pose={sparty}
+            size={SPARTY_SIZE}
+            decorative
+            flip={perch === 'right'}
+          />
+        </div>
+      )}
       <div
         id="tour-step-title"
         ref={headingRef}
         tabIndex={-1}
         data-testid="tour-step-title"
-        className="rounded-sm font-bold tracking-tight text-slate-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50"
+        className="flex items-center gap-2 rounded-sm font-bold tracking-tight text-slate-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50"
       >
+        {sparty && perch === 'inline' && (
+          <span
+            data-testid="tour-tip-sparty"
+            data-perch="inline"
+            data-pose={sparty}
+          >
+            <Sparty pose={sparty} size={32} decorative className="shrink-0" />
+          </span>
+        )}
         {title}
       </div>
       {children}
