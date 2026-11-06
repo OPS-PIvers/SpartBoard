@@ -4387,8 +4387,17 @@ const StudentsScreen: React.FC<{
             canShowResultsScore(r, questions, session);
           // The total counts an ungraded written answer as 0, so flag it as
           // provisional rather than letting it read as the final grade.
+          // Written answers on paper whose sheet has not been scanned in yet.
+          const paperNotScanned =
+            scoreable &&
+            r.status === 'completed' &&
+            (session?.paperWrittenQuestionIds?.length ?? 0) > 0 &&
+            !r.paperWrittenBatchId;
           const awaitingGrade =
-            scoreable && !isGame && isResponseAwaitingGrade(r, questions);
+            !paperNotScanned &&
+            scoreable &&
+            !isGame &&
+            isResponseAwaitingGrade(r, questions);
           const final =
             finalOverlay && r.studentUid && !isGame
               ? finalScoreFor(
@@ -4684,6 +4693,17 @@ const StudentsScreen: React.FC<{
                             title="Provisional. This total changes once you grade the written response."
                           >
                             <SessionBadge tone="warn" label="Provisional" />
+                          </span>
+                        )}
+                        {paperNotScanned && (
+                          <span
+                            className="inline-flex"
+                            style={{ marginTop: 'min(2px, 0.5cqmin)' }}
+                          >
+                            <SessionBadge
+                              tone="neutral"
+                              label="Paper not scanned"
+                            />
                           </span>
                         )}
                         {/* Fresh responses now carry preSyncVersion: 0

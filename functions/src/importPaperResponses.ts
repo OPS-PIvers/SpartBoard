@@ -398,11 +398,16 @@ export async function handleImportPaperResponses(
     );
   if (!batchV2 && input.layoutVersion === 2)
     invalid('This batch was not printed with a page map.');
-  if (batch.quizId !== assignmentSnap.data()?.quizId)
+  const assignment = assignmentSnap.data() ?? {};
+  if (batch.quizId !== assignment.quizId)
     throw new HttpsError(
       'failed-precondition',
       'This batch was printed for a different quiz.'
     );
+  // Written answers on paper: this stack merges onto device responses instead of replacing them.
+  const hybrid =
+    assignment.writtenOnPaper === true &&
+    assignment.paperBatchId === input.batchId;
 
   const questionIds = new Set(
     (Array.isArray(session.publicQuestions) ? session.publicQuestions : [])
@@ -542,6 +547,7 @@ export async function handleImportPaperResponses(
         allowedPages,
         servedQuestionIds:
           versionBySeat.get(r.sheet.seat)?.servedQuestionIds ?? null,
+        hybrid,
         now,
       })
     )
@@ -574,7 +580,8 @@ export async function handleImportPaperResponses(
       .doc(input.assignmentId)
       .set(
         {
-          hasPaperResponses: true,
+          // A hybrid assignment already reaches its classes; publish needs no paper pointers.
+          ...(hybrid ? {} : { hasPaperResponses: true }),
           ...(anyWritten ? { hasPaperWritten: true } : {}),
         },
         { merge: true }
@@ -608,6 +615,8 @@ interface SeatContext {
   allowedPages: ReadonlySet<string>;
   /** The version this seat printed, saved so Results scores what the student saw (V24). */
   servedQuestionIds: string[] | null;
+  /** Written-answers-only stack of a device assignment; see `hybridResponseFields`. */
+  hybrid: boolean;
   now: number;
 }
 
@@ -640,6 +649,34 @@ const DEVICE_ATTEMPT_FIELDS = [
   'preSyncVersion',
 ] as const;
 
+// Hybrid: add written answers, keep the device attempt; a scan-first row starts unsubmitted, without lastWriteAt so the idle sweep skips it.
+function hybridResponseFields(
+  ctx: SeatContext,
+  existing: admin.firestore.DocumentData | null,
+  answers: AnswerEntry[]
+): Record<string, unknown> {
+  const { sheet, studentUid, classId } = ctx.resolved;
+  const paper = {
+    answers,
+    paperWrittenBatchId: ctx.batchId,
+    paperWrittenSeat: sheet.seat,
+  };
+  if (existing) return paper;
+  return {
+    studentUid,
+    pin: sheet.pin,
+    ...(sheet.classPeriod ? { classPeriod: sheet.classPeriod } : {}),
+    ...(classId ? { classId } : {}),
+    joinedAt: ctx.now,
+    status: 'joined',
+    score: null,
+    submittedAt: null,
+    completedAttempts: 0,
+    preSyncVersion: 0,
+    ...paper,
+  };
+}
+
 // D28: MC answers always replace; a written answer replaces only when ungraded and unedited.
 async function importSeat(
   tx: admin.firestore.Transaction,
@@ -658,6 +695,7 @@ async function importSeat(
   const snap = await tx.get(ctx.ref);
   const existing = snap.exists ? (snap.data() ?? {}) : null;
   if (
+    !ctx.hybrid &&
     existing &&
     existing.paperBatchId !== ctx.batchId &&
     !sheet.replaceExisting
@@ -774,33 +812,37 @@ async function importSeat(
   ];
   tx.set(
     ctx.ref,
-    {
-      studentUid,
-      pin: sheet.pin,
-      ...(sheet.classPeriod ? { classPeriod: sheet.classPeriod } : {}),
-      ...(classId ? { classId } : {}),
-      joinedAt:
-        typeof existing?.joinedAt === 'number' ? existing.joinedAt : ctx.now,
-      submittedAt: ctx.now,
-      status: 'completed',
-      score: null,
-      answers,
-      completedAttempts: 1,
-      paperBatchId: ctx.batchId,
-      paperSeat: sheet.seat,
-      lastWriteAt: admin.firestore.FieldValue.serverTimestamp(),
-      ...(existing && existing.paperBatchId !== ctx.batchId
-        ? Object.fromEntries(
-            DEVICE_ATTEMPT_FIELDS.map((f) => [
-              f,
-              admin.firestore.FieldValue.delete(),
-            ])
-          )
-        : {}),
-      ...(ctx.servedQuestionIds
-        ? { servedQuestionIds: ctx.servedQuestionIds }
-        : {}),
-    },
+    ctx.hybrid
+      ? hybridResponseFields(ctx, existing, answers)
+      : {
+          studentUid,
+          pin: sheet.pin,
+          ...(sheet.classPeriod ? { classPeriod: sheet.classPeriod } : {}),
+          ...(classId ? { classId } : {}),
+          joinedAt:
+            typeof existing?.joinedAt === 'number'
+              ? existing.joinedAt
+              : ctx.now,
+          submittedAt: ctx.now,
+          status: 'completed',
+          score: null,
+          answers,
+          completedAttempts: 1,
+          paperBatchId: ctx.batchId,
+          paperSeat: sheet.seat,
+          lastWriteAt: admin.firestore.FieldValue.serverTimestamp(),
+          ...(existing && existing.paperBatchId !== ctx.batchId
+            ? Object.fromEntries(
+                DEVICE_ATTEMPT_FIELDS.map((f) => [
+                  f,
+                  admin.firestore.FieldValue.delete(),
+                ])
+              )
+            : {}),
+          ...(ctx.servedQuestionIds
+            ? { servedQuestionIds: ctx.servedQuestionIds }
+            : {}),
+        },
     { merge: true }
   );
   for (const w of privateWrites) {
