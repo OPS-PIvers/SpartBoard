@@ -3499,6 +3499,9 @@
     "start": "Start Part {{part}}",
     "startFailed": "Couldn't start Part {{part}}. Try again."
   },
+  "quizPaperWritten": {
+    "writeOnSheet": "Write your answer on your paper answer sheet."
+  },
   "quizReadAloud": {
     "label": "Read aloud",
     "help": "Signed-in students only.",

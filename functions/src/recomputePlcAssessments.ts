@@ -47,6 +47,12 @@ function parseAnswer(raw: unknown): RawAnswer | null {
     status: r.status === 'draft' ? 'draft' : undefined,
     unresponded: r.unresponded ?? undefined,
     takeIndex: typeof r.takeIndex === 'number' ? r.takeIndex : undefined,
+    paperTranscript:
+      r.paperTranscript === 'pending' ||
+      r.paperTranscript === 'blank' ||
+      r.paperTranscript === 'done'
+        ? r.paperTranscript
+        : undefined,
   };
 }
 
@@ -397,6 +403,11 @@ export async function recomputeOnePlcAssessment(
         assignmentData?.overridesByStudentUid
       ),
       sections: parseChooseSections(s.sections),
+      paperWrittenQuestionIds: Array.isArray(s.paperWrittenQuestionIds)
+        ? s.paperWrittenQuestionIds.filter(
+            (id): id is string => typeof id === 'string'
+          )
+        : undefined,
     });
   }
 

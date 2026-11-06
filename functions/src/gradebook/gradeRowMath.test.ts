@@ -212,6 +212,52 @@ describe('scoreQuestions', () => {
   });
 });
 
+describe('scoreQuestions: written answers on paper', () => {
+  it('holds the score until the paper answer is scanned or graded', () => {
+    const questions = keyQuestions(key);
+    const base = {
+      questions,
+      answers: [
+        { questionId: 'q1', answer: 'A' },
+        { questionId: 'q2', answer: 'seven' },
+      ],
+      paperWrittenQuestionIds: ['q3'],
+    };
+    expect(scoreQuestions(base).awaiting).toBe(true);
+    expect(
+      scoreQuestions({
+        ...base,
+        answers: [
+          ...base.answers,
+          { questionId: 'q3', answer: '', paperTranscript: 'blank' as const },
+        ],
+      }).awaiting
+    ).toBe(false);
+    expect(
+      scoreQuestions({
+        ...base,
+        manualGrades: { q3: { pointsAwarded: 2, scoredCriterionIds: [] } },
+      })
+    ).toMatchObject({ awaiting: false, earned: 5, max: 6 });
+  });
+
+  it('reads the ids from the session when scoring a response', () => {
+    const r = scoreQuizResponse(
+      { paperWrittenQuestionIds: ['q3'] },
+      {
+        status: 'completed',
+        studentUid: 's1',
+        answers: [
+          { questionId: 'q1', answer: 'A' },
+          { questionId: 'q2', answer: 'seven' },
+        ],
+      },
+      quizCtx()
+    );
+    expect(r).toMatchObject({ state: 'awaiting-grade', rawPct: null });
+  });
+});
+
 describe('scoreVideoResponse', () => {
   it('uses stored correctness when the key is gone', () => {
     const questions = keyQuestions(

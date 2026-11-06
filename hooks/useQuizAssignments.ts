@@ -132,6 +132,7 @@ import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
   gradeAnswer,
+  isPaperWrittenSlotAwaiting,
   toPublicQuestion,
   type ResponseDocKey,
 } from './useQuizSession';
@@ -969,6 +970,8 @@ export interface ResponseGradingContext {
   localizedFibAnswers: Record<string, Record<string, string[]>>;
   /** The session's sections; a choose-N section leaves unchosen questions out (E14). */
   sections?: QuizSessionSection[];
+  /** Hybrid paper quiz: an unscanned written answer holds the score. */
+  paperWrittenQuestionIds?: string[];
 }
 
 /** The session's frozen sections, for publishing; absent on a quiz without them. */
@@ -998,6 +1001,13 @@ export function buildResponseGradingContext(
       string,
       Record<string, string[]>
     >,
+    paperWrittenQuestionIds: Array.isArray(
+      assignmentData?.paperWrittenQuestionIds
+    )
+      ? (assignmentData.paperWrittenQuestionIds as unknown[]).filter(
+          (id): id is string => typeof id === 'string'
+        )
+      : undefined,
   };
 }
 
@@ -1151,6 +1161,14 @@ export function gradeResponseForPublish(
   // fix in publishAssignmentScores for Video Activity (#1728, #1787).
   const answeredQuestionIds = new Set<string>();
   for (const a of answers) answeredQuestionIds.add(a.questionId);
+  for (const qId of ctx.paperWrittenQuestionIds ?? []) {
+    if (servedIds && !servedIds.has(qId)) continue;
+    if (
+      questionsById.has(qId) &&
+      isPaperWrittenSlotAwaiting(data, qId, ctx.paperWrittenQuestionIds)
+    )
+      awaitingGrade = true;
+  }
   for (const [qId, q] of questionsById) {
     if (servedIds && !servedIds.has(qId)) continue;
     if (!answeredQuestionIds.has(qId)) {

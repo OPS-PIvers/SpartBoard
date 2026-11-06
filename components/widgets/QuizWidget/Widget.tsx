@@ -4298,7 +4298,12 @@ const TeacherQuizWidget: React.FC<{
                   (uid) => {
                     const r = byUid.get(uid);
                     return r
-                      ? quizLiveRaw(r, data.questions, publishFibGrading)
+                      ? quizLiveRaw(
+                          r,
+                          data.questions,
+                          publishFibGrading,
+                          pushSession?.paperWrittenQuestionIds
+                        )
                       : null;
                   },
                   Date.now()
@@ -4334,7 +4339,8 @@ const TeacherQuizWidget: React.FC<{
                           responses,
                           data.questions,
                           mp,
-                          publishFibGrading
+                          publishFibGrading,
+                          pushSession?.paperWrittenQuestionIds
                         ),
                         responses,
                         mp
@@ -4348,7 +4354,8 @@ const TeacherQuizWidget: React.FC<{
                       responses,
                       data.questions,
                       mp,
-                      publishFibGrading
+                      publishFibGrading,
+                      pushSession?.paperWrittenQuestionIds
                     ),
                     responses,
                     mp

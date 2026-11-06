@@ -836,6 +836,46 @@ export function isWrittenAnswerAwaitingGrade(
   return question ? isPartialRubricGrade(question, grade) : false;
 }
 
+/**
+ * Hybrid paper quiz (`paper-written-hybrid`): a written question answered on the printed
+ * sheet is owed a grade until its scan lands or the teacher grades it, never a 0.
+ */
+export function isPaperWrittenSlotAwaiting(
+  response: Pick<
+    QuizResponse,
+    'answers' | 'grading' | '_notChosen' | 'servedQuestionIds'
+  >,
+  questionId: string,
+  paperWrittenQuestionIds: readonly string[] | undefined
+): boolean {
+  if (!paperWrittenQuestionIds?.includes(questionId)) return false;
+  if (response._notChosen?.includes(questionId)) return false;
+  const served = response.servedQuestionIds;
+  if (served && served.length > 0 && !served.includes(questionId)) return false;
+  if (response.grading?.[questionId]) return false;
+  // A scanned answer (pending, blank or done) or typed text grades through gradeAnswer.
+  return !(response.answers ?? []).some(
+    (a) =>
+      a?.questionId === questionId &&
+      (a.paperTranscript !== undefined || hasSubmittedContent(a.answer))
+  );
+}
+
+/** Any listed hybrid paper question this response is still owed a grade for. */
+export function hasPaperWrittenAwaiting(
+  response: Pick<
+    QuizResponse,
+    'answers' | 'grading' | '_notChosen' | 'servedQuestionIds'
+  >,
+  questionIds: readonly string[],
+  paperWrittenQuestionIds: readonly string[] | undefined
+): boolean {
+  if (!paperWrittenQuestionIds?.length) return false;
+  return questionIds.some((id) =>
+    isPaperWrittenSlotAwaiting(response, id, paperWrittenQuestionIds)
+  );
+}
+
 /** The `paperTranscript` state of a response's answer to one question, if any. */
 export function paperTranscriptFor(
   response: { answers?: readonly QuizResponseAnswer[] } | undefined,

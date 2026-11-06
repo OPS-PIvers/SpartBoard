@@ -2203,6 +2203,9 @@
     "start": "Teil {{part}} starten",
     "startFailed": "Teil {{part}} konnte nicht gestartet werden. Versuche es noch einmal."
   },
+  "quizPaperWritten": {
+    "writeOnSheet": "Schreib deine Antwort auf deinen Antwortbogen aus Papier."
+  },
   "quizReadAloud": {
     "label": "Vorlesen",
     "help": "Nur für angemeldete Schüler.",

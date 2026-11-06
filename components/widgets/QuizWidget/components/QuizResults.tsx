@@ -531,7 +531,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       finalOverlay,
       (uid) => {
         const r = byUid.get(uid);
-        return r ? quizLiveRaw(r, quiz.questions, fibGrading) : null;
+        return r
+          ? quizLiveRaw(
+              r,
+              quiz.questions,
+              fibGrading,
+              session?.paperWrittenQuestionIds
+            )
+          : null;
       },
       // eslint-disable-next-line react-hooks/purity -- called from export handlers, not during render
       Date.now()
@@ -1012,8 +1019,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // provisional — the ungraded slot counts as 0 until the teacher grades it.
   const avgIsProvisional = useMemo(
     () =>
-      filteredScoreable.some((r) => isResponseAwaitingGrade(r, quiz.questions)),
-    [filteredScoreable, quiz.questions]
+      filteredScoreable.some((r) =>
+        isResponseAwaitingGrade(
+          r,
+          quiz.questions,
+          session?.paperWrittenQuestionIds
+        )
+      ),
+    [filteredScoreable, quiz.questions, session?.paperWrittenQuestionIds]
   );
   const firstTryAccuracy = useMemo(
     () => (isGame ? classFirstTryAccuracy(filteredCompleted) : null),
@@ -1315,10 +1328,15 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       // Classroom push (`buildQuizClassroomGradeEntries`).
       const pushable = selectPushableResponses(
         filteredCompleted,
-        quiz.questions
+        quiz.questions,
+        session?.paperWrittenQuestionIds
       );
       const awaitingCount = filteredCompleted.filter((r) =>
-        isResponseAwaitingGrade(r, quiz.questions)
+        isResponseAwaitingGrade(
+          r,
+          quiz.questions,
+          session?.paperWrittenQuestionIds
+        )
       ).length;
       const awaitingNote =
         awaitingCount > 0
@@ -1993,7 +2011,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             completed,
             quiz.questions,
             maxPoints,
-            fibGrading
+            fibGrading,
+            session?.paperWrittenQuestionIds
           ),
           maxPoints
         )
@@ -2025,7 +2044,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           completed,
           quiz.questions,
           maxPoints,
-          fibGrading
+          fibGrading,
+          session?.paperWrittenQuestionIds
         ),
       confirm: () =>
         showConfirm(
@@ -2068,7 +2088,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       completed,
       quiz.questions,
       quizMaxPoints(quiz.questions, session?.sections, session?.bankSlots),
-      fibGrading
+      fibGrading,
+      session?.paperWrittenQuestionIds
     );
   }, [
     ltiAttachment,
@@ -2077,6 +2098,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     fibGrading,
     session?.sections,
     session?.bankSlots,
+    session?.paperWrittenQuestionIds,
   ]);
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment || !session?.id) return;
@@ -2090,7 +2112,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         completed,
         quiz.questions,
         maxPoints,
-        fibGrading
+        fibGrading,
+        session?.paperWrittenQuestionIds
       ),
       maxPoints
     );
@@ -2188,7 +2211,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           completed,
           quiz.questions,
           maxPoints,
-          fibGrading
+          fibGrading,
+          session?.paperWrittenQuestionIds
         ),
         maxPoints
       );
@@ -4388,13 +4412,24 @@ const StudentsScreen: React.FC<{
           // The total counts an ungraded written answer as 0, so flag it as
           // provisional rather than letting it read as the final grade.
           const awaitingGrade =
-            scoreable && !isGame && isResponseAwaitingGrade(r, questions);
+            scoreable &&
+            !isGame &&
+            isResponseAwaitingGrade(
+              r,
+              questions,
+              session?.paperWrittenQuestionIds
+            );
           const final =
             finalOverlay && r.studentUid && !isGame
               ? finalScoreFor(
                   finalOverlay,
                   r.studentUid,
-                  quizLiveRaw(r, questions, fibGrading),
+                  quizLiveRaw(
+                    r,
+                    questions,
+                    fibGrading,
+                    session?.paperWrittenQuestionIds
+                  ),
                   overlayNow
                 )
               : null;

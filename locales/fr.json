@@ -2203,6 +2203,9 @@
     "start": "Commencer la partie {{part}}",
     "startFailed": "Impossible de commencer la partie {{part}}. Réessaie."
   },
+  "quizPaperWritten": {
+    "writeOnSheet": "Écris ta réponse sur ta feuille de réponses en papier."
+  },
   "quizReadAloud": {
     "label": "Lire à voix haute",
     "help": "Élèves connectés uniquement.",

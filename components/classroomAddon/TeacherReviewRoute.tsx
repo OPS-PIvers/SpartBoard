@@ -565,12 +565,25 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
         finalOverlay,
         (uid) => {
           const r = byUid.get(uid);
-          return r ? quizLiveRaw(r, questions, fibGrading) : null;
+          return r
+            ? quizLiveRaw(
+                r,
+                questions,
+                fibGrading,
+                session?.paperWrittenQuestionIds
+              )
+            : null;
         },
         Date.now()
       );
     },
-    [finalOverlay, responses, questions, fibGrading]
+    [
+      finalOverlay,
+      responses,
+      questions,
+      fibGrading,
+      session?.paperWrittenQuestionIds,
+    ]
   );
 
   const pushGrades = useCallback(async () => {
@@ -590,7 +603,11 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
           r.status === 'completed' &&
           !!r.studentUid &&
           canScoreResponse(r, questions) &&
-          !isResponseAwaitingGrade(r, questions)
+          !isResponseAwaitingGrade(
+            r,
+            questions,
+            session?.paperWrittenQuestionIds
+          )
       )
     ) {
       setStatusMsg('No completed responses to push yet.');
@@ -625,7 +642,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
             responses,
             questions,
             attachment.maxPoints,
-            fibGrading
+            fibGrading,
+            session?.paperWrittenQuestionIds
           ),
           attachment.maxPoints
         ),
@@ -694,7 +712,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
         responses.filter((r) => r.status === 'completed'),
         questions,
         maxPoints,
-        fibGrading
+        fibGrading,
+        session?.paperWrittenQuestionIds
       ),
       maxPoints
     );
@@ -736,6 +755,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     session?.ltiAttachment,
     session?.sections,
     session?.bankSlots,
+    session?.paperWrittenQuestionIds,
     sessionId,
     quizData,
     questions,
@@ -839,7 +859,12 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                   // from the push — the shown total counts an ungraded written
                   // answer as 0, so label it rather than let it read as final.
                   const awaitingGrade =
-                    !!quizData && isResponseAwaitingGrade(r, questions);
+                    !!quizData &&
+                    isResponseAwaitingGrade(
+                      r,
+                      questions,
+                      session?.paperWrittenQuestionIds
+                    );
                   const paper = !!r.answers?.some((a) =>
                     isPaperWrittenAnswer(a)
                   );
