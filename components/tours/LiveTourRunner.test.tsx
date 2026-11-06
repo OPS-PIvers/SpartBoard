@@ -197,6 +197,37 @@ vi.mock('@/context/useDashboard', () => ({
   },
 }));
 
+// Tour conditions as a tiny store, so a fact turning true re-renders the runner.
+const conds = vi.hoisted(() => {
+  const facts = new Map<string, boolean>();
+  const listeners = new Set<() => void>();
+  let version = 0;
+  return {
+    facts,
+    listeners,
+    get version() {
+      return version;
+    },
+    set(ref: string, value: boolean) {
+      facts.set(ref, value);
+      version++;
+      listeners.forEach((l) => l());
+    },
+  };
+});
+vi.mock('./useTourConditions', () => ({
+  useTourConditions: () => {
+    useSyncExternalStore(
+      (l) => {
+        conds.listeners.add(l);
+        return () => conds.listeners.delete(l);
+      },
+      () => conds.version
+    );
+    return (ref: string) => conds.facts.get(ref);
+  },
+}));
+
 vi.mock('@/hooks/useGuidedLearning', () => ({
   loadBuildingSet: h.loadDraft,
 }));
@@ -221,6 +252,8 @@ type Binding = {
   value?: boolean | string;
   teacherMustClick?: boolean;
   fallback?: { role: string; name: string };
+  showWhen?: string[];
+  doneWhen?: string;
 };
 
 // Every fixture is a tour-mode set; 'guided' turns autopilot on, as the migration did.
@@ -335,6 +368,7 @@ beforeEach(() => {
   h.dockOpens = false;
   h.startRunLog.mockClear();
   Object.values(h.runLog).forEach((fn) => fn.mockClear());
+  conds.facts.clear();
   sessionStorage.clear();
 });
 
@@ -3468,5 +3502,142 @@ describe('LiveTourRunner DEV browser run', () => {
     // A destructive click a teacher run leaves alone; the test run performs it.
     expect(closed).toEqual(['mine']);
     expect(h.loadTour).not.toHaveBeenCalled();
+  });
+});
+
+describe('LiveTourRunner conditions', () => {
+  it('drops steps whose show conditions fail when the tour starts', async () => {
+    conds.facts.set('org-has-buildings', false);
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'click' },
+        {
+          anchor: 'dock.item:dice',
+          action: 'click',
+          showWhen: ['org-has-buildings'],
+        },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    expect(progress()).toBe('1 / 2');
+  });
+
+  it('keeps a step whose condition is still loading', async () => {
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'click' },
+        {
+          anchor: 'dock.item:dice',
+          action: 'click',
+          showWhen: ['org-has-buildings'],
+        },
+      ])
+    );
+    expect(progress()).toBe('1 / 2');
+  });
+
+  it('waits for the real result instead of its own click, then moves on', async () => {
+    conds.facts.set('building-saved', false);
+    await start(
+      makeSet([
+        {
+          anchor: 'sidebar.boards',
+          action: 'click',
+          doneWhen: 'building-saved',
+        },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ])
+    );
+    expect(screen.getByTestId('tour-step-waiting')).toBeInTheDocument();
+    expect(screen.getByTestId('tour-tip-skip')).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-tip-next')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Boards'));
+    await frames(2000);
+    expect(progress()).toBe('1 / 2');
+    act(() => conds.set('building-saved', true));
+    await frames();
+    expect(screen.getByTestId('tour-step-done')).toHaveTextContent('Done');
+    expect(progress()).toBe('1 / 2');
+    await frames(1300);
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('Skip for now moves past a step still waiting', async () => {
+    conds.facts.set('drive-connected', false);
+    await start(
+      makeSet([
+        {
+          anchor: 'sidebar.boards',
+          action: 'click',
+          doneWhen: 'drive-connected',
+        },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ])
+    );
+    fireEvent.click(screen.getByTestId('tour-tip-skip'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('a result already in place says so and waits for Next', async () => {
+    conds.facts.set('class-added', true);
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'click', doneWhen: 'class-added' },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ])
+    );
+    expect(screen.getByTestId('tour-step-done')).toHaveTextContent(
+      'Already done'
+    );
+    expect(screen.queryByTestId('tour-tip-skip')).not.toBeInTheDocument();
+    await frames(3000);
+    expect(progress()).toBe('1 / 2');
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('going Back to a step done since then shows it without moving on', async () => {
+    conds.facts.set('building-saved', false);
+    await start(
+      makeSet([
+        {
+          anchor: 'sidebar.boards',
+          action: 'click',
+          doneWhen: 'building-saved',
+        },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ])
+    );
+    act(() => conds.set('building-saved', true));
+    await frames(1300);
+    expect(progress()).toBe('2 / 2');
+    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    await frames(3000);
+    expect(progress()).toBe('1 / 2');
+    expect(screen.getByTestId('tour-step-done')).toHaveTextContent(
+      'Already done'
+    );
+  });
+
+  it('Autopilot leaves a step waiting on a result to the teacher', async () => {
+    conds.facts.set('building-saved', false);
+    await start(
+      makeSet(
+        [
+          {
+            anchor: 'sidebar.boards',
+            action: 'click',
+            doneWhen: 'building-saved',
+          },
+          { anchor: 'dock.item:dice', action: 'click' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    await frames(AUTO_NEXT_WAIT_MS + 5000);
+    expect(progress()).toBe('1 / 2');
   });
 });

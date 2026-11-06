@@ -59,6 +59,7 @@ import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 import { issuePictureTicket } from './tourPictures';
 import { isWebTour, isWebTourSnapshot, WEB_TOUR_REFUSAL } from './webTours';
 import { tourPlaytestKey } from './tourPlaytest';
+import { TOUR_CONDITION_HELP, tourConditionRef } from './tourConditions';
 import {
   narrateTourSteps,
   narrationDeps,
@@ -507,6 +508,7 @@ export function liveTourView(
     ...(setup.layouts?.length ? { layouts: setup.layouts } : {}),
     use_teacher_board: setup.useTeacherBoard === true,
     autopilot: setup.autopilot === true,
+    ...(setup.showWhen?.length ? { show_when: setup.showWhen } : {}),
     ...(setup.materials?.length
       ? {
           materials: withSamples
@@ -654,6 +656,13 @@ const setupInputs = {
     .optional()
     .describe(
       'Start with Autopilot on, so the tour performs each step while the teacher watches.'
+    ),
+  show_when: z
+    .array(tourConditionRef)
+    .max(8)
+    .optional()
+    .describe(
+      `List the tour on Getting Started only when every condition holds for the teacher. [] clears it. ${TOUR_CONDITION_HELP}`
     ),
 };
 

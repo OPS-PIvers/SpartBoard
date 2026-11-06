@@ -1,6 +1,7 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { FocusSite } from '@/utils/focus/contract';
 import type { ImportAttribution } from '@/utils/import/contract';
+import type { TourConditionRef, TourDoneFact } from '@/config/tourConditions';
 
 export type WidgetType =
   | 'clock'
@@ -8856,6 +8857,10 @@ export interface GuidedLearningTourBinding {
   thumbnail?: GuidedLearningTourThumbnail;
   /** The board this step starts from; a jump straight here loads it instead of replaying earlier steps. */
   start?: TourStepStart;
+  /** Played only when every condition holds when the tour starts; absent = always. */
+  showWhen?: TourConditionRef[];
+  /** Waits for this fact instead of moving on at its own click; the teacher can skip it. */
+  doneWhen?: TourDoneFact;
 }
 
 /** A step's starting board: widget places and the material open in an editor. */
@@ -9018,6 +9023,8 @@ export interface GuidedLearningSet {
     autopilot?: true;
     /** Library items the tour works on; absent = a tour from before materials, which runs on real items. */
     materials?: TourMaterial[];
+    /** Listed on Getting Started only when every condition holds; absent = always. */
+    showWhen?: TourConditionRef[];
   };
   /** Stamped on every building-set save: true for tour mode or when any step has a live-tour binding. */
   hasLiveTour?: boolean;

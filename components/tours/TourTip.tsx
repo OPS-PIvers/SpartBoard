@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { MousePointerClick, Play } from 'lucide-react';
+import { Check, MousePointerClick, Play } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { CALLOUT_IN_MS } from '@/components/widgets/GuidedLearning/utils/motion';
 import type { TetherArrow } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
@@ -9,8 +9,8 @@ import { primaryBtn, secondaryBtn } from './tourButtons';
 
 export interface TourTipStatus {
   text: string;
-  /** `turn` waits on the teacher; `playing` is Autopilot at work. */
-  kind: 'turn' | 'playing';
+  /** `turn` waits on the teacher; `playing` is Autopilot at work; `done` is a step's real result. */
+  kind: 'turn' | 'playing' | 'done';
   testId: string;
 }
 
@@ -38,6 +38,8 @@ interface TourTipProps {
   confirm?: { onYes: () => void; onNo: () => void };
   /** Shown on steps that don't move on by themselves. */
   next?: { onNext: () => void; last: boolean };
+  /** Shown on a step waiting for a real result, so the teacher is never stuck. */
+  skip?: { onSkip: () => void };
 }
 
 const ARROW_W = 18;
@@ -83,6 +85,7 @@ export const TourTip: React.FC<TourTipProps> = ({
   autopilotStep,
   confirm,
   next,
+  skip,
 }) => {
   const { t } = useTranslation();
   return (
@@ -141,11 +144,15 @@ export const TourTip: React.FC<TourTipProps> = ({
           className={`flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-xs font-semibold ${
             status.kind === 'turn'
               ? 'bg-brand-blue-primary text-white'
-              : 'bg-brand-blue-lighter text-brand-blue-dark'
+              : status.kind === 'done'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-brand-blue-lighter text-brand-blue-dark'
           }`}
         >
           {status.kind === 'turn' ? (
             <MousePointerClick className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : status.kind === 'done' ? (
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
           ) : (
             <Play className="h-3.5 w-3.5" aria-hidden="true" />
           )}
@@ -175,7 +182,7 @@ export const TourTip: React.FC<TourTipProps> = ({
           </div>
         </div>
       )}
-      {(!!onShowMe || !!autopilotStep || !!next) && (
+      {(!!onShowMe || !!autopilotStep || !!next || !!skip) && (
         <div className="-mx-2 flex flex-wrap items-center gap-1">
           {onShowMe && (
             <button
@@ -195,6 +202,16 @@ export const TourTip: React.FC<TourTipProps> = ({
             >
               <Play className="h-3.5 w-3.5" aria-hidden="true" />
               {t('tours.autopilotStep')}
+            </button>
+          )}
+          {skip && (
+            <button
+              type="button"
+              data-testid="tour-tip-skip"
+              onClick={skip.onSkip}
+              className={`${secondaryBtn} ml-auto mr-2`}
+            >
+              {t('tours.skipForNow')}
             </button>
           )}
           {next && (

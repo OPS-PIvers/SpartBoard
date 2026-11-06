@@ -15,7 +15,11 @@ import {
   useCanUseWidget,
   useRunnableTourIds,
 } from '@/components/tours/useTourOffers';
-import { isTourRunnable } from '@/components/tours/publishedTours';
+import {
+  isTourRunnable,
+  tourShowsFor,
+} from '@/components/tours/publishedTours';
+import { useTourConditions } from '@/components/tours/useTourConditions';
 import type { HelpResourceItem } from '@/types/helpCenter';
 import {
   EMPTY_GETTING_STARTED_PROGRESS,
@@ -149,7 +153,11 @@ export function useGettingStarted(): GettingStartedState {
     const setId = itemSetId(byId.get(entry.itemId));
     return setId ? [setId] : [];
   });
-  const runnable = useRunnableTourIds(setIds);
+  const check = useTourConditions();
+  // A tour whose own show conditions fail for this teacher drops out like a pulled one (D12).
+  const runnable = new Set(
+    [...useRunnableTourIds(setIds)].filter((id) => tourShowsFor(id, check))
+  );
   const toursLoading = setIds.some(
     (id) => isTourRunnable(id, canUse) === undefined
   );
