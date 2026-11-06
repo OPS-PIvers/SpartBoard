@@ -213,6 +213,26 @@ describe('scoreQuestions', () => {
 });
 
 describe('scoreQuestions: written answers on paper', () => {
+  it('holds an inked paper answer kept as an image on any quiz', () => {
+    const answers = [
+      { questionId: 'q1', answer: 'A' },
+      { questionId: 'q2', answer: 'seven' },
+      { questionId: 'q3', answer: '', paperTranscript: 'image' as const },
+    ];
+    const questions = keyQuestions(key);
+    expect(scoreQuestions({ questions, answers }).awaiting).toBe(true);
+    expect(
+      scoreQuestions({
+        questions,
+        answers: answers.map((a) =>
+          a.questionId === 'q3'
+            ? { ...a, paperTranscript: 'pending' as const }
+            : a
+        ),
+      }).awaiting
+    ).toBe(true);
+  });
+
   it('holds the score until the paper answer is scanned or graded', () => {
     const questions = keyQuestions(key);
     const base = {

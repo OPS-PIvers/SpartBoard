@@ -150,12 +150,15 @@ describe('FullscreenCover', () => {
     expect(screen.getByText("Fullscreen didn't open. Try again.")).toBeTruthy();
   });
 
-  it('sends a framed page to the host pop out and goes inert while waiting', () => {
+  it('sends a Schoology-framed page to the host pop out and goes inert while waiting', () => {
     Object.defineProperty(document, 'fullscreenEnabled', {
       configurable: true,
       get: () => false,
     });
     vi.spyOn(window, 'top', 'get').mockReturnValue({} as Window);
+    vi.spyOn(document, 'referrer', 'get').mockReturnValue(
+      'https://orono.schoology.com/'
+    );
     const { rerender } = render(
       <PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />
     );
@@ -164,6 +167,22 @@ describe('FullscreenCover', () => {
     ).toBeTruthy();
     expect(getHandOffState()).toBe('pop-out-pending');
     rerender(<PageProtectionGuards protections={OFF} />);
+    expect(getHandOffState()).toBe('active');
+  });
+
+  it('lets a page framed by another host work without fullscreen', () => {
+    Object.defineProperty(document, 'fullscreenEnabled', {
+      configurable: true,
+      get: () => false,
+    });
+    vi.spyOn(window, 'top', 'get').mockReturnValue({} as Window);
+    vi.spyOn(document, 'referrer', 'get').mockReturnValue(
+      'https://classroom.google.com/'
+    );
+    const { container } = render(
+      <PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />
+    );
+    expect(container.innerHTML).toBe('');
     expect(getHandOffState()).toBe('active');
   });
 

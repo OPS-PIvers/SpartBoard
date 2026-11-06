@@ -45,3 +45,27 @@ export function isFramedWindow(): boolean {
     return true;
   }
 }
+
+const SCHOOLOGY_HOST = /(^|\.)schoology\.com$/i;
+
+/** True when the frame's parent page is Schoology, whose class page has a pop out button. */
+export function isSchoologyFrame(): boolean {
+  if (!isFramedWindow()) return false;
+  const origins: string[] = [];
+  try {
+    const ancestors = window.location.ancestorOrigins;
+    if (ancestors)
+      for (let i = 0; i < ancestors.length; i++)
+        origins.push(ancestors[i] ?? '');
+  } catch {
+    // Not every browser has ancestorOrigins.
+  }
+  if (document.referrer) origins.push(document.referrer);
+  return origins.some((o) => {
+    try {
+      return SCHOOLOGY_HOST.test(new URL(o).hostname);
+    } catch {
+      return false;
+    }
+  });
+}
