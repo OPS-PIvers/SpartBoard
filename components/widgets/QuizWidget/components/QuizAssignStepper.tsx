@@ -31,6 +31,12 @@ import {
 import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
 import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
 import { SharingStep } from '@/components/common/library/assignStepper/SharingStep';
+import { WrittenAnswersStep } from '@/components/common/library/assignStepper/WrittenAnswersStep';
+import {
+  formatWrittenAnswersValue,
+  type WrittenAnswersValue,
+} from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
+import { Printer } from 'lucide-react';
 import {
   withAudienceSwitch,
   type AssignAudienceState,
@@ -71,6 +77,12 @@ export interface QuizAssignStepperProps {
   hasManualGrading: boolean;
   handRaiseMode: QuizHandRaiseMode;
   submitLabel: string;
+  /** Offer written questions on paper; omit to leave the step out. */
+  written?: {
+    value: WrittenAnswersValue;
+    onChange: (next: WrittenAnswersValue) => void;
+    count: number;
+  };
   onClose: () => void;
   onSubmit: () => void | Promise<void>;
 }
@@ -91,6 +103,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   hasManualGrading,
   handRaiseMode,
   submitLabel,
+  written,
   onClose,
   onSubmit,
 }) => {
@@ -182,7 +195,16 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     }).map((step) => [step.id, step])
   );
 
-  const steps: AssignStepDef[] = getAssignSteps('quiz', ctx).map((id) => {
+  const stepIds = getAssignSteps('quiz', ctx);
+  if (written) {
+    stepIds.splice(stepIds.indexOf('when') + 1, 0, 'written');
+    bodies.written = {
+      value: formatWrittenAnswersValue(written.value, written.count),
+      body: <WrittenAnswersStep {...written} />,
+    };
+  }
+  const onPaper = written?.value.where === 'paper';
+  const steps: AssignStepDef[] = stepIds.map((id) => {
     const step = ruleSteps.get(id) ?? {
       id,
       title: getAssignStepTitle(id, 'quiz', ctx),
@@ -199,7 +221,8 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       onClose={onClose}
       title={title}
       steps={steps}
-      submitLabel={submitLabel}
+      submitLabel={onPaper ? 'Assign and print' : submitLabel}
+      submitIcon={onPaper ? Printer : undefined}
       onSubmit={onSubmit}
       disabled={needsPlc || backwards}
       disabledReason={

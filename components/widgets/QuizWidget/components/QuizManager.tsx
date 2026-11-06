@@ -133,6 +133,11 @@ import {
 import { earliestDueAt } from '@/utils/perClassDueDates';
 import { applyWhen } from '@/utils/assignAvailability';
 import { QuizAssignStepper } from './QuizAssignStepper';
+import {
+  DEFAULT_WRITTEN_ANSWERS,
+  type WrittenAnswersValue,
+} from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
+import { paperWrittenQuestionIds } from '@/utils/paperWrittenHybrid';
 import { sharingNeedsPlc } from '@/components/common/library/assignStepper/SharingStep.format';
 import { defaultWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 import { useAssignAudience } from '@/components/common/library/assignStepper/assignAudience';
@@ -182,6 +187,8 @@ export interface QuizStepperAssign {
   manualStart: boolean;
   /** Staff: no classes; the link needs district Google sign-in. */
   audience?: AssignmentAudience;
+  /** Written questions go on a printed sheet; spares print unassigned. */
+  writtenOnPaper?: { spares: number };
 }
 
 interface QuizAssignOptions {
@@ -301,6 +308,8 @@ interface QuizManagerProps {
   onImportLooseStack?: (quiz: QuizMetadata) => void;
   /** The quiz has a printed stack that no paper assignment owns. */
   hasLooseStack?: (quizId: string) => boolean;
+  /** Assign can put written questions on paper (`paper-written-hybrid` and the paper gates). */
+  writtenOnPaperAvailable?: boolean;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
   /** Take the quiz as students see it. Absent when the feature is off. */
@@ -668,6 +677,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onReprintPaperSheets,
   onImportLooseStack,
   hasLooseStack,
+  writtenOnPaperAvailable = false,
   onEdit,
   onPreview,
   onStudentView,
@@ -885,6 +895,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     AssignClassesValue['studentsByClass']
   >({});
   const [assignWhen, setAssignWhen] = useState<AssignWhenValue | null>(null);
+  const [assignWritten, setAssignWritten] = useState<WrittenAnswersValue>(
+    DEFAULT_WRITTEN_ANSWERS
+  );
   const assignAudience = useAssignAudience();
   const assignToStaff = assignAudience.audience === 'staff';
   // Tracks the quiz id whose full content has been loaded/in-flight for the
@@ -910,6 +923,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
       setAssignQuizData(null);
       setAssignStudentsByClass({});
+      setAssignWritten(DEFAULT_WRITTEN_ANSWERS);
       setAssignWhen(
         defaultWhenValue({
           activity: 'quiz',
@@ -1630,6 +1644,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         anchor: tourTypeAttr('quiz-library.archive-results', 'quiz'),
         onClick: () => void (onArchiveResults ?? noop)(a),
       });
+      if (a.writtenOnPaper && a.paperBatchId && onReprintPaperSheets) {
+        secondaries.push({
+          id: 'reprint-written',
+          label: 'Print written answer sheets',
+          icon: Printer,
+          anchor: tourTypeAttr('quiz-library.reprint-written-sheets', 'quiz'),
+          onClick: () => onReprintPaperSheets(a),
+        });
+      }
       // D32: Review rows have no settings dialog.
       if (onArchiveEditSettings) {
         secondaries.push({
@@ -1913,10 +1936,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setAssignQuizData(null);
     setAssignStudentsByClass({});
     setAssignWhen(null);
+    setAssignWritten(DEFAULT_WRITTEN_ANSWERS);
     assignAudience.setAudience('students');
   };
 
   // Stepper confirm: always Assessment Mode; Manual starts every class paused (D6).
+  const writtenStepCount =
+    writtenOnPaperAvailable && !assignToStaff && assignQuizData
+      ? paperWrittenQuestionIds(assignQuizData).length
+      : 0;
   const handleStepperAssign = (): void => {
     if (!assignTarget || !assignWhen) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
@@ -1979,6 +2007,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         classes: { classIds: validRosterIds, studentsByClass },
         manualStart: assignWhen.mode === 'manual',
         ...(assignToStaff ? { audience: 'staff' as const } : {}),
+        ...(writtenStepCount > 0 && assignWritten.where === 'paper'
+          ? { writtenOnPaper: { spares: assignWritten.spares } }
+          : {}),
       }
     );
     resetAssign();
@@ -2703,6 +2734,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           )}
           handRaiseMode={handRaiseMode}
           submitLabel="Assign"
+          {...(writtenStepCount > 0
+            ? {
+                written: {
+                  value: assignWritten,
+                  onChange: setAssignWritten,
+                  count: writtenStepCount,
+                },
+              }
+            : {})}
           onClose={resetAssign}
           onSubmit={handleStepperAssign}
         />
