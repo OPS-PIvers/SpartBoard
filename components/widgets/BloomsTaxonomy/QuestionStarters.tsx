@@ -62,7 +62,7 @@ export const BloomsQuestionStarters: React.FC<{
         </div>
 
         <div
-          className="flex-1 flex flex-col-reverse overflow-y-auto custom-scrollbar"
+          className="flex-1 flex flex-col-reverse justify-end overflow-y-auto custom-scrollbar"
           style={{ padding: '1.5cqmin', gap: '1.5cqmin' }}
         >
           {BLOOMS_QUESTION_STARTERS.map((lvl) => {
@@ -85,6 +85,7 @@ export const BloomsQuestionStarters: React.FC<{
                 }`}
                 style={{
                   minHeight: '11cqmin',
+                  maxHeight: 'max(64px, 16cqmin)',
                   padding: '1cqmin',
                   borderRadius: '3cqmin',
                   ...(isActive
