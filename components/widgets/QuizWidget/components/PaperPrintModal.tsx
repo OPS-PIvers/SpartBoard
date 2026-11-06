@@ -65,6 +65,7 @@ import type {
   ClassRoster,
   PaperBatch,
   PaperBoxSize,
+  PaperBoxStyle,
   PaperPageMap,
   PaperSheetStimulus,
   Plc,
@@ -116,6 +117,8 @@ import {
   PAPER_HANDWRITTEN_FEATURE,
   paperBoxSizeOf,
   withPaperBoxSizes,
+  withPaperBoxStyles,
+  paperBoxStyleOf,
 } from '@/utils/paperWritten';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import {
@@ -224,6 +227,8 @@ export interface PaperPrintSetup {
   stimuli: PaperSheetStimulus[];
   /** Box sizes the teacher changed, by question id; only the quiz's own questions. */
   boxSizes: Record<string, PaperBoxSize>;
+  /** Box styles the teacher changed, by question id; only the quiz's own questions. */
+  boxStyles: Record<string, PaperBoxStyle>;
 }
 
 /** A stub number the teacher marked as a handwritten answer (D17). */
@@ -242,6 +247,38 @@ const BOX_SIZE_OPTIONS = [
 /** A box size as the menu shows it: a named size, or Custom for a line count (and the older Large). */
 const boxSizeOption = (size: PaperBoxSize): string =>
   size === 'S' || size === 'M' || size === 'full' ? size : 'custom';
+
+const BOX_STYLE_OPTIONS: readonly { value: PaperBoxStyle; label: string }[] = [
+  { value: 'lines', label: 'Lines' },
+  { value: 'blank', label: 'Blank' },
+  { value: 'graph', label: 'Graph paper' },
+  { value: 'coordinate', label: 'Coordinate grid' },
+];
+
+/** What prints inside a written box. */
+const BoxStyleSelect: React.FC<{
+  style: PaperBoxStyle;
+  onChange: (style: PaperBoxStyle) => void;
+  ariaLabel: string;
+  anchor: string;
+}> = ({ style, onChange, ariaLabel, anchor }) => (
+  <select
+    aria-label={ariaLabel}
+    {...tourFieldAttr('quiz-print.written-box-style', 'quiz', anchor)}
+    value={style}
+    onChange={(e) => {
+      const next = BOX_STYLE_OPTIONS.find((o) => o.value === e.target.value);
+      if (next) onChange(next.value);
+    }}
+    className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+  >
+    {BOX_STYLE_OPTIONS.map((o) => (
+      <option key={o.value} value={o.value}>
+        {o.label}
+      </option>
+    ))}
+  </select>
+);
 
 /** Box size menu, with a line count beside it once Custom is picked. */
 const BoxSizeSelect: React.FC<{
@@ -373,22 +410,26 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const versionsOn = canAccessFeature('quiz-import-versions');
   // Handwritten box sizes are a print choice, so they are picked here rather than in the editor.
   const [boxSizes, setBoxSizes] = useState<Record<string, PaperBoxSize>>({});
+  const [boxStyles, setBoxStyles] = useState<Record<string, PaperBoxStyle>>({});
   const quiz = useMemo(
-    () => withPaperBoxSizes(savedQuiz, boxSizes),
-    [savedQuiz, boxSizes]
+    () => withPaperBoxStyles(withPaperBoxSizes(savedQuiz, boxSizes), boxStyles),
+    [savedQuiz, boxSizes, boxStyles]
   );
   const versionPlan = useMemo(() => {
     if (!versionsOn || !banks || !quiz.bankSlots?.length) return null;
     try {
       return planPaperVersions(
         quiz,
-        withPaperBoxSizes(resolveQuizAssignment(quiz, banks), boxSizes),
+        withPaperBoxStyles(
+          withPaperBoxSizes(resolveQuizAssignment(quiz, banks), boxSizes),
+          boxStyles
+        ),
         { written: writtenOn }
       );
     } catch {
       return null;
     }
-  }, [versionsOn, banks, quiz, writtenOn, boxSizes]);
+  }, [versionsOn, banks, quiz, writtenOn, boxSizes, boxStyles]);
   const analysis = useMemo(() => {
     if (versionPlan) return versionPlan.template;
     return promptAnalysis(quiz, analyzePaperQuiz(quiz, { written: writtenOn }));
@@ -613,6 +654,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     })
   );
   const boxSizesChanged = Object.keys(changedBoxSizes).length > 0;
+  const changedBoxStyles = Object.fromEntries(
+    Object.entries(boxStyles).filter(([id, style]) => {
+      const q = savedQuiz.questions.find((sq) => sq.id === id);
+      return !!q && paperBoxStyleOf(q) !== style;
+    })
+  );
+  const boxStylesChanged = Object.keys(changedBoxStyles).length > 0;
   /** Written boxes the teacher can size; one row per question, across versions. */
   const writtenRows = useMemo(() => {
     if (isStub) return [];
@@ -630,6 +678,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           label: versionPlan ? null : w.label,
           text: q.text,
           size: w.size,
+          style: paperBoxStyleOf(q),
         },
       ];
     });
@@ -986,6 +1035,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         includeKeySheet,
         sheetStimuli,
         boxSizes,
+        boxStyles,
         questionTextLayout,
       ]);
       const saved = assign ? committedRef.current : null;
@@ -1000,10 +1050,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         // the next print and every PLC copy start from the same sheet (D18).
         // Only when they changed: an unchanged save would publish a new version
         // to the PLC and tell every peer to pull a print they did not make.
-        else if (onSavePrintSetup && (sheetStimuliChanged || boxSizesChanged))
+        else if (
+          onSavePrintSetup &&
+          (sheetStimuliChanged || boxSizesChanged || boxStylesChanged)
+        )
           await onSavePrintSetup({
             stimuli: sheetStimuli,
             boxSizes: changedBoxSizes,
+            boxStyles: changedBoxStyles,
           });
         await onSaveBatch(batch);
         if (assign)
@@ -1730,6 +1784,17 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                     }))
                   }
                   ariaLabel={`${row.label ? `Question ${row.label}` : row.text} box size`}
+                  anchor={row.label ?? row.questionId}
+                />
+                <BoxStyleSelect
+                  style={row.style}
+                  onChange={(style) =>
+                    setBoxStyles((prev) => ({
+                      ...prev,
+                      [row.questionId]: style,
+                    }))
+                  }
+                  ariaLabel={`${row.label ? `Question ${row.label}` : row.text} answer style`}
                   anchor={row.label ?? row.questionId}
                 />
               </li>

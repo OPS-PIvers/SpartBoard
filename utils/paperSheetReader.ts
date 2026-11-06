@@ -7,8 +7,8 @@
  * fed upside down are all corrected rather than trusted.
  */
 
-import type { PaperPageMap } from '@/types';
-import { mcItemsOf, writtenItemsOf, writtenRuleYsMm } from './paperPageMap';
+import type { PaperPageItem, PaperPageMap } from '@/types';
+import { mcItemsOf, writtenBoxBandsMm, writtenItemsOf } from './paperPageMap';
 import {
   DEFAULT_COLUMNS_PER_PAGE,
   MARKER_CELL_COUNT,
@@ -74,12 +74,10 @@ export const READER_THRESHOLDS = {
   stimulusOtsuMarginMm: 6,
   /** Handwriting darker than the paper by this much counts as ink, so light pencil is not lost to the Otsu cut (D22). */
   writtenInkContrast: 60,
-  /** Printed rule-line width (it spans y - width to y); the ink check masks it plus `writtenFitMarginMm` either side. */
-  writtenRuleLineMm: 0.3,
-  /** Registration fit error allowed for when masking rule lines. */
+  /** Registration fit error allowed for when masking rule, grid and axis lines (`writtenBoxBandsMm`). */
   writtenFitMarginMm: 0.75,
-  /** Box edge kept out of the ink check, so a printed border never reads as writing. */
-  writtenBoxInsetMm: 1,
+  /** Box edge kept out of the ink check, so the printed outline plus fit error never reads as writing. */
+  writtenBoxInsetMm: 1.2,
   /** Connected ink area at or above which a box holds writing; a short digit is about 2.5 mm². */
   writtenMinInkMm2: 1.5,
   /** Margin added around a box before cropping, to cover fit error (D21). */
@@ -566,35 +564,42 @@ function paperLevel(gray: Uint8Array, threshold: number): number {
 }
 
 /**
- * Handwriting found in a box, in mm² (D22). Rule-line bands and the box edge
- * are masked; a sample counts only with an inked neighbour, so scanner specks
- * never add up to an answer.
+ * Handwriting found in a box, in mm² (D22). Printed rule, grid and axis lines
+ * and the box edge are masked; a sample counts only with an inked neighbour,
+ * so scanner specks never add up to an answer.
  */
 function writtenInkMm2(
   gray: Uint8Array,
   width: number,
   height: number,
   map: MapMm,
-  item: { boxMm: RectMm; lines: number },
+  item: Pick<
+    Extract<PaperPageItem, { kind: 'written' }>,
+    'boxMm' | 'lines' | 'style'
+  >,
   inkCut: number
 ): number {
   const {
     sampleStepMm: step,
     writtenBoxInsetMm: inset,
-    writtenRuleLineMm: ruleW,
     writtenFitMarginMm: fit,
   } = READER_THRESHOLDS;
   const x0 = item.boxMm.x + inset;
   const y0 = item.boxMm.y + inset;
   const cols = Math.max(0, Math.floor((item.boxMm.w - inset * 2) / step));
   const rowsN = Math.max(0, Math.floor((item.boxMm.h - inset * 2) / step));
-  const ruleCentres = writtenRuleYsMm(item).map((y) => y - ruleW / 2);
-  const half = ruleW / 2 + fit;
+  const bands = writtenBoxBandsMm(item);
+  const masked = (v: number, list: typeof bands.rows): boolean =>
+    list.some((b) => Math.abs(v - b.centreMm) <= b.weightMm / 2 + fit);
+  const colMasked = Array.from({ length: cols }, (_, c) =>
+    masked(x0 + (c + 0.5) * step, bands.cols)
+  );
   const ink = new Uint8Array(cols * rowsN);
   for (let r = 0; r < rowsN; r += 1) {
     const y = y0 + (r + 0.5) * step;
-    if (ruleCentres.some((c) => Math.abs(y - c) <= half)) continue;
+    if (masked(y, bands.rows)) continue;
     for (let c = 0; c < cols; c += 1) {
+      if (colMasked[c]) continue;
       const p = map({ x: x0 + (c + 0.5) * step, y });
       const px = Math.round(p.x);
       const py = Math.round(p.y);

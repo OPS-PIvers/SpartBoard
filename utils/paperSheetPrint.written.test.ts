@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PaperPageMap } from '@/types';
+import type { PaperBoxStyle, PaperPageMap } from '@/types';
 import {
   planPaperPages,
   writtenItemsOf,
@@ -30,12 +30,14 @@ const mc = (n: number): PaperSheetEntry => ({
 });
 const wr = (
   n: number,
-  size: 'S' | 'M' | 'L' | 'full' = 'M'
+  size: 'S' | 'M' | 'L' | 'full' = 'M',
+  style?: PaperBoxStyle
 ): PaperSheetEntry => ({
   kind: 'written',
   questionId: `q${n}`,
   label: String(n),
   size,
+  ...(style ? { style } : {}),
 });
 
 const mapsFor = (
@@ -129,15 +131,51 @@ describe('buildPaperSheetsHtml with page maps', () => {
     expect(html).toContain('Explain photosynthesis.');
   });
 
-  it('prints only ruled lines inside a box, one per line', () => {
+  it('prints an outline and ruled lines inside a box, one per line', () => {
     const maps = mapsFor(mixed);
     const page = pages(buildPaperSheetsHtml(job(maps)))[0];
     const shapes = drawn(page);
     for (const item of writtenItemsOf(maps[0])) {
       const inside = shapes.filter((d) => intersects(d.rect, item.boxMm));
-      expect(inside.length).toBe(item.lines);
-      expect(inside.every((d) => d.cls === 'wr-rule')).toBe(true);
+      expect(inside.filter((d) => d.cls === 'wr-rule')).toHaveLength(
+        item.lines
+      );
+      expect(inside.filter((d) => d.cls === 'wr-outline')).toEqual([
+        { cls: 'wr-outline', rect: item.boxMm },
+      ]);
+      expect(inside).toHaveLength(item.lines + 1);
     }
+  });
+
+  it('prints each box style inside its outline', () => {
+    const inside = (style: PaperBoxStyle) => {
+      const maps = mapsFor([mc(1), wr(4, 'S', style)]);
+      const item = writtenItemsOf(maps[0])[0];
+      expect(item.style).toBe(style);
+      const shapes = drawn(pages(buildPaperSheetsHtml(job(maps)))[0]).filter(
+        (d) => intersects(d.rect, item.boxMm)
+      );
+      return { item, rules: shapes.filter((d) => d.cls === 'wr-rule') };
+    };
+    expect(inside('blank').rules).toHaveLength(0);
+    const graph = inside('graph');
+    // 140 x 24 mm: 27 vertical and 4 horizontal lines 5 mm apart.
+    const vertical = (r: RectMm) => r.h > r.w;
+    expect(graph.rules.filter((d) => vertical(d.rect))).toHaveLength(27);
+    expect(graph.rules.filter((d) => !vertical(d.rect))).toHaveLength(4);
+    const coord = inside('coordinate');
+    const heavy = coord.rules.filter((d) => Math.min(d.rect.w, d.rect.h) > 0.4);
+    expect(heavy).toHaveLength(2);
+    const [yAxis] = heavy.filter((d) => vertical(d.rect));
+    expect(yAxis.rect.x + yAxis.rect.w / 2).toBeCloseTo(
+      coord.item.boxMm.x + 70,
+      2
+    );
+  });
+
+  it('leaves lines off the map item so older maps are unchanged', () => {
+    const maps = mapsFor([mc(1), wr(4, 'M', 'lines')]);
+    expect('style' in writtenItemsOf(maps[0])[0]).toBe(false);
   });
 
   it('prints the number only on a stub header', () => {

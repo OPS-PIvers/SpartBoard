@@ -27,6 +27,7 @@ import {
 import {
   analyzePaperQuiz,
   isPaperBoxSize,
+  isPaperBoxStyle,
   planPaperBatch,
   planPaperPages,
   type PaperBatchDoc,
@@ -304,6 +305,9 @@ function toPaperQuestion(raw: unknown): PaperQuestion | null {
     ...(typeof raw.maxWords === 'number' ? { maxWords: raw.maxWords } : {}),
     ...(isPaperBoxSize(raw.paperBoxSize)
       ? { paperBoxSize: raw.paperBoxSize }
+      : {}),
+    ...(isPaperBoxStyle(raw.paperBoxStyle)
+      ? { paperBoxStyle: raw.paperBoxStyle }
       : {}),
   };
 }

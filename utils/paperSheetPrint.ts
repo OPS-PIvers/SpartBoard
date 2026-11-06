@@ -50,7 +50,12 @@ import {
   type PointMm,
   type RectMm,
 } from './paperSheetLayout';
-import { isStimulusFreePage, mcItemsOf, writtenRuleYsMm } from './paperPageMap';
+import {
+  WRITTEN_OUTLINE_MM,
+  isStimulusFreePage,
+  mcItemsOf,
+  writtenBoxBandsMm,
+} from './paperPageMap';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { encodePaperMarker, paperBatchTag } from './paperSheetMarker';
 import type { PaperSheetPlan } from './paperSheetPlan';
@@ -158,9 +163,6 @@ export interface SheetWrittenFill {
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
-
-/** Rule line weight in a written box; drawn at the letter grey so the reader's cut drops it. */
-export const WRITTEN_RULE_MM = 0.3;
 
 /** `BUBBLE_LETTER_GREY` as a CSS colour, so the print and the reader's floor share one number. */
 const letterGrey = (): string =>
@@ -573,11 +575,21 @@ function writtenItemHtml(
     }
     return parts.join('');
   }
-  for (const y of writtenRuleYsMm(item)) {
+  // The outline shows students where to stay; the reader's inset keeps it out of the ink check.
+  parts.push(`<div class="wr-outline" style="${box}"></div>`);
+  const bands = writtenBoxBandsMm(item);
+  for (const r of bands.rows) {
     parts.push(
       `<div class="wr-rule" style="left:${mm(b.x)};top:${mm(
-        y - WRITTEN_RULE_MM
-      )};width:${mm(b.w)}"></div>`
+        r.centreMm - r.weightMm / 2
+      )};width:${mm(b.w)};height:${mm(r.weightMm)}"></div>`
+    );
+  }
+  for (const c of bands.cols) {
+    parts.push(
+      `<div class="wr-rule" style="left:${mm(c.centreMm - c.weightMm / 2)};top:${mm(
+        b.y
+      )};width:${mm(c.weightMm)};height:${mm(b.h)}"></div>`
     );
   }
   return parts.join('');
@@ -794,8 +806,9 @@ const SHEET_STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-stem-box, .qt-choice, .wr-rule, .wr-key { position: absolute; }
-  .wr-rule { height: ${WRITTEN_RULE_MM}mm; background: ${letterGrey()}; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-stem-box, .qt-choice, .wr-rule, .wr-outline, .wr-key { position: absolute; }
+  .wr-rule { background: ${letterGrey()}; }
+  .wr-outline { box-sizing: border-box; border: ${WRITTEN_OUTLINE_MM}mm solid ${letterGrey()}; }
   .wr-key {
     background: #e5e5e5;
     display: flex;

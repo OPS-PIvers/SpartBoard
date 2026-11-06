@@ -30,6 +30,7 @@ import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import {
   PAPER_HANDWRITTEN_FEATURE,
   withPaperBoxSizes,
+  withPaperBoxStyles,
 } from '@/utils/paperWritten';
 import { useDashboard } from '@/context/useDashboard';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
@@ -4676,12 +4677,12 @@ const TeacherQuizWidget: React.FC<{
           inPlcGroup={!!paperPrintMeta.sync}
           onSavePrintSetup={
             paperPrintMeta
-              ? async ({ stimuli: paperSheetStimuli, boxSizes }) => {
+              ? async ({ stimuli: paperSheetStimuli, boxSizes, boxStyles }) => {
                   // Dropping the key rather than writing an empty array, so
                   // clearing the last one clears it everywhere it synced to.
-                  const next: QuizData = withPaperBoxSizes(
-                    { ...paperPrintQuiz },
-                    boxSizes
+                  const next: QuizData = withPaperBoxStyles(
+                    withPaperBoxSizes({ ...paperPrintQuiz }, boxSizes),
+                    boxStyles
                   );
                   if (paperSheetStimuli.length > 0)
                     next.paperSheetStimuli = paperSheetStimuli;

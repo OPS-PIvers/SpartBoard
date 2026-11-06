@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PaperBoxSize, PaperPageMap } from '@/types';
+import type { PaperBoxSize, PaperBoxStyle, PaperPageMap } from '@/types';
 import {
   paintSyntheticSheet,
   type SyntheticMark,
@@ -28,11 +28,16 @@ const mc = (n: number): PaperSheetEntry => ({
   questionId: `q${n}`,
   label: String(n),
 });
-const written = (n: number, size: PaperBoxSize = 'M'): PaperSheetEntry => ({
+const written = (
+  n: number,
+  size: PaperBoxSize = 'M',
+  style?: PaperBoxStyle
+): PaperSheetEntry => ({
   kind: 'written',
   questionId: `q${n}`,
   label: String(n),
   size,
+  ...(style ? { style } : {}),
 });
 
 const plan = (entries: PaperSheetEntry[], grid: PaperGrid): PaperPageMap[] => {
@@ -264,6 +269,49 @@ describe('the written ink check', () => {
     expect(digit.state).toBe('ink');
   });
 });
+
+describe.each<PaperBoxStyle>(['lines', 'blank', 'graph', 'coordinate'])(
+  'the written ink check on a %s box',
+  (style) => {
+    const maps = plan(
+      [mc(1), written(2, 'M', style), written(3, 'S', style)],
+      2
+    );
+    const stateOf = (over: Partial<SyntheticSheetOptions>) =>
+      read(maps, paint(maps[0], over), 2).written[0];
+
+    it('reads an empty box as blank, outline and grid included', () => {
+      expect(stateOf({}).state).toBe('blank');
+      expect(stateOf({ ruleGrey: 0x30 }).state).toBe('blank');
+      expect(stateOf({ ruleGrey: 0x30, skewDeg: 0.8 }).state).toBe('blank');
+      expect(
+        stateOf({ ruleGrey: 0x30, rotated: true, pxPerMm: 5.9 }).state
+      ).toBe('blank');
+    });
+
+    it('finds writing and a single digit in one cell', () => {
+      expect(
+        stateOf({ writing: [{ questionId: 'q2' }], ruleGrey: 0x30 }).state
+      ).toBe('ink');
+      const digit = stateOf({
+        ruleGrey: 0x30,
+        writing: [
+          {
+            questionId: 'q2',
+            density: 1,
+            // Between rule lines, or inside one 5 mm grid cell.
+            strokes: [
+              style === 'lines' || style === 'blank'
+                ? { x: 6, y: 1.5, w: 0.6, h: 5 }
+                : { x: 7, y: 6, w: 0.6, h: 3.2 },
+            ],
+          },
+        ],
+      });
+      expect(digit.state).toBe('ink');
+    });
+  }
+);
 
 describe('cropWrittenBox', () => {
   const maps = plan([mc(1), written(2, 'M')], 2);

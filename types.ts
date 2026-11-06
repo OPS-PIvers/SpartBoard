@@ -7516,6 +7516,7 @@ export type VideoActivityQuestion = Omit<
   | 'enforceWordLimit'
   | 'noSpellCheck'
   | 'paperBoxSize'
+  | 'paperBoxStyle'
 > & {
   type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */

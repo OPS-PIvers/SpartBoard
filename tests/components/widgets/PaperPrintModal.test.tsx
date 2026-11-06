@@ -701,6 +701,7 @@ describe('PaperPrintModal', () => {
       expect(onSavePrintSetup).toHaveBeenCalledWith({
         stimuli: [{ ...graph, caption: 'Use for 1-10' }],
         boxSizes: {},
+        boxStyles: {},
       });
       expect(order).toEqual(['quiz', 'batch']);
     });
@@ -1182,6 +1183,7 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(onSavePrintSetup).toHaveBeenCalledWith({
       stimuli: [],
       boxSizes: { w1: 15 },
+      boxStyles: {},
     });
     const lines = onSaveBatch.mock.calls[0][0].pageMaps?.flatMap((m) =>
       m.items.flatMap((i) => (i.kind === 'written' ? [i.lines] : []))
@@ -1204,11 +1206,44 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(onSavePrintSetup).toHaveBeenCalledWith({
       stimuli: [],
       boxSizes: { w2: 'S' },
+      boxStyles: {},
     });
     const lines = onSaveBatch.mock.calls[0][0].pageMaps?.flatMap((m) =>
       m.items.flatMap((i) => (i.kind === 'written' ? [i.lines] : []))
     );
     expect(lines).toEqual([12, 3]);
+  });
+
+  it('prints the picked answer style and saves only the styles that changed', async () => {
+    const onSavePrintSetup = vi.fn().mockResolvedValue(undefined);
+    const { onSaveBatch, print } = setup({
+      quiz: quiz({
+        questions: [fr('w1', { paperBoxStyle: 'graph' }), fr('w2'), fr('w3')],
+      }),
+      onSavePrintSetup,
+    });
+    expect(screen.getByLabelText('Question 1 answer style')).toHaveValue(
+      'graph'
+    );
+    expect(screen.getByLabelText('Question 2 answer style')).toHaveValue(
+      'lines'
+    );
+    fireEvent.change(screen.getByLabelText('Question 2 answer style'), {
+      target: { value: 'coordinate' },
+    });
+    fireEvent.change(screen.getByLabelText('Question 3 answer style'), {
+      target: { value: 'lines' },
+    });
+    await printIt(print);
+    expect(onSavePrintSetup).toHaveBeenCalledWith({
+      stimuli: [],
+      boxSizes: {},
+      boxStyles: { w2: 'coordinate' },
+    });
+    const styles = onSaveBatch.mock.calls[0][0].pageMaps?.flatMap((m) =>
+      m.items.flatMap((i) => (i.kind === 'written' ? [i.style] : []))
+    );
+    expect(styles).toEqual(['graph', 'coordinate', undefined]);
   });
 
   it('does not save the quiz when no box size changed', async () => {

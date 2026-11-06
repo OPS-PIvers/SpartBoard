@@ -228,7 +228,8 @@ describe('planPaperPages packing', () => {
     expect(rows.map((r) => r.originMm.x)).toEqual([24, 24, 24, 116, 116, 116]);
     expect(rows.map((r) => r.originMm.y)).toEqual([58, 66, 74, 58, 66, 74]);
     const [box] = writtenItemsOf(page);
-    expect(box.headerMm.y).toBe(82);
+    // One empty row between the last bubbles and the box's header.
+    expect(box.headerMm.y).toBe(90);
     expect(box.lines).toBe(paperBoxLines('M'));
   });
 
@@ -238,7 +239,8 @@ describe('planPaperPages packing', () => {
     const rows = mcItemsOf(page);
     const below = box.boxMm.y + box.boxMm.h;
     for (const r of rows) expect(r.originMm.y).toBeGreaterThan(below);
-    expect(rows[0].originMm.y).toBe(58 + (1 + 3) * 8);
+    // Header row, three lines, then one empty row.
+    expect(rows[0].originMm.y).toBe(58 + (1 + 3 + 1) * 8);
   });
 
   it('never splits a box: one that does not fit starts the next page', () => {
@@ -258,7 +260,7 @@ describe('planPaperPages packing', () => {
     expect(mcItemsOf(maps[1]).filter((r) => r.originMm.x === 24)).toHaveLength(
       5
     );
-    expect(writtenItemsOf(maps[1])[0].headerMm.y).toBe(58 + 5 * 8);
+    expect(writtenItemsOf(maps[1])[0].headerMm.y).toBe(58 + 6 * 8);
   });
 
   it('gives a Full box its own page, with nothing after it on that page', () => {
