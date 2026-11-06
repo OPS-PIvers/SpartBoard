@@ -1280,8 +1280,6 @@ export const useQuizAssignments = (
     authContext?.canAccessFeature?.('tab-away-timer') === true;
   const scoreOnSubmitOn =
     authContext?.canAccessFeature?.('quiz-score-on-submit') === true;
-  const hideRubricUnlessShown =
-    authContext?.canAccessFeature?.('quiz-rubric-visibility') === true;
   const timeLimitOn =
     authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true;
   const stimulusQuotesOn =
@@ -1333,8 +1331,7 @@ export const useQuizAssignments = (
           translations,
           freshQuestionIdsByLocale,
           question
-        ),
-        { hideRubricUnlessShown }
+        )
       );
       const keepRecording =
         mediaResponseGranted &&
@@ -1344,7 +1341,7 @@ export const useQuizAssignments = (
       const { recording: _stripped, ...rest } = projected;
       return rest;
     },
-    [mediaResponseGranted, whiteboardResponseGranted, hideRubricUnlessShown]
+    [mediaResponseGranted, whiteboardResponseGranted]
   );
 
   // Recorded answers are a self-paced (student mode) feature: only there does a

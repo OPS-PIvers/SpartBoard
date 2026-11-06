@@ -829,8 +829,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     },
     [uploadWhiteboardImage]
   );
-  const rubricVisibilityOn = canAccessFeature('quiz-rubric-visibility');
-  const spellCheckToggleOn = canAccessFeature('quiz-spell-check-toggle');
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
   const readPrompt = useCallback(() => promptRef.current?.value, []);
@@ -1181,24 +1179,22 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   question={q}
                   onChange={(updates) => updateQuestion(q.id, updates)}
                 />
-                {spellCheckToggleOn && (
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={q.noSpellCheck !== true}
-                      onChange={(e) =>
-                        updateQuestion(q.id, {
-                          noSpellCheck: e.target.checked ? undefined : true,
-                        })
-                      }
-                      className="w-4 h-4 accent-brand-blue-primary"
-                      {...tourTypeAttr('quiz-editor.spell-check', 'quiz')}
-                    />
-                    <span className="font-bold text-xs text-slate-700">
-                      Spell check
-                    </span>
-                  </label>
-                )}
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={q.noSpellCheck !== true}
+                    onChange={(e) =>
+                      updateQuestion(q.id, {
+                        noSpellCheck: e.target.checked ? undefined : true,
+                      })
+                    }
+                    className="w-4 h-4 accent-brand-blue-primary"
+                    {...tourTypeAttr('quiz-editor.spell-check', 'quiz')}
+                  />
+                  <span className="font-bold text-xs text-slate-700">
+                    Spell check
+                  </span>
+                </label>
               </>
             )}
             <div>
@@ -1222,29 +1218,27 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   >
                     Detach
                   </button>
-                  {rubricVisibilityOn && (
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={q.rubricVisibleToStudents === true}
-                        onChange={(e) =>
-                          updateQuestion(q.id, {
-                            rubricVisibleToStudents: e.target.checked
-                              ? true
-                              : undefined,
-                          })
-                        }
-                        className="w-4 h-4 accent-brand-blue-primary"
-                        {...tourTypeAttr(
-                          'quiz-editor.rubric-show-students',
-                          'quiz'
-                        )}
-                      />
-                      <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
-                        Show to students
-                      </span>
-                    </label>
-                  )}
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={q.rubricVisibleToStudents === true}
+                      onChange={(e) =>
+                        updateQuestion(q.id, {
+                          rubricVisibleToStudents: e.target.checked
+                            ? true
+                            : undefined,
+                        })
+                      }
+                      className="w-4 h-4 accent-brand-blue-primary"
+                      {...tourTypeAttr(
+                        'quiz-editor.rubric-show-students',
+                        'quiz'
+                      )}
+                    />
+                    <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
+                      Show to students
+                    </span>
+                  </label>
                 </div>
               ) : (
                 <button
