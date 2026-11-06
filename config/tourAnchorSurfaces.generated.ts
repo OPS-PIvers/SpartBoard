@@ -873,7 +873,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-monitor.roster-proficiency': ['quiz.monitor'],
     'quiz-monitor.settings-board-view': ['quiz.monitor.settings'],
     'quiz-monitor.settings-tab-warnings': ['quiz.monitor.settings'],
-    'quiz-monitor.settings-assignment': ['quiz.monitor.settings'],
     'quiz-monitor.settings-podium': ['quiz.monitor.settings'],
     'quiz-monitor.settings-answer-reveal': ['quiz.monitor.settings'],
     'quiz-monitor.settings-scoreboard-sync': ['quiz.monitor.settings'],

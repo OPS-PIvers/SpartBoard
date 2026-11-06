@@ -4120,10 +4120,6 @@ export const TOUR_ANCHORS = {
     label: 'Tab warnings switch in the Quiz monitor settings',
     perWidgetType: true,
   },
-  'quiz-monitor.settings-assignment': {
-    label: 'All assignment settings button in the Quiz monitor settings',
-    perWidgetType: true,
-  },
   'quiz-monitor.settings-podium': {
     label: 'Podium between questions switch in the Quiz monitor settings',
     perWidgetType: true,

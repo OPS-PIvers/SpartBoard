@@ -131,10 +131,8 @@ export interface QuizLiveMonitorProps {
   overridesByStudentUid?: Record<string, StudentOverride> | null;
   /** Write-once served language per uid; grades a de-targeted student's old work. */
   servedLanguageByStudentUid?: Record<string, string> | null;
-  /** Opens the assignment's full settings editor from the settings screen. */
-  onEditAssignmentSettings?: () => void;
-  /** Saves a Tab warnings flip on the assignment too; resolves once written. */
-  onTabWarningsChange?: (enabled: boolean) => Promise<void>;
+  /** The assignment's assign-stepper steps, shown in place on the settings screen. */
+  assignmentSettings?: React.ReactNode;
 }
 
 type Screen =
@@ -181,8 +179,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     localizedFibAnswers = null,
     overridesByStudentUid = null,
     servedLanguageByStudentUid = null,
-    onEditAssignmentSettings,
-    onTabWarningsChange,
+    assignmentSettings,
   } = props;
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
@@ -980,15 +977,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             hasNames={Object.keys(data.pinToName).length > 0}
             onUpdateSession={handleUpdateSession}
             onUpdateConfig={onUpdateConfig}
-            onEditAssignmentSettings={onEditAssignmentSettings}
-            onTabWarningsChange={
-              onTabWarningsChange
-                ? (enabled) =>
-                    void onTabWarningsChange(enabled).catch((err: unknown) =>
-                      logError('QuizLiveMonitor.tabWarnings', err)
-                    )
-                : undefined
-            }
+            assignmentSettings={assignmentSettings}
           />
         )}
       </div>

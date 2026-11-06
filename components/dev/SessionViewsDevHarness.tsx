@@ -126,24 +126,21 @@ const QuizMonitorDev: React.FC<
   >
 > = (props) => {
   const [config, setConfig] = useState(makeQuizConfig);
-  const [editing, setEditing] = useState(false);
   return (
-    <>
-      <QuizLiveMonitor
-        {...props}
-        config={config}
-        onUpdateConfig={(updates) => setConfig((c) => ({ ...c, ...updates }))}
-        onEditAssignmentSettings={() => setEditing(true)}
-      />
-      {editing && (
+    <QuizLiveMonitor
+      {...props}
+      config={config}
+      onUpdateConfig={(updates) => setConfig((c) => ({ ...c, ...updates }))}
+      assignmentSettings={
         <QuizAssignmentSettingsModal
+          inline
           assignment={QUIZ_ASSIGNMENT}
           rosters={SAMPLE_ROSTERS}
-          onClose={() => setEditing(false)}
-          onSave={() => setEditing(false)}
+          onClose={() => undefined}
+          onSave={() => undefined}
         />
-      )}
-    </>
+      }
+    />
   );
 };
 

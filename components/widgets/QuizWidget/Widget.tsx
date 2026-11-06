@@ -714,6 +714,8 @@ const TeacherQuizWidget: React.FC<{
     useState<QuizAssignment | null>(null);
   const [editingAssignment, setEditingAssignment] =
     useState<QuizAssignment | null>(null);
+  // Bumped after the monitor's in-place settings save so the steps reload from the saved assignment.
+  const [inlineSettingsRev, setInlineSettingsRev] = useState(0);
   // Ephemeral modal state for the per-assignment "Publish Scores" picker.
   const [publishingAssignment, setPublishingAssignment] =
     useState<QuizAssignment | null>(null);
@@ -2409,17 +2411,20 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
-  const assignmentSettingsModal = editingAssignment ? (
+  const renderAssignmentSettings = (
+    target: QuizAssignment,
+    inline: boolean
+  ) => (
     <QuizAssignmentSettingsModal
-      assignment={
-        assignments.find((a) => a.id === editingAssignment.id) ??
-        editingAssignment
-      }
+      assignment={assignments.find((a) => a.id === target.id) ?? target}
       rosters={rosters}
       canShareWithPlc={plcs.length > 0}
-      onShareResults={() => setSharePlcResultsTarget(editingAssignment)}
-      onStopSharing={() => handleStopSharingPlc(editingAssignment)}
-      onClose={() => setEditingAssignment(null)}
+      onShareResults={() => setSharePlcResultsTarget(target)}
+      onStopSharing={() => handleStopSharingPlc(target)}
+      inline={inline}
+      onClose={() => {
+        if (!inline) setEditingAssignment(null);
+      }}
       onSave={async (patch) => {
         try {
           // Class targeting must be dual-written to BOTH the assignment
@@ -2455,7 +2460,7 @@ const TeacherQuizWidget: React.FC<{
           // (a combined hook method) is a tracked follow-up.
           if (Object.keys(settingsPatch).length > 0) {
             await updateAssignmentSettings(
-              editingAssignment.id,
+              target.id,
               settingsPatch,
               settingsPatch.dueAtByRosterId
                 ? dueAtByClassIdFromRosters(
@@ -2474,19 +2479,20 @@ const TeacherQuizWidget: React.FC<{
             const removedRosterNames = rosters
               .filter(
                 (r) =>
-                  (editingAssignment.rosterIds ?? []).includes(r.id) &&
+                  (target.rosterIds ?? []).includes(r.id) &&
                   !selectedRosterIds.has(r.id)
               )
               .map((r) => r.name);
             await setAssignmentRosters(
-              editingAssignment.id,
+              target.id,
               targets,
               periodAccessRows,
               removedRosterNames
             );
           }
           addToast('Assignment settings saved.', 'success');
-          setEditingAssignment(null);
+          if (inline) setInlineSettingsRev((n) => n + 1);
+          else setEditingAssignment(null);
         } catch (err) {
           addToast(
             err instanceof Error ? err.message : 'Failed to save settings',
@@ -2500,7 +2506,10 @@ const TeacherQuizWidget: React.FC<{
         }
       }}
     />
-  ) : null;
+  );
+  const assignmentSettingsModal = editingAssignment
+    ? renderAssignmentSettings(editingAssignment, false)
+    : null;
 
   if (view === 'monitor' && liveSession) {
     // M17 E2 F2: resolve the active assignment's per-student overrides so
@@ -2660,21 +2669,12 @@ const TeacherQuizWidget: React.FC<{
           localizedFibAnswers={
             monitorActiveAssignment?.localizedFibAnswers ?? null
           }
-          onEditAssignmentSettings={
-            monitorActiveAssignment && !isReview
-              ? () => setEditingAssignment(monitorActiveAssignment)
-              : undefined
-          }
-          onTabWarningsChange={
-            monitorActiveAssignment
-              ? (enabled) =>
-                  updateAssignmentSettings(monitorActiveAssignment.id, {
-                    sessionOptions: {
-                      ...monitorActiveAssignment.sessionOptions,
-                      tabWarningsEnabled: enabled,
-                    },
-                  })
-              : undefined
+          assignmentSettings={
+            monitorActiveAssignment && !isReview ? (
+              <React.Fragment key={inlineSettingsRev}>
+                {renderAssignmentSettings(monitorActiveAssignment, true)}
+              </React.Fragment>
+            ) : undefined
           }
         />
         {assignmentSettingsModal}
