@@ -2237,7 +2237,6 @@ const TeacherQuizWidget: React.FC<{
       // A question bank has no review table of its own, so the test-document
       // tile is offered on the quiz import only.
       canImportDocuments,
-      canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
@@ -2578,7 +2577,6 @@ const TeacherQuizWidget: React.FC<{
             quiz={studentView.quiz}
             behavior={studentView.behavior}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
-            hideRubricUnlessShown={canAccessFeature('quiz-rubric-visibility')}
             orderingListOn={canAccessFeature('quiz-ordering-list')}
             onExit={() => setStudentView(null)}
           />
