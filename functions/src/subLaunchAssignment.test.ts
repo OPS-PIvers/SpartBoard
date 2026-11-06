@@ -649,6 +649,7 @@ describe('the payload allowlist', () => {
     'showLearningTargets',
     'allowStimulusQuotes',
     'allowCrossOut',
+    'orderingList',
     'liveLeaderboard',
     'classPeriodByClassId',
   ];
@@ -1036,6 +1037,31 @@ describe('the content the session carries', () => {
     await run();
 
     expect(written[0].data).not.toHaveProperty('allowCrossOut');
+  });
+
+  it('stamps the one-list Ordering layout when the host has the flag', async () => {
+    const hostHasFeature = vi.fn(() => Promise.resolve(true));
+    const { run, written } = launch({}, SUB, input(), {
+      ...deps,
+      hostHasFeature,
+    });
+
+    await run();
+
+    expect(hostHasFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      HOST,
+      'quiz-ordering-list'
+    );
+    expect(written[0].data.orderingList).toBe(true);
+  });
+
+  it('leaves the Ordering layout unstamped without the host’s flag', async () => {
+    const { run, written } = launch();
+
+    await run();
+
+    expect(written[0].data).not.toHaveProperty('orderingList');
   });
 
   it('refuses a key whose quiz has no questions', async () => {

@@ -94,6 +94,7 @@ export const STUDENT_QUIZ_STATES = [
   'sq-images-ordering',
   'sq-images-matching',
   'sq-images-mc',
+  'sq-ordering-list',
 ] as const;
 export type StudentQuizStateKey = (typeof STUDENT_QUIZ_STATES)[number];
 
