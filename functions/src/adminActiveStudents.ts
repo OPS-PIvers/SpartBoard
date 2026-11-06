@@ -24,15 +24,17 @@ import { assertViewAsAllowed } from './viewAsGuard';
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 const IN_CHUNK = 10;
 const IN_QUERY_MAX = 30;
-const CLASSLINK_CONCURRENCY = 6;
+const CLASSLINK_CONCURRENCY = 12;
 const PAGE_LIMIT = 200;
 const MAX_PAGES = 10;
 const API_TIMEOUT_MS = 20000;
 const QUERY_CONCURRENCY = 8;
-const NAME_LOOKUP_BUDGET_MS = 80000;
-// Firestore lookups stop starting new queries after this, leaving the name walk time under the 120s timeout.
-const QUERY_BUDGET_MS = 50000;
+// Lookups stop starting new work at these marks so the call returns inside the client's 110s timeout.
+const NAME_LOOKUP_BUDGET_MS = 55000;
+const QUERY_BUDGET_MS = 35000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const PARTIAL_CACHE_TTL_MS = 60 * 1000;
+const NAME_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const ORG_WIDE_ROLE_IDS = new Set(['super_admin', 'domain_admin']);
 
 export interface ActiveStudentInput {
@@ -57,20 +59,45 @@ export function selectMonthlyActive(
     .sort((a, b) => b.lastSignInMs - a.lastSignInMs);
 }
 
-/** Sections to fetch from ClassLink, most-covering first, so names resolve in as few calls as possible. */
+/** Sections to fetch from ClassLink: a greedy cover of the unnamed students first, then the rest as fallbacks. */
 export function orderSectionsForNameLookup(
   students: readonly ActiveStudentInput[],
-  rosteredSections: ReadonlySet<string>
+  rosteredSections: ReadonlySet<string>,
+  named: ReadonlySet<string> = new Set()
 ): string[] {
-  const counts = new Map<string, number>();
+  const members = new Map<string, Set<string>>();
   for (const s of students) {
+    if (named.has(s.uid)) continue;
     for (const id of s.sectionIds) {
-      if (rosteredSections.has(id)) counts.set(id, (counts.get(id) ?? 0) + 1);
+      if (!rosteredSections.has(id)) continue;
+      const set = members.get(id) ?? new Set<string>();
+      set.add(s.uid);
+      members.set(id, set);
     }
   }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  const byCount = [...members.entries()]
+    .sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]))
     .map(([id]) => id);
+  const covered = new Set<string>();
+  const cover: string[] = [];
+  const left = new Set(byCount);
+  for (;;) {
+    let best = '';
+    let bestGain = 0;
+    for (const id of left) {
+      let gain = 0;
+      for (const uid of members.get(id) ?? []) if (!covered.has(uid)) gain += 1;
+      if (gain > bestGain || (gain === bestGain && gain > 0 && id < best)) {
+        best = id;
+        bestGain = gain;
+      }
+    }
+    if (bestGain === 0) break;
+    cover.push(best);
+    left.delete(best);
+    for (const uid of members.get(best) ?? []) covered.add(uid);
+  }
+  return [...cover, ...byCount.filter((id) => left.has(id))];
 }
 
 // Student records that mark opening or submitting an assignment, keyed by the student's auth uid.
@@ -283,8 +310,10 @@ interface ActiveStudentsResult {
   students: ActiveStudentRow[];
 }
 
-// Per-instance cache so reopening the modal or retrying doesn't repeat the full fan-out.
+// Per-instance caches so reopening the modal doesn't repeat the full fan-out, and names found by an unfinished walk carry over.
 const resultCache = new Map<string, ActiveStudentsResult>();
+const nameCache = new Map<string, { name: string; at: number }>();
+const inFlight = new Map<string, Promise<ActiveStudentsResult>>();
 
 async function assertOrgWideAdmin(
   db: admin.firestore.Firestore,
@@ -374,174 +403,231 @@ export const getActiveStudentsV1 = onCall(
 
     const now = Date.now();
     const cached = resultCache.get(orgId);
-    if (cached && now - cached.asOf < CACHE_TTL_MS) return cached;
+    const ttl = cached?.partial ? PARTIAL_CACHE_TTL_MS : CACHE_TTL_MS;
+    if (cached && now - cached.asOf < ttl) return cached;
     resultCache.delete(orgId);
-    const queryDeadline = now + QUERY_BUDGET_MS;
-    const deadline = now + NAME_LOOKUP_BUDGET_MS;
-    const snap = await db
-      .collection('student_sections')
-      .where('orgId', '==', orgId)
-      .select('updatedAt', 'sectionIds')
-      .get();
-    const active = selectMonthlyActive(
-      snap.docs.map((d) => {
-        const at: unknown = d.get('updatedAt');
-        const ids: unknown = d.get('sectionIds');
-        return {
-          uid: d.id,
-          lastSignInMs: typeof at === 'number' ? at : 0,
-          sectionIds: Array.isArray(ids)
-            ? ids.filter((x): x is string => typeof x === 'string' && !!x)
-            : [],
-        };
-      }),
-      now
+    const running = inFlight.get(orgId);
+    if (running) return running;
+    const job = computeActiveStudents(db, orgId, now).finally(() =>
+      inFlight.delete(orgId)
     );
+    inFlight.set(orgId, job);
+    return job;
+  }
+);
 
-    // Sections that teachers imported as rosters; only these can be fetched from ClassLink for names.
-    const allSections = [...new Set(active.flatMap((s) => s.sectionIds))];
-    const rosteredSections = new Set<string>();
-    let partial = false;
-    await mapWithConcurrency(
-      chunk(allSections, IN_CHUNK),
-      QUERY_CONCURRENCY,
-      async (ids) => {
-        if (Date.now() >= queryDeadline) {
-          partial = true;
-          return;
-        }
-        await db
-          .collectionGroup('rosters')
-          .where('classlinkClassId', 'in', ids)
-          .select('classlinkClassId')
-          .get()
-          .then(
-            (rs) => {
-              for (const doc of rs.docs) {
-                const sectionId: unknown = doc.get('classlinkClassId');
-                if (typeof sectionId === 'string') {
-                  rosteredSections.add(sectionId);
-                }
-              }
-            },
-            (err: unknown) => {
-              partial = true;
-              console.error(
-                '[getActiveStudentsV1] rosters query failed:',
-                errCode(err)
-              );
-            }
-          );
-      }
-    );
+async function computeActiveStudents(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  now: number
+): Promise<ActiveStudentsResult> {
+  for (const [uid, hit] of nameCache) {
+    if (now - hit.at >= NAME_CACHE_TTL_MS) nameCache.delete(uid);
+  }
+  const queryDeadline = now + QUERY_BUDGET_MS;
+  const deadline = now + NAME_LOOKUP_BUDGET_MS;
+  const snap = await db
+    .collection('student_sections')
+    .where('orgId', '==', orgId)
+    .select('updatedAt', 'sectionIds')
+    .get();
+  const active = selectMonthlyActive(
+    snap.docs.map((d) => {
+      const at: unknown = d.get('updatedAt');
+      const ids: unknown = d.get('sectionIds');
+      return {
+        uid: d.id,
+        lastSignInMs: typeof at === 'number' ? at : 0,
+        sectionIds: Array.isArray(ids)
+          ? ids.filter((x): x is string => typeof x === 'string' && !!x)
+          : [],
+      };
+    }),
+    now
+  );
+  const allSections = [...new Set(active.flatMap((s) => s.sectionIds))];
 
-    const collected = await collectAssignmentOpens(
-      db,
-      active.map((s) => s.uid),
-      allSections,
-      now - MONTH_MS,
-      queryDeadline
-    );
-    if (collected.partial) partial = true;
-    const opens = collected.opens;
-    const opensByStudent = latestOpensByStudent(opens);
+  // Teachers and names don't depend on each other, so both run at once.
+  const [teachers, names] = await Promise.all([
+    loadTeachers(db, active, allSections, now - MONTH_MS, queryDeadline),
+    loadNames(db, active, allSections, queryDeadline, deadline),
+  ]);
 
-    const teacherNames = new Map<string, string>();
-    const teacherUids = [...new Set(opens.map((o) => o.teacherUid))];
-    for (const ids of chunk(teacherUids, 100)) {
-      const result = await admin
-        .auth()
-        .getUsers(ids.map((uid) => ({ uid })))
-        .catch(() => {
-          partial = true;
-          return null;
-        });
-      for (const u of result?.users ?? []) {
-        teacherNames.set(u.uid, u.displayName || u.email || '');
-      }
+  const result: ActiveStudentsResult = {
+    asOf: now,
+    partial: teachers.partial || names.partial,
+    students: buildActiveStudentRows({
+      students: active,
+      opensByStudent: teachers.opensByStudent,
+      teacherNames: teachers.teacherNames,
+      namesByUid: names.namesByUid,
+    }),
+  };
+  // Unfinished results expire after a minute, so a later open fills more names from nameCache.
+  resultCache.set(orgId, result);
+  return result;
+}
+
+async function loadTeachers(
+  db: admin.firestore.Firestore,
+  active: readonly ActiveStudentInput[],
+  allSections: readonly string[],
+  sinceMs: number,
+  queryDeadline: number
+): Promise<{
+  partial: boolean;
+  opensByStudent: Map<string, Map<string, number>>;
+  teacherNames: Map<string, string>;
+}> {
+  const collected = await collectAssignmentOpens(
+    db,
+    active.map((s) => s.uid),
+    allSections,
+    sinceMs,
+    queryDeadline
+  );
+  let partial = collected.partial;
+  const teacherNames = new Map<string, string>();
+  const teacherUids = [...new Set(collected.opens.map((o) => o.teacherUid))];
+  for (const ids of chunk(teacherUids, 100)) {
+    const result = await admin
+      .auth()
+      .getUsers(ids.map((uid) => ({ uid })))
+      .catch(() => {
+        partial = true;
+        return null;
+      });
+    for (const u of result?.users ?? []) {
+      teacherNames.set(u.uid, u.displayName || u.email || '');
     }
+  }
+  return {
+    partial,
+    opensByStudent: latestOpensByStudent(collected.opens),
+    teacherNames,
+  };
+}
 
-    // Names: walk rostered sections until every active student is matched.
-    const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
-    const clientId = CLASSLINK_CLIENT_ID.value();
-    const clientSecret = CLASSLINK_CLIENT_SECRET.value();
-    const tenantUrl = CLASSLINK_TENANT_URL.value().replace(/\/$/, '');
-    const namesByUid = new Map<string, string>();
-    if (hmacSecret && clientId && clientSecret && tenantUrl) {
-      const wanted = new Set(active.map((s) => s.uid));
-      const sections = orderSectionsForNameLookup(active, rosteredSections);
-      await mapWithConcurrency(
-        sections,
-        CLASSLINK_CONCURRENCY,
-        async (sectionId) => {
-          const covers = active.some(
-            (s) => !namesByUid.has(s.uid) && s.sectionIds.includes(sectionId)
-          );
-          if (!covers) return;
-          if (Date.now() >= deadline) {
-            partial = true;
-            return;
-          }
-          const url = `${tenantUrl}${ONEROSTER_BASE}/classes/${encodeURIComponent(sectionId)}/students`;
-          try {
-            for (let page = 0; page < MAX_PAGES; page += 1) {
-              const remainingMs = deadline - Date.now();
-              if (remainingMs <= 0) {
-                partial = true;
-                break;
+async function loadNames(
+  db: admin.firestore.Firestore,
+  active: readonly ActiveStudentInput[],
+  allSections: readonly string[],
+  queryDeadline: number,
+  deadline: number
+): Promise<{ partial: boolean; namesByUid: Map<string, string> }> {
+  let partial = false;
+  const namesByUid = new Map<string, string>();
+  // Sections that teachers imported as rosters; only students in one get a name.
+  const rosteredSections = new Set<string>();
+  await mapWithConcurrency(
+    chunk(allSections, IN_CHUNK),
+    QUERY_CONCURRENCY,
+    async (ids) => {
+      if (Date.now() >= queryDeadline) {
+        partial = true;
+        return;
+      }
+      await db
+        .collectionGroup('rosters')
+        .where('classlinkClassId', 'in', ids)
+        .select('classlinkClassId')
+        .get()
+        .then(
+          (rs) => {
+            for (const doc of rs.docs) {
+              const sectionId: unknown = doc.get('classlinkClassId');
+              if (typeof sectionId === 'string') {
+                rosteredSections.add(sectionId);
               }
-              const params = {
-                limit: String(PAGE_LIMIT),
-                offset: String(page * PAGE_LIMIT),
-              };
-              const headers = getOAuthHeaders(
-                url,
-                params,
-                'GET',
-                clientId,
-                clientSecret
-              );
-              const res = await axios.get<{ users?: ClassLinkStudent[] }>(url, {
-                params,
-                headers,
-                timeout: Math.min(API_TIMEOUT_MS, remainingMs),
-              });
-              const batch = res.data.users ?? [];
-              for (const st of batch) {
-                if (!st.sourcedId) continue;
-                const uid = computeStudentUid(st.sourcedId, hmacSecret);
-                if (!wanted.has(uid) || namesByUid.has(uid)) continue;
-                const name = [st.givenName, st.familyName]
-                  .filter((p) => typeof p === 'string' && p.trim())
-                  .join(' ');
-                if (name) namesByUid.set(uid, name);
-              }
-              if (batch.length < PAGE_LIMIT) break;
             }
-          } catch (err) {
+          },
+          (err: unknown) => {
             partial = true;
             console.error(
-              '[getActiveStudentsV1] ClassLink request failed:',
+              '[getActiveStudentsV1] rosters query failed:',
               errCode(err)
             );
           }
-        }
-      );
-    } else {
-      partial = true;
+        );
     }
+  );
 
-    const result: ActiveStudentsResult = {
-      asOf: now,
-      partial,
-      students: buildActiveStudentRows({
-        students: active,
-        opensByStudent,
-        teacherNames,
-        namesByUid,
-      }),
-    };
-    if (!partial) resultCache.set(orgId, result);
-    return result;
+  for (const s of active) {
+    const hit = nameCache.get(s.uid);
+    if (hit && s.sectionIds.some((id) => rosteredSections.has(id))) {
+      namesByUid.set(s.uid, hit.name);
+    }
   }
-);
+  const unnamed = active.filter((s) => !namesByUid.has(s.uid));
+  if (unnamed.length === 0) return { partial, namesByUid };
+
+  const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
+  const clientId = CLASSLINK_CLIENT_ID.value();
+  const clientSecret = CLASSLINK_CLIENT_SECRET.value();
+  const tenantUrl = CLASSLINK_TENANT_URL.value().replace(/\/$/, '');
+  if (!hmacSecret || !clientId || !clientSecret || !tenantUrl) {
+    return { partial: true, namesByUid };
+  }
+  const wanted = new Set(unnamed.map((s) => s.uid));
+  const sections = orderSectionsForNameLookup(unnamed, rosteredSections);
+  await mapWithConcurrency(
+    sections,
+    CLASSLINK_CONCURRENCY,
+    async (sectionId) => {
+      const covers = unnamed.some(
+        (s) => !namesByUid.has(s.uid) && s.sectionIds.includes(sectionId)
+      );
+      if (!covers) return;
+      if (Date.now() >= deadline) {
+        partial = true;
+        return;
+      }
+      const url = `${tenantUrl}${ONEROSTER_BASE}/classes/${encodeURIComponent(sectionId)}/students`;
+      try {
+        for (let page = 0; page < MAX_PAGES; page += 1) {
+          const remainingMs = deadline - Date.now();
+          if (remainingMs <= 0) {
+            partial = true;
+            break;
+          }
+          const params = {
+            limit: String(PAGE_LIMIT),
+            offset: String(page * PAGE_LIMIT),
+          };
+          const headers = getOAuthHeaders(
+            url,
+            params,
+            'GET',
+            clientId,
+            clientSecret
+          );
+          const res = await axios.get<{ users?: ClassLinkStudent[] }>(url, {
+            params,
+            headers,
+            timeout: Math.min(API_TIMEOUT_MS, remainingMs),
+          });
+          const batch = res.data.users ?? [];
+          for (const st of batch) {
+            if (!st.sourcedId) continue;
+            const uid = computeStudentUid(st.sourcedId, hmacSecret);
+            if (!wanted.has(uid) || namesByUid.has(uid)) continue;
+            const name = [st.givenName, st.familyName]
+              .filter((p) => typeof p === 'string' && p.trim())
+              .join(' ');
+            if (!name) continue;
+            namesByUid.set(uid, name);
+            nameCache.set(uid, { name, at: Date.now() });
+          }
+          if (batch.length < PAGE_LIMIT) break;
+        }
+      } catch (err) {
+        partial = true;
+        console.error(
+          '[getActiveStudentsV1] ClassLink request failed:',
+          errCode(err)
+        );
+      }
+    }
+  );
+  return { partial, namesByUid };
+}

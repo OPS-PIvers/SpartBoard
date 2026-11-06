@@ -494,17 +494,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Suggested learning targets in the test-import review. Admin-only until Paul has imported with it.
-  'quiz-import-suggested-targets': {
-    label: 'Suggested learning targets on quiz import',
-    icon: Target,
-    description: 'Suggests learning targets found in imported tests.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Multi-version test import (QUIZ_IMPORT_VERSIONS V26). Admin-only until Paul has imported with it.
   'quiz-import-versions': {
     label: 'Multi-version test import',
@@ -843,17 +832,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     widget: 'quiz',
     modalLabel: 'Time limit',
     group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Rubrics hidden from students unless shown per question. Admin-only until Paul has used it.
-  'quiz-rubric-visibility': {
-    label: 'Rubric visibility for students',
-    icon: Eye,
-    description: 'Rubrics stay hidden unless a question shows them.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1220,12 +1198,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Draft with AI in the Quiz-style set editor. Admin-only until Paul has used it in prod.
+  // Admin-only until saved, like Guided Learning AI; the server denies non-admins while no doc exists.
   'flashcards-ai': {
     label: 'Flashcards: AI',
     icon: Sparkles,
     description: 'Drafts flashcards from a topic in the set editor.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'flashcards',
     defaultAccessLevel: 'admin',
@@ -1335,18 +1313,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: FileUp,
     description:
       'Opens Add to board when a file, link or text is dropped onto a board.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    requires: 'universal-import',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'import-quiz': {
-    label: 'Import: Quiz and question bank',
-    icon: ClipboardCheck,
-    description:
-      'Offers Quiz and Question bank for test files and Schoology exports.',
     stage: 'preview',
     afterLaunch: 'retire',
     requires: 'universal-import',

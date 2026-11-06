@@ -115,7 +115,7 @@ describe('withFocusSettings', () => {
       'orderingList'
     );
     expect(
-      buildStudentViewSession(QUIZ, BEHAVIOR, false, false, true).orderingList
+      buildStudentViewSession(QUIZ, BEHAVIOR, false, true).orderingList
     ).toBe(true);
   });
 });
