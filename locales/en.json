@@ -3798,7 +3798,8 @@
         "paper-pending": "Transcribing",
         "paper-failed": "Failed",
         "paper-over-quota": "Daily limit",
-        "paper-blank": "Blank"
+        "paper-blank": "Blank",
+        "paper-image": "Not transcribed"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -3967,6 +3968,7 @@
           "failed": "Failed",
           "over-quota": "Daily limit",
           "blank": "Blank",
+          "image": "Not transcribed",
           "edited": "Edited"
         },
         "errors": {

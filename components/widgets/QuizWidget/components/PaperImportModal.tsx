@@ -1348,9 +1348,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               : `Uploading ${done} of ${keys.length}`}
           </span>
         </div>
-        <p className="mt-0.5 text-xs text-slate-600">
-          {plural(summary.inkPages, 'page')} to transcribe
-        </p>
+        {!quota?.disabled && (
+          <p className="mt-0.5 text-xs text-slate-600">
+            {plural(summary.inkPages, 'page')} to transcribe
+          </p>
+        )}
         {quota?.disabled ? (
           <p className="mt-1 text-xs text-amber-800">
             Transcription is off, so written answers import without typed text.

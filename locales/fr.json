@@ -2502,7 +2502,8 @@
         "paper-pending": "Transcription",
         "paper-failed": "Échec",
         "paper-over-quota": "Limite quotidienne",
-        "paper-blank": "Vide"
+        "paper-blank": "Vide",
+        "paper-image": "Non transcrit"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2667,6 +2668,7 @@
           "failed": "Échec",
           "over-quota": "Limite quotidienne",
           "blank": "Vide",
+          "image": "Non transcrit",
           "edited": "Modifiée"
         },
         "errors": {

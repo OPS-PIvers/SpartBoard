@@ -2502,7 +2502,8 @@
         "paper-pending": "Wird transkribiert",
         "paper-failed": "Fehlgeschlagen",
         "paper-over-quota": "Tageslimit",
-        "paper-blank": "Leer"
+        "paper-blank": "Leer",
+        "paper-image": "Nicht transkribiert"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2667,6 +2668,7 @@
           "failed": "Fehlgeschlagen",
           "over-quota": "Tageslimit",
           "blank": "Leer",
+          "image": "Nicht transkribiert",
           "edited": "Bearbeitet"
         },
         "errors": {

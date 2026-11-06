@@ -2502,7 +2502,8 @@
         "paper-pending": "Transcribiendo",
         "paper-failed": "Error",
         "paper-over-quota": "Límite diario",
-        "paper-blank": "En blanco"
+        "paper-blank": "En blanco",
+        "paper-image": "No transcrito"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2667,6 +2668,7 @@
           "failed": "Error",
           "over-quota": "Límite diario",
           "blank": "En blanco",
+          "image": "No transcrito",
           "edited": "Editada"
         },
         "errors": {
