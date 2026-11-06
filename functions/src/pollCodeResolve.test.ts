@@ -26,10 +26,6 @@ vi.mock('firebase-functions/v2/https', () => ({
 
 vi.mock('firebase-functions/logger', () => ({ warn: vi.fn() }));
 import * as logger from 'firebase-functions/logger';
-const { isAiTeacherCaller } = vi.hoisted(() => ({
-  isAiTeacherCaller: vi.fn<(db: unknown, token: unknown) => Promise<boolean>>(),
-}));
-vi.mock('./aiCallerGate', () => ({ isAiTeacherCaller }));
 import * as admin from './firebaseAdmin';
 
 import {
@@ -241,25 +237,56 @@ describe('mintPollCodeV1', () => {
   const call = mintPollCodeV1 as unknown as (req: unknown) => Promise<{
     code: string;
   }>;
-  const studentToken = {
-    email: '704522@orono.k12.mn.us',
+  const tokenFor = (email: string) => ({
+    email,
     email_verified: true,
     firebase: { sign_in_provider: 'google.com' },
+  });
+  const mintAs = (email: string, seed: Record<string, StubData> = {}) => {
+    const { db } = setup(seed);
+    vi.mocked(admin.firestore).mockReturnValue(db);
+    return call({ auth: { uid: 'u1', token: tokenFor(email) } });
   };
 
-  it('refuses a verified district account that is not staff or an admin', async () => {
-    isAiTeacherCaller.mockResolvedValueOnce(false);
-    await expect(
-      call({ auth: { uid: 's1', token: studentToken } })
-    ).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(isAiTeacherCaller.mock.lastCall?.[1]).toBe(studentToken);
+  it.each([
+    ['no member doc', {}],
+    [
+      'a student member doc',
+      {
+        'organizations/orono/members/704522@orono.k12.mn.us': {
+          roleId: 'student',
+        },
+      },
+    ],
+    [
+      'an inactive member doc',
+      {
+        'organizations/orono/members/704522@orono.k12.mn.us': {
+          roleId: 'teacher',
+          status: 'inactive',
+        },
+      },
+    ],
+  ])('refuses a verified district account with %s', async (_, seed) => {
+    await expect(mintAs('704522@orono.k12.mn.us', seed)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
   });
 
-  it('mints for staff or an admin', async () => {
-    const { db } = setup({});
-    vi.mocked(admin.firestore).mockReturnValue(db);
-    isAiTeacherCaller.mockResolvedValueOnce(true);
-    const { code } = await call({ auth: { uid: 't1', token: studentToken } });
+  it('mints for an Orono staff member, whatever their address domain', async () => {
+    const { code } = await mintAs('partner@example.org', {
+      'organizations/orono/members/partner@example.org': {
+        roleId: 'teacher',
+        status: 'active',
+      },
+    });
+    expect(code).toMatch(/^[A-Z0-9]{5}$/);
+  });
+
+  it('mints for an admin with no member doc', async () => {
+    const { code } = await mintAs('boss@example.org', {
+      'admins/boss@example.org': {},
+    });
     expect(code).toMatch(/^[A-Z0-9]{5}$/);
   });
 });
