@@ -88,6 +88,9 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
+vi.mock('@/components/tours/useTourConditions', () => ({
+  useTourConditions: () => () => undefined,
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
