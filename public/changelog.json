@@ -2609,7 +2609,7 @@
       "id": "quiz-ordering-one-list-2026-11-06",
       "widget": "quiz",
       "date": "2026-11-06",
-      "text": "Ordering questions can show one list that students drag into order. Each item appears once. Students drag a row by its handle or move it with the arrows.",
+      "text": "Ordering questions can show one list that students drag into order. Students drag each item by its handle or move it with the arrows.",
       "feature": "quiz-ordering-list"
     },
     {
