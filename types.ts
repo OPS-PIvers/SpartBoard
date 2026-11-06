@@ -4514,7 +4514,7 @@ export interface QuizQuestion {
    * When present, the rubric's criteria max-sum is the question's `points`.
    */
   rubricSnapshot?: Rubric;
-  /** Free Response only. Students see the attached rubric while answering; hidden unless true when `quiz-rubric-visibility` is on. */
+  /** Free Response only. Students see the attached rubric while answering; hidden unless true. */
   rubricVisibleToStudents?: boolean;
   /**
    * Ids of `QuizData.stimuli` entries shown alongside this question.
@@ -10888,8 +10888,6 @@ export type GlobalFeature =
   | 'quiz-attempt-history'
   /** Per-question "Spell check" switch on quiz Free Response questions. */
   | 'quiz-spell-check-toggle'
-  /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
-  | 'quiz-rubric-visibility'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
