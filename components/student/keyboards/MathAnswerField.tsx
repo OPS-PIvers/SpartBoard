@@ -3,6 +3,7 @@ import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { MathfieldElement } from 'mathlive';
 import { tidyAsciiMath } from '@/utils/mathAnswer';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { loadMathLive } from './loadMathLive';
 
 export interface MathAnswerFieldProps {
@@ -16,6 +17,10 @@ export interface MathAnswerFieldProps {
   ariaLabel: string;
   autoFocus?: boolean;
   className?: string;
+  /** Re-emits a typed-in value in the box's own spelling once loaded, so keys match student answers. */
+  normalize?: boolean;
+  /** Extra attributes for the outer box, e.g. a live-tour anchor. */
+  anchor?: TourAnchorAttrs;
 }
 
 const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
@@ -27,6 +32,8 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
   ariaLabel,
   autoFocus = false,
   className = '',
+  normalize = false,
+  anchor,
 }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<MathfieldElement | null>(null);
@@ -38,7 +45,12 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
   });
   const emitEnter = useEffectEvent(() => onEnter?.());
   // Mount-time seed only; later `value` changes come from this field itself.
-  const seed = useEffectEvent(() => ({ value, initialLatex, autoFocus }));
+  const seed = useEffectEvent(() => ({
+    value,
+    initialLatex,
+    autoFocus,
+    normalize,
+  }));
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +80,13 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
         host.append(current);
         fieldRef.current = current;
         setReady(true);
+        if (
+          start.normalize &&
+          start.value &&
+          tidyAsciiMath(current.getValue('ascii-math')) !== start.value
+        ) {
+          emitChange(current);
+        }
         if (start.autoFocus) current.focus();
       })
       .catch(() => {
@@ -89,6 +108,7 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
 
   return (
     <div
+      {...anchor}
       className={`relative flex items-center min-h-[3.5rem] px-4 py-2 border-2 rounded-2xl ${
         disabled ? 'opacity-50' : ''
       } ${className}`}

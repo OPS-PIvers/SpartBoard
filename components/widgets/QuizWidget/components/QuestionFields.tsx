@@ -17,15 +17,10 @@ import type { useStandardsFromPrompt } from '@/components/quiz/targets/useStanda
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
 import { AlternateAnswersEditor } from './AlternateAnswersEditor';
+import { AnswerKeyKeyboard, type KeyboardSettings } from './AnswerKeyKeyboard';
 import { QUESTION_TYPES, fibPromptUpdate } from './questionFieldUpdates';
-import {
-  AccentLanguageRow,
-  type AnswerKeyboardProps,
-  KeyboardLink,
-  AnswerKeyboardLinks,
-} from './AnswerKeyboardControls';
+import { AccentLanguageRow, KeyboardLink } from './AnswerKeyboardControls';
 import { AccentKeysArea } from '@/components/student/keyboards/AccentKeys';
-import { answerAccents } from '@/config/studentKeyboards';
 import type { AccentSetId } from '@/types';
 
 const MathAnswerField = React.lazy(
@@ -254,7 +249,7 @@ interface FibAnswerFieldProps {
   onChange: (updates: Partial<QuizQuestion>) => void;
   answerAnchor?: TourAnchorAttrs;
   /** Math and Accents switches; absent where the student keyboard isn't offered. */
-  keyboard?: Omit<AnswerKeyboardProps, 'value' | 'onChange'>;
+  keyboard?: KeyboardSettings;
 }
 
 /** One typed answer: Correct Answer, plus Other accepted answers for FIB. */
@@ -263,77 +258,55 @@ export const FibAnswerField: React.FC<FibAnswerFieldProps> = ({
   onChange,
   answerAnchor = tourTypeAttr('quiz-editor.fib-answer', 'quiz'),
   keyboard,
-}) => {
-  const mode = keyboard ? q.answerKeyboard : undefined;
-  const accents = answerAccents(mode);
-  const input =
-    mode === 'math' ? (
-      <React.Suspense fallback={null}>
-        <MathAnswerField
-          key={q.id}
-          value={q.correctAnswer}
-          onChange={(plain) => onChange({ correctAnswer: plain })}
-          ariaLabel="Correct answer"
-          className="min-h-11! py-0! px-3! border-2! rounded-lg! bg-white border-emerald-500/30 text-emerald-800 focus-within:border-emerald-500"
+}) => (
+  <AnswerKeyKeyboard question={q} onChange={onChange} keyboard={keyboard}>
+    {({ links, renderInput }) => (
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block font-bold text-emerald-700 text-xs uppercase tracking-wider">
+            Correct Answer
+          </label>
+          {links}
+        </div>
+        {renderInput ? (
+          <React.Suspense fallback={null}>
+            <MathAnswerField
+              key={q.id}
+              value={q.correctAnswer}
+              onChange={(plain) => onChange({ correctAnswer: plain })}
+              ariaLabel="Correct answer"
+              anchor={answerAnchor}
+              normalize
+              className="min-h-11! py-0! px-3! border-2! rounded-lg! bg-white border-emerald-500/30 text-emerald-800 focus-within:border-emerald-500"
+            />
+          </React.Suspense>
+        ) : (
+          <input
+            type="text"
+            value={q.correctAnswer}
+            onChange={(e) => onChange({ correctAnswer: e.target.value })}
+            className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 text-sm"
+            placeholder="Enter the definitive answer"
+            {...answerAnchor}
+          />
+        )}
+        <NeedsAnswerNotice
+          question={q}
+          className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
         />
-      </React.Suspense>
-    ) : (
-      <input
-        type="text"
-        value={q.correctAnswer}
-        onChange={(e) => onChange({ correctAnswer: e.target.value })}
-        className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 text-sm"
-        placeholder="Enter the definitive answer"
-        {...answerAnchor}
-      />
-    );
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <label className="block font-bold text-emerald-700 text-xs uppercase tracking-wider">
-          Correct Answer
-        </label>
-        {keyboard && (
-          <AnswerKeyboardLinks
-            value={q.answerKeyboard}
-            onChange={(answerKeyboard) => onChange({ answerKeyboard })}
-            defaultAccents={keyboard.defaultAccents}
+        {q.type === 'FIB' && (
+          <AlternateAnswersEditor
+            key={renderInput ? 'math' : 'text'}
+            alternates={q.alternateAnswers ?? []}
+            renderInput={renderInput}
+            onChange={(next) =>
+              onChange({
+                alternateAnswers: next.length > 0 ? next : undefined,
+              })
+            }
           />
         )}
       </div>
-      {accents ? (
-        <AccentKeysArea
-          accents={accents}
-          beforeKeys={
-            <AccentLanguageRow
-              value={accents}
-              onChange={(answerKeyboard) => onChange({ answerKeyboard })}
-              anchor={tourTypeAttr(
-                'quiz-editor.answer-accent-language',
-                'quiz'
-              )}
-            />
-          }
-        >
-          {input}
-        </AccentKeysArea>
-      ) : (
-        input
-      )}
-      <NeedsAnswerNotice
-        question={q}
-        className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
-      />
-      {q.type === 'FIB' && (
-        <AlternateAnswersEditor
-          alternates={q.alternateAnswers ?? []}
-          onChange={(next) =>
-            onChange({
-              alternateAnswers: next.length > 0 ? next : undefined,
-            })
-          }
-        />
-      )}
-    </div>
-  );
-};
+    )}
+  </AnswerKeyKeyboard>
+);

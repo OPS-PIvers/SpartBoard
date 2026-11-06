@@ -3,6 +3,7 @@ import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Plus, Trash2 } from 'lucide-react';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { inputClass } from './quizEditorFieldStyles';
+import type { RenderAnswerInput } from './answerInput';
 
 const MAX_OPTIONS_PER_LIST = 6;
 
@@ -19,6 +20,7 @@ interface OptionListProps {
   inputClassName: string;
   onItemsChange: (items: string[]) => void;
   itemAnchor?: (index: number) => TourAnchorAttrs;
+  renderInput?: RenderAnswerInput;
 }
 
 const OptionList: React.FC<OptionListProps> = ({
@@ -31,30 +33,53 @@ const OptionList: React.FC<OptionListProps> = ({
   inputClassName,
   onItemsChange,
   itemAnchor,
+  renderInput,
 }) => (
   <div className="space-y-2">
     <label className={labelClassName}>{label}</label>
     <div className="grid gap-2">
       {items.map((value, idx) => (
-        <div key={idx} className="flex gap-2">
-          <input
-            {...itemAnchor?.(idx)}
-            type="text"
-            value={value}
-            aria-label={`${itemLabel} ${idx + 1}`}
-            placeholder={`${itemLabel} ${idx + 1}`}
-            {...tourFieldAttr(
-              'quiz-editor.multi-answer-item',
-              'quiz',
-              `${fieldPrefix}-${idx + 1}`
-            )}
-            onChange={(e) =>
-              onItemsChange(
-                items.map((v, i) => (i === idx ? clean(e.target.value) : v))
-              )
-            }
-            className={inputClassName}
-          />
+        <div
+          key={renderInput ? `${idx}:${items.length}` : idx}
+          className="flex gap-2"
+        >
+          {renderInput ? (
+            renderInput({
+              value,
+              ariaLabel: `${itemLabel} ${idx + 1}`,
+              anchor: {
+                ...itemAnchor?.(idx),
+                ...tourFieldAttr(
+                  'quiz-editor.multi-answer-item',
+                  'quiz',
+                  `${fieldPrefix}-${idx + 1}`
+                ),
+              },
+              onChange: (next) =>
+                onItemsChange(
+                  items.map((v, i) => (i === idx ? clean(next) : v))
+                ),
+            })
+          ) : (
+            <input
+              {...itemAnchor?.(idx)}
+              type="text"
+              value={value}
+              aria-label={`${itemLabel} ${idx + 1}`}
+              placeholder={`${itemLabel} ${idx + 1}`}
+              {...tourFieldAttr(
+                'quiz-editor.multi-answer-item',
+                'quiz',
+                `${fieldPrefix}-${idx + 1}`
+              )}
+              onChange={(e) =>
+                onItemsChange(
+                  items.map((v, i) => (i === idx ? clean(e.target.value) : v))
+                )
+              }
+              className={inputClassName}
+            />
+          )}
           {items.length > minItems && (
             <button
               onClick={() => onItemsChange(items.filter((_, i) => i !== idx))}
@@ -94,7 +119,8 @@ export const AlternateAnswersEditor: React.FC<{
   alternates: string[];
   onChange: (next: string[]) => void;
   itemAnchor?: (index: number) => TourAnchorAttrs;
-}> = ({ alternates, onChange, itemAnchor }) => (
+  renderInput?: RenderAnswerInput;
+}> = ({ alternates, onChange, itemAnchor, renderInput }) => (
   <div className="mt-3">
     <OptionList
       label="Also Accept (optional)"
@@ -105,6 +131,7 @@ export const AlternateAnswersEditor: React.FC<{
       minItems={0}
       inputClassName={inputClass}
       itemAnchor={itemAnchor}
+      renderInput={renderInput}
       onItemsChange={onChange}
     />
   </div>

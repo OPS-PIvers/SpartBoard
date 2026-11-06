@@ -83,6 +83,7 @@ import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
 import { FibBlanksEditor } from './FibBlanksEditor';
+import { AnswerKeyKeyboard } from './AnswerKeyKeyboard';
 import { isMultiBlank } from '@/utils/quizFibBlanks';
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
@@ -1288,10 +1289,21 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         ) : isMultiBlank(q) ? (
           <div>
-            <FibBlanksEditor
+            <AnswerKeyKeyboard
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
-            />
+              keyboard={keyboardsOn ? { defaultAccents } : undefined}
+            >
+              {({ links, renderInput }) => (
+                <FibBlanksEditor
+                  key={renderInput ? 'math' : 'text'}
+                  question={q}
+                  onChange={(updates) => updateQuestion(q.id, updates)}
+                  headerExtra={links}
+                  renderInput={renderInput}
+                />
+              )}
+            </AnswerKeyKeyboard>
             <NeedsAnswerNotice
               question={q}
               className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"

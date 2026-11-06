@@ -12,6 +12,13 @@ describe('tidyAsciiMath', () => {
     expect(tidyAsciiMath('(x+1)/(2)')).toBe('(x+1)/2');
     expect(tidyAsciiMath('2(x+1)')).toBe('2(x+1)');
     expect(tidyAsciiMath('sin(x)')).toBe('sin(x)');
+    expect(tidyAsciiMath('sin(x)/(2)')).toBe('sin(x)/2');
+  });
+
+  it('keeps 1/(2x) and (1/2)x apart', () => {
+    expect(tidyAsciiMath('(1)/(2x)')).toBe('1/(2x)');
+    expect(tidyAsciiMath('(1)/(2)x')).toBe('1/2x');
+    expect(tidyAsciiMath('(ab)/(c)')).toBe('(ab)/c');
   });
 
   it('drops a doubled bracket', () => {

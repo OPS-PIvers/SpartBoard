@@ -3693,6 +3693,11 @@ export const ActiveQuiz: React.FC<{
     ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
     : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700/50';
   const mathKeyboardOn = currentQuestion.answerKeyboard === 'math';
+  // The math box reads its value once, so remount it when a saved answer is recovered.
+  const mathSeedKey = `${currentQuestion.id}:${
+    // eslint-disable-next-line react-hooks/refs -- seeded set keys the math box remount
+    seededQuestionsRef.current.has(currentQuestion.id) ? 'seeded' : 'init'
+  }`;
   const accentKeys = answerAccents(currentQuestion.answerKeyboard);
   const fibInputCls = light
     ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-brand-blue-light'
@@ -4550,7 +4555,7 @@ export const ActiveQuiz: React.FC<{
                   >
                     {(currentQuestion.blankCount ?? 0) >= 2 ? (
                       <FibMultiBlankInput
-                        key={currentQuestion.id}
+                        key={mathKeyboardOn ? mathSeedKey : currentQuestion.id}
                         count={currentQuestion.blankCount ?? 0}
                         value={liveAnswer ?? ''}
                         onChange={setCacheForCurrent}
@@ -4573,7 +4578,7 @@ export const ActiveQuiz: React.FC<{
                     ) : mathKeyboardOn ? (
                       <React.Suspense fallback={null}>
                         <MathAnswerField
-                          key={currentQuestion.id}
+                          key={mathSeedKey}
                           value={liveAnswer ?? ''}
                           onChange={(plain) => setCacheForCurrent(plain)}
                           disabled={submitted && !isStudentPaced}

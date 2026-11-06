@@ -89,6 +89,7 @@ export const SURFACES: TourSurfaceMap = {
       `${C}QuizEditor.tsx`,
       `${C}QuestionFields.tsx`,
       `${C}AnswerKeyboardControls.tsx`,
+      `${C}AnswerKeyKeyboard.tsx`,
       `${C}ChoiceOptionsEditor.tsx`,
       `${C}FibBlanksEditor.tsx`,
       `${C}MatchingOrderingEditor.tsx`,
