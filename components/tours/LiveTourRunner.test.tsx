@@ -3921,6 +3921,26 @@ describe('LiveTourRunner boards a tour made', () => {
     expect(h.boardActions.deleteDashboard).not.toHaveBeenCalled();
   });
 
+  it('keeps removing after one delete fails, and says so', async () => {
+    await start(twoSteps());
+    makeBoard('new-1');
+    makeBoard('new-2');
+    h.boardActions.deleteDashboard.mockImplementationOnce(() =>
+      Promise.reject(new Error('offline'))
+    );
+    await finishTour();
+    fireEvent.click(screen.getByTestId('tour-remove-boards'));
+    await frames();
+    expect(h.boardActions.deleteDashboard.mock.calls).toEqual([
+      ['new-1'],
+      ['new-2'],
+    ]);
+    expect(h.actions.addToast).toHaveBeenCalledWith(
+      expect.stringContaining("Couldn't remove"),
+      'error'
+    );
+  });
+
   it('asks nothing when the run made no boards', async () => {
     await start(twoSteps());
     await finishTour();

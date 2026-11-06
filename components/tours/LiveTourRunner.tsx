@@ -1291,27 +1291,26 @@ export const LiveTourRunner: React.FC = () => {
     const made = tour?.made ?? { boards: [], collections: [] };
     const d = latest.current.dashboard;
     setRemovingBoards(true);
-    try {
-      // Back to where the tour started before its own boards go.
-      if (
-        start?.boardId &&
-        made.boards.some((b) => b.id === d.activeDashboard?.id)
-      ) {
-        d.loadDashboard(start.boardId);
-      }
-      for (const board of made.boards) await d.deleteDashboard(board.id);
-      // Moving children up keeps any board the teacher filed in a new collection.
-      for (const collection of made.collections)
-        await d.collectionsApi.deleteCollection(
-          collection.id,
-          'move-to-parent'
-        );
-    } catch (err) {
-      console.error('Live tour: could not remove boards', err);
-      d.addToast(latest.current.t('tours.removeBoardsFailed'), 'error');
-    } finally {
-      setRemovingBoards(false);
+    // Back to where the tour started before its own boards go.
+    if (
+      start?.boardId &&
+      made.boards.some((b) => b.id === d.activeDashboard?.id)
+    ) {
+      d.loadDashboard(start.boardId);
     }
+    // One failure doesn't stop the rest; moving children up keeps a board the teacher filed in a new collection.
+    const results = await Promise.allSettled([
+      ...made.boards.map((board) => d.deleteDashboard(board.id)),
+      ...made.collections.map((collection) =>
+        d.collectionsApi.deleteCollection(collection.id, 'move-to-parent')
+      ),
+    ]);
+    const failed = results.filter((r) => r.status === 'rejected');
+    if (failed.length > 0) {
+      console.error('Live tour: could not remove boards', failed);
+      d.addToast(latest.current.t('tours.removeBoardsFailed'), 'error');
+    }
+    setRemovingBoards(false);
     closeOut(finished, true);
   };
 
