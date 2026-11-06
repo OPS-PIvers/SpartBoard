@@ -113,7 +113,7 @@ const OrderingAnswer: React.FC<{ given: string[]; expected: string[] }> = ({
                   <span
                     aria-label={`Belongs at ${spot.correctIndex + 1}`}
                     data-testid={`ordering-spot-${i}-belongs`}
-                    className="inline-flex items-center justify-center align-middle rounded-sm border border-emerald-600 bg-emerald-50 font-semibold text-emerald-800 tabular-nums"
+                    className="inline-flex items-center justify-center align-middle rounded-sm border border-brand-gray-light bg-brand-gray-lightest font-semibold text-brand-gray-darkest tabular-nums"
                     style={{
                       ...SMALL_TEXT,
                       minWidth: 'min(18px, 4.5cqmin)',
