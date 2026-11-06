@@ -77,6 +77,29 @@ function useStimulusIntake(state: QuizEditorController) {
   const { showAlert } = useDialog();
   const [busy, setBusy] = useState(false);
 
+  // Shares a copy so picking or linking a file never changes the original's sharing.
+  const shareCopy = useCallback(
+    async (fileId: string, name: string): Promise<string | null> => {
+      if (!driveService) return null;
+      try {
+        const copy = await driveService.copyFile(
+          fileId,
+          `stimulus-${Date.now()}-${name.replace(/[^\w.-]+/g, '_')}`,
+          'Assets/QuizStimuli'
+        );
+        await driveService.makePublic(copy.id, undefined);
+        return copy.id;
+      } catch {
+        await showAlert(
+          "Couldn't update sharing (you may not own this file). Make sure it's set to \"anyone with the link\" in Drive, or students won't see it.",
+          { variant: 'warning' }
+        );
+        return null;
+      }
+    },
+    [driveService, showAlert]
+  );
+
   const addFromFile = useCallback(
     async (file: File): Promise<QuizStimulus | null> => {
       const type = detectStimulusTypeFromFile(file);
@@ -144,21 +167,15 @@ function useStimulusIntake(state: QuizEditorController) {
           : undefined;
       setBusy(true);
       try {
-        if (driveFileId && driveService) {
-          try {
-            await driveService.makePublic(driveFileId, undefined);
-          } catch {
-            await showAlert(
-              "Couldn't update sharing (you may not own this file). Make sure it's set to \"anyone with the link\" in Drive, or students won't see it.",
-              { variant: 'warning' }
-            );
-          }
-        }
+        const copyId = driveFileId
+          ? await shareCopy(driveFileId, label ?? driveFileId)
+          : null;
+        const fileId = copyId ?? driveFileId;
         const stimulus: QuizStimulus = {
           id: crypto.randomUUID(),
           type,
-          url,
-          ...(driveFileId ? { driveFileId } : {}),
+          url: copyId ? `https://drive.google.com/file/d/${copyId}/view` : url,
+          ...(fileId ? { driveFileId: fileId } : {}),
           label: label ?? url.replace(/^https?:\/\//, '').slice(0, 60),
         };
         state.addStimulus(stimulus);
@@ -167,7 +184,7 @@ function useStimulusIntake(state: QuizEditorController) {
         setBusy(false);
       }
     },
-    [driveService, showAlert, state]
+    [shareCopy, state]
   );
 
   const addFromDrive = useCallback(async (): Promise<QuizStimulus | null> => {
@@ -215,21 +232,12 @@ function useStimulusIntake(state: QuizEditorController) {
     }
     setBusy(true);
     try {
-      if (driveService) {
-        try {
-          await driveService.makePublic(picked.id, undefined);
-        } catch {
-          await showAlert(
-            "Couldn't update sharing (you may not own this file). Make sure it's set to \"anyone with the link\" in Drive, or students won't see it.",
-            { variant: 'warning' }
-          );
-        }
-      }
+      const fileId = (await shareCopy(picked.id, picked.name)) ?? picked.id;
       const stimulus: QuizStimulus = {
         id: crypto.randomUUID(),
         type,
-        url: `https://drive.google.com/file/d/${picked.id}/view`,
-        driveFileId: picked.id,
+        url: `https://drive.google.com/file/d/${fileId}/view`,
+        driveFileId: fileId,
         label: picked.name,
       };
       state.addStimulus(stimulus);
@@ -237,14 +245,7 @@ function useStimulusIntake(state: QuizEditorController) {
     } finally {
       setBusy(false);
     }
-  }, [
-    ensureGoogleScope,
-    openPicker,
-    addFromUrl,
-    driveService,
-    showAlert,
-    state,
-  ]);
+  }, [ensureGoogleScope, openPicker, addFromUrl, shareCopy, showAlert, state]);
 
   // userDomain intentionally unused today: stimulus sharing is always
   // type:'anyone' (anonymous students), never domain-scoped.
