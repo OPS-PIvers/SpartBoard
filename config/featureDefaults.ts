@@ -495,17 +495,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Suggested learning targets in the test-import review. Admin-only until Paul has imported with it.
-  'quiz-import-suggested-targets': {
-    label: 'Suggested learning targets on quiz import',
-    icon: Target,
-    description: 'Suggests learning targets found in imported tests.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Multi-version test import (QUIZ_IMPORT_VERSIONS V26). Admin-only until Paul has imported with it.
   'quiz-import-versions': {
     label: 'Multi-version test import',
