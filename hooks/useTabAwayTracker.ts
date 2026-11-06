@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { TAB_EXITS_MAX, type TabExit, type TabExitOutcome } from '@/types';
 import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
 import {
@@ -7,6 +13,11 @@ import {
   isFullscreenNow,
 } from '@/hooks/usePageProtections';
 import { logError } from '@/utils/logError';
+import {
+  isHandedOff,
+  markHandedOff,
+  subscribeHandOff,
+} from '@/utils/attemptHandOff';
 
 /** The exit the overlay shows: live while `outcome` is null, frozen once it closes. */
 export interface TabAwayState {
@@ -67,6 +78,13 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
   // Set once the student has been in fullscreen, so the first Start cover isn't an exit.
   const seenFullscreenRef = useRef(false);
   const [away, setAway] = useState<TabAwayState | null>(null);
+  // Once the attempt moved to another tab, this copy stops watching.
+  const handedOff = useSyncExternalStore(
+    subscribeHandOff,
+    isHandedOff,
+    () => false
+  );
+  const enabled = args.enabled && !handedOff;
 
   const watchesFullscreen = useCallback(
     () => argsRef.current.fullscreenRequired === true && fullscreenSupported(),
@@ -120,7 +138,8 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
 
   const handleLeave = useCallback(async () => {
     const a = argsRef.current;
-    if (!a.enabled || guardRef.current || openRef.current) return;
+    if (!a.enabled || isHandedOff() || guardRef.current || openRef.current)
+      return;
     const now = Date.now();
     // Debounce the blur + visibilitychange pair one exit fires.
     if (now - lastLeaveRef.current < 1000) return;
@@ -156,7 +175,7 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
   }, [closeOpen, currentExits, fullscreenOk, persist]);
 
   useEffect(() => {
-    if (!args.enabled) return;
+    if (!enabled) return;
     const onEvent = () => void handleLeave();
     document.addEventListener('visibilitychange', onEvent);
     window.addEventListener('blur', onEvent);
@@ -169,10 +188,10 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
       document.removeEventListener('visibilitychange', onEvent);
       window.removeEventListener('blur', onEvent);
     };
-  }, [args.enabled, handleLeave]);
+  }, [enabled, handleLeave]);
 
   // Leaving required fullscreen (Esc, or a tab switch out of it) is an exit too.
-  const watchFullscreen = args.enabled && args.fullscreenRequired === true;
+  const watchFullscreen = enabled && args.fullscreenRequired === true;
   useEffect(() => {
     if (!watchFullscreen || !fullscreenSupported()) return;
     const onChange = () => {
@@ -187,7 +206,7 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
 
   // Chrome fires no window blur for the URL bar or browser menus.
   useFocusLossPoll({
-    enabled: args.enabled,
+    enabled,
     onFocusLoss: () => void handleLeave(),
   });
 
@@ -202,6 +221,17 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
       const open = openRef.current;
       if (!open) return;
       const a = argsRef.current;
+      // Another tab of this attempt closed the exit (Schoology's pop out): hand off instead of timing out.
+      const closedElsewhere = (a.serverExits ?? []).some(
+        (e) => e.leftAt === open.leftAt && e.outcome != null
+      );
+      if (closedElsewhere || isHandedOff()) {
+        openRef.current = null;
+        guardRef.current = false;
+        setAway(null);
+        markHandedOff();
+        return;
+      }
       const ms = performance.now() - open.leftAtPerf;
       if (a.limitMs !== null && a.autoSubmit && ms >= a.limitMs) {
         closeOpen('auto-submitted', a.limitMs);
@@ -242,7 +272,7 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
 
   // Reopen check: an exit left open by a closed tab or a sleeping device.
   useEffect(() => {
-    if (!args.ready || !args.enabled || reopenCheckedRef.current) return;
+    if (!args.ready || !enabled || reopenCheckedRef.current) return;
     reopenCheckedRef.current = true;
     const a = argsRef.current;
     const exits = a.serverExits ?? [];
@@ -267,7 +297,7 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
           },
     ]);
     if (timedOut) a.onAwayTooLong();
-  }, [args.ready, args.enabled, persist]);
+  }, [args.ready, enabled, persist]);
 
   /** Re-arms detection once the warning is dismissed or the submit settles. */
   const release = useCallback(() => {
@@ -280,5 +310,5 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
     if (watchesFullscreen() && !isFullscreenNow()) void enterFullscreen();
   }, [watchesFullscreen]);
 
-  return { away, release, resume };
+  return { away, release, resume, handedOff };
 }

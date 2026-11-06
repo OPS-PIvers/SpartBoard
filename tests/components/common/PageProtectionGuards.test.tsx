@@ -2,6 +2,11 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
+import {
+  isHandedOff,
+  popOutUrl,
+  resetHandOffForTests,
+} from '@/utils/attemptHandOff';
 
 const OFF = { blockClipboard: false, blockPrint: false, fullscreen: false };
 
@@ -34,6 +39,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetHandOffForTests();
+  vi.restoreAllMocks();
   document
     .querySelectorAll('style[data-print-block]')
     .forEach((s) => s.remove());
@@ -141,5 +148,54 @@ describe('FullscreenCover', () => {
       await Promise.resolve();
     });
     expect(screen.getByText("Fullscreen didn't open. Try again.")).toBeTruthy();
+  });
+
+  it('sends a framed page without fullscreen to a new tab and hands off', () => {
+    Object.defineProperty(document, 'fullscreenEnabled', {
+      configurable: true,
+      get: () => false,
+    });
+    vi.spyOn(window, 'top', 'get').mockReturnValue({} as Window);
+    render(<PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />);
+    const link = screen.getByRole('link', { name: 'Open in a new tab' });
+    expect(link.getAttribute('target')).toBe('_blank');
+    act(() => {
+      fireEvent.click(link);
+    });
+    expect(isHandedOff()).toBe(true);
+    expect(
+      screen.getByRole('dialog', {
+        name: 'This activity is open in another tab',
+      })
+    ).toBeTruthy();
+  });
+
+  it('shows nothing on a top-level page that cannot go fullscreen', () => {
+    Object.defineProperty(document, 'fullscreenEnabled', {
+      configurable: true,
+      get: () => false,
+    });
+    const { container } = render(
+      <PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />
+    );
+    expect(container.innerHTML).toBe('');
+  });
+});
+
+describe('popOutUrl', () => {
+  it('reopens a Schoology launch as a quiz link without the one-time code', () => {
+    const loc = new URL(
+      'https://spartboard.web.app/lti/student?lc=abc&code=QZ12&teacher=t1'
+    ) as unknown as Location;
+    expect(popOutUrl(loc)).toBe(
+      'https://spartboard.web.app/quiz?code=QZ12&teacher=t1'
+    );
+  });
+
+  it('keeps any other address', () => {
+    const loc = new URL(
+      'https://spartboard.web.app/flashcards/a/xyz'
+    ) as unknown as Location;
+    expect(popOutUrl(loc)).toBe('https://spartboard.web.app/flashcards/a/xyz');
   });
 });
