@@ -57,7 +57,6 @@ import {
   CloudSun,
   Triangle,
   Workflow,
-  Shuffle,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1229,17 +1228,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Workflow,
     description:
       'A Connect button on each widget links widgets so one starts or changes another.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'random-avoid-repeats': {
-    label: 'Randomizer: avoid recent partners',
-    icon: Shuffle,
-    description:
-      'A Groups setting that keeps students apart from recent groupmates.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
