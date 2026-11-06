@@ -3,7 +3,10 @@ import { parseRubricCsv, rubricToCsv } from '@/utils/rubricCsv';
 import type { Rubric } from '@/types';
 
 const rubric: Rubric = {
+  id: 'r1',
   title: 'R',
+  createdAt: 0,
+  updatedAt: 0,
   criteria: [
     {
       id: 'c1',
