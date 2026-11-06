@@ -356,7 +356,7 @@ describe('resolveOrgForUser auto-enrollment', () => {
     scriptDocs({ memberExists: false });
     fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
     const res = await handler({ auth: verifiedAuth, data: {} });
-    expect(res).toEqual({ orgId: 'orono' });
+    expect(res).toEqual({ orgId: 'orono', rosterStudent: true });
     expect(fetchOneRosterUsersMock).toHaveBeenCalledWith(
       'new.teacher@orono.k12.mn.us',
       {
@@ -374,7 +374,7 @@ describe('resolveOrgForUser auto-enrollment', () => {
     mockClassHit.value = true;
     fetchOneRosterUsersMock.mockResolvedValue([]);
     const res = await handler({ auth: verifiedAuth, data: {} });
-    expect(res).toEqual({ orgId: 'orono' });
+    expect(res).toEqual({ orgId: 'orono', rosterStudent: true });
     expect(docCreateMock).not.toHaveBeenCalled();
   });
 
@@ -417,7 +417,7 @@ describe('resolveOrgForUser auto-enrollment', () => {
     scriptDocs({ memberExists: false, isAdmin: true });
     fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
     const res = await handler({ auth: verifiedAuth, data: {} });
-    expect(res).toEqual({ orgId: 'orono' });
+    expect(res).toEqual({ orgId: 'orono', rosterStudent: true });
     expect(docCreateMock).not.toHaveBeenCalled();
   });
 
