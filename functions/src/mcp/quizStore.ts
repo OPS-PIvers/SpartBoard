@@ -148,6 +148,7 @@ const TYPE_BOUND_EXTRAS = [
   'enforceWordLimit',
   'noSpellCheck',
   'paperBoxSize',
+  'paperBoxStyle',
   'paperOwnTest',
 ] as const;
 

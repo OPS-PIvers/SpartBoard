@@ -27,7 +27,7 @@ import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
-import { withPaperBoxSizes } from '@/utils/paperWritten';
+import { withPaperBoxSizes, withPaperBoxStyles } from '@/utils/paperWritten';
 import { useDashboard } from '@/context/useDashboard';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { followingScoreboard, followLeaderId } from '@/utils/connectionEngine';
@@ -4587,12 +4587,12 @@ const TeacherQuizWidget: React.FC<{
           inPlcGroup={!!paperPrintMeta.sync}
           onSavePrintSetup={
             paperPrintMeta
-              ? async ({ stimuli: paperSheetStimuli, boxSizes }) => {
+              ? async ({ stimuli: paperSheetStimuli, boxSizes, boxStyles }) => {
                   // Dropping the key rather than writing an empty array, so
                   // clearing the last one clears it everywhere it synced to.
-                  const next: QuizData = withPaperBoxSizes(
-                    { ...paperPrintQuiz },
-                    boxSizes
+                  const next: QuizData = withPaperBoxStyles(
+                    withPaperBoxSizes({ ...paperPrintQuiz }, boxSizes),
+                    boxStyles
                   );
                   if (paperSheetStimuli.length > 0)
                     next.paperSheetStimuli = paperSheetStimuli;

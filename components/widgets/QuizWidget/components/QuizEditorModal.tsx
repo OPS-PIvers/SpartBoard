@@ -185,6 +185,7 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.enforceWordLimit === true) !== (qb.enforceWordLimit === true) ||
       (qa.noSpellCheck === true) !== (qb.noSpellCheck === true) ||
       (qa.paperBoxSize ?? '') !== (qb.paperBoxSize ?? '') ||
+      (qa.paperBoxStyle ?? '') !== (qb.paperBoxStyle ?? '') ||
       (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
       (qa.orderingImages ?? []).join('|') !==
         (qb.orderingImages ?? []).join('|') ||

@@ -343,7 +343,8 @@ describe('client/server page map parity (layoutVersion 2)', () => {
       QUESTIONS[4],
       free('f2', { maxWords: 25 }),
       free('f3', { paperBoxSize: 'full' }),
-      free('f4', { maxWords: 500 }),
+      free('f4', { maxWords: 500, paperBoxStyle: 'graph' }),
+      free('f5', { paperBoxStyle: 'lines' }),
       free('rec', { recording: { maxDurationSeconds: 60 } as never }),
       QUESTIONS[1],
     ];
@@ -359,7 +360,7 @@ describe('client/server page map parity (layoutVersion 2)', () => {
         client.writtenRefusals.map((r) => r.label)
       );
     }
-    expect(clientAnalyze(quiz, { written: true }).written).toHaveLength(4);
+    expect(clientAnalyze(quiz, { written: true }).written).toHaveLength(5);
   });
 
   it('refuses the same written questions inside an "answer any" section', () => {
@@ -399,9 +400,11 @@ describe('client/server page map parity (layoutVersion 2)', () => {
   it('lays out an analyzed quiz end to end the same way', () => {
     const questions = [
       ...QUESTIONS.slice(0, 4),
-      free('f1', { paperBoxSize: 'L' }),
+      free('f1', { paperBoxSize: 'L', paperBoxStyle: 'graph' }),
       QUESTIONS[0],
-      free('f2'),
+      free('f2', { paperBoxStyle: 'coordinate' }),
+      free('f3', { paperBoxStyle: 'blank', paperBoxSize: 'S' }),
+      free('f4', { paperBoxStyle: 'lines' }),
     ];
     const client = clientAnalyze(writtenQuiz(questions), { written: true });
     const server = serverAnalyze(questions, { written: true });

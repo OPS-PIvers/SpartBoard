@@ -1,5 +1,6 @@
 import type {
   PaperBoxSize,
+  PaperBoxStyle,
   QuizQuestion,
   PaperPrivateAnswer,
   PaperPrivateStatus,
@@ -78,6 +79,42 @@ export function withPaperBoxSizes<T extends { questions: QuizQuestion[] }>(
     questions: holder.questions.map((q) =>
       sizes[q.id] ? { ...q, paperBoxSize: sizes[q.id] } : q
     ),
+  };
+}
+
+export function isPaperBoxStyle(value: unknown): value is PaperBoxStyle {
+  return (
+    value === 'lines' ||
+    value === 'blank' ||
+    value === 'graph' ||
+    value === 'coordinate'
+  );
+}
+
+/** What a free-response box prints inside it; lines unless a valid style is saved. */
+export function paperBoxStyleOf(
+  question: Pick<QuizQuestion, 'paperBoxStyle'>
+): PaperBoxStyle {
+  return isPaperBoxStyle(question.paperBoxStyle)
+    ? question.paperBoxStyle
+    : 'lines';
+}
+
+/** Questions with the print dialog's box styles applied; lines drops the key. */
+export function withPaperBoxStyles<T extends { questions: QuizQuestion[] }>(
+  holder: T,
+  styles: Readonly<Record<string, PaperBoxStyle>>
+): T {
+  if (Object.keys(styles).length === 0) return holder;
+  return {
+    ...holder,
+    questions: holder.questions.map((q) => {
+      const style = styles[q.id];
+      if (!style) return q;
+      if (style !== 'lines') return { ...q, paperBoxStyle: style };
+      const { paperBoxStyle: _drop, ...rest } = q;
+      return rest;
+    }),
   };
 }
 

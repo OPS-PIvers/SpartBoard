@@ -9,6 +9,7 @@
 
 import type {
   PaperBoxSize,
+  PaperBoxStyle,
   PaperGrid,
   PaperPageItem,
   PaperPageMap,
@@ -41,6 +42,7 @@ export interface PaperQuestion {
   recording?: unknown;
   maxWords?: number;
   paperBoxSize?: PaperBoxSize;
+  paperBoxStyle?: PaperBoxStyle;
 }
 
 export interface PaperSeatAssignment {
@@ -124,7 +126,13 @@ export interface PaperWrittenPlan {
 /** One thing the sheet prints, in test order. Mirrors `PaperSheetEntry`. */
 export type PaperSheetEntry =
   | { kind: 'mc'; questionId: string; label: string }
-  | { kind: 'written'; questionId: string; label: string; size: PaperBoxSize };
+  | {
+      kind: 'written';
+      questionId: string;
+      label: string;
+      size: PaperBoxSize;
+      style?: PaperBoxStyle;
+    };
 
 export interface PaperQuizAnalysis {
   rows: PaperQuestionPlan[];
@@ -263,6 +271,13 @@ export const isPaperBoxSize = (value: unknown): value is PaperBoxSize =>
     ? Number.isInteger(value) && value >= 1 && value <= PAPER_FULL_PAGE_LINES
     : value === 'S' || value === 'M' || value === 'L' || value === 'full';
 
+/** Mirrors `isPaperBoxStyle` in `utils/paperWritten.ts`. */
+export const isPaperBoxStyle = (value: unknown): value is PaperBoxStyle =>
+  value === 'lines' ||
+  value === 'blank' ||
+  value === 'graph' ||
+  value === 'coordinate';
+
 /** Mirrors `defaultPaperBoxSize` in `utils/paperWritten.ts`. */
 export function defaultPaperBoxSize(maxWords?: number): PaperBoxSize {
   if (!maxWords || !Number.isFinite(maxWords) || maxWords <= 0) return 'M';
@@ -352,8 +367,17 @@ export function analyzePaperQuiz(
       const size = isPaperBoxSize(question.paperBoxSize)
         ? question.paperBoxSize
         : defaultPaperBoxSize(question.maxWords);
+      const style = isPaperBoxStyle(question.paperBoxStyle)
+        ? question.paperBoxStyle
+        : 'lines';
       written.push({ questionId: question.id, label, size });
-      entries.push({ kind: 'written', questionId: question.id, label, size });
+      entries.push({
+        kind: 'written',
+        questionId: question.id,
+        label,
+        size,
+        ...(style !== 'lines' ? { style } : {}),
+      });
       return;
     }
     if (question.type !== 'MC') return;
@@ -435,6 +459,10 @@ const ONE_COLUMN_BOX_BOTTOM_MM = PAGE_HEIGHT_MM - CORNER_WINDOW_H_MM;
 const headerRows = (stems: boolean): number =>
   stems ? WRITTEN_HEADER_ROWS_WITH_STEM : WRITTEN_HEADER_ROWS_NUMBER_ONLY;
 
+/** Mirrors `styleOf` in `utils/paperPageMap.ts`: lines stays absent. */
+const styleOf = (entry: WrittenEntry): { style?: PaperBoxStyle } =>
+  entry.style && entry.style !== 'lines' ? { style: entry.style } : {};
+
 function writtenBlock(
   entry: WrittenEntry,
   top: number,
@@ -460,6 +488,7 @@ function writtenBlock(
       h: lines * WRITTEN_LINE_PITCH_MM,
     },
     lines,
+    ...styleOf(entry),
   };
 }
 
@@ -570,6 +599,7 @@ function planQuestionTextPages(
         h: lines * WRITTEN_LINE_PITCH_MM,
       },
       lines,
+      ...styleOf(entry),
     });
   }
 

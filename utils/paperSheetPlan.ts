@@ -26,7 +26,7 @@ import {
 } from './paperSheetLayout';
 import { MAX_SEAT } from './paperSheetMarker';
 import type { PaperSheetEntry } from './paperPageMap';
-import { paperBoxSizeOf } from './paperWritten';
+import { paperBoxSizeOf, paperBoxStyleOf } from './paperWritten';
 import { rowsFromQuestion } from './quizChoiceRows';
 import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
 
@@ -215,8 +215,15 @@ export function analyzePaperQuiz(
         return;
       }
       const size = paperBoxSizeOf(question);
+      const style = paperBoxStyleOf(question);
       written.push({ questionId: question.id, label, size });
-      entries.push({ kind: 'written', questionId: question.id, label, size });
+      entries.push({
+        kind: 'written',
+        questionId: question.id,
+        label,
+        size,
+        ...(style !== 'lines' ? { style } : {}),
+      });
       return;
     }
     if (question.type !== 'MC') {

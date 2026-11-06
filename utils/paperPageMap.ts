@@ -6,6 +6,7 @@
 
 import type {
   PaperBoxSize,
+  PaperBoxStyle,
   PaperGrid,
   PaperPageItem,
   PaperPageMap,
@@ -62,7 +63,14 @@ import { MAX_PAGE } from './paperSheetMarker';
 /** One thing the sheet prints, in test order. */
 export type PaperSheetEntry =
   | { kind: 'mc'; questionId: string; label: string }
-  | { kind: 'written'; questionId: string; label: string; size: PaperBoxSize };
+  | {
+      kind: 'written';
+      questionId: string;
+      label: string;
+      size: PaperBoxSize;
+      /** Absent = lines. */
+      style?: PaperBoxStyle;
+    };
 
 export interface PlanPaperPagesInput {
   entries: readonly PaperSheetEntry[];
@@ -89,6 +97,12 @@ const ONE_COLUMN_BOX_BOTTOM_MM = PAGE_HEIGHT_MM - CORNER_WINDOW_H_MM;
 
 const headerRows = (stems: boolean): number =>
   stems ? WRITTEN_HEADER_ROWS_WITH_STEM : WRITTEN_HEADER_ROWS_NUMBER_ONLY;
+
+/** A non-lines style rides on the item; lines stays absent so older maps are unchanged. */
+const styleOf = (
+  entry: Extract<PaperSheetEntry, { kind: 'written' }>
+): { style?: PaperBoxStyle } =>
+  entry.style && entry.style !== 'lines' ? { style: entry.style } : {};
 
 /** Header then box, starting at `top`; the block leaves a bubble-sized gap before the next row. */
 function writtenBlock(
@@ -118,6 +132,7 @@ function writtenBlock(
       h: lines * WRITTEN_LINE_PITCH_MM,
     },
     lines,
+    ...styleOf(entry),
   };
 }
 
@@ -428,6 +443,7 @@ function planQuestionTextPages(
         h: lines * WRITTEN_LINE_PITCH_MM,
       },
       lines,
+      ...styleOf(entry),
     });
   }
 
@@ -471,6 +487,74 @@ export function writtenRuleYsMm(
     { length: item.lines },
     (_, i) => item.boxMm.y + (i + 1) * WRITTEN_LINE_PITCH_MM
   );
+}
+
+/** Rule line weight; it spans y - weight to y. Printed at the letter grey so the reader's cut drops it. */
+export const WRITTEN_RULE_LINE_MM = 0.3;
+/** Outline weight, drawn just inside the box edge. */
+export const WRITTEN_OUTLINE_MM = 0.3;
+/** Graph paper and coordinate grid spacing. */
+export const WRITTEN_GRID_PITCH_MM = 5;
+export const WRITTEN_GRID_LINE_MM = 0.2;
+/** Coordinate grid axes, heavier than the grid so they read as axes. */
+export const WRITTEN_AXIS_LINE_MM = 0.5;
+
+/** A printed line inside a box: its centre and weight, in mm on the page. */
+export interface WrittenBand {
+  centreMm: number;
+  weightMm: number;
+}
+
+/** Interior grid positions 5 mm apart from the box's start edge. */
+const gridCentres = (start: number, length: number): number[] => {
+  const out: number[] = [];
+  for (let k = 1; k * WRITTEN_GRID_PITCH_MM < length - 0.01; k += 1) {
+    out.push(start + k * WRITTEN_GRID_PITCH_MM);
+  }
+  return out;
+};
+
+/** Grid line nearest the box's middle, so the axis lands on a grid line. */
+const axisCentre = (start: number, length: number): number =>
+  start +
+  Math.max(1, Math.round(length / 2 / WRITTEN_GRID_PITCH_MM)) *
+    WRITTEN_GRID_PITCH_MM;
+
+/** Lines a box prints inside its outline: horizontal (`rows`, y) and vertical (`cols`, x), shared by print and reader. */
+export function writtenBoxBandsMm(
+  item: Pick<WrittenItem, 'boxMm' | 'lines' | 'style'>
+): { rows: WrittenBand[]; cols: WrittenBand[] } {
+  const b = item.boxMm;
+  const style = item.style ?? 'lines';
+  if (style === 'blank') return { rows: [], cols: [] };
+  if (style === 'lines') {
+    return {
+      rows: writtenRuleYsMm(item).map((y) => ({
+        centreMm: y - WRITTEN_RULE_LINE_MM / 2,
+        weightMm: WRITTEN_RULE_LINE_MM,
+      })),
+      cols: [],
+    };
+  }
+  const grid = (c: number): WrittenBand => ({
+    centreMm: c,
+    weightMm: WRITTEN_GRID_LINE_MM,
+  });
+  const rows = gridCentres(b.y, b.h).map(grid);
+  const cols = gridCentres(b.x, b.w).map(grid);
+  if (style === 'coordinate') {
+    const withAxis = (bands: WrittenBand[], axis: number): WrittenBand[] =>
+      bands.map((band) =>
+        Math.abs(band.centreMm - axis) < 0.01
+          ? { centreMm: axis, weightMm: WRITTEN_AXIS_LINE_MM }
+          : band
+      );
+    return {
+      rows: withAxis(rows, axisCentre(b.y, b.h)),
+      cols: withAxis(cols, axisCentre(b.x, b.w)),
+    };
+  }
+  return { rows, cols };
 }
 
 /** Every rect a page prints for its written items. */
