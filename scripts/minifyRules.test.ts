@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -135,3 +136,14 @@ describe.runIf(findEmulatorJar())(
     }, 60_000);
   }
 );
+
+describe('minifyRules CLI path argument', () => {
+  it('reads the given rules path even without --map', () => {
+    const missing = 'scripts/__no_such_rules_file__.rules';
+    const run = spawnSync('node', ['scripts/minifyRules.mjs', missing], {
+      encoding: 'utf8',
+    });
+    expect(run.status).toBe(1);
+    expect(run.stderr + run.stdout).toContain('__no_such_rules_file__');
+  });
+});
