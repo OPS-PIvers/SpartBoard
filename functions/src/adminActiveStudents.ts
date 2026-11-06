@@ -17,9 +17,10 @@ import {
   type ClassLinkStudent,
 } from './classlinkShared';
 import { isRevokedMemberStatus, isSiteWideAdmin } from './authz';
+import { loadTeacherClassIds } from './studentIdentity';
 import { assertViewAsAllowed } from './viewAsGuard';
 
-// Admin-only drill-down behind the Active Students KPIs: teachers come from assignments opened; names come live from ClassLink.
+// Admin-only drill-down behind the Active Students KPIs: teachers come from assignments opened and imported rosters; names come live from ClassLink.
 
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 const IN_CHUNK = 10;
@@ -161,6 +162,28 @@ export function latestOpensByStudent(
     out.set(o.studentUid, byTeacher);
   }
   return out;
+}
+
+/** Adds the teachers who imported each student's classes, so a student with no recent assignment still shows their teachers. */
+export function addRosterTeachers(
+  opensByStudent: Map<string, Map<string, number>>,
+  students: readonly ActiveStudentInput[],
+  rosterOwners: ReadonlyMap<string, ReadonlySet<string>>
+): Map<string, Map<string, number>> {
+  for (const s of students) {
+    const byTeacher = opensByStudent.get(s.uid) ?? new Map<string, number>();
+    for (const id of s.sectionIds) {
+      for (const teacherUid of rosterOwners.get(id) ?? []) {
+        // Dated by the later of their open and the sign-in, so the daily list keeps every class teacher.
+        byTeacher.set(
+          teacherUid,
+          Math.max(byTeacher.get(teacherUid) ?? 0, s.lastSignInMs)
+        );
+      }
+    }
+    if (byTeacher.size > 0) opensByStudent.set(s.uid, byTeacher);
+  }
+  return opensByStudent;
 }
 
 export function buildActiveStudentRows(input: {
@@ -453,13 +476,24 @@ async function computeActiveStudents(
     loadNames(db, active, allSections, queryDeadline, deadline),
   ]);
 
+  let partial = teachers.partial || names.partial;
+  const teacherNames = teachers.teacherNames;
+  const ownerUids = [
+    ...new Set([...names.rosterOwners.values()].flatMap((set) => [...set])),
+  ].filter((uid) => !teacherNames.has(uid));
+  if (!(await addTeacherNames(teacherNames, ownerUids))) partial = true;
+
   const result: ActiveStudentsResult = {
     asOf: now,
-    partial: teachers.partial || names.partial,
+    partial,
     students: buildActiveStudentRows({
       students: active,
-      opensByStudent: teachers.opensByStudent,
-      teacherNames: teachers.teacherNames,
+      opensByStudent: addRosterTeachers(
+        teachers.opensByStudent,
+        active,
+        names.rosterOwners
+      ),
+      teacherNames,
       namesByUid: names.namesByUid,
     }),
   };
@@ -489,23 +523,33 @@ async function loadTeachers(
   let partial = collected.partial;
   const teacherNames = new Map<string, string>();
   const teacherUids = [...new Set(collected.opens.map((o) => o.teacherUid))];
-  for (const ids of chunk(teacherUids, 100)) {
+  if (!(await addTeacherNames(teacherNames, teacherUids))) partial = true;
+  return {
+    partial,
+    opensByStudent: latestOpensByStudent(collected.opens),
+    teacherNames,
+  };
+}
+
+/** Fills display names for these teacher uids; false when a lookup failed. */
+async function addTeacherNames(
+  teacherNames: Map<string, string>,
+  uids: readonly string[]
+): Promise<boolean> {
+  let ok = true;
+  for (const ids of chunk(uids, 100)) {
     const result = await admin
       .auth()
       .getUsers(ids.map((uid) => ({ uid })))
       .catch(() => {
-        partial = true;
+        ok = false;
         return null;
       });
     for (const u of result?.users ?? []) {
       teacherNames.set(u.uid, u.displayName || u.email || '');
     }
   }
-  return {
-    partial,
-    opensByStudent: latestOpensByStudent(collected.opens),
-    teacherNames,
-  };
+  return ok;
 }
 
 async function loadNames(
@@ -514,11 +558,16 @@ async function loadNames(
   allSections: readonly string[],
   queryDeadline: number,
   deadline: number
-): Promise<{ partial: boolean; namesByUid: Map<string, string> }> {
+): Promise<{
+  partial: boolean;
+  namesByUid: Map<string, string>;
+  rosterOwners: Map<string, Set<string>>;
+}> {
   let partial = false;
   const namesByUid = new Map<string, string>();
-  // Sections that teachers imported as rosters; only students in one get a name.
+  // Sections teachers imported as rosters, with the importing teachers; these are walked first for names.
   const rosteredSections = new Set<string>();
+  const rosterOwners = new Map<string, Set<string>>();
   await mapWithConcurrency(
     chunk(allSections, IN_CHUNK),
     QUERY_CONCURRENCY,
@@ -536,9 +585,13 @@ async function loadNames(
           (rs) => {
             for (const doc of rs.docs) {
               const sectionId: unknown = doc.get('classlinkClassId');
-              if (typeof sectionId === 'string') {
-                rosteredSections.add(sectionId);
-              }
+              if (typeof sectionId !== 'string') continue;
+              rosteredSections.add(sectionId);
+              const owner = doc.ref.parent.parent;
+              if (owner?.parent.id !== 'users') continue;
+              const set = rosterOwners.get(sectionId) ?? new Set<string>();
+              set.add(owner.id);
+              rosterOwners.set(sectionId, set);
             }
           },
           (err: unknown) => {
@@ -552,24 +605,44 @@ async function loadNames(
     }
   );
 
-  for (const s of active) {
-    const hit = nameCache.get(s.uid);
-    if (hit && s.sectionIds.some((id) => rosteredSections.has(id))) {
-      namesByUid.set(s.uid, hit.name);
-    }
-  }
-  const unnamed = active.filter((s) => !namesByUid.has(s.uid));
-  if (unnamed.length === 0) return { partial, namesByUid };
-
   const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
   const clientId = CLASSLINK_CLIENT_ID.value();
   const clientSecret = CLASSLINK_CLIENT_SECRET.value();
   const tenantUrl = CLASSLINK_TENANT_URL.value().replace(/\/$/, '');
   if (!hmacSecret || !clientId || !clientSecret || !tenantUrl) {
-    return { partial: true, namesByUid };
+    return { partial: true, namesByUid, rosterOwners: new Map() };
+  }
+  // Roster docs are client-written, so ClassLink confirms each owner teaches the class; runs alongside the name walk.
+  const verified = verifyRosterOwners(rosterOwners, deadline, {
+    classlinkClientId: clientId,
+    classlinkClientSecret: clientSecret,
+    tenantUrl,
+  });
+
+  for (const s of active) {
+    const hit = nameCache.get(s.uid);
+    if (hit) namesByUid.set(s.uid, hit.name);
+  }
+  const unnamed = active.filter((s) => !namesByUid.has(s.uid));
+  if (unnamed.length === 0) {
+    const v = await verified;
+    return {
+      partial: partial || v.partial,
+      namesByUid,
+      rosterOwners: v.owners,
+    };
   }
   const wanted = new Set(unnamed.map((s) => s.uid));
-  const sections = orderSectionsForNameLookup(unnamed, rosteredSections);
+  // Classes nobody imported come last, for students no imported class covers.
+  const otherSections = new Set(
+    unnamed
+      .flatMap((st) => st.sectionIds)
+      .filter((id) => !rosteredSections.has(id))
+  );
+  const sections = [
+    ...orderSectionsForNameLookup(unnamed, rosteredSections),
+    ...orderSectionsForNameLookup(unnamed, otherSections),
+  ];
   await mapWithConcurrency(
     sections,
     CLASSLINK_CONCURRENCY,
@@ -629,5 +702,54 @@ async function loadNames(
       }
     }
   );
-  return { partial, namesByUid };
+  const v = await verified;
+  return { partial: partial || v.partial, namesByUid, rosterOwners: v.owners };
+}
+
+/** Keeps only (class, teacher) pairs ClassLink confirms; an owner it can't check is dropped. */
+async function verifyRosterOwners(
+  rosterOwners: ReadonlyMap<string, ReadonlySet<string>>,
+  deadline: number,
+  creds: Parameters<typeof loadTeacherClassIds>[1]
+): Promise<{ partial: boolean; owners: Map<string, Set<string>> }> {
+  let partial = false;
+  const uids = [
+    ...new Set([...rosterOwners.values()].flatMap((set) => [...set])),
+  ];
+  const taughtBy = new Map<string, Set<string>>();
+  for (const ids of chunk(uids, 100)) {
+    const users = await admin
+      .auth()
+      .getUsers(ids.map((uid) => ({ uid })))
+      .catch(() => null);
+    if (!users) {
+      partial = true;
+      continue;
+    }
+    await mapWithConcurrency(users.users, CLASSLINK_CONCURRENCY, async (u) => {
+      if (!u.email || !u.emailVerified) return;
+      if (Date.now() >= deadline) {
+        partial = true;
+        return;
+      }
+      const taught = await loadTeacherClassIds(u.email, creds).catch(
+        () => null
+      );
+      if (taught) taughtBy.set(u.uid, taught);
+    });
+  }
+  return { partial, owners: keepTaughtOwners(rosterOwners, taughtBy) };
+}
+
+/** Roster owners whose ClassLink class list includes that class. */
+export function keepTaughtOwners(
+  rosterOwners: ReadonlyMap<string, ReadonlySet<string>>,
+  taughtBy: ReadonlyMap<string, ReadonlySet<string>>
+): Map<string, Set<string>> {
+  const owners = new Map<string, Set<string>>();
+  for (const [sectionId, set] of rosterOwners) {
+    const ok = [...set].filter((uid) => taughtBy.get(uid)?.has(sectionId));
+    if (ok.length > 0) owners.set(sectionId, new Set(ok));
+  }
+  return owners;
 }
