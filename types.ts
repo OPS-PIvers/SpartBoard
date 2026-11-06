@@ -4502,6 +4502,8 @@ export interface QuizQuestion {
   noSpellCheck?: boolean;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
+  /** Free Response only. What prints inside the paper answer box; absent = lines. */
+  paperBoxStyle?: PaperBoxStyle;
   /**
    * Free Response only (M12 rubrics). Id of the rubric in the teacher's
    * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
@@ -5656,6 +5658,8 @@ export interface QuizSession
   scoreVisibility?: QuizScoreVisibility;
   /** Copied from Publish Scores when paper written answers exist; cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
+  /** Written questions students answer on a printed sheet instead of the device (`paper-written-hybrid`). */
+  paperWrittenQuestionIds?: string[];
   /**
    * Mirror of QuizAssignment.protection so the student app — which only reads
    * /quiz_sessions — can decide whether to mount watermark + tab-warning UI.
@@ -5861,6 +5865,9 @@ export interface QuizResponseAnswer {
 
 /** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page. */
 export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
+
+/** What prints inside a handwritten answer box: rule lines, nothing, a 5 mm grid, or a grid with x and y axes. */
+export type PaperBoxStyle = 'lines' | 'blank' | 'graph' | 'coordinate';
 
 /** Public transcription state on a paper written answer. */
 export type PaperTranscriptState = 'pending' | 'done' | 'blank';
@@ -6183,6 +6190,10 @@ export interface QuizResponse extends StaffResponseFields {
   paperBatchId?: string;
   /** Seat number printed on that sheet, so a rescan lands on the same doc. */
   paperSeat?: number;
+  /** Written-answers-only stack merged onto a device response; unlike `paperBatchId` the row stays device-sourced. */
+  paperWrittenBatchId?: string;
+  /** Seat on that written-answers stack. */
+  paperWrittenSeat?: number;
   /** Parts submitted at a Stop; those questions are locked. Absent = 0. */
   partsDone?: number;
   /** True while the student waits at a Stop; the idle sweep skips the attempt. */
@@ -6327,6 +6338,8 @@ export type PaperPageItem =
       headerMm: PaperRectMm;
       boxMm: PaperRectMm;
       lines: number;
+      /** Absent = lines, as every map printed before box styles. */
+      style?: PaperBoxStyle;
     };
 
 /** Positions of everything on one physical page; `page` is 1-based and absolute. */
@@ -7072,6 +7085,10 @@ export interface QuizAssignment
   hasPaperResponses?: boolean;
   /** Set by import when any paper sheet carried a written answer box. */
   hasPaperWritten?: boolean;
+  /** A device assignment whose written questions print on paper (`paper-written-hybrid`); `paperBatchId` names the stack. */
+  writtenOnPaper?: true;
+  /** Mirrored on the session: the written questions on that stack. */
+  paperWrittenQuestionIds?: string[];
   /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
   createdAt: number;
@@ -10871,6 +10888,8 @@ export type GlobalFeature =
   | 'quiz-results-tools'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
+  /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
+  | 'paper-written-hybrid'
   /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */

@@ -29,6 +29,8 @@ export type PaperPageItem =
       headerMm: PaperRectMm;
       boxMm: PaperRectMm;
       lines: number;
+      /** Absent = lines; mirrors root `types.ts`. */
+      style?: PaperBoxStyle;
     };
 
 export interface PaperPageMap {
@@ -40,6 +42,7 @@ export interface PaperPageMap {
 }
 
 export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
+export type PaperBoxStyle = 'lines' | 'blank' | 'graph' | 'coordinate';
 export type PaperTranscriptState = 'pending' | 'done' | 'blank';
 export type PaperPrivateStatus =
   'pending' | 'done' | 'failed' | 'blank' | 'over-quota';
