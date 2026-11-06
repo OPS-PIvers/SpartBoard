@@ -32,8 +32,10 @@ visible outcome before authoring screenshots. A menu item inside a closed
 menu needs a preceding click that opens the menu. For every `click` step,
 anchor the element that receives the user's click and verify that the
 runner advances after that click. Use `toggle`, `select` and `type` for a
-switch, a dropdown or a text field, with the `value` the step sets, and
-`observe` for checking the final result. Slide `interactionType` is
+switch, a dropdown or a text field, with the `value` the step sets,
+`drag` on `widget.window:<type>` and `resize` on
+`widget.resize-handle:<type>` for moving or resizing a widget (no value),
+and `observe` for checking the final result. Slide `interactionType` is
 only the screenshot fallback; it cannot turn an `observe` step into a
 click in the live runner. Mix slide interaction types where they fit the
 target, but judge the live tour by its `tour.action` and actual UI behavior.
@@ -71,7 +73,7 @@ demonstrate the live tour.
 ```jsonc
 "tour": {
   "anchor": "widget.settings-opener:clock", // ref, see below
-  "action": "click",            // or "observe", "toggle", "select", "type"
+  "action": "click",            // or "observe", "toggle", "select", "type", "drag", "resize"
   "value": true,                // toggle: boolean; select, type: string; else absent
   "fallback": { "role": "button", "name": "Settings (Alt+S)" }, // optional
   "teacherMustClick": true,     // optional; defaults from the anchor

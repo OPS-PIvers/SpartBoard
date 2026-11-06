@@ -49,7 +49,8 @@ The job is one of three:
    will complete, trace the real UI state changes, and put a user click on
    each control that advances that task. Switches, dropdowns and text
    fields are `toggle`, `select` and `type` steps with the `value` they
-   set; use `observe` only for inspecting a result. A sequence of
+   set; moving or resizing a widget is a `drag` or `resize` step; use
+   `observe` only for inspecting a result. A sequence of
    informational popovers is not a live tour.
    For a Help Center walkthrough, plan one task in click order with a
    gotcha pass (see the Help Center reference). For a lesson, use one
