@@ -731,15 +731,6 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
-  'blooms-taxonomy.ai-topic': {
-    label: "AI topic box in Bloom's Taxonomy",
-    perWidgetType: true,
-  },
-  'blooms-taxonomy.ai-dismiss': {
-    label: "Dismiss AI result button in Bloom's Taxonomy",
-    perWidgetType: true,
-    destructive: true,
-  },
   'calendar.start-timer': {
     label: 'Start countdown to event button in Calendar',
     perWidgetType: true,
@@ -4243,11 +4234,6 @@ export const TOUR_ANCHORS = {
   },
   'quiz-settings.manager-view': {
     label: 'Manager view button in Quiz settings',
-    perWidget: true,
-    panel: true,
-  },
-  'widget-settings.blooms.category': {
-    label: 'Category checkboxes in Blooms Taxonomy settings',
     perWidget: true,
     panel: true,
   },
