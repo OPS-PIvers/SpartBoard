@@ -1125,17 +1125,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'weather-gear-layout': {
-    label: 'Weather recess gear redesign',
-    icon: CloudSun,
-    description: 'A larger recess gear picture and message that fit any size.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'weather',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'checklist-small-card': {
     label: 'Checklist small cards',
     icon: ListChecks,

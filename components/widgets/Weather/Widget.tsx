@@ -13,7 +13,7 @@ import {
   GlobalWeatherData,
 } from '@/types';
 import { Sun, Cloud, CloudRain, CloudSnow, Wind } from 'lucide-react';
-import { getFontClass, hexToRgba } from '@/utils/styles';
+import { getFontClass } from '@/utils/styles';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { STATION_CONFIG } from './constants';
@@ -43,7 +43,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t, i18n } = useTranslation();
   const { updateWidget, activeDashboard, setBackground } = useDashboard();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
-  const { featurePermissions, canAccessFeature } = useAuth();
+  const { featurePermissions } = useAuth();
   const config = widget.config as WeatherConfig;
   const {
     temp = 72,
@@ -58,8 +58,6 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     fontFamily = 'global',
     fontColor = '#334155',
     secondaryColor,
-    cardColor = '#ffffff',
-    cardOpacity = 1,
     detailFields,
     details,
   } = config;
@@ -277,10 +275,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   };
 
   const clothing = getClothing();
-  const gearLayout = canAccessFeature('weather-gear-layout');
-  const accentClass = gearLayout
-    ? 'text-brand-blue-primary'
-    : 'text-indigo-600';
+  const accentClass = 'text-brand-blue-primary';
 
   // Custom Message/Image Logic
   let displayMessage: React.ReactNode = (
@@ -329,7 +324,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const tempText = `${Math.round(
     showFeelsLike && shownFeelsLike !== undefined ? shownFeelsLike : temp
   )}°`;
-  // Approximate width in em; the 34cqmin below covers the 22cqmin icon, its gap and padding.
+  // Approximate width in em, so the temperature shrinks to fit beside its icon.
   const tempWidthEm = [...tempText]
     .reduce((w, ch) => w + (ch === '-' ? 0.5 : ch === '°' ? 0.42 : 0.66), 0)
     .toFixed(2);
@@ -348,19 +343,10 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         })
       : [];
 
-  // Details replace the recess gear card but keep its sizing, since they share the space.
+  // Details replace the recess gear, since they share the space.
   const hasDetails = detailRows.length > 0;
   const noGear = hideClothing === true && !hasDetails;
-  const showGear = gearLayout && !noGear && !hasDetails;
-  const legacyImage = imageUrl ? (
-    <img
-      src={imageUrl}
-      alt={t('widgets.weather.weatherImageAlt')}
-      className="w-full h-full object-cover rounded-lg"
-    />
-  ) : (
-    <span>{clothing.icon}</span>
-  );
+  const showGear = !noGear && !hasDetails;
 
   // In the gear layout the temperature gets its own region, sized like the no-gear face.
   const temperatureBlock = (
@@ -418,7 +404,8 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     />
   );
 
-  const legacyFace = (
+  // Without gear (hidden, or replaced by details) the temperature fills the face.
+  const plainFace = (
     <div
       className={`flex flex-col items-center justify-center h-full w-full ${fontClass}`}
       style={{
@@ -438,11 +425,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         >
           <div
             style={{
-              fontSize: noGear
-                ? 'min(65cqh, 30cqw)'
-                : hasDetails
-                  ? '34cqmin'
-                  : '22cqmin',
+              fontSize: noGear ? 'min(65cqh, 30cqw)' : '34cqmin',
             }}
           >
             {getIcon('1em')}
@@ -452,9 +435,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             style={{
               fontSize: noGear
                 ? `min(75cqh, 40cqw, calc(68cqw / ${tempWidthEm}))`
-                : hasDetails
-                  ? `min(60cqmin, calc((100cqw - 44cqmin) / ${tempWidthEm}))`
-                  : `min(35cqmin, calc((100cqw - 34cqmin) / ${tempWidthEm}))`,
+                : `min(60cqmin, calc((100cqw - 44cqmin) / ${tempWidthEm}))`,
               color: fontColor,
             }}
           >
@@ -467,11 +448,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           <div
             className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
             style={{
-              fontSize: noGear
-                ? 'min(12cqh, 10cqw)'
-                : hasDetails
-                  ? '8cqmin'
-                  : '5cqmin',
+              fontSize: noGear ? 'min(12cqh, 10cqw)' : '8cqmin',
               marginTop: noGear ? '1cqh' : 'min(2px, 0.5cqmin)',
               color: secondaryColor ?? fontColor,
               opacity: secondaryColor ? 1 : 0.8,
@@ -483,39 +460,10 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </div>
         )}
       </div>
-
-      {!noGear && !hasDetails && (
-        <div
-          data-testid="weather-clothing-card"
-          className="w-full border border-slate-200/60 rounded-2xl flex items-center shadow-xs"
-          style={{
-            backgroundColor: hexToRgba(cardColor, cardOpacity),
-            gap: 'min(16px, 4cqmin)',
-            padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)',
-          }}
-        >
-          <div
-            className="shrink-0 flex items-center justify-center overflow-hidden"
-            style={{
-              fontSize: 'min(48px, 12cqmin)',
-              width: 'min(64px, 15cqmin)',
-              height: 'min(64px, 15cqmin)',
-            }}
-          >
-            {legacyImage}
-          </div>
-          <div
-            className="font-bold leading-tight"
-            style={{ fontSize: 'min(20px, 6cqmin)', color: fontColor }}
-          >
-            {displayMessage}
-          </div>
-        </div>
-      )}
     </div>
   );
 
-  const face = showGear ? gearFace : legacyFace;
+  const face = showGear ? gearFace : plainFace;
 
   return (
     <WidgetLayout

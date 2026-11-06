@@ -50,7 +50,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-calculator-stimulus',
   'lunch-count-redesign',
   'weather-details',
-  'weather-gear-layout',
   'checklist-small-card',
   'seating-chart-plans',
   'noise-meter-pro',
