@@ -1305,6 +1305,99 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "sidebar.getting-started",
+    "label": "Getting Started item in the menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": [
+          "sidebar.open-menu"
+        ],
+        "reveal": "sidebar.open-menu"
+      }
+    ]
+  },
+  {
+    "id": "getting-started.close",
+    "label": "Back to board button on the Getting Started page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.getting-started",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.getting-started"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "getting-started.resume",
+    "label": "Start or Resume button on the Getting Started page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.getting-started",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.getting-started"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "getting-started.start-tour",
+    "label": "Start or Replay button on a Getting Started tour",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.getting-started",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.getting-started"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "getting-started.copy-page-link",
+    "label": "Copy page link button on the Getting Started page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.getting-started",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.getting-started"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "getting-started.restart",
+    "label": "Restart Getting Started button",
+    "scope": "board",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.getting-started",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.getting-started"
+        ]
+      }
+    ]
+  },
+  {
     "id": "sidebar.plcs",
     "label": "My Teams item in the menu",
     "scope": "board",
@@ -40584,6 +40677,146 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#sub-presets"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.pick-tour",
+    "label": "Tour to add in Getting Started settings",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.add",
+    "label": "Add button in Getting Started settings",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.tier",
+    "label": "Tier select on a Getting Started tour",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.done-when",
+    "label": "Checks off select on a Getting Started tour",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.move-up",
+    "label": "Move up button on a Getting Started tour",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.move-down",
+    "label": "Move down button on a Getting Started tour",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.remove",
+    "label": "Remove button on a Getting Started tour",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
         ],
         "needs": [
           "admin"
