@@ -61,12 +61,11 @@ export function placeOrderingAnswer(
     const target = normalizeAnswer(text);
     // Leftmost unused occurrence, matching the grader on duplicate items.
     let correctIndex = -1;
-    if (target)
-      for (let i = 0; i < correctNorm.length; i++)
-        if (!used[i] && correctNorm[i] === target) {
-          correctIndex = i;
-          break;
-        }
+    for (let i = 0; i < correctNorm.length; i++)
+      if (!used[i] && correctNorm[i] === target) {
+        correctIndex = i;
+        break;
+      }
     if (correctIndex >= 0) used[correctIndex] = true;
     return { text: text.trim(), correctIndex, inOrder: false };
   });

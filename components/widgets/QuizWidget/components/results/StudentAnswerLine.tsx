@@ -90,12 +90,14 @@ const OrderingAnswer: React.FC<{ given: string[]; expected: string[] }> = ({
               </span>
               {out ? (
                 <XCircle
+                  role="img"
                   aria-label="Out of order"
                   className="shrink-0 text-brand-red-primary"
                   style={{ ...SMALL_ICON, marginTop: 'min(2px, 0.5cqmin)' }}
                 />
               ) : (
                 <CheckCircle2
+                  role="img"
                   aria-label="In order"
                   className="shrink-0 text-emerald-700"
                   style={{ ...SMALL_ICON, marginTop: 'min(2px, 0.5cqmin)' }}
@@ -111,7 +113,6 @@ const OrderingAnswer: React.FC<{ given: string[]; expected: string[] }> = ({
                 )}
                 {out && spot.correctIndex >= 0 && (
                   <span
-                    aria-label={`Belongs at ${spot.correctIndex + 1}`}
                     data-testid={`ordering-spot-${i}-belongs`}
                     className="inline-flex items-center justify-center align-middle rounded-sm border border-brand-gray-light bg-brand-gray-lightest font-semibold text-brand-gray-darkest tabular-nums"
                     style={{
@@ -122,6 +123,7 @@ const OrderingAnswer: React.FC<{ given: string[]; expected: string[] }> = ({
                       lineHeight: 1.3,
                     }}
                   >
+                    <span className="sr-only">Belongs at </span>
                     {spot.correctIndex + 1}
                   </span>
                 )}
