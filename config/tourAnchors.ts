@@ -4108,6 +4108,10 @@ export const TOUR_ANCHORS = {
     label: 'Tab warnings toggle chip in the Quiz monitor roster',
     perWidgetType: true,
   },
+  'quiz-monitor.roster-board-view': {
+    label: 'Board view toggle chip in the Quiz monitor roster',
+    perWidgetType: true,
+  },
   'quiz-monitor.roster-proficiency': {
     label: 'Proficiency colors toggle chip in the Quiz monitor roster',
     perWidgetType: true,

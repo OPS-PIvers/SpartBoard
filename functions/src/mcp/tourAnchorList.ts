@@ -17167,6 +17167,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.roster-board-view",
+    "label": "Board view toggle chip in the Quiz monitor roster",
+    "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.roster-proficiency",
     "label": "Proficiency colors toggle chip in the Quiz monitor roster",
     "scope": "widget type",

@@ -726,7 +726,9 @@ const TeacherVideoActivityWidget: React.FC<{
         <VideoActivityLiveMonitor
           session={sessionForMonitor}
           onEditSettings={
-            monitorAssignment && monitorAssignment.mode !== 'view-only'
+            monitorAssignment &&
+            monitorAssignment.mode !== 'view-only' &&
+            monitorAssignment.sessionMode !== 'teacher'
               ? () => setEditingSettings(monitorAssignment)
               : undefined
           }

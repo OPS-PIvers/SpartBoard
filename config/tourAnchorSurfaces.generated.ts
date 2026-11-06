@@ -870,6 +870,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-present.pause-message': ['quiz.present'],
     'quiz-monitor.roster-scores': ['quiz.monitor'],
     'quiz-monitor.roster-tab-warnings': ['quiz.monitor'],
+    'quiz-monitor.roster-board-view': ['quiz.monitor'],
     'quiz-monitor.roster-proficiency': ['quiz.monitor'],
     'quiz-monitor.settings-board-view': ['quiz.monitor.settings'],
     'quiz-monitor.settings-tab-warnings': ['quiz.monitor.settings'],

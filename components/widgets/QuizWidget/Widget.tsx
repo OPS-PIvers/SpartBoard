@@ -2411,19 +2411,34 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
+  // The live session's Tab warnings value wins, since the old monitor switch wrote only the session.
+  const withLiveTabWarnings = (a: QuizAssignment): QuizAssignment =>
+    liveSession?.id === a.id && liveSession.tabWarningsEnabled !== undefined
+      ? {
+          ...a,
+          sessionOptions: {
+            ...a.sessionOptions,
+            tabWarningsEnabled: liveSession.tabWarningsEnabled,
+          },
+        }
+      : a;
   const renderAssignmentSettings = (
     target: QuizAssignment,
     inline: boolean
   ) => (
     <QuizAssignmentSettingsModal
-      assignment={assignments.find((a) => a.id === target.id) ?? target}
+      assignment={withLiveTabWarnings(
+        assignments.find((a) => a.id === target.id) ?? target
+      )}
       rosters={rosters}
       canShareWithPlc={plcs.length > 0}
       onShareResults={() => setSharePlcResultsTarget(target)}
       onStopSharing={() => handleStopSharingPlc(target)}
       inline={inline}
       onClose={() => {
-        if (!inline) setEditingAssignment(null);
+        // Inline, onClose runs only after a save; reload the steps from the saved assignment.
+        if (inline) setInlineSettingsRev((n) => n + 1);
+        else setEditingAssignment(null);
       }}
       onSave={async (patch) => {
         try {
@@ -2491,8 +2506,7 @@ const TeacherQuizWidget: React.FC<{
             );
           }
           addToast('Assignment settings saved.', 'success');
-          if (inline) setInlineSettingsRev((n) => n + 1);
-          else setEditingAssignment(null);
+          if (!inline) setEditingAssignment(null);
         } catch (err) {
           addToast(
             err instanceof Error ? err.message : 'Failed to save settings',
@@ -2507,6 +2521,26 @@ const TeacherQuizWidget: React.FC<{
       }}
     />
   );
+  const sharePlcResultsModal = sharePlcResultsTarget ? (
+    <SharePlcResultsModal
+      plcs={plcs}
+      assignment={{
+        id: sharePlcResultsTarget.id,
+        quizId: sharePlcResultsTarget.quizId,
+        quizTitle: sharePlcResultsTarget.quizTitle,
+        syncGroupId: sharePlcResultsTarget.sync?.groupId,
+      }}
+      onClose={() => setSharePlcResultsTarget(null)}
+      onConfirm={async (plc, poolSyncGroupId) => {
+        await shareAssignmentWithPlc(sharePlcResultsTarget.id, {
+          plc,
+          poolSyncGroupId,
+        });
+        addToast(`Results now pool with ${plc.name}.`, 'success');
+        setSharePlcResultsTarget(null);
+      }}
+    />
+  ) : null;
   const assignmentSettingsModal = editingAssignment
     ? renderAssignmentSettings(editingAssignment, false)
     : null;
@@ -2670,7 +2704,8 @@ const TeacherQuizWidget: React.FC<{
             monitorActiveAssignment?.localizedFibAnswers ?? null
           }
           assignmentSettings={
-            monitorActiveAssignment && !isReview ? (
+            monitorActiveAssignment &&
+            getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz' ? (
               <React.Fragment key={inlineSettingsRev}>
                 {renderAssignmentSettings(monitorActiveAssignment, true)}
               </React.Fragment>
@@ -2678,6 +2713,7 @@ const TeacherQuizWidget: React.FC<{
           }
         />
         {assignmentSettingsModal}
+        {sharePlcResultsModal}
       </>
     );
   }
@@ -4411,26 +4447,7 @@ const TeacherQuizWidget: React.FC<{
             />
           );
         })()}
-      {sharePlcResultsTarget && (
-        <SharePlcResultsModal
-          plcs={plcs}
-          assignment={{
-            id: sharePlcResultsTarget.id,
-            quizId: sharePlcResultsTarget.quizId,
-            quizTitle: sharePlcResultsTarget.quizTitle,
-            syncGroupId: sharePlcResultsTarget.sync?.groupId,
-          }}
-          onClose={() => setSharePlcResultsTarget(null)}
-          onConfirm={async (plc, poolSyncGroupId) => {
-            await shareAssignmentWithPlc(sharePlcResultsTarget.id, {
-              plc,
-              poolSyncGroupId,
-            });
-            addToast(`Results now pool with ${plc.name}.`, 'success');
-            setSharePlcResultsTarget(null);
-          }}
-        />
-      )}
+      {sharePlcResultsModal}
       {shareWithPlcTargets.length > 0 && (
         <PlcShareTargetModal
           plcs={plcs}

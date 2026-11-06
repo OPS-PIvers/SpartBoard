@@ -944,6 +944,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }
                 overridesBySourcedId={overridesBySourcedId}
                 targetRefKeyByStudentUid={data.targetRefKeyByStudentUid}
+                boardViewChip={!!assignmentSettings}
               />
             )}
           </div>
