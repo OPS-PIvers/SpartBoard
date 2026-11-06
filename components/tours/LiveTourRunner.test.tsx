@@ -228,6 +228,20 @@ vi.mock('./useTourConditions', () => ({
   },
 }));
 
+vi.mock('@/components/gettingStarted/GettingStartedNextOffer', () => ({
+  GettingStartedNextOffer: ({
+    finishedSetId,
+    onClose,
+  }: {
+    finishedSetId: string;
+    onClose: () => void;
+  }) => (
+    <button data-testid="next-offer" onClick={onClose}>
+      Offer after {finishedSetId}
+    </button>
+  ),
+}));
+
 vi.mock('@/hooks/useGuidedLearning', () => ({
   loadBuildingSet: h.loadDraft,
 }));
@@ -3639,5 +3653,63 @@ describe('LiveTourRunner conditions', () => {
     );
     await frames(AUTO_NEXT_WAIT_MS + 5000);
     expect(progress()).toBe('1 / 2');
+  });
+});
+
+describe('LiveTourRunner Getting Started chaining', () => {
+  const finishTwoSteps = async (chain?: 'getting-started') => {
+    const set = makeSet([
+      { anchor: 'sidebar.boards', action: 'observe' },
+      { anchor: 'sidebar.boards', action: 'observe' },
+    ]);
+    h.loadTour.mockResolvedValue(set);
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => {
+      requestStartTour({ setId: set.id, ...(chain ? { chain } : {}) });
+    });
+    await frames();
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+  };
+
+  it('offers the next tour when a Getting Started tour finishes', async () => {
+    await finishTwoSteps('getting-started');
+    expect(screen.getByTestId('next-offer')).toHaveTextContent('set-1');
+    fireEvent.click(screen.getByTestId('next-offer'));
+    expect(screen.queryByTestId('next-offer')).not.toBeInTheDocument();
+  });
+
+  it('offers nothing for a tour started anywhere else', async () => {
+    await finishTwoSteps();
+    expect(screen.queryByTestId('next-offer')).not.toBeInTheDocument();
+  });
+
+  it('offers nothing when a Getting Started tour is left early', async () => {
+    const set = makeSet([
+      { anchor: 'sidebar.boards', action: 'observe' },
+      { anchor: 'sidebar.boards', action: 'observe' },
+    ]);
+    h.loadTour.mockResolvedValue(set);
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => {
+      requestStartTour({ setId: set.id, chain: 'getting-started' });
+    });
+    await frames();
+    expect(progress()).toBe('1 / 2');
+    fireEvent.click(barButton('Exit tour'));
+    await frames();
+    expect(screen.queryByTestId('next-offer')).not.toBeInTheDocument();
   });
 });

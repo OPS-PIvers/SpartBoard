@@ -146,7 +146,7 @@ export const GettingStartedPage: React.FC = () => {
   const startTour = (tour: GettingStartedTour) => {
     void incrementHelpOpenCount(tour.itemId);
     spaNavigate('/');
-    requestStartTour({ setId: tour.setId });
+    requestStartTour({ setId: tour.setId, chain: 'getting-started' });
   };
 
   const restart = async () => {
