@@ -35,7 +35,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
   };
 
   const handleGenerate = async () => {
-    if (!description.trim() || outward.locked) return;
+    if (!description.trim() || outward.locked || isGenerating) return;
     if (outward.active && !(await outward.confirm('Generate with AI'))) return;
 
     setIsGenerating(true);
