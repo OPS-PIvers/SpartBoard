@@ -85,4 +85,14 @@ describe('orderFromSaved / startingOrder', () => {
     expect(startingOrder(items, 'B|A|A')).toEqual([1, 0, 2]);
     expect([...startingOrder(items, null)].sort()).toEqual([0, 1, 2]);
   });
+
+  it('never starts a fresh list in the authored order', () => {
+    const spy = vi.spyOn(Math, 'random').mockReturnValue(0.999);
+    try {
+      expect(startingOrder(['A', 'B', 'C'], null)).toEqual([1, 2, 0]);
+      expect(startingOrder(['A', 'B', 'C'], 'A|B|C')).toEqual([0, 1, 2]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });

@@ -26,10 +26,15 @@ export function orderFromSaved(
   return order;
 }
 
-/** Saved order when there is one, else a fresh shuffle of the items. */
+/** Saved order when there is one, else a fresh shuffle that isn't the authored order. */
 export function startingOrder(
   items: readonly string[],
   saved: string | null
 ): number[] {
-  return orderFromSaved(items, saved) ?? shuffle(items.map((_, i) => i));
+  const fromSaved = orderFromSaved(items, saved);
+  if (fromSaved) return fromSaved;
+  const order = shuffle(items.map((_, i) => i));
+  // Never start in the authored (correct) order, or an untouched list would score.
+  const solved = order.every((v, i) => items[v] === items[i]);
+  return solved && order.length > 1 ? [...order.slice(1), order[0]] : order;
 }
