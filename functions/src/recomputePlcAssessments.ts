@@ -192,7 +192,6 @@ export function parseLocalizedFibAnswers(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-/** Only the served `language` off each student override; the rest is irrelevant here. */
 /** `QuizSession.paperWrittenQuestionIds`, tolerant of a malformed value. */
 export function parsePaperWrittenQuestionIds(
   raw: unknown
@@ -201,6 +200,7 @@ export function parsePaperWrittenQuestionIds(
   return raw.filter((id): id is string => typeof id === 'string');
 }
 
+/** Only the served `language` off each student override; the rest is irrelevant here. */
 export function parseServedLanguages(
   raw: unknown
 ): Record<string, { language?: string }> | undefined {
