@@ -235,6 +235,9 @@ describe('normalizeReadAloudText (R11)', () => {
       'Solve 2x minus 5 equals negative 9'
     );
     expect(normalizeReadAloudText('⟦ -x + 2⟧')).toBe('negative x plus 2');
+    expect(normalizeReadAloudText('⟦(-2, -3)⟧')).toBe(
+      '( negative 2, negative 3)'
+    );
   });
   it('strips markdown and HTML, speaks blanks, fractions, exponents and units', () => {
     expect(normalizeReadAloudText('What is **2 + 2**?')).toBe('What is 2 + 2?');
