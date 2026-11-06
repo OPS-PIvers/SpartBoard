@@ -132,7 +132,7 @@ export interface FlashcardPlayerProps {
   framed?: boolean;
   theme?: 'light' | 'present';
   seed?: string;
-  /** Test shows one question at a time under a question bar (flashcards-test-nav). */
+  /** Test shows one question at a time under a question bar (assigned sessions). */
   testQuestionBar?: boolean;
   onSettingsChange?: (settings: FlashcardModeSettings) => void;
   onBack?: () => void;

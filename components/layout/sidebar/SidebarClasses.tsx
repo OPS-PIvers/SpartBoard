@@ -628,7 +628,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
         addToast={addToast}
         updateRoster={updateRoster}
         pasteLinkEnabled={schoologyPasteLink}
-        findCoursesEnabled={canAccessFeature('schoology-auto-link')}
+        findCoursesEnabled
       />
 
       {linkingRoster && (

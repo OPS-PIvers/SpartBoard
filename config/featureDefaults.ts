@@ -765,18 +765,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Per-question "Spell check" switch on Free Response questions.
-  'quiz-spell-check-toggle': {
-    label: 'Spell check switch in quizzes',
-    icon: SpellCheck,
-    description:
-      'Teachers can turn off spelling and grammar underlines on a Free Response question.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',
@@ -1020,18 +1008,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Find each class's Schoology section by its ClassLink id (SCHOOLOGY_AUTO_LINK.md D3).
-  'schoology-auto-link': {
-    label: 'Find my Schoology courses',
-    icon: GraduationCap,
-    description: 'Links each class to its Schoology course in one step.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Inert while Mini App assignments are view-only in Organization settings.
   'mini-app-results': {
     label: 'Mini App results',
@@ -1073,6 +1049,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ListOrdered,
     description:
       'Students drag one list into order instead of moving items from a word bank into numbered slots.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Ordering results by item. Admin-only until Paul has tested it in prod.
+  'quiz-ordering-results': {
+    label: 'Ordering results by item',
+    icon: ListOrdered,
+    description:
+      'Question and student results list each Ordering item and mark the ones students put out of order.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
@@ -1195,19 +1184,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     description: 'Drafts flashcards from a topic in the set editor.',
     stage: 'permanent',
     afterLaunch: 'keep',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Flashcards Test question bar. Admin-only until Paul has used it in prod.
-  'flashcards-test-nav': {
-    label: 'Flashcards: Test question bar',
-    icon: ListChecks,
-    description:
-      'Test mode shows one question at a time with Question N of M and an All questions grid.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     widget: 'flashcards',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,

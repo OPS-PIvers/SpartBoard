@@ -155,9 +155,11 @@ import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
 import { ResultsPrintModal } from './ResultsPrintModal';
 import {
   computeQuestionDrilldowns,
+  type DrilldownOrderingItemRow,
   type DrilldownStudent,
   type QuestionDrilldown,
 } from '@/utils/quizQuestionDrilldown';
+import { ordinal } from '@/utils/quizOrderingPlacement';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
 import {
   PAPER_CROP_CALLABLE,
@@ -2528,6 +2530,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               showStudentNames={!plcView}
               onSelectStudents={handleSelectStudents}
               onOpenStudent={handleOpenStudent}
+              orderingByItem={canAccessFeature('quiz-ordering-results')}
             />
           )}
           {effectiveScreen === 'targets' && hasTargetResults && (
@@ -3161,6 +3164,136 @@ const DistributionRow: React.FC<{
   );
 };
 
+/** One Ordering key item: how many had it in order, and who had it out of order. */
+const OrderingItemRow: React.FC<{
+  row: DrilldownOrderingItemRow;
+  total: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  showStudentNames: boolean;
+  formatStudentName: (student: DrilldownStudent) => string;
+  onSelectStudents?: (keys: string[]) => void;
+  onOpenStudent?: (responseKey: string) => void;
+}> = ({
+  row,
+  total,
+  isOpen,
+  onToggle,
+  showStudentNames,
+  formatStudentName,
+  onSelectStudents,
+  onOpenStudent,
+}) => {
+  const pct = pctOf(row.inOrderCount, total);
+  const outCount = row.outOfOrder.length;
+  const canOpen = showStudentNames && outCount > 0;
+  const outText =
+    outCount === 0
+      ? null
+      : `${outCount} out of order${row.usualSpot === null ? '' : `, ${outCount === 1 ? 'put' : 'often put'} ${ordinal(row.usualSpot)}`}`;
+  const outLine = outText && (
+    <span
+      className="flex items-center font-sans font-medium text-brand-red-dark"
+      style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
+    >
+      {canOpen && (
+        <ChevronRight
+          aria-hidden
+          className={`shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+          style={SMALL_ICON}
+        />
+      )}
+      <XCircle aria-hidden className="shrink-0" style={SMALL_ICON} />
+      {outText}
+    </span>
+  );
+  return (
+    <li
+      className="grid"
+      data-testid={`ordering-item-${row.position}`}
+      style={{
+        gridTemplateColumns: 'min(20px, 5cqmin) minmax(0, 1fr)',
+        columnGap: 'min(6px, 1.5cqmin)',
+      }}
+    >
+      <span
+        className="font-sans font-semibold text-brand-gray-primary tabular-nums text-right"
+        style={SMALL_TEXT}
+      >
+        {row.position}.
+      </span>
+      <div className="min-w-0">
+        <span
+          className="flex items-start justify-between"
+          style={{ gap: 'min(8px, 2cqmin)' }}
+        >
+          <span
+            className="font-sans text-brand-gray-darkest min-w-0 wrap-break-word"
+            style={SMALL_TEXT}
+          >
+            {row.label}
+          </span>
+          <span
+            className="font-sans text-brand-gray-dark tabular-nums shrink-0"
+            style={SMALL_TEXT}
+          >
+            {`${row.inOrderCount} in order · ${pct}%`}
+          </span>
+        </span>
+        <span
+          aria-hidden
+          className="block bg-brand-gray-lightest rounded-full overflow-hidden"
+          style={{
+            height: 'min(6px, 1.5cqmin)',
+            marginTop: 'min(3px, 0.8cqmin)',
+          }}
+        >
+          <span
+            className="block h-full rounded-full bg-emerald-500"
+            style={{ width: `${pct}%` }}
+          />
+        </span>
+        {outLine &&
+          (canOpen ? (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-expanded={isOpen}
+              {...tourFieldAttr(
+                'quiz-results.ordering-item-row',
+                'quiz',
+                String(row.position)
+              )}
+              className="block text-left rounded-sm hover:bg-brand-gray-lightest/60 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+              style={{ marginTop: 'min(3px, 0.8cqmin)' }}
+            >
+              {outLine}
+            </button>
+          ) : (
+            <span className="block" style={{ marginTop: 'min(3px, 0.8cqmin)' }}>
+              {outLine}
+            </span>
+          ))}
+        {canOpen && isOpen && (
+          <div role="group" aria-label={`Out of order: ${row.label}`}>
+            <DrilldownNameList
+              students={row.outOfOrder}
+              formatStudentName={formatStudentName}
+              onOpenStudent={onOpenStudent}
+            />
+            {onSelectStudents && (
+              <SelectStudentsButton
+                students={row.outOfOrder}
+                onSelect={onSelectStudents}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+};
+
 const OUTCOME_COLUMNS: {
   key: 'correct' | 'partial' | 'incorrect';
   label: string;
@@ -3204,6 +3337,7 @@ const QuestionDrilldownPanel: React.FC<{
   formatStudentName: (student: DrilldownStudent) => string;
   onSelectStudents?: (keys: string[]) => void;
   onOpenStudent?: (responseKey: string) => void;
+  orderingByItem?: boolean;
 }> = ({
   id,
   drilldown,
@@ -3211,6 +3345,7 @@ const QuestionDrilldownPanel: React.FC<{
   formatStudentName,
   onSelectStudents,
   onOpenStudent,
+  orderingByItem = false,
 }) => {
   const openStudent = showStudentNames ? onOpenStudent : undefined;
   const selectStudents = showStudentNames ? onSelectStudents : undefined;
@@ -3254,6 +3389,35 @@ const QuestionDrilldownPanel: React.FC<{
       )}
 
       {servedCount > 0 &&
+        orderingByItem &&
+        (drilldown.orderingItems?.length ?? 0) > 0 && (
+          <div>
+            <p
+              className="font-sans font-semibold text-brand-gray-primary uppercase tracking-wider"
+              style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+            >
+              Items in the correct order
+            </p>
+            <ol
+              className="flex flex-col"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                marginTop: 'min(4px, 1cqmin)',
+              }}
+            >
+              {drilldown.orderingItems?.map((row) => (
+                <OrderingItemRow
+                  key={row.key}
+                  {...rowProps(`item:${row.key}`)}
+                  row={row}
+                />
+              ))}
+            </ol>
+          </div>
+        )}
+
+      {servedCount > 0 &&
+        !orderingByItem &&
         distribution.kind !== 'none' &&
         distribution.rows.length > 0 && (
           <div>
@@ -3389,6 +3553,8 @@ const QuestionsScreen: React.FC<{
   showStudentNames: boolean;
   onSelectStudents?: (keys: string[]) => void;
   onOpenStudent?: (responseKey: string) => void;
+  /** Ordering lists each item and who had it out of order (quiz-ordering-results). */
+  orderingByItem?: boolean;
 }> = ({
   questions,
   responses,
@@ -3398,6 +3564,7 @@ const QuestionsScreen: React.FC<{
   showStudentNames,
   onSelectStudents,
   onOpenStudent,
+  orderingByItem = false,
 }) => {
   const { t } = useTranslation();
   const [sortBy, setSortBy] = useState<QuestionSort>('order');
@@ -3504,7 +3671,11 @@ const QuestionsScreen: React.FC<{
                 n: stats.graded,
                 m: stats.manualTotal,
               });
-        const commonWrong = drilldown?.commonWrongAnswer ?? null;
+        const byItem = orderingByItem && q.type === 'Ordering';
+        const commonWrong = byItem
+          ? null
+          : (drilldown?.commonWrongAnswer ?? null);
+        const oftenOut = byItem ? (drilldown?.oftenOutOfOrder ?? []) : [];
 
         return (
           <div
@@ -3594,6 +3765,25 @@ const QuestionsScreen: React.FC<{
                 />
                 <span className="truncate">
                   {`Common wrong answer: ${commonWrong.label}`}
+                </span>
+              </p>
+            )}
+            {oftenOut.length > 0 && (
+              <p
+                className="flex items-start font-sans font-medium text-amber-800 min-w-0"
+                style={{
+                  ...SMALL_TEXT,
+                  gap: 'min(4px, 1cqmin)',
+                  marginTop: 'min(4px, 1cqmin)',
+                }}
+              >
+                <AlertTriangle
+                  aria-hidden
+                  className="shrink-0"
+                  style={{ ...SMALL_ICON, marginTop: 'min(1px, 0.3cqmin)' }}
+                />
+                <span className="min-w-0 wrap-break-word">
+                  {`Often out of order: ${oftenOut.join(', ')}`}
                 </span>
               </p>
             )}
@@ -3702,6 +3892,7 @@ const QuestionsScreen: React.FC<{
                 formatStudentName={formatStudentName}
                 onSelectStudents={onSelectStudents}
                 onOpenStudent={onOpenStudent}
+                orderingByItem={byItem}
               />
             )}
           </div>
@@ -3771,6 +3962,7 @@ const StudentDrilldownPanel: React.FC<{
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const { canAccessFeature } = useAuth();
+  const orderingByItem = canAccessFeature('quiz-ordering-results');
   const liveKey = getResponseDocKey(liveResponse) as string;
   const copies = useQuizResponseAttempts(
     sessionId,
@@ -3892,6 +4084,7 @@ const StudentDrilldownPanel: React.FC<{
                 key={line.questionId}
                 line={line}
                 showFeedback={showFeedback}
+                orderingByItem={orderingByItem}
                 onOpenGrader={
                   gradable
                     ? () =>

@@ -22,7 +22,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-student-view',
   'quiz-score-on-submit',
   'quiz-attempt-history',
-  'quiz-spell-check-toggle',
   'gradebook',
   'student-gradebook',
   'student-overview-resources',
@@ -38,13 +37,13 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'google-tasks-sync',
   'plc-goal-coach',
   'embed-reload',
-  'schoology-auto-link',
   'mini-app-results',
   'quiz-stimulus-quotes',
   'quiz-cross-out',
   'quiz-submit-for-student',
   'quiz-ordering-images',
   'quiz-ordering-list',
+  'quiz-ordering-results',
   'quiz-calculator-stimulus',
   'lunch-count-redesign',
   'weather-details',
@@ -76,7 +75,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'import-schoology-course',
   'video-activity-stops',
   'video-import-ai',
-  'flashcards-test-nav',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

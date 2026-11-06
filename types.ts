@@ -9682,8 +9682,6 @@ export interface FlashcardSession
   /** Check shared with a PLC: pools into `plcs/{plcId}/assessments/{syncGroupId}`. */
   plcId?: string;
   syncGroupId?: string;
-  /** Assigned by a teacher with the flashcards-test-nav flag: students get the Test question bar. */
-  testNavBar?: true;
   masteryThreshold?: FlashcardMasteryThreshold;
   termLanguage: string;
   definitionLanguage: string;
@@ -10884,8 +10882,6 @@ export type GlobalFeature =
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'quiz-attempt-history'
-  /** Per-question "Spell check" switch on quiz Free Response questions. */
-  | 'quiz-spell-check-toggle'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -10923,8 +10919,6 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Find my Schoology courses: link each class to its Schoology section by SIS id (docs/plans/shipped/SCHOOLOGY_AUTO_LINK.md). */
-  | 'schoology-auto-link'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */
@@ -10933,6 +10927,8 @@ export type GlobalFeature =
   | 'quiz-ordering-images'
   /** Ordering questions: students drag one list into order instead of filling slots from a word bank. */
   | 'quiz-ordering-list'
+  /** Ordering results: each item's spot, with the items students put out of order marked. */
+  | 'quiz-ordering-results'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
@@ -10953,8 +10949,6 @@ export type GlobalFeature =
   | 'flashcards-assign-v2'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
-  /** Flashcards Test: Question N of M bar with an All questions grid instead of the number strip. */
-  | 'flashcards-test-nav'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
