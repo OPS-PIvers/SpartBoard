@@ -10885,7 +10885,6 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
-  | 'quiz-attempt-history'
   /** Per-question "Spell check" switch on quiz Free Response questions. */
   | 'quiz-spell-check-toggle'
   /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
