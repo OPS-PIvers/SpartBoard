@@ -8,6 +8,7 @@ import { TAB_EXITS_MAX, type TabExit } from '@/types';
 import {
   isHandedOff,
   markHandedOff,
+  markPopOutPending,
   resetHandOffForTests,
 } from '@/utils/attemptHandOff';
 
@@ -404,5 +405,17 @@ describe('useTabAwayTracker', () => {
     await flush();
     expect(onLeave).not.toHaveBeenCalled();
     expect(saveExits).not.toHaveBeenCalled();
+  });
+
+  it('ignores leaving while waiting for the student to pop out', async () => {
+    const { onLeave, saveExits } = setup();
+    act(() => {
+      markPopOutPending();
+    });
+    leave();
+    await flush();
+    expect(onLeave).not.toHaveBeenCalled();
+    expect(saveExits).not.toHaveBeenCalled();
+    expect(isHandedOff()).toBe(true);
   });
 });

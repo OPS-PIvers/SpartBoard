@@ -2788,7 +2788,8 @@ export const ActiveQuiz: React.FC<{
 
   // Side-effect: submit the answer when auto-submit is triggered.
   useEffect(() => {
-    if (!autoSubmitTriggeredFor) return;
+    // A copy whose attempt moved to another tab must not overwrite it.
+    if (!autoSubmitTriggeredFor || isHandedOff()) return;
     const question = currentQuestionRef.current;
     if (!question || question.id !== autoSubmitTriggeredFor) return;
     // Cancel any pending draft autosave for the same question — same

@@ -229,7 +229,7 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
         openRef.current = null;
         guardRef.current = false;
         setAway(null);
-        markHandedOff();
+        if (closedElsewhere) markHandedOff();
         return;
       }
       const ms = performance.now() - open.leftAtPerf;

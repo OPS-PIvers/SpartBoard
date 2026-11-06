@@ -3,8 +3,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import {
-  isHandedOff,
-  popOutUrl,
+  getHandOffState,
+  markHandedOff,
   resetHandOffForTests,
 } from '@/utils/attemptHandOff';
 
@@ -150,46 +150,32 @@ describe('FullscreenCover', () => {
     expect(screen.getByText("Fullscreen didn't open. Try again.")).toBeTruthy();
   });
 
-  it('sends a framed page without fullscreen to a new tab and hands off', () => {
+  it('sends a framed page to the host pop out and goes inert while waiting', () => {
     Object.defineProperty(document, 'fullscreenEnabled', {
       configurable: true,
       get: () => false,
     });
     vi.spyOn(window, 'top', 'get').mockReturnValue({} as Window);
-    const open = vi
-      .spyOn(window, 'open')
-      .mockReturnValue({ opener: window } as unknown as Window);
-    render(<PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />);
+    const { rerender } = render(
+      <PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />
+    );
+    expect(
+      screen.getByText('Use the pop out button on your class page.')
+    ).toBeTruthy();
+    expect(getHandOffState()).toBe('pop-out-pending');
+    rerender(<PageProtectionGuards protections={OFF} />);
+    expect(getHandOffState()).toBe('active');
+  });
+
+  it('covers the page once the attempt moved to another tab', () => {
+    render(<PageProtectionGuards protections={OFF} />);
     act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Open in a new tab' })
-      );
+      markHandedOff();
     });
-    expect(open).toHaveBeenCalledWith(window.location.href, '_blank');
-    expect(isHandedOff()).toBe(true);
     expect(
       screen.getByRole('dialog', {
         name: 'This activity is open in another tab',
       })
-    ).toBeTruthy();
-  });
-
-  it('stays put and says so when the new tab is blocked', () => {
-    Object.defineProperty(document, 'fullscreenEnabled', {
-      configurable: true,
-      get: () => false,
-    });
-    vi.spyOn(window, 'top', 'get').mockReturnValue({} as Window);
-    vi.spyOn(window, 'open').mockReturnValue(null);
-    render(<PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />);
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Open in a new tab' })
-      );
-    });
-    expect(isHandedOff()).toBe(false);
-    expect(
-      screen.getByText("The new tab didn't open. Try again.")
     ).toBeTruthy();
   });
 
@@ -202,26 +188,5 @@ describe('FullscreenCover', () => {
       <PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />
     );
     expect(container.innerHTML).toBe('');
-  });
-});
-
-describe('popOutUrl', () => {
-  it('leaves Schoology and Classroom launches to the host page pop out', () => {
-    for (const path of [
-      '/lti/student?lc=abc&code=QZ12',
-      '/classroom-addon/student?code=Q',
-    ]) {
-      const loc = new URL(
-        `https://spartboard.web.app${path}`
-      ) as unknown as Location;
-      expect(popOutUrl(loc)).toBeNull();
-    }
-  });
-
-  it('keeps any other address', () => {
-    const loc = new URL(
-      'https://spartboard.web.app/flashcards/a/xyz'
-    ) as unknown as Location;
-    expect(popOutUrl(loc)).toBe('https://spartboard.web.app/flashcards/a/xyz');
   });
 });

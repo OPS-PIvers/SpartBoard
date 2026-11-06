@@ -1,23 +1,40 @@
-// Set once the student moves this page's attempt to another tab; this copy then stops tracking and covers itself.
-let handedOff = false;
+// Page-level state of this copy of an attempt: working, waiting for the student to pop out to a tab, or moved to another tab.
+export type HandOffState = 'active' | 'pop-out-pending' | 'handed-off';
+
+let state: HandOffState = 'active';
 const listeners = new Set<() => void>();
 
-export const isHandedOff = (): boolean => handedOff;
+const set = (next: HandOffState) => {
+  if (state === next) return;
+  state = next;
+  for (const l of listeners) l();
+};
+
+export const getHandOffState = (): HandOffState => state;
+
+/** True when this copy must not track exits or write on its own: it's waiting to pop out or already moved. */
+export const isHandedOff = (): boolean => state !== 'active';
 
 export const subscribeHandOff = (onChange: () => void): (() => void) => {
   listeners.add(onChange);
   return () => listeners.delete(onChange);
 };
 
-export const markHandedOff = (): void => {
-  if (handedOff) return;
-  handedOff = true;
-  for (const l of listeners) l();
+export const markHandedOff = (): void => set('handed-off');
+
+/** The pop-out cover is up: the student is told to leave, so leaving isn't a warning. */
+export const markPopOutPending = (): void => {
+  if (state === 'active') set('pop-out-pending');
+};
+
+/** The pop-out cover went away (requirement lifted) before the attempt moved. */
+export const clearPopOutPending = (): void => {
+  if (state === 'pop-out-pending') set('active');
 };
 
 /** Test-only reset. */
 export const resetHandOffForTests = (): void => {
-  handedOff = false;
+  state = 'active';
 };
 
 /** True inside any frame; a cross-origin parent throws, which is still a frame. */
@@ -27,23 +44,4 @@ export function isFramedWindow(): boolean {
   } catch {
     return true;
   }
-}
-
-/** Where a new tab can reopen this attempt as the same student, or null where only the host site's own pop out keeps the sign-in (Schoology, Classroom). */
-export function popOutUrl(loc: Location = window.location): string | null {
-  if (
-    loc.pathname.startsWith('/lti/') ||
-    loc.pathname.startsWith('/classroom-addon/')
-  )
-    return null;
-  return loc.href;
-}
-
-/** Opens the attempt in a new tab and hands off; false when the browser or frame blocked the tab. */
-export function popOut(url: string): boolean {
-  const win = window.open(url, '_blank');
-  if (!win) return false;
-  win.opener = null;
-  markHandedOff();
-  return true;
 }

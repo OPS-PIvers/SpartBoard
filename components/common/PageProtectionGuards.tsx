@@ -10,10 +10,10 @@ import {
 import { ExternalLink, Maximize } from 'lucide-react';
 import type { PageProtections } from '@/utils/pageProtections';
 import {
+  clearPopOutPending,
+  getHandOffState,
   isFramedWindow,
-  isHandedOff,
-  popOut,
-  popOutUrl,
+  markPopOutPending,
   subscribeHandOff,
 } from '@/utils/attemptHandOff';
 
@@ -22,12 +22,12 @@ const COVER_CLASS =
 
 /** Shown once this page's attempt moved to another tab, so the old copy can't be worked in. */
 export const HandedOffCover: React.FC = () => {
-  const handedOff = useSyncExternalStore(
+  const state = useSyncExternalStore(
     subscribeHandOff,
-    isHandedOff,
-    () => false
+    getHandOffState,
+    () => 'active' as const
   );
-  if (!handedOff) return null;
+  if (state !== 'handed-off') return null;
   return (
     <div
       role="dialog"
@@ -49,10 +49,13 @@ export const HandedOffCover: React.FC = () => {
   );
 };
 
-/** Fullscreen can't open inside a frame without permission, so a framed page sends the student to a new tab. */
+/** Fullscreen can't open in a cross-site frame, and a new tab of ours would lose the frame's sign-in, so the student uses the host's pop out. */
 const PopOutCover: React.FC = () => {
-  const [failed, setFailed] = useState(false);
-  const url = popOutUrl();
+  // While this is up the frame is inert: leaving for the pop out isn't a warning and nothing here submits.
+  useEffect(() => {
+    markPopOutPending();
+    return clearPopOutPending;
+  }, []);
   return (
     <div
       role="dialog"
@@ -71,29 +74,9 @@ const PopOutCover: React.FC = () => {
         Your teacher asked for fullscreen. Fullscreen does not work on this
         page.
       </p>
-      {url === null ? (
-        <p className="max-w-sm text-sm font-semibold text-slate-700">
-          Use the pop out button on your class page.
-        </p>
-      ) : (
-        <>
-          {failed && (
-            <p className="text-sm font-semibold text-brand-red-primary">
-              The new tab didn&apos;t open. Try again.
-            </p>
-          )}
-          {/* no-tour-anchor: student page; live tours run in the teacher app */}
-          <button
-            type="button"
-            // Hands off before the new tab takes focus, so leaving for it isn't a tab warning.
-            onClick={() => setFailed(!popOut(url))}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-blue-primary px-8 py-3 font-bold text-white transition-transform active:scale-95"
-          >
-            <ExternalLink className="h-5 w-5" aria-hidden />
-            Open in a new tab
-          </button>
-        </>
-      )}
+      <p className="max-w-sm text-sm font-semibold text-slate-700">
+        Use the pop out button on your class page.
+      </p>
     </div>
   );
 };
