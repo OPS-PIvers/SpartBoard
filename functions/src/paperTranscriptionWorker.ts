@@ -386,6 +386,7 @@ export function isBlankBox(
   return (
     answer?.paperScanId === scanId &&
     (privateData?.status === 'blank' ||
+      privateData?.status === 'image' ||
       (privateData?.status === 'done' && privateData.noTranscript === true)) &&
     (privateData.scanId === undefined || privateData.scanId === scanId)
   );

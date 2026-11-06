@@ -802,11 +802,11 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     // Page 1 now holds only the image box, so nothing is queued for Gemini.
     expect(result).toMatchObject({ jobsCreated: 2, pagesQueued: 0 });
     const q2 = (docs[RESP].answers as Doc[]).find((a) => a.questionId === 'q2');
-    expect(q2).toMatchObject({ paperTranscript: 'done', answer: '' });
+    expect(q2).toMatchObject({ paperTranscript: 'image', answer: '' });
     expect(docs[`${RESP}/paperPrivate/q2`]).toEqual({
       scanId: SCAN,
       seat: 1,
-      status: 'done',
+      status: 'image',
       noTranscript: true,
       attempts: 0,
       charged: false,

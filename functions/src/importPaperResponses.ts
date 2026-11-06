@@ -802,7 +802,7 @@ async function importSeat(
       status: 'submitted',
       paperScanId: scanId,
       paperTranscript: box.noTranscript
-        ? 'done'
+        ? 'image'
         : box.state === 'blank'
           ? 'blank'
           : 'pending',
@@ -821,7 +821,7 @@ async function importSeat(
       scanId,
       seat: sheet.seat,
       status: box.noTranscript
-        ? 'done'
+        ? 'image'
         : box.state === 'blank'
           ? 'blank'
           : 'pending',

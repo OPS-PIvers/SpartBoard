@@ -55,7 +55,7 @@ const crop = (q: string, scan = 'scan1') =>
 
 function answer(
   q: string,
-  transcript: 'pending' | 'blank' | 'done',
+  transcript: 'pending' | 'blank' | 'done' | 'image',
   scan = 'scan1'
 ) {
   return {
@@ -536,11 +536,11 @@ describe('runPaperTranscriptionJob', () => {
     const s = setup({
       [RESPONSE]: {
         studentUid: 'p1',
-        answers: [answer('q2', 'done')],
+        answers: [answer('q2', 'image')],
       },
       [PRIV('q2')]: {
         scanId: 'scan1',
-        status: 'done',
+        status: 'image',
         noTranscript: true,
         attempts: 0,
         charged: false,
@@ -566,7 +566,7 @@ describe('runPaperTranscriptionJob', () => {
     expect(s.get(USAGE)?.count ?? 0).toBe(0);
     expect(s.archive).toHaveBeenCalledTimes(1);
     expect(s.get(PRIV('q2'))).toMatchObject({
-      status: 'done',
+      status: 'image',
       noTranscript: true,
     });
   });
