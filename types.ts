@@ -10884,8 +10884,6 @@ export type GlobalFeature =
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'quiz-attempt-history'
-  /** Per-question "Spell check" switch on quiz Free Response questions. */
-  | 'quiz-spell-check-toggle'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -10933,6 +10931,8 @@ export type GlobalFeature =
   | 'quiz-ordering-images'
   /** Ordering questions: students drag one list into order instead of filling slots from a word bank. */
   | 'quiz-ordering-list'
+  /** Ordering results: each item's spot, with the items students put out of order marked. */
+  | 'quiz-ordering-results'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */

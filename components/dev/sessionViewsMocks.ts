@@ -854,3 +854,72 @@ export function makeOptionImagesQuizSession(
     publicQuestions: order,
   };
 }
+
+/* ─── Ordering results ───────────────────────────────────────────────────── */
+
+const ORDERING_KEY = [
+  'Signal the Mode',
+  'Get Set',
+  'Get Noticed',
+  'Anchor with a Whisper',
+  'Create a To-Do List',
+  'Monitor and Adjust',
+  'Lead and Empower',
+  'Linger and Look Back',
+];
+
+/** One Ordering question with a spread of wrong orders, for the results drill-down. */
+export function makeOrderingQuizData(): QuizData {
+  return {
+    id: QUIZ_ID,
+    title: 'Catalyst steps',
+    createdAt: NOW - 86_400_000,
+    updatedAt: NOW - 3_600_000,
+    questions: [
+      {
+        id: 'q-order',
+        type: 'Ordering',
+        text: 'Put the Catalyst steps into the correct order.',
+        timeLimit: 0,
+        correctAnswer: ORDERING_KEY.join('|'),
+        incorrectAnswers: [],
+        points: 8,
+        allowPartialCredit: true,
+      },
+    ],
+  };
+}
+
+export function makeOrderingResponses(): QuizResponse[] {
+  const k = ORDERING_KEY;
+  const orders = [
+    k,
+    k,
+    [k[0], k[1], k[2], k[3], k[4], k[5], k[7], k[6]],
+    [k[6], k[3], k[5], k[1], k[2], k[7], k[4], k[0]],
+    [k[1], k[2], k[3], k[4], k[5], k[6], k[7], k[0]],
+    [k[0], k[2], k[1], k[3], k[4], k[5], k[7], k[6]],
+    [k[1], k[2], k[0], k[3], k[4], k[5], k[6], k[7]],
+  ];
+  return orders.map((order, i) => {
+    const key = `pin-Period 3-20${i + 1}`;
+    return {
+      _responseKey: key,
+      studentUid: key,
+      pin: `20${i + 1}`,
+      joinedAt: NOW - 540_000,
+      status: 'completed',
+      answers: [
+        {
+          questionId: 'q-order',
+          answer: order.join('|'),
+          answeredAt: NOW - 420_000,
+        },
+      ],
+      score: null,
+      submittedAt: NOW - 400_000,
+      classPeriod: 'Period 3',
+      completedAttempts: 1,
+    };
+  });
+}

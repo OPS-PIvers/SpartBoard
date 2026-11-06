@@ -13863,6 +13863,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-results.ordering-item-row",
+    "label": "Ordering item out-of-order toggle in Quiz results, by position",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "quiz.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.drill-questions:quiz"
+        ],
+        "reveal": "quiz-results.drill-questions:quiz",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-results.question-sort",
     "label": "Question sort chip in Quiz results, by option",
     "scope": "field",
