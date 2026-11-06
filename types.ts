@@ -10884,8 +10884,6 @@ export type GlobalFeature =
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'quiz-attempt-history'
-  /** Per-question "Spell check" switch on quiz Free Response questions. */
-  | 'quiz-spell-check-toggle'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
