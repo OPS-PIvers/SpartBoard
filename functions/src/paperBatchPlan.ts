@@ -294,7 +294,7 @@ export function paperBoxStyleOf(question: PaperQuestion): PaperBoxStyle {
   return img &&
     img.source === 'image' &&
     !!img.id &&
-    !!(img.driveFileId || img.url)
+    (!!img.driveFileId || !!img.url)
     ? 'image'
     : 'lines';
 }

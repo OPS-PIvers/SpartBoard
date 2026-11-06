@@ -112,7 +112,7 @@ export function hasPaperBoxImage(
   return (
     !!img &&
     img.source === 'image' &&
-    !!(img.driveFileId ?? img.url) &&
+    (!!img.driveFileId || !!img.url) &&
     !!img.id
   );
 }
