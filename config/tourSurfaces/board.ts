@@ -35,6 +35,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/layout/BoardBreadcrumb.tsx',
       'components/layout/Dock.tsx',
       'components/layout/sidebar/Sidebar.tsx',
+      'components/layout/sidebar/SidebarGettingStarted.tsx',
       'components/share/ShareStatusBanner.tsx',
       'components/layout/useClaudeBoardActivity.ts',
       'components/layout/ImportInboxNotice.tsx',
@@ -71,10 +72,18 @@ export const SURFACES: TourSurfaceMap = {
       'sidebar.quick-access': MENU,
       'sidebar.google-drive': MENU,
       'sidebar.whats-new': MENU,
+      'sidebar.getting-started': MENU,
       'sidebar.sign-out': MENU,
       'share-status.close': 'share-status.chip',
       'share-status.stop': 'share-status.chip',
     },
+  },
+  'board.getting-started': {
+    label:
+      'Getting Started page (sidebar Getting Started; URL /getting-started)',
+    kind: 'page',
+    files: ['components/gettingStarted/'],
+    opensWith: 'sidebar.getting-started',
   },
   'board.backgrounds': {
     label: 'Backgrounds window',

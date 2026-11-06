@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom/vitest';
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   render,
@@ -66,6 +67,7 @@ vi.mock('@/context/useAuth', () => ({
     refreshGoogleToken: vi.fn(),
     connectGoogleDrive: vi.fn(),
     offlineGrantMissing: false,
+    offlineGrantPresent: false,
     captureOfflineGrant: vi.fn().mockResolvedValue(false),
     ensureGoogleScope: vi.fn().mockResolvedValue(null),
     disconnectGoogleDrive: vi.fn(),
@@ -465,6 +467,7 @@ describe('EmbedWidget', () => {
         refreshGoogleToken: vi.fn(),
         connectGoogleDrive: vi.fn(),
         offlineGrantMissing: false,
+        offlineGrantPresent: false,
         captureOfflineGrant: vi.fn().mockResolvedValue(false),
         ensureGoogleScope: vi.fn().mockResolvedValue(null),
         disconnectGoogleDrive: vi.fn(),

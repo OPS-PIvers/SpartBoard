@@ -1,6 +1,7 @@
 import React, { useState, useSyncExternalStore } from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { GuidedLearningSet, WidgetType } from '@/types';
 import { LiveTourRunner } from './LiveTourRunner';
@@ -159,6 +160,11 @@ vi.mock('./tourRuns', () => ({
     h.startRunLog(...args);
     return h.runLog;
   },
+}));
+
+const recordFinished = vi.hoisted(() => vi.fn());
+vi.mock('@/utils/gettingStartedProgress', () => ({
+  recordTourFinished: recordFinished,
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -1987,6 +1993,13 @@ describe('LiveTourRunner run stats', () => {
     fireEvent.click(barButton('Done'));
     expect(h.runLog.end).toHaveBeenCalledWith({ done: true });
     expect(h.runLog.miss).not.toHaveBeenCalled();
+    expect(recordFinished).toHaveBeenCalledWith('teacher-1', 'set-1');
+  });
+
+  it('does not check a tour off when the teacher leaves it', async () => {
+    await start(published([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(recordFinished).not.toHaveBeenCalled();
   });
 
   it('records a missed anchor and the step the teacher left from', async () => {

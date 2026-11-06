@@ -58,6 +58,7 @@ import { QuickAccessModal } from '@/components/quickAccessModal/QuickAccessModal
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
 import { SidebarClasses } from './SidebarClasses';
 import { SidebarPlcs } from './SidebarPlcs';
+import { SidebarGettingStarted } from './SidebarGettingStarted';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
@@ -768,6 +769,14 @@ export const Sidebar: React.FC = () => {
                       )}
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                     </button>
+                  )}
+                  {canAccessFeature('getting-started') && (
+                    <SidebarGettingStarted
+                      onOpen={() => {
+                        setIsOpen(false);
+                        setActiveSection('main');
+                      }}
+                    />
                   )}
                 </div>
               </nav>

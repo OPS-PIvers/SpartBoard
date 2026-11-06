@@ -1198,6 +1198,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Getting Started tour list and sidebar switch: teachers read it for the page; admins curate it.
+    match /admin_settings/getting_started {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Rollout switch for blocking the right-click menu — every student page reads it; admins flip it.
     match /admin_settings/student_context_menu {
       allow read: if signedIn();

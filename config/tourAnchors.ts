@@ -262,6 +262,28 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'sidebar.whats-new': { label: "What's New item in the menu", panel: true },
+  'sidebar.getting-started': {
+    label: 'Getting Started item in the menu',
+    panel: true,
+  },
+  'getting-started.close': {
+    label: 'Back to board button on the Getting Started page',
+  },
+  'getting-started.resume': {
+    label: 'Start or Resume button on the Getting Started page',
+  },
+  'getting-started.start-tour': {
+    label: 'Start or Replay button on a Getting Started tour',
+    perField: true,
+  },
+  'getting-started.copy-page-link': {
+    label: 'Copy page link button on the Getting Started page',
+  },
+  'getting-started.restart': {
+    label: 'Restart Getting Started button',
+    destructive: true,
+    persists: true,
+  },
   'sidebar.plcs': { label: 'My Teams item in the menu', panel: true },
 
   'board-nav.select-board': { label: 'Board name button that opens boards' },
@@ -9167,6 +9189,46 @@ export const TOUR_ANCHORS = {
   },
   'admin.sub-presets.save': {
     label: 'Save button in Preset sub emails',
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.pick-tour': {
+    label: 'Tour to add in Getting Started settings',
+    panel: true,
+  },
+  'admin.getting-started.add': {
+    label: 'Add button in Getting Started settings',
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.tier': {
+    label: 'Tier select on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.done-when': {
+    label: 'Checks off select on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.move-up': {
+    label: 'Move up button on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.move-down': {
+    label: 'Move down button on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.remove': {
+    label: 'Remove button on a Getting Started tour',
+    perField: true,
+    destructive: true,
     persists: true,
     panel: true,
   },

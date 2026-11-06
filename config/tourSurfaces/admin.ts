@@ -672,6 +672,13 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'admin.settings.tab:admin#standards',
     needs: ['admin'],
   },
+  'admin.getting-started': {
+    label: 'Admin Settings > Getting Started',
+    kind: 'panel',
+    files: ['components/admin/GettingStarted/'],
+    opensWith: 'admin.settings.tab:admin#getting-started',
+    needs: ['admin'],
+  },
   'admin.import-block-list': {
     label: 'Admin Settings > Import block list',
     kind: 'panel',

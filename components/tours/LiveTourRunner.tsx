@@ -120,6 +120,7 @@ import {
   writeSavedTour,
   type SavedTour,
 } from './tourResume';
+import { recordTourFinished } from '@/utils/gettingStartedProgress';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { openPopupBoxes, shieldTourUi, withNearbyPopups } from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
@@ -1150,6 +1151,17 @@ export const LiveTourRunner: React.FC = () => {
       noteMiss();
       runLog.current?.end(done ? { done } : { done, exit: tour.index });
       runLog.current = null;
+      const { uid, canAccessFeature: canAccess } = latest.current;
+      if (
+        done &&
+        uid &&
+        !tour.draft &&
+        !tour.edit &&
+        !tour.test &&
+        canAccess('getting-started')
+      ) {
+        void recordTourFinished(uid, tour.set.id);
+      }
     }
     setFinished(done);
     // Items the tour made or loaded are offered to keep before anything is torn down.

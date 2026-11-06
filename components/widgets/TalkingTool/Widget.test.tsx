@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TalkingToolWidget } from './Widget';
@@ -67,6 +68,7 @@ const mockAuthContext = (
   refreshGoogleToken: () => Promise.resolve(null),
   connectGoogleDrive: () => Promise.resolve(),
   offlineGrantMissing: false,
+  offlineGrantPresent: false,
   captureOfflineGrant: () => Promise.resolve(false),
   ensureGoogleScope: () => Promise.resolve(null),
   disconnectGoogleDrive: async () => {

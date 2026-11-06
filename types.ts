@@ -10999,6 +10999,8 @@ export type GlobalFeature =
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
+  /** New-teacher onboarding as Live tours with a Getting Started page (docs/plans/GETTING_STARTED.md). */
+  | 'getting-started'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
