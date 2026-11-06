@@ -8,7 +8,7 @@ import type { FlashcardsSpeakValue } from './flashcardsSpeakValue';
 export interface FlashcardsSpeakStepProps {
   value: FlashcardsSpeakValue;
   onChange: (value: FlashcardsSpeakValue) => void;
-  /** flashcards-assign-v2: Level, attempts, Strict and Hear it, shown while Speak is on. */
+  /** Level, attempts, Strict and Hear it, shown while Speak is on. */
   rules?: React.ReactNode;
 }
 

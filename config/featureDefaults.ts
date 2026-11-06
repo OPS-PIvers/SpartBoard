@@ -1209,18 +1209,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
-  'flashcards-assign-v2': {
-    label: 'Flashcards: Quiz-style assignments',
-    icon: Layers,
-    description:
-      'Choose which cards a submission uses, check with Speak, and manage assignments like Quiz.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Draft with AI in the Quiz-style set editor. Admin-only until Paul has used it in prod.
   'flashcards-ai': {
     label: 'Flashcards: AI',

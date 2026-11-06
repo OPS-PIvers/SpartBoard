@@ -35,7 +35,6 @@ import {
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { FlashcardsCheckStep } from '@/components/common/library/assignStepper/FlashcardsCheckStep';
 import {
-  formatFlashcardsCheckValue,
   formatFlashcardsModeValue,
   type FlashcardsCheckValue,
 } from '@/components/common/library/assignStepper/flashcardsCheckValue';
@@ -118,11 +117,11 @@ export interface FlashcardAssignStepperProps {
   ) => Promise<boolean | void>;
   /** Per-period mode and windows; undefined while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
-  /** PLCs the teacher can share results with; the Sharing step shows only with flashcards-assign-v2. */
+  /** PLCs the teacher can share results with on a Check's Sharing step. */
   plcs?: readonly Plc[];
 }
 
-/** What a v2 Check submits beyond the legacy input: the PLC to share results with, if any. */
+/** What a Check submits beyond the input: the PLC to share results with, if any. */
 export interface FlashcardAssignExtras {
   sharePlc?: Plc;
 }
@@ -187,7 +186,6 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   const speakAvailable =
     (auth?.canAccessFeature('flashcards-speak') ?? false) &&
     speakLanguageOf(set.termLanguage) !== null;
-  const v2 = auth?.canAccessFeature('flashcards-assign-v2') ?? false;
   const [cards, setCards] = useState<FlashcardsCardsValue>(
     DEFAULT_FLASHCARDS_CARDS_VALUE
   );
@@ -225,9 +223,9 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     setPrefilled(true);
     setRules(next);
   };
-  // flashcards-assign-v2: Speak's rules are picked here, starting from the district defaults.
+  // Speak's rules are picked here, starting from the district defaults.
   const speakLanguage = speakLanguageOf(set.termLanguage);
-  const speakRulesOn = v2 && speakAvailable && speakLanguage !== null;
+  const speakRulesOn = speakAvailable && speakLanguage !== null;
   const [speakAdmin, setSpeakAdmin] =
     useState<FlashcardsSpeakAdminConfig | null>(null);
   useEffect(() => {
@@ -283,13 +281,12 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     };
   })();
 
-  const speakCheckOk = v2 && speakAvailable;
   const effectiveCheck: FlashcardsCheckValue =
-    check.checkMode === 'speak' && !speakCheckOk
+    check.checkMode === 'speak' && !speakAvailable
       ? { ...check, checkMode: 'flashcards' }
       : check;
   const form = { ...effectiveCheck, collectSubmission: kind === 'work' };
-  const useCardChoice = v2 && kind === 'work';
+  const useCardChoice = kind === 'work';
   const chosenCount = useCardChoice
     ? selectedCardCount(cards, set.cards)
     : cardCount;
@@ -325,13 +322,13 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
                 )
               : undefined;
 
-  const inPlc = v2 && isSharingStepAvailable(plcs, kind);
+  const inPlc = isSharingStepAvailable(plcs, kind);
   const [sharing, setSharing] = useState<SharingStepValue>({
     plcMode: false,
     plcId: '',
   });
   const needsPlc = inPlc && sharingNeedsPlc(sharing, plcs);
-  const ctx = { kind, speak: speakAvailable, flashcardsV2: v2, inPlc };
+  const ctx = { kind, speak: speakAvailable, inPlc };
   const whenVariant = kind === 'resource' ? 'available' : 'when';
   const manualAvailable = whenVariant === 'when' && !staff;
 
@@ -408,16 +405,13 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       ),
     },
     check: {
-      value: v2
-        ? formatFlashcardsModeValue(effectiveCheck)
-        : formatFlashcardsCheckValue(effectiveCheck),
+      value: formatFlashcardsModeValue(effectiveCheck),
       body: (
         <FlashcardsCheckStep
           value={effectiveCheck}
           onChange={changeCheck}
           cardCount={chosenCount}
-          v2={v2}
-          speakAvailable={speakCheckOk}
+          speakAvailable={speakAvailable}
           speakRules={
             speakRulesOn && speakRules && speakLanguage ? (
               <FlashcardsSpeakRules
@@ -563,18 +557,14 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         }
       : lastUsed.lastUsed?.speak;
     if (ok !== false && kind === 'work') {
-      lastUsed.save(
-        v2
-          ? {
-              ...check,
-              scoreVisibility: legacyFlashcardVisibility(
-                scoreVisibilityFromRules(rules)
-              ),
-              rules: stampedRules,
-              ...(lastSpeak ? { speak: lastSpeak } : {}),
-            }
-          : check
-      );
+      lastUsed.save({
+        ...check,
+        scoreVisibility: legacyFlashcardVisibility(
+          scoreVisibilityFromRules(rules)
+        ),
+        rules: stampedRules,
+        ...(lastSpeak ? { speak: lastSpeak } : {}),
+      });
     } else if (ok !== false && speakChoice && lastSpeak) {
       const { collectSubmission: _kind, ...defaults } =
         getFlashcardAssignPrefill(null, cardCount);

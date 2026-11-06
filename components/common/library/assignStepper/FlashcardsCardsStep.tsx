@@ -1,4 +1,4 @@
-// Cards step for a Flashcards submission assignment: all, N random, or teacher-picked (flag flashcards-assign-v2).
+// Cards step for a Flashcards submission assignment: all, N random, or teacher-picked.
 import React, { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import type { FlashcardCard } from '@/types';

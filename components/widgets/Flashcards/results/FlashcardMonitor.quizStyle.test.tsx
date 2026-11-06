@@ -1,4 +1,4 @@
-// flashcards-assign-v2: the monitor uses the Quiz monitor's student list, row menu, footer and card results.
+// The monitor uses the Quiz monitor's student list, row menu, footer and card results.
 import '@testing-library/jest-dom';
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
@@ -103,16 +103,13 @@ const show = (
       nameFor={(uid) => names[uid] ?? uid}
       now={NOW}
       speakLanguage={null}
-      published={false}
       onBack={vi.fn()}
       onResetStudent={over.onResetStudent ?? vi.fn()}
       onResolveFlag={vi.fn(() => Promise.resolve())}
       letInFor={() => undefined}
-      onPublish={vi.fn()}
       onEnd={vi.fn(() => Promise.resolve())}
       classControls={null}
       launchedBy={null}
-      quizStyle
       prefs={over.prefs ?? {}}
       onUpdatePrefs={over.onUpdatePrefs ?? vi.fn()}
     />,

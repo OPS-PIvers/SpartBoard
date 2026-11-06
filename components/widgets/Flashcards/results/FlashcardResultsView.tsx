@@ -27,28 +27,16 @@ import {
 } from '@/components/widgets/QuizWidget/components/monitor/PeriodBar';
 import type { MonitorRosterPrefs } from '@/components/widgets/QuizWidget/components/monitor/rosterStyles';
 import { logError } from '@/utils/logError';
-import {
-  flashcardClassVisibility,
-  isFlashcardPublished,
-} from '@/utils/flashcardResultsVisibility';
+import { flashcardClassVisibility } from '@/utils/flashcardResultsVisibility';
 import type { StudentResultsActions } from '@/components/widgets/QuizWidget/components/results/studentResultsSelection';
 import { canTryAgain } from '@/components/flashcards/checkAttempt';
 import { FlashcardMonitor } from './FlashcardMonitor';
 import { FlashcardResultsScreen } from './FlashcardResultsScreen';
 import { useSyncPlcFlashcardResult } from './useSyncPlcFlashcardResult';
-import {
-  FlashcardPublishScoresModal,
-  type PublishableFlashcardVisibility,
-} from './FlashcardPublishScoresModal';
 
 interface FlashcardResultsViewProps {
   assignment: FlashcardAssignment;
   onBack: () => void;
-  onPublishScores: (
-    assignmentId: string,
-    visibility: PublishableFlashcardVisibility
-  ) => Promise<void>;
-  onUnpublishScores: (assignmentId: string) => Promise<void>;
   /** Refresh the PLC-shared summary while open. */
   syncPlcShare?: boolean;
   /** Ends the assignment for every class (Close all). */
@@ -56,15 +44,13 @@ interface FlashcardResultsViewProps {
   /** Student list switches, sort and filter, kept in widget config like Quiz's. */
   monitorPrefs?: MonitorRosterPrefs;
   onUpdateMonitorPrefs?: (updates: Partial<MonitorRosterPrefs>) => void;
-  /** flashcards-assign-v2: Results opens a Check's Results screen; Monitor opens the live monitor. */
+  /** Results opens a Check's Results screen; Monitor opens the live monitor. */
   screen?: 'monitor' | 'results';
 }
 
 export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   assignment,
   onBack,
-  onPublishScores,
-  onUnpublishScores,
   syncPlcShare = false,
   onEnd,
   monitorPrefs,
@@ -94,7 +80,6 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     syncPlcShare && !loading && !error && !session?.plcId
   );
   const [classFilter, setClassFilter] = useState<string | null>(null);
-  const [publishOpen, setPublishOpen] = useState(false);
   const now = useMinuteClock();
   // Per-period sessions get one chip per period, Start/Pause all and Let in now.
   const perPeriod =
@@ -209,25 +194,6 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     return map;
   }, [visibleResults]);
 
-  const handleReset = async (studentUid: string): Promise<void> => {
-    const confirmed = await showConfirm(
-      `Reset ${nameFor(studentUid)}? Their progress and any submission for this assignment are deleted and they start over.`,
-      { title: 'Reset student', variant: 'danger', confirmLabel: 'Reset' }
-    );
-    if (!confirmed) return;
-    try {
-      await resetStudent(studentUid);
-      addToast(`${nameFor(studentUid)} reset.`, 'success');
-    } catch (resetError) {
-      addToast(
-        resetError instanceof Error
-          ? resetError.message
-          : 'Student could not be reset.',
-        'error'
-      );
-    }
-  };
-
   // Quiz's Remove student: confirmed in the menu, so no dialog and no success toast.
   const handleRemove = async (studentUid: string): Promise<void> => {
     try {
@@ -304,36 +270,11 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     }
   };
 
-  const handleUnpublish = async (): Promise<void> => {
-    const confirmed = await showConfirm(
-      `Hide scores for “${assignment.setTitle}”? Students stop seeing their results.`,
-      { title: 'Hide scores', variant: 'warning', confirmLabel: 'Hide scores' }
-    );
-    if (!confirmed) return;
-    try {
-      await onUnpublishScores(assignment.id);
-      addToast('Scores hidden.', 'success');
-    } catch (publishError) {
-      addToast(
-        publishError instanceof Error
-          ? publishError.message
-          : 'Scores could not be hidden.',
-        'error'
-      );
-    }
-  };
-
   // F10: the Speaking view needs the flag and a Speak stamp on this assignment.
   const speakLanguage =
     session?.speak && canAccessFeature('flashcards-speak')
       ? speakLanguageOf(session.termLanguage)
       : null;
-
-  const quizStyle = canAccessFeature('flashcards-assign-v2');
-
-  const published = isFlashcardPublished(
-    session?.scoreVisibility ?? assignment.scoreVisibility
-  );
 
   // Quiz's per-student Show / Hide / Follow class, on each student's own progress doc.
   const studentResultsActions = useMemo<StudentResultsActions>(
@@ -364,28 +305,6 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     [results, setResultsOverride]
   );
 
-  const publishModal = publishOpen && (
-    <FlashcardPublishScoresModal
-      assignmentTitle={assignment.setTitle || 'Untitled set'}
-      currentVisibility={session?.scoreVisibility}
-      onClose={() => setPublishOpen(false)}
-      onConfirm={async (visibility) => {
-        try {
-          await onPublishScores(assignment.id, visibility);
-          addToast('Scores published.', 'success');
-          setPublishOpen(false);
-        } catch (publishError) {
-          addToast(
-            publishError instanceof Error
-              ? publishError.message
-              : 'Scores could not be published.',
-            'error'
-          );
-        }
-      }}
-    />
-  );
-
   if (loading)
     return (
       <div className="flex h-full items-center justify-center bg-white text-brand-gray-light">
@@ -396,13 +315,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         />
       </div>
     );
-  if (
-    !error &&
-    session &&
-    quizStyle &&
-    session.kind === 'check' &&
-    screen === 'results'
-  ) {
+  if (!error && session && session.kind === 'check' && screen === 'results') {
     const launchedBy = assignment.launchedBy ? (
       <LaunchedBySubTag
         launchedBy={assignment.launchedBy}
@@ -485,65 +398,51 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         />
       ) : null;
     return (
-      <>
-        <FlashcardMonitor
-          assignment={assignment}
-          session={session}
-          results={visibleResults}
-          tests={testsByStudent}
-          nameFor={nameFor}
-          now={now}
-          speakLanguage={speakLanguage}
-          published={published}
-          onBack={onBack}
-          onResetStudent={(uid) =>
-            void (quizStyle ? handleRemove(uid) : handleReset(uid))
-          }
-          unlockFor={(uid) =>
-            results.some((r) => r.studentUid === uid && r.resultsLockedOut)
-              ? () =>
-                  void unlockResults(uid)
-                    .then(() => addToast('Results unlocked.', 'success'))
-                    .catch((unlockError: unknown) => {
-                      logError(
-                        'FlashcardResultsView.unlockResults',
-                        unlockError
-                      );
-                      addToast('Could not unlock results. Try again.', 'error');
-                    })
-              : undefined
-          }
-          unlockAttemptFor={(uid) => {
-            const r = results.find((x) => x.studentUid === uid);
-            return quizStyle &&
-              session.rules &&
-              typeof r?.submittedAt === 'number' &&
-              (r.forcedSubmit === 'tab' || !canTryAgain(session, r))
-              ? () => void handleUnlockAttempt(uid)
-              : undefined;
-          }}
-          onClearHand={quizStyle ? handleClearHand : undefined}
-          quizStyle={quizStyle}
-          prefs={monitorPrefs}
-          onUpdatePrefs={onUpdateMonitorPrefs}
-          onResolveFlag={handleResolveFlag}
-          letInFor={letInFor}
-          onPublish={() =>
-            published ? void handleUnpublish() : setPublishOpen(true)
-          }
-          onEnd={onEnd ? handleCloseAll : undefined}
-          classControls={classControls}
-          launchedBy={
-            assignment.launchedBy ? (
-              <LaunchedBySubTag
-                launchedBy={assignment.launchedBy}
-                at={assignment.createdAt}
-              />
-            ) : null
-          }
-        />
-        {publishModal}
-      </>
+      <FlashcardMonitor
+        assignment={assignment}
+        session={session}
+        results={visibleResults}
+        tests={testsByStudent}
+        nameFor={nameFor}
+        now={now}
+        speakLanguage={speakLanguage}
+        onBack={onBack}
+        onResetStudent={(uid) => void handleRemove(uid)}
+        unlockFor={(uid) =>
+          results.some((r) => r.studentUid === uid && r.resultsLockedOut)
+            ? () =>
+                void unlockResults(uid)
+                  .then(() => addToast('Results unlocked.', 'success'))
+                  .catch((unlockError: unknown) => {
+                    logError('FlashcardResultsView.unlockResults', unlockError);
+                    addToast('Could not unlock results. Try again.', 'error');
+                  })
+            : undefined
+        }
+        unlockAttemptFor={(uid) => {
+          const r = results.find((x) => x.studentUid === uid);
+          return session.rules &&
+            typeof r?.submittedAt === 'number' &&
+            (r.forcedSubmit === 'tab' || !canTryAgain(session, r))
+            ? () => void handleUnlockAttempt(uid)
+            : undefined;
+        }}
+        onClearHand={handleClearHand}
+        prefs={monitorPrefs}
+        onUpdatePrefs={onUpdateMonitorPrefs}
+        onResolveFlag={handleResolveFlag}
+        letInFor={letInFor}
+        onEnd={onEnd ? handleCloseAll : undefined}
+        classControls={classControls}
+        launchedBy={
+          assignment.launchedBy ? (
+            <LaunchedBySubTag
+              launchedBy={assignment.launchedBy}
+              at={assignment.createdAt}
+            />
+          ) : null
+        }
+      />
     );
   }
 

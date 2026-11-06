@@ -490,7 +490,7 @@ export function usePlcDocsData(): PlcSlice<PlcDoc[]> {
   return usePlcSelector((s) => s.docs) ?? EMPTY_DOCS_SLICE;
 }
 
-/** Drops Flashcards check results unless the caller opts in (flashcards-assign-v2). */
+/** Drops Flashcards check results unless the caller opts in. */
 function useWithoutFlashcardChecks<T extends { kind?: string }>(
   slice: PlcSlice<T[]>,
   flashcards: boolean

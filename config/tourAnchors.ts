@@ -1171,10 +1171,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'flashcards-check.questions': {
-    label: 'Questions dropdown in the Assign dialog flashcards check step',
-    panel: true,
-  },
   'flashcards-check.mastery': {
     label:
       'Correct in a row to master box in the Assign dialog flashcards check step',
@@ -1243,11 +1239,6 @@ export const TOUR_ANCHORS = {
   },
   'flashcards-cards.list': {
     label: 'Card list in the Flashcards assign Cards step',
-    panel: true,
-  },
-  'flashcards-check.score-visibility': {
-    label:
-      'Score visibility dropdown in the Assign dialog flashcards check step',
     panel: true,
   },
   'assign-mods.open': {
@@ -10441,20 +10432,9 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
-  'flashcards.editor-back': {
-    label: 'Back button in the Flashcards editor',
-    perWidgetType: true,
-    panel: true,
-  },
   'flashcards.editor-paste': {
     label: 'Paste button in the Flashcards editor',
     perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.editor-save': {
-    label: 'Save button in the Flashcards editor',
-    perWidgetType: true,
-    persists: true,
     panel: true,
   },
   'flashcards-editor.draft-ai': {
@@ -10510,51 +10490,6 @@ export const TOUR_ANCHORS = {
   'flashcards.editor-description': {
     label: 'Description box in the Flashcards editor',
     perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.panel': {
-    label: 'Speak settings in the Flashcards editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.dialects': {
-    label: 'Accents to accept menu in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.dialect': {
-    label: 'An accent in the Accents to accept menu of the Flashcards editor',
-    perField: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.level': {
-    label: 'Level dropdown in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.attempts': {
-    label: 'Attempts per card box in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.strict': {
-    label: 'Strict switch in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.example': {
-    label: 'Hear it button switch in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.advanced': {
-    label: 'Advanced button in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.group': {
-    label: 'Sound row dropdown in the Flashcards editor Speak settings',
-    perField: true,
     panel: true,
   },
   'flashcards-speak-editor.review': {
@@ -10663,28 +10598,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     destructive: true,
     persists: true,
-    panel: true,
-  },
-  'flashcards.publish-scores': {
-    label: 'Publish or Hide scores button in Flashcards results',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
-  'flashcards.scores-cancel': {
-    label: 'Cancel button in the Flashcards publish scores dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.publish-confirm': {
-    label: 'Publish button in the Flashcards publish scores dialog',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
-  'flashcards.scores-visibility': {
-    label: 'Score visibility option in the Flashcards publish scores dialog',
-    perField: true,
     panel: true,
   },
   'flashcards.paste-close': {

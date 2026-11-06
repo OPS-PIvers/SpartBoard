@@ -257,6 +257,73 @@ describe('FlashcardSetEditorModal', () => {
   });
 });
 
+describe('FlashcardSetEditorModal Speak', () => {
+  const settle = () =>
+    act(async () => {
+      await Promise.resolve();
+    });
+  const lastPersisted = (
+    onPersist: ReturnType<typeof renderModal>['onPersist']
+  ) => onPersist.mock.calls[onPersist.mock.calls.length - 1][0];
+  const ipaLabel = 'Pronunciation (IPA), Latin American Spanish';
+  const openIpa = () =>
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /^Advanced\s*1$/ })[0]
+    );
+
+  it('looks up only new and changed terms on Close', async () => {
+    const { onPersist, onClose } = renderModal({ speak: true });
+    await settle();
+    fireEvent.change(screen.getByLabelText('Term 2'), {
+      target: { value: 'gracias' },
+    });
+    clickClose();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(lookup).toHaveBeenCalledTimes(1);
+    expect(lookup.mock.calls[0][0].terms).toEqual([
+      { cardId: 'c2', term: 'gracias' },
+    ]);
+    const saved = lastPersisted(onPersist);
+    expect(saved.cards[0].speak).toEqual(ready('hola'));
+    expect(saved.cards[1].speak?.term).toBe('gracias');
+  });
+
+  it('lists flagged cards and confirms them', async () => {
+    const set = baseSet();
+    set.cards[1].speak = {
+      ...ready('adiós'),
+      status: 'needs-review',
+      reasons: ['stress-disagree'],
+    };
+    const { onPersist, onClose } = renderModal({ set, speak: true });
+    expect(await screen.findByText('1 card to check')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: /^Looks right/ })[0]);
+    expect(screen.queryByText('1 card to check')).toBeNull();
+    clickClose();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(lastPersisted(onPersist).cards[1].speak?.confirmedAt).toEqual(
+      expect.any(Number)
+    );
+  });
+
+  it('drops typed IPA once the term changes', async () => {
+    const { onClose } = renderModal({ speak: true });
+    await settle();
+    openIpa();
+    fireEvent.change(screen.getByLabelText(ipaLabel), {
+      target: { value: 'ˈola' },
+    });
+    fireEvent.change(screen.getByLabelText('Term 1'), {
+      target: { value: 'perro' },
+    });
+    clickClose();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(lookup.mock.calls[0][0].terms).toEqual([
+      { cardId: 'c1', term: 'perro' },
+    ]);
+  });
+});
+
 describe('flashcardSetIncompleteReason', () => {
   const card = (term: string, definition: string) => ({
     id: term + definition,

@@ -776,17 +776,16 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   );
   const { updateAssessment, archiveQuiz, restoreQuiz } = usePlcActions();
   const canEdit = useCanEditPlcContent();
-  const flashcards = canAccessFeature('flashcards-assign-v2');
   const {
     data: assessments,
     loading: assessmentsLoading,
     error: assessmentsError,
-  } = usePlcAssessmentsData({ flashcards });
+  } = usePlcAssessmentsData({ flashcards: true });
   const {
     data: aggregates,
     loading: aggregatesLoading,
     error: aggregatesError,
-  } = usePlcAggregatesData({ flashcards });
+  } = usePlcAggregatesData({ flashcards: true });
   const members = usePlcMembers();
   const {
     quizzes: libraryEntries,

@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { DEFAULT_FLASHCARD_ASSIGN_FORM } from '@/components/widgets/Flashcards/utils/flashcardAssign';
 import { FlashcardsCheckStep } from './FlashcardsCheckStep';
 import {
-  formatFlashcardsCheckValue,
+  formatFlashcardsModeValue,
   type FlashcardsCheckValue,
 } from './flashcardsCheckValue';
 
@@ -34,16 +34,15 @@ const Harness: React.FC<{
   );
 };
 
-describe('formatFlashcardsCheckValue', () => {
-  it('reads mode and score visibility', () => {
-    expect(formatFlashcardsCheckValue(DEFAULTS)).toBe('Flashcards, score only');
-    expect(
-      formatFlashcardsCheckValue({
-        ...DEFAULTS,
-        checkMode: 'test',
-        scoreVisibility: 'none',
-      })
-    ).toBe('Test, hide until I publish');
+describe('formatFlashcardsModeValue', () => {
+  it('reads the mode, Speak included', () => {
+    expect(formatFlashcardsModeValue(DEFAULTS)).toBe('Flashcards');
+    expect(formatFlashcardsModeValue({ ...DEFAULTS, checkMode: 'test' })).toBe(
+      'Test'
+    );
+    expect(formatFlashcardsModeValue({ ...DEFAULTS, checkMode: 'speak' })).toBe(
+      'Speak'
+    );
   });
 });
 
@@ -69,14 +68,10 @@ describe('FlashcardsCheckStep', () => {
     expect(latest.masteryThreshold).toBe(4);
   });
 
-  it('edits test question types and count', () => {
+  it('edits test question types', () => {
     render(<Harness initial={{ checkMode: 'test' }} />);
     fireEvent.click(screen.getByRole('switch', { name: 'Multiple choice' }));
     expect(latest.testTypes).toEqual(['fib']);
-    fireEvent.change(screen.getByLabelText('Questions'), {
-      target: { value: '10' },
-    });
-    expect(latest.testCount).toBe(10);
     fireEvent.click(screen.getByRole('switch', { name: 'Fill in the blank' }));
     expect(screen.getByRole('alert').textContent).toBe(
       'Choose at least one question type.'
@@ -88,14 +83,5 @@ describe('FlashcardsCheckStep', () => {
     const mc = screen.getByRole('switch', { name: 'Multiple choice' });
     expect(mc.getAttribute('aria-checked')).toBe('false');
     expect((mc as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByLabelText('Questions').textContent).toBe('All (3)');
-  });
-
-  it('sets score visibility', () => {
-    render(<Harness />);
-    fireEvent.change(screen.getByLabelText('Score visibility'), {
-      target: { value: 'score-and-answers' },
-    });
-    expect(latest.scoreVisibility).toBe('score-and-answers');
   });
 });
