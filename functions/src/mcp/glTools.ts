@@ -3,6 +3,7 @@ import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { tourConditionRef, tourDoneFact } from './tourConditions';
 import { GL_FEATURE_ID, PAGE_SIZE } from './config';
 import {
   ToolError,
@@ -207,6 +208,8 @@ export const stepInput = z
         spawns: layout.optional(),
         layoutKeyframes: z.array(keyframe).min(1).max(20).optional(),
         unmapped: z.string().max(200).optional(),
+        showWhen: z.array(tourConditionRef).min(1).max(8).optional(),
+        doneWhen: tourDoneFact.optional(),
       })
       .strict()
       .optional(),
@@ -353,6 +356,11 @@ export function mergeSteps(
     }
     if (s.tour?.anchor === 'board.whole' && s.tour.action !== 'observe')
       throw new ToolError(`${at}.tour: "board.whole" steps observe.`);
+    // A whole-board step plays as a plain card, which has no control to wait on.
+    if (s.tour?.anchor === 'board.whole' && s.tour.doneWhen)
+      throw new ToolError(
+        `${at}.tour.doneWhen: a "board.whole" step can't wait on a result. Put doneWhen on the step whose control does the thing.`
+      );
     if (s.missing_anchor && s.tour?.anchor !== '')
       throw new ToolError(`${at}.missing_anchor needs tour.anchor "".`);
     const prior = byId.get(s.id);

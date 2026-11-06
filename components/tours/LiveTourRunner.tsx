@@ -31,6 +31,7 @@ import {
 } from './tourMaterialSeed';
 import { getOpenTourMaterials, requestOpenTourMaterial } from './tourMaterials';
 import { TourMaterialPicks } from './TourMaterialPicks';
+import { useTourConditions } from './useTourConditions';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import {
@@ -266,6 +267,8 @@ const BOARD_WAIT_MS = 2000;
 const VALUE_SETTLE_MS = 600;
 /** Pause after the last keystroke before a matching type step moves on. */
 const TYPE_SETTLE_MS = 500;
+/** How long a step's "Done" shows before the tour moves on by itself. */
+const DONE_PAUSE_MS = 1200;
 /** How often a step re-applies its anchor's prerequisite while the anchor is missing. */
 const PREREQ_RETRY_MS = 400;
 // A board switch this soon after a step's click is that step's own navigation.
@@ -372,12 +375,15 @@ export const LiveTourRunner: React.FC = () => {
   const { canAccessFeature, user, featurePermissions } = useAuth();
   const dashboard = useDashboard();
   const { activeDashboard, removeWidgets } = dashboard;
+  const checkCondition = useTourConditions();
   const [tour, setTour] = useState<ActiveTour | null>(null);
   const showSparty = useShowSparty();
   // Set when a run reaches its last step, so the closing prompt can cheer.
   const [finished, setFinished] = useState(false);
   const [cheering, setCheering] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  // Counts step entries, so going Back to a step opens it afresh.
+  const [visit, setVisit] = useState(0);
   const [box, setBox] = useState({ w: CALLOUT_WIDTH, h: 140 });
   // The bar's Autopilot switch; handsOn marks a teacher who turned it off this run.
   const [autoOn, setAutoOn] = useState(false);
@@ -408,6 +414,7 @@ export const LiveTourRunner: React.FC = () => {
     t,
     uid: user?.uid,
     featurePermissions,
+    checkCondition,
   });
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   latest.current = {
@@ -416,6 +423,7 @@ export const LiveTourRunner: React.FC = () => {
     t,
     uid: user?.uid,
     featurePermissions,
+    checkCondition,
   };
 
   // Steps of this run that self-heal already tried.
@@ -1025,7 +1033,13 @@ export const LiveTourRunner: React.FC = () => {
               (await d.addRoster(SAMPLE_CLASS_NAME, sampleStudents()))
           );
         }
-        const steps = set ? liveTourStepsOf(set) : [];
+        // Steps that can't apply to this teacher drop out; a test run plays them all.
+        const steps = set
+          ? liveTourStepsOf(
+              set,
+              test ? undefined : latest.current.checkCondition
+            )
+          : [];
         if (!set || steps.length === 0) {
           launchFailed();
           return;
@@ -1140,7 +1154,7 @@ export const LiveTourRunner: React.FC = () => {
 
   // A step left while its anchor was still missing counts as a field miss.
   const noteMiss = () => {
-    if (step?.tour && anchor.status === 'missing')
+    if (step?.tour && anchor.status === 'missing' && !doneNow)
       runLog.current?.miss(step.id);
   };
 
@@ -1222,6 +1236,7 @@ export const LiveTourRunner: React.FC = () => {
     noteMiss();
     runLog.current?.update({ furthest: index });
     setAttempt(0);
+    setVisit((n) => n + 1);
     const next = Math.max(index, 0);
     // The outline follows playback; a fast-forward already shows where it is heading.
     if (tour.edit && (ffTarget === null || next > ffTarget)) {
@@ -1332,6 +1347,28 @@ export const LiveTourRunner: React.FC = () => {
 
   // Record from here captures real clicks; the stage stays but the tour stands aside.
   const editRecording = standAside;
+  // A step with a done fact waits for the real result; the editor and test runs can't produce one.
+  const doneFact =
+    tour?.phase === 'running' && !tour.edit && !tour.test
+      ? step?.tour?.doneWhen
+      : undefined;
+  const doneNow = !!doneFact && checkCondition(doneFact) === true;
+  // Already true when the step opened (a replay): it says so and offers Next instead of moving on.
+  const [doneAtOpen, setDoneAtOpen] = useState<{
+    visit: number;
+    met: boolean;
+  } | null>(null);
+  if (doneFact && doneAtOpen?.visit !== visit) {
+    setDoneAtOpen({ visit, met: doneNow });
+  }
+  const metAtOpen = !!doneFact && doneAtOpen?.visit === visit && doneAtOpen.met;
+  const justDone = doneNow && !metAtOpen;
+  useEffect(() => {
+    if (!justDone) return;
+    const index = stepIndex;
+    const id = setTimeout(() => advanceRef.current(index + 1), DONE_PAUSE_MS);
+    return () => clearTimeout(id);
+  }, [justDone, stepIndex]);
   const acted = isActedStep(step?.tour) && !editRecording;
   const action = step?.tour?.action;
   const stepValue = step?.tour?.value;
@@ -1348,7 +1385,7 @@ export const LiveTourRunner: React.FC = () => {
   }, [stepIndex, ended]);
   useEffect(() => {
     const el = anchor.element;
-    if (!el || !acted || !action) return;
+    if (!el || !acted || !action || doneFact) return;
     const onChange =
       action === 'type' ||
       (action === 'select' &&
@@ -1395,7 +1432,7 @@ export const LiveTourRunner: React.FC = () => {
       el.removeEventListener(eventName, onClick, true);
       el.removeEventListener('input', onInput, true);
     };
-  }, [anchor.element, acted, action, stepValue, stepIndex]);
+  }, [anchor.element, acted, action, stepValue, stepIndex, doneFact]);
 
   const sandbox = useTourSandbox();
   // A teacher's own picked item takes real writes, so only a run without one autopilots sandboxed saves.
@@ -1607,6 +1644,7 @@ export const LiveTourRunner: React.FC = () => {
     !tour?.test &&
     !tour?.edit &&
     anchor.status === 'missing' &&
+    !doneNow &&
     !!binding?.anchor
       ? stepKey
       : null;
@@ -1728,13 +1766,16 @@ export const LiveTourRunner: React.FC = () => {
     }
     // A sandboxed editor replay clicks every step on the way, stopping before real writes.
     const clickAll = !!tour.edit && !!tour.sandboxed && jumping;
-    const gate = canPerform(binding)
-      ? tour.test
-        ? 'perform'
-        : clickAll
-          ? replayGate(binding, tour.policy, inSandbox)
-          : autopilotGate(binding, tour.policy, inSandbox)
-      : 'teacher';
+    // Autopilot can't produce a real result for the teacher, so a step waiting on one is theirs.
+    const gate = doneFact
+      ? 'teacher'
+      : canPerform(binding)
+        ? tour.test
+          ? 'perform'
+          : clickAll
+            ? replayGate(binding, tour.policy, inSandbox)
+            : autopilotGate(binding, tour.policy, inSandbox)
+        : 'teacher';
     if (tour.test && gate === 'teacher') {
       reportTestStep({
         index: tour.index,
@@ -1844,7 +1885,7 @@ export const LiveTourRunner: React.FC = () => {
 
   // Observe steps move on at reading pace.
   const observeMs =
-    step && !isClick
+    step && !isClick && !doneFact
       ? jumping
         ? 1
         : autoObserveMs(step, tour?.set.watchPace)
@@ -2250,7 +2291,8 @@ export const LiveTourRunner: React.FC = () => {
     ]
       .filter(Boolean)
       .join('. ');
-    const isMissing = anchor.status === 'missing';
+    // A control that closed once its result came in isn't missing.
+    const isMissing = anchor.status === 'missing' && !doneNow;
     const autoText =
       autoStage === 'blocked'
         ? t(tour.edit ? 'tours.editor.youClick' : 'tours.autoSkipped')
@@ -2279,12 +2321,30 @@ export const LiveTourRunner: React.FC = () => {
       autoStage !== 'blocked' &&
       (!autoOn || autoStage === 'fallback');
     // Steps the teacher finishes by clicking the target, or that Autopilot moves on, need no Next here.
-    const showTipNext =
-      !autoRunning &&
-      !autoBusy &&
-      (!acted || action === 'type' || isMissing) &&
-      !(tour.edit && tour.index + 1 === total);
+    // A step waiting on a real result offers Skip until it's done, and Next when it was done already.
+    const waitingOnFact = !!doneFact && !doneNow && !isMissing;
+    const showTipNext = doneFact
+      ? metAtOpen || isMissing
+      : !autoRunning &&
+        !autoBusy &&
+        (!acted || action === 'type' || isMissing) &&
+        !(tour.edit && tour.index + 1 === total);
+    const doneStatus: TourTipStatus | null = doneNow
+      ? {
+          text: t(metAtOpen ? 'tours.stepAlreadyDone' : 'tours.stepDone'),
+          kind: 'done',
+          testId: 'tour-step-done',
+        }
+      : null;
     const status: TourTipStatus | null =
+      doneStatus ??
+      (waitingOnFact && found
+        ? {
+            text: t('tours.waitingForResult'),
+            kind: 'turn',
+            testId: 'tour-step-waiting',
+          }
+        : null) ??
       autoStatus ??
       (staticHintOn
         ? {
@@ -2370,6 +2430,9 @@ export const LiveTourRunner: React.FC = () => {
                   last: tour.index + 1 === total,
                 }
               : undefined
+          }
+          skip={
+            waitingOnFact ? { onSkip: () => goTo(tour.index + 1) } : undefined
           }
           confirm={
             autoStage === 'confirm'
