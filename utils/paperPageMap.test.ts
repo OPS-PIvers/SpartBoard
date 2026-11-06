@@ -239,7 +239,8 @@ describe('planPaperPages packing', () => {
     const rows = mcItemsOf(page);
     const below = box.boxMm.y + box.boxMm.h;
     for (const r of rows) expect(r.originMm.y).toBeGreaterThan(below);
-    expect(rows[0].originMm.y).toBe(58 + (1 + 3) * 8);
+    // Header row, three lines, then one empty row.
+    expect(rows[0].originMm.y).toBe(58 + (1 + 3 + 1) * 8);
   });
 
   it('never splits a box: one that does not fit starts the next page', () => {

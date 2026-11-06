@@ -682,7 +682,8 @@ export function planPaperPages(
           grid === 1 ? ONE_COLUMN : FULL_WIDTH
         )
       );
-      cursor += rows;
+      // Mirrors the client: an empty row below the box.
+      cursor = Math.min(cursor + rows + 1, capacity);
       continue;
     }
 
