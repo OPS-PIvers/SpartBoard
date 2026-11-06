@@ -214,6 +214,7 @@ import {
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
+  deletePaperBatch,
   deletePaperBatchesForQuiz,
   subscribePaperBatchIndex,
   savePaperBatch,
@@ -3194,34 +3195,40 @@ const TeacherQuizWidget: React.FC<{
               );
               return;
             }
-            if (plan.ok) {
-              try {
-                await savePaperBatch(user.uid, plan.batch);
-              } catch (err) {
-                logError('QuizWidget.assignment.writtenOnPaper', err, {
-                  quizId: meta.id,
-                });
-                addToast(
-                  'Could not save the written answer sheets. Try again.',
-                  'error'
-                );
-                return;
-              }
-              paperWritten = {
-                batchId: plan.batch.id,
-                questionIds: plan.questionIds,
-              };
-              printWritten = () =>
-                printPaperSheets(
-                  hybridPrintJob(
-                    { ...data, questions: assignQuestions },
-                    plan.batch,
-                    plan.sheets
-                  )
-                );
+            if (!plan.ok) {
+              addToast(
+                'None of the assigned questions are written. Choose On the device for written answers.',
+                'error'
+              );
+              return;
             }
+            try {
+              await savePaperBatch(user.uid, plan.batch);
+            } catch (err) {
+              logError('QuizWidget.assignment.writtenOnPaper', err, {
+                quizId: meta.id,
+              });
+              addToast(
+                'Could not save the written answer sheets. Try again.',
+                'error'
+              );
+              return;
+            }
+            paperWritten = {
+              batchId: plan.batch.id,
+              questionIds: plan.questionIds,
+            };
+            printWritten = () =>
+              printPaperSheets(
+                hybridPrintJob(
+                  { ...data, questions: assignQuestions },
+                  plan.batch,
+                  plan.sheets
+                )
+              );
           }
 
+          let assignmentSaved = false;
           try {
             const { id: assignmentId, code } = await createAssignment(
               {
@@ -3296,6 +3303,7 @@ const TeacherQuizWidget: React.FC<{
                   : {}),
               }
             );
+            assignmentSaved = true;
             printWritten?.();
             const finalScore = behavior.finalScore ?? 'latest';
             if (finalScore !== 'latest' && attemptLimit !== 1 && user?.uid) {
@@ -3444,6 +3452,12 @@ const TeacherQuizWidget: React.FC<{
               );
             }
           } catch (err) {
+            // Drop the written-sheet batch when its assignment never saved.
+            if (paperWritten && !assignmentSaved && user) {
+              void deletePaperBatch(user.uid, paperWritten.batchId).catch(
+                () => undefined
+              );
+            }
             addToast(
               err instanceof Error ? err.message : 'Failed to start session',
               'error'
