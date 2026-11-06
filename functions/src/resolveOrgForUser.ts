@@ -196,7 +196,12 @@ async function autoEnrollMember(
   const rosterRole = await lookupRosterRole(db, orgId, email, {
     rosterOptional: process.env.GCLOUD_PROJECT === 'spartboard-dev',
   });
-  if (rosterRole === 'student') return 'student';
+  if (rosterRole === 'student') {
+    // An admin in a mock class (or during a ClassLink outage) keeps the teacher app.
+    return (await db.doc(`admins/${email}`).get()).exists
+      ? undefined
+      : 'student';
+  }
   // Students share the staff domain, so an address nobody vouches for as staff joins by invite instead.
   if (
     rosterRole !== 'staff' &&

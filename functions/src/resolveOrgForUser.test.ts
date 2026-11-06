@@ -417,7 +417,17 @@ describe('resolveOrgForUser auto-enrollment', () => {
     scriptDocs({ memberExists: false, isAdmin: true });
     fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
     const res = await handler({ auth: verifiedAuth, data: {} });
-    expect(res).toEqual({ orgId: 'orono', rosterStudent: true });
+    // An admin is never sent to the student page.
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps an admin in a mock class in the teacher app when ClassLink is down', async () => {
+    scriptDocs({ memberExists: false, isAdmin: true });
+    mockClassHit.value = true;
+    fetchOneRosterUsersMock.mockRejectedValue(new Error('roster down'));
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
     expect(docCreateMock).not.toHaveBeenCalled();
   });
 

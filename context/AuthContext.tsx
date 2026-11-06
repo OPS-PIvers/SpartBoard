@@ -133,7 +133,8 @@ import { normalizePenColors } from '@/utils/penColors';
  * Deliberately only caches a resolved orgId — a "no org" result is never
  * cached so a user who gets invited mid-session picks up their org on the
  * next load without needing a new browser session. */
-const RESOLVED_ORG_CACHE_PREFIX = 'spart_resolved_org:';
+// v2: older clients cached an orgId for roster students, which would skip the student check.
+const RESOLVED_ORG_CACHE_PREFIX = 'spart_resolved_org:v2:';
 
 /**
  * Resolves which organization a signed-in user belongs to from their verified
