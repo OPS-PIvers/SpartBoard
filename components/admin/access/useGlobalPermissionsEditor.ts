@@ -30,6 +30,7 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'video-activity-ai',
   'guided-learning-ai',
   'mini-app-ai',
+  'flashcards-ai',
   'drawing-ai',
   'webcam-ai',
   'blooms-ai',
