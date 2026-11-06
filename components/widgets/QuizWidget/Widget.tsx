@@ -27,7 +27,11 @@ import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
-import { withPaperBoxSizes, withPaperBoxStyles } from '@/utils/paperWritten';
+import {
+  PAPER_HANDWRITTEN_FEATURE,
+  withPaperBoxSizes,
+  withPaperBoxStyles,
+} from '@/utils/paperWritten';
 import { useDashboard } from '@/context/useDashboard';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { followingScoreboard, followLeaderId } from '@/utils/connectionEngine';
@@ -204,6 +208,14 @@ import type {
 } from '@/utils/paperImportPlan';
 import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
 import {
+  PAPER_WRITTEN_HYBRID_FEATURE,
+  hybridPrintJob,
+  planHybridWrittenBatch,
+} from '@/utils/paperWrittenHybrid';
+import { printPaperSheets } from '@/utils/paperSheetPrint';
+import { MAX_PAGE } from '@/utils/paperSheetMarker';
+import {
+  deletePaperBatch,
   deletePaperBatchesForQuiz,
   subscribePaperBatchIndex,
   savePaperBatch,
@@ -829,6 +841,11 @@ const TeacherQuizWidget: React.FC<{
   })();
 
   const paperUid = paperSheets.enabled && !isReview ? user?.uid : undefined;
+  // Written answers on paper: device quiz, written questions on a printed sheet.
+  const writtenOnPaperOn =
+    !!paperUid &&
+    canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
+    canAccessFeature(PAPER_WRITTEN_HYBRID_FEATURE);
   useEffect(() => {
     if (!paperUid) return;
     return subscribePaperBatchIndex(paperUid, setPaperBatchIndex, (err) =>
@@ -838,6 +855,7 @@ const TeacherQuizWidget: React.FC<{
   const [paperReprint, setPaperReprint] = useState<{
     quiz: QuizData;
     batch: PaperBatch;
+    writtenOnly: boolean;
   } | null>(null);
   const paperAssignmentMeta = (assignment: QuizAssignment): QuizMetadata =>
     quizzes.find((q) => q.id === assignment.quizId) ?? {
@@ -2841,7 +2859,12 @@ const TeacherQuizWidget: React.FC<{
                 const batch = (
                   await listPaperBatchesForQuiz(paperUid, assignment.quizId)
                 ).find((b) => b.id === assignment.paperBatchId);
-                if (batch) setPaperReprint({ quiz: data, batch });
+                if (batch)
+                  setPaperReprint({
+                    quiz: data,
+                    batch,
+                    writtenOnly: !!assignment.writtenOnPaper,
+                  });
                 else addToast('Could not find these response sheets.', 'error');
               }
             : undefined
@@ -2859,6 +2882,7 @@ const TeacherQuizWidget: React.FC<{
             : undefined
         }
         hasLooseStack={(quizId) => looseStackQuizIds.has(quizId)}
+        writtenOnPaperAvailable={writtenOnPaperOn}
         onAddAnswerKey={
           canImportDocuments
             ? async (meta) => {
@@ -3153,6 +3177,59 @@ const TeacherQuizWidget: React.FC<{
             }
           }
 
+          let paperWritten: { batchId: string; questionIds: string[] } | null =
+            null;
+          let printWritten: (() => void) | null = null;
+          if (stepper?.writtenOnPaper && user && writtenOnPaperOn) {
+            const plan = planHybridWrittenBatch({
+              quiz: { ...data, questions: assignQuestions },
+              classes: stepper.classes,
+              rosters,
+              spareCount: stepper.writtenOnPaper.spares,
+              batchId: crypto.randomUUID(),
+              now: Date.now(),
+            });
+            if (!plan.ok && plan.reason === 'too-many-pages') {
+              addToast(
+                `This sheet needs ${plan.pageCount} pages. The most one sheet can print is ${MAX_PAGE}.`,
+                'error'
+              );
+              return;
+            }
+            if (!plan.ok) {
+              addToast(
+                'None of the assigned questions are written. Choose On the device for written answers.',
+                'error'
+              );
+              return;
+            }
+            try {
+              await savePaperBatch(user.uid, plan.batch);
+            } catch (err) {
+              logError('QuizWidget.assignment.writtenOnPaper', err, {
+                quizId: meta.id,
+              });
+              addToast(
+                'Could not save the written answer sheets. Try again.',
+                'error'
+              );
+              return;
+            }
+            paperWritten = {
+              batchId: plan.batch.id,
+              questionIds: plan.questionIds,
+            };
+            printWritten = () =>
+              printPaperSheets(
+                hybridPrintJob(
+                  { ...data, questions: assignQuestions },
+                  plan.batch,
+                  plan.sheets
+                )
+              );
+          }
+
+          let assignmentSaved = false;
           try {
             const { id: assignmentId, code } = await createAssignment(
               {
@@ -3191,6 +3268,7 @@ const TeacherQuizWidget: React.FC<{
                     }
                   : {}),
                 ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
+                ...(paperWritten ? { paperWritten } : {}),
                 ...(stepper?.audience === 'staff'
                   ? { audience: 'staff' as const }
                   : {}),
@@ -3226,6 +3304,8 @@ const TeacherQuizWidget: React.FC<{
                   : {}),
               }
             );
+            assignmentSaved = true;
+            printWritten?.();
             const finalScore = behavior.finalScore ?? 'latest';
             if (finalScore !== 'latest' && attemptLimit !== 1 && user?.uid) {
               saveAttemptPolicy(
@@ -3373,6 +3453,12 @@ const TeacherQuizWidget: React.FC<{
               );
             }
           } catch (err) {
+            // Drop the written-sheet batch when its assignment never saved.
+            if (paperWritten && !assignmentSaved && user) {
+              void deletePaperBatch(user.uid, paperWritten.batchId).catch(
+                () => undefined
+              );
+            }
             addToast(
               err instanceof Error ? err.message : 'Failed to start session',
               'error'
@@ -4717,6 +4803,7 @@ const TeacherQuizWidget: React.FC<{
         <PaperReprintModal
           quiz={paperReprint.quiz}
           batch={paperReprint.batch}
+          writtenOnly={paperReprint.writtenOnly}
           rosters={rosters}
           onClose={() => setPaperReprint(null)}
           onError={(message) => addToast(message, 'error')}

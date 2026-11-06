@@ -1007,6 +1007,10 @@ export const TOUR_ANCHORS = {
     label: 'Answer sheets step header in the Assign on paper dialog',
     panel: true,
   },
+  'assign-step.written': {
+    label: 'Written answers step header in the Quiz Assign dialog',
+    panel: true,
+  },
   'assign-step.sharing': {
     label: 'Sharing step header in the Assign dialog',
     panel: true,
@@ -1055,6 +1059,12 @@ export const TOUR_ANCHORS = {
   },
   'assign-rule.final-score': {
     label: 'Final score option in the Assign dialog quiz steps',
+    perField: true,
+    panel: true,
+  },
+  'assign-rule.written-where': {
+    label:
+      'Written answers option (on the device or on paper) in the Quiz Assign dialog',
     perField: true,
     panel: true,
   },
@@ -16160,6 +16170,12 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.reprint-sheets': {
     label: 'Print response sheets item in a paper assignment menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.reprint-written-sheets': {
+    label:
+      'Print written answer sheets item in a quiz assignment menu, for written answers on paper',
     perWidgetType: true,
     panel: true,
   },

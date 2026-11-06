@@ -229,6 +229,7 @@ import {
   useMyQuizAttempts,
 } from '@/hooks/useQuizResponseAttempts';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { isHandedOff } from '@/utils/attemptHandOff';
 import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
 import {
@@ -2038,7 +2039,8 @@ export const ActiveQuiz: React.FC<{
   const timeUpInFlightRef = useRef(false);
   const [timeUpInFlight, setTimeUpInFlight] = useState(false);
   const attemptTimeUpSubmit = useCallback(async () => {
-    if (timeUpInFlightRef.current) return;
+    // The tab the attempt moved to submits it; this stale copy must not.
+    if (timeUpInFlightRef.current || isHandedOff()) return;
     timeUpInFlightRef.current = true;
     setTimeUpInFlight(true);
     timeUpTriggeredRef.current = true;
@@ -2786,7 +2788,8 @@ export const ActiveQuiz: React.FC<{
 
   // Side-effect: submit the answer when auto-submit is triggered.
   useEffect(() => {
-    if (!autoSubmitTriggeredFor) return;
+    // A copy whose attempt moved to another tab must not overwrite it.
+    if (!autoSubmitTriggeredFor || isHandedOff()) return;
     const question = currentQuestionRef.current;
     if (!question || question.id !== autoSubmitTriggeredFor) return;
     // Cancel any pending draft autosave for the same question — same

@@ -4295,6 +4295,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.written",
+    "label": "Written answers step header in the Quiz Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.sharing",
     "label": "Sharing step header in the Assign dialog",
     "scope": "board",
@@ -4507,6 +4520,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-rule.written-where",
+    "label": "Written answers option (on the device or on paper) in the Quiz Assign dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-rule.number",
     "label": "Setting number box in the Assign dialog quiz steps",
     "scope": "field",
@@ -4514,7 +4540,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "assign#away-seconds",
       "assign#tab-switch-threshold",
-      "assign#time-limit"
+      "assign#time-limit",
+      "assign#written-spares"
     ],
     "routes": [
       {
@@ -71754,6 +71781,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-library.reprint-sheets",
     "label": "Print response sheets item in a paper assignment menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.reprint-written-sheets",
+    "label": "Print written answer sheets item in a quiz assignment menu, for written answers on paper",
     "scope": "widget type",
     "panel": true,
     "keys": [
