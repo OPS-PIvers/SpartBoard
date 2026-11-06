@@ -10976,7 +10976,6 @@ export type GlobalFeature =
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
   | 'import-extension-send'
   | 'import-board-drop'
-  | 'import-quiz'
   | 'import-flashcards'
   | 'import-activity-wall'
   | 'import-new-board'

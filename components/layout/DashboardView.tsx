@@ -98,10 +98,7 @@ import {
   type ImportTarget,
 } from '@/utils/import/contract';
 import { ImportScreenHost } from '@/components/import/ImportScreenHost';
-import {
-  IMPORT_TARGET_FEATURES,
-  targetChoices,
-} from '@/components/import/importTargets';
+import { importTypeOn, targetChoices } from '@/components/import/importTargets';
 import {
   openImportScreen,
   type ImportDropPoint,
@@ -535,10 +532,8 @@ export const DashboardView: React.FC = () => {
   const { canAccessFeature, isAdmin } = useAuth();
   const universalImport = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
   const importOnDrop = universalImport && canAccessFeature(IMPORT_DROP_FEATURE);
-  const importTypeOn = (target: ImportTarget): boolean => {
-    const flag = IMPORT_TARGET_FEATURES[target];
-    return !!flag && canAccessFeature(flag);
-  };
+  const importTypeAllowed = (target: ImportTarget): boolean =>
+    importTypeOn(target, canAccessFeature);
   const boxSelectEnabled =
     !annotationActive && !isActiveBoardReadOnly && !groupBuildMode;
   const marqueeRect = useBoardMarqueeSelect({
@@ -1399,7 +1394,7 @@ export const DashboardView: React.FC = () => {
     // Prefer a file Import can read, so a PDF dropped with other files still lands.
     const files = Array.from(dt.files ?? []);
     const offered = (f: File) =>
-      targetChoices({ file: f }, importTypeOn).targets.length > 0 ||
+      targetChoices({ file: f }, importTypeAllowed).targets.length > 0 ||
       (/\.imscc$/i.test(f.name) && canAccessFeature('import-schoology-course'));
     // A file no Import type is open for keeps the old drop (a PDF or notebook lands as before).
     if (
