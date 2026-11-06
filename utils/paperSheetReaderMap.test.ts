@@ -28,11 +28,16 @@ const mc = (n: number): PaperSheetEntry => ({
   questionId: `q${n}`,
   label: String(n),
 });
-const written = (n: number, size: PaperBoxSize = 'M'): PaperSheetEntry => ({
+const written = (
+  n: number,
+  size: PaperBoxSize = 'M',
+  style?: PaperBoxStyle
+): PaperSheetEntry => ({
   kind: 'written',
   questionId: `q${n}`,
   label: String(n),
   size,
+  ...(style ? { style } : {}),
 });
 
 const plan = (entries: PaperSheetEntry[], grid: PaperGrid): PaperPageMap[] => {
@@ -269,7 +274,7 @@ describe.each<PaperBoxStyle>(['lines', 'blank', 'graph', 'coordinate'])(
   'the written ink check on a %s box',
   (style) => {
     const maps = plan(
-      [mc(1), { ...written(2, 'M'), style }, { ...written(3, 'S'), style }],
+      [mc(1), written(2, 'M', style), written(3, 'S', style)],
       2
     );
     const stateOf = (over: Partial<SyntheticSheetOptions>) =>
