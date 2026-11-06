@@ -1221,12 +1221,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Draft with AI in the Quiz-style set editor. Admin-only until Paul has used it in prod.
+  // Admin-only until saved, like Guided Learning AI; the server denies non-admins while no doc exists.
   'flashcards-ai': {
     label: 'Flashcards: AI',
     icon: Sparkles,
     description: 'Drafts flashcards from a topic in the set editor.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'flashcards',
     defaultAccessLevel: 'admin',
