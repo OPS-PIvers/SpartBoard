@@ -64,6 +64,8 @@ export interface ResolveOrgForUserResponse {
   orgId: string | null;
   /** Set when enrollment failed, so the client skips its session cache and retries next load. */
   enrollFailed?: true;
+  /** Set when ClassLink or a mock class lists a caller with no member doc as a student. */
+  rosterStudent?: true;
 }
 
 /**
@@ -174,7 +176,7 @@ async function autoEnrollMember(
   domainWithAt: string,
   uid: string,
   token: { email?: string; email_verified?: boolean; name?: string }
-): Promise<void> {
+): Promise<'student' | undefined> {
   const email = token.email?.trim().toLowerCase() ?? '';
   if (!email || token.email_verified !== true) return;
   if (!isAutoEnrollableEmail(email)) return;
@@ -194,7 +196,12 @@ async function autoEnrollMember(
   const rosterRole = await lookupRosterRole(db, orgId, email, {
     rosterOptional: process.env.GCLOUD_PROJECT === 'spartboard-dev',
   });
-  if (rosterRole === 'student') return;
+  if (rosterRole === 'student') {
+    // An admin in a mock class (or during a ClassLink outage) keeps the teacher app.
+    return (await db.doc(`admins/${email}`).get()).exists
+      ? undefined
+      : 'student';
+  }
   // Students share the staff domain, so an address nobody vouches for as staff joins by invite instead.
   if (
     rosterRole !== 'staff' &&
@@ -292,8 +299,16 @@ export const resolveOrgForUser = onCall(
         // resolved orgId entirely). The next app load retries.
         try {
           // View as never provisions the target (ADMIN_VIEW_AS.md D6).
-          if (!viewAs)
-            await autoEnrollMember(db, orgId, domain, request.auth.uid, token);
+          if (!viewAs) {
+            const enrolled = await autoEnrollMember(
+              db,
+              orgId,
+              domain,
+              request.auth.uid,
+              token
+            );
+            if (enrolled === 'student') return { orgId, rosterStudent: true };
+          }
         } catch (err) {
           console.error(
             `[resolveOrgForUser] auto-enroll failed for org ${orgId}:`,
