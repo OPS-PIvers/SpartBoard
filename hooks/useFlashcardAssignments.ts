@@ -148,7 +148,6 @@ export const useFlashcardAssignments = (
   const [error, setError] = useState<string | null>(null);
   const auth = useContext(AuthContext);
   const canSpeak = auth?.canAccessFeature('flashcards-speak') ?? false;
-  const testNavBar = auth?.canAccessFeature('flashcards-test-nav') ?? false;
 
   // Reset during render when the signed-in user changes.
   const [prevUserId, setPrevUserId] = useState(userId);
@@ -293,7 +292,6 @@ export const useFlashcardAssignments = (
         ...(plcLink
           ? { plcId: plcLink.plcId, syncGroupId: plcLink.syncGroupId }
           : {}),
-        ...(testNavBar ? { testNavBar: true as const } : {}),
         classIds,
         classId: classIds[0] ?? '',
         ...(periodNames.length > 0 ? { periodNames } : {}),
@@ -357,7 +355,7 @@ export const useFlashcardAssignments = (
       await batch.commit();
       return id;
     },
-    [canSpeak, testNavBar, userId]
+    [canSpeak, userId]
   );
 
   const endAssignment = useCallback<
