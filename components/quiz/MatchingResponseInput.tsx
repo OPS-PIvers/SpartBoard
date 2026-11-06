@@ -27,8 +27,18 @@ import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { QuizPublicQuestion } from '@/types';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
-import { AnswerImage, AnswerLabel } from './AnswerImage';
+import {
+  ANSWER_TILE_WIDTH,
+  AnswerImageZoomButton,
+  AnswerLabel,
+  ZoomableAnswerImage,
+} from './AnswerImage';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
+import {
+  SIDE_BANK_PANEL,
+  SIDE_BANK_WRAPPER,
+  hasSideBank,
+} from './structuredLayout';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
 
@@ -67,6 +77,8 @@ interface DraggableChipProps {
    */
   ariaLabel?: string;
   light?: boolean;
+  /** Placed in a match zone: a compact row with the picture beside the text. */
+  placed?: boolean;
 }
 
 const DraggableChip: React.FC<DraggableChipProps> = ({
@@ -78,13 +90,15 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
   onTap,
   ariaLabel,
   light,
+  placed,
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id, disabled });
+  const tile = Boolean(image) && !placed;
   const style: React.CSSProperties = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : {};
-  return (
+  const chip = (
     <button
       type="button"
       ref={setNodeRef}
@@ -93,7 +107,7 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
         if (!disabled) onTap();
       }}
       style={style}
-      className={`min-h-[44px] px-3 py-2 rounded-xl text-sm font-bold border-2 select-none touch-none transition-colors ${
+      className={`min-h-[44px] rounded-xl text-sm font-bold border-2 select-none touch-none transition-colors ${tile ? `${ANSWER_TILE_WIDTH} flex flex-col p-2` : placed && image ? 'flex-1 p-2 text-left' : 'px-3 py-2'} ${
         isDragging
           ? 'opacity-40'
           : selected
@@ -110,8 +124,34 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
       aria-label={ariaLabel ?? label}
       title={label}
     >
-      <AnswerLabel label={label} image={image} />
+      <AnswerLabel
+        label={label}
+        image={image}
+        layout={tile ? 'tile' : 'compact'}
+      />
     </button>
+  );
+  if (!image) return chip;
+  if (placed)
+    return (
+      <span className="flex flex-1 items-center gap-1">
+        {chip}
+        <AnswerImageZoomButton
+          src={image}
+          label={label}
+          className={isDragging ? 'invisible' : ''}
+        />
+      </span>
+    );
+  return (
+    <span className="relative inline-flex">
+      {chip}
+      <AnswerImageZoomButton
+        src={image}
+        label={label}
+        className={`absolute right-3 top-3 ${isDragging ? 'invisible' : ''}`}
+      />
+    </span>
   );
 };
 
@@ -433,7 +473,9 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
       collisionDetection={rectIntersection}
       onDragEnd={handleDragEnd}
     >
-      <div className="space-y-4">
+      <div
+        className={`space-y-4 ${hasSideBank(question) ? SIDE_BANK_WRAPPER : ''}`}
+      >
         {/* Term + zone rows */}
         <div className="space-y-2">
           {terms.map((term, termIndex) => {
@@ -447,11 +489,15 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
             return (
               <div key={term} className="flex items-center gap-3">
                 <span
-                  className={`flex w-1/2 items-center gap-2 rounded-xl text-sm font-bold wrap-break-word ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
+                  className={`flex w-1/2 gap-2 rounded-xl text-sm font-bold wrap-break-word items-center ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
                   title={term}
                 >
                   {termImages?.[termIndex] && (
-                    <AnswerImage src={termImages[termIndex]} />
+                    <ZoomableAnswerImage
+                      src={termImages[termIndex]}
+                      label={term}
+                      layout="compact"
+                    />
                   )}
                   <span className="min-w-0 flex-1">{term}</span>
                   {speaker('matchingLeft', term)}
@@ -473,6 +519,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                       onTap={() => handleZoneChipTap(term)}
                       ariaLabel={`${placedLabel}, matched to ${term}`}
                       light={light}
+                      placed
                     />
                     {speaker('matchingRight', placedLabel)}
                   </span>
@@ -494,7 +541,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
         </div>
 
         {/* Word bank */}
-        <BankDropZone light={light}>
+        <BankDropZone light={light} side={hasSideBank(question)}>
           <div className="flex items-center justify-between mb-2">
             <span
               className={`text-xs uppercase tracking-wider font-bold ${light ? 'text-slate-500' : 'text-slate-400'}`}
@@ -526,7 +573,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
               return (
                 <span
                   key={optionIndex}
-                  className={`inline-flex items-center gap-1 rounded-xl ${rowHighlight('matchingRight', allOptions[optionIndex])}`}
+                  className={`inline-flex ${optionImages?.[optionIndex] ? 'items-stretch' : 'items-center self-center'} gap-1 rounded-xl ${rowHighlight('matchingRight', allOptions[optionIndex])}`}
                 >
                   <DraggableChip
                     id={`bank-${optionIndex}`}
@@ -552,12 +599,13 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
 const BankDropZone: React.FC<{
   children: React.ReactNode;
   light?: boolean;
-}> = ({ children, light }) => {
+  side?: boolean;
+}> = ({ children, light, side }) => {
   const { isOver, setNodeRef } = useDroppable({ id: BANK_ID });
   return (
     <div
       ref={setNodeRef}
-      className={`p-3 rounded-2xl border-2 border-dashed transition-colors ${
+      className={`p-3 rounded-2xl border-2 border-dashed transition-colors ${side ? SIDE_BANK_PANEL : ''} ${
         isOver
           ? light
             ? 'border-brand-blue-light bg-brand-blue-lighter'

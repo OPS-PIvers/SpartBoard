@@ -205,7 +205,8 @@ import {
 } from './readAloud/useQuizReadAloud';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { CrossOutChoiceButton } from './CrossOutChoiceButton';
-import { AnswerImage } from './AnswerImage';
+import { AnswerImage, AnswerImageZoomButton } from './AnswerImage';
+import { hasSideBank } from './structuredLayout';
 import {
   crossOutStorageKey,
   useCrossedOutChoices,
@@ -3931,7 +3932,9 @@ export const ActiveQuiz: React.FC<{
               ? 'max-w-[1700px]'
               : currentQuestion.type === 'free-response'
                 ? 'max-w-7xl'
-                : 'max-w-2xl'
+                : hasSideBank(currentQuestion)
+                  ? 'max-w-2xl lg:max-w-7xl'
+                  : 'max-w-2xl'
           }`}
         >
           {/* Header */}
@@ -4313,7 +4316,7 @@ export const ActiveQuiz: React.FC<{
                           ? currentQuestion.choiceImages[options.indexOf(opt)]
                           : '';
                       const picture = choiceImage ? (
-                        <AnswerImage src={choiceImage} large />
+                        <AnswerImage src={choiceImage} />
                       ) : null;
                       const content = multiPicked ? (
                         <span className="flex items-center gap-3">
@@ -4373,7 +4376,7 @@ export const ActiveQuiz: React.FC<{
                           className="self-center"
                         />
                       );
-                      if (!readAloudOn && !crossOutOn) {
+                      if (!readAloudOn && !crossOutOn && !choiceImage) {
                         return (
                           <button
                             key={opt}
@@ -4406,6 +4409,13 @@ export const ActiveQuiz: React.FC<{
                             {content}
                             {crossOutLabel}
                           </button>
+                          {choiceImage && (
+                            <AnswerImageZoomButton
+                              src={choiceImage}
+                              label={opt}
+                              className="self-center"
+                            />
+                          )}
                           {choicePart && (
                             <ReadAloudButton
                               label={t('quizReadAloud.readChoice', {
