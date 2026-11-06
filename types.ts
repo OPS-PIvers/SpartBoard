@@ -4514,7 +4514,7 @@ export interface QuizQuestion {
    * When present, the rubric's criteria max-sum is the question's `points`.
    */
   rubricSnapshot?: Rubric;
-  /** Free Response only. Students see the attached rubric while answering; hidden unless true when `quiz-rubric-visibility` is on. */
+  /** Free Response only. Students see the attached rubric while answering; hidden unless true. */
   rubricVisibleToStudents?: boolean;
   /**
    * Ids of `QuizData.stimuli` entries shown alongside this question.
@@ -10853,8 +10853,6 @@ export type GlobalFeature =
   | 'quiz-document-import'
   /** The AI reader for that import; AND-ed with `quiz-document-import` and `gemini-functions`. */
   | 'quiz-document-ai-reader'
-  /** Learning targets read off an imported test, offered as chips in its review. */
-  | 'quiz-import-suggested-targets'
   /** Multi-version test import: versions, FRQ rubrics, balanced dealing, Stop checkpoints (docs/plans/shipped/QUIZ_IMPORT_VERSIONS.md). */
   | 'quiz-import-versions'
   /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
@@ -10888,8 +10886,6 @@ export type GlobalFeature =
   | 'quiz-attempt-history'
   /** Per-question "Spell check" switch on quiz Free Response questions. */
   | 'quiz-spell-check-toggle'
-  /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
-  | 'quiz-rubric-visibility'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -10974,7 +10970,6 @@ export type GlobalFeature =
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
   | 'import-extension-send'
   | 'import-board-drop'
-  | 'import-quiz'
   | 'import-flashcards'
   | 'import-activity-wall'
   | 'import-new-board'

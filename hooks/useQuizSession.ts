@@ -554,8 +554,7 @@ function rubricForScoredResults(rubric: Rubric): Rubric {
  */
 export function toPublicQuestion(
   q: QuizQuestion,
-  translations?: Record<string, QuestionTranslation>,
-  options?: { hideRubricUnlessShown?: boolean }
+  translations?: Record<string, QuestionTranslation>
 ): QuizPublicQuestion {
   // Every type is translatable now; the guard stays so a future exclusion holds.
   const entries = isTranslatableQuestionType(q.type)
@@ -679,9 +678,7 @@ export function toPublicQuestion(
     }
     if (q.noSpellCheck === true) base.noSpellCheck = true;
     if (q.points && q.points > 0) base.points = q.points;
-    const hideRubric =
-      options?.hideRubricUnlessShown === true &&
-      q.rubricVisibleToStudents !== true;
+    const hideRubric = q.rubricVisibleToStudents !== true;
     if (q.rubricSnapshot) {
       // Example responses are an answer key; they reach students only through published results.
       base.rubricSnapshot = hideRubric
