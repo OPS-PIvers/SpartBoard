@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useEffect, useSyncExternalStore } from 'react';
 import { Loader2 } from 'lucide-react';
 import { SPA_NAVIGATE_EVENT, parsePlcPath } from './utils/plcPath';
 import { parseGradebookPath } from './utils/gradebookPath';
+import { isGettingStartedRoute } from './config/gettingStarted';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { useReconcileExpiredSubShares } from './hooks/useReconcileExpiredSubShares';
@@ -217,6 +218,11 @@ const PlcRouteHost = lazy(() =>
 const GradebookRouteHost = lazy(() =>
   import('./components/gradebook/GradebookRouteHost').then((module) => ({
     default: module.GradebookRouteHost,
+  }))
+);
+const GettingStartedPage = lazy(() =>
+  import('./components/gettingStarted/GettingStartedPage').then((module) => ({
+    default: module.GettingStartedPage,
   }))
 );
 const AdminWeatherFetcher = lazy(() =>
@@ -822,6 +828,12 @@ const AppContent: React.FC = () => {
           <GradebookRouteHost parsed={gradebookParsed} />
         </Suspense>
       )}
+      {canAccessFeature('getting-started') &&
+        isGettingStartedRoute(pathname) && (
+          <Suspense fallback={<FullPageLoader />}>
+            <GettingStartedPage />
+          </Suspense>
+        )}
     </Suspense>
   );
 };

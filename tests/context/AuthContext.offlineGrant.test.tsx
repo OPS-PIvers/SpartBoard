@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, act } from '@testing-library/react';
+import { render, act, cleanup } from '@testing-library/react';
 import * as firebaseAuth from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { auth } from '@/config/firebase';
@@ -191,7 +191,53 @@ describe('AuthContext — offline grant probe', () => {
     await mountSignedIn();
 
     expect(getCtx().offlineGrantMissing).toBe(true);
-    expect(sessionStorage.getItem(PROBED_KEY)).toBe('1');
+    expect(sessionStorage.getItem(PROBED_KEY)).toMatch(/:missing$/);
+  });
+
+  it('confirms a grant the backend can refresh', async () => {
+    vi.mocked(refreshAccessTokenViaBackend).mockResolvedValue({
+      status: 'ok',
+      token: 'backend-token',
+      expiresIn: 3600,
+    });
+    seedLiveToken();
+    await mountSignedIn();
+
+    expect(getCtx().offlineGrantPresent).toBe(true);
+    expect(sessionStorage.getItem(PROBED_KEY)).toMatch(/:present$/);
+  });
+
+  // The once-per-session flag used to lose the card for the rest of the session after a reload.
+  it('keeps a missing answer across a reload without probing again', async () => {
+    vi.mocked(refreshAccessTokenViaBackend).mockResolvedValue({
+      status: 'needs-consent',
+      cause: 'no-stored-token',
+    });
+    seedLiveToken();
+    await mountSignedIn();
+    const stored = sessionStorage.getItem(PROBED_KEY) ?? '';
+
+    cleanup();
+    vi.mocked(refreshAccessTokenViaBackend).mockClear();
+    sessionStorage.setItem(PROBED_KEY, stored);
+    seedLiveToken();
+    await mountSignedIn();
+
+    expect(refreshAccessTokenViaBackend).not.toHaveBeenCalled();
+    expect(getCtx().offlineGrantMissing).toBe(true);
+  });
+
+  it('probes again when a different teacher signs in to the tab', async () => {
+    vi.mocked(refreshAccessTokenViaBackend).mockResolvedValue({
+      status: 'needs-consent',
+      cause: 'no-stored-token',
+    });
+    sessionStorage.setItem(PROBED_KEY, 'someone-else:present');
+    seedLiveToken();
+    await mountSignedIn();
+
+    expect(refreshAccessTokenViaBackend).toHaveBeenCalled();
+    expect(getCtx().offlineGrantPresent).toBe(false);
   });
 
   it('stays quiet when a grant already exists', async () => {

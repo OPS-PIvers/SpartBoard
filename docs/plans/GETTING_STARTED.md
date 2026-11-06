@@ -138,6 +138,7 @@ Prod counts, read-only, accounts created since 2026-08-01 with a Google profile:
 - An `admin_settings` doc holding the curated list and the sidebar switch, with an Admin Settings UI (D17, D28); the switch goes in `config/rolloutSwitches.ts` if it fits.
 - Per-teacher progress on the profile, readable by the client, since `runs/{uid}` is write-only (D13).
 - The sidebar item and page, Resume, Restart, and the page's share link (D16, D18, D29), with tour anchors and a `config/tourSurfaces` entry.
+- Moved here from P4, since the Connect Drive checkmark needs it: keep the Drive check's result across a reload, so the card isn't lost for the rest of a session (D19). It isn't specific to new teachers, so it ships without the flag.
 
 ### P2. Tour engine
 
@@ -162,7 +163,6 @@ All opt-in per step, so existing tours don't change.
 - The first-board marker and welcome (D1, D3, D5), and phone wait (D6).
 - Under the flag, skip `NewUserSetup` and the checklist seed.
 - Quiet start (D7), which holds the Drive card except while the Connect Drive tour needs it.
-- Keep the Drive check's result across a reload, so the card isn't lost for the rest of a session (D19). This fix isn't specific to new teachers, so it ships without the flag.
 - A teacher's flag isn't known until role and permissions resolve, so the app must wait for that before it picks a flow. A brand-new teacher should never see the wizard flash.
 
 ### P5. Backgrounds

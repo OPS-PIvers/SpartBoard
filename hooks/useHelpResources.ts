@@ -281,8 +281,8 @@ const startSharedOrgListener = (orgId: string | null) => {
   );
 };
 
-/** Every visible help item, from the listener shared with the widget help buttons. */
-export const useSharedHelpItems = (): HelpResourceItem[] => {
+/** Every visible help item and whether it's still loading, from the listener shared with the widget help buttons. */
+export const useSharedHelpState = (): SharedHelpState => {
   // Read the context directly so the settings panel still renders outside an AuthProvider (tests, standalone surfaces).
   const orgId = useContext(AuthContext)?.orgId ?? null;
   const [state, setState] = useState<SharedHelpState>(sharedState);
@@ -325,8 +325,11 @@ export const useSharedHelpItems = (): HelpResourceItem[] => {
     }
   }, [orgId]);
 
-  return state.items;
+  return isConfigured ? state : { items: state.items, loading: false };
 };
+
+export const useSharedHelpItems = (): HelpResourceItem[] =>
+  useSharedHelpState().items;
 
 export const useHelpItemsForWidget = (
   widgetType: WidgetType
