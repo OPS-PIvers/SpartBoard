@@ -124,6 +124,7 @@ describe('status helpers', () => {
     expect(publicTranscriptState('over-quota')).toBe('pending');
     expect(publicTranscriptState('done')).toBe('done');
     expect(publicTranscriptState('blank')).toBe('blank');
+    expect(publicTranscriptState('image')).toBe('image');
   });
 
   it('allows only the planned transitions', () => {

@@ -832,7 +832,11 @@ export function isWrittenAnswerAwaitingGrade(
 ): boolean {
   // A paper transcript still in flight is owed a grade even though its text is empty.
   if (!grade)
-    return paperTranscript === 'pending' || hasSubmittedContent(studentAnswer);
+    return (
+      paperTranscript === 'pending' ||
+      paperTranscript === 'image' ||
+      hasSubmittedContent(studentAnswer)
+    );
   return question ? isPartialRubricGrade(question, grade) : false;
 }
 

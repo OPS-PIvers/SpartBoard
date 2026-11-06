@@ -28,6 +28,7 @@ import { useReviewLaunch } from './useReviewLaunch';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import {
+  PAPER_HANDWRITING_AI_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
   withPaperBoxSizes,
   withPaperBoxStyles,
@@ -4794,13 +4795,17 @@ const TeacherQuizWidget: React.FC<{
               ? `data:${res.data.mimeType ?? 'image/webp'};base64,${res.data.data}`
               : null;
           }}
-          checkQuota={() =>
-            readPaperImportQuota(firestoreDocData, {
+          checkQuota={async () => {
+            const quota = await readPaperImportQuota(firestoreDocData, {
               uid: user.uid,
               isAdmin: isAdmin === true,
               nowMs: Date.now(),
-            })
-          }
+            });
+            // Transcription switched off by an admin: crops import for grading by eye.
+            return canAccessFeature(PAPER_HANDWRITING_AI_FEATURE)
+              ? quota
+              : { ...quota, disabled: true };
+          }}
           onSaveQuiz={async (data) => {
             await saveQuiz(data, paperImport.meta.driveFileId);
           }}

@@ -672,6 +672,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // AI transcription of scanned handwriting. Off for everyone, admins too, until saved on; off grades the crop.
+  'paper-handwriting-ai': {
+    label: 'Transcribe handwritten answers',
+    icon: Sparkles,
+    description: 'AI types out scanned handwritten answers for grading.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Transcribe handwritten answers',
+    group: 'questions',
+    requires: 'paper-handwritten-responses',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: false,
+    missingDocPublic: false,
+    failClosedForAdmins: true,
+  },
   // Device quiz with written answers on paper; also needs paper-handwritten-responses.
   'paper-written-hybrid': {
     label: 'Written answers on paper',

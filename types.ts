@@ -5872,12 +5872,12 @@ export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
 export type PaperBoxStyle =
   'lines' | 'blank' | 'graph' | 'coordinate' | 'image';
 
-/** Public transcription state on a paper written answer. */
-export type PaperTranscriptState = 'pending' | 'done' | 'blank';
+/** Public transcription state on a paper written answer; `image` is ink imported with transcription off. */
+export type PaperTranscriptState = 'pending' | 'done' | 'blank' | 'image';
 
 /** Teacher-side transcription state, kept in the private subdoc. */
 export type PaperPrivateStatus =
-  'pending' | 'done' | 'failed' | 'blank' | 'over-quota';
+  'pending' | 'done' | 'failed' | 'blank' | 'over-quota' | 'image';
 
 /** `quiz_sessions/{sid}/responses/{key}/paperPrivate/{questionId}`: teacher-only AI internals. */
 export interface PaperPrivateAnswer {
@@ -10901,6 +10901,8 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
+  /** AI transcription of scanned handwritten answers; off means teachers grade the crop. */
+  | 'paper-handwriting-ai'
   /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */

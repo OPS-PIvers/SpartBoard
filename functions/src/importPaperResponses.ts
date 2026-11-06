@@ -32,6 +32,7 @@ import {
 } from './classlinkShared';
 import { withQuizSessionContent } from './quizSessionContent';
 import {
+  PAPER_HANDWRITING_AI_FEATURE,
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
   paperCropStoragePath,
@@ -370,7 +371,9 @@ export async function handleImportPaperResponses(
   db: admin.firestore.Firestore,
   caller: ImportPaperCaller | null,
   raw: unknown,
-  now: number
+  now: number,
+  /** AI transcription (`paper-handwriting-ai`); off, inked pages are neither queued nor over quota. */
+  transcriptionGranted: () => Promise<boolean> = () => Promise.resolve(true)
 ): Promise<ImportPaperResponsesResult> {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
   if (caller.studentRole || caller.anonymous)
@@ -532,7 +535,8 @@ export async function handleImportPaperResponses(
       .map((page) => `${sheet.seat}:${page}`)
   );
   const allowedPages = new Set<string>();
-  if (inkPages.length > 0) {
+  const transcribe = inkPages.length > 0 && (await transcriptionGranted());
+  if (transcribe) {
     const isAdmin = caller.email
       ? (await db.collection('admins').doc(caller.email).get()).exists
       : false;
@@ -560,6 +564,7 @@ export async function handleImportPaperResponses(
         servedQuestionIds:
           versionBySeat.get(r.sheet.seat)?.servedQuestionIds ?? null,
         hybrid,
+        transcribe,
         now,
       })
     )
@@ -639,6 +644,8 @@ interface SeatContext {
   servedQuestionIds: string[] | null;
   /** Written-answers-only stack of a device assignment; see `hybridResponseFields`. */
   hybrid: boolean;
+  /** Transcription is on, so inked pages count as queued or over quota. */
+  transcribe: boolean;
   now: number;
 }
 
@@ -899,7 +906,7 @@ async function importSeat(
       job
     );
     outcome.jobs += 1;
-    if (!inkPages.has(page)) continue;
+    if (!inkPages.has(page) || !ctx.transcribe) continue;
     // The quota check is advisory; the worker re-checks before any Gemini call.
     if (ctx.allowedPages.has(`${sheet.seat}:${page}`)) outcome.queued += 1;
     else outcome.overQuota += 1;
@@ -1085,7 +1092,17 @@ export const importPaperResponsesV1 = onCall(
       admin.firestore(),
       caller,
       request.data,
-      Date.now()
+      Date.now(),
+      async () => {
+        if (!caller) return false;
+        const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+        return isGlobalFeatureGranted(
+          admin.firestore(),
+          PAPER_HANDWRITING_AI_FEATURE,
+          caller.email ?? null,
+          caller.uid
+        );
+      }
     );
   }
 );

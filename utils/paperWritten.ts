@@ -13,6 +13,8 @@ import type {
 
 /** Contracts for handwritten paper answers; see docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md §3. */
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
+/** Off: inked boxes import as `image` and teachers grade the crop. */
+export const PAPER_HANDWRITING_AI_FEATURE = 'paper-handwriting-ai';
 
 /** Written lines ruled in each named box size; a line is one 8 mm grid row. L is kept for quizzes saved before custom sizes. */
 export const PAPER_BOX_LINES: Readonly<
@@ -183,17 +185,19 @@ export function publicTranscriptState(
 ): PaperTranscriptState {
   if (status === 'done') return 'done';
   if (status === 'blank') return 'blank';
+  if (status === 'image') return 'image';
   return 'pending';
 }
 
 const PRIVATE_TRANSITIONS: Readonly<
   Record<PaperPrivateStatus, readonly PaperPrivateStatus[]>
 > = {
-  pending: ['done', 'failed', 'over-quota'],
+  pending: ['done', 'failed', 'over-quota', 'image'],
   failed: ['pending'],
   'over-quota': ['pending'],
   blank: ['pending'],
   done: [],
+  image: [],
 };
 
 /** Allowed status moves within one scan; a new `scanId` replaces the doc outright. */
@@ -213,11 +217,13 @@ export function isPaperWrittenAnswer(
   );
 }
 
-/** A pending transcript is awaiting grade, never a 0. */
+/** A pending transcript, or a crop imported without one, is awaiting grade, never a 0. */
 export function isPaperTranscriptPending(
   answer: Pick<QuizResponseAnswer, 'paperTranscript'>
 ): boolean {
-  return answer.paperTranscript === 'pending';
+  return (
+    answer.paperTranscript === 'pending' || answer.paperTranscript === 'image'
+  );
 }
 
 export function handwritingArtifact(

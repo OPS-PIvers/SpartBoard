@@ -237,6 +237,7 @@ const PAPER_CHIP: Record<Exclude<PaperPrivateStatus, 'done'>, string> = {
   failed: 'bg-brand-red-lighter/50 text-brand-red-dark',
   'over-quota': 'bg-amber-100 text-amber-800',
   blank: 'bg-slate-200 text-slate-700',
+  image: 'bg-slate-200 text-slate-700',
 };
 
 const targetVocabulary = (

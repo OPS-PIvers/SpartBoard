@@ -34,6 +34,7 @@ import {
   type PaperTranscribeDeps,
 } from './paperTranscribe';
 import {
+  PAPER_HANDWRITING_AI_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
@@ -63,6 +64,8 @@ export interface WorkerDeps {
   isAdmin: (uid: string) => Promise<boolean>;
   /** Whether the teacher holds the handwritten-answers feature flag. */
   featureGranted: (uid: string) => Promise<boolean>;
+  /** Whether AI transcription is on for the teacher; off settles inked boxes as `image`. */
+  transcriptionGranted: (uid: string) => Promise<boolean>;
   transcribe: (
     boxes: PaperTranscribeBox[],
     tier: PaperModelTier
@@ -285,6 +288,49 @@ async function settleWithoutTranscript(
   });
 }
 
+// Transcription off: each live box keeps its crop for grading, marked `image` so it awaits a grade, never a 0.
+async function settleAsImages(
+  db: Firestore,
+  jobRef: DocumentReference,
+  job: PaperTranscriptionJob,
+  live: readonly PaperTranscribeBox[],
+  now: number
+): Promise<{ boxes: PaperTranscribeBox[]; answers: StoredAnswer[] }> {
+  const responseRef = responseRefFor(db, job);
+  return db.runTransaction(async (tx: Transaction) => {
+    const fresh = await tx.get(responseRef);
+    const privates = await readPrivates(
+      (r) => tx.get(r),
+      responseRef,
+      live.map((b) => b.questionId)
+    );
+    const answers = answersOf(fresh.data());
+    const next = answers.map((a) => ({ ...a }));
+    const boxes: PaperTranscribeBox[] = [];
+    for (const box of live) {
+      const prev = privates.get(box.questionId);
+      if (!isBoxLive(answers, prev, box.questionId, job.scanId)) continue;
+      const index = next.findIndex((a) => a?.questionId === box.questionId);
+      next[index] = { ...next[index], paperTranscript: 'image' };
+      tx.set(
+        privateRefFor(responseRef, box.questionId),
+        {
+          scanId: job.scanId,
+          status: 'image',
+          attempts: attemptsOf(prev),
+          charged: prev?.charged === true,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+      boxes.push(box);
+    }
+    if (boxes.length > 0) tx.update(responseRef, { answers: next });
+    tx.update(jobRef, { status: 'done', updatedAt: now });
+    return { boxes, answers: next };
+  });
+}
+
 /** The handwriting artifact the import attached for this crop. */
 export function findCropArtifactId(
   answers: readonly StoredAnswer[],
@@ -455,6 +501,14 @@ export async function runPaperTranscriptionJob(
     );
     await archiveBlanks();
     return 'failed';
+  }
+
+  if (!(await deps.transcriptionGranted(uid))) {
+    await releaseHeld();
+    const settled = await settleAsImages(db, jobRef, job, live, deps.now());
+    await archiveBoxes(deps, job, jobId, settled.boxes, settled.answers);
+    await archiveBlanks();
+    return 'done';
   }
 
   const quota = await readPaperHandwritingQuota(db, {
@@ -829,24 +883,27 @@ export function buildDefaultWorkerDeps(): WorkerDeps {
       };
     },
   };
+  const grantedFor = async (featureId: string, uid: string) => {
+    try {
+      const user = await admin.auth().getUser(uid);
+      return await isGlobalFeatureGranted(
+        admin.firestore(),
+        featureId,
+        user.emailVerified ? (user.email ?? null) : null,
+        uid
+      );
+    } catch {
+      return false;
+    }
+  };
   const archiveDeps = buildDefaultArchiveDeps();
   return {
     db: admin.firestore(),
     now: () => Date.now(),
     isAdmin: isVerifiedAdmin,
-    featureGranted: async (uid) => {
-      try {
-        const user = await admin.auth().getUser(uid);
-        return await isGlobalFeatureGranted(
-          admin.firestore(),
-          PAPER_HANDWRITTEN_FEATURE,
-          user.emailVerified ? (user.email ?? null) : null,
-          uid
-        );
-      } catch {
-        return false;
-      }
-    },
+    featureGranted: (uid) => grantedFor(PAPER_HANDWRITTEN_FEATURE, uid),
+    transcriptionGranted: (uid) =>
+      grantedFor(PAPER_HANDWRITING_AI_FEATURE, uid),
     transcribe: (boxes, tier) =>
       transcribePaperPage(boxes, tier, transcribeDeps),
     archive: (input) =>

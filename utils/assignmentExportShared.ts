@@ -162,6 +162,9 @@ export function formatQuizAnswerText(
   if (answer.paperTranscript === 'pending' && !answer.answer?.trim()) {
     return '(transcribing)';
   }
+  if (answer.paperTranscript === 'image' && !answer.answer?.trim()) {
+    return '(handwritten)';
+  }
   const raw = answer.answer ?? '';
   let text = raw;
   if (raw && question.type === 'Matching') {
