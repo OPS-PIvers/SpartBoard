@@ -80,13 +80,18 @@ function parseRow(row: string): string[] {
   return cells;
 }
 
-/** Quote a cell for CSV output if it contains a comma, quote, or newline. */
+/** Quote a cell if it has a comma, quote or newline; defuse formula-leading text with a `'`. */
 function quoteCell(value: string): string {
-  if (/[",\n\r]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  if (/[",\n\r]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`;
   }
-  return value;
+  return safe;
 }
+
+/** Inverse of the formula guard in `quoteCell`. */
+const unguardCell = (value: string | undefined): string =>
+  (value ?? '').replace(/^'(?=[=+\-@\t\r])/, '');
 
 // ---------------------------------------------------------------------------
 // Parser
@@ -194,7 +199,7 @@ export function parseRubricCsv(text: string): ParseRubricResult {
     if (!raw.trim()) continue;
     const cells = parseRow(raw);
 
-    const name = cells[criterionIdx]?.trim() ?? '';
+    const name = unguardCell(cells[criterionIdx]).trim();
     if (!name) {
       errors.push({ line, reason: 'Missing Criterion name.' });
       continue;
@@ -202,7 +207,7 @@ export function parseRubricCsv(text: string): ParseRubricResult {
 
     const levels: RubricLevel[] = [];
     for (const group of levelGroups) {
-      const label = cells[group.labelIdx]?.trim() ?? '';
+      const label = unguardCell(cells[group.labelIdx]).trim();
       if (!label) continue;
       const rawPoints = cells[group.pointsIdx]?.trim() ?? '';
       const points = Number(rawPoints);
@@ -215,7 +220,7 @@ export function parseRubricCsv(text: string): ParseRubricResult {
       }
       const description =
         group.descriptionIdx !== undefined
-          ? cells[group.descriptionIdx]?.trim()
+          ? unguardCell(cells[group.descriptionIdx]).trim()
           : undefined;
       const level: RubricLevel = { id: crypto.randomUUID(), label, points };
       if (description) level.description = description;
@@ -231,7 +236,9 @@ export function parseRubricCsv(text: string): ParseRubricResult {
     }
 
     const description =
-      descriptionIdx !== undefined ? cells[descriptionIdx]?.trim() : undefined;
+      descriptionIdx !== undefined
+        ? unguardCell(cells[descriptionIdx]).trim()
+        : undefined;
     const criterion: RubricCriterion = {
       id: crypto.randomUUID(),
       name,

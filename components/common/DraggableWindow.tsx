@@ -3064,7 +3064,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           full-screen. It slides down near the top edge so content stays full-bleed. */}
       {isMaximized && !maxBarVisible && !showMaxMenu && (
         // Tappable handle: touches on full-bleed content (iframes) never reach the window listener.
-        <button
+        <button // no-tour-anchor: hover handle that only appears on a maximized widget
           type="button"
           aria-label={t('widgetWindow.showControls')}
           data-max-bar-handle=""
