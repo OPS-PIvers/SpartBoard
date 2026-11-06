@@ -73,6 +73,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     requires: 'widget-restored',
   },
+  'widget.resize-handle': {
+    label: "Resize handle on a widget's bottom-right corner",
+    perWidget: true,
+    requires: 'widget-restored',
+  },
   'widget.toolbar': {
     label: 'Widget toolbar',
     perWidget: true,

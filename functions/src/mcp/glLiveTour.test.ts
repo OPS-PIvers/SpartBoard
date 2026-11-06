@@ -287,6 +287,28 @@ describe('get_live_tour and update_live_tour', () => {
       expect(tourStep.safeParse({ ...base, tour }).success).toBe(false);
   });
 
+  it('takes drag and resize only on the controls the runner measures', () => {
+    const stepWith = (anchor: string, action: string) => ({
+      id: 'a',
+      tour: { anchor, action },
+    });
+    expect(() =>
+      mergeTourSteps(
+        [],
+        [
+          stepWith('widget.window:dice', 'drag'),
+          { ...stepWith('widget.resize-handle:dice', 'resize'), id: 'b' },
+        ]
+      )
+    ).not.toThrow();
+    expect(() =>
+      mergeTourSteps([], [stepWith('widget.close:dice', 'drag')])
+    ).toThrow('drag steps point at "widget.window:<type>"');
+    expect(() =>
+      mergeTourSteps([], [stepWith('widget.window:dice', 'resize')])
+    ).toThrow('resize steps point at "widget.resize-handle:<type>"');
+  });
+
   it('refuses a done condition on a whole-board step', () => {
     expect(() =>
       mergeTourSteps(

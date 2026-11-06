@@ -10,6 +10,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'library.edit': ['board.widget-library'],
     'library.close': ['board.widget-library'],
     'widget.window': ['board.widget'],
+    'widget.resize-handle': ['board.widget'],
     'widget.toolbar': ['board.widget'],
     'widget.title': ['board.widget'],
     'widget.settings-opener': ['board.widget'],

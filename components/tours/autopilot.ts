@@ -290,7 +290,10 @@ export async function performStep(
 }
 
 /** A select or type step with no recorded value has nothing for Autopilot to enter. */
+// A drag or resize is the teacher's to feel, so Autopilot leaves it to them.
 export const canPerform = (binding: StepBinding): boolean =>
-  binding.action === 'select' || binding.action === 'type'
-    ? binding.value !== undefined && String(binding.value) !== ''
-    : true;
+  binding.action === 'drag' || binding.action === 'resize'
+    ? false
+    : binding.action === 'select' || binding.action === 'type'
+      ? binding.value !== undefined && String(binding.value) !== ''
+      : true;

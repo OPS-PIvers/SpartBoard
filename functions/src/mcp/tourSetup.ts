@@ -16,7 +16,7 @@ export const tourBinding = binding.extend({
     'An anchor ref from list_tour_anchors: the id, plus ":<type>" for a widget type anchor and ":<type>#<key>" for a field anchor, using one of its keys. "" only for a control with no anchor yet, with fallback.'
   ),
   action: binding.shape.action.describe(
-    'click: the teacher clicks the control (Autopilot clicks it for them). observe: point at it and wait for Next. toggle, select, type: set the control to value.'
+    'click: the teacher clicks the control (Autopilot clicks it for them). observe: point at it and wait for Next. toggle, select, type: set the control to value. drag: the teacher moves the widget, on "widget.window:<type>". resize: the teacher resizes it by its corner, on "widget.resize-handle:<type>". Autopilot leaves drag and resize to the teacher.'
   ),
   value: binding.shape.value.describe(
     'toggle: the state to reach (true or false). select: the option value. type: the text Autopilot types. Leave out on click and observe.'

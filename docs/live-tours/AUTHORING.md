@@ -58,6 +58,8 @@ When the tour ends, the teacher's screen goes back to how they left it.
 - `toggle`: a switch or checkbox, with `value` true or false, the state it should end in.
 - `select`: a dropdown, segmented control or tab strip, with `value` the option value. Never a button that steps to the next option on each click: an anchor with `cycles` is one, and `cycles` names the control to select instead. A `settings.field` whose `kind` is text, number or a list isn't a choice either.
 - `type`: a text field, with `value` the text Autopilot types. The tour moves on once the field holds it. Never put a real student's name in it.
+- `drag`: the teacher moves a widget, on `widget.window:<type>`. The tour moves on once they let go somewhere else.
+- `resize`: the teacher resizes a widget by its corner, on `widget.resize-handle:<type>`. The tour moves on once it's a different size. Autopilot leaves `drag` and `resize` to the teacher, and both work by finger on a touch panel.
 
 **Anchor refs.** Write the id from `list_tour_anchors`, plus `:<type>` when its scope is `widget type` and `:<type>#<key>` when it is `field`. When an anchor lists `keys`, the suffix must be one of them; when it gives a `key_pattern`, the suffix must match it, and `key_hint` shows examples (quiz option letters are lowercase: `quiz-editor.option:quiz#a`). `settings.field`, `settings.toggle` and `settings.group` refs come from `widget_type` lookups (`settings_fields`).
 
@@ -147,6 +149,7 @@ Write for a busy teacher reading a small card on a projected board.
 - `select` on a control that isn't a choice: a cycle button, a switch, or a text, number or list field
 - a control on a panel no earlier step opens (the error lists the clicks from the board)
 - a widget control when that widget isn't staged or added from the Dock first
+- a `drag` step not on `widget.window`, or a `resize` step not on `widget.resize-handle`
 - a condition that isn't a fact or a known feature, a `doneWhen` fact a step can't wait on, or `doneWhen` on a `board.whole` step
 - bookends: the first step must observe `board.whole`, and the last step must be an `observe`. On `update_live_tour` with `steps`, this refuses the save only when the stored tour already had them, so a recorded draft without them can still be edited (it comes back as a warning); `step_text` never checks it
 

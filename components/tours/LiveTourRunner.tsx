@@ -268,6 +268,8 @@ const BOARD_WAIT_MS = 2000;
 const VALUE_SETTLE_MS = 600;
 /** Pause after the last keystroke before a matching type step moves on. */
 const TYPE_SETTLE_MS = 500;
+/** How far a widget has to move, or its size change, for a drag or resize step to count. */
+const MOVE_MIN_PX = 24;
 /** How long a step's "Done" shows before the tour moves on by itself. */
 const DONE_PAUSE_MS = 1200;
 /** How often a step re-applies its anchor's prerequisite while the anchor is missing. */
@@ -1402,6 +1404,42 @@ export const LiveTourRunner: React.FC = () => {
   useEffect(() => {
     const el = anchor.element;
     if (!el || !acted || !action || doneFact) return;
+    // Drag and resize move on once the widget, let go, has moved or changed size enough to see.
+    if (action === 'drag' || action === 'resize') {
+      const box =
+        action === 'drag'
+          ? el
+          : (el.closest<HTMLElement>('[data-draggable-window]') ?? el);
+      let from: DOMRect | null = null;
+      const onDown = () => {
+        from = box.getBoundingClientRect();
+      };
+      const onUp = () => {
+        const start = from;
+        from = null;
+        const signal = clickWait.current?.signal;
+        if (!start || !signal || signal.aborted) return;
+        const moved = () => {
+          if (!box.isConnected) return false;
+          const now = box.getBoundingClientRect();
+          return action === 'drag'
+            ? Math.hypot(now.x - start.x, now.y - start.y) >= MOVE_MIN_PX
+            : Math.hypot(now.width - start.width, now.height - start.height) >=
+                MOVE_MIN_PX;
+        };
+        void waitFor(moved, VALUE_SETTLE_MS, signal).then((ok) => {
+          if (ok) advanceFrom(stepIndex);
+        });
+      };
+      el.addEventListener('pointerdown', onDown, true);
+      window.addEventListener('pointerup', onUp, true);
+      window.addEventListener('pointercancel', onUp, true);
+      return () => {
+        el.removeEventListener('pointerdown', onDown, true);
+        window.removeEventListener('pointerup', onUp, true);
+        window.removeEventListener('pointercancel', onUp, true);
+      };
+    }
     const onChange =
       action === 'type' ||
       (action === 'select' &&

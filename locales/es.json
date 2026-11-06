@@ -2855,6 +2855,8 @@
     "tourAction_toggle": "Esperar el interruptor",
     "tourAction_select": "Esperar la elección",
     "tourAction_type": "Esperar la escritura",
+    "tourAction_drag": "Esperar el arrastre",
+    "tourAction_resize": "Esperar el cambio de tamaño",
     "tourValueToggle": "Autopilot lo deja",
     "tourValueOn": "Activado",
     "tourValueOff": "Desactivado",

@@ -4155,6 +4155,8 @@
     "tourAction_toggle": "Wait for the switch",
     "tourAction_select": "Wait for the choice",
     "tourAction_type": "Wait for typing",
+    "tourAction_drag": "Wait for a drag",
+    "tourAction_resize": "Wait for a resize",
     "tourValueToggle": "Autopilot sets it to",
     "tourValueOn": "On",
     "tourValueOff": "Off",
