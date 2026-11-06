@@ -1644,6 +1644,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         anchor: tourTypeAttr('quiz-library.archive-results', 'quiz'),
         onClick: () => void (onArchiveResults ?? noop)(a),
       });
+      if (a.writtenOnPaper && a.paperBatchId && onImportPaperResponses) {
+        secondaries.push({
+          id: 'import-written',
+          label: 'Import written answers',
+          icon: ScanLine,
+          anchor: tourTypeAttr('quiz-library.import-written-answers', 'quiz'),
+          onClick: () => onImportPaperResponses(a),
+        });
+      }
       if (a.writtenOnPaper && a.paperBatchId && onReprintPaperSheets) {
         secondaries.push({
           id: 'reprint-written',
@@ -1777,6 +1786,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       icon: BarChart3,
       onClick: () => void (onArchiveResults ?? noop)(a),
     };
+    // Written answers on paper can still be scanned after the assignment ends.
+    if (a.writtenOnPaper && a.paperBatchId && onImportPaperResponses) {
+      secondaries.push({
+        id: 'import-written',
+        label: 'Import written answers',
+        icon: ScanLine,
+        anchor: tourTypeAttr('quiz-library.import-written-answers', 'quiz'),
+        onClick: () => onImportPaperResponses(a),
+      });
+    }
     // More scans from the same stack (another class, make-ups) still import here.
     if (a.paper && onImportPaperResponses) {
       secondaries.push({
@@ -3316,6 +3335,11 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
     meta = (
       <>
         {dateChip}
+        {a.writtenOnPaper && a.paperWrittenSeats != null && (
+          <span className="font-semibold tabular-nums">
+            Paper {a.paperWrittenScanned ?? 0}/{a.paperWrittenSeats} scanned
+          </span>
+        )}
         {showJoinCode && (
           <span className="font-mono tracking-wider">{a.code}</span>
         )}

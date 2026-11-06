@@ -239,7 +239,7 @@ export interface CreateAssignmentOptions extends AudienceSessionFields {
   /** Assigned on paper: marks the assignment and links the printed stack it imports from. */
   paperBatchId?: string;
   /** Device assignment whose written questions print on this written-answers-only stack. */
-  paperWritten?: { batchId: string; questionIds: string[] };
+  paperWritten?: { batchId: string; questionIds: string[]; seats: number };
   /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
   widgetKind?: QuizWidgetKind;
   /** Review game length (plan D22); only written for `sessionMode: 'game'`. */
@@ -1560,6 +1560,7 @@ export const useQuizAssignments = (
               writtenOnPaper: true as const,
               paperBatchId: paperWritten.batchId,
               paperWrittenQuestionIds: paperWritten.questionIds,
+              paperWrittenSeats: paperWritten.seats,
             }
           : {}),
         ...audienceSessionFields(options?.audience),
