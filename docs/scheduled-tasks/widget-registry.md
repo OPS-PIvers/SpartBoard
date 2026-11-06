@@ -3,10 +3,12 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-05_
+_Last audited: 2026-11-06_
 _Last action: 2026-10-07 — LOW `projects` scaling base updated to 620×560 to match its spawn size. Prior: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
 
 
+
+_2026-11-06: Daily audit (Friday). Merged `origin/dev-paul` into `scheduled-tasks` (rebase replay conflicts on journals). `WidgetType` 69; `WIDGET_DEFAULTS` and `widgetGradeLevels.ts` 69/69; `WIDGET_COMPONENTS` 68/69 (`sticker` documented); `WIDGET_SETTINGS_SCHEMAS` 66/69 (absent `blooms-detail`, `onboarding`, `sticker`, documented); `WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS` are now empty maps (schema-driven drawer); `WIDGET_SCALING_CONFIG` 69/69; `tools.ts` gap set is the 7 documented exclusions; 66 `lazyNamed()` calls (PollWidget resolves via `index.ts`). 0 new issues._
 
 _2026-11-05: Daily audit (Thursday). Branch merged with `origin/dev-paul` (rebase replay conflicted). `WidgetType` 69; `WIDGET_DEFAULTS` 69/69; `widgetGradeLevels.ts` 69/69; `WidgetRegistry.ts` covers all 69; `tools.ts` gap set is exactly the 7 documented exclusions; 66 `lazyNamed()` calls unchanged. 0 new issues._
 _2026-11-04: Daily audit (Wednesday). Merged `origin/dev-paul` (rebase conflicts on journals, so merged). `WidgetType` 69; `WIDGET_DEFAULTS` 69/69; `tools.ts` gap set is exactly the 7 documented exclusions plus `magic`/`record`/`remote`; `widgetGradeLevels.ts` 0 orphans; 66 `lazyNamed()` calls resolve (PollWidget via `export *` barrel). 0 new issues._
