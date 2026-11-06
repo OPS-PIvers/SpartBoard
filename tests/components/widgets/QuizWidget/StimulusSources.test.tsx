@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   ensureGoogleScope: vi.fn(),
   uploadFile: vi.fn(),
   makePublic: vi.fn(),
+  copyFile: vi.fn(),
   deleteFile: vi.fn(),
   showConfirm: vi.fn(),
   showAlert: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('@/hooks/useGoogleDrive', () => ({
     driveService: {
       uploadFile: mocks.uploadFile,
       makePublic: mocks.makePublic,
+      copyFile: mocks.copyFile,
       deleteFile: mocks.deleteFile,
     },
     userDomain: null,
@@ -103,8 +105,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   latest = [];
   mocks.ensureGoogleScope.mockResolvedValue('token');
-  mocks.showConfirm.mockResolvedValue(true);
   mocks.makePublic.mockResolvedValue(undefined);
+  mocks.copyFile.mockResolvedValue({ id: 'copy1' });
   mocks.uploadFile.mockResolvedValue({ id: 'up1' });
 });
 
@@ -119,7 +121,7 @@ describe('Stimuli tab sources', () => {
     expect(screen.getByPlaceholderText('Paste a link')).toBeInTheDocument();
   });
 
-  it('adds a Drive-picked image after sharing it', async () => {
+  it('adds a shared copy of a Drive-picked image without asking', async () => {
     mocks.openPicker.mockResolvedValue({
       id: 'drv1',
       name: 'Map.png',
@@ -134,29 +136,37 @@ describe('Stimuli tab sources', () => {
       mode: 'stimuli',
       token: 'token',
     });
-    expect(mocks.makePublic).toHaveBeenCalledWith('drv1', undefined);
+    expect(mocks.showConfirm).not.toHaveBeenCalled();
+    expect(mocks.copyFile).toHaveBeenCalledWith(
+      'drv1',
+      expect.stringContaining('Map.png'),
+      'Assets/QuizStimuli'
+    );
+    expect(mocks.makePublic).toHaveBeenCalledWith('copy1', undefined);
+    expect(mocks.makePublic).not.toHaveBeenCalledWith('drv1', undefined);
     expect(latest[0]).toMatchObject({
       type: 'image',
-      driveFileId: 'drv1',
+      driveFileId: 'copy1',
       label: 'Map.png',
-      url: 'https://drive.google.com/file/d/drv1/view',
+      url: 'https://drive.google.com/file/d/copy1/view',
     });
   });
 
-  it('adds nothing when the share prompt is declined', async () => {
+  it('keeps the original and warns when the picked file cannot be copied', async () => {
     mocks.openPicker.mockResolvedValue({
       id: 'drv1',
       name: 'Map.png',
       mimeType: 'image/png',
     });
-    mocks.showConfirm.mockResolvedValue(false);
+    mocks.copyFile.mockRejectedValue(new Error('403'));
     render(<Harness />);
     await userEvent.click(
       screen.getByRole('button', { name: 'Choose from Drive' })
     );
-    await waitFor(() => expect(mocks.showConfirm).toHaveBeenCalled());
+    await waitFor(() => expect(latest).toHaveLength(1));
+    expect(mocks.showAlert).toHaveBeenCalled();
     expect(mocks.makePublic).not.toHaveBeenCalled();
-    expect(latest).toHaveLength(0);
+    expect(latest[0]).toMatchObject({ driveFileId: 'drv1' });
   });
 
   it('adds a Drive-picked Google Doc as an embed', async () => {

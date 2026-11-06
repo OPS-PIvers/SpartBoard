@@ -466,20 +466,9 @@ const TeacherQuizWidget: React.FC<{
         return skip();
       }
 
-      // Asked once for the batch; the editor asks per file, which would be a
-      // dialog per picture on a test with a dozen diagrams.
-      const shared = await showConfirm(
-        `Students open pictures without signing in, so the ${images.length === 1 ? 'picture' : `${images.length} pictures`} in this test must be shared as "anyone with the link can view." Share and attach?`,
-        { title: 'Share the pictures?', confirmLabel: 'Share & attach' }
-      );
-      if (!shared) {
-        addToast('The quiz was created without the pictures.', 'info');
-        return skip();
-      }
-
       return attachImagesToQuiz(quiz, images, uploader);
     },
-    [driveService, stimulusUploader, showConfirm, addToast]
+    [driveService, stimulusUploader, addToast]
   );
 
   const {
