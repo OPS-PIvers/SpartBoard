@@ -131,6 +131,8 @@ export interface QuizLiveMonitorProps {
   overridesByStudentUid?: Record<string, StudentOverride> | null;
   /** Write-once served language per uid; grades a de-targeted student's old work. */
   servedLanguageByStudentUid?: Record<string, string> | null;
+  /** The assignment's assign-stepper steps, shown in place on the settings screen. */
+  assignmentSettings?: React.ReactNode;
 }
 
 type Screen =
@@ -177,6 +179,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     localizedFibAnswers = null,
     overridesByStudentUid = null,
     servedLanguageByStudentUid = null,
+    assignmentSettings,
   } = props;
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
@@ -941,6 +944,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }
                 overridesBySourcedId={overridesBySourcedId}
                 targetRefKeyByStudentUid={data.targetRefKeyByStudentUid}
+                boardViewChip={!!assignmentSettings}
               />
             )}
           </div>
@@ -974,6 +978,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             hasNames={Object.keys(data.pinToName).length > 0}
             onUpdateSession={handleUpdateSession}
             onUpdateConfig={onUpdateConfig}
+            assignmentSettings={assignmentSettings}
           />
         )}
       </div>

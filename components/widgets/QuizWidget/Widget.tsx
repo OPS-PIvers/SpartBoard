@@ -714,6 +714,8 @@ const TeacherQuizWidget: React.FC<{
     useState<QuizAssignment | null>(null);
   const [editingAssignment, setEditingAssignment] =
     useState<QuizAssignment | null>(null);
+  // Bumped after the monitor's in-place settings save so the steps reload from the saved assignment.
+  const [inlineSettingsRev, setInlineSettingsRev] = useState(0);
   // Ephemeral modal state for the per-assignment "Publish Scores" picker.
   const [publishingAssignment, setPublishingAssignment] =
     useState<QuizAssignment | null>(null);
@@ -2409,6 +2411,140 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
+  // The live session's Tab warnings value wins, since the old monitor switch wrote only the session.
+  const withLiveTabWarnings = (a: QuizAssignment): QuizAssignment =>
+    liveSession?.id === a.id && liveSession.tabWarningsEnabled !== undefined
+      ? {
+          ...a,
+          sessionOptions: {
+            ...a.sessionOptions,
+            tabWarningsEnabled: liveSession.tabWarningsEnabled,
+          },
+        }
+      : a;
+  const renderAssignmentSettings = (
+    target: QuizAssignment,
+    inline: boolean
+  ) => (
+    <QuizAssignmentSettingsModal
+      assignment={withLiveTabWarnings(
+        assignments.find((a) => a.id === target.id) ?? target
+      )}
+      rosters={rosters}
+      canShareWithPlc={plcs.length > 0}
+      onShareResults={() => setSharePlcResultsTarget(target)}
+      onStopSharing={() => handleStopSharingPlc(target)}
+      inline={inline}
+      onClose={() => {
+        // Inline, onClose runs only after a save; reload the steps from the saved assignment.
+        if (inline) setInlineSettingsRev((n) => n + 1);
+        else setEditingAssignment(null);
+      }}
+      onSave={async (patch) => {
+        try {
+          // Class targeting must be dual-written to BOTH the assignment
+          // doc AND the live session doc (rosterIds/classIds/classId/
+          // classPeriodByClassId) so SSO + PIN join keep working after an
+          // edit — `updateAssignmentSettings` only mirrors periodNames to
+          // the session doc, which would leave `sessionData.rosterIds`
+          // stale and break `pinLoginV1`. Route targeting through
+          // `setAssignmentRosters` (the same dual-write the create flow
+          // uses), and send the remaining settings through
+          // `updateAssignmentSettings`.
+          // Destructure (rather than delete) so `settingsPatch` is
+          // type-narrowed to exclude the targeting fields — a future
+          // targeting field added to the patch can't silently leak into
+          // `updateAssignmentSettings`.
+          const {
+            rosterIds,
+            periodName: _periodName,
+            periodNames: _periodNames,
+            periodAccessRows,
+            ...settingsPatch
+          } = patch;
+          // These are two separate writeBatch.commit()s, not one
+          // transaction. To keep the non-atomic window benign, apply the
+          // secondary settings FIRST and the class targeting LAST. Targeting
+          // (rosterIds/classIds on the session doc, which pinLoginV1 + SSO
+          // join read) moves as a single all-or-nothing batch inside
+          // setAssignmentRosters, so if its commit fails the assignment
+          // keeps its prior targeting intact — students still join with the
+          // old classes — and the modal stays open for retry. The only
+          // residual inconsistency is updated settings against old
+          // targeting, which is harmless. Folding both into one batch
+          // (a combined hook method) is a tracked follow-up.
+          if (Object.keys(settingsPatch).length > 0) {
+            await updateAssignmentSettings(
+              target.id,
+              settingsPatch,
+              settingsPatch.dueAtByRosterId
+                ? dueAtByClassIdFromRosters(
+                    settingsPatch.dueAtByRosterId,
+                    rosters
+                  )
+                : undefined
+            );
+          }
+          if (rosterIds !== undefined) {
+            const selectedRosterIds = new Set(rosterIds);
+            const targets = deriveSessionTargetsFromRosters(
+              rosters.filter((r) => selectedRosterIds.has(r.id))
+            );
+            // Per-period rows ride the targeting batch so a class and its row move together.
+            const removedRosterNames = rosters
+              .filter(
+                (r) =>
+                  (target.rosterIds ?? []).includes(r.id) &&
+                  !selectedRosterIds.has(r.id)
+              )
+              .map((r) => r.name);
+            await setAssignmentRosters(
+              target.id,
+              targets,
+              periodAccessRows,
+              removedRosterNames
+            );
+          }
+          addToast('Assignment settings saved.', 'success');
+          if (!inline) setEditingAssignment(null);
+        } catch (err) {
+          addToast(
+            err instanceof Error ? err.message : 'Failed to save settings',
+            'error'
+          );
+          // Re-throw so the modal's handleAssign sees the failure and
+          // skips its onClose() — keeping the modal open with the
+          // user's edits intact so they can retry. Without this,
+          // toast appears, modal disappears, edits are lost.
+          throw err;
+        }
+      }}
+    />
+  );
+  const sharePlcResultsModal = sharePlcResultsTarget ? (
+    <SharePlcResultsModal
+      plcs={plcs}
+      assignment={{
+        id: sharePlcResultsTarget.id,
+        quizId: sharePlcResultsTarget.quizId,
+        quizTitle: sharePlcResultsTarget.quizTitle,
+        syncGroupId: sharePlcResultsTarget.sync?.groupId,
+      }}
+      onClose={() => setSharePlcResultsTarget(null)}
+      onConfirm={async (plc, poolSyncGroupId) => {
+        await shareAssignmentWithPlc(sharePlcResultsTarget.id, {
+          plc,
+          poolSyncGroupId,
+        });
+        addToast(`Results now pool with ${plc.name}.`, 'success');
+        setSharePlcResultsTarget(null);
+      }}
+    />
+  ) : null;
+  const assignmentSettingsModal = editingAssignment
+    ? renderAssignmentSettings(editingAssignment, false)
+    : null;
+
   if (view === 'monitor' && liveSession) {
     // M17 E2 F2: resolve the active assignment's per-student overrides so
     // RosterList can honor per-student tab-warning-threshold accommodations.
@@ -2482,89 +2618,103 @@ const TeacherQuizWidget: React.FC<{
       );
     }
     return (
-      <QuizLiveMonitor
-        widgetId={widget.id}
-        session={liveSession}
-        responses={responses}
-        quizData={loadedQuizData}
-        onAdvance={async () => {
-          await advanceQuestion();
-        }}
-        onEnd={async () => {
-          // "End" now deactivates at the assignment level so the URL
-          // dies but responses are preserved. Confirmation happens inside
-          // QuizLiveMonitor.
-          const assignmentId = config.activeAssignmentId;
-          if (assignmentId) {
-            await deactivateAssignment(assignmentId);
-          } else {
-            await endQuizSession();
+      <>
+        <QuizLiveMonitor
+          widgetId={widget.id}
+          session={liveSession}
+          responses={responses}
+          quizData={loadedQuizData}
+          onAdvance={async () => {
+            await advanceQuestion();
+          }}
+          onEnd={async () => {
+            // "End" now deactivates at the assignment level so the URL
+            // dies but responses are preserved. Confirmation happens inside
+            // QuizLiveMonitor.
+            const assignmentId = config.activeAssignmentId;
+            if (assignmentId) {
+              await deactivateAssignment(assignmentId);
+            } else {
+              await endQuizSession();
+            }
+            updateWidget(widget.id, {
+              config: {
+                ...config,
+                view: 'manager',
+                managerTab: 'archive',
+              },
+            });
+          }}
+          onPause={
+            config.activeAssignmentId
+              ? async () => {
+                  const id = config.activeAssignmentId;
+                  if (!id) return;
+                  await pauseAssignment(id);
+                  addToast('Assignment paused.', 'success');
+                }
+              : undefined
           }
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'manager',
-              managerTab: 'archive',
-            },
-          });
-        }}
-        onPause={
-          config.activeAssignmentId
-            ? async () => {
-                const id = config.activeAssignmentId;
-                if (!id) return;
-                await pauseAssignment(id);
-                addToast('Assignment paused.', 'success');
-              }
-            : undefined
-        }
-        onResume={
-          config.activeAssignmentId
-            ? async () => {
-                const id = config.activeAssignmentId;
-                if (!id) return;
-                await resumeAssignment(id);
-                addToast('Assignment resumed.', 'success');
-              }
-            : undefined
-        }
-        config={config}
-        rosters={rosters}
-        assessmentOnly={liveAssessmentOnly}
-        hideLiveScoreboard={quizDropsScoreboard}
-        liveScoreboardLink={liveScoreboardLink}
-        onUpdateConfig={handleUpdateQuizConfig}
-        onRemoveStudent={removeStudent}
-        onUnlockStudent={unlockStudentAttempt}
-        onSubmitForStudent={canSubmitForStudent ? submitForStudent : undefined}
-        onUnlockResultsForStudent={unlockResultsForStudent}
-        onClearHand={clearHandForStudent}
-        onRevealAnswer={revealAnswer}
-        onHideAnswer={hideAnswer}
-        onBack={() => {
-          // Navigate back to the In Progress tab without ending the quiz.
-          // The assignment stays active/paused — students are unaffected.
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'manager',
-              managerTab: 'active',
-            },
-          });
-        }}
-        overridesBySourcedId={
-          monitorActiveAssignment?.overridesBySourcedId ?? null
-        }
-        overridesByStudentUid={
-          monitorActiveAssignment?.overridesByStudentUid ?? null
-        }
-        servedLanguageByStudentUid={
-          monitorActiveAssignment?.servedLanguageByStudentUid ?? null
-        }
-        localizedFibAnswers={
-          monitorActiveAssignment?.localizedFibAnswers ?? null
-        }
-      />
+          onResume={
+            config.activeAssignmentId
+              ? async () => {
+                  const id = config.activeAssignmentId;
+                  if (!id) return;
+                  await resumeAssignment(id);
+                  addToast('Assignment resumed.', 'success');
+                }
+              : undefined
+          }
+          config={config}
+          rosters={rosters}
+          assessmentOnly={liveAssessmentOnly}
+          hideLiveScoreboard={quizDropsScoreboard}
+          liveScoreboardLink={liveScoreboardLink}
+          onUpdateConfig={handleUpdateQuizConfig}
+          onRemoveStudent={removeStudent}
+          onUnlockStudent={unlockStudentAttempt}
+          onSubmitForStudent={
+            canSubmitForStudent ? submitForStudent : undefined
+          }
+          onUnlockResultsForStudent={unlockResultsForStudent}
+          onClearHand={clearHandForStudent}
+          onRevealAnswer={revealAnswer}
+          onHideAnswer={hideAnswer}
+          onBack={() => {
+            // Navigate back to the In Progress tab without ending the quiz.
+            // The assignment stays active/paused — students are unaffected.
+            updateWidget(widget.id, {
+              config: {
+                ...config,
+                view: 'manager',
+                managerTab: 'active',
+              },
+            });
+          }}
+          overridesBySourcedId={
+            monitorActiveAssignment?.overridesBySourcedId ?? null
+          }
+          overridesByStudentUid={
+            monitorActiveAssignment?.overridesByStudentUid ?? null
+          }
+          servedLanguageByStudentUid={
+            monitorActiveAssignment?.servedLanguageByStudentUid ?? null
+          }
+          localizedFibAnswers={
+            monitorActiveAssignment?.localizedFibAnswers ?? null
+          }
+          assignmentSettings={
+            monitorActiveAssignment &&
+            getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz' ? (
+              <React.Fragment key={inlineSettingsRev}>
+                {renderAssignmentSettings(monitorActiveAssignment, true)}
+              </React.Fragment>
+            ) : undefined
+          }
+        />
+        {assignmentSettingsModal}
+        {sharePlcResultsModal}
+      </>
     );
   }
 
@@ -4003,98 +4153,7 @@ const TeacherQuizWidget: React.FC<{
           onResolve={resolveSyncConflict}
         />
       )}
-      {editingAssignment && (
-        <QuizAssignmentSettingsModal
-          assignment={
-            assignments.find((a) => a.id === editingAssignment.id) ??
-            editingAssignment
-          }
-          rosters={rosters}
-          canShareWithPlc={plcs.length > 0}
-          onShareResults={() => setSharePlcResultsTarget(editingAssignment)}
-          onStopSharing={() => handleStopSharingPlc(editingAssignment)}
-          onClose={() => setEditingAssignment(null)}
-          onSave={async (patch) => {
-            try {
-              // Class targeting must be dual-written to BOTH the assignment
-              // doc AND the live session doc (rosterIds/classIds/classId/
-              // classPeriodByClassId) so SSO + PIN join keep working after an
-              // edit — `updateAssignmentSettings` only mirrors periodNames to
-              // the session doc, which would leave `sessionData.rosterIds`
-              // stale and break `pinLoginV1`. Route targeting through
-              // `setAssignmentRosters` (the same dual-write the create flow
-              // uses), and send the remaining settings through
-              // `updateAssignmentSettings`.
-              // Destructure (rather than delete) so `settingsPatch` is
-              // type-narrowed to exclude the targeting fields — a future
-              // targeting field added to the patch can't silently leak into
-              // `updateAssignmentSettings`.
-              const {
-                rosterIds,
-                periodName: _periodName,
-                periodNames: _periodNames,
-                periodAccessRows,
-                ...settingsPatch
-              } = patch;
-              // These are two separate writeBatch.commit()s, not one
-              // transaction. To keep the non-atomic window benign, apply the
-              // secondary settings FIRST and the class targeting LAST. Targeting
-              // (rosterIds/classIds on the session doc, which pinLoginV1 + SSO
-              // join read) moves as a single all-or-nothing batch inside
-              // setAssignmentRosters, so if its commit fails the assignment
-              // keeps its prior targeting intact — students still join with the
-              // old classes — and the modal stays open for retry. The only
-              // residual inconsistency is updated settings against old
-              // targeting, which is harmless. Folding both into one batch
-              // (a combined hook method) is a tracked follow-up.
-              if (Object.keys(settingsPatch).length > 0) {
-                await updateAssignmentSettings(
-                  editingAssignment.id,
-                  settingsPatch,
-                  settingsPatch.dueAtByRosterId
-                    ? dueAtByClassIdFromRosters(
-                        settingsPatch.dueAtByRosterId,
-                        rosters
-                      )
-                    : undefined
-                );
-              }
-              if (rosterIds !== undefined) {
-                const selectedRosterIds = new Set(rosterIds);
-                const targets = deriveSessionTargetsFromRosters(
-                  rosters.filter((r) => selectedRosterIds.has(r.id))
-                );
-                // Per-period rows ride the targeting batch so a class and its row move together.
-                const removedRosterNames = rosters
-                  .filter(
-                    (r) =>
-                      (editingAssignment.rosterIds ?? []).includes(r.id) &&
-                      !selectedRosterIds.has(r.id)
-                  )
-                  .map((r) => r.name);
-                await setAssignmentRosters(
-                  editingAssignment.id,
-                  targets,
-                  periodAccessRows,
-                  removedRosterNames
-                );
-              }
-              addToast('Assignment settings saved.', 'success');
-              setEditingAssignment(null);
-            } catch (err) {
-              addToast(
-                err instanceof Error ? err.message : 'Failed to save settings',
-                'error'
-              );
-              // Re-throw so the modal's handleAssign sees the failure and
-              // skips its onClose() — keeping the modal open with the
-              // user's edits intact so they can retry. Without this,
-              // toast appears, modal disappears, edits are lost.
-              throw err;
-            }
-          }}
-        />
-      )}
+      {assignmentSettingsModal}
       {publishingAssignment && (
         <PublishScoresModal
           assignmentTitle={publishingAssignment.quizTitle}
@@ -4388,26 +4447,7 @@ const TeacherQuizWidget: React.FC<{
             />
           );
         })()}
-      {sharePlcResultsTarget && (
-        <SharePlcResultsModal
-          plcs={plcs}
-          assignment={{
-            id: sharePlcResultsTarget.id,
-            quizId: sharePlcResultsTarget.quizId,
-            quizTitle: sharePlcResultsTarget.quizTitle,
-            syncGroupId: sharePlcResultsTarget.sync?.groupId,
-          }}
-          onClose={() => setSharePlcResultsTarget(null)}
-          onConfirm={async (plc, poolSyncGroupId) => {
-            await shareAssignmentWithPlc(sharePlcResultsTarget.id, {
-              plc,
-              poolSyncGroupId,
-            });
-            addToast(`Results now pool with ${plc.name}.`, 'success');
-            setSharePlcResultsTarget(null);
-          }}
-        />
-      )}
+      {sharePlcResultsModal}
       {shareWithPlcTargets.length > 0 && (
         <PlcShareTargetModal
           plcs={plcs}

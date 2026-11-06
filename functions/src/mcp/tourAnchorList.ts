@@ -17167,6 +17167,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.roster-board-view",
+    "label": "Board view toggle chip in the Quiz monitor roster",
+    "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.roster-proficiency",
     "label": "Proficiency colors toggle chip in the Quiz monitor roster",
     "scope": "widget type",
@@ -49000,6 +49023,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.monitor-settings",
+    "label": "Settings button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "video-activity.monitor-question-result",
     "label": "Question result row in the video activity monitor",
     "scope": "field",
@@ -64332,6 +64374,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student status bucket button in the Flashcards monitor",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.monitor-settings",
+    "label": "Settings button in the Flashcards monitor footer",
+    "scope": "widget type",
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.results",

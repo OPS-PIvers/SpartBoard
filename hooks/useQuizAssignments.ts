@@ -2209,9 +2209,11 @@ export const useQuizAssignments = (
           ...assignmentsRef.current.find((a) => a.id === assignmentId)
             ?.sessionOptions,
         };
+        // Tab warnings always mirror: the monitor once wrote it to the session alone, so the two can differ.
         const changed = Object.fromEntries(
           Object.entries(patch.sessionOptions).filter(
-            ([key, value]) => prevOptions[key] !== value
+            ([key, value]) =>
+              prevOptions[key] !== value || key === 'tabWarningsEnabled'
           )
         ) as QuizSessionOptions;
         Object.assign(

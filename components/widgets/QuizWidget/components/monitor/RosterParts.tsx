@@ -27,7 +27,7 @@ const QUIZ_TOOLBAR_ANCHORS: RosterToolbarAnchors = {
   filter: tourTypeAttr('quiz-monitor.roster-filter', 'quiz'),
 };
 
-const ToggleChip: React.FC<{
+export const ToggleChip: React.FC<{
   label: string;
   on: boolean;
   onToggle: () => void;
@@ -59,6 +59,8 @@ export const RosterToolbar: React.FC<{
   /** False drops the Left quiz tab filter where tabs are never tracked; Quiz keeps it so a saved choice still shows. */
   tabsFilter?: boolean;
   anchors?: RosterToolbarAnchors;
+  /** Leading chips this list adds, e.g. Quiz's Board view. */
+  leading?: React.ReactNode;
 }> = ({
   bucket,
   prefs,
@@ -67,6 +69,7 @@ export const RosterToolbar: React.FC<{
   scoreSwitches = true,
   tabsFilter = true,
   anchors = QUIZ_TOOLBAR_ANCHORS,
+  leading,
 }) => {
   const sortBy: MonitorSortBy = prefs.monitorSortBy ?? 'first';
   const filterBy: MonitorFilterBy = prefs.monitorFilterBy ?? 'all';
@@ -75,6 +78,7 @@ export const RosterToolbar: React.FC<{
       className="flex flex-wrap items-center"
       style={{ gap: 'min(6px, 1.5cqmin)' }}
     >
+      {leading}
       {scoreSwitches && bucket === 'done' && (
         <ToggleChip
           label="Scores"

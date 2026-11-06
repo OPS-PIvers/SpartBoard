@@ -4108,6 +4108,10 @@ export const TOUR_ANCHORS = {
     label: 'Tab warnings toggle chip in the Quiz monitor roster',
     perWidgetType: true,
   },
+  'quiz-monitor.roster-board-view': {
+    label: 'Board view toggle chip in the Quiz monitor roster',
+    perWidgetType: true,
+  },
   'quiz-monitor.roster-proficiency': {
     label: 'Proficiency colors toggle chip in the Quiz monitor roster',
     perWidgetType: true,
@@ -11081,6 +11085,10 @@ export const TOUR_ANCHORS = {
     label: 'Question results button in the video activity monitor',
     perWidgetType: true,
   },
+  'video-activity.monitor-settings': {
+    label: 'Settings button in the video activity monitor',
+    perWidgetType: true,
+  },
   'video-activity.monitor-question-result': {
     label: 'Question result row in the video activity monitor',
     perField: true,
@@ -14478,6 +14486,10 @@ export const TOUR_ANCHORS = {
     label: 'Student status bucket button in the Flashcards monitor',
     perField: true,
     panel: true,
+  },
+  'flashcards.monitor-settings': {
+    label: 'Settings button in the Flashcards monitor footer',
+    perWidgetType: true,
   },
   'flashcards.card-results': {
     label: 'Card results button in the Flashcards monitor',

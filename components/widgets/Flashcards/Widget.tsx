@@ -800,6 +800,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onUpdateMonitorPrefs={(updates) =>
                   updateWidget(widget.id, { config: updates })
                 }
+                onEditSettings={() => setSettingsTarget(openResults)}
               />
             ) : view === 'present' && presentSet ? (
               inShare ? (
