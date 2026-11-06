@@ -47,6 +47,8 @@ interface OrderingResponseInputProps {
   light?: boolean;
   /** D8 speaker beside every item; absent when read-aloud is off. */
   readAloud?: ReadAloudItemControls;
+  /** False keeps the word bank below the list, for narrow hosts like the review game. */
+  sideBank?: boolean;
 }
 
 const BANK_ID = '__bank__';
@@ -270,8 +272,10 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
   disabled,
   light,
   readAloud,
+  sideBank = true,
 }) => {
   const { t } = useTranslation();
+  const side = sideBank && hasSideBank(question);
   const speaker = (text: string) =>
     readAloud ? (
       <ReadAloudButton
@@ -485,9 +489,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
       collisionDetection={rectIntersection}
       onDragEnd={handleDragEnd}
     >
-      <div
-        className={`space-y-4 ${hasSideBank(question) ? SIDE_BANK_WRAPPER : ''}`}
-      >
+      <div className={`space-y-4 ${side ? SIDE_BANK_WRAPPER : ''}`}>
         <div className="space-y-2">
           {slots.map((slot, i) => {
             const label =
@@ -520,7 +522,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
           })}
         </div>
 
-        <BankDropZone light={light} side={hasSideBank(question)}>
+        <BankDropZone light={light} side={side}>
           <div className="flex items-center justify-between mb-2">
             <span
               className={`text-xs uppercase tracking-wider font-bold ${light ? 'text-slate-500' : 'text-slate-400'}`}

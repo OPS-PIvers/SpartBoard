@@ -2579,6 +2579,7 @@ const TeacherQuizWidget: React.FC<{
             behavior={studentView.behavior}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
             hideRubricUnlessShown={canAccessFeature('quiz-rubric-visibility')}
+            orderingListOn={canAccessFeature('quiz-ordering-list')}
             onExit={() => setStudentView(null)}
           />
         </Suspense>

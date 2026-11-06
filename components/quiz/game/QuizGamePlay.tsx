@@ -854,6 +854,7 @@ const GameQuestion: React.FC<{
           onChange={onDraft}
           disabled={submitting}
           light
+          sideBank={false}
         />
       )}
       {question.type === 'Ordering' && (
@@ -863,6 +864,7 @@ const GameQuestion: React.FC<{
           onChange={onDraft}
           disabled={submitting}
           light
+          sideBank={false}
         />
       )}
 

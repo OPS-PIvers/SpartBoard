@@ -81,15 +81,20 @@ function useStimulusIntake(state: QuizEditorController) {
   const shareCopy = useCallback(
     async (fileId: string, name: string): Promise<string | null> => {
       if (!driveService) return null;
+      let copyId: string | null = null;
       try {
         const copy = await driveService.copyFile(
           fileId,
           `stimulus-${Date.now()}-${name.replace(/[^\w.-]+/g, '_')}`,
           'Assets/QuizStimuli'
         );
+        copyId = copy.id;
         await driveService.makePublic(copy.id, undefined);
         return copy.id;
       } catch {
+        // Don't leave a private copy behind when sharing it failed.
+        if (copyId)
+          await driveService.deleteFile(copyId).catch(() => undefined);
         await showAlert(
           "Couldn't update sharing (you may not own this file). Make sure it's set to \"anyone with the link\" in Drive, or students won't see it.",
           { variant: 'warning' }

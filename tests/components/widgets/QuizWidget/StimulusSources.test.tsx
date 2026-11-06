@@ -169,6 +169,23 @@ describe('Stimuli tab sources', () => {
     expect(latest[0]).toMatchObject({ driveFileId: 'drv1' });
   });
 
+  it('deletes the copy when sharing it fails', async () => {
+    mocks.openPicker.mockResolvedValue({
+      id: 'drv1',
+      name: 'Map.png',
+      mimeType: 'image/png',
+    });
+    mocks.makePublic.mockRejectedValue(new Error('403'));
+    mocks.deleteFile.mockResolvedValue(undefined);
+    render(<Harness />);
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Choose from Drive' })
+    );
+    await waitFor(() => expect(latest).toHaveLength(1));
+    expect(mocks.deleteFile).toHaveBeenCalledWith('copy1');
+    expect(latest[0]).toMatchObject({ driveFileId: 'drv1' });
+  });
+
   it('adds a Drive-picked Google Doc as an embed', async () => {
     mocks.openPicker.mockResolvedValue({
       id: 'doc1',
