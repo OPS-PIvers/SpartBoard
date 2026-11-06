@@ -13,6 +13,7 @@ describe('Google Picker stacking', () => {
     'mathKeyboard',
     'mathKeyboardPopup',
     'quizLockOverlay',
+    'quizLockTop',
     'viewAsBanner',
     'cursor',
   ] as const;

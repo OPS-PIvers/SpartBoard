@@ -1,5 +1,11 @@
 // A MathLive equation box whose value is plain math text, e.g. "(x+1)/2".
-import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Loader2 } from 'lucide-react';
 import type { MathfieldElement } from 'mathlive';
 import { tidyAsciiMath } from '@/utils/mathAnswer';
@@ -112,10 +118,18 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
       });
     return () => {
       cancelled = true;
-      // A field removed while focused never fires the blur that hides the keyboard.
-      if (mf?.hasFocus()) window.mathVirtualKeyboard.hide();
       mf?.remove();
       fieldRef.current = null;
+    };
+  }, []);
+
+  // A field removed while focused never fires the blur that hides the keyboard; check before the DOM goes.
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    return () => {
+      if (host?.querySelector<MathfieldElement>('math-field')?.hasFocus()) {
+        window.mathVirtualKeyboard.hide();
+      }
     };
   }, []);
 
