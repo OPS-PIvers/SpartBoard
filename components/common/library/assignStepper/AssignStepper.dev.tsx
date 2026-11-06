@@ -37,6 +37,7 @@ const VALUES: Record<AssignStepId, string> = {
   cards: 'All 24 cards',
   speak: 'On',
   sheets: '2 spares, answer key',
+  written: 'On paper, 3 questions',
   sharing: 'Not shared',
 };
 

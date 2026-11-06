@@ -238,6 +238,8 @@ export interface CreateAssignmentOptions extends AudienceSessionFields {
   initialStatus?: QuizAssignmentStatus;
   /** Assigned on paper: marks the assignment and links the printed stack it imports from. */
   paperBatchId?: string;
+  /** Device assignment whose written questions print on this written-answers-only stack. */
+  paperWritten?: { batchId: string; questionIds: string[] };
   /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
   widgetKind?: QuizWidgetKind;
   /** Review game length (plan D22); only written for `sessionMode: 'game'`. */
@@ -1446,6 +1448,7 @@ export const useQuizAssignments = (
         widgetKind,
         gameDurationMs,
         paperBatchId,
+        paperWritten,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
@@ -1552,6 +1555,13 @@ export const useQuizAssignments = (
           : {}),
         ...(perPeriod ? { accessMode, periodAccess } : {}),
         ...(paperBatchId ? { paper: true as const, paperBatchId } : {}),
+        ...(paperWritten && !paperBatchId
+          ? {
+              writtenOnPaper: true as const,
+              paperBatchId: paperWritten.batchId,
+              paperWrittenQuestionIds: paperWritten.questionIds,
+            }
+          : {}),
         ...audienceSessionFields(options?.audience),
       };
 
@@ -1726,6 +1736,9 @@ export const useQuizAssignments = (
         ...(openAt != null && !perPeriod ? { openAt } : {}),
         ...(closeAt != null && !perPeriod ? { closeAt } : {}),
         ...(workKind ? { workKind } : {}),
+        ...(paperWritten && !paperBatchId
+          ? { paperWrittenQuestionIds: paperWritten.questionIds }
+          : {}),
         // /my-assignments reads the due date off the SESSION doc for class-wide
         // students, so mirror it here alongside the window (the archive doc
         // above already carries it).
