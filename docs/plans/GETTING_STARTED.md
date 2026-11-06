@@ -1,6 +1,6 @@
 # Getting Started: replace new-teacher onboarding with Live tours
 
-Grilled and settled with Paul on 2026-11-06. Not built. A short probe (P0), six PRs to `dev-paul` behind `getting-started` (P1-P6), the tours written as data on dev (P7), a prod test on Paul's account, and a final PR that deletes the old flow once the flag is open (P8).
+Grilled and settled with Paul on 2026-11-06. P0 is done (results below, D19 revised, D31 added); nothing else is built. Six PRs to `dev-paul` behind `getting-started` (P1-P6), the tours written as data on dev (P7), a prod test on Paul's account, and a final PR that deletes the old flow once the flag is open (P8).
 
 Terms (Live tour, Getting Started, Essentials, Next steps, Sparty, Team) are defined in [GLOSSARY.md](../../GLOSSARY.md).
 
@@ -10,12 +10,13 @@ A new teacher is walked through real setup by Sparty on the real app instead of 
 
 ## Current-state facts the design builds on
 
-Read from the code on 2026-11-06 unless marked otherwise. No behavior here was reproduced in a running app.
+Read from the code on 2026-11-06 unless marked otherwise. P0 tested the wizard, the board's color and the Drive flow live; see its results.
 
 - **Wizard.** `App.tsx:765` shows `NewUserSetup` once `activeDashboard` exists. Its steps are buildings, style and dock (`components/auth/NewUserSetup.tsx:163`), with 12 default dock tools (`:51`). Finishing writes `dockItems`, `dockInitialized` and `setupCompleted` (`:217`).
-- **Likely reason it "never works".** `context/DashboardContext.tsx:2796` creates "My First Board" for an account with no boards. The returning-user probe treats any dashboard as proof of setup and silently writes `setupCompleted: true` (`context/AuthContext.tsx:2158-2181`), and a test locks in that rule (`tests/context/AuthContext.setupCompleted.test.tsx:273`). A profile doc lacking the field (`:1958`) and an existing Drive app folder (`:2230`) also count as complete.
+- **Why it "never works" (reload path reproduced in P0).** `context/DashboardContext.tsx:2796` creates "My First Board" for an account with no boards. The returning-user probe treats any dashboard as proof of setup and silently writes `setupCompleted: true` (`context/AuthContext.tsx:2158-2181`), and a test locks in that rule (`tests/context/AuthContext.setupCompleted.test.tsx:273`). A profile doc lacking the field (`:1958`) and an existing Drive app folder (`:2230`) also count as complete.
 - **Checklist widget.** `components/layout/DashboardView.tsx:450-472` adds type `onboarding` when every board is empty and `localStorage.spart_onboarding_shown` is unset, so it is tracked per device. Config is only `{completedTasks: []}`.
 - **Default background.** `DEFAULT_BOARD_BACKGROUND` (`config/backgrounds.ts:2`) has been near-white `bg-brand-gray-lightest` since #3559 (2026-09-28), on `main` too. It is copied to `functions/src/mcp/boardBackgrounds.gen.ts` and assigned at `DashboardContext.tsx:2799` and `:4791`, `CreateFromTemplateModal.tsx:99` and `boardWrite.ts:1196`, `:1303`. `admin_backgrounds` holds presets with access level and `buildingIds`; no admin-set default exists.
+- **Why the board looks dark.** A `bg-black/10` overlay covers every background (`components/layout/DashboardView.tsx:1763`), so `#f3f3f3` renders as about `#dbdbdb`.
 - **Live tours.**
   - A tour is a Guided Learning set with `mode: 'tour'`, published to `building_guided_learning_tours/{setId}` (`components/tours/publishedTours.ts`).
   - `requestStartTour` (`tourState.ts:16`) starts one, and `/help/{itemId}` auto-runs it.
@@ -25,7 +26,7 @@ Read from the code on 2026-11-06 unless marked otherwise. No behavior here was r
   - `useCanRunLiveTour.ts` blocks phone widths.
 - **Engine gaps.** Nothing today covers waiting on a result, per-step skip or permission conditions, tour chaining, teacher-readable progress, drag steps or resize anchors.
 - **Sparty.** Code-defined 32x32 pixel grids with six poses (`idle`, `wave`, `point`, `cheer`, `think`, `oops`, `components/sparty/spartyFrames.ts:27`). He appears in tour dialogs but not tips (`LiveTourRunner.tsx:2082`). `useShowSparty` needs `spartyEnabled` and the `sparty` flag, which is admin-level (`config/featureDefaults.ts:988`, PT-25).
-- **Drive.** `connectGoogleDrive` (`AuthContext.tsx:900`) tries silent GIS first, which never yields a refresh token. `captureOfflineGrant` (`:925`) runs the code flow and already returns an access token as well, but only `DriveOfflineGrantCard` calls it. `hasRefreshToken: false` means Google withheld the refresh leg. `DriveDisconnectBanner` is the alert teachers see (`App.tsx:797-798`). Rosters are saved as files in the teacher's Drive (`hooks/useRosters.ts`).
+- **Drive.** Google sign-in requests `drive.file` (`config/firebase.ts:97`), so a new teacher has a Drive access token right after signing in, with no refresh token. `connectGoogleDrive` (`AuthContext.tsx:900`) tries silent GIS first, which never yields a refresh token. `captureOfflineGrant` (`:925`) runs the code flow, and only `DriveOfflineGrantCard` calls it. `hasRefreshToken: false` means Google withheld the refresh leg. The check that shows the card runs once per tab session and its result isn't saved (`:984`), and the card can't render under the wizard, so it misses a new teacher's first session. `DriveDisconnectBanner` is the alert teachers see (`App.tsx:797-798`). Rosters are saved as files in the teacher's Drive (`hooks/useRosters.ts`).
 - **Help Center.** A `getting-started` category exists (`helpCenter.ts:16`) and `HelpCopyLinkButton` makes `/r/` short links to `/help/{id}`. 21 tours exist on the connector project checked, including reusable "Import ClassLink Rosters", "Adjust your SpartBoard user settings", "Find help in SpartBoard" and "Class Rosters & Groups".
 - **Dev limits.** ClassLink and Schoology secrets are placeholders on `spartboard-dev`, so the Classes tour's live import and link can only be fully proven on prod.
 
@@ -55,7 +56,7 @@ Read from the code on 2026-11-06 unless marked otherwise. No behavior here was r
 | Tier       | Tour                 | Covers                                                                                     | Skipped when                                       | Checks off on                               |
 | ---------- | -------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------- |
 | Essentials | Profile              | Profile & Settings > Profile: buildings, grades, content areas                             | Buildings step: org has no buildings               | A building saved                            |
-| Essentials | Connect Drive        | One popup: connects and approves auto-reconnect (D19)                                      | Whole tour: external users                         | Drive connected with a stored refresh token |
+| Essentials | Connect Drive        | Approve staying connected to Drive (D19)                                                   | Whole tour: external users                         | Drive connected with a stored refresh token |
 | Essentials | Classes              | My Classes > Import from ClassLink, then link to Schoology                                 | ClassLink off for building; Schoology step per D12 | At least one class imported                 |
 | Essentials | Widgets              | Add a Timer, resize, drag, settings, behavior and style settings, minimize, restore, close | Nothing                                            | Tour finished                               |
 | Next steps | Behavior             | Close warnings, alignment guides, spell check, remote control, Sparty                      | Spell check and Sparty steps by their flags        | Tour finished                               |
@@ -75,7 +76,7 @@ Read from the code on 2026-11-06 unless marked otherwise. No behavior here was r
 
 ### Drive
 
-- **D19.** A first-time Connect, **in the tour and the sidebar**, is one Google popup through the code flow that connects and captures the refresh token. `DriveOfflineGrantCard` and `DriveDisconnectBanner` stay as the fallback for current teachers.
+- **D19 (revised after P0).** Sign-in already connects Drive, so the Connect Drive tour teaches **Approve on "Stay connected to Drive"**, which stores the refresh token. That makes two Google popups across sign-in and the tour, the second from a deliberate click. A teacher who skips the tour still gets the card. `DriveDisconnectBanner` stays as the fallback. A single sign-in that does both is a separate investigation, not part of this project. The original D19 assumed a first-time Connect that doesn't happen.
 
 ### Sparty
 
@@ -89,6 +90,7 @@ Read from the code on 2026-11-06 unless marked otherwise. No behavior here was r
 - **D24.** **Admins can set a default** per building or district. A template's own background still wins.
 - **D25.** When a teacher saves their first building, a first board still on the default switches to that building's default. A background they chose is never overwritten. With several buildings, the first listed wins.
 - **D26.** The checklist widget is **removed entirely**: no more seeding, gone from the Widget Library, copies stripped from existing boards, code deleted.
+- **D31 (added after P0).** The `bg-black/10` overlay is **removed everywhere**, so every background shows its true color. Existing boards get slightly brighter, which is why it's checked on a dark board and a photo before merging. It ships without a flag, as a styling change.
 
 ### Rollout and authoring
 
@@ -117,12 +119,18 @@ Paul can overrule these, and they're cheap to change.
 
 Each PR targets `dev-paul`. P1, P2 and P5 touch separate code; P4 needs P1, and P6 and P7 need the rest.
 
-### P0. Probe, no PR
+### P0. Probe, no PR (done 2026-11-06)
 
-1. On a fresh dev account, reproduce the wizard being suppressed. A true first-run reset deletes `/users/{uid}` recursively and the Auth user; check the sign-in provider first.
-2. Test one-popup Drive connect on that account and confirm a refresh token is stored.
+Run on `spartboard-dev` with `spartan.teacher@orono.k12.mn.us`, a Google account never used on dev, in the Browser pane on `localhost:3000`, once, from branch `student-list-retry`. The account isn't an org member on dev, so the wizard had no buildings step.
 
-If either result differs from the facts above, revise D3 or D19 before P1.
+- **Wizard: reload path reproduced.** First sign-in showed the wizard, with "My First Board" saved and no profile. Reloading without finishing removed the wizard for good, wrote `setupCompleted: true`, and added the checklist widget. **D3 stands.**
+- **First-session race: not reproduced.** This one run didn't lose it. It stays a reading of the code.
+- **Checklist.** Its task titles are close to invisible, white on a white card.
+- **Background.** Computed `#f3f3f3`, rendered about `#dbdbdb` through the overlay. **D31 added.**
+- **Drive.** The access token was stored right after sign-in. The card didn't appear after the reload until the once-per-session flag was cleared by hand. Approve then stored `private/googleAuth` with a refresh token. **D19 revised.**
+- **Not tested.** Google withholding the token after an earlier authorization. Whether this account had authorized the shared OAuth client before wasn't checked, and it did get a token.
+
+Prod counts, read-only, accounts created since 2026-08-01 with a Google profile: 12 of 52 Orono org members are setup-complete with no building, though the wizard requires one for members. That fits the wizard being skipped, but some may have joined the org after first sign-in or cleared their building later.
 
 ### P1. Flag, progress and the page
 
@@ -153,14 +161,13 @@ All opt-in per step, so existing tours don't change.
 
 - The first-board marker and welcome (D1, D3, D5), and phone wait (D6).
 - Under the flag, skip `NewUserSetup` and the checklist seed.
-- Quiet start (D7).
+- Quiet start (D7), which holds the Drive card except while the Connect Drive tour needs it.
+- Keep the Drive check's result across a reload, so the card isn't lost for the rest of a session (D19). This fix isn't specific to new teachers, so it ships without the flag.
 - A teacher's flag isn't known until role and permissions resolve, so the app must wait for that before it picks a flow. A brand-new teacher should never see the wizard flash.
 
-### P5. Drive one popup and backgrounds
+### P5. Backgrounds
 
-These are unrelated and can split into two PRs.
-
-- First-time Connect goes straight to the code flow (D19), gated by `getting-started`.
+- Remove the overlay (D31), checking a dark board and a photo.
 - Snowy as `DEFAULT_BOARD_BACKGROUND`, regenerating `boardBackgrounds.gen.ts`. It is a styling change, exempt from the flag.
 - Admin defaults per building and district, and the first-building swap (D24, D25).
 
@@ -188,7 +195,7 @@ Run with the `spartboard` skill's live-tour guide, using the dev connector.
 
 - **Tour engine size.** P2 is the largest piece and everything teachers feel depends on it. Build it against the Widgets and Board navigation tours, which are the hardest.
 - **Real actions on replay.** A veteran replaying the board tour has real boards at stake, so Remove must only touch what that run created.
-- **Google withholding the refresh token.** An earlier authorization can make Google skip the refresh leg, so a teacher who tried Drive before may still land on the fallback card.
+- **Google withholding the refresh token.** An earlier authorization can make Google skip the refresh leg, so a teacher who tried Drive before may not end up with a token even after Approve. P0 didn't test this case. The Connect Drive step needs an honest path for it, since its check-off depends on the token.
 - **Firestore rules.** Rules are near their compiled size cap. Prefer existing profile paths, and run `node scripts/releaseFirestoreRules.mjs spartboard-dev` for any rules change.
 - **Open tabs at release.** At the `main` release, rules and functions must tolerate a tab running the previous client.
 - **Snowy on projectors.** Pale gradients can wash out; if it fails the classroom check, fall back to the flat brand tint (option B from the grill).
