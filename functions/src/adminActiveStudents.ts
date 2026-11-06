@@ -29,11 +29,10 @@ const PAGE_LIMIT = 200;
 const MAX_PAGES = 10;
 const API_TIMEOUT_MS = 20000;
 const QUERY_CONCURRENCY = 8;
-// The browser gives up on a callable after 70s, so every lookup stops well before that.
+// Lookups stop starting new work at these marks so the call returns inside the client's 110s timeout.
 const NAME_LOOKUP_BUDGET_MS = 45000;
-const QUERY_BUDGET_MS = 35000;
+const QUERY_BUDGET_MS = 45000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const PARTIAL_CACHE_TTL_MS = 60 * 1000;
 const NAME_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const ORG_WIDE_ROLE_IDS = new Set(['super_admin', 'domain_admin']);
 
@@ -313,6 +312,7 @@ interface ActiveStudentsResult {
 // Per-instance caches so reopening the modal doesn't repeat the full fan-out, and names found by an unfinished walk carry over.
 const resultCache = new Map<string, ActiveStudentsResult>();
 const nameCache = new Map<string, { name: string; at: number }>();
+const inFlight = new Map<string, Promise<ActiveStudentsResult>>();
 
 async function assertOrgWideAdmin(
   db: admin.firestore.Firestore,
@@ -402,55 +402,69 @@ export const getActiveStudentsV1 = onCall(
 
     const now = Date.now();
     const cached = resultCache.get(orgId);
-    if (
-      cached &&
-      now - cached.asOf < (cached.partial ? PARTIAL_CACHE_TTL_MS : CACHE_TTL_MS)
-    )
-      return cached;
+    if (cached && now - cached.asOf < CACHE_TTL_MS) return cached;
     resultCache.delete(orgId);
-    const queryDeadline = now + QUERY_BUDGET_MS;
-    const deadline = now + NAME_LOOKUP_BUDGET_MS;
-    const snap = await db
-      .collection('student_sections')
-      .where('orgId', '==', orgId)
-      .select('updatedAt', 'sectionIds')
-      .get();
-    const active = selectMonthlyActive(
-      snap.docs.map((d) => {
-        const at: unknown = d.get('updatedAt');
-        const ids: unknown = d.get('sectionIds');
-        return {
-          uid: d.id,
-          lastSignInMs: typeof at === 'number' ? at : 0,
-          sectionIds: Array.isArray(ids)
-            ? ids.filter((x): x is string => typeof x === 'string' && !!x)
-            : [],
-        };
-      }),
-      now
+    const running = inFlight.get(orgId);
+    if (running) return running;
+    const job = computeActiveStudents(db, orgId, now).finally(() =>
+      inFlight.delete(orgId)
     );
-    const allSections = [...new Set(active.flatMap((s) => s.sectionIds))];
-
-    // Teachers and names don't depend on each other, so both run at once.
-    const [teachers, names] = await Promise.all([
-      loadTeachers(db, active, allSections, now - MONTH_MS, queryDeadline),
-      loadNames(db, active, now, queryDeadline, deadline),
-    ]);
-
-    const result: ActiveStudentsResult = {
-      asOf: now,
-      partial: teachers.partial || names.partial,
-      students: buildActiveStudentRows({
-        students: active,
-        opensByStudent: teachers.opensByStudent,
-        teacherNames: teachers.teacherNames,
-        namesByUid: names.namesByUid,
-      }),
-    };
-    resultCache.set(orgId, result);
-    return result;
+    inFlight.set(orgId, job);
+    return job;
   }
 );
+
+async function computeActiveStudents(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  now: number
+): Promise<ActiveStudentsResult> {
+  for (const [uid, hit] of nameCache) {
+    if (now - hit.at >= NAME_CACHE_TTL_MS) nameCache.delete(uid);
+  }
+  const queryDeadline = now + QUERY_BUDGET_MS;
+  const deadline = now + NAME_LOOKUP_BUDGET_MS;
+  const snap = await db
+    .collection('student_sections')
+    .where('orgId', '==', orgId)
+    .select('updatedAt', 'sectionIds')
+    .get();
+  const active = selectMonthlyActive(
+    snap.docs.map((d) => {
+      const at: unknown = d.get('updatedAt');
+      const ids: unknown = d.get('sectionIds');
+      return {
+        uid: d.id,
+        lastSignInMs: typeof at === 'number' ? at : 0,
+        sectionIds: Array.isArray(ids)
+          ? ids.filter((x): x is string => typeof x === 'string' && !!x)
+          : [],
+      };
+    }),
+    now
+  );
+  const allSections = [...new Set(active.flatMap((s) => s.sectionIds))];
+
+  // Teachers and names don't depend on each other, so both run at once.
+  const [teachers, names] = await Promise.all([
+    loadTeachers(db, active, allSections, now - MONTH_MS, queryDeadline),
+    loadNames(db, active, allSections, queryDeadline, deadline),
+  ]);
+
+  const result: ActiveStudentsResult = {
+    asOf: now,
+    partial: teachers.partial || names.partial,
+    students: buildActiveStudentRows({
+      students: active,
+      opensByStudent: teachers.opensByStudent,
+      teacherNames: teachers.teacherNames,
+      namesByUid: names.namesByUid,
+    }),
+  };
+  // Unfinished results aren't cached, so a reopen keeps filling names from nameCache.
+  if (!result.partial) resultCache.set(orgId, result);
+  return result;
+}
 
 async function loadTeachers(
   db: admin.firestore.Firestore,
@@ -495,25 +509,16 @@ async function loadTeachers(
 async function loadNames(
   db: admin.firestore.Firestore,
   active: readonly ActiveStudentInput[],
-  now: number,
+  allSections: readonly string[],
   queryDeadline: number,
   deadline: number
 ): Promise<{ partial: boolean; namesByUid: Map<string, string> }> {
   let partial = false;
   const namesByUid = new Map<string, string>();
-  for (const s of active) {
-    const hit = nameCache.get(s.uid);
-    if (hit && now - hit.at < NAME_CACHE_TTL_MS)
-      namesByUid.set(s.uid, hit.name);
-  }
-  const unnamed = active.filter((s) => !namesByUid.has(s.uid));
-  if (unnamed.length === 0) return { partial, namesByUid };
-
-  // Sections that teachers imported as rosters; only these can be fetched from ClassLink for names.
-  const unnamedSections = [...new Set(unnamed.flatMap((s) => s.sectionIds))];
+  // Sections that teachers imported as rosters; only students in one get a name.
   const rosteredSections = new Set<string>();
   await mapWithConcurrency(
-    chunk(unnamedSections, IN_CHUNK),
+    chunk(allSections, IN_CHUNK),
     QUERY_CONCURRENCY,
     async (ids) => {
       if (Date.now() >= queryDeadline) {
@@ -544,6 +549,15 @@ async function loadNames(
         );
     }
   );
+
+  for (const s of active) {
+    const hit = nameCache.get(s.uid);
+    if (hit && s.sectionIds.some((id) => rosteredSections.has(id))) {
+      namesByUid.set(s.uid, hit.name);
+    }
+  }
+  const unnamed = active.filter((s) => !namesByUid.has(s.uid));
+  if (unnamed.length === 0) return { partial, namesByUid };
 
   const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
   const clientId = CLASSLINK_CLIENT_ID.value();
