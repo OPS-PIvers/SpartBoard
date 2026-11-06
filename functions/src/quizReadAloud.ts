@@ -205,6 +205,7 @@ const UNIT_WORDS: Record<string, string> = {
 /** Plain math between ⟦ and ⟧ as words; mirrored in utils/quizReadAloudApi.ts. */
 function speakPromptMath(math: string): string {
   return ` ${math} `
+    .replace(/(^|[\s(=<>+*/])-/g, '$1 negative ')
     .replace(/sqrt/g, ' square root of ')
     .replace(/\^\s*2(?!\d)/g, ' squared ')
     .replace(/\^\s*3(?!\d)/g, ' cubed ')
@@ -217,7 +218,6 @@ function speakPromptMath(math: string): string {
     .replace(/\*/g, ' times ')
     .replace(/\+/g, ' plus ')
     .replace(/([\w)])\s*-\s*/g, '$1 minus ')
-    .replace(/(^|[\s(])-/g, '$1negative ')
     .replace(/\s*\/\s*/g, ' over ');
 }
 

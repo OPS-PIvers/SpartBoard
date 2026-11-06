@@ -52,6 +52,7 @@ describe('normalizeReadAloudText', () => {
     expect(normalizeReadAloudText('Find ⟦sqrt(16)-x^2⟧')).toBe(
       'Find square root of (16) minus x squared'
     );
+    expect(normalizeReadAloudText('If ⟦x=-3⟧')).toBe('If x equals negative 3');
   });
   it('mirrors the server normalizer so chunk boundaries cannot drift', () => {
     expect(normalizeReadAloudText('<b>Hi</b>  there')).toBe('Hi there');

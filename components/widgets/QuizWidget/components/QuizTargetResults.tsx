@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { MathText } from '@/components/common/MathText';
 import {
   AlertTriangle,
   ArrowDownAZ,
@@ -152,7 +153,9 @@ const MasteryRow: React.FC<{ row: TargetStat }> = ({ row }) => {
               <span className="shrink-0 font-mono font-bold text-brand-blue-primary">
                 Q{question.index + 1}
               </span>
-              <span className="min-w-0 flex-1 truncate">{question.text}</span>
+              <span className="min-w-0 flex-1 truncate">
+                <MathText text={question.text} />
+              </span>
               {question.lowSample && <LowSampleBadge />}
               <span className="shrink-0 tabular-nums text-slate-500">
                 {question.servedCount} served

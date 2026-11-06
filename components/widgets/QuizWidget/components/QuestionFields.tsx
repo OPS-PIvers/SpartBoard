@@ -106,6 +106,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
         )
       }
       onBlur={onBlur}
+      readOnly={equation !== null}
       rows={3}
       placeholder="e.g. What is the capital of France?"
       className={`${inputClass} resize-none`}

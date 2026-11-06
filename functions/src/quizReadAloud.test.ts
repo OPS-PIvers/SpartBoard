@@ -230,6 +230,7 @@ describe('normalizeReadAloudText (R11)', () => {
     expect(normalizeReadAloudText('Find ⟦sqrt(16)-x^2⟧')).toBe(
       'Find square root of (16) minus x squared'
     );
+    expect(normalizeReadAloudText('If ⟦x=-3⟧')).toBe('If x equals negative 3');
   });
   it('strips markdown and HTML, speaks blanks, fractions, exponents and units', () => {
     expect(normalizeReadAloudText('What is **2 + 2**?')).toBe('What is 2 + 2?');
