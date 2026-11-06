@@ -1080,6 +1080,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Ordering results by item. Admin-only until Paul has tested it in prod.
+  'quiz-ordering-results': {
+    label: 'Ordering results by item',
+    icon: ListOrdered,
+    description:
+      'Question and student results list each Ordering item and mark the ones students put out of order.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Lunch Count redesign. Admin-only until Paul has used it in prod.
   'lunch-count-redesign': {
     label: 'Lunch Count redesign',

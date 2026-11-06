@@ -10933,6 +10933,8 @@ export type GlobalFeature =
   | 'quiz-ordering-images'
   /** Ordering questions: students drag one list into order instead of filling slots from a word bank. */
   | 'quiz-ordering-list'
+  /** Ordering results: each item's spot, with the items students put out of order marked. */
+  | 'quiz-ordering-results'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
