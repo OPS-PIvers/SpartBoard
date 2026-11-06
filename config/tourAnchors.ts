@@ -3330,6 +3330,10 @@ export const TOUR_ANCHORS = {
     label: 'Distribution row toggle in Quiz results, by position',
     perField: true,
   },
+  'quiz-results.ordering-item-row': {
+    label: 'Ordering item out-of-order toggle in Quiz results, by position',
+    perField: true,
+  },
   'quiz-results.question-sort': {
     label: 'Question sort chip in Quiz results, by option',
     perField: true,

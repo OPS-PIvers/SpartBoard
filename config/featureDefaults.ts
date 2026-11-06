@@ -752,18 +752,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Per-question "Spell check" switch on Free Response questions.
-  'quiz-spell-check-toggle': {
-    label: 'Spell check switch in quizzes',
-    icon: SpellCheck,
-    description:
-      'Teachers can turn off spelling and grammar underlines on a Free Response question.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',
@@ -1060,6 +1048,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ListOrdered,
     description:
       'Students drag one list into order instead of moving items from a word bank into numbered slots.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Ordering results by item. Admin-only until Paul has tested it in prod.
+  'quiz-ordering-results': {
+    label: 'Ordering results by item',
+    icon: ListOrdered,
+    description:
+      'Question and student results list each Ordering item and mark the ones students put out of order.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',

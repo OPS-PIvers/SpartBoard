@@ -275,6 +275,7 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-results.scoreboard-pins': 'quiz-results.scoreboard:quiz',
       'quiz-results.select-students': 'quiz-results.drill-questions:quiz',
       'quiz-results.outcome-row': 'quiz-results.drill-questions:quiz',
+      'quiz-results.ordering-item-row': 'quiz-results.drill-questions:quiz',
       'quiz-results.question-sort': 'quiz-results.drill-questions:quiz',
       'quiz-results.question-toggle': 'quiz-results.drill-questions:quiz',
       'quiz-results.drilldown-open-student':
