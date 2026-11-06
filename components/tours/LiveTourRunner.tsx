@@ -149,7 +149,13 @@ import {
 const TourMiniPlayer = lazy(() => import('./TourMiniPlayer'));
 
 type Phase =
-  'welcome' | 'materials' | 'practice-offer' | 'running' | 'keep' | 'teardown';
+  | 'welcome'
+  | 'materials'
+  | 'practice-offer'
+  | 'running'
+  | 'keep'
+  | 'boards'
+  | 'teardown';
 
 interface LaunchOptions {
   /** Widgets a reloaded run had already added, so teardown can still remove them. */
@@ -202,6 +208,13 @@ interface ActiveTour {
   /** The teacher's items picked for the tour's materials. */
   picks?: Readonly<Record<string, string>>;
   test?: boolean;
+  /** What the run made, captured when the boards prompt opens. */
+  made?: RunMade;
+}
+
+interface RunMade {
+  boards: { id: string; name: string }[];
+  collections: { id: string; name: string }[];
 }
 
 /** A test run's step picture as a data URL, with its size. */
@@ -268,6 +281,8 @@ const BOARD_WAIT_MS = 2000;
 const VALUE_SETTLE_MS = 600;
 /** Pause after the last keystroke before a matching type step moves on. */
 const TYPE_SETTLE_MS = 500;
+/** Allows for clock skew between this device and the server's createdAt stamps. */
+const RUN_CLOCK_SLACK_MS = 5000;
 /** How far a widget has to move, or its size change, for a drag or resize step to count. */
 const MOVE_MIN_PX = 24;
 /** How long a step's "Done" shows before the tour moves on by itself. */
@@ -386,6 +401,13 @@ export const LiveTourRunner: React.FC = () => {
   const [cheering, setCheering] = useState(false);
   // The set a Getting Started launch started; finishing it offers the next tour there.
   const chainRef = useRef<string | null>(null);
+  // What the teacher had when the run began; Remove deletes only what the run made since (D11).
+  const runStart = useRef<{
+    at: number;
+    boardId: string | null;
+    boards: ReadonlySet<string>;
+    collections: ReadonlySet<string>;
+  } | null>(null);
   const [chainOffer, setChainOffer] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   // Counts step entries, so going Back to a step opens it afresh.
@@ -885,6 +907,14 @@ export const LiveTourRunner: React.FC = () => {
           },
         }
       : set;
+    runStart.current = opts.edit
+      ? null
+      : {
+          at: Date.now(),
+          boardId: d.activeDashboard?.id ?? null,
+          boards: new Set(d.dashboards.map((b) => b.id)),
+          collections: new Set(d.collectionsApi.collections.map((c) => c.id)),
+        };
     const current = d.activeDashboard?.widgets ?? [];
     const claims = claimsFromIds(current, opts.claimIds);
     const beforeIds = new Set(current.map((w) => w.id));
@@ -1124,6 +1154,7 @@ export const LiveTourRunner: React.FC = () => {
     endTourSandbox();
     endTourFrame();
     chainRef.current = null;
+    runStart.current = null;
     setTour(null);
   };
 
@@ -1209,15 +1240,83 @@ export const LiveTourRunner: React.FC = () => {
     closeOut(done);
   };
 
-  // The widget prompt, or the end, after any keep prompt.
-  const closeOut = (done: boolean) => {
+  // The boards prompt, then the widget prompt, or the end, after any keep prompt.
+  const closeOut = (done: boolean, boardsAsked = false) => {
     if (!tour) return;
+    if (!boardsAsked && !tour.test) {
+      const made = runMade();
+      if (made.total > 0) {
+        setTour({ ...tour, phase: 'boards', made });
+        return;
+      }
+    }
     if (added.length > 0) {
       setTour({ ...tour, phase: 'teardown' });
       return;
     }
     endTour();
     if (done && showSparty) setCheering(true);
+  };
+
+  // Boards and collections this run made; never one shared with the teacher meanwhile.
+  const runMade = () => {
+    const start = runStart.current;
+    const d = latest.current.dashboard;
+    if (!start) return { boards: [], collections: [], total: 0 };
+    const madeNow = (createdAt: number) =>
+      createdAt >= start.at - RUN_CLOCK_SLACK_MS;
+    const collections = d.collectionsApi.collections.filter(
+      (c) =>
+        !start.collections.has(c.id) &&
+        !c.linkedCollectionId &&
+        madeNow(c.createdAt)
+    );
+    const shared = new Set(
+      d.collectionsApi.collections
+        .filter((c) => c.linkedCollectionId)
+        .map((c) => c.id)
+    );
+    const boards = d.dashboards.filter(
+      (b) =>
+        !start.boards.has(b.id) &&
+        madeNow(b.createdAt) &&
+        !(b.collectionId && shared.has(b.collectionId))
+    );
+    return { boards, collections, total: boards.length + collections.length };
+  };
+
+  const [removingBoards, setRemovingBoards] = useState(false);
+  const removeRunBoards = async () => {
+    const start = runStart.current;
+    const made = tour?.made ?? { boards: [], collections: [] };
+    const d = latest.current.dashboard;
+    setRemovingBoards(true);
+    // Back to where the tour started before its own boards go.
+    if (
+      start?.boardId &&
+      made.boards.some((b) => b.id === d.activeDashboard?.id)
+    ) {
+      d.loadDashboard(start.boardId);
+    }
+    // Boards first, so a collection's move-up never touches one being deleted; one failure doesn't stop the rest.
+    const boardResults = await Promise.allSettled(
+      made.boards.map((board) => d.deleteDashboard(board.id))
+    );
+    // Moving children up keeps a board the teacher filed in a new collection.
+    const collectionResults = await Promise.allSettled(
+      made.collections.map((collection) =>
+        d.collectionsApi.deleteCollection(collection.id, 'move-to-parent')
+      )
+    );
+    const failed = [...boardResults, ...collectionResults].filter(
+      (r) => r.status === 'rejected'
+    );
+    if (failed.length > 0) {
+      console.error('Live tour: could not remove boards', failed);
+      d.addToast(latest.current.t('tours.removeBoardsFailed'), 'error');
+    }
+    setRemovingBoards(false);
+    closeOut(finished, true);
   };
 
   const [keeping, setKeeping] = useState(false);
@@ -1525,7 +1624,7 @@ export const LiveTourRunner: React.FC = () => {
         ? () => endTour(true)
         : tour.phase === 'practice-offer' || tour.phase === 'materials'
           ? abandon
-          : tour.phase === 'keep'
+          : tour.phase === 'keep' || tour.phase === 'boards'
             ? () => undefined
             : () => finish();
 
@@ -1542,11 +1641,16 @@ export const LiveTourRunner: React.FC = () => {
       resetEdit();
       return;
     }
-    // A step that teaches board navigation follows the teacher to the new board.
+    // A step that teaches board navigation follows the teacher to the new board,
+    // and so does a switch to a board this run made or back to where it started.
+    const tourBoard =
+      !!board &&
+      (board.id === runStart.current?.boardId ||
+        runMade().boards.some((b) => b.id === board.id));
     if (
       tour?.phase === 'running' &&
       board &&
-      Date.now() - lastStepClickAt.current < FOLLOW_BOARD_MS
+      (Date.now() - lastStepClickAt.current < FOLLOW_BOARD_MS || tourBoard)
     ) {
       setTour({
         ...tour,
@@ -2305,6 +2409,40 @@ export const LiveTourRunner: React.FC = () => {
           onClick={() => void keepItems()}
         >
           {t('tours.keepItems', { count: items.length })}
+        </button>
+      </>,
+      finished ? 'cheer' : undefined
+    );
+  } else if (tour.phase === 'boards') {
+    const made = tour.made ?? { boards: [], collections: [] };
+    const total = made.boards.length + made.collections.length;
+    content = dialog(
+      t('tours.keepBoardsTitle', { count: total }),
+      [
+        ...made.boards.map((b) => b.name),
+        ...made.collections.map((c) => c.name),
+      ]
+        .map((name) => name.trim() || t('tours.untitledItem'))
+        .join(', '),
+      <>
+        <button
+          type="button"
+          data-testid="tour-remove-boards"
+          className={secondaryBtn}
+          disabled={removingBoards}
+          onClick={() => void removeRunBoards()}
+        >
+          {t('tours.removeBoards', { count: total })}
+        </button>
+        <button
+          type="button"
+          data-autofocus=""
+          data-testid="tour-keep-boards"
+          className={primaryBtn}
+          disabled={removingBoards}
+          onClick={() => closeOut(finished, true)}
+        >
+          {t('tours.keepBoards', { count: total })}
         </button>
       </>,
       finished ? 'cheer' : undefined
