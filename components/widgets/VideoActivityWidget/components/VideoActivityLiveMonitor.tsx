@@ -21,6 +21,8 @@ export interface VideoActivityLiveMonitorProps {
   onUnlockStudent?: (sessionId: string, responseKey: string) => Promise<void>;
   /** Navigate back to the manager (In Progress tab) without ending. */
   onBack?: () => void;
+  /** Opens the assignment's Settings dialog (When and the rule steps). */
+  onEditSettings?: () => void;
 }
 
 export const VideoActivityLiveMonitor = VideoActivityMonitor;

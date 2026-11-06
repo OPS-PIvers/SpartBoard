@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Loader2,
   Mic,
+  Settings,
   Square,
 } from 'lucide-react';
 import type {
@@ -60,6 +61,8 @@ const STUDY_BUCKET_LABELS: Partial<Record<BucketKey, string>> = {
 
 interface FlashcardMonitorProps {
   assignment: FlashcardAssignment;
+  /** Opens the assignment's Settings dialog. */
+  onEditSettings?: () => void;
   session: FlashcardSession;
   /** Already narrowed to the picked class. */
   results: FlashcardResultRecord[];
@@ -180,6 +183,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
   launchedBy,
   prefs = NO_PREFS,
   onUpdatePrefs = noop,
+  onEditSettings,
 }) => {
   const [screen, setScreen] = useState<Screen>('home');
   const [cardIndex, setCardIndex] = useState<number | null>(null);
@@ -784,6 +788,22 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
               />
               Card results
             </button>
+            {onEditSettings && (
+              <button
+                type="button"
+                onClick={onEditSettings}
+                {...tourTypeAttr('flashcards.monitor-settings', 'flashcards')}
+                className={`${footerButton} border border-brand-gray-lighter bg-white text-brand-gray-dark hover:border-brand-blue-light`}
+                style={footerButtonStyle}
+              >
+                <Settings
+                  className="text-brand-blue-primary"
+                  aria-hidden
+                  style={icon}
+                />
+                Settings
+              </button>
+            )}
           </div>
         </div>
       )}

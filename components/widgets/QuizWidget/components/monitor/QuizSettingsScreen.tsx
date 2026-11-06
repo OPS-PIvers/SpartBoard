@@ -1,5 +1,5 @@
 import React from 'react';
-import { Workflow } from 'lucide-react';
+import { ChevronRight, Workflow } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { QuizSession, QuizConfig } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
@@ -20,6 +20,10 @@ interface QuizSettingsScreenProps {
   hasNames: boolean;
   onUpdateSession: (updates: Partial<QuizSession>) => void;
   onUpdateConfig: (updates: Partial<QuizConfig>) => void;
+  /** Opens the assignment's full settings editor (the same stepper as Edit settings). */
+  onEditAssignmentSettings?: () => void;
+  /** Also saves a Tab warnings flip on the assignment so its editor stays in step. */
+  onTabWarningsChange?: (enabled: boolean) => void;
 }
 
 const SettingRow: React.FC<{
@@ -88,8 +92,42 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
   hasNames,
   onUpdateSession,
   onUpdateConfig,
+  onEditAssignmentSettings,
+  onTabWarningsChange,
 }) => (
   <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
+    {onEditAssignmentSettings && (
+      <button
+        type="button"
+        onClick={onEditAssignmentSettings}
+        {...tourTypeAttr('quiz-monitor.settings-assignment', 'quiz')}
+        className="flex items-center justify-between text-left bg-white border border-brand-gray-lighter rounded-lg hover:border-brand-blue-light transition-colors"
+        style={{
+          padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
+          gap: 'min(10px, 2.5cqmin)',
+        }}
+      >
+        <span className="min-w-0">
+          <span
+            className="block font-sans font-semibold text-brand-gray-dark"
+            style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+          >
+            All assignment settings
+          </span>
+          <span
+            className="block text-brand-gray-primary"
+            style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+          >
+            Time limit, attempts, tab warnings, fullscreen, dates and classes.
+          </span>
+        </span>
+        <ChevronRight
+          aria-hidden="true"
+          className="shrink-0 text-brand-gray-light"
+          style={{ width: 'min(16px, 5cqmin)', height: 'min(16px, 5cqmin)' }}
+        />
+      </button>
+    )}
     <SettingRow
       label="Board view"
       anchor={tourTypeAttr('quiz-monitor.settings-board-view', 'quiz')}
@@ -105,11 +143,11 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
       label="Tab warnings"
       anchor={tourTypeAttr('quiz-monitor.settings-tab-warnings', 'quiz')}
       on={session.tabWarningsEnabled !== false}
-      onToggle={() =>
-        onUpdateSession({
-          tabWarningsEnabled: !(session.tabWarningsEnabled !== false),
-        })
-      }
+      onToggle={() => {
+        const enabled = session.tabWarningsEnabled === false;
+        onUpdateSession({ tabWarningsEnabled: enabled });
+        onTabWarningsChange?.(enabled);
+      }}
     />
     {!assessmentOnly && (
       <>

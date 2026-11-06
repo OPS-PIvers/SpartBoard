@@ -4120,6 +4120,10 @@ export const TOUR_ANCHORS = {
     label: 'Tab warnings switch in the Quiz monitor settings',
     perWidgetType: true,
   },
+  'quiz-monitor.settings-assignment': {
+    label: 'All assignment settings button in the Quiz monitor settings',
+    perWidgetType: true,
+  },
   'quiz-monitor.settings-podium': {
     label: 'Podium between questions switch in the Quiz monitor settings',
     perWidgetType: true,
@@ -11081,6 +11085,10 @@ export const TOUR_ANCHORS = {
     label: 'Question results button in the video activity monitor',
     perWidgetType: true,
   },
+  'video-activity.monitor-settings': {
+    label: 'Settings button in the video activity monitor',
+    perWidgetType: true,
+  },
   'video-activity.monitor-question-result': {
     label: 'Question result row in the video activity monitor',
     perField: true,
@@ -14478,6 +14486,10 @@ export const TOUR_ANCHORS = {
     label: 'Student status bucket button in the Flashcards monitor',
     perField: true,
     panel: true,
+  },
+  'flashcards.monitor-settings': {
+    label: 'Settings button in the Flashcards monitor footer',
+    perWidgetType: true,
   },
   'flashcards.card-results': {
     label: 'Card results button in the Flashcards monitor',

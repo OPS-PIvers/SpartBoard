@@ -666,6 +666,25 @@ const TeacherVideoActivityWidget: React.FC<{
     );
   }
 
+  const settingsModal = editingSettings ? (
+    <VideoAssignmentSettingsModal
+      rosters={rosters}
+      assignment={editingSettings}
+      onClose={() => setEditingSettings(null)}
+      onSave={async (patch) => {
+        try {
+          await updateAssignmentSettings(editingSettings.id, patch);
+        } catch (err) {
+          logError('VideoActivityWidget.editSettings', err, {
+            assignmentId: editingSettings.id,
+          });
+          addToast("Couldn't save settings.", 'error');
+          throw err;
+        }
+      }}
+    />
+  ) : null;
+
   if (view === 'monitor' && selectedSession) {
     // Prefer the live snapshot when it's caught up to the assignment we
     // opened the monitor for; otherwise fall back to the initial fetch so
@@ -699,66 +718,77 @@ const TeacherVideoActivityWidget: React.FC<{
         />
       );
     }
+    const monitorAssignment = assignments.find(
+      (a) => a.id === selectedSession.id
+    );
     return (
-      <VideoActivityLiveMonitor
-        session={sessionForMonitor}
-        responses={responses}
-        onEnd={async () => {
-          try {
-            await deactivateAssignment(selectedSession.id);
-            addToast('Assignment ended.', 'success');
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Failed to end assignment',
-              'error'
-            );
-            return;
+      <>
+        <VideoActivityLiveMonitor
+          session={sessionForMonitor}
+          onEditSettings={
+            monitorAssignment && monitorAssignment.mode !== 'view-only'
+              ? () => setEditingSettings(monitorAssignment)
+              : undefined
           }
-          unsubscribeFromSession();
-          setSelectedSession(null);
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'manager',
-              resultsSessionId: null,
-            },
-          });
-        }}
-        onPause={async () => {
-          try {
-            await pauseAssignment(selectedSession.id);
-            addToast('Assignment paused.', 'success');
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Failed to pause',
-              'error'
-            );
-          }
-        }}
-        onResume={async () => {
-          try {
-            await resumeAssignment(selectedSession.id);
-            addToast('Assignment resumed.', 'success');
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Failed to resume',
-              'error'
-            );
-          }
-        }}
-        onUnlockStudent={unlockStudentAttempt}
-        onBack={() => {
-          unsubscribeFromSession();
-          setSelectedSession(null);
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'manager',
-              resultsSessionId: null,
-            },
-          });
-        }}
-      />
+          responses={responses}
+          onEnd={async () => {
+            try {
+              await deactivateAssignment(selectedSession.id);
+              addToast('Assignment ended.', 'success');
+            } catch (err) {
+              addToast(
+                err instanceof Error ? err.message : 'Failed to end assignment',
+                'error'
+              );
+              return;
+            }
+            unsubscribeFromSession();
+            setSelectedSession(null);
+            updateWidget(widget.id, {
+              config: {
+                ...config,
+                view: 'manager',
+                resultsSessionId: null,
+              },
+            });
+          }}
+          onPause={async () => {
+            try {
+              await pauseAssignment(selectedSession.id);
+              addToast('Assignment paused.', 'success');
+            } catch (err) {
+              addToast(
+                err instanceof Error ? err.message : 'Failed to pause',
+                'error'
+              );
+            }
+          }}
+          onResume={async () => {
+            try {
+              await resumeAssignment(selectedSession.id);
+              addToast('Assignment resumed.', 'success');
+            } catch (err) {
+              addToast(
+                err instanceof Error ? err.message : 'Failed to resume',
+                'error'
+              );
+            }
+          }}
+          onUnlockStudent={unlockStudentAttempt}
+          onBack={() => {
+            unsubscribeFromSession();
+            setSelectedSession(null);
+            updateWidget(widget.id, {
+              config: {
+                ...config,
+                view: 'manager',
+                resultsSessionId: null,
+              },
+            });
+          }}
+        />
+        {settingsModal}
+      </>
     );
   }
 
@@ -1388,24 +1418,7 @@ const TeacherVideoActivityWidget: React.FC<{
           }}
         />
       )}
-      {editingSettings && (
-        <VideoAssignmentSettingsModal
-          rosters={rosters}
-          assignment={editingSettings}
-          onClose={() => setEditingSettings(null)}
-          onSave={async (patch) => {
-            try {
-              await updateAssignmentSettings(editingSettings.id, patch);
-            } catch (err) {
-              logError('VideoActivityWidget.editSettings', err, {
-                assignmentId: editingSettings.id,
-              });
-              addToast("Couldn't save settings.", 'error');
-              throw err;
-            }
-          }}
-        />
-      )}
+      {settingsModal}
       {publishingAssignment && (
         <PublishScoresModal
           assignmentTitle={

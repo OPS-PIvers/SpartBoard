@@ -6,6 +6,7 @@ import {
   Loader2,
   Pause,
   Play,
+  Settings,
   Square,
 } from 'lucide-react';
 import type { VideoActivityQuestion, VideoActivityResponse } from '@/types';
@@ -91,6 +92,7 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
   onResume,
   onUnlockStudent,
   onBack,
+  onEditSettings,
 }) => {
   const { showConfirm } = useDialog();
   const outward = useViewAsOutward();
@@ -616,6 +618,22 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
             />
             Question results
           </button>
+          {onEditSettings && (
+            <button
+              type="button"
+              onClick={onEditSettings}
+              {...tourTypeAttr('video-activity.monitor-settings', TYPE)}
+              className={`${footerButton} bg-white border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light`}
+              style={footerButtonStyle}
+            >
+              <Settings
+                className="text-brand-blue-primary"
+                style={footerIcon}
+                aria-hidden
+              />
+              Settings
+            </button>
+          )}
         </div>
       )}
     </div>
