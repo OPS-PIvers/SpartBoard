@@ -713,8 +713,9 @@ export const useGuidedLearningSessionStudent = (
         response.studentAnonymousId
       );
       if (!opts?.exists) {
-        await setDoc(ref, response);
-        return;
+        // The create rule requires completedAt null; a turn-in follows as an update.
+        await setDoc(ref, { ...response, completedAt: null });
+        if (response.completedAt === null) return;
       }
       // The student update rule allows only answers, completedAt and pin to change.
       await setDoc(

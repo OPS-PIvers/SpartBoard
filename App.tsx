@@ -538,6 +538,14 @@ const FlashcardsSpeakFlowDevHarness =
       )
     : null;
 
+const FlashcardsTestNavDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/FlashcardsTestNavDevHarness').then((module) => ({
+        default: module.FlashcardsTestNavDevHarness,
+      }))
+    )
+  : null;
+
 const GlViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/GlViewsDevHarness').then((module) => ({
@@ -1519,6 +1527,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <FlashcardsSpeakFlowDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: Flashcards Test question nav, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    FlashcardsTestNavDevHarness &&
+    pathname === '/flashcards-test-nav-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <FlashcardsTestNavDevHarness />
       </Suspense>
     );
   }

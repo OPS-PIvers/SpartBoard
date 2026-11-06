@@ -86,6 +86,8 @@ export interface ResultsPrintModalProps {
   resolvePaperCrop?: PaperCropResolver;
   /** Earlier finished attempts by response key, oldest first; offers "Every attempt" when any exist. */
   earlierAttempts?: ReadonlyMap<string, readonly QuizResponse[]>;
+  /** Switches that don't apply here, hidden and printed off (Flashcards has no targets or written answers). */
+  hiddenOptions?: readonly ResultsPrintToggle[];
   onClose: () => void;
   onError: (message: string) => void;
 }
@@ -96,10 +98,11 @@ const plural = (n: number, word = 'student') =>
 const hasRealName = (response: QuizResponse, name: string) =>
   name !== 'Student' && !(response.pin && name === `PIN ${response.pin}`);
 
-type BooleanOption = Exclude<
+export type ResultsPrintToggle = Exclude<
   keyof QuizResultsPrintOptions,
   'keyMode' | 'layout' | 'questionScope'
 >;
+type BooleanOption = ResultsPrintToggle;
 
 const TOGGLES: { key: BooleanOption; label: string }[] = [
   { key: 'includeQuestions', label: 'Include the questions' },
@@ -115,6 +118,8 @@ const TOGGLES: { key: BooleanOption; label: string }[] = [
   { key: 'includeStimuli', label: 'Passages and pictures' },
   { key: 'duplexPadding', label: 'Keep double-sided copies aligned' },
 ];
+
+const NO_HIDDEN_OPTIONS: readonly ResultsPrintToggle[] = [];
 
 const REPORT_CHOICES: {
   id: ResultsPrintPresetId;
@@ -209,6 +214,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   writtenReturnMode,
   resolvePaperCrop,
   earlierAttempts,
+  hiddenOptions = NO_HIDDEN_OPTIONS,
   onClose,
   onError,
 }) => {
@@ -227,9 +233,16 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
       ? { preset: 'student-copy', options: applyPreset('student-copy') }
       : saved;
   });
-  const options: QuizResultsPrintOptions = sheetsAvailable
+  const chosenOptions: QuizResultsPrintOptions = sheetsAvailable
     ? choice.options
     : { ...choice.options, layout: 'report' };
+  const options: QuizResultsPrintOptions =
+    hiddenOptions.length === 0
+      ? chosenOptions
+      : {
+          ...chosenOptions,
+          ...Object.fromEntries(hiddenOptions.map((key) => [key, false])),
+        };
   const update = (next: SavedResultsPrintChoice) => {
     setChoice(next);
     saveResultsPrintChoice(next);
@@ -239,7 +252,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   const setOption = <K extends keyof QuizResultsPrintOptions>(
     key: K,
     value: QuizResultsPrintOptions[K]
-  ) => update({ preset: null, options: { ...options, [key]: value } });
+  ) => update({ preset: null, options: { ...chosenOptions, [key]: value } });
 
   const [writtenMode, setWrittenMode] = useState<WrittenReturnMode>(
     writtenReturnMode ?? DEFAULT_WRITTEN_RETURN_MODE
@@ -575,7 +588,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
 
   const toggleControls = (
     <div className="space-y-2">
-      {TOGGLES.map((t) => (
+      {TOGGLES.filter((t) => !hiddenOptions.includes(t.key)).map((t) => (
         <div key={t.key} className="flex items-center justify-between gap-3">
           <span className="text-sm text-slate-700">{t.label}</span>
           <Toggle

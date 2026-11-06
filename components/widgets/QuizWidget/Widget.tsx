@@ -138,6 +138,7 @@ import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClas
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { functions, db, storage } from '@/config/firebase';
+import { isStaffAudience } from '@/utils/staffAudience';
 import { ref as storageRef, uploadBytes } from 'firebase/storage';
 import {
   CLASSROOM_ASSIGN_ENABLED,
@@ -293,6 +294,17 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<
 };
 
 const QUIZZES_COLLECTION = 'quizzes';
+
+/** Staff assignments have no classes; ones made before the assignment doc carried `audience` keep it on their session. */
+async function isStaffQuizAssignment(a: QuizAssignment): Promise<boolean> {
+  if (isStaffAudience(a)) return true;
+  try {
+    const snap = await getDoc(doc(db, QUIZ_SESSIONS_COLLECTION, a.id));
+    return isStaffAudience(snap.data());
+  } catch {
+    return false;
+  }
+}
 
 const TeacherQuizWidget: React.FC<{
   widget: WidgetData;
@@ -454,20 +466,9 @@ const TeacherQuizWidget: React.FC<{
         return skip();
       }
 
-      // Asked once for the batch; the editor asks per file, which would be a
-      // dialog per picture on a test with a dozen diagrams.
-      const shared = await showConfirm(
-        `Students open pictures without signing in, so the ${images.length === 1 ? 'picture' : `${images.length} pictures`} in this test must be shared as "anyone with the link can view." Share and attach?`,
-        { title: 'Share the pictures?', confirmLabel: 'Share & attach' }
-      );
-      if (!shared) {
-        addToast('The quiz was created without the pictures.', 'info');
-        return skip();
-      }
-
       return attachImagesToQuiz(quiz, images, uploader);
     },
-    [driveService, stimulusUploader, showConfirm, addToast]
+    [driveService, stimulusUploader, addToast]
   );
 
   const {
@@ -2578,6 +2579,7 @@ const TeacherQuizWidget: React.FC<{
             behavior={studentView.behavior}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
             hideRubricUnlessShown={canAccessFeature('quiz-rubric-visibility')}
+            orderingListOn={canAccessFeature('quiz-ordering-list')}
             onExit={() => setStudentView(null)}
           />
         </Suspense>
@@ -3604,9 +3606,9 @@ const TeacherQuizWidget: React.FC<{
           });
         }}
         onArchiveStart={async (a) => {
-          // Block start if no class periods are selected.
+          // Block start if no class periods are selected; a Staff assignment has none by design.
           const periods = a.periodNames ?? (a.periodName ? [a.periodName] : []);
-          if (periods.length === 0) {
+          if (periods.length === 0 && !(await isStaffQuizAssignment(a))) {
             addToast(
               'Select at least one class period before starting. Open Settings to add periods.',
               'error'

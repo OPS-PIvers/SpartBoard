@@ -6,7 +6,7 @@ import { defaultWhenValue } from '@/components/common/library/assignStepper/assi
 import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assignStepperTestRosters';
 import { QuizAssignStepper } from './QuizAssignStepper';
 
-const Harness: React.FC = () => {
+const Harness: React.FC<{ staff?: boolean }> = ({ staff = false }) => {
   const [when, setWhen] = useState(() =>
     defaultWhenValue({
       activity: 'quiz',
@@ -20,6 +20,11 @@ const Harness: React.FC = () => {
       rosters={SAMPLE_ROSTERS}
       classes={{ classIds: ['c1', 'c2'], studentsByClass: {} }}
       onClassesChange={vi.fn()}
+      audience={
+        staff
+          ? { audience: 'staff', setAudience: vi.fn(), canAssignToStaff: true }
+          : undefined
+      }
       when={when}
       onWhenChange={setWhen}
       behavior={getQuizAssignPrefill(null)}
@@ -42,5 +47,16 @@ describe('QuizAssignStepper When step without bell periods', () => {
     );
     expect(screen.getAllByText('Opens')).toHaveLength(1);
     expect(screen.getAllByText('Closes')).toHaveLength(2);
+  });
+});
+
+describe('QuizAssignStepper When step for Staff', () => {
+  it('offers Manual, which starts the whole assignment', () => {
+    render(<Harness staff />);
+    fireEvent.click(screen.getByRole('button', { name: /^\dWhen/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Manual' }));
+    expect(
+      screen.getByText('Starts paused. You start and pause it.')
+    ).toBeInTheDocument();
   });
 });

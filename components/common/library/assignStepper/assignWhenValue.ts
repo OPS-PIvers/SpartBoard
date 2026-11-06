@@ -2,7 +2,6 @@ import type { TFunction } from 'i18next';
 import {
   availabilityBackwards,
   defaultAvailability,
-  manualStartAvailable,
   type AssignAvailability,
   type AssignWhenMode,
   type BellWindowFn,
@@ -19,7 +18,7 @@ export interface AssignWhenValue {
   availability: AssignAvailability;
 }
 
-/** Quiz starts on Manual when it can; everything else is Scheduled. */
+/** Quiz starts on Manual when its classes have bell periods; everything else is Scheduled. */
 export function defaultWhenValue({
   activity,
   now = new Date(),
@@ -32,7 +31,10 @@ export function defaultWhenValue({
   manualAvailable: boolean;
 }): AssignWhenValue {
   return {
-    mode: activity === 'quiz' && manualAvailable ? 'manual' : 'scheduled',
+    mode:
+      activity === 'quiz' && manualAvailable && bellAvailable
+        ? 'manual'
+        : 'scheduled',
     availability: defaultAvailability(now, bellAvailable),
   };
 }
@@ -60,11 +62,14 @@ export function formatWhenValue(
     variant,
     rosterCount,
     manualAvailable,
+    staff = false,
     t,
   }: {
     variant: AssignWhenVariant;
     rosterCount: number;
     manualAvailable: boolean;
+    /** Staff audience: Manual starts the whole assignment, not each class. */
+    staff?: boolean;
     t: TFunction;
   }
 ): string {
@@ -73,9 +78,13 @@ export function formatWhenValue(
       defaultValue: 'You start it from the board',
     });
   if (variant === 'when' && value.mode === 'manual' && manualAvailable)
-    return t('assignWhen.manualValue', {
-      defaultValue: 'Manual. You start and pause each class.',
-    });
+    return staff
+      ? t('assignWhen.manualValueStaff', {
+          defaultValue: 'Manual. You start and pause it.',
+        })
+      : t('assignWhen.manualValue', {
+          defaultValue: 'Manual. You start and pause each class.',
+        });
   const available = variant === 'available';
   if (value.availability.byRoster && rosterCount > 1)
     return available
@@ -118,12 +127,7 @@ export function whenBackwards(
   bellWindow: BellWindowFn | undefined,
   workKind?: WorkKind
 ): boolean {
-  if (
-    when.mode === 'manual' &&
-    workKind !== 'resource' &&
-    manualStartAvailable(bellWindow)
-  )
-    return false;
+  if (when.mode === 'manual' && workKind !== 'resource') return false;
   return availabilityBackwards(
     { availability: when.availability, workKind },
     rosters,

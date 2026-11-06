@@ -133,6 +133,8 @@ interface EditorModalShellProps {
   tourScope?: string;
   /** Live-tour anchor for the Save button. */
   saveAnchor?: TourAnchorAttrs;
+  /** Header background (a library accent) with white text; omitted keeps the white header. */
+  headerAccent?: string;
   children: React.ReactNode;
 }
 
@@ -179,6 +181,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   allowFullscreen = true,
   tourScope,
   saveAnchor,
+  headerAccent,
   children,
 }) => {
   const [fullscreen, setFullscreen] = useState(false);
@@ -288,7 +291,10 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   // re-render them.
   const customHeader = useMemo(
     () => (
-      <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
+      <div
+        className={`flex items-center justify-between gap-4 px-6 py-4 shrink-0 ${headerAccent ? 'text-white' : 'border-b border-slate-200'}`}
+        style={headerAccent ? { backgroundColor: headerAccent } : undefined}
+      >
         <div className="flex flex-col min-w-0 flex-1">
           {onTitleChange ? (
             <input
@@ -302,20 +308,24 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
               // can rename the item without a duplicate title field in the
               // editor body. `aria-labelledby` on the modal still resolves
               // here because the id is preserved.
-              className="font-black text-lg text-slate-800 truncate bg-transparent border-0 focus:outline-hidden focus:ring-0 placeholder:text-slate-400 placeholder:font-bold w-full p-0"
+              className={`font-black text-lg truncate bg-transparent border-0 focus:outline-hidden focus:ring-0 placeholder:font-bold w-full p-0 ${headerAccent ? 'text-white placeholder:text-white/60' : 'text-slate-800 placeholder:text-slate-400'}`}
               aria-label="Title"
               {...(tourScope ? tourTypeAttr('editor.title', tourScope) : {})}
             />
           ) : (
             <h3
               id="editor-modal-shell-title"
-              className="font-black text-lg text-slate-800 truncate"
+              className={`font-black text-lg truncate ${headerAccent ? 'text-white' : 'text-slate-800'}`}
             >
               {title}
             </h3>
           )}
           {subtitle !== undefined && subtitle !== null && (
-            <div className="text-xs text-slate-500 mt-0.5">{subtitle}</div>
+            <div
+              className={`text-xs mt-0.5 ${headerAccent ? 'text-white/80' : 'text-slate-500'}`}
+            >
+              {subtitle}
+            </div>
           )}
         </div>
         {headerExtras && (
@@ -325,12 +335,13 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
           <FullscreenToggleButton
             fullscreen={isFullscreen}
             onToggle={() => setFullscreen((v) => !v)}
+            onAccent={!!headerAccent}
           />
         )}
         {!hideHeaderClose && (
           <button
             onClick={() => void requestClose()}
-            className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0"
+            className={`p-1.5 rounded-full transition-colors shrink-0 ${headerAccent ? 'text-white/80 hover:bg-white/15 hover:text-white' : 'hover:bg-slate-100 text-slate-400'}`}
             aria-label="Close"
           >
             <X size={20} />
@@ -349,6 +360,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       allowFullscreen,
       isFullscreen,
       tourScope,
+      headerAccent,
     ]
   );
 

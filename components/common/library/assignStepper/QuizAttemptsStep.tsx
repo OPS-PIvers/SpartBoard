@@ -16,6 +16,8 @@ import { tourFieldAttr } from '@/config/tourAnchors';
 export interface QuizRuleStepProps {
   value: QuizBehaviorSettings;
   onChange: (next: QuizBehaviorSettings) => void;
+  /** Flashcards Check: cards for questions, and no rows that need a quiz (final score, passages, targets). */
+  flashcards?: boolean;
 }
 
 const FINAL_SCORE_OPTIONS: {
@@ -31,9 +33,12 @@ const FINAL_SCORE_OPTIONS: {
 export const QuizAttemptsStep: React.FC<QuizRuleStepProps> = ({
   value,
   onChange,
+  flashcards = false,
 }) => {
   const { t } = useTranslation();
-  const { timeLimitOn, finalScoreOn } = useQuizRuleGates();
+  const gates = useQuizRuleGates();
+  const { timeLimitOn } = gates;
+  const finalScoreOn = gates.finalScoreOn && !flashcards;
   const o = value.sessionOptions;
   const minutes = clampQuizTimeLimitMinutes(o.timeLimitMinutes);
   const timeLabel = t('quizTimeLimit.label', 'Time limit');
@@ -118,7 +123,7 @@ export const QuizAttemptsStep: React.FC<QuizRuleStepProps> = ({
         />
       )}
       <StepToggleRow
-        label="Shuffle questions"
+        label={flashcards ? 'Shuffle cards' : 'Shuffle questions'}
         anchor={tourFieldAttr(
           'assign-rule.toggle',
           'assign',
@@ -129,18 +134,20 @@ export const QuizAttemptsStep: React.FC<QuizRuleStepProps> = ({
           onChange(patchQuizSessionOptions(value, { shuffleQuestions }))
         }
       />
-      <StepToggleRow
-        label="Shuffle answer options"
-        anchor={tourFieldAttr(
-          'assign-rule.toggle',
-          'assign',
-          'shuffle-answers'
-        )}
-        checked={o.shuffleAnswerOptions ?? true}
-        onChange={(shuffleAnswerOptions) =>
-          onChange(patchQuizSessionOptions(value, { shuffleAnswerOptions }))
-        }
-      />
+      {!flashcards && (
+        <StepToggleRow
+          label="Shuffle answer options"
+          anchor={tourFieldAttr(
+            'assign-rule.toggle',
+            'assign',
+            'shuffle-answers'
+          )}
+          checked={o.shuffleAnswerOptions ?? true}
+          onChange={(shuffleAnswerOptions) =>
+            onChange(patchQuizSessionOptions(value, { shuffleAnswerOptions }))
+          }
+        />
+      )}
     </div>
   );
 };

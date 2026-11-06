@@ -2,20 +2,19 @@ import { useCallback } from 'react';
 import type { WhiteboardStartingImage } from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDialog } from '@/context/useDialog';
-import {
-  stimulusShareMessage,
-  STIMULUS_SHARE_CONFIRM,
-} from '@/utils/quizStimuli';
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
 /** Uploads a starting-page image the same way a quiz image stimulus is uploaded (D6). */
 export function useWhiteboardImageUpload() {
   const { driveService } = useGoogleDrive();
-  const { showConfirm, showAlert } = useDialog();
+  const { showAlert } = useDialog();
 
   return useCallback(
-    async (file: File): Promise<WhiteboardStartingImage | null> => {
+    async (
+      file: File,
+      driveName?: string
+    ): Promise<WhiteboardStartingImage | null> => {
       if (!file.type.startsWith('image/')) {
         await showAlert(`"${file.name}" isn't an image.`, {
           variant: 'warning',
@@ -41,18 +40,10 @@ export function useWhiteboardImageUpload() {
         bitmap.close();
         const driveFile = await driveService.uploadFile(
           file,
-          `stimulus-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`,
+          driveName ??
+            `stimulus-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`,
           'Assets/QuizStimuli'
         );
-        if (
-          !(await showConfirm(
-            stimulusShareMessage(file.name),
-            STIMULUS_SHARE_CONFIRM
-          ))
-        ) {
-          await driveService.deleteFile(driveFile.id).catch(() => undefined);
-          return null;
-        }
         await driveService.makePublic(driveFile.id, undefined);
         return {
           driveFileId: driveFile.id,
@@ -69,6 +60,6 @@ export function useWhiteboardImageUpload() {
         return null;
       }
     },
-    [driveService, showAlert, showConfirm]
+    [driveService, showAlert]
   );
 }

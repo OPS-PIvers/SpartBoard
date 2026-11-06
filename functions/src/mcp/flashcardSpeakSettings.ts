@@ -7,7 +7,7 @@ import type {
 
 export type SpeakGroupSetting = 'follow' | 'forgive' | 'require';
 export type SpeakPresetId = 'beginner' | 'intermediate' | 'advanced';
-type SpeakPreset = SpeakPresetId | 'custom';
+export type SpeakPreset = SpeakPresetId | 'custom';
 
 /** Server copy of FlashcardSpeakSettings (types.ts). */
 export interface SpeakSettings {

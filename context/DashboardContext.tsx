@@ -211,6 +211,9 @@ import {
   getAnnotationWorldRect,
 } from '@/utils/annotationSize';
 import { STANDARD_COLORS } from '@/config/colors';
+import { IS_DEV_PROJECT } from '@/config/devProject';
+import { DevProdDriveWriteError } from '@/utils/devDriveWriteGuard';
+import type { GoogleDriveService } from '@/utils/googleDriveService';
 import { tourDemoConfig } from '@/config/tourDemoContent';
 import {
   createWidgetHistoryStack,
@@ -655,6 +658,31 @@ const shareIsHostedBy = async (
     return false;
   }
 };
+
+const devPiiFileName = (dashboardId: string) => `${dashboardId}-pii-dev.json`;
+
+// Dev can't write the live site's names file, so it saves its own under a name the live site never reads.
+async function writePiiFile(
+  driveService: GoogleDriveService,
+  dashboardId: string,
+  fileId: string | undefined,
+  blob: Blob
+): Promise<string> {
+  if (fileId) {
+    try {
+      await driveService.updateFileContent(fileId, blob);
+      return fileId;
+    } catch (err) {
+      if (!(err instanceof DevProdDriveWriteError)) throw err;
+    }
+  }
+  const file = await driveService.uploadFile(
+    blob,
+    IS_DEV_PROJECT ? devPiiFileName(dashboardId) : `${dashboardId}-pii.json`,
+    'Data/Dashboards'
+  );
+  return file.id;
+}
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -1834,7 +1862,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         pendingPiiClearRef.current.add(dashboard.id);
         if (driveService) {
           try {
-            await driveService.updateFileContent(
+            await writePiiFile(
+              driveService,
+              dashboard.id,
               staleFileId,
               new Blob(['{}'], { type: 'application/json' })
             );
@@ -1885,15 +1915,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       const existingPiiFileId = piiDriveFileIdRef.current.get(dashboard.id);
       try {
-        if (existingPiiFileId) {
-          await driveService.updateFileContent(existingPiiFileId, blob);
-        } else {
-          const file = await driveService.uploadFile(
-            blob,
-            `${dashboard.id}-pii.json`,
-            'Data/Dashboards'
-          );
-          piiDriveFileIdRef.current.set(dashboard.id, file.id);
+        const savedId = await writePiiFile(
+          driveService,
+          dashboard.id,
+          existingPiiFileId,
+          blob
+        );
+        if (savedId !== existingPiiFileId) {
+          piiDriveFileIdRef.current.set(dashboard.id, savedId);
         }
         pendingPiiClearRef.current.delete(dashboard.id);
         piiNotOnDriveRef.current.delete(dashboard.id);
@@ -3410,7 +3439,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     void driveService
       .listFiles("name contains '-pii.json'")
       .then(async (files) => {
-        const piiFile = files.find((f) => f.name === expectedFileName);
+        // Dev prefers its own copy and only reads the live site's.
+        const devPiiFile =
+          IS_DEV_PROJECT && /^[\w-]+$/.test(currentId)
+            ? (
+                await driveService.listFiles(
+                  `name = '${devPiiFileName(currentId)}' and trashed = false`
+                )
+              )[0]
+            : undefined;
+        const piiFile =
+          devPiiFile ?? files.find((f) => f.name === expectedFileName);
         if (!piiFile) {
           // No supplement found — clear any stale cached ID for this dashboard
           piiDriveFileIdRef.current.delete(currentId);

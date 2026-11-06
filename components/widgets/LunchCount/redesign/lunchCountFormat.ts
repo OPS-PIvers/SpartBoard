@@ -50,6 +50,75 @@ export function formatLunchTime(hour: string, minute: string): string {
   return `${String(parsedHour)}:${String(safeMinute).padStart(2, '0')}`;
 }
 
+/** Today as YYYY-MM-DD in Central time, the same day the sheet row uses. */
+export function getCentralDayKey(): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+/** The class part of a sheet row (lunch time and grade), without the reporter's name. */
+export function reportClassKey(lunchTime: string, gradeLabel: string): string {
+  return `${lunchTime || '??:??'} - ${gradeLabel || 'Grade ?'}`;
+}
+
+/** What the one-send-per-day marker records: the class part plus the active roster, if any. */
+export function submittedClassKey(
+  lunchTime: string,
+  gradeLabel: string,
+  rosterId: string | null
+): string {
+  const base = reportClassKey(lunchTime, gradeLabel);
+  return rosterId ? `${base} #${rosterId}` : base;
+}
+
+interface SubmittedMarker {
+  lastSubmittedDate?: string;
+  lastSubmittedWidgetId?: string;
+  lastSubmittedClasses?: string[];
+}
+
+/** True when this widget already sent this class today, so other classes and copies can still submit. */
+export function hasSubmittedToday(
+  config: SubmittedMarker,
+  widgetId: string,
+  classKey: string
+): boolean {
+  return (
+    config.lastSubmittedDate === getCentralDayKey() &&
+    config.lastSubmittedWidgetId === widgetId &&
+    (config.lastSubmittedClasses === undefined ||
+      config.lastSubmittedClasses.includes(classKey))
+  );
+}
+
+/** The marker to save after a successful submit; it keeps today's earlier classes. */
+export function submittedMarker(
+  config: SubmittedMarker,
+  widgetId: string,
+  dayKey: string,
+  classKey: string
+): Required<SubmittedMarker> {
+  const sameDay =
+    config.lastSubmittedDate === dayKey &&
+    config.lastSubmittedWidgetId === widgetId;
+  const earlier = sameDay ? (config.lastSubmittedClasses ?? []) : [];
+  return {
+    lastSubmittedDate: dayKey,
+    lastSubmittedWidgetId: widgetId,
+    lastSubmittedClasses: earlier.includes(classKey)
+      ? earlier
+      : [...earlier, classKey],
+  };
+}
+
 export function getCentralTimestamp(): string {
   try {
     return new Intl.DateTimeFormat('en-US', {

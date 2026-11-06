@@ -25,7 +25,17 @@ import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { QuizPublicQuestion } from '@/types';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
+import {
+  ANSWER_TILE_WIDTH,
+  AnswerImageZoomButton,
+  AnswerLabel,
+} from './AnswerImage';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
+import {
+  SIDE_BANK_PANEL,
+  SIDE_BANK_WRAPPER,
+  hasSideBank,
+} from './structuredLayout';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
 
@@ -37,6 +47,8 @@ interface OrderingResponseInputProps {
   light?: boolean;
   /** D8 speaker beside every item; absent when read-aloud is off. */
   readAloud?: ReadAloudItemControls;
+  /** False keeps the word bank below the list, for narrow hosts like the review game. */
+  sideBank?: boolean;
 }
 
 const BANK_ID = '__bank__';
@@ -53,18 +65,19 @@ function shuffle<T>(arr: T[]): T[] {
 const DraggableChip: React.FC<{
   id: string;
   label: string;
+  image?: string;
   selected: boolean;
   disabled?: boolean;
   onTap: () => void;
   ariaLabel?: string;
   light?: boolean;
-}> = ({ id, label, selected, disabled, onTap, ariaLabel, light }) => {
+}> = ({ id, label, image, selected, disabled, onTap, ariaLabel, light }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id, disabled });
   const style: React.CSSProperties = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : {};
-  return (
+  const chip = (
     <button
       type="button"
       ref={setNodeRef}
@@ -73,7 +86,7 @@ const DraggableChip: React.FC<{
         if (!disabled) onTap();
       }}
       style={style}
-      className={`min-h-[44px] px-3 py-2 rounded-xl text-sm font-bold border-2 select-none touch-none transition-colors ${
+      className={`min-h-[44px] rounded-xl text-sm font-bold border-2 select-none touch-none transition-colors ${image ? `${ANSWER_TILE_WIDTH} flex flex-col p-2` : 'px-3 py-2'} ${
         isDragging
           ? 'opacity-40'
           : selected
@@ -90,8 +103,21 @@ const DraggableChip: React.FC<{
       aria-label={ariaLabel ?? label}
       title={label}
     >
-      {label}
+      <AnswerLabel label={label} image={image} layout="tile" />
     </button>
+  );
+  if (!image) return chip;
+  return (
+    <span className="relative inline-flex">
+      {chip}
+      {!isDragging && (
+        <AnswerImageZoomButton
+          src={image}
+          label={label}
+          className="absolute right-3 top-3"
+        />
+      )}
+    </span>
   );
 };
 
@@ -99,6 +125,7 @@ const Slot: React.FC<{
   id: string;
   index: number;
   filledLabel: string | null;
+  filledImage?: string;
   selectedHere: boolean;
   onTapEmpty: () => void;
   onChipTap: () => void;
@@ -113,6 +140,7 @@ const Slot: React.FC<{
   id,
   index,
   filledLabel,
+  filledImage,
   selectedHere,
   onTapEmpty,
   onChipTap,
@@ -175,7 +203,11 @@ const Slot: React.FC<{
           aria-label={`${filledLabel}, ${slotPosition}`}
           aria-pressed={selectedHere}
         >
-          {filledLabel}
+          <AnswerLabel
+            label={filledLabel}
+            image={filledImage}
+            layout="compact"
+          />
         </button>
       ) : (
         <button
@@ -199,6 +231,13 @@ const Slot: React.FC<{
           Drop here
         </button>
       )}
+      {filledLabel && filledImage ? (
+        <AnswerImageZoomButton
+          src={filledImage}
+          label={filledLabel}
+          className={isDragging ? 'invisible' : ''}
+        />
+      ) : null}
       {filledLabel ? speaker : null}
       <div className="flex flex-col">
         <button
@@ -233,8 +272,10 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
   disabled,
   light,
   readAloud,
+  sideBank = true,
 }) => {
   const { t } = useTranslation();
+  const side = sideBank && hasSideBank(question);
   const speaker = (text: string) =>
     readAloud ? (
       <ReadAloudButton
@@ -250,6 +291,10 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
     () => question.orderingItems ?? [],
     [question.orderingItems]
   );
+  const images =
+    question.orderingImages?.length === items.length
+      ? question.orderingImages
+      : undefined;
 
   // Slot state: each slot holds either an item index (into `items`) or null.
   // Bank holds the rest, in shuffled order. Per-attempt re-shuffle on
@@ -444,7 +489,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
       collisionDetection={rectIntersection}
       onDragEnd={handleDragEnd}
     >
-      <div className="space-y-4">
+      <div className={`space-y-4 ${side ? SIDE_BANK_WRAPPER : ''}`}>
         <div className="space-y-2">
           {slots.map((slot, i) => {
             const label =
@@ -457,6 +502,11 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
                 id={`slot-${i}`}
                 index={i}
                 filledLabel={label}
+                filledImage={
+                  slot !== null && slot !== undefined
+                    ? images?.[slot]
+                    : undefined
+                }
                 selectedHere={selectedHere}
                 onTapEmpty={() => handleEmptySlotTap(i)}
                 onChipTap={() => handleSlotChipTap(i)}
@@ -472,7 +522,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
           })}
         </div>
 
-        <BankDropZone light={light}>
+        <BankDropZone light={light} side={side}>
           <div className="flex items-center justify-between mb-2">
             <span
               className={`text-xs uppercase tracking-wider font-bold ${light ? 'text-slate-500' : 'text-slate-400'}`}
@@ -504,11 +554,12 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
               return (
                 <span
                   key={itemIndex}
-                  className={`inline-flex items-center gap-1 rounded-xl ${isHighlighted(items[itemIndex]) ? READ_ALOUD_HIGHLIGHT_CLASS : ''}`}
+                  className={`inline-flex ${images?.[itemIndex] ? 'items-stretch' : 'items-center self-center'} gap-1 rounded-xl ${isHighlighted(items[itemIndex]) ? READ_ALOUD_HIGHLIGHT_CLASS : ''}`}
                 >
                   <DraggableChip
                     id={`bank-${itemIndex}`}
                     label={items[itemIndex]}
+                    image={images?.[itemIndex]}
                     selected={selected}
                     disabled={disabled}
                     onTap={() => handleBankChipTap(itemIndex)}
@@ -529,12 +580,13 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
 const BankDropZone: React.FC<{
   children: React.ReactNode;
   light?: boolean;
-}> = ({ children, light }) => {
+  side?: boolean;
+}> = ({ children, light, side }) => {
   const { isOver, setNodeRef } = useDroppable({ id: BANK_ID });
   return (
     <div
       ref={setNodeRef}
-      className={`p-3 rounded-2xl border-2 border-dashed transition-colors ${
+      className={`p-3 rounded-2xl border-2 border-dashed transition-colors ${side ? SIDE_BANK_PANEL : ''} ${
         isOver
           ? light
             ? 'border-brand-blue-light bg-brand-blue-lighter'

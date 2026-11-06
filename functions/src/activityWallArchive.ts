@@ -21,6 +21,7 @@ import * as admin from './firebaseAdmin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import { GOOGLE_OAUTH_CLIENT_ID } from './secrets';
 import './functionsInit';
+import { DRIVE_APP_FOLDER } from './devDriveWriteGuard';
 
 const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret('GOOGLE_OAUTH_CLIENT_SECRET');
 const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
@@ -55,7 +56,7 @@ export const STREAM_DOWNLOAD_THRESHOLD_BYTES = 50 * 1024 * 1024;
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
-const APP_DRIVE_FOLDER = 'SpartBoard';
+const APP_DRIVE_FOLDER = DRIVE_APP_FOLDER;
 const WALL_DRIVE_FOLDER = 'Activity Walls';
 
 type Firestore = admin.firestore.Firestore;

@@ -758,3 +758,99 @@ export function makeStopQuizResponses(): QuizResponse[] {
     ...makeQuizResponses().filter((r) => r.status !== 'completed'),
   ];
 }
+
+/** Portrait poster with a heading and small handwritten-style notes, like a teacher's anchor chart photo. */
+function posterImageDataUrl(title: string, hue: number): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 800;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 600, 800);
+  ctx.fillStyle = `hsl(${hue} 60% 40%)`;
+  ctx.font = 'bold 44px sans-serif';
+  ctx.fillText(title, 40, 80);
+  ctx.fillStyle = '#1e293b';
+  ctx.font = '26px cursive';
+  const notes = [
+    '1. Look at the board',
+    '2. Gather materials',
+    '3. Start quietly',
+    '4. Check your work',
+    '5. Ask a partner',
+  ];
+  notes.forEach((n, i) => ctx.fillText(n, 50, 170 + i * 70));
+  ctx.strokeStyle = `hsl(${hue} 60% 40%)`;
+  ctx.lineWidth = 6;
+  ctx.strokeRect(380, 160, 170, 170);
+  ctx.fillStyle = '#7c3aed';
+  ctx.fillRect(0, 700, 600, 16);
+  ctx.fillStyle = '#475569';
+  ctx.font = '20px sans-serif';
+  ctx.fillText('Orono Classroom Routines', 40, 760);
+  return canvas.toDataURL('image/png');
+}
+
+const POSTER_ITEMS = [
+  'Set Stamina',
+  'Get Set',
+  'Watch and Wait',
+  'Signal the Mode',
+  'Check for Task Understanding',
+  'Get Noticed',
+  'Lead and Empower',
+  'Linger and Look Back',
+];
+
+/** Self-paced Ordering, Matching and multiple choice questions whose answers carry pictures. */
+export function makeOptionImagesQuizSession(
+  first: 'Ordering' | 'Matching' | 'MC'
+): QuizSession {
+  const base = makeTimedQuizSession('active');
+  const images = POSTER_ITEMS.map((t, i) => posterImageDataUrl(t, i * 60));
+  const ordering = {
+    id: 'img-ordering',
+    type: 'Ordering' as const,
+    text: 'Put the routine steps in order.',
+    timeLimit: 0,
+    orderingItems: POSTER_ITEMS,
+    orderingImages: images,
+  };
+  const matching = {
+    id: 'img-matching',
+    type: 'Matching' as const,
+    text: 'Match each poster to its routine.',
+    timeLimit: 0,
+    matchingLeft: POSTER_ITEMS.slice(0, 5),
+    matchingLeftImages: images.slice(0, 5),
+    matchingRight: [
+      'Before work time',
+      'During work time',
+      'After work time',
+      'At lunch',
+      'At recess',
+      'In the hallway',
+    ],
+    matchingRightImages: [images[5], images[6], images[7], '', '', ''],
+  };
+  const mc = {
+    id: 'img-mc',
+    type: 'MC' as const,
+    text: 'Which poster shows how to start quietly?',
+    timeLimit: 0,
+    choices: POSTER_ITEMS.slice(0, 4),
+    choiceImages: images.slice(0, 4),
+  };
+  const order =
+    first === 'Ordering'
+      ? [ordering, matching, mc]
+      : first === 'Matching'
+        ? [matching, ordering, mc]
+        : [mc, ordering, matching];
+  return {
+    ...base,
+    totalQuestions: 3,
+    publicQuestions: order,
+  };
+}

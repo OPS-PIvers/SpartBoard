@@ -123,6 +123,7 @@ export {
   commitRosterPinIndexV1,
   pinLoginV1,
 } from './studentIdentity';
+export { reportStudentLoadIssueV1 } from './studentLoadIssue';
 // Student landing v2: whether a student's teacher has the new page.
 // Gradebook D8: roster student → stable uid for the gradebook grid.
 export { getGradebookRosterV1 } from './gradebook/getGradebookRosterV1';
@@ -159,12 +160,14 @@ export {
 export {
   recordFlashcardCheckRatingsV1,
   submitFlashcardCheckV1,
+  reopenFlashcardCheckV1,
 } from './flashcardCheck';
 export { submitMiniAppResultV1 } from './miniAppResults';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
 // ── Flashcards Speak reference lookup (docs/multilingual-pronunciation-engine.md S3) ─
 export { lookupSpeakReferencesV1 } from './pronunciation/lookup';
+export { hearSpeakIpaV1 } from './pronunciation/hearIpa';
 export { listSpeakWordsToCheckV1 } from './pronunciation/wordsToCheck';
 
 // ── Video Activity answer key (server-graded; key kept off session docs) ────
@@ -238,6 +241,9 @@ export { groupReminderEmails } from './groupReminderEmails';
 export {
   markPlcAssessmentDirtyOnSession,
   markPlcAssessmentDirtyOnResponse,
+  markPlcAssessmentDirtyOnFlashcardSession,
+  markPlcAssessmentDirtyOnFlashcardProgress,
+  markPlcAssessmentDirtyOnFlashcardSet,
 } from './markPlcAssessmentDirty';
 export { recomputePlcAssessments } from './recomputePlcAssessments';
 
@@ -339,7 +345,10 @@ export { focusStatusV1, focusReportV1 } from './focus/studentEndpoints';
 export { migratePlcs } from './migratePlcs';
 
 // Dev-only: copy the caller's own prod materials into spartboard-dev.
-export { syncMyMaterialsFromProdV1 } from './devSyncFromProd';
+export {
+  syncConfigFromProdV1,
+  syncMyMaterialsFromProdV1,
+} from './devSyncFromProd';
 export { gradebookDemoV1 } from './devGradebookDemo';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';

@@ -1,4 +1,7 @@
 import type {
+  FlashcardCheckRules,
+  FlashcardSpeakChoice,
+  SpeakPreset,
   FlashcardMasteryThreshold,
   FlashcardMode,
   FlashcardScoreVisibility,
@@ -16,6 +19,9 @@ import {
   type LastAssignSettings,
   type LastAssignSettingsSpec,
 } from '@/hooks/useLastAssignSettings';
+import { SPEAK_PRESET_IDS } from '@/config/pronunciationGroups';
+import { clampSpeakAttempts } from '@/config/flashcardsSpeakAdmin';
+import { parseFlashcardCheckRules } from '@/components/common/library/assignStepper/flashcardsRuleValues';
 
 /** Profile field holding this teacher's last-used Flashcards check rules (plan D12). */
 export const LAST_FLASHCARD_ASSIGN_SETTINGS_FIELD =
@@ -25,9 +31,50 @@ export const LAST_FLASHCARD_ASSIGN_SETTINGS_FIELD =
 export type FlashcardAssignRules = Omit<
   FlashcardAssignForm,
   'collectSubmission'
->;
+> & {
+  /** flashcards-assign-v2: the Quiz-style rule steps; absent before that flag. */
+  rules?: FlashcardCheckRules;
+  /** flashcards-assign-v2: last Speak rules picked; groups aren't kept since they depend on the language. */
+  speak?: LastSpeakChoice;
+};
 
-const MODES: readonly FlashcardMode[] = ['flashcards', 'write', 'test'];
+/** Groups are kept only for a Custom level, and reused only when they fit the next set's language. */
+export type LastSpeakChoice = Omit<FlashcardSpeakChoice, 'groups'> &
+  Partial<Pick<FlashcardSpeakChoice, 'groups'>>;
+
+const PRESETS: readonly SpeakPreset[] = [...SPEAK_PRESET_IDS, 'custom'];
+
+const parseLastSpeak = (raw: unknown): LastSpeakChoice | null => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  if (
+    !PRESETS.includes(r.preset as SpeakPreset) ||
+    typeof r.strict !== 'boolean' ||
+    typeof r.attempts !== 'number' ||
+    typeof r.example !== 'boolean'
+  ) {
+    return null;
+  }
+  return {
+    preset: r.preset as SpeakPreset,
+    strict: r.strict,
+    attempts: clampSpeakAttempts(r.attempts),
+    example: r.example,
+    ...(r.preset === 'custom' &&
+    r.groups &&
+    typeof r.groups === 'object' &&
+    !Array.isArray(r.groups)
+      ? { groups: r.groups }
+      : {}),
+  };
+};
+
+const MODES: readonly FlashcardMode[] = [
+  'flashcards',
+  'write',
+  'test',
+  'speak',
+];
 const SIDES: readonly FlashcardSide[] = ['term', 'definition'];
 const TEST_TYPES: readonly FlashcardTestType[] = ['mc', 'fib'];
 const THRESHOLDS: readonly FlashcardMasteryThreshold[] = [2, 3, 4];
@@ -65,6 +112,16 @@ export function parseLastFlashcardAssignSettings(
     testCount,
     masteryThreshold: pick(THRESHOLDS, r.masteryThreshold, d.masteryThreshold),
     scoreVisibility: pick(VISIBILITIES, r.scoreVisibility, d.scoreVisibility),
+    ...(r.rules !== undefined
+      ? (() => {
+          const rules = parseFlashcardCheckRules(r.rules);
+          return rules ? { rules } : {};
+        })()
+      : {}),
+    ...(() => {
+      const speak = parseLastSpeak(r.speak);
+      return speak ? { speak } : {};
+    })(),
   };
 }
 
@@ -72,10 +129,11 @@ export function parseLastFlashcardAssignSettings(
 export function getFlashcardAssignPrefill(
   lastUsed: FlashcardAssignRules | null,
   deckSize: number
-): FlashcardAssignForm {
-  const form: FlashcardAssignForm = {
+): FlashcardAssignForm & Pick<FlashcardAssignRules, 'rules'> {
+  const { speak: _speak, ...saved } = lastUsed ?? {};
+  const form: FlashcardAssignForm & Pick<FlashcardAssignRules, 'rules'> = {
     ...DEFAULT_FLASHCARD_ASSIGN_FORM,
-    ...(lastUsed ?? {}),
+    ...saved,
   };
   if (!flashcardTestCountOptions(deckSize).includes(form.testCount)) {
     form.testCount = 'all';

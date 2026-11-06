@@ -14,6 +14,7 @@ import { chunk } from './shared';
 import { computeAssignmentPseudonym } from './assignmentPseudonym';
 import {
   ALLOWED_ORIGINS,
+  CLASSLINK_TIMEOUT_MS,
   ONEROSTER_BASE,
   computeStudentUid,
   getOAuthHeaders,
@@ -76,7 +77,9 @@ type RosterSnap = FirebaseFirestore.QueryDocumentSnapshot;
 
 // Roster docs are client-written: reads are paged per class id, capped, and limited to the fields the directory shows.
 const ROSTER_PAGE_SIZE = 100;
-const ROSTER_MAX_SCANNED_PER_CLASS = 500;
+const ROSTER_MAX_PAGES_PER_CLASS = 50;
+// Sorts after every roster id (ids are at most 1,500 UTF-8 bytes), so one cursor skips an owner's remaining docs.
+const ROSTER_ID_CEILING = '\u{10FFFF}'.repeat(375);
 const AUTH_GET_USERS_MAX = 100;
 const ROSTER_DIRECTORY_FIELDS = [
   'classlinkClassId',
@@ -225,29 +228,39 @@ async function lookupRostersBySection(
     );
     return { kinds, taught };
   };
+  // Returns the page's owners that are not verified for this class.
   const keepVerified = async (
     classId: string,
     docs: readonly RosterSnap[]
-  ): Promise<void> => {
+  ): Promise<Set<string>> => {
     const { kinds, taught } = await prepareOwners(docs);
+    const unverified = new Set<string>();
     for (const doc of docs) {
       const owner = kinds.get(ownerOf(doc));
       const ok =
         owner?.kind === 'staff' ||
         (owner?.kind === 'candidate' &&
           taught.get(ownerOf(doc))?.has(classId) === true);
-      if (!ok) continue;
+      if (!ok) {
+        unverified.add(ownerOf(doc));
+        continue;
+      }
       const value: unknown = doc.get('classlinkClassId');
       if (typeof value !== 'string' || value !== classId) continue;
       const list = out.get(value);
       if (list) list.push(doc);
       else out.set(value, [doc]);
     }
+    return unverified;
   };
-  const pageQuery = (classId: string, after?: RosterSnap) => {
+  const pageQuery = (
+    classId: string,
+    after?: FirebaseFirestore.DocumentReference
+  ) => {
     const q = db
       .collectionGroup('rosters')
       .where('classlinkClassId', '==', classId)
+      .orderBy(admin.firestore.FieldPath.documentId())
       .select(...ROSTER_DIRECTORY_FIELDS)
       .limit(ROSTER_PAGE_SIZE);
     return after ? q.startAfter(after) : q;
@@ -264,16 +277,20 @@ async function lookupRostersBySection(
   );
   for (const [i, classId] of classIds.entries()) {
     let page = firstPages[i];
-    let scanned = page.size;
-    await keepVerified(classId, page.docs);
-    // A flood of unverified docs is paged past, up to the scan cap, so it can't hide a real roster.
+    let pages = 1;
+    let unverified = await keepVerified(classId, page.docs);
+    // An unverified owner's remaining docs are jumped in one page, so a doc flood can't use up the page cap.
     while (
       page.size === ROSTER_PAGE_SIZE &&
-      scanned < ROSTER_MAX_SCANNED_PER_CLASS
+      pages < ROSTER_MAX_PAGES_PER_CLASS
     ) {
-      page = await pageQuery(classId, page.docs[page.docs.length - 1]).get();
-      scanned += page.size;
-      await keepVerified(classId, page.docs);
+      const last = page.docs[page.docs.length - 1];
+      const after = unverified.has(ownerOf(last))
+        ? last.ref.parent.doc(ROSTER_ID_CEILING)
+        : last.ref;
+      page = await pageQuery(classId, after).get();
+      pages += 1;
+      unverified = await keepVerified(classId, page.docs);
     }
   }
   return out;
@@ -1213,7 +1230,6 @@ export const PIN_INDEX_MAX_ENTRIES = 200;
 
 const ONEROSTER_PAGE_LIMIT = 200;
 const ONEROSTER_MAX_PAGES = 10;
-const CLASSLINK_TIMEOUT_MS = 20000;
 
 /** Every page of a OneRoster list endpoint, or null if it ran past the page cap. */
 async function fetchOneRosterPages<T>(
@@ -1305,21 +1321,14 @@ export async function loadTeacherClassIds(
     const teacher = (userResp.data.users ?? []).find(isOneRosterStaff);
     if (!teacher?.sourcedId) return null;
 
-    // Unpaged, like getClassLinkRosterV1, so any class the import dialog listed is found here.
-    const classesUrl = `${base}/users/${encodeURIComponent(teacher.sourcedId)}/classes`;
-    const classesHeaders = getOAuthHeaders(
-      classesUrl,
-      {},
-      'GET',
-      creds.classlinkClientId,
-      creds.classlinkClientSecret
+    const classes = await fetchOneRosterPages<ClassLinkClass>(
+      `${base}/users/${encodeURIComponent(teacher.sourcedId)}/classes`,
+      'classes',
+      creds
     );
-    const classesResp = await axios.get<{ classes?: ClassLinkClass[] }>(
-      classesUrl,
-      { headers: { ...classesHeaders }, timeout: CLASSLINK_TIMEOUT_MS }
-    );
+    if (!classes) throw new Error('class list truncated');
     return new Set(
-      (classesResp.data.classes ?? [])
+      classes
         .map((c) => c.sourcedId)
         .filter((id): id is string => typeof id === 'string' && id.length > 0)
     );

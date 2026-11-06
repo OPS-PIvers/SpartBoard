@@ -16,9 +16,13 @@ const MIN_LEVELS = 2;
 // RFC 4180 line/cell tokenization (duplicated from utils/csvImport.ts).
 // ---------------------------------------------------------------------------
 
-function splitLogicalRows(source: string): string[] {
-  const rows: string[] = [];
+function splitLogicalRows(
+  source: string
+): Array<{ text: string; line: number }> {
+  const rows: Array<{ text: string; line: number }> = [];
   let current = '';
+  let line = 1;
+  let startLine = 1;
   let inQuotes = false;
   for (let i = 0; i < source.length; i++) {
     const ch = source[i];
@@ -29,13 +33,16 @@ function splitLogicalRows(source: string): string[] {
     }
     if (!inQuotes && (ch === '\n' || ch === '\r')) {
       if (ch === '\r' && source[i + 1] === '\n') i++;
-      rows.push(current);
+      rows.push({ text: current, line: startLine });
       current = '';
+      line++;
+      startLine = line;
       continue;
     }
+    if (ch === '\n') line++;
     current += ch;
   }
-  if (current.length > 0) rows.push(current);
+  if (current.length > 0) rows.push({ text: current, line: startLine });
   return rows;
 }
 
@@ -160,7 +167,7 @@ export function parseRubricCsv(text: string): ParseRubricResult {
     };
   }
 
-  const headerCells = parseRow(logicalRows[0]);
+  const headerCells = parseRow(logicalRows[0].text);
   const { criterionIdx, descriptionIdx, levelGroups, hasExtraLevelColumns } =
     buildColumnIndex(headerCells);
 
@@ -183,9 +190,8 @@ export function parseRubricCsv(text: string): ParseRubricResult {
   const criteria: RubricCriterion[] = [];
 
   for (let i = 1; i < logicalRows.length; i++) {
-    const raw = logicalRows[i];
+    const { text: raw, line } = logicalRows[i];
     if (!raw.trim()) continue;
-    const line = i + 1;
     const cells = parseRow(raw);
 
     const name = cells[criterionIdx]?.trim() ?? '';

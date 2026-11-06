@@ -22,6 +22,7 @@ export const PROMPT_LIMITED_INTEGRATIONS: readonly AiIntegrationId[] = [
   'dashboard-layout',
   'instructional-routine',
   'quiz',
+  'flashcards',
   'ocr',
   'blooms-ai',
   'video-activity-recommend',

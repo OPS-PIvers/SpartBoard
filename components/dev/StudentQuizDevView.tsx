@@ -17,6 +17,7 @@ import { QuizStopScreen } from '@/components/quiz/QuizStopScreen';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import {
   makeCalculatorQuizSession,
+  makeOptionImagesQuizSession,
   makeStopQuizSession,
   makeStimulusQuizSession,
   makeTimedQuizSession,
@@ -119,17 +120,34 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
 }) => {
   const session = useMemo(
     () =>
-      state === 'sq-stimuli'
-        ? makeStimulusQuizSession()
-        : state === 'sq-calculator'
-          ? makeCalculatorQuizSession()
-          : state === 'sq-whiteboard'
-            ? makeWhiteboardQuizSession()
-            : state === 'sq-stop-part'
-              ? makeStopQuizSession('active')
-              : state === 'sq-cross-out'
-                ? { ...makeTimedQuizSession('active'), allowCrossOut: true }
-                : makeTimedQuizSession('active'),
+      state === 'sq-ordering-list'
+        ? { ...makeOptionImagesQuizSession('Ordering'), orderingList: true }
+        : state === 'sq-images-ordering'
+          ? makeOptionImagesQuizSession('Ordering')
+          : state === 'sq-images-matching'
+            ? makeOptionImagesQuizSession('Matching')
+            : state === 'sq-images-mc'
+              ? makeOptionImagesQuizSession('MC')
+              : state === 'sq-stimuli'
+                ? makeStimulusQuizSession()
+                : state === 'sq-calculator'
+                  ? makeCalculatorQuizSession()
+                  : state === 'sq-whiteboard'
+                    ? makeWhiteboardQuizSession()
+                    : state === 'sq-stop-part'
+                      ? makeStopQuizSession('active')
+                      : state === 'sq-cross-out'
+                        ? {
+                            ...makeTimedQuizSession('active'),
+                            allowCrossOut: true,
+                          }
+                        : state === 'sq-fullscreen'
+                          ? {
+                              ...makeTimedQuizSession('active'),
+                              tabAwayLimitSeconds: 30,
+                              tabAwayAutoSubmit: true,
+                            }
+                          : makeTimedQuizSession('active'),
     [state]
   );
   if (state === 'sq-attempts' || state === 'sq-attempts-live') {
@@ -194,6 +212,7 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
         warningCount={0}
         onRecordStimulusPlay={noop}
         onReportStimulusError={noop}
+        fullscreenRequired={state === 'sq-fullscreen'}
       />
     </div>
   );

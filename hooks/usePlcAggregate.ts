@@ -258,7 +258,9 @@ export function parsePlcAggregate(
     ...(typeof data.title === 'string' && data.title
       ? { title: data.title }
       : {}),
-    ...(data.kind === 'quiz' || data.kind === 'video-activity'
+    ...(data.kind === 'quiz' ||
+    data.kind === 'video-activity' ||
+    data.kind === 'flashcard-check'
       ? { kind: data.kind }
       : {}),
     ...optionalNumber('sessionCount', data.sessionCount),
@@ -305,7 +307,10 @@ function indexAggregates(
  * the same provider back-compat bridge. The aggregates collection is read-only
  * for clients; no mutators are returned.
  */
-export function usePlcAggregate(plcId: string | null): UsePlcAggregatesResult {
+export function usePlcAggregate(
+  plcId: string | null,
+  { flashcards = false }: { flashcards?: boolean } = {}
+): UsePlcAggregatesResult {
   const { user } = useAuth();
   // Back-compat (Decision 1.4): read from a mounted PlcProvider when present.
   const fromProvider = usePlcSubcollection(plcId, (s) => s.aggregates);
@@ -361,18 +366,21 @@ export function usePlcAggregate(plcId: string | null): UsePlcAggregatesResult {
     return () => unsub();
   }, [plcId, user, fromProvider]);
 
-  const list = fromProvider ? fromProvider.data : aggregates;
+  const raw = fromProvider ? fromProvider.data : aggregates;
+  // Flashcards check results show only where a caller opts in (flashcards-assign-v2).
+  const list = useMemo(
+    () => (flashcards ? raw : raw.filter((a) => a.kind !== 'flashcard-check')),
+    [raw, flashcards]
+  );
   const aggregatesById = useMemo(() => indexAggregates(list), [list]);
 
-  return useMemo(() => {
-    if (fromProvider) {
-      return {
-        aggregates: fromProvider.data,
-        aggregatesById,
-        loading: fromProvider.loading,
-        error: fromProvider.error,
-      };
-    }
-    return { aggregates, aggregatesById, loading, error };
-  }, [fromProvider, aggregates, aggregatesById, loading, error]);
+  return useMemo(
+    () => ({
+      aggregates: list,
+      aggregatesById,
+      loading: fromProvider ? fromProvider.loading : loading,
+      error: fromProvider ? fromProvider.error : error,
+    }),
+    [fromProvider, list, aggregatesById, loading, error]
+  );
 }

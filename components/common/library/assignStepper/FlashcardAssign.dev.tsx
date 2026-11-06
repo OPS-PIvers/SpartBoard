@@ -1,7 +1,8 @@
 // DEV-only: the real Flashcards assign stepper, for /assign-stepper-dev.
 /* eslint-disable react-refresh/only-export-components -- default export is a harness preview record */
-import React, { useState } from 'react';
-import type { ClassRoster, FlashcardSet } from '@/types';
+import React, { useContext, useMemo, useState } from 'react';
+import { AuthContext } from '@/context/AuthContextValue';
+import type { ClassRoster, FlashcardSet, Plc } from '@/types';
 import { FlashcardAssignStepper } from '@/components/widgets/Flashcards/FlashcardAssignStepper';
 import type { AssignPeriodAccessContext } from '../AssignPeriodAccessSection';
 
@@ -14,6 +15,35 @@ const SET: FlashcardSet = {
     id: `c${i}`,
     term: `term ${i}`,
     definition: `definition ${i}`,
+  })),
+  createdAt: 0,
+  updatedAt: 0,
+};
+
+const SPANISH = [
+  ['la mesa', 'table'],
+  ['el perro', 'dog'],
+  ['la ventana', 'window'],
+  ['el libro', 'book'],
+  ['la cocina', 'kitchen'],
+  ['el árbol', 'tree'],
+  ['la playa', 'beach'],
+  ['el cuaderno', 'notebook'],
+  ['la guía', 'guide'],
+  ['el reloj', 'clock'],
+  ['la silla', 'chair'],
+  ['el zapato', 'shoe'],
+];
+
+const SPANISH_SET: FlashcardSet = {
+  id: 'dev-set-es',
+  title: 'Unidad 2: La casa',
+  termLanguage: 'es-US',
+  definitionLanguage: 'en-US',
+  cards: SPANISH.map(([term, definition], i) => ({
+    id: `es${i}`,
+    term,
+    definition,
   })),
   createdAt: 0,
   updatedAt: 0,
@@ -46,7 +76,22 @@ const PERIOD_CTX: AssignPeriodAccessContext = {
   onTagRoster: () => undefined,
 };
 
-const Preview: React.FC = () => {
+/** Every flag on, so the preview shows the flashcards-assign-v2 steps and Speak. */
+const AllFlags: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const auth = useContext(AuthContext);
+  const value = useMemo(
+    () => (auth ? { ...auth, canAccessFeature: () => true } : auth),
+    [auth]
+  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+const PLCS = [{ id: 'plc-1', name: 'World Language PLC' } as Plc];
+
+const Preview: React.FC<{ set?: FlashcardSet; plcs?: Plc[] }> = ({
+  set = SET,
+  plcs,
+}) => {
   const [open, setOpen] = useState(true);
   return (
     <div className="space-y-2 text-sm text-slate-600">
@@ -60,7 +105,7 @@ const Preview: React.FC = () => {
       {open && (
         <FlashcardAssignStepper
           isOpen
-          set={SET}
+          set={set}
           rosters={ROSTERS}
           initialRosterIds={ROSTERS.map((r) => r.id)}
           onClose={() => setOpen(false)}
@@ -69,11 +114,26 @@ const Preview: React.FC = () => {
             return Promise.resolve(true);
           }}
           periodAccess={PERIOD_CTX}
+          plcs={plcs}
         />
       )}
     </div>
   );
 };
 
-const preview = { title: 'Flashcards assign', render: Preview };
+const PreviewV2: React.FC = () => (
+  <AllFlags>
+    <Preview set={SPANISH_SET} plcs={PLCS} />
+  </AllFlags>
+);
+
+const preview = {
+  title: 'Flashcards assign',
+  render: () =>
+    new URLSearchParams(window.location.search).get('v2') === '1' ? (
+      <PreviewV2 />
+    ) : (
+      <Preview />
+    ),
+};
 export default preview;

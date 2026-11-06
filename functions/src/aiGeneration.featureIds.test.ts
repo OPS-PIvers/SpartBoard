@@ -45,6 +45,11 @@ describe('missingDocDeniesNonAdmin', () => {
     ).toBe(true);
   });
 
+  it('keeps Flashcards AI closed to teachers until an admin saves its switch', () => {
+    expect(specificFeatureIdFor('flashcards', undefined)).toBe('flashcards-ai');
+    expect(missingDocDeniesNonAdmin('flashcards-ai')).toBe(true);
+  });
+
   it('leaves features that default open alone', () => {
     for (const [type, source] of [
       ['quiz', undefined],

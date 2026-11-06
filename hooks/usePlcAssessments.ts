@@ -68,7 +68,9 @@ export function parsePlcAssessment(
 ): PlcCommonAssessment | null {
   if (
     typeof data.title !== 'string' ||
-    (data.kind !== 'quiz' && data.kind !== 'video-activity') ||
+    (data.kind !== 'quiz' &&
+      data.kind !== 'video-activity' &&
+      data.kind !== 'flashcard-check') ||
     typeof data.syncGroupId !== 'string' ||
     data.syncGroupId.length === 0 ||
     !ASSESSMENT_STATUSES.has(data.status as PlcCommonAssessment['status']) ||
@@ -135,7 +137,8 @@ export function parsePlcAssessment(
  * bridge.
  */
 export function usePlcAssessments(
-  plcId: string | null
+  plcId: string | null,
+  { flashcards = false }: { flashcards?: boolean } = {}
 ): UsePlcAssessmentsResult {
   const { user } = useAuth();
   // Back-compat (Decision 1.4): read from a mounted PlcProvider when present.
@@ -192,13 +195,16 @@ export function usePlcAssessments(
   }, [plcId, user, fromProvider]);
 
   return useMemo(() => {
+    // Flashcards check results show only where a caller opts in (flashcards-assign-v2).
+    const keep = (list: PlcCommonAssessment[]) =>
+      flashcards ? list : list.filter((a) => a.kind !== 'flashcard-check');
     if (fromProvider) {
       return {
-        assessments: fromProvider.data,
+        assessments: keep(fromProvider.data),
         loading: fromProvider.loading,
         error: fromProvider.error,
       };
     }
-    return { assessments, loading, error };
-  }, [fromProvider, assessments, loading, error]);
+    return { assessments: keep(assessments), loading, error };
+  }, [fromProvider, assessments, loading, error, flashcards]);
 }

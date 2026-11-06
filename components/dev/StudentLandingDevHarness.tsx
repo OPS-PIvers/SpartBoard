@@ -12,6 +12,7 @@ export const StudentLandingDevHarness: React.FC = () => (
     inClass={readParam('time') === 'class'}
     gradesEnabled={readParam('gb') === '1'}
     initialClassId={readParam('class')}
+    overviewResources={readParam('res') === '1'}
     initialTab={(readParam('tab') as LandingTab | null) ?? 'assignments'}
   />
 );

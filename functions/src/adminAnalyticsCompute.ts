@@ -554,7 +554,7 @@ export async function computeAnalyticsForOrg(
   // Current writers (by function → featureId):
   //   generateWithAI (aiGeneration.ts): mini-app→embed-mini-app (Embed) or
   //     mini-app-ai (Mini App), poll→smart-poll, quiz→quiz, ocr→ocr,
-  //     ocr+drawing→drawing-ai, ocr+webcam→webcam-ai, blooms-ai→blooms-ai,
+  //     ocr+drawing→drawing-ai, ocr+webcam→webcam-ai, blooms-ai→blooms-ai, flashcards→flashcards-ai,
   //     video-activity-recommend→video-activity-ai,
   //     dashboard-layout→dashboard-layout, instructional-routine→instructional-routine
   //   generateVideoActivity (aiGeneration.ts): video-activity-ai
@@ -580,6 +580,7 @@ export async function computeAnalyticsForOrg(
     'quiz',
     'ocr',
     'blooms-ai',
+    'flashcards-ai',
     'video-activity-recommend',
     'dashboard-layout',
     'instructional-routine',

@@ -810,9 +810,12 @@ service cloud.firestore {
       }
     }
 
-    // Rosters - users can only access their own rosters in their subcollection
+    // Rosters - users can only access their own rosters in their subcollection.
+    // Only a teacher account writes them: studentIdentity trusts classlinkClassId
+    // across the collection group, so anonymous and studentRole callers can't seed it.
     match /users/{userId}/rosters/{rosterId} {
-      allow read, write: if ownsUser(userId);
+      allow read: if ownsUser(userId);
+      allow write: if ownsUserTeacher(userId) && notAnon();
 
       // Non-PII PIN index sidecar bridging PIN-joining students into the SSO uid
       // space. commitRosterPinIndexV1 writes and pinLoginV1 reads via Admin SDK;
@@ -7147,6 +7150,13 @@ service cloud.firestore {
                && sessionClassIds.hasAny(request.auth.token.classIds);
       }
 
+      // Same gate as quiz_sessions: only a member may point a check at a PLC's results.
+      function fcPlcLinkOk() {
+        return isStr('plcId') && incoming().plcId.size() > 0
+          && isStr('syncGroupId') && incoming().syncGroupId.size() > 0
+          && plcMember(incoming().plcId);
+      }
+
       allow get: if signedIn() && (
         existing().teacherUid == authUid() ||
         isSubMonitor(existing()) ||
@@ -7170,7 +7180,8 @@ service cloud.firestore {
                     && isList('classIds')
                     && isList('cards')
                     && (incoming().cards.size() > 0 || incoming().get('cardsInContent', false) == true)
-                    && incoming().cards.size() <= 500;
+                    && incoming().cards.size() <= 500
+                    && (!('plcId' in incoming()) || fcPlcLinkOk());
       allow update: if fcTeacherSignedIn()
                     && existing().teacherUid == authUid()
                     && subMonitorStampUnchanged()
@@ -7178,7 +7189,8 @@ service cloud.firestore {
                     && unchanged('kind')
                     // Audience is fixed at create, so live joiners' progress writes keep passing.
                     && incoming().get('audience', '') == existing().get('audience', '')
-                    && incoming().status in ['active', 'ended'];
+                    && incoming().status in ['active', 'ended']
+                    && (incoming().get('plcId', null) == null || !changed(['plcId', 'syncGroupId']) || fcPlcLinkOk());
       allow delete: if fcTeacherSignedIn() && existing().teacherUid == authUid();
 
       function fcSession() {
@@ -7213,13 +7225,33 @@ service cloud.firestore {
             ? incoming().get('cards', null) == (resource == null ? null : existing().get('cards', null))
             : incoming().cards is map;
         }
+        function fcKept(data, k) {
+          return data.get(k, null) == (resource == null ? null : existing().get(k, null));
+        }
         function fcValidProgress() {
           let data = incoming();
           return data.keys().hasOnly([
                    'classId', 'cards', 'starred', 'round', 'studyMs', 'modesUsed',
                    'tests', 'lastActiveAt', 'checkLog', 'speak', 'speakRound',
-                   'speakSounds', 'staffEmail', 'staffName'
+                   'speakSounds', 'staffEmail', 'staffName', 'resultsOverride',
+                   'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt',
+                   'completedAttempts', 'forcedSubmit', 'attemptStartedAt', 'handRaisedAt',
+                   'tabSwitchWarnings', 'cardSubset'
                  ])
+                 // The card subset is a copy of the student's own pointer, or cleared.
+                 && (fcKept(data, 'cardSubset') || data.get('cardSubset', null) == null ||
+                     data.cardSubset == get(/databases/$(database)/documents/student_assignments/$(studentUid)/items/$(sessionId)).data.override.questionIds)
+                 // The teacher's results setting and the results tab-away guard ride through unchanged.
+                 && fcKept(data, 'resultsOverride') && fcKept(data, 'resultsTabWarnings')
+                 && fcKept(data, 'resultsLockedOut') && fcKept(data, 'resultsLockedOutAt')
+                 && fcKept(data, 'completedAttempts') && fcKept(data, 'forcedSubmit')
+                 // The time limit's start is stamped once per attempt, never later than now.
+                 && (fcKept(data, 'attemptStartedAt') ||
+                     ((resource == null || existing().get('attemptStartedAt', null) == null)
+                      && data.attemptStartedAt is int
+                      && data.attemptStartedAt <= request.time.toMillis() + 60000))
+                 && (data.get('handRaisedAt', null) == null || data.handRaisedAt is int)
+                 && data.get('tabSwitchWarnings', 0) >= (resource == null ? 0 : existing().get('tabSwitchWarnings', 0))
                  && data.classId is string
                  && fcCardsOk()
                  && data.starred is list
@@ -7254,6 +7286,14 @@ service cloud.firestore {
                               && fcWithinWindow() && fcOpen()
                               && (resource == null || !('submittedAt' in existing()))
                               && fcValidProgress();
+        // A submitted student viewing protected results raises their tab-away count and may lock.
+        allow update: if signedIn() && studentUid == authUid()
+                      && 'submittedAt' in existing()
+                      && resultsGuardWrite();
+        // Show / Hide / Follow class and Unlock results for one student (flashcards-assign-v2).
+        allow update: if fcIsSessionTeacher() && notDeactivated()
+                      && changedOnly(['resultsOverride', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'handRaisedAt'])
+                      && optMap(incoming(), 'resultsOverride');
         allow delete: if fcIsSessionTeacher() && notDeactivated();
       }
     }

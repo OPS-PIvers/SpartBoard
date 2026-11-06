@@ -1,4 +1,4 @@
-// Marks PLC assessments dirty when linked quiz sessions or responses change (plan §5.1).
+// Marks PLC assessments dirty when linked quiz or Flashcards check sessions or their submissions change (plan §5.1).
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
@@ -9,6 +9,7 @@ import { recomputeOnePlcAssessment } from './recomputePlcAssessments';
 type Firestore = admin.firestore.Firestore;
 
 export interface LinkedSession {
+  kind: 'quiz' | 'flashcard-check';
   plcId: string;
   syncGroupId: string;
   quizId: string;
@@ -30,6 +31,7 @@ export function parseLinkedSession(raw: unknown): LinkedSession | null {
   const syncGroupId = asString(r.syncGroupId);
   if (plcId.length === 0 || syncGroupId.length === 0) return null;
   return {
+    kind: 'quiz',
     plcId,
     syncGroupId,
     quizId: asString(r.quizId),
@@ -38,6 +40,28 @@ export function parseLinkedSession(raw: unknown): LinkedSession | null {
     status: asString(r.status),
     scorePublishedAt:
       typeof r.scorePublishedAt === 'number' ? r.scorePublishedAt : null,
+  };
+}
+
+/** A Flashcards check session's link fields; study sessions never reach a PLC. */
+export function parseLinkedFlashcardSession(
+  raw: unknown
+): LinkedSession | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  const plcId = asString(r.plcId);
+  const syncGroupId = asString(r.syncGroupId);
+  if (plcId.length === 0 || syncGroupId.length === 0 || r.kind !== 'check')
+    return null;
+  return {
+    kind: 'flashcard-check',
+    plcId,
+    syncGroupId,
+    quizId: asString(r.setId),
+    quizTitle: asString(r.title),
+    teacherUid: asString(r.teacherUid),
+    status: asString(r.status),
+    scorePublishedAt: null,
   };
 }
 
@@ -93,13 +117,13 @@ async function createAssessment(
     await ref.create({
       id: syncGroupId,
       title: session.quizTitle || 'Untitled assessment',
-      kind: 'quiz',
+      kind: session.kind,
       syncGroupId,
       status: 'active',
       createdBy: session.teacherUid,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      sourceQuizId: session.quizId,
+      ...(session.kind === 'quiz' ? { sourceQuizId: session.quizId } : {}),
       dirtyAt: now,
     });
     return { id: syncGroupId, created: true, needsDirty: false };
@@ -202,6 +226,81 @@ export async function handleResponseWrite(
   }
 }
 
+function flashcardSubmissionChanged(change: Change): boolean {
+  const b = change.before.exists ? (change.before.data() ?? {}) : {};
+  const a = change.after.exists ? (change.after.data() ?? {}) : {};
+  // Study writes never touch these, so most progress writes stop here with no reads.
+  return (
+    (b.submittedAt ?? null) !== (a.submittedAt ?? null) ||
+    (b.score ?? null) !== (a.score ?? null) ||
+    (b.submittedAt != null &&
+      JSON.stringify(b.answerLog) !== JSON.stringify(a.answerLog))
+  );
+}
+
+/** Progress handler body: a submit, a regrade or a reset dirties the linked assessment. */
+export async function handleFlashcardProgressWrite(
+  db: Firestore,
+  sessionId: string,
+  change: Change | undefined
+): Promise<void> {
+  if (!change || !flashcardSubmissionChanged(change)) return;
+  try {
+    const sessionSnap = await db
+      .collection('flashcard_sessions')
+      .doc(sessionId)
+      .get();
+    const session = parseLinkedFlashcardSession(sessionSnap.data());
+    if (!session) return;
+    await markDirty(db, session.plcId, session.syncGroupId, session);
+  } catch (err) {
+    logger.error('markPlcAssessmentDirty: flashcard progress handler failed', {
+      sessionId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/** Set handler body: new set tags dirty every PLC result the set's checks feed, so standards catch up. */
+export async function handleFlashcardSetWrite(
+  db: Firestore,
+  uid: string,
+  setId: string,
+  change: Change | undefined
+): Promise<void> {
+  if (!change) return;
+  const before = change.before.exists ? change.before.data()?.targets : null;
+  const after = change.after.exists ? change.after.data()?.targets : null;
+  if (JSON.stringify(before ?? null) === JSON.stringify(after ?? null)) return;
+  try {
+    const sessionsSnap = await db
+      .collection('flashcard_sessions')
+      .where('teacherUid', '==', uid)
+      .where('setId', '==', setId)
+      .get();
+    const seen = new Set<string>();
+    for (const doc of sessionsSnap.docs) {
+      const session = parseLinkedFlashcardSession(doc.data());
+      if (!session || seen.has(pairKey(session))) continue;
+      seen.add(pairKey(session));
+      // A tag edit adds no results, so it never recreates a deleted assessment.
+      const live = await findLiveAssessment(
+        db,
+        session.plcId,
+        session.syncGroupId
+      );
+      if (live && live.dirtyAt == null)
+        await setDirtyAt(db, session.plcId, live.id, Date.now());
+    }
+  } catch (err) {
+    logger.error('markPlcAssessmentDirty: flashcard set handler failed', {
+      uid,
+      setId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 function pairKey(s: LinkedSession): string {
   return `${s.plcId}\0${s.syncGroupId}`;
 }
@@ -210,15 +309,12 @@ function pairKey(s: LinkedSession): string {
 export async function handleSessionWrite(
   db: Firestore,
   sessionId: string,
-  change: Change | undefined
+  change: Change | undefined,
+  parse: (raw: unknown) => LinkedSession | null = parseLinkedSession
 ): Promise<void> {
   if (!change) return;
-  const before = change.before.exists
-    ? parseLinkedSession(change.before.data())
-    : null;
-  const after = change.after.exists
-    ? parseLinkedSession(change.after.data())
-    : null;
+  const before = change.before.exists ? parse(change.before.data()) : null;
+  const after = change.after.exists ? parse(change.after.data()) : null;
   if (!before && !after) return;
 
   const beforeStatus = change.before.exists
@@ -296,6 +392,53 @@ export const markPlcAssessmentDirtyOnResponse = onDocumentWritten(
     await handleResponseWrite(
       admin.firestore(),
       event.params.sessionId,
+      event.data
+    );
+  }
+);
+
+export const markPlcAssessmentDirtyOnFlashcardSession = onDocumentWritten(
+  {
+    document: 'flashcard_sessions/{sessionId}',
+    memory: '256MiB',
+    maxInstances: 10,
+  },
+  async (event) => {
+    await handleSessionWrite(
+      admin.firestore(),
+      event.params.sessionId,
+      event.data,
+      parseLinkedFlashcardSession
+    );
+  }
+);
+
+export const markPlcAssessmentDirtyOnFlashcardProgress = onDocumentWritten(
+  {
+    document: 'flashcard_sessions/{sessionId}/progress/{studentUid}',
+    memory: '256MiB',
+    maxInstances: 10,
+  },
+  async (event) => {
+    await handleFlashcardProgressWrite(
+      admin.firestore(),
+      event.params.sessionId,
+      event.data
+    );
+  }
+);
+
+export const markPlcAssessmentDirtyOnFlashcardSet = onDocumentWritten(
+  {
+    document: 'users/{uid}/flashcard_sets/{setId}',
+    memory: '256MiB',
+    maxInstances: 10,
+  },
+  async (event) => {
+    await handleFlashcardSetWrite(
+      admin.firestore(),
+      event.params.uid,
+      event.params.setId,
       event.data
     );
   }

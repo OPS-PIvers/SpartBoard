@@ -46,6 +46,7 @@ type LaunchKind = (typeof LAUNCHABLE_KINDS)[number];
 const MAX_ROSTERS = 20;
 const STIMULUS_QUOTES_FEATURE = 'quiz-stimulus-quotes';
 const CROSS_OUT_FEATURE = 'quiz-cross-out';
+const ORDERING_LIST_FEATURE = 'quiz-ordering-list';
 const ANONYMOUS_JOIN_FEATURE = 'anonymous-join';
 /** A session doc is capped at ~1 MiB by Firestore; stay well inside it. */
 const MAX_PAYLOAD_BYTES = 700_000;
@@ -315,6 +316,9 @@ interface KeyQuestion {
   correctAnswer?: string;
   incorrectAnswers?: string[];
   matchingDistractors?: string[];
+  orderingImages?: string[];
+  answerImages?: { text?: unknown; url?: unknown }[];
+  matchingTermImages?: { text?: unknown; url?: unknown }[];
   points?: number;
   placeholder?: string;
   minWords?: number;
@@ -339,6 +343,21 @@ function shuffled<T>(items: T[]): T[] {
  * recording: a sub-launched run has no reviewed locales and no media gate, so
  * those are simply absent rather than mirrored.
  */
+// Mirrors utils/quizAnswerImages imagesForLabels: https only, aligned, absent when empty.
+function imagesForLabels(
+  labels: string[],
+  images: KeyQuestion['answerImages']
+): string[] | undefined {
+  if (!Array.isArray(images)) return undefined;
+  const out = labels.map((label) => {
+    const url = images.find(
+      (img) => typeof img?.text === 'string' && img.text.trim() === label.trim()
+    )?.url;
+    return typeof url === 'string' && url.startsWith('https://') ? url : '';
+  });
+  return out.some(Boolean) ? out : undefined;
+}
+
 export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
   const base: Record<string, unknown> = {
     id: q.id,
@@ -348,14 +367,20 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
   };
   if (q.type === 'MC') {
     const english = [q.correctAnswer ?? '', ...(q.incorrectAnswers ?? [])];
-    base.choices = shuffled(english.filter(Boolean));
+    const choices = shuffled(english.filter(Boolean));
+    base.choices = choices;
+    const images = imagesForLabels(choices, q.answerImages);
+    if (images) base.choiceImages = images;
   } else if (q.type === 'MA') {
     // Right options then wrong (utils/quizMultiAnswer multiAnswerOptions), shuffled so neither side shows.
     const nonBlank = (s: string) => s.trim().length > 0;
-    base.choices = shuffled([
+    const choices = shuffled([
       ...(q.correctAnswer ?? '').split('|').filter(nonBlank),
       ...(q.incorrectAnswers ?? []).filter((s) => !!s && nonBlank(s)),
     ]);
+    base.choices = choices;
+    const images = imagesForLabels(choices, q.answerImages);
+    if (images) base.choiceImages = images;
   } else if (q.type === 'Matching') {
     // Only the first colon separates term from definition, so a definition
     // containing one survives intact.
@@ -365,15 +390,30 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
         ? { left: p, right: '' }
         : { left: p.slice(0, sep), right: p.slice(sep + 1) };
     });
-    base.matchingLeft = pairs.map((p) => p.left);
+    const left = pairs.map((p) => p.left);
+    base.matchingLeft = left;
     // Shuffled with the distractors mixed in, and the distractor list itself
     // never travels — otherwise a student reads the wrong options off devtools.
-    base.matchingRight = shuffled([
+    const right = shuffled([
       ...pairs.map((p) => p.right),
       ...(q.matchingDistractors ?? []).filter(Boolean),
     ]);
+    base.matchingRight = right;
+    const leftImages = imagesForLabels(left, q.matchingTermImages);
+    if (leftImages) base.matchingLeftImages = leftImages;
+    const rightImages = imagesForLabels(right, q.answerImages);
+    if (rightImages) base.matchingRightImages = rightImages;
   } else if (q.type === 'Ordering') {
-    base.orderingItems = shuffled((q.correctAnswer ?? '').split('|'));
+    const items = (q.correctAnswer ?? '').split('|');
+    const order = shuffled(items.map((_, i) => i));
+    base.orderingItems = order.map((i) => items[i]);
+    // Mirrors utils/quizOrderingImages alignedOrderingImages: https only, padded, absent when empty.
+    const rawImages = Array.isArray(q.orderingImages) ? q.orderingImages : [];
+    const images = order.map((i) => {
+      const url: unknown = rawImages[i];
+      return typeof url === 'string' && url.startsWith('https://') ? url : '';
+    });
+    if (images.some(Boolean)) base.orderingImages = images;
   } else if (q.type === 'free-response') {
     if (q.placeholder) base.placeholder = q.placeholder;
     if (q.minWords && q.minWords > 0) base.minWords = q.minWords;
@@ -1276,6 +1316,11 @@ export async function handleLaunchSubAssignment(
     STIMULUS_QUOTES_FEATURE
   );
   const crossOutOn = await deps.hostHasFeature(db, hostUid, CROSS_OUT_FEATURE);
+  const orderingListOn = await deps.hostHasFeature(
+    db,
+    hostUid,
+    ORDERING_LIST_FEATURE
+  );
   const publicQuestions = publicQuestionsFromKey(keyQuiz.questions);
   const quizTitle =
     typeof keyQuiz.title === 'string' && keyQuiz.title ? keyQuiz.title : 'Quiz';
@@ -1291,6 +1336,7 @@ export async function handleLaunchSubAssignment(
     showLearningTargets: false,
     ...(stimulusQuotesOn ? { allowStimulusQuotes: true } : {}),
     ...(crossOutOn ? { allowCrossOut: true } : {}),
+    ...(orderingListOn ? { orderingList: true } : {}),
     ...(Array.isArray(keyQuiz.stimuli) ? { stimuli: keyQuiz.stimuli } : {}),
     ...(typeof keyQuiz.language === 'string'
       ? { language: keyQuiz.language }

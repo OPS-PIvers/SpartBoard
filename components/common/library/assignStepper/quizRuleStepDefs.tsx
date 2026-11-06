@@ -20,38 +20,62 @@ export function quizRuleStepDefs({
   gates,
   hasManualGrading = false,
   handRaiseMode,
+  flashcards = false,
 }: {
   value: QuizBehaviorSettings;
   onChange: (next: QuizBehaviorSettings) => void;
   gates: QuizRuleGates;
   hasManualGrading?: boolean;
   handRaiseMode?: QuizHandRaiseMode;
+  /** Flashcards Check: the same steps without quiz-only rows (see QuizRuleStepProps). */
+  flashcards?: boolean;
 }): AssignStepDef[] {
   const title = (id: 'attempts' | 'integrity' | 'feedback') =>
-    getAssignStepTitle(id, 'quiz', { kind: 'work' });
+    getAssignStepTitle(id, flashcards ? 'flashcards' : 'quiz', {
+      kind: 'work',
+      flashcardsV2: flashcards,
+    });
+  const ctx = { ...gates, flashcards };
   return [
     {
       id: 'attempts',
       title: title('attempts'),
-      value: formatQuizAttemptsValue(value, gates),
-      body: <QuizAttemptsStep value={value} onChange={onChange} />,
+      value: formatQuizAttemptsValue(value, ctx),
+      body: (
+        <QuizAttemptsStep
+          value={value}
+          onChange={onChange}
+          flashcards={flashcards}
+        />
+      ),
     },
     {
       id: 'integrity',
       title: title('integrity'),
       value: formatQuizIntegrityValue(value, gates),
-      body: <QuizIntegrityStep value={value} onChange={onChange} />,
+      body: (
+        <QuizIntegrityStep
+          value={value}
+          onChange={onChange}
+          flashcards={flashcards}
+        />
+      ),
     },
     {
       id: 'feedback',
       title: title('feedback'),
-      value: formatQuizFeedbackValue(value, { ...gates, hasManualGrading }),
+      value: formatQuizFeedbackValue(value, {
+        ...ctx,
+        scoreOnSubmitOn: gates.scoreOnSubmitOn || flashcards,
+        hasManualGrading,
+      }),
       body: (
         <QuizFeedbackStep
           value={value}
           onChange={onChange}
           hasManualGrading={hasManualGrading}
           handRaiseMode={handRaiseMode}
+          flashcards={flashcards}
         />
       ),
     },

@@ -226,6 +226,50 @@ describe('FlashcardEditor Speak', () => {
     ]);
   });
 
+  it('sends every pronunciation a teacher adds', async () => {
+    const lookup = lookupReturning();
+    const { onSave } = renderEditor({ speak: true, lookup });
+    await screen.findByLabelText('Level');
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /^Advanced\s*1$/ })[0]
+    );
+    const label = 'Pronunciation (IPA), Latin American Spanish';
+    fireEvent.change(screen.getByLabelText(label), {
+      target: { value: 'ˈola' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add another' })[0]);
+    fireEvent.change(screen.getAllByLabelText(label)[1], {
+      target: { value: 'ˈhola' },
+    });
+    save();
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(lookup.mock.calls[0][0].terms).toEqual([
+      {
+        cardId: 'c1',
+        term: 'hola',
+        ipaOverride: { 'es-419': 'ˈola|ˈhola' },
+      },
+    ]);
+  });
+
+  it('removes an added pronunciation', async () => {
+    renderEditor({ speak: true, lookup: lookupReturning() });
+    await screen.findByLabelText('Level');
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /^Advanced\s*1$/ })[0]
+    );
+    const label = 'Pronunciation (IPA), Latin American Spanish';
+    fireEvent.change(screen.getByLabelText(label), {
+      target: { value: 'ˈola' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add another' })[0]);
+    expect(screen.getAllByLabelText(label)).toHaveLength(2);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Remove pronunciation' })[0]
+    );
+    expect(screen.getAllByLabelText(label)).toHaveLength(1);
+  });
+
   it('keeps typed IPA when the lookup fails', async () => {
     const lookup = vi.fn<SpeakLookupCall>(() =>
       Promise.reject(new Error('offline'))

@@ -71,6 +71,8 @@ export interface GeneratedQuestion {
 
 interface AIResponseData {
   questions?: GeneratedQuestion[];
+  /** `flashcards`: the drafted cards. */
+  cards?: GeneratedFlashcard[];
   html?: string;
   title?: string;
   question?: string;
@@ -105,7 +107,8 @@ export type AIGenerationType =
   | 'video-activity'
   | 'video-activity-recommend'
   | 'guided-learning'
-  | 'blooms-ai';
+  | 'blooms-ai'
+  | 'flashcards';
 
 /** Widgets that share an AI type but have their own admin switch. */
 export type AISource = 'mini-app' | 'drawing' | 'webcam';
@@ -151,6 +154,8 @@ async function callAI(
     prompt?: string;
     image?: string;
     typeCounts?: QuizTypeCounts;
+    /** `flashcards` only: how many cards to draft. */
+    count?: number;
     /** Calling widget for shared types, so the server charges that widget's AI switch. */
     source?: AISource;
     /** `mini-app` only: the current code to revise. */
@@ -169,6 +174,7 @@ async function callAI(
         prompt?: string;
         image?: string;
         typeCounts?: QuizTypeCounts;
+        count?: number;
         source?: AISource;
         html?: string;
         layoutMode?: 'templates';
@@ -462,6 +468,33 @@ export async function generateQuiz(
     title: data.title,
     questions: data.questions,
   };
+}
+
+export interface GeneratedFlashcard {
+  term: string;
+  definition: string;
+}
+
+/** Drafts flashcards for a topic; mirrors functions/src/aiGeneration.ts `flashcards`. */
+export async function generateFlashcards(
+  prompt: string,
+  count: number
+): Promise<{ title: string; cards: GeneratedFlashcard[] }> {
+  const data = await callAI(
+    { type: 'flashcards', prompt, count },
+    'Failed to draft flashcards. Please try again with a different prompt.'
+  );
+  const cards = (data.cards ?? []).filter(
+    (card) =>
+      typeof card?.term === 'string' &&
+      typeof card.definition === 'string' &&
+      card.term.trim() !== '' &&
+      card.definition.trim() !== ''
+  );
+  if (cards.length === 0) {
+    throw new Error('The AI did not produce any usable cards.');
+  }
+  return { title: data.title ?? '', cards };
 }
 
 /**

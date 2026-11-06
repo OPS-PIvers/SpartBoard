@@ -25,7 +25,7 @@ export interface AssessmentListRow {
   /** Null for library-only rows (nothing to open yet). */
   assessmentId: string | null;
   title: string;
-  kind: 'quiz' | 'video-activity';
+  kind: 'quiz' | 'video-activity' | 'flashcard-check';
   status: AssessmentRowStatus;
   /** True when the assessment was archived (`status === 'closed'`). */
   archived: boolean;
@@ -163,17 +163,22 @@ export function buildAssessmentRows(
   const rows: AssessmentListRow[] = [];
   const coveredSyncGroups = new Set<string>();
   for (const assessment of input.assessments) {
-    if (assessment.deletedAt != null || assessment.kind !== 'quiz') continue;
-    coveredSyncGroups.add(assessment.syncGroupId);
+    if (assessment.deletedAt != null || assessment.kind === 'video-activity')
+      continue;
+    const isQuiz = assessment.kind === 'quiz';
+    if (isQuiz) coveredSyncGroups.add(assessment.syncGroupId);
     const aggregate = aggregateById.get(assessment.id) ?? null;
-    const library = libraryBySyncGroup.get(assessment.syncGroupId) ?? null;
+    // Flashcards checks have no Quiz library entry to borrow from.
+    const library = isQuiz
+      ? (libraryBySyncGroup.get(assessment.syncGroupId) ?? null)
+      : null;
     const title =
       firstNonEmpty([assessment.title, aggregate?.title, library?.title]) ?? '';
     rows.push({
       id: assessment.id,
       assessmentId: assessment.id,
       title,
-      kind: 'quiz',
+      kind: assessment.kind,
       status: aggregateStatus(aggregate),
       archived: assessment.status === 'closed' || library?.archived === true,
       questionCount: library?.questionCount ?? null,

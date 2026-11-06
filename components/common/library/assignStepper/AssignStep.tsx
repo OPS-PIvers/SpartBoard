@@ -12,6 +12,7 @@ const STEP_TOUR: Record<AssignStepId, ReturnType<typeof tourAttr>> = {
   feedback: tourAttr('assign-step.feedback'),
   video: tourAttr('assign-step.video'),
   check: tourAttr('assign-step.check'),
+  cards: tourAttr('assign-step.cards'),
   speak: tourAttr('assign-step.speak'),
   sheets: tourAttr('assign-step.sheets'),
   sharing: tourAttr('assign-step.sharing'),

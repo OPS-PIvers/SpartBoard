@@ -249,6 +249,8 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'editor',
     files: [
       'components/widgets/Flashcards/FlashcardEditor.tsx',
+      'components/widgets/Flashcards/FlashcardSetEditorModal.tsx',
+      'components/widgets/Flashcards/FlashcardAiOverlay.tsx',
       'components/widgets/Flashcards/FlashcardLanguageField.tsx',
       'components/widgets/Flashcards/speak/SpeakSettingsPanel.tsx',
       'components/widgets/Flashcards/speak/SpeakCardStatus.tsx',
@@ -270,6 +272,8 @@ export const SURFACES: TourSurfaceMap = {
       'components/widgets/Flashcards/FlashcardAssignStepper.tsx',
       'components/common/library/assignStepper/FlashcardsCheckStep.tsx',
       'components/common/library/assignStepper/FlashcardsSpeakStep.tsx',
+      'components/common/library/assignStepper/FlashcardsSpeakRules.tsx',
+      'components/common/library/assignStepper/FlashcardsCardsStep.tsx',
     ],
     opensWith: 'library-shell.card-primary-action:flashcards#row-1',
     parent: 'library.flashcards',
@@ -284,6 +288,20 @@ export const SURFACES: TourSurfaceMap = {
       'flashcards-check.score-visibility': 'assign-step.check',
       'flashcards-speak.show': 'assign-step.speak',
       'flashcards-speak.lock': 'assign-step.speak',
+      'flashcards-speak.level': 'assign-step.speak',
+      'flashcards-speak.attempts': 'assign-step.speak',
+      'flashcards-speak.strict': 'assign-step.speak',
+      'flashcards-speak.example': 'assign-step.speak',
+      'flashcards-check.speak-level': 'assign-step.check',
+      'flashcards-check.speak-attempts': 'assign-step.check',
+      'flashcards-check.speak-strict': 'assign-step.check',
+      'flashcards-check.speak-example': 'assign-step.check',
+      'flashcards-cards.mode': 'assign-step.cards',
+      'flashcards-cards.count': 'assign-step.cards',
+      'flashcards-cards.search': 'assign-step.cards',
+      'flashcards-cards.select-all': 'assign-step.cards',
+      'flashcards-cards.clear': 'assign-step.cards',
+      'flashcards-cards.list': 'assign-step.cards',
     },
   },
   'library.flashcards.results': {
@@ -293,6 +311,53 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'library-shell.archive-primary-action:flashcards#row-1',
     parent: 'library.flashcards',
     needs: ['student-data'],
+    inner: {
+      'flashcards.results-bulk-show':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-bulk-hide':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-bulk-follow-class':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-bulk-copy-names':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-bulk-print':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-bulk-clear':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-menu':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-menu-item':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-show':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-hide':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-follow-class':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-show-level':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-show-expiry':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-show-cancel':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-show-confirm':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-students-select-all':
+        'flashcards.results-drill:flashcards#students',
+      'flashcards.results-student-select':
+        'flashcards.results-drill:flashcards#students',
+    },
+  },
+  'library.flashcards.assignment-settings': {
+    label: 'Flashcards assignment Settings dialog',
+    kind: 'modal',
+    files: [
+      'components/widgets/Flashcards/FlashcardAssignmentSettingsModal.tsx',
+    ],
+    // On a live row the menu reads Results, then Settings.
+    opensWith: 'library-shell.archive-menu-item:flashcards#row-1-item-2',
+    parent: 'library.flashcards',
+    needs: ['library-item'],
   },
   'library.flashcards.publish-scores': {
     label: 'Flashcards publish scores dialog',

@@ -30,6 +30,8 @@ import {
 import { speakLanguageOf } from '@/config/pronunciationGroups';
 import {
   buildSpeakStamp,
+  parseSpeakChoice,
+  withSpeakChoice,
   speakCardsFor,
   type FlashcardSpeakStamp,
 } from '@/components/widgets/Flashcards/utils/flashcardAssign';
@@ -57,7 +59,11 @@ interface UseFlashcardSetsResult {
   loading: boolean;
   error: string | null;
   /** Resolves with the number of open Study assignments rewritten with the new cards. */
-  saveSet: (set: FlashcardSet) => Promise<number>;
+  /** `syncStudy: false` skips refreshing open Study assignments and the share link (editor autosave). */
+  saveSet: (
+    set: FlashcardSet,
+    options?: { syncStudy?: boolean }
+  ) => Promise<number>;
   deleteSet: (setId: string) => Promise<void>;
   publishSet: (set: FlashcardSet) => Promise<string>;
   revokeShare: (set: FlashcardSet) => Promise<void>;
@@ -142,7 +148,10 @@ const rewriteOpenStudySessions = async (
       sessionDoc.get('speakOff') === true
         ? undefined
         : stampFor(
-            set,
+            withSpeakChoice(
+              set,
+              parseSpeakChoice(sessionDoc.get('speakChoice'))
+            ),
             adminConfig,
             (previous as { locked?: unknown } | undefined)?.locked === true
           );
@@ -184,8 +193,9 @@ const speakFitsLanguage = (
   return speak.refs.every((ref) => ref.dialect.split('-')[0] === primary);
 };
 
-const normalizeSet = (set: FlashcardSet): FlashcardSet => ({
+const normalizeSet = ({ targets, ...set }: FlashcardSet): FlashcardSet => ({
   ...withoutClaudeReview(set),
+  ...(targets && targets.length > 0 ? { targets } : {}),
   title: set.title.trim(),
   description: set.description?.trim() ?? '',
   termLanguage: set.termLanguage.trim() || 'en-US',
@@ -269,7 +279,8 @@ export function useFlashcardSets(
 
   const writeSet = useCallback(
     async (
-      set: FlashcardSet
+      set: FlashcardSet,
+      syncStudy = true
     ): Promise<{ saved: FlashcardSet; rewritten: number }> => {
       if (!userId) throw new Error('Sign in to save flashcard sets.');
       const normalized = fitSpeakToDoc(
@@ -282,13 +293,15 @@ export function useFlashcardSets(
         doc(db, 'users', userId, SETS_COLLECTION, normalized.id),
         normalized
       );
-      if (normalized.publicShareId) {
+      // Editor autosave leaves share links and Study assignments for the write on Close.
+      if (normalized.publicShareId && syncStudy) {
         batch.set(
           doc(db, 'public_flashcard_sets', normalized.publicShareId),
           toPublicSnapshot(normalized, userId, adminConfig)
         );
       }
       await batch.commit();
+      if (!syncStudy) return { saved: normalized, rewritten: 0 };
       try {
         return {
           saved: normalized,
@@ -352,11 +365,14 @@ export function useFlashcardSets(
   );
 
   const saveSet = useCallback(
-    (set: FlashcardSet): Promise<number> =>
+    (set: FlashcardSet, options?: { syncStudy?: boolean }): Promise<number> =>
       oneWriteAtATime(`${userId}/${set.id}`, async () => {
         let result: { saved: FlashcardSet; rewritten: number };
         try {
-          result = await writeSet(applyVoiceResults(set));
+          result = await writeSet(
+            applyVoiceResults(set),
+            options?.syncStudy ?? true
+          );
         } catch (err) {
           if (err instanceof FlashcardStudySyncError && canSpeak) {
             startVoiceFill(applyVoiceResults(set), patchVoices(set.id));

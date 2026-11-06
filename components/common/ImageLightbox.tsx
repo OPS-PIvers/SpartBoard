@@ -6,6 +6,8 @@ import { Z_INDEX } from '@/config/zIndex';
 interface ImageLightboxProps {
   src: string;
   alt: string;
+  /** Text shown under the image, e.g. the answer the picture belongs to. */
+  caption?: string;
   onClose: () => void;
 }
 
@@ -13,6 +15,7 @@ interface ImageLightboxProps {
 export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   src,
   alt,
+  caption,
   onClose,
 }) => {
   useEffect(() => {
@@ -45,12 +48,28 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
       >
         <X size={20} />
       </button>
-      <img
-        src={src}
-        alt={alt}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[92vh] max-w-[94vw] rounded-lg object-contain shadow-2xl"
-      />
+      {caption ? (
+        <figure
+          className="flex max-h-full flex-col items-center gap-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <img
+            src={src}
+            alt={alt}
+            className="max-h-[82vh] max-w-[94vw] rounded-lg bg-white object-contain shadow-2xl"
+          />
+          <figcaption className="max-w-[94vw] text-center text-lg font-bold text-white wrap-break-word">
+            {caption}
+          </figcaption>
+        </figure>
+      ) : (
+        <img
+          src={src}
+          alt={alt}
+          onClick={(e) => e.stopPropagation()}
+          className="max-h-[92vh] max-w-[94vw] rounded-lg object-contain shadow-2xl"
+        />
+      )}
     </div>,
     document.body
   );

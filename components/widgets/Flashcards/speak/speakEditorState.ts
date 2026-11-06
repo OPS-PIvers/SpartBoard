@@ -1,4 +1,9 @@
 // Editor side of Flashcards Speak (docs/multilingual-pronunciation-engine.md F11, §4.3, S8): pure state helpers.
+import {
+  filledIpaReadings,
+  ipaValueOf,
+  type SpeakIpaOverride,
+} from '@/utils/pronunciation/ipaReadings';
 import type {
   FlashcardCard,
   FlashcardCardSpeak,
@@ -12,8 +17,11 @@ import type {
 } from '@/types';
 import {
   SPEAK_DIALECTS,
+  speakGroupIds,
+  speakLanguageOf,
   speakPresetSettings,
 } from '@/config/pronunciationGroups';
+import { clampSpeakAttempts } from '@/config/flashcardsSpeakAdmin';
 import { buildSpeakStamp } from '../utils/flashcardAssign';
 import { tokenizeIpa } from '@/utils/pronunciation/tokenizeIpa';
 import {
@@ -24,14 +32,14 @@ import {
 /** Unsaved IPA per card id, tied to the term it was typed for. */
 export type SpeakIpaDrafts = Record<
   string,
-  { term: string; ipa: Partial<Record<SpeakDialect, string>> }
+  { term: string; ipa: SpeakIpaOverride }
 >;
 
 /** The card's draft IPA, unless its term changed since it was typed. */
 export const ipaDraftFor = (
   card: FlashcardCard,
   drafts: SpeakIpaDrafts
-): Partial<Record<SpeakDialect, string>> | undefined => {
+): SpeakIpaOverride | undefined => {
   const draft = drafts[card.id];
   return draft && draft.term === card.term.trim() ? draft.ipa : undefined;
 };
@@ -106,6 +114,45 @@ export const setSpeakStrict = (
   };
 };
 
+/** The assign step's starting Speak rules: the teacher's last pick, else the set's, else the district's. */
+export function initialAssignSpeakSettings(
+  termLanguage: string,
+  own: FlashcardSpeakSettings | undefined,
+  adminConfig: FlashcardsSpeakAdminConfig,
+  last:
+    | (Pick<
+        FlashcardSpeakSettings,
+        'preset' | 'strict' | 'attempts' | 'example'
+      > &
+        Partial<Pick<FlashcardSpeakSettings, 'groups'>>)
+    | null
+): FlashcardSpeakSettings | null {
+  const base = initialSpeakSettings(
+    termLanguage,
+    last ? undefined : own,
+    adminConfig
+  );
+  const language = speakLanguageOf(termLanguage);
+  if (!base || !last || !language) return base;
+  const ids = speakGroupIds(language);
+  const customFits =
+    last.preset === 'custom' &&
+    !!last.groups &&
+    Object.keys(last.groups).every((id) => ids.includes(id));
+  const leveled = customFits
+    ? { ...base, preset: 'custom' as const, groups: { ...last.groups } }
+    : last.preset === 'custom'
+      ? base
+      : applySpeakPreset(base, language, last.preset);
+  return {
+    ...(customFits
+      ? { ...leveled, strict: last.strict }
+      : setSpeakStrict(leveled, last.strict)),
+    attempts: clampSpeakAttempts(last.attempts, base.attempts),
+    example: last.example,
+  };
+}
+
 /** The card's references were computed for its current term. */
 export const speakForTerm = (
   card: FlashcardCard
@@ -113,13 +160,13 @@ export const speakForTerm = (
   card.speak && card.speak.term === card.term ? card.speak : undefined;
 
 const sameOverride = (
-  a: Partial<Record<SpeakDialect, string>> | undefined,
-  b: Partial<Record<SpeakDialect, string>> | undefined
+  a: SpeakIpaOverride | undefined,
+  b: SpeakIpaOverride | undefined
 ): boolean => {
-  const clean = (o: Partial<Record<SpeakDialect, string>> | undefined) =>
+  const clean = (o: SpeakIpaOverride | undefined) =>
     Object.entries(o ?? {})
-      .map(([k, v]) => [k, (v ?? '').trim()] as const)
-      .filter(([, v]) => v !== '')
+      .map(([k, v]) => [k, filledIpaReadings(v)] as const)
+      .filter(([, v]) => v.length > 0)
       .sort(([x], [y]) => x.localeCompare(y));
   return JSON.stringify(clean(a)) === JSON.stringify(clean(b));
 };
@@ -129,12 +176,12 @@ export function effectiveIpaOverride(
   card: FlashcardCard,
   drafts: SpeakIpaDrafts,
   dialects: readonly SpeakDialect[]
-): Partial<Record<SpeakDialect, string>> | undefined {
+): SpeakIpaOverride | undefined {
   const source = ipaDraftFor(card, drafts) ?? speakForTerm(card)?.ipaOverride;
-  const out: Partial<Record<SpeakDialect, string>> = {};
+  const out: SpeakIpaOverride = {};
   for (const dialect of dialects) {
-    const ipa = source?.[dialect]?.trim();
-    if (ipa) out[dialect] = ipa;
+    const ipa = ipaValueOf(filledIpaReadings(source?.[dialect]));
+    if (ipa !== undefined) out[dialect] = ipa;
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }
@@ -191,7 +238,7 @@ export function cardNeedsLookup(
 export const lookupFailedSpeak = (
   card: FlashcardCard,
   g2pVersion = '',
-  ipaOverride?: Partial<Record<SpeakDialect, string>>
+  ipaOverride?: SpeakIpaOverride
 ): FlashcardCardSpeak => ({
   term: card.term,
   refs: [],

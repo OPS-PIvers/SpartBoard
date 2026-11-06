@@ -39,6 +39,7 @@ import {
   SyncStudent,
 } from './classlinkRosterReconcile';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import { assertDevDriveWritable } from './devDriveWriteGuard';
 import {
   loadTeacherClassIds,
   reconcileRosterPinIndex,
@@ -519,6 +520,7 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
     },
 
     writeRosterFile: async (accessToken, fileId, content) => {
+      await assertDevDriveWritable(accessToken, fileId);
       await axios.patch(
         `${DRIVE_UPLOAD_API}/files/${encodeURIComponent(fileId)}`,
         JSON.stringify({ version: 2, ...content }),

@@ -567,10 +567,16 @@ export const useGuidedLearningAssignments = (
         };
       }
       const updates: ResponseUpdate[] = [];
+      // Only students already started at publish may get the key when they turn in later.
+      const lateRevealIds: string[] = [];
       for (const d of responseDocs) {
         const data = d.data() as GuidedLearningResponse;
         // Answers saved mid-activity aren't a submission until completedAt is set.
-        if (typeof data.completedAt !== 'number') continue;
+        if (typeof data.completedAt !== 'number') {
+          if (Array.isArray(data.answers) && data.answers.length > 0)
+            lateRevealIds.push(d.ref.id);
+          continue;
+        }
         const { score, answers: gradedAnswers } =
           gradeGuidedLearningResponseForPublish(
             data,
@@ -599,6 +605,7 @@ export const useGuidedLearningAssignments = (
         scorePublishedAt: now,
         // Teacher-only copy the server gives students who submit after this publish.
         revealedAnswers: revealedAnswers ?? deleteField(),
+        lateRevealIds: revealedAnswers ? lateRevealIds : deleteField(),
         updatedAt: now,
       });
       const sessionPatch: Record<string, unknown> = {

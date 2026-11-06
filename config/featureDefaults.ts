@@ -5,6 +5,7 @@ import {
   PenLine,
   BarChart,
   BellRing,
+  BookOpen,
   Bot,
   Building2,
   Cast,
@@ -32,6 +33,8 @@ import {
   Printer,
   RefreshCw,
   Send,
+  ImagePlus,
+  ListOrdered,
   Share2,
   Smartphone,
   Smile,
@@ -808,6 +811,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'student-overview-resources': {
+    label: 'Student Overview resources',
+    icon: BookOpen,
+    description:
+      'Students see open resources from every class on the Overview.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'group-reminders': {
     label: 'Group reminders',
     icon: BellRing,
@@ -1063,6 +1077,31 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'quiz-ordering-images': {
+    label: 'Quiz answer images',
+    icon: ImagePlus,
+    description:
+      'Add or paste an image on any answer, and paste images into a question.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Ordering as one drag-to-order list. Admin-only until Paul has tested it in prod.
+  'quiz-ordering-list': {
+    label: 'Ordering: one list',
+    icon: ListOrdered,
+    description:
+      'Students drag one list into order instead of moving items from a word bank into numbered slots.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Lunch Count redesign. Admin-only until Paul has used it in prod.
   'lunch-count-redesign': {
     label: 'Lunch Count redesign',
@@ -1169,6 +1208,43 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: false,
     missingDocPublic: false,
     failClosedForAdmins: true,
+  },
+  'flashcards-assign-v2': {
+    label: 'Flashcards: Quiz-style assignments',
+    icon: Layers,
+    description:
+      'Choose which cards a submission uses, check with Speak, and manage assignments like Quiz.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Draft with AI in the Quiz-style set editor. Admin-only until Paul has used it in prod.
+  'flashcards-ai': {
+    label: 'Flashcards: AI',
+    icon: Sparkles,
+    description: 'Drafts flashcards from a topic in the set editor.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Flashcards Test question bar. Admin-only until Paul has used it in prod.
+  'flashcards-test-nav': {
+    label: 'Flashcards: Test question bar',
+    icon: ListChecks,
+    description:
+      'Test mode shows one question at a time with Question N of M and an All questions grid.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
   },
   // The flag only hides the Behavior switch; teachers turn spell check off themselves.
   'spell-check-setting': {

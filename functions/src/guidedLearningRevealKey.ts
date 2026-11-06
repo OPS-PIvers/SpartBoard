@@ -36,10 +36,14 @@ export async function applyLateRevealKey(
         .get()
     ).data() ?? {};
   const key: unknown = assignment.revealedAnswers;
+  const lateRevealIds: unknown = assignment.lateRevealIds;
   if (
     assignment.scoreVisibility !== ANSWERS_LEVEL ||
     !isRecord(key) ||
-    Object.keys(key).length === 0
+    Object.keys(key).length === 0 ||
+    // Only a response already started at publish; a fresh identity must not get the key.
+    !Array.isArray(lateRevealIds) ||
+    !lateRevealIds.includes(docId)
   )
     return false;
   await sessionRef

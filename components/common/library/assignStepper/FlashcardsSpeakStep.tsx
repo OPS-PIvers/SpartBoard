@@ -8,6 +8,8 @@ import type { FlashcardsSpeakValue } from './flashcardsSpeakValue';
 export interface FlashcardsSpeakStepProps {
   value: FlashcardsSpeakValue;
   onChange: (value: FlashcardsSpeakValue) => void;
+  /** flashcards-assign-v2: Level, attempts, Strict and Hear it, shown while Speak is on. */
+  rules?: React.ReactNode;
 }
 
 const ROW_CLASS = 'flex min-h-8 items-center justify-between gap-3';
@@ -16,6 +18,7 @@ const LABEL_CLASS = 'text-sm font-bold text-brand-blue-dark';
 export const FlashcardsSpeakStep: React.FC<FlashcardsSpeakStepProps> = ({
   value,
   onChange,
+  rules,
 }) => {
   const { t } = useTranslation();
   const lockHelpId = useId();
@@ -56,6 +59,7 @@ export const FlashcardsSpeakStep: React.FC<FlashcardsSpeakStepProps> = ({
               "Students use your attempts and Hear it settings and can't change them."
             )}
           </p>
+          {rules && <div className="mt-3">{rules}</div>}
         </div>
       )}
     </div>

@@ -3829,6 +3829,7 @@ describe('index barrel — deployed export set', () => {
     // Org-admin media review & compliance delete
     'listQuizMediaForOrgAdmin',
     'lookupSpeakReferencesV1',
+    'hearSpeakIpaV1',
     'listSpeakWordsToCheckV1',
     'deleteQuizMediaForOrgAdmin',
     // Admin analytics endpoint
@@ -3837,6 +3838,7 @@ describe('index barrel — deployed export set', () => {
     'studentLoginV1',
     'getAssignmentPseudonymV1',
     'getStudentClassDirectoryV1',
+    'reportStudentLoadIssueV1',
     'getPseudonymsForAssignmentV1',
     'getGradebookRosterV1',
     'commitRosterPinIndexV1',
@@ -3862,6 +3864,7 @@ describe('index barrel — deployed export set', () => {
     // Flashcards Check submission
     'submitFlashcardCheckV1',
     'recordFlashcardCheckRatingsV1',
+    'reopenFlashcardCheckV1',
     'submitMiniAppResultV1',
     'resolveFlashcardFlagV1',
     // Shared board Activity Wall editing
@@ -3915,6 +3918,9 @@ describe('index barrel — deployed export set', () => {
     // PLC analytics rollup + migration + discovery mirror
     'markPlcAssessmentDirtyOnSession',
     'markPlcAssessmentDirtyOnResponse',
+    'markPlcAssessmentDirtyOnFlashcardSession',
+    'markPlcAssessmentDirtyOnFlashcardProgress',
+    'markPlcAssessmentDirtyOnFlashcardSet',
     'recomputePlcAssessments',
     'pollCodePointer',
     'resolvePollCodeV1',
@@ -3982,6 +3988,7 @@ describe('index barrel — deployed export set', () => {
     'focusReportV1',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
+    'syncConfigFromProdV1',
     'gradebookDemoV1',
     // Guided Learning Storage slide GC
     'gcGuidedLearningMedia',

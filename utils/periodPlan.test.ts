@@ -180,14 +180,28 @@ describe('buildPeriodGate', () => {
     });
   });
 
-  it('still needs bell periods for a manual start', () => {
+  it('gates a manual start without bell periods', () => {
+    const gate = buildPeriodGate({
+      plan: undefined,
+      rosters: [local],
+      sharedWindow: {},
+      bellWindow: undefined,
+      manualStart: true,
+    });
+    expect(gate?.accessMode).toBe('assessment');
+    expect(gate?.periodAccess['roster:r3']).toMatchObject({
+      state: 'closed',
+      bellPeriodId: null,
+    });
+  });
+
+  it('still needs bell periods for a scheduled per-period gate', () => {
     expect(
       buildPeriodGate({
-        plan: undefined,
-        rosters: [sso],
+        plan: { mode: 'assignment' },
+        rosters: [sso, { ...sso, id: 'r9', classlinkClassId: 'cl-2' }],
         sharedWindow: {},
         bellWindow: undefined,
-        manualStart: true,
       })
     ).toBeUndefined();
   });

@@ -8,8 +8,13 @@ import type {
   FlashcardMode,
   FlashcardSession,
   FlashcardSpeakProgress,
+  QuizResultsOverride,
   SpeakLanguage,
 } from '@/types';
+import {
+  checkOptionsOf,
+  withCardSubset,
+} from '@/components/flashcards/checkAttempt';
 import { isKnownSpeakSound } from '@/config/pronunciationSoundNames';
 import {
   DEFAULT_FLASHCARD_MASTERY_THRESHOLD,
@@ -45,6 +50,21 @@ export interface FlashcardResultRecord {
     attempts?: number;
   }>;
   flags?: Array<{ cardId: string; response: string; accepted?: boolean }>;
+  /** The teacher's results setting for this student alone. */
+  resultsOverride?: QuizResultsOverride;
+  /** Times the student left their protected results, and whether that locked them out. */
+  resultsTabWarnings?: number;
+  resultsLockedOut?: boolean;
+  completedAttempts?: number;
+  forcedSubmit?: 'time' | 'tab';
+  handRaisedAt?: number | null;
+  /** The student's card subset, stamped from their accommodations. */
+  cardSubset?: string[] | null;
+  /** Check answers the student's device saved before submitting. */
+  checkLog?: Record<
+    string,
+    { response: string; attempts?: number; done: boolean }
+  >;
   speak?: Record<string, FlashcardSpeakProgress>;
   speakSounds?: Record<string, { n: number; m: number; f: number }>;
 }
@@ -141,15 +161,25 @@ export const filterResultsByClass = <T extends { classId?: string }>(
     ? [...results]
     : results.filter((result) => (result.classId ?? '') === classId);
 
+/** The cards this student works on: their subset on a Check with rules, else every card. */
+export const studentCardsOf = (
+  session: FlashcardSession,
+  result: Pick<FlashcardResultRecord, 'cardSubset'> | undefined
+): FlashcardSession['cards'] =>
+  checkOptionsOf(session) && result?.cardSubset
+    ? withCardSubset(session, { questionIds: result.cardSubset }).cards
+    : session.cards;
+
 export const buildStudyRows = (
   session: FlashcardSession,
   results: readonly FlashcardResultRecord[]
 ): FlashcardStudyRow[] => {
   const threshold = sessionThreshold(session);
-  const total = session.cards.length;
   return results.map((result) => {
+    const cards = studentCardsOf(session, result);
+    const total = cards.length;
     const buckets = emptyBuckets();
-    for (const card of session.cards) {
+    for (const card of cards) {
       buckets[flashcardBucketOf(result.cards?.[card.id], threshold)] += 1;
     }
     const studyMs = result.studyMs ?? 0;
@@ -223,9 +253,8 @@ export const buildCheckRows = (
   session: FlashcardSession,
   results: readonly FlashcardResultRecord[]
 ): FlashcardCheckRow[] => {
-  const fallbackTotal = session.cards.length;
   return results.map((result) => {
-    const total = result.total ?? fallbackTotal;
+    const total = result.total ?? studentCardsOf(session, result).length;
     const submitted = typeof result.submittedAt === 'number';
     const score = submitted ? (result.score ?? 0) : null;
     return {
@@ -274,6 +303,88 @@ export const checkCardAccuracy = (
     }))
     .sort((a, b) => a.percent - b.percent);
 };
+
+// Test answers never set done and Write sets it only once right, so any try counts as answered.
+const answeredLive = (entry: {
+  response: string;
+  attempts?: number;
+  done: boolean;
+}): boolean =>
+  entry.done || (entry.attempts ?? 0) > 0 || entry.response.trim() !== '';
+
+/** Cards a Check student has answered, from the submitted log or the live one. */
+export const checkCardsDone = (result: FlashcardResultRecord): number =>
+  typeof result.submittedAt === 'number' && result.answerLog
+    ? result.answerLog.length
+    : Object.values(result.checkLog ?? {}).filter(answeredLive).length;
+
+/** One student's answer to one card: the graded one once submitted, else the saved one. */
+const checkAnswerFor = (
+  result: FlashcardResultRecord,
+  cardId: string
+): { response: string; correct: boolean } | null => {
+  if (typeof result.submittedAt === 'number' && result.answerLog) {
+    const entry = result.answerLog.find((e) => e.cardId === cardId);
+    if (!entry) return null;
+    const accepted = (result.flags ?? []).some(
+      (flag) => flag.cardId === cardId && flag.accepted === true
+    );
+    return {
+      response: entry.response,
+      correct: entry.correct === true || accepted,
+    };
+  }
+  const saved = result.checkLog?.[cardId];
+  return saved && answeredLive(saved)
+    ? { response: saved.response, correct: false }
+    : null;
+};
+
+export interface FlashcardAnswerGroup {
+  key: string;
+  label: string;
+  count: number;
+  isCorrect: boolean;
+}
+
+/** Students' answers to one card, grouped ignoring case and spacing, most common first. */
+export const checkCardAnswers = (
+  results: readonly FlashcardResultRecord[],
+  cardId: string,
+  /** Once the assignment ends only graded answers count, so correct marks are complete. */
+  submittedOnly = false
+): { totalAnswered: number; rows: FlashcardAnswerGroup[] } => {
+  const groups = new Map<string, FlashcardAnswerGroup>();
+  let totalAnswered = 0;
+  for (const result of results) {
+    if (submittedOnly && typeof result.submittedAt !== 'number') continue;
+    const answer = checkAnswerFor(result, cardId);
+    if (!answer) continue;
+    totalAnswered += 1;
+    const label = answer.response.trim().replace(/\s+/g, ' ');
+    if (!label) continue;
+    const key = label.toLowerCase();
+    const group = groups.get(key) ?? { key, label, count: 0, isCorrect: false };
+    group.count += 1;
+    group.isCorrect ||= answer.correct;
+    groups.set(key, group);
+  }
+  return {
+    totalAnswered,
+    rows: [...groups.values()].sort(
+      (a, b) => b.count - a.count || a.label.localeCompare(b.label)
+    ),
+  };
+};
+
+/** The side a Check student sees first on a card. */
+export const flashcardPrompt = (
+  session: FlashcardSession,
+  card: FlashcardCard
+): string =>
+  (session.lockedSettings?.showFirst ?? 'term') === 'term'
+    ? card.term
+    : card.definition;
 
 export const buildFlagRows = (
   session: FlashcardSession,
@@ -367,8 +478,8 @@ export const buildSpeakRows = (
   language: SpeakLanguage
 ): FlashcardSpeakRow[] => {
   const threshold = sessionThreshold(session);
-  const cards = session.cards.filter(isSpeakableCard);
   return results.map((result) => {
+    const cards = studentCardsOf(session, result).filter(isSpeakableCard);
     let mastered = 0;
     let inProgress = 0;
     for (const card of cards) {

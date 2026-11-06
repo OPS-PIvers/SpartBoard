@@ -644,3 +644,193 @@ describe('assignment-doc FIB translation inputs', () => {
     expect(parseServedLanguages(undefined)).toBeUndefined();
   });
 });
+
+describe('recomputeOnePlcAssessment for Flashcards checks', () => {
+  const cards = [
+    { id: 'c1', term: 'perro', definition: 'dog' },
+    { id: 'c2', term: 'gato', definition: 'cat' },
+  ];
+  const seedFlashcards = () =>
+    makeStubFirestore({
+      'plcs/plc-1': {
+        memberUids: ['tA', 'tB', 'tGone'],
+        members: {
+          tA: { displayName: 'Ada', status: 'active' },
+          tB: { displayName: 'Bea', status: 'active' },
+          tGone: { displayName: 'Gus', status: 'removed' },
+        },
+      },
+      'plcs/plc-1/assessments/set-1': {
+        id: 'set-1',
+        title: 'Unit 4 vocab',
+        kind: 'flashcard-check',
+        syncGroupId: 'set-1',
+        status: 'active',
+        dirtyAt: NOW - 1000,
+      },
+      'flashcard_sessions/fa': {
+        kind: 'check',
+        checkMode: 'write',
+        teacherUid: 'tA',
+        plcId: 'plc-1',
+        syncGroupId: 'set-1',
+        cards,
+        classIds: ['class-a'],
+      },
+      'flashcard_sessions/fa/progress/stu-1': {
+        classId: 'class-a',
+        submittedAt: NOW,
+        score: 2,
+        total: 2,
+        answerLog: [
+          { cardId: 'c1', response: 'dog', correct: true },
+          { cardId: 'c2', response: 'cat', correct: true },
+        ],
+      },
+      'flashcard_sessions/fa/progress/stu-2': {
+        classId: 'class-a',
+        submittedAt: NOW,
+        score: 0,
+        total: 2,
+        answerLog: [
+          { cardId: 'c1', response: 'cat', correct: false },
+          { cardId: 'c2', response: 'dog', correct: false },
+        ],
+      },
+      'flashcard_sessions/fa/progress/stu-studying': {
+        classId: 'class-a',
+        round: 2,
+      },
+      'flashcard_sessions/fb': {
+        kind: 'check',
+        checkMode: 'flashcards',
+        teacherUid: 'tB',
+        plcId: 'plc-1',
+        syncGroupId: 'set-1',
+        cardsInContent: true,
+        cards: [],
+      },
+      'flashcard_sessions/fb/content/cards': { cards },
+      'flashcard_sessions/fb/progress/stu-3': {
+        classId: 'class-b',
+        submittedAt: NOW,
+        score: 2,
+        total: 2,
+        answerLog: [],
+      },
+      'flashcard_sessions/fgone': {
+        kind: 'check',
+        checkMode: 'write',
+        teacherUid: 'tGone',
+        plcId: 'plc-1',
+        syncGroupId: 'set-1',
+        cards,
+      },
+      'flashcard_sessions/fgone/progress/stu-9': {
+        submittedAt: NOW,
+        score: 2,
+        total: 2,
+        answerLog: [],
+      },
+      'flashcard_sessions/fstaff': {
+        kind: 'check',
+        checkMode: 'write',
+        audience: 'staff',
+        teacherUid: 'tA',
+        plcId: 'plc-1',
+        syncGroupId: 'set-1',
+        cards,
+      },
+      'flashcard_sessions/fstaff/progress/staff-1': {
+        submittedAt: NOW,
+        score: 2,
+        total: 2,
+        answerLog: [],
+      },
+    });
+
+  it('pools submitted checks, with mastery checks counted as finished only', async () => {
+    const stub = seedFlashcards();
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'set-1');
+    const agg = stub.get('plcs/plc-1/aggregates/set-1');
+    expect(agg).toMatchObject({
+      kind: 'flashcard-check',
+      title: 'Unit 4 vocab',
+      teacherCount: 2,
+      studentCount: 3,
+      scoredStudentCount: 2,
+      teamAveragePercent: 50,
+      sessionCount: 2,
+      linkedSessionCount: 2,
+      contributorUids: ['tA', 'tB'],
+      ranAt: 'SERVER_TS',
+    });
+    const perQuestion = agg!.perQuestion as Array<Record<string, unknown>>;
+    expect(perQuestion.map((q) => [q.text, q.answered, q.correct])).toEqual([
+      ['perro', 2, 1],
+      ['gato', 2, 1],
+    ]);
+    expect(perQuestion[0].choiceDistribution).toEqual([]);
+    const json = JSON.stringify(agg);
+    expect(json).not.toContain('stu-');
+    expect(json).not.toContain('dog');
+    expect(stub.get('plcs/plc-1/assessments/set-1')?.dirtyAt).toBeNull();
+  });
+
+  it('rolls each teacher’s set tags into targets and standards', async () => {
+    const stub = seedFlashcards();
+    stub.store.set('flashcard_sessions/fa', {
+      ...stub.get('flashcard_sessions/fa'),
+      setId: 'set-1',
+    });
+    stub.store.set('users/tA/flashcard_sets/set-1', {
+      targets: [
+        {
+          id: 'mn:WL.1',
+          kind: 'standard',
+          code: 'WL.1',
+          label: 'Interpret words',
+        },
+        {
+          id: 'lt-1',
+          kind: 'plc',
+          ownerId: 'plc-1',
+          label: 'Name animals',
+          standardIds: ['mn:WL.2'],
+        },
+        { id: 'p-1', kind: 'personal', label: 'My private goal' },
+      ],
+    });
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'set-1');
+    const agg = stub.get('plcs/plc-1/aggregates/set-1')!;
+    const rows = (key: string) =>
+      (agg[key] as Array<Record<string, unknown>>).map((r) => [
+        r.targetId,
+        r.attempted,
+        r.correctPercent,
+      ]);
+    expect(rows('perTarget')).toEqual([
+      ['lt-1', 4, 50],
+      ['mn:WL.1', 4, 50],
+    ]);
+    expect(rows('perStandard')).toEqual([
+      ['mn:WL.1', 4, 50],
+      ['mn:WL.2', 4, 50],
+    ]);
+    expect(JSON.stringify(agg)).not.toContain('My private goal');
+  });
+
+  it('leaves out a class the teacher removed', async () => {
+    const stub = seedFlashcards();
+    stub.store.set('flashcard_sessions/fa', {
+      ...stub.get('flashcard_sessions/fa'),
+      classIds: ['class-c'],
+      removedClasses: { classIds: ['class-a'] },
+    });
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'set-1');
+    expect(stub.get('plcs/plc-1/aggregates/set-1')).toMatchObject({
+      studentCount: 1,
+      scoredStudentCount: 0,
+    });
+  });
+});

@@ -538,6 +538,35 @@ describe('QuizStudentApp — self-paced flow', () => {
     }
   });
 
+  it.each(['MC', 'MA'] as const)(
+    'keeps each %s picture on its own option through the per-student shuffle',
+    async (type) => {
+      const six = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'];
+      hookState.session = buildSession({
+        publicQuestions: [
+          {
+            id: 'q1',
+            type,
+            text: 'What is 2 + 2?',
+            timeLimit: 0,
+            choices: six,
+            choiceImages: six.map((label) =>
+              label === 'charlie' ? 'https://img/charlie' : ''
+            ),
+          },
+        ],
+      });
+      hookState.myResponse = buildResponse({ studentUid: 'student-aaa' });
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+      const pictured = document.querySelectorAll(
+        'img[src="https://img/charlie"]'
+      );
+      expect(pictured).toHaveLength(1);
+      expect(pictured[0].closest('button')?.textContent).toContain('charlie');
+    }
+  );
+
   it('renders MC choices in a per-student order so neighbours diverge', async () => {
     // Use 6 choices so the chance of two random orders matching by accident
     // is small enough that this test won't flake (1/6! ≈ 0.14%).
@@ -692,6 +721,98 @@ describe('QuizStudentApp — self-paced flow', () => {
     expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
       'qo',
       'Fourth|Third|Second|First',
+      undefined,
+      undefined
+    );
+  });
+});
+
+describe('QuizStudentApp — one-list Ordering (quiz-ordering-list)', () => {
+  const ordering: QuizPublicQuestion = {
+    id: 'qo',
+    type: 'Ordering',
+    text: 'Put these in order',
+    timeLimit: 0,
+    orderingItems: ['First', 'Second', 'Third'],
+  };
+
+  it('shows one list with no word bank and submits the order shown', async () => {
+    const user = userEvent.setup();
+    hookState.session = {
+      ...buildSession({
+        publicQuestions: [ordering, QUESTIONS[1]],
+        totalQuestions: 2,
+      }),
+      orderingList: true,
+    };
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Put these in order/i)).toBeInTheDocument();
+    expect(screen.queryByText('Word Bank')).not.toBeInTheDocument();
+    const shown = screen
+      .getAllByRole('listitem')
+      .map((li) =>
+        ['First', 'Second', 'Third'].find((w) => li.textContent?.includes(w))
+      );
+
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
+      'qo',
+      shown.join('|'),
+      undefined,
+      undefined
+    );
+  });
+
+  it('autosaves the shown order of an untouched list as a draft', async () => {
+    hookState.session = {
+      ...buildSession({
+        publicQuestions: [ordering, QUESTIONS[1]],
+        totalQuestions: 2,
+      }),
+      orderingList: true,
+    };
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Put these in order/i)).toBeInTheDocument();
+    const shown = screen
+      .getAllByRole('listitem')
+      .map((li) =>
+        ['First', 'Second', 'Third'].find((w) => li.textContent?.includes(w))
+      );
+
+    await waitFor(
+      () =>
+        expect(mockSubmitAnswer).toHaveBeenCalledWith(
+          'qo',
+          shown.join('|'),
+          undefined,
+          { isDraft: true }
+        ),
+      { timeout: 3000 }
+    );
+  });
+
+  it('restores a saved order and submits a move', async () => {
+    const user = userEvent.setup();
+    hookState.session = {
+      ...buildSession({
+        publicQuestions: [ordering, QUESTIONS[1]],
+        totalQuestions: 2,
+      }),
+      orderingList: true,
+    };
+    appendAnswer('qo', 'Third|Second|First');
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Put these in order/i)).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Move position 3 up' })
+    );
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
+      'qo',
+      'Third|First|Second',
       undefined,
       undefined
     );

@@ -7,6 +7,7 @@ export const AI_INTEGRATIONS = {
   'dashboard-layout': { tier: 'standard', inputs: ['text'] },
   'instructional-routine': { tier: 'standard', inputs: ['text'] },
   quiz: { tier: 'standard', inputs: ['text'] },
+  flashcards: { tier: 'standard', inputs: ['text'] },
   ocr: { tier: 'standard', inputs: ['image'] },
   'blooms-ai': { tier: 'standard', inputs: ['text'] },
   'video-activity-recommend': { tier: 'standard', inputs: ['text'] },

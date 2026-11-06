@@ -130,6 +130,7 @@ const KEY_FIELDS = [
   'blankAlternates',
   'optionOrder',
   'matchingDistractors',
+  'orderingImages',
   'allowPartialCredit',
   'placeholder',
   'minWords',
@@ -138,6 +139,8 @@ const KEY_FIELDS = [
 ] as const;
 /** Type-specific extras that no longer make sense once the type changes. */
 const TYPE_BOUND_EXTRAS = [
+  'answerImages',
+  'matchingTermImages',
   'recording',
   'rubricId',
   'rubricSnapshot',
@@ -321,6 +324,13 @@ export function toStoredQuestion(
       }
       assertNoPipe(n, items, 'items');
       base.correctAnswer = items.join('|');
+      // Item images stay only while the items are unchanged; any edit to them drops the images.
+      if (
+        existing?.type === 'Ordering' &&
+        existing.correctAnswer === base.correctAnswer &&
+        Array.isArray(existing.orderingImages)
+      )
+        base.orderingImages = existing.orderingImages;
       if (input.partial_credit !== undefined)
         base.allowPartialCredit = input.partial_credit;
       break;

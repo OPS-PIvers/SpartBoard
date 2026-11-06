@@ -7,11 +7,7 @@ import type {
   QuizBehaviorSettings,
 } from '@/types';
 import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
-import {
-  applyWhen,
-  manualStartAvailable,
-  type BellWindowFn,
-} from '@/utils/assignAvailability';
+import { applyWhen, type BellWindowFn } from '@/utils/assignAvailability';
 import {
   expandMixedTargeting,
   type AssignClassesValue,
@@ -65,7 +61,7 @@ export function planPlcQuizStepperAssign({
   const pickedIds = picked.map((r) => r.id);
   const applied = applyWhen(
     { ...EMPTY_ASSIGN_TARGETING_VALUE, availability: when.availability },
-    { mode: when.mode, rosters: picked, bellWindow }
+    { mode: when.mode, manualAvailable: true, rosters: picked, bellWindow }
   );
   const studentsByClass = Object.fromEntries(
     Object.entries(classes.studentsByClass).filter(([id]) =>
@@ -82,7 +78,7 @@ export function planPlcQuizStepperAssign({
     rosters: picked,
     sharedWindow: mixed.targeting,
     bellWindow,
-    manualStart: when.mode === 'manual' && manualStartAvailable(bellWindow),
+    manualStart: when.mode === 'manual',
   });
   const perClassDue = applied.dueAtByRosterId;
   return {

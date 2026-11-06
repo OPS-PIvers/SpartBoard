@@ -431,6 +431,7 @@ interface StudentLandingSampleProps {
   initialTab?: LandingTab;
   /** Fill the parent box instead of the viewport. */
   embedded?: boolean;
+  overviewResources?: boolean;
 }
 
 export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
@@ -439,6 +440,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
   initialClassId,
   initialTab = 'assignments',
   embedded,
+  overviewResources,
 }) => {
   const nowMs = inClass ? IN_CLASS : AFTER_SCHOOL;
   const [selected, setSelected] = useState<string | null>(
@@ -507,6 +509,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
       onLockedClick={() => undefined}
       onOpenGradeOnly={() => undefined}
       embedded={embedded}
+      overviewResources={overviewResources}
     />
   );
 };

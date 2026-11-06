@@ -31,6 +31,7 @@ import { fibBlankCount, isMultiBlank } from '@/utils/quizFibBlanks';
 import { NumberedBlanksText } from '@/components/quiz/FibMultiBlankInput';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { resolveStimuli } from '@/utils/quizStimuli';
+import { imageForLabel } from '@/utils/quizAnswerImages';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
 
 /** Unbiased Fisher-Yates in-place shuffle (returns new array) */
@@ -418,6 +419,19 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
+const PreviewAnswerImage: React.FC<{ src?: string }> = ({ src }) =>
+  src?.startsWith('https://') ? (
+    <img
+      src={src}
+      alt=""
+      className="rounded-lg object-contain bg-white shrink-0"
+      style={{
+        width: 'min(160px, 32cqmin)',
+        height: 'min(120px, 24cqmin)',
+      }}
+    />
+  ) : null;
+
 const MCAnswerArea: React.FC<{
   options: string[];
   selectedAnswer: string | null;
@@ -463,6 +477,9 @@ const MCAnswerArea: React.FC<{
             className="flex items-center"
             style={{ gap: 'min(12px, 3cqmin)' }}
           >
+            <PreviewAnswerImage
+              src={imageForLabel(question.answerImages, opt)}
+            />
             <div className="flex-1 min-w-0">{opt}</div>
             {showAnswer && isCorrect && (
               <CheckCircle2
@@ -574,6 +591,9 @@ const MultiAnswerArea: React.FC<{
               >
                 {isSelected ? '✓' : ''}
               </span>
+              <PreviewAnswerImage
+                src={imageForLabel(question.answerImages, opt)}
+              />
               <div className="flex-1 min-w-0">{opt}</div>
               {showAnswer && isCorrect && (
                 <CheckCircle2
@@ -722,11 +742,25 @@ const StructuredAnswerArea: React.FC<{
               fontSize: 'min(14px, 4.5cqmin)',
             }}
           >
+            {question.type === 'Matching' && (
+              <PreviewAnswerImage
+                src={imageForLabel(question.matchingTermImages, pair.left)}
+              />
+            )}
             <span className="font-black text-brand-blue-primary w-6 shrink-0">
               {question.type === 'Ordering' ? `${pair.left}.` : pair.left}
             </span>
             <div className="flex-1 flex items-center gap-3">
               <span className="text-brand-blue-primary/30">→</span>
+              {showAnswer && (
+                <PreviewAnswerImage
+                  src={
+                    question.type === 'Ordering'
+                      ? question.orderingImages?.[i]
+                      : imageForLabel(question.answerImages, pair.right)
+                  }
+                />
+              )}
               <span
                 className={`font-bold transition-all duration-500 ${
                   showAnswer

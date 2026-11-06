@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConceptWebConfigurationPanel } from './ConceptWebConfigurationPanel';
 import type { Building } from '@/config/buildings';
@@ -66,5 +68,37 @@ describe('ConceptWebConfigurationPanel', () => {
     };
     expect(updated.buildingDefaults?.schumann?.defaultNodeWidth).toBe(25);
     expect(updated.buildingDefaults?.['schumann-elementary']).toBeUndefined();
+  });
+
+  it('lets an admin type a width below the minimum digit by digit (20 is not turned into 50)', async () => {
+    mockUseAdminBuildings.mockReturnValue([
+      {
+        id: 'schumann-elementary',
+        name: 'Schumann Elementary',
+        gradeLevels: ['k-2'],
+        gradeLabel: 'K-2',
+      },
+    ]);
+    let latest: Record<string, unknown> = {};
+    const Harness = () => {
+      const [cfg, setCfg] = useState<Record<string, unknown>>({
+        buildingDefaults: {},
+      });
+      return (
+        <ConceptWebConfigurationPanel
+          config={cfg}
+          onChange={(c) => {
+            latest = c;
+            setCfg(c);
+          }}
+        />
+      );
+    };
+    render(<Harness />);
+    const widthInput = screen.getAllByRole('spinbutton')[0];
+    await userEvent.clear(widthInput);
+    await userEvent.type(widthInput, '20');
+    expect(widthInput).toHaveValue(20);
+    expect(JSON.stringify(latest)).toContain('"defaultNodeWidth":20');
   });
 });

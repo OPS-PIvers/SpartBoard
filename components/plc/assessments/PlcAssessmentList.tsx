@@ -6,6 +6,7 @@ import {
   Archive,
   ArchiveRestore,
   BookOpen,
+  Layers,
   ChevronRight,
   ClipboardList,
   Cloud,
@@ -316,10 +317,17 @@ const AssessmentRow: React.FC<RowProps> = ({
   const body = (
     <>
       <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand-blue-primary/10 shrink-0">
-        <BookOpen
-          className="w-4 h-4 text-brand-blue-primary"
-          aria-hidden="true"
-        />
+        {row.kind === 'flashcard-check' ? (
+          <Layers
+            className="w-4 h-4 text-brand-blue-primary"
+            aria-hidden="true"
+          />
+        ) : (
+          <BookOpen
+            className="w-4 h-4 text-brand-blue-primary"
+            aria-hidden="true"
+          />
+        )}
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2 flex-wrap">
@@ -768,16 +776,17 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   );
   const { updateAssessment, archiveQuiz, restoreQuiz } = usePlcActions();
   const canEdit = useCanEditPlcContent();
+  const flashcards = canAccessFeature('flashcards-assign-v2');
   const {
     data: assessments,
     loading: assessmentsLoading,
     error: assessmentsError,
-  } = usePlcAssessmentsData();
+  } = usePlcAssessmentsData({ flashcards });
   const {
     data: aggregates,
     loading: aggregatesLoading,
     error: aggregatesError,
-  } = usePlcAggregatesData();
+  } = usePlcAggregatesData({ flashcards });
   const members = usePlcMembers();
   const {
     quizzes: libraryEntries,

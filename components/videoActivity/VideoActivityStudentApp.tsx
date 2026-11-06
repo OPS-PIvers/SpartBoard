@@ -825,6 +825,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         )
         .finally(tabTracker.release);
     },
+    fullscreenRequired: effectivePageProtections(
+      session?.sessionOptions ?? {},
+      pointer?.override
+    ).fullscreen,
   });
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
@@ -1255,7 +1259,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           <button
             onClick={() => {
               setShowCheatWarning(false);
-              tabTracker.release();
+              tabTracker.resume();
             }}
             className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
           >

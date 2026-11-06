@@ -7,7 +7,9 @@ import {
   ChevronDown,
   ChevronRight,
   MinusCircle,
+  Plus,
   Volume2,
+  X,
 } from 'lucide-react';
 import type { FlashcardCard, FlashcardCardSpeak, SpeakDialect } from '@/types';
 import {
@@ -17,6 +19,14 @@ import {
 } from '@/utils/pronunciation/hearIt';
 import { parseFlashcardAnswerVariants } from '@/utils/flashcardMatch';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { hearIpa } from '@/utils/pronunciation/hearIpa';
+import {
+  IPA_READING_SEPARATOR,
+  MAX_IPA_READINGS,
+  filledIpaReadings,
+  ipaReadingsOf,
+  type SpeakIpaOverride,
+} from '@/utils/pronunciation/ipaReadings';
 import { ipaOverrideValid, speakForTerm } from './speakEditorState';
 
 const ICON_STYLE = { width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' };
@@ -80,32 +90,76 @@ export const HearItButton: React.FC<{
   dialect: SpeakDialect | undefined;
   fieldKey: string;
   srSuffix?: string;
-}> = ({ term, dialect, fieldKey, srSuffix }) => {
+  /** The teacher's IPA; when set, a voice reads the term that way. */
+  ipa?: string;
+  /** Icon only, for the button beside an IPA box. */
+  compact?: boolean;
+}> = ({ term, dialect, fieldKey, srSuffix, ipa, compact }) => {
   const { t } = useTranslation();
   const hasVoice = useHasVoice(dialect);
+  const [failed, setFailed] = useState(false);
   const word = parseFlashcardAnswerVariants(term)[0] ?? '';
-  if (!hasVoice || !dialect || !word.trim()) return null;
+  const typed = ipa?.trim() && ipaOverrideValid(ipa) ? ipa.trim() : undefined;
+  // A failure belongs to what was pressed; editing the IPA clears it.
+  const [failedFor, setFailedFor] = useState(typed);
+  if (failedFor !== typed) {
+    setFailedFor(typed);
+    setFailed(false);
+  }
+  if (!dialect || !word.trim() || (!typed && !hasVoice)) return null;
   const label = t('flashcards.speak.editor.hearIt');
+  const play = () => {
+    setFailed(false);
+    if (!typed) {
+      hearIt(word, dialect);
+      return;
+    }
+    void hearIpa({ dialect, ipa: typed, term: word }).then((ok) =>
+      setFailed(!ok)
+    );
+  };
   return (
-    <button
-      type="button"
-      onClick={() => hearIt(word, dialect)}
-      className="inline-flex items-center rounded-lg font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-      style={{
-        ...TEXT_STYLE,
-        gap: 'min(4px, 1cqmin)',
-        padding: 'min(3px, 0.8cqmin) min(6px, 1.5cqmin)',
-      }}
-      {...tourFieldAttr(
-        'flashcards-speak-editor.hear-it',
-        'flashcards',
-        fieldKey
-      )}
+    <span
+      className="inline-flex items-center"
+      style={{ gap: 'min(4px, 1cqmin)' }}
     >
-      <Volume2 aria-hidden="true" style={ICON_STYLE} />
-      {label}
-      {srSuffix && <span className="sr-only"> {srSuffix}</span>}
-    </button>
+      <button
+        type="button"
+        onClick={play}
+        aria-label={compact ? label : undefined}
+        title={compact ? label : undefined}
+        className="inline-flex items-center rounded-lg font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+        style={{
+          ...TEXT_STYLE,
+          gap: 'min(4px, 1cqmin)',
+          padding: 'min(3px, 0.8cqmin) min(6px, 1.5cqmin)',
+        }}
+        {...(compact
+          ? tourFieldAttr(
+              'flashcards-speak-editor.ipa-hear-it',
+              'flashcards',
+              fieldKey
+            )
+          : tourFieldAttr(
+              'flashcards-speak-editor.hear-it',
+              'flashcards',
+              fieldKey
+            ))}
+      >
+        <Volume2 aria-hidden="true" style={ICON_STYLE} />
+        {!compact && label}
+        {srSuffix && <span className="sr-only"> {srSuffix}</span>}
+      </button>
+      {failed && (
+        <span
+          role="status"
+          className="font-bold text-rose-700"
+          style={TEXT_STYLE}
+        >
+          {t('flashcards.speak.editor.hearIpaFailed')}
+        </span>
+      )}
+    </span>
   );
 };
 
@@ -113,11 +167,8 @@ interface SpeakCardRowProps {
   card: FlashcardCard;
   index: number;
   dialects: readonly SpeakDialect[];
-  ipaDraft: Partial<Record<SpeakDialect, string>> | undefined;
-  onIpaChange: (
-    cardId: string,
-    ipa: Partial<Record<SpeakDialect, string>>
-  ) => void;
+  ipaDraft: SpeakIpaOverride | undefined;
+  onIpaChange: (cardId: string, ipa: SpeakIpaOverride) => void;
   onConfirm: (cardId: string) => void;
 }
 
@@ -166,6 +217,7 @@ export const SpeakCardRow: React.FC<SpeakCardRowProps> = ({
         <HearItButton
           term={card.term}
           dialect={dialects[0]}
+          ipa={filledIpaReadings(ipa[dialects[0]])[0]}
           srSuffix={String(index + 1)}
           fieldKey={fieldKey}
         />
@@ -202,58 +254,139 @@ export const SpeakCardRow: React.FC<SpeakCardRowProps> = ({
           style={{ gap: 'min(8px, 2cqmin)', marginTop: 'min(6px, 1.5cqmin)' }}
         >
           {dialects.map((dialect) => {
-            const value = ipa[dialect] ?? '';
-            const valid = ipaOverrideValid(value);
-            const errorId = `${panelId}-${dialect}-error`;
+            const readings = ipaReadingsOf(ipa[dialect]);
+            const boxes = readings.length > 0 ? readings : [''];
+            const dialectName = t(
+              `flashcards.speak.editor.dialectNames.${dialect}`
+            );
+            const setReadings = (next: string[]) =>
+              onIpaChange(card.id, {
+                ...ipa,
+                [dialect]: next
+                  .map((v) => v.replaceAll(IPA_READING_SEPARATOR, ''))
+                  .join(IPA_READING_SEPARATOR),
+              });
+            const canAdd =
+              boxes.length < MAX_IPA_READINGS &&
+              boxes[boxes.length - 1].trim() !== '';
             return (
-              <label key={dialect} className="min-w-0">
+              <div key={dialect} className="min-w-0">
                 <span
+                  id={`${panelId}-${dialect}-label`}
                   className="font-bold text-slate-600"
                   style={{ fontSize: 'min(10px, 3.2cqmin)' }}
                 >
                   {t('flashcards.speak.editor.ipaLabel', {
-                    dialect: t(
-                      `flashcards.speak.editor.dialectNames.${dialect}`
-                    ),
+                    dialect: dialectName,
                   })}
                 </span>
-                <input
-                  value={value}
-                  maxLength={200}
-                  spellCheck={false}
-                  aria-invalid={!valid}
-                  aria-describedby={valid ? undefined : errorId}
-                  onChange={(event) =>
-                    onIpaChange(card.id, {
-                      ...ipa,
-                      [dialect]: event.target.value,
-                    })
-                  }
-                  className={`mt-1 w-full rounded-lg border bg-white font-mono text-slate-800 outline-hidden focus:ring-2 ${
-                    valid
-                      ? 'border-slate-200 focus:border-rose-400 focus:ring-rose-500/20'
-                      : 'border-rose-400 focus:ring-rose-500/20'
-                  }`}
-                  style={{
-                    padding: 'min(6px, 1.5cqmin)',
-                    fontSize: 'min(12px, 3.8cqmin)',
-                  }}
-                  {...tourFieldAttr(
-                    'flashcards-speak-editor.ipa',
-                    'flashcards',
-                    `${fieldKey}-${dialect}`
-                  )}
-                />
-                {!valid && (
-                  <span
-                    id={errorId}
-                    className="mt-1 block font-bold text-rose-700"
-                    style={TEXT_STYLE}
+                {boxes.map((value, i) => {
+                  const valid = ipaOverrideValid(value);
+                  const errorId = `${panelId}-${dialect}-${i}-error`;
+                  const boxKey = `${fieldKey}-${dialect}${i === 0 ? '' : `-${i + 1}`}`;
+                  return (
+                    <div key={i} style={{ marginTop: 'min(4px, 1cqmin)' }}>
+                      <div
+                        className="flex items-center"
+                        style={{ gap: 'min(4px, 1cqmin)' }}
+                      >
+                        <input
+                          value={value}
+                          maxLength={200}
+                          spellCheck={false}
+                          aria-labelledby={`${panelId}-${dialect}-label`}
+                          aria-invalid={!valid}
+                          aria-describedby={valid ? undefined : errorId}
+                          onChange={(event) =>
+                            setReadings(
+                              boxes.map((v, j) =>
+                                j === i ? event.target.value : v
+                              )
+                            )
+                          }
+                          className={`min-w-0 flex-1 rounded-lg border bg-white font-mono text-slate-800 outline-hidden focus:ring-2 ${
+                            valid
+                              ? 'border-slate-200 focus:border-rose-400 focus:ring-rose-500/20'
+                              : 'border-rose-400 focus:ring-rose-500/20'
+                          }`}
+                          style={{
+                            padding: 'min(6px, 1.5cqmin)',
+                            fontSize: 'min(12px, 3.8cqmin)',
+                          }}
+                          {...tourFieldAttr(
+                            'flashcards-speak-editor.ipa',
+                            'flashcards',
+                            boxKey
+                          )}
+                        />
+                        <HearItButton
+                          compact
+                          term={card.term}
+                          dialect={dialect}
+                          ipa={value}
+                          srSuffix={`${dialectName} ${i + 1}`}
+                          fieldKey={boxKey}
+                        />
+                        {i === 0 && boxes.length > 1 && (
+                          <span
+                            aria-hidden="true"
+                            className="inline-block shrink-0"
+                            style={{
+                              ...ICON_STYLE,
+                              boxSizing: 'content-box',
+                              padding: 'min(3px, 0.8cqmin)',
+                            }}
+                          />
+                        )}
+                        {i > 0 && (
+                          <button
+                            type="button"
+                            aria-label={t('flashcards.speak.editor.removeIpa')}
+                            title={t('flashcards.speak.editor.removeIpa')}
+                            onClick={() =>
+                              setReadings(boxes.filter((_, j) => j !== i))
+                            }
+                            className="inline-flex shrink-0 items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            style={{ padding: 'min(3px, 0.8cqmin)' }}
+                            {...tourFieldAttr(
+                              'flashcards-speak-editor.ipa-remove',
+                              'flashcards',
+                              boxKey
+                            )}
+                          >
+                            <X aria-hidden="true" style={ICON_STYLE} />
+                          </button>
+                        )}
+                      </div>
+                      {!valid && (
+                        <span
+                          id={errorId}
+                          className="mt-1 block font-bold text-rose-700"
+                          style={TEXT_STYLE}
+                        >
+                          {t('flashcards.speak.editor.ipaInvalid')}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+                {canAdd && (
+                  <button
+                    type="button"
+                    onClick={() => setReadings([...boxes, ''])}
+                    className="mt-1 inline-flex items-center rounded-lg font-bold text-brand-blue-primary hover:underline"
+                    style={{ ...TEXT_STYLE, gap: 'min(2px, 0.5cqmin)' }}
+                    {...tourFieldAttr(
+                      'flashcards-speak-editor.ipa-add',
+                      'flashcards',
+                      `${fieldKey}-${dialect}`
+                    )}
                   >
-                    {t('flashcards.speak.editor.ipaInvalid')}
-                  </span>
+                    <Plus aria-hidden="true" style={ICON_STYLE} />
+                    {t('flashcards.speak.editor.addIpa')}
+                  </button>
                 )}
-              </label>
+              </div>
             );
           })}
         </div>

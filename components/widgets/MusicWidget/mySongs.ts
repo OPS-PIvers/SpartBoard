@@ -1,4 +1,5 @@
 import type { MusicConfig, MusicStation, MySong } from '@/types';
+import { clipText } from '@/utils/clipText';
 
 export const MY_SONGS_LIMIT = 50;
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -47,9 +48,9 @@ export const fetchYouTubeDetails = async (
     return {
       title:
         typeof title === 'string' && title.trim()
-          ? title.trim().slice(0, 200)
+          ? clipText(title.trim(), 200)
           : undefined,
-      channel: typeof channel === 'string' ? channel.trim().slice(0, 200) : '',
+      channel: typeof channel === 'string' ? clipText(channel.trim(), 200) : '',
     };
   } catch {
     return null;

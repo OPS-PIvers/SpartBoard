@@ -4,11 +4,24 @@
  * doc and its `progress` subcollection while a results view is open.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  deleteField,
+  doc,
+  getDoc,
+  onSnapshot,
+  updateDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
-import type { FlashcardProgress, FlashcardSession } from '@/types';
+import type {
+  FlashcardProgress,
+  FlashcardSession,
+  QuizResultsOverride,
+} from '@/types';
 import {
   FC_CONTENT_COLLECTION,
   FC_CONTENT_DOC,
@@ -37,7 +50,21 @@ export interface UseFlashcardResultsResult {
     cardId: string,
     accept: boolean
   ) => Promise<void>;
+  /** Writes (or, with null, clears) these students' own results setting. */
+  setResultsOverride: (
+    studentUids: readonly string[],
+    override: QuizResultsOverride | null
+  ) => Promise<void>;
+  /** Lets a locked-out student back into their results; one more tab-away locks them again. */
+  unlockResults: (studentUid: string) => Promise<void>;
+  /** Reopens a submitted Check so the student picks up with their saved answers. */
+  unlockAttempt: (studentUid: string) => Promise<void>;
+  /** Lowers a student's raised hand. */
+  clearHand: (studentUid: string) => Promise<void>;
 }
+
+// Firestore caps a batch at 500 writes.
+const BATCH_LIMIT = 450;
 
 interface ResolveFlagInput {
   assignmentId: string;
@@ -181,6 +208,82 @@ export const useFlashcardResults = (
     [assignmentId]
   );
 
+  const setResultsOverride = useCallback<
+    UseFlashcardResultsResult['setResultsOverride']
+  >(
+    async (studentUids, override) => {
+      if (!assignmentId) return;
+      const uids = [...new Set(studentUids)];
+      for (let i = 0; i < uids.length; i += BATCH_LIMIT) {
+        const batch = writeBatch(db);
+        for (const uid of uids.slice(i, i + BATCH_LIMIT)) {
+          batch.update(
+            doc(
+              db,
+              FLASHCARD_SESSIONS_COLLECTION,
+              assignmentId,
+              FLASHCARD_PROGRESS_SUBCOLLECTION,
+              uid
+            ),
+            { resultsOverride: override ?? deleteField() }
+          );
+        }
+        await batch.commit();
+      }
+    },
+    [assignmentId]
+  );
+
+  const unlockResults = useCallback(
+    async (studentUid: string) => {
+      if (!assignmentId) return;
+      const ref = doc(
+        db,
+        FLASHCARD_SESSIONS_COLLECTION,
+        assignmentId,
+        FLASHCARD_PROGRESS_SUBCOLLECTION,
+        studentUid
+      );
+      const snap = await getDoc(ref);
+      const prev =
+        (snap.data() as FlashcardProgress | undefined)?.resultsTabWarnings ?? 0;
+      await updateDoc(ref, {
+        resultsTabWarnings: Math.max(0, prev - 1),
+        resultsLockedOut: false,
+        resultsLockedOutAt: deleteField(),
+      });
+    },
+    [assignmentId]
+  );
+
+  const unlockAttempt = useCallback(
+    async (studentUid: string) => {
+      if (!assignmentId) return;
+      await httpsCallable(
+        functions,
+        'reopenFlashcardCheckV1'
+      )({ assignmentId, studentUid });
+    },
+    [assignmentId]
+  );
+
+  const clearHand = useCallback(
+    async (studentUid: string) => {
+      if (!assignmentId) return;
+      await updateDoc(
+        doc(
+          db,
+          FLASHCARD_SESSIONS_COLLECTION,
+          assignmentId,
+          FLASHCARD_PROGRESS_SUBCOLLECTION,
+          studentUid
+        ),
+        { handRaisedAt: null }
+      );
+    },
+    [assignmentId]
+  );
+
   return {
     session,
     results,
@@ -188,5 +291,9 @@ export const useFlashcardResults = (
     error,
     resetStudent,
     resolveFlag,
+    setResultsOverride,
+    unlockResults,
+    unlockAttempt,
+    clearHand,
   };
 };

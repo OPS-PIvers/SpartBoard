@@ -59,7 +59,6 @@ import { formatShortDate } from './newAssignmentHelpers';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 import { toAssessmentBehavior } from '@/utils/quizBehavior';
-import { manualStartAvailable } from '@/utils/assignAvailability';
 import type { AssignClassesValue } from '@/utils/assignTargets';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
@@ -185,7 +184,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
         defaultWhenValue({
           activity: 'quiz',
           bellAvailable: !!periodAccess,
-          manualAvailable: manualStartAvailable(periodAccess?.bellWindow),
+          manualAvailable: true,
         })
       );
       setStep('configure');
