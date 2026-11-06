@@ -30,9 +30,10 @@ const MAX_PAGES = 10;
 const API_TIMEOUT_MS = 20000;
 const QUERY_CONCURRENCY = 8;
 // Lookups stop starting new work at these marks so the call returns inside the client's 110s timeout.
-const NAME_LOOKUP_BUDGET_MS = 45000;
-const QUERY_BUDGET_MS = 45000;
+const NAME_LOOKUP_BUDGET_MS = 55000;
+const QUERY_BUDGET_MS = 35000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const PARTIAL_CACHE_TTL_MS = 60 * 1000;
 const NAME_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const ORG_WIDE_ROLE_IDS = new Set(['super_admin', 'domain_admin']);
 
@@ -402,7 +403,8 @@ export const getActiveStudentsV1 = onCall(
 
     const now = Date.now();
     const cached = resultCache.get(orgId);
-    if (cached && now - cached.asOf < CACHE_TTL_MS) return cached;
+    const ttl = cached?.partial ? PARTIAL_CACHE_TTL_MS : CACHE_TTL_MS;
+    if (cached && now - cached.asOf < ttl) return cached;
     resultCache.delete(orgId);
     const running = inFlight.get(orgId);
     if (running) return running;
@@ -461,8 +463,8 @@ async function computeActiveStudents(
       namesByUid: names.namesByUid,
     }),
   };
-  // Unfinished results aren't cached, so a reopen keeps filling names from nameCache.
-  if (!result.partial) resultCache.set(orgId, result);
+  // Unfinished results expire after a minute, so a later open fills more names from nameCache.
+  resultCache.set(orgId, result);
   return result;
 }
 
