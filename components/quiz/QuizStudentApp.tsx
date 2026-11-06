@@ -62,6 +62,7 @@ import {
 } from '@/utils/quizParts';
 import {
   ClipboardList,
+  PencilLine,
   Loader2,
   CheckCircle2,
   Timer,
@@ -891,7 +892,8 @@ const QuizJoinFlow: React.FC<{
   // Raw `answers.length` over-counts once `unresponded` markers exist.
   const myAnsweredCount = countAnsweredQuestions(
     myResponse?.answers ?? [],
-    servedQuestionIdList
+    servedQuestionIdList,
+    session?.paperWrittenQuestionIds
   );
 
   // Subscribe to auth so the view-log effect re-runs when anon sign-in
@@ -2899,8 +2901,14 @@ export const ActiveQuiz: React.FC<{
   const submittableAnswer = cachedDraft;
   // Word-limit gate for written questions. Counts the LIVE draft (what the
   // editor shows) so the message tracks typing rather than the last commit.
+  // Hybrid paper quiz: this written question is answered on the printed sheet.
+  const answerOnPaper =
+    !!currentQuestion &&
+    session.paperWrittenQuestionIds?.includes(currentQuestion.id) === true;
   const writtenLimit =
-    currentQuestion && isFreeResponseType(currentQuestion.type)
+    currentQuestion &&
+    isFreeResponseType(currentQuestion.type) &&
+    !answerOnPaper
       ? wordLimitStatus(countWords(liveAnswer ?? ''), currentQuestion)
       : null;
   const wordLimitBlocked = writtenLimit?.blocked === true;
@@ -4731,51 +4739,68 @@ export const ActiveQuiz: React.FC<{
                         light={light}
                       />
                     )}
-                  <React.Suspense
-                    fallback={
-                      <div
-                        className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
+                  {answerOnPaper ? (
+                    <div
+                      className={`border rounded-2xl flex items-center gap-3 px-5 py-6 ${editorFallbackCls}`}
+                    >
+                      <PencilLine className="w-6 h-6 shrink-0 text-brand-blue-primary" />
+                      <p
+                        className={`text-base font-bold ${light ? 'text-brand-blue-dark' : 'text-slate-100'}`}
                       >
-                        <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
-                      </div>
-                    }
-                  >
-                    <WrittenResponseEditor
-                      // The editor seeds its `innerHTML` once on mount (caret
-                      // preservation), so we encode a "recovered text needs
-                      // injecting" boolean in the questionKey. A page refresh
-                      // mid-essay first mounts with value='' (cache empty,
-                      // saved null); when the Firestore snapshot arrives the
-                      // seed-from-server block recovery-seeds the cache, the key
-                      // flips from `…:init` → `…:seeded`, and the editor
-                      // remounts with the recovered text. Without this, the
-                      // student stares at a blank editor while React state
-                      // already holds the recovered value.
-                      //
-                      // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
-                      // rather than general cache presence: a student's own first
-                      // keystroke also populates `answerCache`, and keying on that
-                      // remounted the editor mid-type, stealing focus and the caret.
-                      questionKey={`${currentQuestion.id}:${
-                        // eslint-disable-next-line react-hooks/refs -- seeded set keys the editor remount
-                        seededQuestionsRef.current.has(currentQuestion.id)
-                          ? 'seeded'
-                          : 'init'
-                      }`}
-                      value={liveAnswer ?? ''}
-                      onChange={(html) => setCacheForCurrent(html)}
-                      placeholder={displayQuestion.placeholder}
-                      minWords={currentQuestion.minWords}
-                      maxWords={currentQuestion.maxWords}
-                      enforceWordLimit={currentQuestion.enforceWordLimit}
-                      spellCheck={currentQuestion.noSpellCheck !== true}
-                      disabled={submitted && !isStudentPaced}
-                      blockClipboard={blockCopyPaste}
-                      light={light}
-                      ref={quoteEditorRef}
-                    />
-                  </React.Suspense>
+                        {t(
+                          'quizPaperWritten.writeOnSheet',
+                          'Write your answer on your paper answer sheet.'
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <React.Suspense
+                      fallback={
+                        <div
+                          className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
+                        >
+                          <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+                        </div>
+                      }
+                    >
+                      <WrittenResponseEditor
+                        // The editor seeds its `innerHTML` once on mount (caret
+                        // preservation), so we encode a "recovered text needs
+                        // injecting" boolean in the questionKey. A page refresh
+                        // mid-essay first mounts with value='' (cache empty,
+                        // saved null); when the Firestore snapshot arrives the
+                        // seed-from-server block recovery-seeds the cache, the key
+                        // flips from `…:init` → `…:seeded`, and the editor
+                        // remounts with the recovered text. Without this, the
+                        // student stares at a blank editor while React state
+                        // already holds the recovered value.
+                        //
+                        // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
+                        // rather than general cache presence: a student's own first
+                        // keystroke also populates `answerCache`, and keying on that
+                        // remounted the editor mid-type, stealing focus and the caret.
+                        questionKey={`${currentQuestion.id}:${
+                          // eslint-disable-next-line react-hooks/refs -- seeded set keys the editor remount
+                          seededQuestionsRef.current.has(currentQuestion.id)
+                            ? 'seeded'
+                            : 'init'
+                        }`}
+                        value={liveAnswer ?? ''}
+                        onChange={(html) => setCacheForCurrent(html)}
+                        placeholder={displayQuestion.placeholder}
+                        minWords={currentQuestion.minWords}
+                        maxWords={currentQuestion.maxWords}
+                        enforceWordLimit={currentQuestion.enforceWordLimit}
+                        spellCheck={currentQuestion.noSpellCheck !== true}
+                        disabled={submitted && !isStudentPaced}
+                        blockClipboard={blockCopyPaste}
+                        light={light}
+                        ref={quoteEditorRef}
+                      />
+                    </React.Suspense>
+                  )}
                   {session.allowStimulusQuotes === true &&
+                    !answerOnPaper &&
                     !(submitted && !isStudentPaced) &&
                     currentStimuli.some(
                       (s) => s.type === 'text' || s.type === 'pdf'
@@ -4817,7 +4842,9 @@ export const ActiveQuiz: React.FC<{
                             onClick={() =>
                               void handleSubmitAndAdvance(
                                 submittableAnswer ?? '',
-                                submittableAnswer === null || wordLimitBlocked
+                                answerOnPaper ||
+                                  submittableAnswer === null ||
+                                  wordLimitBlocked
                               )
                             }
                             disabled={
@@ -4875,7 +4902,7 @@ export const ActiveQuiz: React.FC<{
                           }
                           disabled={
                             submitting ||
-                            submittableAnswer === null ||
+                            (submittableAnswer === null && !answerOnPaper) ||
                             wordLimitBlocked
                           }
                           aria-describedby={

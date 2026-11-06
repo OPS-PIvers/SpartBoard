@@ -13,6 +13,7 @@ import {
 import {
   currentShortAnswerGrading,
   parseCompletedResponse,
+  parsePaperWrittenQuestionIds,
   parseManualGrades,
 } from '../recomputePlcAssessments';
 import { notChosenIds, parseChooseSections } from '../quizSectionsChosen';
@@ -258,6 +259,8 @@ export interface QuestionScoreInput {
   sectionsRaw?: unknown;
   /** Video activity: grade from the stored `isCorrect` when the key is missing. */
   useStoredCorrectness?: boolean;
+  /** Hybrid paper quiz: written questions answered on a printed sheet. */
+  paperWrittenQuestionIds?: readonly string[];
 }
 
 export interface QuestionScore {
@@ -306,6 +309,13 @@ export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
       pointsEarned = g.pointsEarned;
       state = g.state;
     }
+    // A hybrid paper answer not yet scanned is owed a grade, never a 0.
+    if (
+      state === 'not-attempted' &&
+      input.paperWrittenQuestionIds?.includes(q.id) &&
+      answer?.paperTranscript !== 'blank'
+    )
+      state = 'awaiting-grade';
     if (state === 'no-key') noKey = true;
     if (state === 'awaiting-grade') {
       awaiting = true;
@@ -415,6 +425,9 @@ export function scoreQuizResponse(
     manualGrades: parsed.manualGrades,
     fibAnswersByQuestion: ctx.fibAnswersByStudent(studentUid),
     sectionsRaw: session.sections,
+    paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
+      session.paperWrittenQuestionIds
+    ),
   });
   const base = {
     classId: parsed.classId ?? null,

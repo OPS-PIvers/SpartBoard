@@ -4388,7 +4388,12 @@ const TeacherQuizWidget: React.FC<{
                   (uid) => {
                     const r = byUid.get(uid);
                     return r
-                      ? quizLiveRaw(r, data.questions, publishFibGrading)
+                      ? quizLiveRaw(
+                          r,
+                          data.questions,
+                          publishFibGrading,
+                          pushPaperIds
+                        )
                       : null;
                   },
                   Date.now()
@@ -4400,6 +4405,10 @@ const TeacherQuizWidget: React.FC<{
               )
                 .then((snap) => snap.data() as QuizSession | undefined)
                 .catch(() => undefined);
+              // Fall back to the assignment's mirror when the session read fails.
+              const pushPaperIds =
+                pushSession?.paperWrittenQuestionIds ??
+                target.paperWrittenQuestionIds;
               const pushMaxPoints = quizMaxPoints(
                 data.questions,
                 pushSession?.sections ?? sessionSectionsFor(data),
@@ -4424,7 +4433,8 @@ const TeacherQuizWidget: React.FC<{
                           responses,
                           data.questions,
                           mp,
-                          publishFibGrading
+                          publishFibGrading,
+                          pushPaperIds
                         ),
                         responses,
                         mp
@@ -4438,7 +4448,8 @@ const TeacherQuizWidget: React.FC<{
                       responses,
                       data.questions,
                       mp,
-                      publishFibGrading
+                      publishFibGrading,
+                      pushPaperIds
                     ),
                     responses,
                     mp

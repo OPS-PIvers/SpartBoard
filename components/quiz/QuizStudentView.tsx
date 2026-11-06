@@ -255,7 +255,8 @@ const StudentViewAttempt: React.FC<{ session: QuizSession }> = ({
         pin=""
         answeredCount={countAnsweredQuestions(
           response.answers,
-          session.publicQuestions.map((q) => q.id)
+          session.publicQuestions.map((q) => q.id),
+          session.paperWrittenQuestionIds
         )}
         hideReturnButton
       />

@@ -395,6 +395,28 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.perTeacher[0].averagePercent).toBe(19);
   });
 
+  it('withholds a score while a written answer on paper is not scanned', () => {
+    const paperSession = (answers: RawAnswer[]): SessionInput => ({
+      ...session('s-a', 'teacherA', [response(answers)]),
+      paperWrittenQuestionIds: ['q3'],
+    });
+    const unscanned = compute([
+      paperSession([answer('q1', 'St. Paul'), answer('q2', '4')]),
+    ]);
+    expect(unscanned.studentCount).toBe(1);
+    expect(unscanned.scoredStudentCount).toBe(0);
+    // A scanned blank box is a genuine 0, as it is on an all-paper quiz.
+    const blank = compute([
+      paperSession([
+        answer('q1', 'St. Paul'),
+        answer('q2', '4'),
+        answer('q3', '', { paperTranscript: 'blank' }),
+      ]),
+    ]);
+    expect(blank.scoredStudentCount).toBe(1);
+    expect(blank.teamAveragePercent).toBe(38);
+  });
+
   it('withholds a score while a written answer awaits a manual grade', () => {
     const agg = compute([
       session('s-a', 'teacherA', [
