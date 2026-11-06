@@ -3077,12 +3077,7 @@ const TeacherQuizWidget: React.FC<{
               }
             );
             const finalScore = behavior.finalScore ?? 'latest';
-            if (
-              finalScore !== 'latest' &&
-              attemptLimit !== 1 &&
-              canAccessFeature('quiz-attempt-history') &&
-              user?.uid
-            ) {
+            if (finalScore !== 'latest' && attemptLimit !== 1 && user?.uid) {
               saveAttemptPolicy(
                 user.uid,
                 assignmentId,
@@ -4228,8 +4223,7 @@ const TeacherQuizWidget: React.FC<{
                   teacherUid: user?.uid,
                   uid: user?.uid,
                 },
-                canAccessFeature('gradebook'),
-                canAccessFeature('quiz-attempt-history')
+                canAccessFeature('gradebook')
               );
               const withFinal = (
                 entries: ClassroomGradeEntry[],

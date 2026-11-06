@@ -15,6 +15,13 @@ vi.mock('@/context/useDashboard', () => ({
     rosters: [],
   }),
 }));
+// The quiz final-score overlay reads Firestore; these tests don't cover it.
+vi.mock('@/hooks/gradebook/useFinalScoreOverlay', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/hooks/gradebook/useFinalScoreOverlay')
+  >()),
+  useFinalScoreOverlay: () => null,
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessQuizMediaResponse: () => false,
@@ -24,8 +31,7 @@ vi.mock('@/context/useAuth', () => ({
     orgId: null,
     // The grade-push button is additionally gated on the admin-managed
     // `google-classroom` feature doc; default-allow in this suite.
-    canAccessFeature: (id: string) =>
-      id !== 'gradebook' && id !== 'quiz-attempt-history',
+    canAccessFeature: (id: string) => id !== 'gradebook',
   }),
 }));
 // Auto-confirm the "Push grades?" dialog so the handler proceeds.

@@ -704,7 +704,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "time-tool#timerEndVoiceLevel",
       "time-tool#visualType",
       "url#urls",
-      "weather#cardColor",
       "weather#condition",
       "weather#fontColor",
       "weather#fontFamily",

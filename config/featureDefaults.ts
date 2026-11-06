@@ -12,7 +12,6 @@ import {
   ClipboardCheck,
   Download,
   Eye,
-  History,
   SpellCheck,
   FileText,
   FileUp,
@@ -751,18 +750,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Quiz attempt history and the Final score setting (docs/plans/shipped/QUIZ_ATTEMPT_HISTORY.md).
-  'quiz-attempt-history': {
-    label: 'Quiz attempt history',
-    icon: History,
-    description:
-      'Teachers and students can look back at every quiz attempt, and teachers choose which score counts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',
@@ -1074,17 +1061,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     description: 'Dew point, humidity, wind and more on the Weather widget.',
     stage: 'preview',
     afterLaunch: 'keep',
-    widget: 'weather',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'weather-gear-layout': {
-    label: 'Weather recess gear redesign',
-    icon: CloudSun,
-    description: 'A larger recess gear picture and message that fit any size.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     widget: 'weather',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,

@@ -8,7 +8,6 @@ export interface QuizRuleGates {
   tabAwayTimerOn: boolean;
   scoreOnSubmitOn: boolean;
   stimulusQuotesOn?: boolean;
-  finalScoreOn?: boolean;
   pageProtectionsOn?: boolean;
 }
 
@@ -38,7 +37,7 @@ export function formatQuizAttemptsValue(
       ? 'Unlimited attempts'
       : `${value.attemptLimit} attempt${value.attemptLimit === 1 ? '' : 's'}`,
   ];
-  if (context.finalScoreOn && !context.flashcards && value.attemptLimit !== 1) {
+  if (!context.flashcards && value.attemptLimit !== 1) {
     if (value.finalScore === 'highest') parts.push('highest score');
     if (value.finalScore === 'average') parts.push('average score');
   }
