@@ -332,15 +332,16 @@ describe('DashboardView Gestures & Navigation', () => {
       const boards = mockDashboards.map((d, i) =>
         i === 1 ? { ...d, widgets: ids.map((id) => ({ id, type: 'poll' })) } : d
       );
-      const dash = (useDashboard as unknown as ReturnType<typeof vi.fn>)() as {
-        removeWidget: ReturnType<typeof vi.fn>;
-      };
-      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      const mocked = useDashboard as unknown as ReturnType<typeof vi.fn>;
+      const dash = vi.mocked(useDashboard)() as unknown as Record<
+        string,
+        unknown
+      >;
+      mocked.mockReturnValue({
         ...dash,
         activeDashboard: boards[1],
         dashboards: boards,
       });
-      return dash.removeWidget;
     };
 
     it('ends the session when the live widget is deleted', () => {
