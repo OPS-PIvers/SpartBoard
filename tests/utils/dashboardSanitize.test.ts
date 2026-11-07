@@ -29,7 +29,9 @@ describe('sanitizeBoardSnapshot', () => {
       claudeEditedAt: 5,
       claudeAction: 'created',
       claudeUnseen: true,
+      triggerClaims: { r1: 5 },
     });
+    expect(out.triggerClaims).toBeUndefined();
     expect(out.claudeEditedAt).toBeUndefined();
     expect(out.claudeAction).toBeUndefined();
     expect(out.claudeUnseen).toBeUndefined();

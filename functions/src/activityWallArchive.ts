@@ -727,6 +727,7 @@ export async function archiveActivityWallMediaCore(
     const needsConsent = isNeedsConsentError(error);
     return db.runTransaction(async (tx) => {
       const fresh = await tx.get(submissionRef);
+      if (!fresh.exists) return false;
       const data = (fresh.data() ?? {}) as Record<string, unknown>;
       const previous =
         typeof data.attemptCount === 'number' ? data.attemptCount : 0;
@@ -864,6 +865,7 @@ export async function archiveActivityWallMediaCore(
   const driveUrl = buildDriveUrl(type, uploadedId);
   try {
     return await finalizeResumedSubmission(submissionRef, {
+      db,
       driveFileId: uploadedId,
       driveUrl,
       drivePermission: drivePermissionValue,
@@ -884,6 +886,7 @@ export async function archiveActivityWallMediaCore(
 export async function finalizeResumedSubmission(
   submissionRef: admin.firestore.DocumentReference,
   input: {
+    db: Firestore;
     driveFileId: string;
     driveUrl: string;
     drivePermission?: DrivePermissionValue;
@@ -892,32 +895,45 @@ export async function finalizeResumedSubmission(
     deleteObject: (path: string) => Promise<void>;
     extraFields?: Record<string, unknown>;
   }
-): Promise<{ archiveStatus: 'archived'; driveFileId: string }> {
-  await submissionRef.set(
-    {
-      content: input.driveUrl,
-      driveFileId: input.driveFileId,
-      driveUrl: input.driveUrl,
-      ...(input.drivePermission
-        ? { drivePermission: input.drivePermission }
-        : {}),
-      archiveStatus: 'archived',
-      archivedAt: input.now,
-      storagePath: admin.firestore.FieldValue.delete(),
-      archiveStartedAt: admin.firestore.FieldValue.delete(),
-      archiveError: admin.firestore.FieldValue.delete(),
-      ...(input.extraFields ?? {}),
-    },
-    { merge: true }
-  );
+): Promise<
+  | { archiveStatus: 'archived'; driveFileId: string }
+  | { archiveStatus: 'skipped' }
+> {
+  const written = await input.db.runTransaction(async (tx) => {
+    const snap = await tx.get(submissionRef);
+    // A submission deleted mid-archive must not be recreated by the merge.
+    if (!snap.exists) return false;
+    tx.set(
+      submissionRef,
+      {
+        content: input.driveUrl,
+        driveFileId: input.driveFileId,
+        driveUrl: input.driveUrl,
+        ...(input.drivePermission
+          ? { drivePermission: input.drivePermission }
+          : {}),
+        archiveStatus: 'archived',
+        archivedAt: input.now,
+        storagePath: admin.firestore.FieldValue.delete(),
+        archiveStartedAt: admin.firestore.FieldValue.delete(),
+        archiveError: admin.firestore.FieldValue.delete(),
+        ...(input.extraFields ?? {}),
+      },
+      { merge: true }
+    );
+    return true;
+  });
   // Separate step: the Drive copy is durable, the transit delete is retryable.
   try {
     await input.deleteObject(input.storagePath);
   } catch {
-    await submissionRef
-      .set({ storageCleanupPending: true }, { merge: true })
-      .catch(() => undefined);
+    if (written) {
+      await submissionRef
+        .set({ storageCleanupPending: true }, { merge: true })
+        .catch(() => undefined);
+    }
   }
+  if (!written) return { archiveStatus: 'skipped' };
   return { archiveStatus: 'archived', driveFileId: input.driveFileId };
 }
 

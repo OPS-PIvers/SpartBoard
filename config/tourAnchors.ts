@@ -16806,6 +16806,54 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'classes.restrictions-trigger': {
+    label: 'Keep apart button in a class roster row',
+    panel: true,
+  },
+  'classes.restrictions-filter': {
+    label: 'Search classmates box in the Keep apart list',
+    panel: true,
+  },
+  'schoology-nudge.review': {
+    label: 'Review & link button in the Schoology sections banner',
+  },
+  'schoology-nudge.dismiss': {
+    label: 'Dismiss button on the Schoology sections banner',
+    destructive: true,
+  },
+  'music.spotify-premium-cancel': {
+    label: 'Cancel button in the Spotify Premium notice',
+    panel: true,
+  },
+  'music.spotify-premium-continue': {
+    label: 'Got it, continue button in the Spotify Premium notice',
+    panel: true,
+    persists: true,
+  },
+  'music.spotify-premium-dont-show': {
+    label: "Don't show this again checkbox in the Spotify Premium notice",
+    panel: true,
+  },
+  'flashcards.present-flip': {
+    label:
+      'Flashcard shown on the board in the Flashcards widget (click to flip)',
+  },
+  'flashcards.present-previous': {
+    label: 'Previous card button in the Flashcards widget on the board',
+  },
+  'flashcards.present-next': {
+    label: 'Next card button in the Flashcards widget on the board',
+  },
+  'flashcards.public-link': {
+    label: 'Share link box in the flashcard Share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.embed-code': {
+    label: 'Embed code box in the flashcard Share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

@@ -6,6 +6,7 @@ type DocData = Record<string, unknown>;
 const h = vi.hoisted(() => {
   const store = new Map<string, Record<string, unknown>>();
   const failCreate = new Set<string>();
+  const failCode = { value: 14 };
   const ref = (path: string) => ({
     path,
     id: path.split('/').pop() as string,
@@ -14,7 +15,9 @@ const h = vi.hoisted(() => {
     delete: () => Promise.resolve(void store.delete(path)),
     create: (d: DocData) => {
       if (failCreate.has(path)) {
-        return Promise.reject(Object.assign(new Error('down'), { code: 14 }));
+        return Promise.reject(
+          Object.assign(new Error('down'), { code: failCode.value })
+        );
       }
       if (store.has(path)) {
         return Promise.reject(Object.assign(new Error('exists'), { code: 6 }));
@@ -85,7 +88,7 @@ const h = vi.hoisted(() => {
       return run;
     },
   };
-  return { store, failCreate, db };
+  return { store, failCreate, failCode, db };
 });
 
 vi.mock('./firebaseAdmin', () => ({
@@ -154,6 +157,7 @@ const tourSet = (over: DocData = {}): DocData => ({
 beforeEach(() => {
   h.store.clear();
   h.failCreate.clear();
+  h.failCode.value = 14;
 });
 
 describe('buildGlTourContent', () => {
@@ -217,6 +221,17 @@ describe('one-time publish of existing tours', () => {
     h.failCreate.clear();
     await trigger({ params: { setId: 'live' } });
     expect(tour('live')).toBeDefined();
+    expect(h.store.has(META)).toBe(true);
+  });
+
+  it('writes the marker when a publish fails for good, such as an oversized snapshot', async () => {
+    h.store.set('building_guided_learning/big', tourSet({ id: 'big' }));
+    h.store.set('building_guided_learning/next', tourSet({ id: 'next' }));
+    h.failCreate.add('building_guided_learning_tours/big');
+    h.failCode.value = 3;
+    await trigger({ params: { setId: 'next' } });
+    expect(tour('next')).toBeDefined();
+    expect(tour('big')).toBeUndefined();
     expect(h.store.has(META)).toBe(true);
   });
 

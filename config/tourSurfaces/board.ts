@@ -369,6 +369,35 @@ export const SURFACES: TourSurfaceMap = {
     openerMissing:
       'Push to Schoology gradebook button in Quiz and Video Activity results (useSchoologyToolColumnPush)',
   },
+  'board.schoology-nudge': {
+    label: 'Schoology sections banner',
+    kind: 'shared',
+    files: ['components/classes/SchoologyLinkNudge.tsx'],
+  },
+  'board.spotify-premium-notice': {
+    label: 'Spotify Premium notice',
+    kind: 'modal',
+    files: ['components/spotify/SpotifyPremiumDialog.tsx'],
+    opensWith: 'widget-settings.music.spotify-connect',
+    widgetType: 'music',
+    needs: ['widget-on-stage'],
+  },
+  'board.flashcard-share': {
+    label: 'Flashcard Share dialog',
+    kind: 'modal',
+    widgetType: 'flashcards',
+    needs: ['widget-on-stage', 'library-item'],
+    files: ['components/flashcards/FlashcardShareModal.tsx'],
+    openerMissing: "Share item in a flashcard set's row menu (onShare)",
+  },
+  'board.flashcards-present': {
+    label: 'Flashcards set presented on the board',
+    kind: 'shared',
+    widgetType: 'flashcards',
+    needs: ['widget-on-stage', 'library-item'],
+    files: ['components/flashcards/FlashcardsMode.tsx'],
+    openerMissing: 'Present on a set row in the Flashcards library (onPresent)',
+  },
   'board.smart-paste': {
     label: 'Smart paste picker',
     kind: 'modal',
@@ -459,6 +488,7 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'classes.edit-roster:classes',
     alsoOpensWith: ['classes.new-class', 'classes.new-class-empty'],
     needs: ['class'],
+    inner: { 'classes.restrictions-filter': 'classes.restrictions-trigger' },
   },
   'board.roster-groups': {
     label: 'Roster editor Groups tab',
