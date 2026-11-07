@@ -1021,6 +1021,7 @@ describe('createOrganizationInvites — super_admin role guard', () => {
     const operatorRole =
       opts.operatorRole === undefined ? opts.callerRole : opts.operatorRole;
     const txSet = vi.fn();
+    const txDelete = vi.fn();
     const memberGet = (email: string) => {
       if (email === CALLER) {
         return { exists: true, data: () => ({ roleId: opts.callerRole }) };
@@ -1072,13 +1073,14 @@ describe('createOrganizationInvites — super_admin role guard', () => {
         fn: (tx: {
           get: (ref: { get: () => Promise<unknown> }) => Promise<unknown>;
           set: typeof txSet;
+          delete: typeof txDelete;
         }) => Promise<unknown>
-      ) => fn({ get: (ref) => ref.get(), set: txSet }),
+      ) => fn({ get: (ref) => ref.get(), set: txSet, delete: txDelete }),
     };
     vi.mocked(admin.firestore).mockReturnValue(
       db as unknown as admin.firestore.Firestore
     );
-    return { txSet };
+    return { txSet, txDelete };
   }
 
   const invite = (email: string, roleId: string, orgId = 'orono') =>
@@ -1120,6 +1122,14 @@ describe('createOrganizationInvites — super_admin role guard', () => {
     expect(res.errors).toHaveLength(0);
     expect(res.invitations).toHaveLength(1);
     expect(txSet).toHaveBeenCalled();
+  });
+
+  it('inviting clears a Remove-from-org tombstone', async () => {
+    const { txDelete } = stubDb({ callerRole: 'domain_admin' });
+    await invite('new@orono.k12.mn.us', 'teacher');
+    expect(txDelete).toHaveBeenCalledWith(
+      expect.objectContaining({ get: expect.any(Function) as unknown })
+    );
   });
 
   it("another org's super_admin cannot invite a super_admin", async () => {

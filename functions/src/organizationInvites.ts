@@ -988,6 +988,10 @@ async function writeInvitation(
       }
 
       tx.set(memberRef, plan.patch, { merge: true });
+      // Re-inviting clears a Remove-from-org tombstone.
+      tx.delete(
+        db.doc(`organizations/${orgId}/removedMembers/${invite.email}`)
+      );
 
       const expiresAt = computeExpiresAt(now, expiresInDays);
       const invitation: InvitationRecord = {
