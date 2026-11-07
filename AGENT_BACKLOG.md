@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-146**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-152**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -19,7 +19,9 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Security and correctness
 
-- **AB-144 Finish server and client feature gate parity** (S). Follow-ups from the T4 gate-parity PR (#5374). (2) The AI gates check beta only against `betaUsers` (`isVerifiedBetaMember`), while `isGlobalFeatureGranted` and the client also accept the other beta sources (`isBetaTeacher`). (3) `isGlobalFeatureGranted` denies `accessLevel: 'all'` while the AI gates allow it. (4) PLC meeting-notes AI and the PLC goal coach screens never check `gemini-functions`, which the server now enforces with its tier and buildings. (5) `assertQuizTranslationFeature` (`functions/src/quizTranslation.ts`) compares saved `buildings` raw; route its tier and building checks through `permissionAudienceAllows`. (6) `enforceAiFeatureAccess` and `generateWithAI` don't apply a missing doc's `defaultMinTier` (use `missingDocAccess`). Done when each gate gives the client's answer, with tests.
+- **AB-151 Live session follow-ups from B5** (S). (1) No heartbeat: `lastActive` is written only at join (`hooks/useLiveSession.ts` join path), so a student who drops stays `active` until the teacher removes them. (2) Deleting a board or undoing a widget delete does not end or restore a live session; only `removeWidget` and `removeWidgets` announce `spart-widget-removed`. Done when both are decided and covered by tests.
+
+- **AB-144 Finish server and client feature gate parity** (S). Follow-ups from the T4 gate-parity PR (#5374). (1) `transcribeVideoWithGemini` (`functions/src/aiGeneration.ts`) refuses everyone when `global_permissions/video-activity-audio-transcription` is missing, but `FEATURE_DEFAULTS` marks it `missingDocPublic: true`, so the client shows the button; ask Paul which side is right before changing either. (2) The AI gates check beta only against `betaUsers` (`isVerifiedBetaMember`), while `isGlobalFeatureGranted` and the client also accept the other beta sources (`isBetaTeacher`). (3) `isGlobalFeatureGranted` denies `accessLevel: 'all'` while the AI gates allow it. (4) PLC meeting-notes AI and the PLC goal coach screens never check `gemini-functions`, which the server now enforces with its tier and buildings. (5) `assertQuizTranslationFeature` (`functions/src/quizTranslation.ts`) compares saved `buildings` raw; route its tier and building checks through `permissionAudienceAllows`. (6) `enforceAiFeatureAccess` and `generateWithAI` don't apply a missing doc's `defaultMinTier` (use `missingDocAccess`). Done when each gate gives the client's answer, with tests.
 
 - **AB-141 Deactivation should also drop `/admins` grants** (S, Opus, rules). From the R1 review: `isAdmin()` (`firestore.rules`) only checks that `/admins/{email}` exists, and `organizationMembersSync` keeps a hand-made `/admins` doc with no provenance marker, so a deactivated person with such a doc keeps every `isAdmin()` grant not ANDed with `notDeactivated()`. `isSiteWideAdmin`/`isSiteSuperAdmin` (`functions/src/authz.ts`) return true for a legacy doc with no roleId without reading member status. Fix: AND `notDeactivated()` into `isAdmin()` if the rules budget allows, and check the operator member status in those helpers. Also align `isSuperAdminActor` (`components/admin/Organization/OrganizationPanel.tsx`) with the active-only super admin check.
 - **AB-136 Activity Wall delete: close before clearing** (S). From the B7 review (#5371). `components/widgets/ActivityWall/WallLibraryModal.tsx` `handleDelete` runs `clearWallSubmissions` before `onDelete`, which now closes the session, so a post made between the two leaves an orphan submission. Close the session first, then clear, then delete. Test the order.
@@ -177,10 +179,14 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-yjiumh claude/project-thread-yjiumh-ab112
   git push origin --delete claude/project-thread-wrsw83 claude/project-thread-gnqh9n
   git push origin --delete claude/project-thread-3r24g5 claude/b2-ab112
-  git push origin --delete claude/project-thread-ispilm
+  git push origin --delete claude/project-thread-ispilm claude/project-thread-ta7n7b
+  git push origin --delete claude/project-thread-v022ec
+  git push origin --delete claude/project-thread-dkv28p
   ```
 
   </details>
+
+- **AB-150 Paused quiz vanishes from My Assignments** (S). `hooks/useStudentAssignments.ts` quiz `activeFilter` is `waiting|active`, so a paused quiz shows in neither the Active nor the Ended list. Add `paused` to the Active filter. It adds one status listener per class chunk, so check `tests/hooks/useStudentAssignments.listenerCount.test.tsx` and the quiz composite index first. Left out of the Q2 state-machine slice to keep prod listener counts unchanged.
 
 ### Plans with a next slice
 

@@ -2886,6 +2886,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'studio.add-step': ['guidedLearning.studio'],
     'studio.canvas': ['guidedLearning.studio'],
     'dock.live-session': ['board'],
+    'dock.live-popover-end': ['board'],
     'dock.live-popover-close': ['board'],
     'dock.restore-custom': ['board'],
     'dock.quick-access-1': ['board'],

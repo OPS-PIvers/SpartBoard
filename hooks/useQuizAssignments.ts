@@ -13,6 +13,7 @@
 
 import {
   QUIZ_TIME_LIMIT_FEATURE,
+  appendPauseSpan,
   clampQuizTimeLimitMinutes,
 } from '@/utils/quizTimeLimit';
 import { useState, useEffect, useCallback, useContext, useRef } from 'react';
@@ -213,13 +214,20 @@ async function commitQuizLifecycle(
     if (ended && (event.type === 'pause' || event.type === 'resume')) {
       return null;
     }
-    const patches = assignmentLifecyclePatches('quiz', event, Date.now());
+    const now = Date.now();
+    const patches = assignmentLifecyclePatches('quiz', event, now);
+    // The time limit skips this pause.
+    const pauseSpans =
+      session?.status === 'paused' && event.type === 'resume'
+        ? appendPauseSpan(session.pauseSpans, session.pausedAt, now)
+        : null;
     tx.update(
       doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
       patches.assignment
     );
     tx.update(sessionRef, {
       ...patches.session,
+      ...(pauseSpans ? { pauseSpans } : {}),
       ...(session && extraSessionPatch ? extraSessionPatch(session) : {}),
     });
     return patches;

@@ -388,6 +388,7 @@ export const deleteOrganizationUser = onCall(
 
     // Last: leaving it until the end keeps a retry after a partial failure
     // able to find and authorize its target.
+    await db.doc(`organizations/${orgId}/removedMembers/${email}`).delete();
     await memberRef.delete();
     summary.memberDocRemoved = true;
 

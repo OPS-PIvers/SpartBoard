@@ -178,7 +178,23 @@ vi.mock('@/components/layout/AnnotationOverlay', () => ({
   AnnotationOverlay: () => null,
 }));
 vi.mock('@/components/widgets/WidgetRenderer', () => ({
-  WidgetRenderer: () => <div data-testid="widget">Widget</div>,
+  WidgetRenderer: ({
+    widget,
+    removeWidget,
+  }: {
+    widget: { id: string };
+    removeWidget: (id: string) => void;
+  }) => (
+    <div data-testid="widget">
+      Widget
+      <button
+        data-testid={`del-${widget.id}`}
+        onClick={() => removeWidget(widget.id)}
+      >
+        del
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('@/hooks/useCollections', () => ({
@@ -265,6 +281,7 @@ describe('DashboardView Gestures & Navigation', () => {
       removeToast: vi.fn(),
       updateWidget: vi.fn(),
       removeWidget: vi.fn(),
+      setSelectedWidgetId: vi.fn(),
       duplicateWidget: vi.fn(),
       bringToFront: vi.fn(),
       addToast: vi.fn(),
@@ -285,6 +302,69 @@ describe('DashboardView Gestures & Navigation', () => {
         setCollectionMetadata: vi.fn(),
         setCollectionDefaultBoard: vi.fn(),
       },
+    });
+  });
+
+  describe('live widget lifecycle', () => {
+    const liveSession = {
+      id: 'teacher-1',
+      isActive: true,
+      activeWidgetId: 'live-w',
+      activeWidgetType: 'poll',
+      code: '123456',
+      frozen: false,
+      createdAt: 1,
+    };
+    const withSession = (endSession: () => void) =>
+      (useLiveSession as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        session: liveSession,
+        students: [],
+        startSession: vi.fn(),
+        updateSessionConfig: vi.fn(),
+        updateSessionBackground: vi.fn(),
+        endSession,
+        removeStudent: vi.fn(),
+        toggleFreezeStudent: vi.fn(),
+        toggleGlobalFreeze: vi.fn(),
+      });
+
+    const boardsWith = (ids: string[]) => {
+      const boards = mockDashboards.map((d, i) =>
+        i === 1 ? { ...d, widgets: ids.map((id) => ({ id, type: 'poll' })) } : d
+      );
+      const mocked = useDashboard as unknown as ReturnType<typeof vi.fn>;
+      const dash = vi.mocked(useDashboard)() as unknown as Record<
+        string,
+        unknown
+      >;
+      mocked.mockReturnValue({
+        ...dash,
+        activeDashboard: boards[1],
+        dashboards: boards,
+      });
+    };
+
+    it('ends the session when the live widget is deleted', () => {
+      const endSession = vi.fn();
+      withSession(endSession);
+      boardsWith(['live-w']);
+      renderView();
+      expect(endSession).not.toHaveBeenCalled();
+      window.dispatchEvent(
+        new CustomEvent('spart-widget-removed', { detail: { id: 'live-w' } })
+      );
+      expect(endSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the session when another widget is deleted', () => {
+      const endSession = vi.fn();
+      withSession(endSession);
+      boardsWith(['live-w', 'other']);
+      renderView();
+      window.dispatchEvent(
+        new CustomEvent('spart-widget-removed', { detail: { id: 'other' } })
+      );
+      expect(endSession).not.toHaveBeenCalled();
     });
   });
 
