@@ -180,6 +180,10 @@ function makeStubDb(seed: {
             data: () => data,
             ref: {
               id,
+              update: (patch: Record<string, unknown>) => {
+                store.set(id, { ...data, ...patch });
+                return Promise.resolve();
+              },
               collection: (subName: string) => {
                 if (!['boards', 'content', 'keys'].includes(subName)) {
                   throw new Error(
@@ -338,7 +342,7 @@ describe('runExpireSubShares', () => {
     expect(stores.shared_boards.has('share-1')).toBe(true);
   });
 
-  it('force-deletes a share with driveGrants once the grace window has elapsed', async () => {
+  it('keeps a share with driveGrants past the grace window and marks grantsOrphaned', async () => {
     const { db, stores } = makeStubDb({
       shared_boards: [
         {
@@ -357,11 +361,39 @@ describe('runExpireSubShares', () => {
     const result = await runExpireSubShares(db, NOW);
 
     expect(result.boards).toEqual({
-      deleted: 1,
+      deleted: 0,
       inGrace: 0,
       orphanedGrants: 1,
     });
-    expect(stores.shared_boards.has('share-1')).toBe(false);
+    expect(stores.shared_boards.has('share-1')).toBe(true);
+    expect(stores.shared_boards.get('share-1')?.grantsOrphaned).toEqual({
+      at: NOW,
+      count: 1,
+    });
+  });
+
+  it('does not re-mark or re-count a share already marked grantsOrphaned', async () => {
+    const marker = { at: NOW - DAY, count: 1 };
+    const { db, stores } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-1',
+          data: {
+            intendedMode: 'substitute',
+            expiresAt: NOW - 8 * DAY,
+            grantsOrphaned: marker,
+            driveGrants: [
+              { email: 'sub@example.com', fileId: 'f1', permissionId: 'p1' },
+            ],
+          },
+        },
+      ],
+    });
+
+    const result = await runExpireSubShares(db, NOW);
+
+    expect(result.boards.orphanedGrants).toBe(0);
+    expect(stores.shared_boards.get('share-1')?.grantsOrphaned).toEqual(marker);
   });
 
   it('leaves a not-yet-expired substitute share untouched', async () => {

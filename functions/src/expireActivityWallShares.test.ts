@@ -192,7 +192,29 @@ function makeStubDb(seed: {
     };
   }
 
+  // Runs a transaction against the live stub; `beforeRead` lets a test mutate state mid-sweep.
+  const hooks: { beforeTxRead?: () => void } = {};
   const db = {
+    runTransaction: async <T>(
+      fn: (tx: {
+        get: (target: { get: () => Promise<unknown> }) => Promise<unknown>;
+        update: (
+          ref: { update: (d: Record<string, unknown>) => Promise<void> },
+          d: Record<string, unknown>
+        ) => void;
+      }) => Promise<T>
+    ): Promise<T> => {
+      hooks.beforeTxRead?.();
+      const writes: Array<() => Promise<void>> = [];
+      const result = await fn({
+        get: (target) => target.get(),
+        update: (ref, d) => {
+          writes.push(() => ref.update(d));
+        },
+      });
+      for (const w of writes) await w();
+      return result;
+    },
     collection: (name: string) => {
       if (name === 'shared_activity_walls') {
         return sharedActivityWallsCollection();
@@ -228,6 +250,8 @@ function makeStubDb(seed: {
     db: db as unknown as Parameters<typeof runExpireActivityWallShares>[0],
     sessions,
     updates,
+    shares,
+    hooks,
   };
 }
 
@@ -291,6 +315,31 @@ describe('runExpireActivityWallShares', () => {
 
     expect(result).toEqual({ lapsedShares: 1, sessionsRelocked: 0 });
     expect(sessions.teacher1_act1.publiclyShared).toBe(true);
+  });
+
+  it('does NOT relock when a live share appears after the candidate scan (race)', async () => {
+    const { db, sessions, updates, shares, hooks } = makeStubDb({
+      shares: [
+        {
+          id: 'share-1',
+          data: { sessionId: 'sess-1', expiresAt: NOW - DAY, revoked: false },
+        },
+      ],
+      sessions: { 'sess-1': { publiclyShared: true } },
+    });
+    // The teacher creates a fresh live share after the lapsed scan, before the relock transaction reads.
+    hooks.beforeTxRead = () => {
+      shares.push({
+        id: 'share-2',
+        data: { sessionId: 'sess-1', expiresAt: null, revoked: false },
+      });
+    };
+
+    const result = await runExpireActivityWallShares(db, NOW);
+
+    expect(result.sessionsRelocked).toBe(0);
+    expect(sessions['sess-1'].publiclyShared).toBe(true);
+    expect(updates['sess-1']).toBeUndefined();
   });
 
   it('leaves a permanent (never-expiring) share untouched', async () => {
