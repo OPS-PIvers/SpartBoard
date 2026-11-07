@@ -74419,6 +74419,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "keys": [
       "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "board.flashcard-share",
+        "kind": "modal",
+        "widget_type": "flashcards"
+      }
     ]
   },
   {
@@ -74428,6 +74435,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "keys": [
       "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "board.flashcard-share",
+        "kind": "modal",
+        "widget_type": "flashcards"
+      }
     ]
   }
 ]`) as readonly TourAnchorEntry[];
