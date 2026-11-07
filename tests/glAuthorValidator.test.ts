@@ -352,6 +352,27 @@ describe('validateGlSet tours', () => {
     );
     bad(set([tour('dock.open-tools', { unmapped: 'x' })]), /recorder-only/);
     bad(set([tour('dock.open-tools', { route: '/' })]), /not a tour field/);
+    ok(
+      set([
+        tour('dock.open-tools', {
+          showWhen: ['org-has-buildings'],
+          doneWhen: 'building-saved',
+        }),
+      ])
+    );
+  });
+
+  it('takes drag and resize only on the controls the runner measures', () => {
+    ok(set([tour('widget.window:clock', { action: 'drag' })]));
+    ok(set([tour('widget.resize-handle:clock', { action: 'resize' })]));
+    bad(
+      set([tour('dock.open-tools', { action: 'drag' })]),
+      /points at "widget.window:<type>"/
+    );
+    bad(
+      set([tour('widget.window:clock', { action: 'resize', value: 'x' })]),
+      /takes no value|widget.resize-handle/
+    );
   });
 
   it('binds slots to setup layouts and earlier spawns', () => {

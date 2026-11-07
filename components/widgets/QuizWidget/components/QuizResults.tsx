@@ -4,6 +4,7 @@
  * Allows exporting to Google Sheets.
  */
 
+import { MathText } from '@/components/common/MathText';
 import React, {
   useState,
   useRef,
@@ -3763,7 +3764,7 @@ const QuestionsScreen: React.FC<{
                 className="block font-sans text-brand-gray-dark truncate"
                 style={{ fontSize: 'min(13px, 4.5cqmin)' }}
               >
-                {q.text}
+                <MathText text={q.text} />
               </span>
             </button>
 

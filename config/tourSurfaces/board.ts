@@ -35,7 +35,10 @@ export const SURFACES: TourSurfaceMap = {
       'components/layout/BoardBreadcrumb.tsx',
       'components/layout/Dock.tsx',
       'components/layout/sidebar/Sidebar.tsx',
+      'components/layout/sidebar/SidebarGettingStarted.tsx',
       'components/share/ShareStatusBanner.tsx',
+      'components/common/DriveOfflineGrantCard.tsx',
+      'components/common/DriveDisconnectBanner.tsx',
       'components/layout/useClaudeBoardActivity.ts',
       'components/layout/ImportInboxNotice.tsx',
       'components/connections/ConnectModeBar.tsx',
@@ -71,10 +74,18 @@ export const SURFACES: TourSurfaceMap = {
       'sidebar.quick-access': MENU,
       'sidebar.google-drive': MENU,
       'sidebar.whats-new': MENU,
+      'sidebar.getting-started': MENU,
       'sidebar.sign-out': MENU,
       'share-status.close': 'share-status.chip',
       'share-status.stop': 'share-status.chip',
     },
+  },
+  'board.getting-started': {
+    label:
+      'Getting Started page (sidebar Getting Started; URL /getting-started)',
+    kind: 'page',
+    files: ['components/gettingStarted/'],
+    opensWith: 'sidebar.getting-started',
   },
   'board.backgrounds': {
     label: 'Backgrounds window',
@@ -509,6 +520,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/classes/LinkSchoologyModal.tsx',
       'components/classes/SchoologyLinkedCourses.tsx',
       'components/classes/SchoologyFindCourses.tsx',
+      'components/classes/SchoologyPasteLink.tsx',
     ],
     opensWith: 'classes.link-schoology',
   },
@@ -564,6 +576,13 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'profile.tab-connected-apps',
   },
 
+  'board.quick-access-modal': {
+    label: 'Quick Access',
+    kind: 'modal',
+    files: ['components/quickAccessModal/QuickAccessModal.tsx'],
+    opensWith: 'sidebar.quick-access',
+    parent: 'board.sidebar',
+  },
   'board.boards-modal': {
     label: 'Boards & Collections',
     kind: 'modal',
@@ -580,6 +599,11 @@ export const SURFACES: TourSurfaceMap = {
       'boards-modal.bulk-move': 'boards-modal.board-select',
       'boards-modal.bulk-delete': 'boards-modal.board-select',
     },
+  },
+  'board.prompt-dialog': {
+    label: 'Name prompt dialog',
+    kind: 'shared',
+    files: ['components/common/DialogContainer.tsx'],
   },
   'board.boards-board-menu': {
     label: 'Board edit menu',

@@ -22,6 +22,12 @@ const mockBuildings = [
   { id: 'high', name: 'Orono High School', gradeLabel: '9-12' },
 ];
 
+vi.mock(
+  '@/components/admin/BackgroundManager/BoardBackgroundDefaultsPanel',
+  () => ({
+    BoardBackgroundDefaultsPanel: () => null,
+  })
+);
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: mockShowConfirm }),
 }));

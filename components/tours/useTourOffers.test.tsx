@@ -55,6 +55,14 @@ const writeTour = (id: string, data: unknown) => {
   h.watchers.get(id)?.forEach((cb) => cb(snapOf(id)));
 };
 
+const quiet = vi.hoisted(() => ({ on: false }));
+vi.mock('@/hooks/useFirstRun', () => ({
+  useFirstRun: () => ({
+    quiet: quiet.on,
+    welcomePending: false,
+    firstRun: false,
+  }),
+}));
 vi.mock('@/config/firebase', () => ({ db: {}, isConfigured: true }));
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, _coll: string, id: string) => ({ id }),
@@ -323,6 +331,19 @@ describe('first-use tour offer', () => {
       h.emit();
     });
   };
+
+  it("holds offers through a new teacher's quiet start without marking them", async () => {
+    quiet.on = true;
+    h.helpItems = [guide('a', 'live', ['clock'])];
+    render(<TourOfferWatcher />);
+    addWidget('clock');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(h.addToast).not.toHaveBeenCalled();
+    expect(localStorage.getItem('spart_tour_offered_clock')).toBeNull();
+    quiet.on = false;
+  });
 
   it('offers a widget type once, the first time it is added', async () => {
     h.helpItems = [guide('a', 'live', ['clock'])];

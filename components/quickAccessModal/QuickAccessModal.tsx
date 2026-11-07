@@ -5,6 +5,7 @@ import { Modal } from '@/components/common/Modal';
 import { useDashboard } from '@/context/useDashboard';
 import { TOOLS } from '@/config/tools';
 import type { WidgetType, InternalToolType } from '@/types';
+import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 const MAX_SLOTS = 2;
 
@@ -88,6 +89,7 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
           </div>
         </div>
         <button
+          {...tourAttr('quick-access.close')}
           onClick={onClose}
           className="p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
           aria-label="Close"
@@ -115,6 +117,7 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
+            {...tourAttr('quick-access.search')}
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -141,6 +144,7 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
               return (
                 <button
                   key={tool.type}
+                  {...tourTypeAttr('quick-access.tool', tool.type)}
                   onClick={() => handleToggle(tool.type)}
                   disabled={isFull}
                   aria-label={tool.label}

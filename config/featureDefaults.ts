@@ -9,6 +9,7 @@ import {
   Bot,
   Building2,
   Cast,
+  Keyboard,
   ClipboardCheck,
   Download,
   Eye,
@@ -610,6 +611,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Student math keyboard and accent keys. Admin-only until Paul has tested it in prod.
+  'student-keyboards': {
+    label: 'Student keyboards',
+    icon: Keyboard,
+    description:
+      'Teachers turn on a math keyboard or accent keys for a quiz question.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -671,6 +685,23 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
+  },
+  // AI transcription of scanned handwriting. Off for everyone, admins too, until saved on; off grades the crop.
+  'paper-handwriting-ai': {
+    label: 'Transcribe handwritten answers',
+    icon: Sparkles,
+    description:
+      'Use AI to convert handwritten responses to type, preserving spelling and grammar as accurately as possible.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Transcribe handwritten answers',
+    group: 'questions',
+    requires: 'paper-handwritten-responses',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: false,
+    missingDocPublic: false,
+    failClosedForAdmins: true,
   },
   // Device quiz with written answers on paper; also needs paper-handwritten-responses.
   'paper-written-hybrid': {
@@ -959,6 +990,16 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'look',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'getting-started': {
+    label: 'Getting Started',
+    icon: Footprints,
+    description: 'Live tours and a Getting Started page for new teachers.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

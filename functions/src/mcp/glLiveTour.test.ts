@@ -267,6 +267,66 @@ describe('get_live_tour and update_live_tour', () => {
     ).toThrow('is not a SpartBoard tour anchor');
   });
 
+  it('takes show and done conditions, refusing unknown ones', () => {
+    const base = {
+      id: 's1',
+      text: 'Click **Save**.',
+      tour: {
+        anchor: 'dock.open-tools',
+        action: 'click',
+        showWhen: ['org-has-buildings', 'feature:sparty'],
+        doneWhen: 'building-saved',
+      },
+    };
+    expect(tourStep.safeParse(base).success).toBe(true);
+    for (const tour of [
+      { ...base.tour, showWhen: ['feature:no-such-feature'] },
+      { ...base.tour, showWhen: ['building'] },
+      { ...base.tour, doneWhen: 'org-has-buildings' },
+    ])
+      expect(tourStep.safeParse({ ...base, tour }).success).toBe(false);
+  });
+
+  it('takes drag and resize only on the controls the runner measures', () => {
+    const stepWith = (anchor: string, action: 'drag' | 'resize') => ({
+      id: 'a',
+      tour: { anchor, action },
+    });
+    expect(() =>
+      mergeTourSteps(
+        [],
+        [
+          stepWith('widget.window:dice', 'drag'),
+          { ...stepWith('widget.resize-handle:dice', 'resize'), id: 'b' },
+        ]
+      )
+    ).not.toThrow();
+    expect(() =>
+      mergeTourSteps([], [stepWith('widget.close:dice', 'drag')])
+    ).toThrow('drag steps point at "widget.window:<type>"');
+    expect(() =>
+      mergeTourSteps([], [stepWith('widget.window:dice', 'resize')])
+    ).toThrow('resize steps point at "widget.resize-handle:<type>"');
+  });
+
+  it('refuses a done condition on a whole-board step', () => {
+    expect(() =>
+      mergeTourSteps(
+        [],
+        [
+          {
+            id: 'a',
+            tour: {
+              anchor: 'board.whole',
+              action: 'observe',
+              doneWhen: 'building-saved',
+            },
+          },
+        ]
+      )
+    ).toThrow("can't wait on a result");
+  });
+
   it('keeps get, update and the step picture admin-only', () => {
     expect(ADMIN_ONLY_TOOLS.has('get_live_tour')).toBe(true);
     expect(ADMIN_ONLY_TOOLS.has('update_live_tour')).toBe(true);
@@ -430,6 +490,18 @@ describe('connector v2 setup and checks', () => {
         autopilot: true,
       })
     ).toEqual({ widgets: ['clock'], useTeacherBoard: true, autopilot: true });
+    expect(
+      buildTourSetup({}, undefined, {
+        widgets: [],
+        showWhen: ['district-account'],
+      })
+    ).toEqual({ widgets: [], showWhen: ['district-account'] });
+    expect(
+      buildTourSetup({ show_when: [] }, undefined, {
+        widgets: [],
+        showWhen: ['district-account'],
+      })
+    ).toEqual({ widgets: [] });
     expect(() =>
       buildTourSetup(
         { layouts: [layout, { ...layout, type: 'clock' }] },

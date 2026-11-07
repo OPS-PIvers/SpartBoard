@@ -50,7 +50,8 @@ function parseAnswer(raw: unknown): RawAnswer | null {
     paperTranscript:
       r.paperTranscript === 'pending' ||
       r.paperTranscript === 'blank' ||
-      r.paperTranscript === 'done'
+      r.paperTranscript === 'done' ||
+      r.paperTranscript === 'image'
         ? r.paperTranscript
         : undefined,
   };

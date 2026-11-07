@@ -2850,6 +2850,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             }}
           />
           <div
+            {...tourAttr('widget.resize-handle', widget.id, widget.type)}
             onPointerDown={(e) => handleResizeStart(e, 'se')}
             className="resize-handle group/resize cursor-se-resize z-widget-resize"
             style={{

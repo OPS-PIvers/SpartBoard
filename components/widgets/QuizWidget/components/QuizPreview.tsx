@@ -3,6 +3,7 @@
  * Teachers navigate through questions and see correct/incorrect highlighting.
  */
 
+import { MathText } from '@/components/common/MathText';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -242,7 +243,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
               {isMultiBlank(question) ? (
                 <NumberedBlanksText text={question.text} light />
               ) : (
-                question.text
+                <MathText text={question.text} />
               )}
             </p>
           </div>

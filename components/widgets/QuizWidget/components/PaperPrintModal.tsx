@@ -6,6 +6,7 @@
  * the paper exists. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
+import { plainPromptText } from '@/utils/promptMath';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, {
   useCallback,
@@ -737,7 +738,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         {
           questionId: w.questionId,
           label: versionPlan ? null : w.label,
-          text: q.text,
+          text: plainPromptText(q.text),
           size: w.size,
           style: paperBoxStyleOf(q),
           image: q.paperBoxImage,
@@ -1049,7 +1050,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     const fills: Record<number, QuestionFill> = {};
     for (const q of readDoc?.questions ?? []) {
       fills[q.number] = {
-        text: q.text,
+        text: plainPromptText(q.text),
         options: q.options.map((o) => o.text),
         correctAnswer: q.correctAnswer,
       };
@@ -1219,7 +1220,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(batch.sheetLayout === 'questions'
           ? {
               questionTexts: sheetQuestions.map((q) => ({
-                text: q.text,
+                text: plainPromptText(q.text),
                 choices: batch.choiceOrder?.[q.id] ?? [],
               })),
             }
@@ -1393,7 +1394,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           return [
             {
               row: r.row,
-              text: q.text,
+              text: plainPromptText(q.text),
               choices,
               ...(r.written ? { written: true } : {}),
               ...(heading ? { section: heading } : {}),

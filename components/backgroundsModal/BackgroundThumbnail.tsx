@@ -1,6 +1,7 @@
 import React from 'react';
 import { Star } from 'lucide-react';
 import { BackgroundItem } from './backgroundsHelpers';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface BackgroundThumbnailProps {
   item: BackgroundItem;
@@ -8,6 +9,8 @@ interface BackgroundThumbnailProps {
   isFavorite: boolean;
   onSelect: (id: string) => void;
   onToggleFavorite: (id: string) => void;
+  /** 1-based place in its grid, which a tour points at (`item-1`). */
+  position: number;
 }
 
 export const BackgroundThumbnail: React.FC<BackgroundThumbnailProps> = ({
@@ -16,10 +19,12 @@ export const BackgroundThumbnail: React.FC<BackgroundThumbnailProps> = ({
   isFavorite,
   onSelect,
   onToggleFavorite,
+  position,
 }) => (
   <div className="group relative">
     <button
       type="button"
+      {...tourFieldAttr('backgrounds.tile', 'backgrounds', `item-${position}`)}
       onClick={() => onSelect(item.id)}
       className={`block w-full aspect-video rounded-lg overflow-hidden border-2 transition-all ${
         isActive

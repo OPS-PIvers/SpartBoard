@@ -1,3 +1,4 @@
+import { plainPromptText } from './promptMath';
 /**
  * Renders paper answer sheets as a print document and hands it to the browser.
  *
@@ -327,7 +328,7 @@ function questionTextHtml(
     `<div class="qt-stem-box" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(
       origin.y
     )};width:${mm(QUESTION_STEM_W_MM)};height:${mm(QUESTION_STEM_H_MM)}"><div class="qt-stem-line">${number}<div class="qt-stem">${escapeHtml(
-      q.text
+      plainPromptText(q.text)
     )}</div></div></div>`,
   ];
   // A stub's options are just the bubble letters, which say nothing to a student.
@@ -495,9 +496,9 @@ function promptHeaderHtml(
     top += PROMPT_LABEL_MM;
   }
   const textH = h.y + h.h - top;
-  const pt = promptFontPt(prompt.page.text, w, textH);
+  const pt = promptFontPt(plainPromptText(prompt.page.text), w, textH);
   parts.push(
-    `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(textH)};font-size:${pt}pt">${escapeHtml(prompt.page.text)}</div>`
+    `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(textH)};font-size:${pt}pt">${escapeHtml(plainPromptText(prompt.page.text))}</div>`
   );
   for (const item of placed) {
     const r = item.rect;
@@ -537,7 +538,7 @@ function writtenItemHtml(
       `<div class="qt-stem wr-stem" style="left:${mm(x)};top:${mm(h.y)};width:${mm(
         h.x + h.w - x - pointsW
       )};height:${mm(shown * STEM_LINE_MM)};-webkit-line-clamp:${shown}">${escapeHtml(
-        stem
+        plainPromptText(stem)
       )}</div>`
     );
   }
@@ -668,9 +669,9 @@ function promptPageHtml(
     top += 7;
   }
   const h = band.y + band.h - top;
-  const pt = promptFontPt(prompt.text, w, h);
+  const pt = promptFontPt(plainPromptText(prompt.text), w, h);
   parts.push(
-    `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(h)};font-size:${pt}pt">${escapeHtml(prompt.text)}</div>`
+    `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(h)};font-size:${pt}pt">${escapeHtml(plainPromptText(prompt.text))}</div>`
   );
   for (const item of placed) {
     const r = item.rect;

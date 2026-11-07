@@ -5,6 +5,8 @@ import { ToolError, type ToolContext } from './activity';
 import { driveTokenFor, readDriveJson } from './drive';
 import { stepInput, type Step, type StepInput } from './glTools';
 import { WIDGET_TYPE_LIST } from './widgetTypeList';
+import { TOUR_CONDITION_HELP } from './tourConditions';
+import { TOUR_CONDITION_DONE_FACTS } from './tourConditionList';
 
 const WIDGET_TYPES = new Set(WIDGET_TYPE_LIST);
 const binding = stepInput.shape.tour.unwrap();
@@ -14,7 +16,7 @@ export const tourBinding = binding.extend({
     'An anchor ref from list_tour_anchors: the id, plus ":<type>" for a widget type anchor and ":<type>#<key>" for a field anchor, using one of its keys. "" only for a control with no anchor yet, with fallback.'
   ),
   action: binding.shape.action.describe(
-    'click: the teacher clicks the control (Autopilot clicks it for them). observe: point at it and wait for Next. toggle, select, type: set the control to value.'
+    'click: the teacher clicks the control (Autopilot clicks it for them). observe: point at it and wait for Next. toggle, select, type: set the control to value. drag: the teacher moves the widget, on "widget.window:<type>". resize: the teacher resizes it by its corner, on "widget.resize-handle:<type>". Autopilot leaves drag and resize to the teacher.'
   ),
   value: binding.shape.value.describe(
     'toggle: the state to reach (true or false). select: the option value. type: the text Autopilot types. Leave out on click and observe.'
@@ -36,6 +38,12 @@ export const tourBinding = binding.extend({
   ),
   unmapped: binding.shape.unmapped.describe(
     'Read only. A recorded click whose control has no anchor yet.'
+  ),
+  showWhen: binding.shape.showWhen.describe(
+    `Play this step only when every condition holds for the teacher when the tour starts; otherwise it is left out silently. ${TOUR_CONDITION_HELP}`
+  ),
+  doneWhen: binding.shape.doneWhen.describe(
+    `Wait for this real result instead of moving on at the step's own click, then move on by itself. The teacher can always skip, and Autopilot leaves the step to them. One of ${TOUR_CONDITION_DONE_FACTS.join(', ')}.`
   ),
 });
 
@@ -248,6 +256,7 @@ export interface TourSetupInput {
   layouts?: z.infer<typeof tourLayout>[];
   use_teacher_board?: boolean;
   autopilot?: boolean;
+  show_when?: string[];
 }
 
 export interface StoredTourSetup {
@@ -256,6 +265,7 @@ export interface StoredTourSetup {
   useTeacherBoard?: true;
   autopilot?: true;
   materials?: StoredMaterial[];
+  showWhen?: string[];
 }
 
 /** The stored tourSetup: passed fields replace, the rest stay as stored. */
@@ -287,12 +297,15 @@ export function buildTourSetup(
     input.use_teacher_board ?? prior.useTeacherBoard === true;
   const autopilot = input.autopilot ?? prior.autopilot === true;
   const kept = materials ?? prior.materials;
+  // An empty list clears the conditions.
+  const showWhen = input.show_when ?? prior.showWhen;
   return {
     widgets,
     ...(layouts?.length ? { layouts } : {}),
     ...(teacherBoard ? { useTeacherBoard: true as const } : {}),
     ...(autopilot ? { autopilot: true as const } : {}),
     ...(kept?.length ? { materials: kept } : {}),
+    ...(showWhen?.length ? { showWhen } : {}),
   };
 }
 

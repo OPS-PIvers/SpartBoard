@@ -19,6 +19,7 @@
  *     the period from the classId via the roster.
  */
 
+import { MathText } from '@/components/common/MathText';
 import React, {
   useState,
   useEffect,
@@ -265,6 +266,8 @@ import {
   revealedBlanksMatch,
 } from '@/utils/quizFibBlanks';
 import { FibMultiBlankInput, NumberedBlanksText } from './FibMultiBlankInput';
+import { AccentKeysArea } from '@/components/student/keyboards/AccentKeys';
+import { answerAccents } from '@/config/studentKeyboards';
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
@@ -307,6 +310,9 @@ import {
 // free-response question.
 const QuizGamePlay = React.lazy(() =>
   import('./game/QuizGamePlay').then((m) => ({ default: m.QuizGamePlay }))
+);
+const MathAnswerField = React.lazy(
+  () => import('@/components/student/keyboards/MathAnswerField')
 );
 const WrittenResponseEditor = React.lazy(() =>
   import('./WrittenResponseEditor').then((m) => ({
@@ -3687,6 +3693,13 @@ export const ActiveQuiz: React.FC<{
   const mcUnselectedCls = light
     ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
     : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700/50';
+  const mathKeyboardOn = currentQuestion.answerKeyboard === 'math';
+  // The math box reads its value once, so remount it when a saved answer is recovered.
+  const mathSeedKey = `${currentQuestion.id}:${
+    // eslint-disable-next-line react-hooks/refs -- seeded set keys the math box remount
+    seededQuestionsRef.current.has(currentQuestion.id) ? 'seeded' : 'init'
+  }`;
+  const accentKeys = answerAccents(currentQuestion.answerKeyboard);
   const fibInputCls = light
     ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-brand-blue-light'
     : 'bg-slate-800 border-slate-700 text-white focus:border-violet-500';
@@ -3735,7 +3748,7 @@ export const ActiveQuiz: React.FC<{
           UI on first render after a teacher unlock so the student knows
           what happened before they touch anything. */}
       {showResumeModal && (
-        <div className="fixed inset-0 z-overlay bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
+        <div className="fixed inset-0 z-quiz-lock bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
           <h2 className="text-4xl font-black text-white mb-4">
             Attempt Unlocked
@@ -3829,7 +3842,7 @@ export const ActiveQuiz: React.FC<{
 
       {/* 🔴 The Cheating Warning Modal */}
       {showCheatWarning && (
-        <div className="fixed inset-0 z-overlay bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
+        <div className="fixed inset-0 z-quiz-lock bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED
@@ -4072,7 +4085,7 @@ export const ActiveQuiz: React.FC<{
                     light={light}
                   />
                 ) : (
-                  displayQuestion.text
+                  <MathText text={displayQuestion.text} />
                 )}
               </h2>
               <ReadAloudButton
@@ -4090,7 +4103,7 @@ export const ActiveQuiz: React.FC<{
               {(currentQuestion.blankCount ?? 0) >= 2 ? (
                 <NumberedBlanksText text={displayQuestion.text} light={light} />
               ) : (
-                displayQuestion.text
+                <MathText text={displayQuestion.text} />
               )}
             </h2>
           )}
@@ -4536,49 +4549,78 @@ export const ActiveQuiz: React.FC<{
 
               {!recordingConfig && currentQuestion.type === 'FIB' && (
                 <div className="space-y-4 flex-1">
-                  {(currentQuestion.blankCount ?? 0) >= 2 ? (
-                    <FibMultiBlankInput
-                      key={currentQuestion.id}
-                      count={currentQuestion.blankCount ?? 0}
-                      value={liveAnswer ?? ''}
-                      onChange={setCacheForCurrent}
-                      disabled={submitted && !isStudentPaced}
-                      light={light}
-                      inputClassName={fibInputCls}
-                      onEnter={() => {
-                        const cleaned = cleanBlankAnswer(
-                          submittableAnswer ?? ''
-                        );
-                        if (!cleaned) return;
-                        if (isStudentPaced) {
-                          void handleSubmitAndAdvance(cleaned);
-                        } else if (!submitted) {
-                          void handleSubmit(cleaned);
-                        }
-                      }}
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={liveAnswer ?? ''}
-                      onChange={(e) => setCacheForCurrent(e.target.value)}
-                      disabled={submitted && !isStudentPaced}
-                      placeholder="Type your answer…"
-                      className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
-                      onKeyDown={(e) => {
-                        if (e.key !== 'Enter') return;
-                        const trimmed = cleanBlankAnswer(
-                          submittableAnswer ?? ''
-                        );
-                        if (!trimmed) return;
-                        if (isStudentPaced) {
-                          void handleSubmitAndAdvance(trimmed);
-                        } else if (!submitted) {
-                          void handleSubmit(trimmed);
-                        }
-                      }}
-                    />
-                  )}
+                  <AccentKeysArea
+                    accents={accentKeys}
+                    disabled={submitted && !isStudentPaced}
+                    light={light}
+                  >
+                    {(currentQuestion.blankCount ?? 0) >= 2 ? (
+                      <FibMultiBlankInput
+                        key={mathKeyboardOn ? mathSeedKey : currentQuestion.id}
+                        count={currentQuestion.blankCount ?? 0}
+                        value={liveAnswer ?? ''}
+                        onChange={setCacheForCurrent}
+                        disabled={submitted && !isStudentPaced}
+                        light={light}
+                        inputClassName={fibInputCls}
+                        math={mathKeyboardOn}
+                        onEnter={() => {
+                          const cleaned = cleanBlankAnswer(
+                            submittableAnswer ?? ''
+                          );
+                          if (!cleaned) return;
+                          if (isStudentPaced) {
+                            void handleSubmitAndAdvance(cleaned);
+                          } else if (!submitted) {
+                            void handleSubmit(cleaned);
+                          }
+                        }}
+                      />
+                    ) : mathKeyboardOn ? (
+                      <React.Suspense fallback={null}>
+                        <MathAnswerField
+                          key={mathSeedKey}
+                          value={liveAnswer ?? ''}
+                          onChange={(plain) => setCacheForCurrent(plain)}
+                          disabled={submitted && !isStudentPaced}
+                          ariaLabel="Your answer"
+                          className={fibInputCls}
+                          onEnter={() => {
+                            const trimmed = cleanBlankAnswer(
+                              submittableAnswer ?? ''
+                            );
+                            if (!trimmed) return;
+                            if (isStudentPaced) {
+                              void handleSubmitAndAdvance(trimmed);
+                            } else if (!submitted) {
+                              void handleSubmit(trimmed);
+                            }
+                          }}
+                        />
+                      </React.Suspense>
+                    ) : (
+                      <input
+                        type="text"
+                        value={liveAnswer ?? ''}
+                        onChange={(e) => setCacheForCurrent(e.target.value)}
+                        disabled={submitted && !isStudentPaced}
+                        placeholder="Type your answer…"
+                        className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
+                        onKeyDown={(e) => {
+                          if (e.key !== 'Enter') return;
+                          const trimmed = cleanBlankAnswer(
+                            submittableAnswer ?? ''
+                          );
+                          if (!trimmed) return;
+                          if (isStudentPaced) {
+                            void handleSubmitAndAdvance(trimmed);
+                          } else if (!submitted) {
+                            void handleSubmit(trimmed);
+                          }
+                        }}
+                      />
+                    )}
+                  </AccentKeysArea>
                   <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
                     {isStudentPaced ? (
                       submitted &&
@@ -4754,50 +4796,57 @@ export const ActiveQuiz: React.FC<{
                       </p>
                     </div>
                   ) : (
-                    <React.Suspense
-                      fallback={
-                        <div
-                          className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
-                        >
-                          <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
-                        </div>
-                      }
+                    <AccentKeysArea
+                      accents={accentKeys}
+                      disabled={submitted && !isStudentPaced}
+                      light={light}
                     >
-                      <WrittenResponseEditor
-                        // The editor seeds its `innerHTML` once on mount (caret
-                        // preservation), so we encode a "recovered text needs
-                        // injecting" boolean in the questionKey. A page refresh
-                        // mid-essay first mounts with value='' (cache empty,
-                        // saved null); when the Firestore snapshot arrives the
-                        // seed-from-server block recovery-seeds the cache, the key
-                        // flips from `…:init` → `…:seeded`, and the editor
-                        // remounts with the recovered text. Without this, the
-                        // student stares at a blank editor while React state
-                        // already holds the recovered value.
-                        //
-                        // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
-                        // rather than general cache presence: a student's own first
-                        // keystroke also populates `answerCache`, and keying on that
-                        // remounted the editor mid-type, stealing focus and the caret.
-                        questionKey={`${currentQuestion.id}:${
-                          // eslint-disable-next-line react-hooks/refs -- seeded set keys the editor remount
-                          seededQuestionsRef.current.has(currentQuestion.id)
-                            ? 'seeded'
-                            : 'init'
-                        }`}
-                        value={liveAnswer ?? ''}
-                        onChange={(html) => setCacheForCurrent(html)}
-                        placeholder={displayQuestion.placeholder}
-                        minWords={currentQuestion.minWords}
-                        maxWords={currentQuestion.maxWords}
-                        enforceWordLimit={currentQuestion.enforceWordLimit}
-                        spellCheck={currentQuestion.noSpellCheck !== true}
-                        disabled={submitted && !isStudentPaced}
-                        blockClipboard={blockCopyPaste}
-                        light={light}
-                        ref={quoteEditorRef}
-                      />
-                    </React.Suspense>
+                      <React.Suspense
+                        fallback={
+                          <div
+                            className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
+                          >
+                            <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+                          </div>
+                        }
+                      >
+                        <WrittenResponseEditor
+                          // The editor seeds its `innerHTML` once on mount (caret
+                          // preservation), so we encode a "recovered text needs
+                          // injecting" boolean in the questionKey. A page refresh
+                          // mid-essay first mounts with value='' (cache empty,
+                          // saved null); when the Firestore snapshot arrives the
+                          // seed-from-server block recovery-seeds the cache, the key
+                          // flips from `…:init` → `…:seeded`, and the editor
+                          // remounts with the recovered text. Without this, the
+                          // student stares at a blank editor while React state
+                          // already holds the recovered value.
+                          //
+                          // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
+                          // rather than general cache presence: a student's own first
+                          // keystroke also populates `answerCache`, and keying on that
+                          // remounted the editor mid-type, stealing focus and the caret.
+                          questionKey={`${currentQuestion.id}:${
+                            // eslint-disable-next-line react-hooks/refs -- seeded set keys the editor remount
+                            seededQuestionsRef.current.has(currentQuestion.id)
+                              ? 'seeded'
+                              : 'init'
+                          }`}
+                          value={liveAnswer ?? ''}
+                          onChange={(html) => setCacheForCurrent(html)}
+                          placeholder={displayQuestion.placeholder}
+                          minWords={currentQuestion.minWords}
+                          maxWords={currentQuestion.maxWords}
+                          enforceWordLimit={currentQuestion.enforceWordLimit}
+                          spellCheck={currentQuestion.noSpellCheck !== true}
+                          disabled={submitted && !isStudentPaced}
+                          blockClipboard={blockCopyPaste}
+                          light={light}
+                          mathEnabled={mathKeyboardOn}
+                          ref={quoteEditorRef}
+                        />
+                      </React.Suspense>
+                    </AccentKeysArea>
                   )}
                   {session.allowStimulusQuotes === true &&
                     !answerOnPaper &&
@@ -5325,7 +5374,7 @@ const ReviewPhase: React.FC<{
           {totalQuestions ?? session.totalQuestions}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
-          {currentQuestion.text}
+          <MathText text={currentQuestion.text} />
         </h2>
 
         {/* Correct answer */}

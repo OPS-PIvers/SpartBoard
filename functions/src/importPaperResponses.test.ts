@@ -802,11 +802,11 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     // Page 1 now holds only the image box, so nothing is queued for Gemini.
     expect(result).toMatchObject({ jobsCreated: 2, pagesQueued: 0 });
     const q2 = (docs[RESP].answers as Doc[]).find((a) => a.questionId === 'q2');
-    expect(q2).toMatchObject({ paperTranscript: 'done', answer: '' });
+    expect(q2).toMatchObject({ paperTranscript: 'image', answer: '' });
     expect(docs[`${RESP}/paperPrivate/q2`]).toEqual({
       scanId: SCAN,
       seat: 1,
-      status: 'done',
+      status: 'image',
       noTranscript: true,
       attempts: 0,
       charged: false,
@@ -1342,6 +1342,40 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
       }
     );
     expect(admin.result).toMatchObject({ pagesQueued: 2, pagesOverQuota: 0 });
+  });
+
+  it('with transcription off, still queues the crops but counts no page as queued or over quota', async () => {
+    const docs = v2Docs();
+    docs[`ai_usage/${UID}_paper-handwritten-responses_2026-09-18`] = {
+      count: 300,
+    };
+    const { db } = makeDb(docs);
+    const result = await handleImportPaperResponses(
+      db,
+      teacher,
+      {
+        batchId: BATCH,
+        assignmentId: ASSIGNMENT,
+        layoutVersion: 2,
+        scanId: SCAN,
+        sheets: [v2Sheet(1)],
+      },
+      NOW,
+      () => Promise.resolve(false)
+    );
+    expect(result).toMatchObject({
+      jobsCreated: 2,
+      pagesQueued: 0,
+      pagesOverQuota: 0,
+    });
+    expect(docs[RESP].answers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          questionId: 'q2',
+          paperTranscript: 'pending',
+        }),
+      ])
+    );
   });
 });
 

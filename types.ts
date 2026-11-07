@@ -1,6 +1,7 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { FocusSite } from '@/utils/focus/contract';
 import type { ImportAttribution } from '@/utils/import/contract';
+import type { TourConditionRef, TourDoneFact } from '@/config/tourConditions';
 
 export type WidgetType =
   | 'clock'
@@ -4500,6 +4501,8 @@ export interface QuizQuestion {
   enforceWordLimit?: boolean;
   /** Free Response only. True turns off the browser's spelling and grammar underlines in the answer. */
   noSpellCheck?: boolean;
+  /** FIB and Free Response: the student keyboard (`student-keyboards` flag). Absent = plain typing. */
+  answerKeyboard?: AnswerKeyboard;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
   /** Free Response only. What prints inside the paper answer box; absent = lines. */
@@ -5194,6 +5197,12 @@ export interface ReviewLaunchSettings {
  * session docs at create time, so editing these later only affects FUTURE
  * assigns (freeze-live).
  */
+/** Accent key sets offered to students; ids are the language's primary subtag. */
+export type AccentSetId = 'es' | 'fr' | 'de' | 'it' | 'pt';
+
+/** A typed question's student keyboard: equation boxes, or one language's accent keys. */
+export type AnswerKeyboard = 'math' | AccentSetId;
+
 export interface QuizBehaviorSettings {
   sessionMode: QuizSessionMode;
   sessionOptions: QuizSessionOptions;
@@ -5248,6 +5257,8 @@ export interface QuizPublicQuestion {
   enforceWordLimit?: boolean;
   /** Free Response only: turns off the browser's spelling and grammar underlines */
   noSpellCheck?: boolean;
+  /** FIB and Free Response: the student keyboard. */
+  answerKeyboard?: AnswerKeyboard;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
@@ -5478,6 +5489,7 @@ export interface QuizSession
   handRaiseEnabled?: boolean;
   /** Snapshot of `QuizData.language` at assign time; absent = 'en-US'. */
   language?: string;
+
   /** Reviewed stimulus text by id; the only stimulus text the synth function may speak (plan §3). */
   readAloudTextByStimulusId?: Record<string, string>;
   /** Written by `prepareQuizReadAloudV1`; absent on pre-feature sessions (plan §3). */
@@ -5872,12 +5884,12 @@ export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
 export type PaperBoxStyle =
   'lines' | 'blank' | 'graph' | 'coordinate' | 'image';
 
-/** Public transcription state on a paper written answer. */
-export type PaperTranscriptState = 'pending' | 'done' | 'blank';
+/** Public transcription state on a paper written answer; `image` is ink imported with transcription off. */
+export type PaperTranscriptState = 'pending' | 'done' | 'blank' | 'image';
 
 /** Teacher-side transcription state, kept in the private subdoc. */
 export type PaperPrivateStatus =
-  'pending' | 'done' | 'failed' | 'blank' | 'over-quota';
+  'pending' | 'done' | 'failed' | 'blank' | 'over-quota' | 'image';
 
 /** `quiz_sessions/{sid}/responses/{key}/paperPrivate/{questionId}`: teacher-only AI internals. */
 export interface PaperPrivateAnswer {
@@ -7520,6 +7532,7 @@ export type VideoActivityQuestion = Omit<
   | 'minWords'
   | 'enforceWordLimit'
   | 'noSpellCheck'
+  | 'answerKeyboard'
   | 'paperBoxSize'
   | 'paperBoxStyle'
   | 'paperBoxImage'
@@ -8724,7 +8737,7 @@ export type GuidedLearningPublicNarration = Pick<
 >;
 
 export type GuidedLearningTourAction =
-  'click' | 'observe' | 'toggle' | 'select' | 'type';
+  'click' | 'observe' | 'toggle' | 'select' | 'type' | 'drag' | 'resize';
 
 /** Where a live tour plays; absent = 'spartboard'. */
 export type GuidedLearningTourSurface = 'spartboard' | 'web';
@@ -8826,7 +8839,7 @@ export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
   anchor: string;
   fallback?: { role: string; name: string };
-  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them. */
+  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them; drag and resize move on once the widget moved or changed size. */
   action: GuidedLearningTourAction;
   /** toggle: target state; select: option value; type: text Autopilot enters. */
   value?: boolean | string;
@@ -8844,6 +8857,10 @@ export interface GuidedLearningTourBinding {
   thumbnail?: GuidedLearningTourThumbnail;
   /** The board this step starts from; a jump straight here loads it instead of replaying earlier steps. */
   start?: TourStepStart;
+  /** Played only when every condition holds when the tour starts; absent = always. */
+  showWhen?: TourConditionRef[];
+  /** Waits for this fact instead of moving on at its own click; the teacher can skip it. */
+  doneWhen?: TourDoneFact;
 }
 
 /** A step's starting board: widget places and the material open in an editor. */
@@ -9006,6 +9023,8 @@ export interface GuidedLearningSet {
     autopilot?: true;
     /** Library items the tour works on; absent = a tour from before materials, which runs on real items. */
     materials?: TourMaterial[];
+    /** Listed on Getting Started only when every condition holds; absent = always. */
+    showWhen?: TourConditionRef[];
   };
   /** Stamped on every building-set save: true for tour mode or when any step has a live-tour binding. */
   hasLiveTour?: boolean;
@@ -10893,6 +10912,8 @@ export type GlobalFeature =
   | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
+  /** Math keyboard and accent keys on student answer boxes, set per quiz. */
+  | 'student-keyboards'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
@@ -10901,6 +10922,8 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
+  /** AI transcription of scanned handwritten answers; off means teachers grade the crop. */
+  | 'paper-handwriting-ai'
   /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
@@ -10983,6 +11006,8 @@ export type GlobalFeature =
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
+  /** New-teacher onboarding as Live tours with a Getting Started page (docs/plans/GETTING_STARTED.md). */
+  | 'getting-started'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */

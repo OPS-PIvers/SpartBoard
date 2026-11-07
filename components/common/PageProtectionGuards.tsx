@@ -12,7 +12,7 @@ import type { PageProtections } from '@/utils/pageProtections';
 import {
   clearPopOutPending,
   getHandOffState,
-  isFramedWindow,
+  isSchoologyFrame,
   markPopOutPending,
   subscribeHandOff,
 } from '@/utils/attemptHandOff';
@@ -33,7 +33,7 @@ export const HandedOffCover: React.FC = () => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="handed-off-cover-title"
-      className={`${COVER_CLASS} z-modal`}
+      className={`${COVER_CLASS} z-quiz-lock-top`}
     >
       <ExternalLink className="h-12 w-12 text-brand-blue-primary" aria-hidden />
       <h2
@@ -61,7 +61,7 @@ const PopOutCover: React.FC = () => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="pop-out-cover-title"
-      className={`${COVER_CLASS} z-overlay`}
+      className={`${COVER_CLASS} z-quiz-lock`}
     >
       <Maximize className="h-12 w-12 text-brand-blue-primary" aria-hidden />
       <h2
@@ -105,7 +105,8 @@ export const FullscreenCover: React.FC<{ required: boolean }> = ({
   }, [required]);
 
   if (!required || isFullscreen) return null;
-  if (!fullscreenSupported()) return isFramedWindow() ? <PopOutCover /> : null;
+  if (!fullscreenSupported())
+    return isSchoologyFrame() ? <PopOutCover /> : null;
 
   const enter = () => {
     setFailed(false);
@@ -117,7 +118,7 @@ export const FullscreenCover: React.FC<{ required: boolean }> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="fullscreen-cover-title"
-      className="fixed inset-0 z-overlay flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center"
+      className="fixed inset-0 z-quiz-lock flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center"
     >
       <Maximize className="h-12 w-12 text-brand-blue-primary" aria-hidden />
       <h2

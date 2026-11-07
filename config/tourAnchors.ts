@@ -68,8 +68,27 @@ export const TOUR_ANCHORS = {
     closes: 'board.widget-library',
   },
 
+  'drive.grant-card': {
+    label: '"Stay connected to Drive" card',
+  },
+  'drive.grant-approve': {
+    label: 'Approve button on the "Stay connected to Drive" card',
+    persists: true,
+  },
+  'drive.disconnect-banner': {
+    label: '"Drive Disconnected" banner',
+  },
+  'drive.reconnect': {
+    label: 'Connect button on the "Drive Disconnected" banner',
+    persists: true,
+  },
   'widget.window': {
     label: 'Widget window',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'widget.resize-handle': {
+    label: "Resize handle on a widget's bottom-right corner",
     perWidget: true,
     requires: 'widget-restored',
   },
@@ -214,6 +233,46 @@ export const TOUR_ANCHORS = {
     label: 'Search field in the Backgrounds window',
     panel: true,
   },
+  'backgrounds.tile': {
+    label: 'Background tile in the Backgrounds window, by position',
+    perField: true,
+    keyPattern: 'backgrounds#item-[1-9]\\d*',
+    keyHint: 'backgrounds#item-1 is the first tile in the open section',
+    persists: true,
+    panel: true,
+  },
+  'schoology-link.paste-url': {
+    label: 'Schoology course link field in Link to Schoology',
+    panel: true,
+  },
+  'schoology-link.paste-check': {
+    label: 'Check button for a pasted Schoology course link',
+    panel: true,
+  },
+  'schoology-link.paste-class': {
+    label: 'Class to link a pasted Schoology course to',
+    panel: true,
+  },
+  'schoology-link.paste-link': {
+    label: 'Link button for a pasted Schoology course',
+    persists: true,
+    panel: true,
+  },
+  'quick-access.close': {
+    label: 'Close button in the Quick Access window',
+    panel: true,
+    closes: 'own',
+  },
+  'quick-access.search': {
+    label: 'Search field in the Quick Access window',
+    panel: true,
+  },
+  'quick-access.tool': {
+    label: 'Widget tile in the Quick Access window',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'backgrounds.type-filter': {
     label: 'Type filter button in the Backgrounds window',
     perField: true,
@@ -262,6 +321,28 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'sidebar.whats-new': { label: "What's New item in the menu", panel: true },
+  'sidebar.getting-started': {
+    label: 'Getting Started item in the menu',
+    panel: true,
+  },
+  'getting-started.close': {
+    label: 'Back to board button on the Getting Started page',
+  },
+  'getting-started.resume': {
+    label: 'Start or Resume button on the Getting Started page',
+  },
+  'getting-started.start-tour': {
+    label: 'Start or Replay button on a Getting Started tour',
+    perField: true,
+  },
+  'getting-started.copy-page-link': {
+    label: 'Copy page link button on the Getting Started page',
+  },
+  'getting-started.restart': {
+    label: 'Restart Getting Started button',
+    destructive: true,
+    persists: true,
+  },
   'sidebar.plcs': { label: 'My Teams item in the menu', panel: true },
 
   'board-nav.select-board': { label: 'Board name button that opens boards' },
@@ -480,6 +561,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'behavior.sparty-toggle': {
+    label: 'Show Sparty switch',
+    persists: true,
+    panel: true,
+  },
   'language.options': {
     label: 'Language choices',
     persists: true,
@@ -529,9 +615,9 @@ export const TOUR_ANCHORS = {
     label: 'Try again button in the Link to Google Classroom modal',
     panel: true,
   },
-  'plcs.new-plc': { label: 'New PLC button in My PLCs', panel: true },
-  'plcs.invites': { label: 'Invites button in My PLCs', panel: true },
-  'plcs.plc-list': { label: 'PLC list in My PLCs', panel: true },
+  'plcs.new-plc': { label: 'New team button in My Teams', panel: true },
+  'plcs.invites': { label: 'Invites button in My Teams', panel: true },
+  'plcs.plc-list': { label: 'Team list in My Teams', panel: true },
   'plc-edit.name': {
     label: 'PLC name input in the PLC edit modal',
     panel: true,
@@ -2144,6 +2230,53 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.spell-check': {
     label: 'Spell check toggle in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-math': {
+    label: 'Math answer switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-accents': {
+    label: 'Accents answer switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-accent-language': {
+    label: 'Accent language row for an answer in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation': {
+    label: 'Equation link on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation-cancel': {
+    label: 'Cancel button in the prompt equation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation-save': {
+    label:
+      'Insert or Update button in the prompt equation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-math-preview': {
+    label:
+      'Drawn preview of a question prompt with equations in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-accents': {
+    label: 'Accents switch on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-accent-language': {
+    label: 'Accent language row on the question prompt in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -5716,12 +5849,12 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'plcs.open-plc': {
-    label: 'Open a PLC card in My PLCs',
+    label: 'Open a team card in My Teams',
     perField: true,
     panel: true,
   },
   'plcs.actions-menu': {
-    label: 'PLC actions kebab in My PLCs',
+    label: 'Team actions kebab in My Teams',
     perField: true,
     panel: true,
   },
@@ -5945,7 +6078,7 @@ export const TOUR_ANCHORS = {
     label: 'Group type select in the PLC edit modal',
   },
   'plcs.empty-create': {
-    label: 'Create PLC button in the empty My PLCs list',
+    label: 'Create team button in the empty My Teams list',
     persists: true,
   },
   'plc-import.close': {
@@ -8549,6 +8682,17 @@ export const TOUR_ANCHORS = {
     label: 'YouTube URL field in Backgrounds',
     panel: true,
   },
+  'admin.backgrounds.default-district': {
+    label: 'District default background for new boards',
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.default-building': {
+    label: "A building's default background for new boards",
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'admin.previews.district-switch': {
     label: 'District switch on a Previews row',
     perField: true,
@@ -9120,6 +9264,46 @@ export const TOUR_ANCHORS = {
   },
   'admin.sub-presets.save': {
     label: 'Save button in Preset sub emails',
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.pick-tour': {
+    label: 'Tour to add in Getting Started settings',
+    panel: true,
+  },
+  'admin.getting-started.add': {
+    label: 'Add button in Getting Started settings',
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.tier': {
+    label: 'Tier select on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.done-when': {
+    label: 'Checks off select on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.move-up': {
+    label: 'Move up button on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.move-down': {
+    label: 'Move down button on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.remove': {
+    label: 'Remove button on a Getting Started tour',
+    perField: true,
+    destructive: true,
     persists: true,
     panel: true,
   },
@@ -12257,6 +12441,20 @@ export const TOUR_ANCHORS = {
   'boards-modal.new-board': {
     label: 'New Board button in the Manage Boards dialog',
     panel: true,
+  },
+  'prompt-dialog.input': {
+    label:
+      'Text box in the shared prompt dialog (New Board, New Collection, rename)',
+    panel: true,
+  },
+  'prompt-dialog.confirm': {
+    label: 'Confirm button in the shared prompt dialog (Create, Save, OK)',
+    panel: true,
+  },
+  'prompt-dialog.cancel': {
+    label: 'Cancel button in the shared prompt dialog',
+    panel: true,
+    destructive: true,
   },
   'boards-modal.clear-selection': {
     label: 'Clear selection button in the Manage Boards bulk bar',

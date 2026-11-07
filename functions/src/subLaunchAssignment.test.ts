@@ -1089,6 +1089,37 @@ describe('findAnswerField', () => {
 });
 
 describe('publicQuestionFromKey', () => {
+  it('carries a known answer keyboard on typed questions only', () => {
+    expect(
+      publicQuestionFromKey({
+        id: 'f1',
+        type: 'FIB',
+        text: 'Simplify 6/8.',
+        correctAnswer: '3/4',
+        answerKeyboard: 'math',
+      }).answerKeyboard
+    ).toBe('math');
+    expect(
+      publicQuestionFromKey({
+        id: 'f2',
+        type: 'FIB',
+        text: 'x',
+        correctAnswer: 'y',
+        answerKeyboard: 'xx',
+      }).answerKeyboard
+    ).toBeUndefined();
+    expect(
+      publicQuestionFromKey({
+        id: 'm1',
+        type: 'MC',
+        text: 'x',
+        correctAnswer: 'a',
+        incorrectAnswers: ['b'],
+        answerKeyboard: 'math',
+      }).answerKeyboard
+    ).toBeUndefined();
+  });
+
   it('shuffles the MC choices and keeps no correct answer', () => {
     const q = publicQuestionFromKey(KEY_QUESTIONS[0]);
 

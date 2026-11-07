@@ -58,6 +58,8 @@ When the tour ends, the teacher's screen goes back to how they left it.
 - `toggle`: a switch or checkbox, with `value` true or false, the state it should end in.
 - `select`: a dropdown, segmented control or tab strip, with `value` the option value. Never a button that steps to the next option on each click: an anchor with `cycles` is one, and `cycles` names the control to select instead. A `settings.field` whose `kind` is text, number or a list isn't a choice either.
 - `type`: a text field, with `value` the text Autopilot types. The tour moves on once the field holds it. Never put a real student's name in it.
+- `drag`: the teacher moves a widget, on `widget.window:<type>`. The tour moves on once they let go somewhere else.
+- `resize`: the teacher resizes a widget by its corner, on `widget.resize-handle:<type>`. The tour moves on once it's a different size. Autopilot leaves `drag` and `resize` to the teacher, and both work by finger on a touch panel.
 
 **Anchor refs.** Write the id from `list_tour_anchors`, plus `:<type>` when its scope is `widget type` and `:<type>#<key>` when it is `field`. When an anchor lists `keys`, the suffix must be one of them; when it gives a `key_pattern`, the suffix must match it, and `key_hint` shows examples (quiz option letters are lowercase: `quiz-editor.option:quiz#a`). `settings.field`, `settings.toggle` and `settings.group` refs come from `widget_type` lookups (`settings_fields`).
 
@@ -94,6 +96,30 @@ The result lists it in `inserted_steps`, with the id of the step it went before.
   - `sample`: a copy of one of your own items (`from_id`), the same for every teacher. Use it for tours that open, edit, assign or run an existing item.
   - `teacher`: the teacher picks one of their own at the start, with your copy (`from_id`) as the fallback. Use it only when working on their real item is the point; its saves are real.
 
+## Conditions
+
+Getting Started tours set up a teacher's real account, so some steps don't apply to everyone and some wait for a real result.
+
+- `showWhen` on a step: a list of conditions that must all hold when the tour starts, or the step is left out and the step count skips it. Use it for a step that can't apply: the buildings step when the organization has none (`org-has-buildings`), a spell check step behind its feature (`feature:spell-check-setting`).
+- `doneWhen` on a step: one fact the step waits for instead of moving on at its own click. The tour moves on by itself once the fact turns true, shows **Already done** with **Next** when it was true from the start, and always offers **Skip for now**. Autopilot leaves the step to the teacher. Put it on the step whose control does the thing, such as the building choices on the profile, never on a `board.whole` step. A declined popup leaves the teacher on the step to try again, so its text can say what to click.
+- `show_when` in the setup: conditions for listing the whole tour on Getting Started, such as `district-account` for the Connect Drive tour.
+
+Facts: `building-saved`, `drive-connected` and `class-added` (the three a step can wait on), plus `org-has-buildings`, `district-account` and `classlink-on`. `feature:<id>` holds when the teacher can use that SpartBoard feature. A condition that's still loading counts as holding, so a step never vanishes by accident. The editor and the browser run play every step and treat `doneWhen` steps like ordinary ones.
+
+```json
+{
+  "id": "pick-building",
+  "label": "Pick your building",
+  "text": "Click the building you teach in. It saves right away.",
+  "tour": {
+    "anchor": "profile.buildings",
+    "action": "click",
+    "showWhen": ["org-has-buildings"],
+    "doneWhen": "building-saved"
+  }
+}
+```
+
 ## Autopilot
 
 Autopilot performs each step while the teacher watches. A click that changes the teacher's real account (`persists`) or can't be undone (`destructive`) is handed back to the teacher, unless the tour has materials and the anchor is `sandboxed`.
@@ -123,6 +149,8 @@ Write for a busy teacher reading a small card on a projected board.
 - `select` on a control that isn't a choice: a cycle button, a switch, or a text, number or list field
 - a control on a panel no earlier step opens (the error lists the clicks from the board)
 - a widget control when that widget isn't staged or added from the Dock first
+- a `drag` step not on `widget.window`, or a `resize` step not on `widget.resize-handle`
+- a condition that isn't a fact or a known feature, a `doneWhen` fact a step can't wait on, or `doneWhen` on a `board.whole` step
 - bookends: the first step must observe `board.whole`, and the last step must be an `observe`. On `update_live_tour` with `steps`, this refuses the save only when the stored tour already had them, so a recorded draft without them can still be edited (it comes back as a warning); `step_text` never checks it
 
 **Warnings save but need a look:**

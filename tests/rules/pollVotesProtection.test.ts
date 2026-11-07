@@ -2,8 +2,8 @@
 // (poll_sessions/{sessionId}/votes/{questionIndex}_{participantUid}).
 //
 // Contract under test:
-//   - Session doc: any authed user reads; only a non-anonymous teacher whose
-//     uid prefixes the sessionId (or an admin) creates/updates; no client delete.
+//   - Session doc: any authed user reads; only district staff whose uid
+//     prefixes the sessionId (or an admin) creates/updates; no client delete.
 //   - votes/{voteId}: an authed (incl. anonymous) user may create/update ONLY
 //     the doc whose id == `{questionIndex}_{their own uid}`, with exactly
 //     {questionIndex, optionIndex, votedAt}, questionIndex an int in
@@ -34,6 +34,10 @@ import {
   serverTimestamp,
   where,
 } from 'firebase/firestore';
+import {
+  NOT_STAFF_DISTRICT_EMAILS,
+  seedDistrictStaff,
+} from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-poll-votes-protection-test';
 const TEACHER_UID = 'teacher-poll';
@@ -68,6 +72,7 @@ const asTeacher = () =>
   testEnv
     .authenticatedContext(TEACHER_UID, {
       email: 'teacher@school.edu',
+      email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
@@ -77,6 +82,7 @@ const asOtherTeacher = () =>
   testEnv
     .authenticatedContext('teacher-other', {
       email: 'other@school.edu',
+      email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
@@ -104,6 +110,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
+    await seedDistrictStaff(db, ['teacher@school.edu', 'other@school.edu']);
     await setDoc(doc(db, `poll_sessions/${ACTIVE_SESSION_ID}`), {
       id: ACTIVE_POLL_ID,
       teacherUid: TEACHER_UID,
@@ -463,6 +470,32 @@ describe('poll session doc', () => {
       })
     );
   });
+
+  it.each(NOT_STAFF_DISTRICT_EMAILS)(
+    'refuses %s, a verified district account that is not staff, creating a session doc',
+    async (email) => {
+      const uid = `uid-${email}`;
+      const db = testEnv
+        .authenticatedContext(uid, {
+          email,
+          email_verified: true,
+          firebase: { sign_in_provider: 'google.com' },
+        })
+        .firestore();
+      await assertFails(
+        setDoc(doc(db, `poll_sessions/${uid}_STUDT`), {
+          id: 'STUDT',
+          teacherUid: uid,
+          code: 'STUDT',
+          optionCounts: [2],
+          currentQuestionIndex: 0,
+          active: true,
+          startedAt: 4000,
+          updatedAt: 4000,
+        })
+      );
+    }
+  );
 
   it('an anonymous user cannot create a session doc', async () => {
     await assertFails(

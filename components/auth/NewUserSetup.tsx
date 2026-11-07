@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { DEFAULT_DOCK_TYPES } from '@/config/defaultDock';
 import {
   ChevronRight,
   ChevronLeft,
@@ -46,21 +47,6 @@ const DOCK_CATEGORIES: { label: string; types: WidgetType[] }[] = [
     label: 'Academic',
     types: ['quiz', 'lunchCount', 'weather', 'expectations', 'breathing'],
   },
-];
-
-const DEFAULT_DOCK_TYPES: WidgetType[] = [
-  'clock',
-  'time-tool',
-  'schedule',
-  'poll',
-  'random',
-  'traffic',
-  'text',
-  'checklist',
-  'quiz',
-  'weather',
-  'lunchCount',
-  'drawing',
 ];
 
 // ─── Appearance presets ───────────────────────────────────────────────────────
@@ -169,7 +155,9 @@ export const NewUserSetup: React.FC = () => {
   const [step, setStep] = useState(0);
   const [selectedBuildings, setLocalBuildings] = useState<string[]>([]);
   const [style, setStyle] = useState<GlobalStyle>({ ...DEFAULT_GLOBAL_STYLE });
-  const [dockTypes, setDockTypes] = useState<WidgetType[]>(DEFAULT_DOCK_TYPES);
+  const [dockTypes, setDockTypes] = useState<WidgetType[]>([
+    ...DEFAULT_DOCK_TYPES,
+  ]);
   const [finishing, setFinishing] = useState(false);
 
   // Clamp the index when reading the step model. `step` state isn't reset if

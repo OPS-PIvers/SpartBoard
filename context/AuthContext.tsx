@@ -227,6 +227,43 @@ const GOOGLE_TOKEN_EXPIRY_KEY = 'spart_google_token_expiry';
 // Session-scoped so the grant probe costs one callable per browser session,
 // not one per reload.
 const OFFLINE_GRANT_PROBED_KEY = 'spart_offline_grant_probed';
+type OfflineGrantProbe = 'unknown' | 'missing' | 'present';
+
+// Null means not probed for this user yet. An older tab's bare flag still stops a repeat probe.
+const readOfflineGrantProbe = (uid: string): OfflineGrantProbe | null => {
+  try {
+    const stored = sessionStorage.getItem(OFFLINE_GRANT_PROBED_KEY);
+    if (!stored) return null;
+    if (stored === '1') return 'unknown';
+    const [owner, answer] = stored.split(':');
+    if (owner !== uid) return null;
+    return answer === 'missing' || answer === 'present' ? answer : 'unknown';
+  } catch {
+    // sessionStorage unavailable (private mode) — probe anyway; the cost is
+    // one extra callable per reload, not a broken flow.
+    return null;
+  }
+};
+
+const writeOfflineGrantProbe = (
+  uid: string | undefined,
+  answer: OfflineGrantProbe
+): void => {
+  if (!uid) return;
+  try {
+    sessionStorage.setItem(OFFLINE_GRANT_PROBED_KEY, `${uid}:${answer}`);
+  } catch {
+    // Non-fatal; see above.
+  }
+};
+
+const clearOfflineGrantProbe = (): void => {
+  try {
+    sessionStorage.removeItem(OFFLINE_GRANT_PROBED_KEY);
+  } catch {
+    // Non-fatal; see above.
+  }
+};
 const GOOGLE_TOKEN_TTL_MS = 3600 * 1000; // 1 hour (Google's default access token lifetime)
 const GOOGLE_TOKEN_CHECK_INTERVAL_MS = 60 * 1000; // How often to poll for expiry
 const GOOGLE_TOKEN_REFRESH_THRESHOLD_MS = 10 * 60 * 1000; // Refresh this far before expiry
@@ -335,6 +372,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Stays false until the session probe proves a grant is absent, so the
   // one-time card never flashes while the answer is still unknown.
   const [offlineGrantMissing, setOfflineGrantMissing] = useState(false);
+  const [offlineGrantPresent, setOfflineGrantPresent] = useState(false);
+  // One teacher's grant answer must not carry over to the next on this tab.
+  const [offlineGrantUid, setOfflineGrantUid] = useState(user?.uid);
+  if (offlineGrantUid !== user?.uid) {
+    setOfflineGrantUid(user?.uid);
+    setOfflineGrantMissing(false);
+    setOfflineGrantPresent(false);
+  }
+  const recordOfflineGrant = useCallback((uid: string | undefined) => {
+    if (!uid || auth.currentUser?.uid !== uid) return;
+    setOfflineGrantMissing(false);
+    setOfflineGrantPresent(true);
+    writeOfflineGrantProbe(uid, 'present');
+  }, []);
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(
     () => {
       if (isAuthBypass) return MOCK_ACCESS_TOKEN;
@@ -798,6 +849,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         if (backendOutcome.status === 'ok') {
           latch.latched = false;
+          recordOfflineGrant(user?.uid);
           const expiryMs = computeExpiryMs(backendOutcome.expiresIn);
           localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, backendOutcome.token);
           localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, expiryMs.toString());
@@ -826,6 +878,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             if (exchanged.kind === 'success') {
               backendConsentLatchRef.current.latched = false;
               const result = exchanged.result;
+              if (result.hasRefreshToken) recordOfflineGrant(user?.uid);
               const expiryMs = computeExpiryMs(result.expiresIn);
               localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, result.accessToken);
               localStorage.setItem(
@@ -894,7 +947,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return runRefreshChain();
     },
-    [user?.email, buildPersistScope]
+    [user?.email, user?.uid, buildPersistScope, recordOfflineGrant]
   );
 
   /**
@@ -952,7 +1005,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // and withheld the refresh leg. The card must stay so the user can retry
       // rather than silently believing they are covered.
       if (outcome.result.hasRefreshToken) {
-        setOfflineGrantMissing(false);
+        recordOfflineGrant(user?.uid);
         return true;
       }
       logError(
@@ -971,7 +1024,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     }
     return false;
-  }, [user?.email]);
+  }, [user?.email, user?.uid, recordOfflineGrant]);
 
   // Probe ONCE per browser session whether a server-side grant exists. The
   // silent refresh chain can't answer this: it only reaches the backend when
@@ -984,21 +1037,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       string | undefined;
     if (!clientId) return;
 
-    try {
-      if (sessionStorage.getItem(OFFLINE_GRANT_PROBED_KEY)) return;
-    } catch {
-      // sessionStorage unavailable (private mode) — probe anyway; the cost is
-      // one extra callable per reload, not a broken flow.
+    // A reload keeps this tab's answer, so the card isn't lost for the session.
+    const known = readOfflineGrantProbe(user.uid);
+    if (known === 'missing') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring from sessionStorage
+      setOfflineGrantMissing(true);
+    } else if (known === 'present') {
+      setOfflineGrantPresent(true);
     }
+    if (known) return;
 
     // Claim the session BEFORE awaiting: a googleAccessToken change while the
     // probe is in flight re-runs this effect, and a flag set afterwards would
-    // not yet be there to stop the second call.
-    try {
-      sessionStorage.setItem(OFFLINE_GRANT_PROBED_KEY, '1');
-    } catch {
-      // Non-fatal; see above.
-    }
+    // not yet be there to stop the second call. An unanswered claim stays
+    // 'unknown', so a transient failure doesn't re-probe on every reload.
+    writeOfflineGrantProbe(user.uid, 'unknown');
 
     let cancelled = false;
     void (async () => {
@@ -1007,13 +1060,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Only `needs-consent` proves absence. A transient `error` must NOT
       // surface the card — prompting for consent on a network blip would train
       // teachers to dismiss a prompt that matters.
-      if (outcome.status === 'needs-consent') setOfflineGrantMissing(true);
+      if (outcome.status === 'needs-consent') {
+        setOfflineGrantMissing(true);
+        writeOfflineGrantProbe(user.uid, 'missing');
+      } else if (outcome.status === 'ok') {
+        recordOfflineGrant(user.uid);
+      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [user, googleAccessToken]);
+  }, [user, googleAccessToken, recordOfflineGrant]);
 
   /**
    * Ensure the shared Google access token carries an on-demand sensitive scope
@@ -1380,6 +1438,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       logError('AuthContext.disconnectGoogleDrive.revoke', err);
       throw err;
+    } finally {
+      // Forget the answer so the next connect probes the real grant.
+      clearOfflineGrantProbe();
+      setOfflineGrantMissing(false);
+      setOfflineGrantPresent(false);
     }
   }, []);
 
@@ -3416,6 +3479,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       signInWithGoogle,
       signOut,
       offlineGrantMissing,
+      offlineGrantPresent,
       captureOfflineGrant,
       selectedBuildings,
       userGradeLevels,
@@ -3497,6 +3561,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       signInWithGoogle,
       signOut,
       offlineGrantMissing,
+      offlineGrantPresent,
       captureOfflineGrant,
       selectedBuildings,
       userGradeLevels,
