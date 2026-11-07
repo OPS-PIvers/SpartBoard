@@ -3190,6 +3190,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     []
   );
+  // The generation a save starting now captures: a parked board's own, so its landing can advance that baseline.
+  const saveGenerationFor = useCallback((dashboardId: string): number => {
+    if (lastSavedDashboardIdRef.current !== dashboardId) {
+      const parked = parkedBoardsRef.current.get(dashboardId);
+      if (parked) {
+        const [generation] = parked.generations;
+        return generation;
+      }
+    }
+    return baselineGenerationRef.current;
+  }, []);
   // Records what a save of `dashboardId` wrote as that board's baseline, wherever it now lives.
   const advanceSavedBaseline = useCallback(
     (
@@ -3487,7 +3498,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // A snapshot merge while queued moved the baseline, so save the merged copy, not the pre-merge one.
         const merged =
           baselineGenerationRef.current !== baselineGenerationAtSave;
-        baselineGenerationAtSave = baselineGenerationRef.current;
+        baselineGenerationAtSave = saveGenerationFor(active.id);
         const toSave = merged
           ? (dashboardsRef.current.find((d) => d.id === active.id) ?? active)
           : active;
@@ -3571,6 +3582,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     flushParkedBoard,
     chainSave,
     advanceSavedBaseline,
+    saveGenerationFor,
   ]);
 
   // --- GOOGLE DRIVE SYNC EFFECT ---
@@ -3818,7 +3830,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         saved = {
           data: state.serializedData,
           fields: state.fields,
-          generation: baselineGenerationRef.current,
+          generation: saveGenerationFor(board.id),
         };
         return saveDashboard(board, buildSaveBaseline(board.id));
       }).then(() => {
@@ -3853,6 +3865,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     buildSaveBaseline,
     chainSave,
     advanceSavedBaseline,
+    saveGenerationFor,
   ]);
 
   const toggleToolVisibility = useCallback(

@@ -578,4 +578,34 @@ describe('DashboardContext board switch save', () => {
     await tick(3000);
     expect(widgetText(stateRef, 'dash-a', 'a1')).toBe('remote');
   });
+  it('a save queued at the switch advances the parked baseline, so the flush adds no extra write', async () => {
+    const stateRef = setup();
+    await settle(stateRef);
+    const first = holdNextSave();
+    act(() => {
+      stateRef.current?.updateWidget('a1', { config: { text: 'edit-1' } });
+    });
+    await tick(900);
+    act(() => {
+      stateRef.current?.updateWidget('a1', { config: { text: 'edit-2' } });
+    });
+    await tick(900);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-b');
+    });
+    await tick(0);
+    await act(async () => {
+      first.resolve(Date.now());
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await tick(3000);
+    const aSaves = saveDashboardMock.mock.calls.filter(
+      (c) => (c[0] as Dashboard).id === 'dash-a'
+    );
+    expect(
+      aSaves.map(
+        (c) => ((c[0] as Dashboard).widgets[0].config as { text: string }).text
+      )
+    ).toEqual(['edit-1', 'edit-2']);
+  });
 });
