@@ -160,6 +160,39 @@ describe('live session — who can broadcast', () => {
     }
   );
 
+  it.each(NOT_STAFF_DISTRICT_EMAILS)(
+    'denies %s an edit to a live session it already owns',
+    async (email) => {
+      await testEnv.withSecurityRulesDisabled((ctx) =>
+        setDoc(doc(ctx.firestore(), `sessions/${ATTACKER_UID}`), {
+          ...session(ATTACKER_UID),
+          code: 'ZZZ999',
+        })
+      );
+      await assertFails(
+        updateDoc(
+          doc(teacherDb(ATTACKER_UID, email), `sessions/${ATTACKER_UID}`),
+          {
+            frozen: true,
+          }
+        )
+      );
+    }
+  );
+
+  it('lets an admin with no member doc go live', async () => {
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'admins/admin.only@example.org'), {})
+    );
+    await assertSucceeds(
+      startLive(
+        teacherDb('admin-live', 'admin.only@example.org'),
+        'admin-live',
+        'ADM111'
+      )
+    );
+  });
+
   it('denies an unverified email account going live', async () => {
     await assertFails(
       startLive(unverifiedDb(ATTACKER_UID), ATTACKER_UID, 'ZZZ999')
