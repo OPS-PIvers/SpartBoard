@@ -336,6 +336,15 @@ describe('applyAttemptWrite', () => {
     ).toBe(false);
   });
 
+  it('leaves attempts alone when the student has rejoined by the time a removal runs', async () => {
+    const stub = seed();
+    await apply(stub, write(undefined, done()));
+    stub.store.set(RESPONSE, done({ completedAttempts: 1 }));
+    await applyAttemptWrite(stub.db as unknown as Db, write(done(), undefined));
+    expect(stub.has(`${RESPONSE}/attempts/1`)).toBe(true);
+    expect(stub.has(SCORES)).toBe(true);
+  });
+
   it('writes nothing for a late event about a removed response', async () => {
     const stub = seed();
     await applyAttemptWrite(stub.db as unknown as Db, write(undefined, done()));

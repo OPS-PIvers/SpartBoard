@@ -235,6 +235,8 @@ async function moveRemovedAttempts(
   w: AttemptWrite
 ): Promise<void> {
   const session = db.collection('quiz_sessions').doc(w.sessionId);
+  // A retried removal must not touch a student who has since rejoined under the same key.
+  if ((await responseRef(db, w.sessionId, w.responseKey).get()).exists) return;
   const attempts = await responseRef(db, w.sessionId, w.responseKey)
     .collection(QUIZ_ATTEMPTS_SUBCOLLECTION)
     .get();
