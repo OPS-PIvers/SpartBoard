@@ -74293,12 +74293,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster:classes"
+          "classes.edit-roster:classes",
+          "classes.restrictions-trigger"
         ],
-        "opened_by": [
-          "classes.new-class",
-          "classes.new-class-empty"
-        ],
+        "reveal": "classes.restrictions-trigger",
         "needs": [
           "class"
         ]
@@ -74355,6 +74353,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Got it, continue button in the Spotify Premium notice",
     "scope": "board",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "board.spotify-premium-notice",

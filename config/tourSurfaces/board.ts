@@ -487,6 +487,7 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'classes.edit-roster:classes',
     alsoOpensWith: ['classes.new-class', 'classes.new-class-empty'],
     needs: ['class'],
+    inner: { 'classes.restrictions-filter': 'classes.restrictions-trigger' },
   },
   'board.roster-groups': {
     label: 'Roster editor Groups tab',

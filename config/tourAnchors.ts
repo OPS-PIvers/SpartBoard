@@ -16824,6 +16824,7 @@ export const TOUR_ANCHORS = {
   'music.spotify-premium-continue': {
     label: 'Got it, continue button in the Spotify Premium notice',
     panel: true,
+    persists: true,
   },
   'music.spotify-premium-dont-show': {
     label: "Don't show this again checkbox in the Spotify Premium notice",
