@@ -334,7 +334,7 @@ const callStudentLogin = studentLoginV1 as unknown as (req: {
 const callGetPseudonym = getAssignmentPseudonymV1 as unknown as (req: {
   auth?: unknown;
   data: unknown;
-}) => { pseudonym: string };
+}) => Promise<{ pseudonym: string }>;
 const callPseudonymsForAssignment =
   getPseudonymsForAssignmentV1 as unknown as (req: {
     auth?: unknown;
@@ -709,50 +709,52 @@ describe('studentLoginV1', () => {
 describe('getAssignmentPseudonymV1', () => {
   const auth = { uid: 'student-uid-1', token: { studentRole: true } };
 
-  it('rejects an unauthenticated caller', () => {
-    expect(() =>
-      callGetPseudonym({ data: { assignmentId: 'a1' } })
-    ).toThrowError(expect.objectContaining({ code: 'unauthenticated' }));
-  });
-
-  it('rejects a non-student caller with permission-denied', () => {
-    expect(() =>
-      callGetPseudonym({
-        auth: { uid: 't', token: { studentRole: false } },
-        data: { assignmentId: 'a1' },
-      })
-    ).toThrowError(expect.objectContaining({ code: 'permission-denied' }));
-  });
-
-  it('rejects a missing assignmentId with invalid-argument', () => {
-    expect(() => callGetPseudonym({ auth, data: {} })).toThrowError(
-      expect.objectContaining({ code: 'invalid-argument' })
+  it('rejects an unauthenticated caller', async () => {
+    await expectCode(
+      callGetPseudonym({ data: { assignmentId: 'a1' } }),
+      'unauthenticated'
     );
   });
 
-  it('rejects an over-long assignmentId with invalid-argument', () => {
-    expect(() =>
-      callGetPseudonym({ auth, data: { assignmentId: 'a'.repeat(201) } })
-    ).toThrowError(expect.objectContaining({ code: 'invalid-argument' }));
+  it('rejects a non-student caller with permission-denied', async () => {
+    await expectCode(
+      callGetPseudonym({
+        auth: { uid: 't', token: { studentRole: false } },
+        data: { assignmentId: 'a1' },
+      }),
+      'permission-denied'
+    );
   });
 
-  it('rejects when the hmac secret is unset (internal)', () => {
+  it('rejects a missing assignmentId with invalid-argument', async () => {
+    await expectCode(callGetPseudonym({ auth, data: {} }), 'invalid-argument');
+  });
+
+  it('rejects an over-long assignmentId with invalid-argument', async () => {
+    await expectCode(
+      callGetPseudonym({ auth, data: { assignmentId: 'a'.repeat(201) } }),
+      'invalid-argument'
+    );
+  });
+
+  it('rejects when the hmac secret is unset (internal)', async () => {
     h.secretValues.hmacSecret = '';
-    expect(() =>
-      callGetPseudonym({ auth, data: { assignmentId: 'a1' } })
-    ).toThrowError(expect.objectContaining({ code: 'internal' }));
+    await expectCode(
+      callGetPseudonym({ auth, data: { assignmentId: 'a1' } }),
+      'internal'
+    );
   });
 
-  it('returns the deterministic HMAC pseudonym for (uid, assignmentId)', () => {
-    const res = callGetPseudonym({ auth, data: { assignmentId: 'a1' } });
+  it('returns the deterministic HMAC pseudonym for (uid, assignmentId)', async () => {
+    const res = await callGetPseudonym({ auth, data: { assignmentId: 'a1' } });
     expect(res.pseudonym).toBe(assignmentPseudonym('student-uid-1', 'a1'));
     // Stable within the same tuple.
     expect(
-      callGetPseudonym({ auth, data: { assignmentId: 'a1' } }).pseudonym
+      (await callGetPseudonym({ auth, data: { assignmentId: 'a1' } })).pseudonym
     ).toBe(res.pseudonym);
     // Unlinkable across assignments.
     expect(
-      callGetPseudonym({ auth, data: { assignmentId: 'a2' } }).pseudonym
+      (await callGetPseudonym({ auth, data: { assignmentId: 'a2' } })).pseudonym
     ).not.toBe(res.pseudonym);
   });
 });

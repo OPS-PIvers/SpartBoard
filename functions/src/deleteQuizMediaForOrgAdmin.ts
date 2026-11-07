@@ -1240,7 +1240,7 @@ export const listQuizMediaForOrgAdmin = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<ListMediaResponse> => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -1263,7 +1263,7 @@ export const deleteQuizMediaForOrgAdmin = onCall(
     secrets: QUIZ_MEDIA_ARCHIVE_SECRETS,
   },
   async (request): Promise<DeleteMediaResponse> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }

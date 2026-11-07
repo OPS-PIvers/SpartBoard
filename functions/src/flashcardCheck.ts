@@ -789,7 +789,7 @@ export const reopenFlashcardCheckV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     return handleReopenFlashcardCheck(
       admin.firestore(),
       await callerFrom(request.auth),
@@ -931,7 +931,7 @@ export const recordFlashcardCheckRatingsV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     return handleRecordFlashcardCheckRatings(
       admin.firestore(),
       await callerFrom(request.auth),
@@ -949,7 +949,7 @@ export const submitFlashcardCheckV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     return handleSubmitFlashcardCheck(
       admin.firestore(),
       await callerFrom(request.auth),

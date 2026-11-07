@@ -278,8 +278,8 @@ export const scoreQuizOnSubmitV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) => {
-    assertViewAsAllowed(request);
+  async (request) => {
+    await assertViewAsAllowed(request);
     return handleScoreQuizOnSubmit(
       admin.firestore(),
       request.auth?.uid ?? null,

@@ -210,6 +210,13 @@ async function autoEnrollMember(
     return;
   }
 
+  // An admin's "Remove from org" tombstone keeps staff out until re-added by hand.
+  if (
+    (await db.doc(`organizations/${orgId}/removedMembers/${email}`).get())
+      .exists
+  )
+    return;
+
   try {
     await memberRef.create({
       email,
@@ -282,7 +289,7 @@ export const resolveOrgForUser = onCall(
     ],
   },
   async (request): Promise<ResolveOrgForUserResponse> => {
-    const viewAs = assertViewAsAllowed(request, { read: true });
+    const viewAs = await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

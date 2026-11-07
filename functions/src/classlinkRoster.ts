@@ -38,7 +38,7 @@ export const getClassLinkRosterV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

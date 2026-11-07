@@ -64,7 +64,7 @@ export const ltiSignDeepLinkResponseV1 = onCall(
     secrets: [LTI_TOOL_PRIVATE_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     // SECURITY: the picker only calls this after Google/Firebase sign-in
     // (LtiDeepLinkPicker gates on `teacherReady`) — require and validate auth
     // the same way as the sibling callables, or any unauthenticated caller
@@ -174,7 +174,7 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     secrets: [LTI_TOOL_PRIVATE_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     // SECURITY: gated on session OWNERSHIP — the teacher pushes from the
     // dashboard Results view, signed in with their own SpartBoard account (same
     // model as the NRPS name resolver). Mirrors getPseudonymsForAssignmentV1:
@@ -402,7 +402,7 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     secrets: [LTI_TOOL_PRIVATE_KEY, STUDENT_PSEUDONYM_HMAC_SECRET],
   },
   async (request) => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }

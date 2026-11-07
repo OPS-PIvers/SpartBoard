@@ -1,6 +1,5 @@
 // Drive access token for a super admin "View as" tab (docs/plans/shipped/ADMIN_VIEW_AS.md D5).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from './firebaseAdmin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
 import {
@@ -9,21 +8,11 @@ import {
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
   refreshGoogleAccessTokenForUid,
 } from './googleOAuth';
-import {
-  VIEW_AS_SESSIONS,
-  assertEnabled,
-  assertStrictSuperAdmin,
-  readSession,
-} from './viewAs';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 export type ViewAsDriveTokenResponse =
   | { available: true; accessToken: string; expiresIn: number }
   | { available: false };
-
-function sessionEnded(): HttpsError {
-  return new HttpsError('permission-denied', 'This View as session has ended.');
-}
 
 function isNeedsConsent(err: unknown): boolean {
   if (!(err instanceof HttpsError)) return false;
@@ -41,30 +30,16 @@ export const getViewAsDriveTokenV1 = onCall(
     ],
   },
   async (request): Promise<ViewAsDriveTokenResponse> => {
-    const claim = assertViewAsAllowed(request, { read: true });
+    // The guard checks the session doc, the kill switch and super admin.
+    const claim = await assertViewAsAllowed(request, { read: true });
     const uid = request.auth?.uid;
-    if (!claim || !uid) {
+    // A student preview tab is signed in as the student, never the session's target.
+    if (!claim || !uid || claim.student) {
       throw new HttpsError(
         'permission-denied',
         'Only a View as tab can do this.'
       );
     }
-    const db = admin.firestore();
-    const session = readSession(
-      await db.collection(VIEW_AS_SESSIONS).doc(claim.sid).get()
-    );
-    if (
-      !session ||
-      session.ended ||
-      session.by !== claim.by ||
-      session.targetUid !== uid ||
-      Date.now() >= session.expiresAtMs
-    ) {
-      throw sessionEnded();
-    }
-    await assertEnabled(db);
-    await assertStrictSuperAdmin(db, claim.by);
-
     try {
       const token = await refreshGoogleAccessTokenForUid(uid, {
         keepStoredOnFailure: true,

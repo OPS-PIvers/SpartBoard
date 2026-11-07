@@ -123,6 +123,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
+    await setDoc(doc(db, `view_as_sessions/${SID}`), { endedAt: null });
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { roleId: 'domain_admin' });
     await setDoc(doc(db, `admins/${BOSS_EMAIL}`), { roleId: 'super_admin' });
     await setDoc(doc(db, `organizations/orono/members/${BOSS_EMAIL}`), {

@@ -335,8 +335,15 @@ describe('resolveOrgForUser auto-enrollment', () => {
     autoEnrollDomainUsers?: boolean;
     isAdmin?: boolean;
     member?: Record<string, unknown>;
+    removed?: boolean;
   }): void => {
     docGetMock.mockImplementation((path: string) => {
+      if (
+        path ===
+        'organizations/orono/removedMembers/new.teacher@orono.k12.mn.us'
+      ) {
+        return Promise.resolve({ exists: opts.removed === true });
+      }
       if (path === 'admins/new.teacher@orono.k12.mn.us') {
         return Promise.resolve({ exists: opts.isAdmin === true });
       }
@@ -357,8 +364,29 @@ describe('resolveOrgForUser auto-enrollment', () => {
               : undefined,
         });
       }
+      const viewAsDoc = VIEW_AS_DOCS[path];
+      if (viewAsDoc) {
+        return Promise.resolve({
+          exists: true,
+          data: () => viewAsDoc,
+          get: (field: string) => viewAsDoc[field],
+        });
+      }
+      if (path === 'admin_settings/user_roles') {
+        return Promise.resolve({ exists: false });
+      }
       throw new Error('unexpected doc read: ' + path);
     });
+  };
+  const VIEW_AS_DOCS: Record<string, Record<string, unknown>> = {
+    'view_as_sessions/s1': {
+      by: 'boss@x',
+      targetUid: 'uid-1',
+      expiresAt: 9e15,
+      endedAt: null,
+    },
+    'admin_settings/view_as': { enabled: true },
+    'organizations/orono/members/boss@x': { roleId: 'super_admin' },
   };
 
   it('creates an active teacher member doc on first verified sign-in', async () => {
@@ -377,6 +405,21 @@ describe('resolveOrgForUser auto-enrollment', () => {
       uid: 'uid-1',
       addedBySource: 'auto-enroll:resolveOrgForUser',
     });
+  });
+
+  it('does not re-enroll staff an admin removed from the org', async () => {
+    scriptDocs({ memberExists: false, removed: true });
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('still flags a removed ClassLink student so they leave the teacher app', async () => {
+    fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
+    scriptDocs({ memberExists: false, removed: true });
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono', rosterStudent: true });
+    expect(docCreateMock).not.toHaveBeenCalled();
   });
 
   it('never enrolls a ClassLink student, but still resolves', async () => {

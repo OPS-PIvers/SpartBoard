@@ -1151,6 +1151,24 @@ describe('organizations/roles — writes (system role protection)', () => {
   });
 });
 
+describe('organizations/removedMembers — tombstones', () => {
+  const path = `organizations/${ORG_ID}/removedMembers/gone@orono.k12.mn.us`;
+
+  it('domain admin can write and delete a tombstone', async () => {
+    await assertSucceeds(
+      setDoc(doc(asDomainAdmin(), path), { removedAt: 'now' })
+    );
+    await assertSucceeds(deleteDoc(doc(asDomainAdmin(), path)));
+  });
+
+  it('teachers and outsiders cannot write or read one', async () => {
+    await assertFails(setDoc(doc(asTeacher(), path), { removedAt: 'now' }));
+    await assertFails(setDoc(doc(asOutsider(), path), { removedAt: 'now' }));
+    await assertFails(getDoc(doc(asDomainAdmin(), path)));
+    await assertFails(getDoc(doc(asTeacher(), path)));
+  });
+});
+
 describe('organizations/members — writes', () => {
   const validMember = (email: string) => ({
     email,

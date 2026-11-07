@@ -347,7 +347,7 @@ export const linkLtiCourseV1 = onCall(
     secrets: [LTI_TOOL_PRIVATE_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const callerUid = await requireTeacher(request);
     const data = (request.data ?? {}) as {
       contextId?: unknown;
@@ -466,7 +466,7 @@ export const linkLtiCourseV1 = onCall(
 export const ltiUnlinkSectionV1 = onCall(
   { region: 'us-central1', invoker: 'public', cors: ALLOWED_ORIGINS },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const callerUid = await requireTeacher(request);
     const data = (request.data ?? {}) as { contextId?: unknown };
     const contextId = typeof data.contextId === 'string' ? data.contextId : '';
@@ -513,7 +513,7 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
     ],
   },
   async (request) => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     const callerUid = await requireTeacher(request);
     const data = (request.data ?? {}) as {
       contextId?: unknown;

@@ -195,6 +195,10 @@ import {
   type AssignmentLifecyclePatches,
 } from '@/utils/sessionLifecycle';
 import { reopenIndexPatch } from '@/utils/quizSessionPhase';
+import {
+  END_TURN_IN_DELAY_MS,
+  finalizeOpenQuizResponses,
+} from '@/utils/quizFinalizeOpenResponses';
 
 /** Writes a Pause, Resume, End or Reopen in one transaction, refusing a stale Pause or Resume on a quiz that has ended. */
 async function commitQuizLifecycle(
@@ -2074,6 +2078,12 @@ export const useQuizAssignments = (
   >(
     async (assignmentId) => {
       await setStatus(assignmentId, { type: 'end' });
+      // Turn in once student saves can no longer land; the idle sweep backs this up if the tab closes.
+      setTimeout(() => {
+        finalizeOpenQuizResponses(assignmentId).catch((err: unknown) =>
+          console.error('[useQuizAssignments] End turn-in failed:', err)
+        );
+      }, END_TURN_IN_DELAY_MS);
     },
     [setStatus]
   );

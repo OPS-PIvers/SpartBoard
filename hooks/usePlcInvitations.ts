@@ -295,48 +295,37 @@ export const usePlcInvitations = (
           await commitAccept(true);
         }
       } catch (err) {
-        // Edge case: the lead added this teacher to memberUids manually
-        // between send and accept. The rule's `newMembers.size() ==
-        // oldMembers.size() + 1` check then refuses the PLC update (arrayUnion
-        // becomes a no-op). Close out the invite on its own so the UI stops
-        // showing it as pending, then confirm membership below.
+        // Already a member (e.g. an admin added them): close out the invite. Otherwise leave it pending to retry.
         const code = (err as { code?: string } | null)?.code;
         if (code !== 'permission-denied') throw err;
-        await updateDoc(inviteRef, {
-          status: 'accepted',
-          respondedAt: Date.now(),
-        });
-        // Verify membership actually applied. The `permission-denied` above
-        // is *intended* to mean "you were already added manually" — but it
-        // also fires for any future rules regression that breaks the size-
-        // delta / affectedKeys checks. Without this verify, a user whose
-        // accept silently failed would see the invite marked accepted in the
-        // UI with no indication they aren't actually in the PLC. Read the
-        // PLC and confirm `user.uid` is in `memberUids`; if the read itself
-        // permission-denies (rules require membership to read), that is
-        // also definitive non-membership.
+        const notJoined = new Error(
+          'Could not accept this invitation. Try again in a moment.'
+        );
+        let memberUids: unknown = [];
         try {
           const confirmSnap = await getDoc(plcRef);
-          const memberUids =
-            confirmSnap.exists() &&
-            Array.isArray(
-              (confirmSnap.data() as { memberUids?: unknown }).memberUids
-            )
-              ? (confirmSnap.data() as { memberUids: string[] }).memberUids
-              : [];
-          if (!memberUids.includes(user.uid)) {
-            throw new Error(
-              'Your invite was marked accepted but membership did not apply. Ask the lead to re-add you.'
-            );
+          if (confirmSnap.exists()) {
+            memberUids = (confirmSnap.data() as { memberUids?: unknown })
+              .memberUids;
           }
         } catch (confirmErr) {
+          // The PLC read requires membership, so a denied read means not joined.
           const confirmCode = (confirmErr as { code?: string } | null)?.code;
-          if (confirmCode === 'permission-denied') {
-            throw new Error(
-              'Your invite was marked accepted but membership did not apply. Ask the lead to re-add you.'
-            );
-          }
+          if (confirmCode === 'permission-denied') throw notJoined;
           throw confirmErr;
+        }
+        if (!Array.isArray(memberUids) || !memberUids.includes(user.uid)) {
+          throw notJoined;
+        }
+        try {
+          await updateDoc(inviteRef, {
+            status: 'accepted',
+            respondedAt: Date.now(),
+          });
+        } catch (closeErr) {
+          // Already joined; another tab may have closed the invite first.
+          const closeCode = (closeErr as { code?: string } | null)?.code;
+          if (closeCode !== 'permission-denied') throw closeErr;
         }
       }
     },

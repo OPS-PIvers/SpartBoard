@@ -540,7 +540,7 @@ export const migratePlcs = onCall(
     timeoutSeconds: 540,
   },
   async (request): Promise<MigratePlcsResponse> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

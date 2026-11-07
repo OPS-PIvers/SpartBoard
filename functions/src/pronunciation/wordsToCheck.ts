@@ -75,7 +75,7 @@ async function loadSpeakSessions(
 export const listSpeakWordsToCheckV1 = onCall(
   { memory: '512MiB', timeoutSeconds: 120, cors: ALLOWED_ORIGINS },
   async (request): Promise<SpeakWordsToCheckResult> => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     const auth = request.auth;
     if (!auth) throw new HttpsError('unauthenticated', 'Sign in first.');
     const email =

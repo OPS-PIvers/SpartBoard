@@ -123,6 +123,7 @@ beforeEach(async () => {
     await setDoc(doc(db, `view_as_sessions/${SID}`), {
       by: BOSS_EMAIL,
       targetUid: TEACHER_UID,
+      endedAt: null,
     });
     await setDoc(doc(db, 'admin_audit_log/existing'), { action: 'x' });
   });
@@ -178,6 +179,32 @@ describe('users/{uid}/** under a view-as token', () => {
     await assertFails(getDoc(doc(db, savedWidget())));
     await assertFails(getDoc(doc(db, `users/${TEACHER_UID}`)));
     await assertFails(setDoc(doc(db, savedWidget()), { type: 'timer' }));
+  });
+
+  it('ended: neither reads nor writes before exp, even unlocked', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `view_as_sessions/${SID}`), {
+        by: BOSS_EMAIL,
+        targetUid: TEACHER_UID,
+        endedAt: serverTimestamp(),
+      });
+    });
+    for (const db of [
+      asViewAs().firestore(),
+      asViewAs({ ro: false }).firestore(),
+    ]) {
+      await assertFails(getDoc(doc(db, savedWidget())));
+      await assertFails(
+        getDocs(collection(db, `users/${TEACHER_UID}/dashboards`))
+      );
+      await assertFails(setDoc(doc(db, savedWidget()), { type: 'timer' }));
+    }
+    await assertSucceeds(getDoc(doc(asTeacher().firestore(), savedWidget())));
+  });
+
+  it('a missing session doc reads as ended', async () => {
+    const db = asViewAs({ sid: 'no-such-session' }).firestore();
+    await assertFails(getDoc(doc(db, savedWidget())));
   });
 
   it('read-only cannot start or end a live session or drop its students', async () => {
@@ -300,6 +327,17 @@ describe('admin powers under a view-as token', () => {
     const db = asViewAsAdmin({ ro: false }).firestore();
     await assertFails(
       setDoc(doc(db, 'admin_settings/app_settings'), { enabled: false })
+    );
+  });
+
+  it('an ended admin target cannot read admin settings', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `view_as_sessions/${SID}`), {
+        endedAt: serverTimestamp(),
+      });
+    });
+    await assertFails(
+      getDoc(doc(asViewAsAdmin().firestore(), 'admin_settings/view_as'))
     );
   });
 

@@ -144,7 +144,7 @@ export async function authorize(
 export const mcpAuthorizeV1 = onCall<AuthorizeRequest>(
   { maxInstances: 5 },
   async (request): Promise<AuthorizeResponse> => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     return authorize(
       admin.firestore(),
       request.auth
@@ -161,7 +161,7 @@ export const mcpAuthorizeV1 = onCall<AuthorizeRequest>(
 export const revokeMcpGrantV1 = onCall<{ grantId?: unknown }>(
   { maxInstances: 5 },
   async (request): Promise<{ revoked: boolean }> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in first.');
     const grantId = str(request.data?.grantId);

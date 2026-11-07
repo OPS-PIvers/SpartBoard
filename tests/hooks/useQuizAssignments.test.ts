@@ -39,6 +39,15 @@ vi.mock('@/utils/quizJoinCodes', async (importOriginal) => ({
   findQuizSessionsByCode: vi.fn(() => Promise.resolve([])),
 }));
 
+const finalizeOpenQuizResponsesMock = vi
+  .fn<(sessionId: string) => Promise<void>>()
+  .mockResolvedValue(undefined);
+vi.mock('@/utils/quizFinalizeOpenResponses', () => ({
+  END_TURN_IN_DELAY_MS: 125_000,
+  finalizeOpenQuizResponses: (sessionId: string) =>
+    finalizeOpenQuizResponsesMock(sessionId),
+}));
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
@@ -576,6 +585,49 @@ describe('useQuizAssignments - reopenAssignment', () => {
 
     expect(findAssignmentPatch()).toMatchObject({ status: 'inactive' });
     expect(findSessionPatch()).toMatchObject({ status: 'ended' });
+  });
+
+  it('turns in unfinished work after End, like the monitor End', async () => {
+    const running: Partial<QuizSession> = {
+      id: ASSIGNMENT_ID,
+      sessionMode: 'student',
+      status: 'active',
+      currentQuestionIndex: 0,
+      totalQuestions: 5,
+      startedAt: 1000,
+    };
+    mockGetDoc.mockImplementation(() =>
+      Promise.resolve({ data: () => running })
+    );
+    finalizeOpenQuizResponsesMock.mockClear();
+    finalizeOpenQuizResponsesMock.mockRejectedValueOnce(new Error('offline'));
+    const errSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+      await act(async () => {
+        await result.current.deactivateAssignment(ASSIGNMENT_ID);
+      });
+
+      expect(findSessionPatch()).toMatchObject({ status: 'ended' });
+      // Waits out the students' write grace before the turn-in.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(124_000);
+      });
+      expect(finalizeOpenQuizResponsesMock).not.toHaveBeenCalled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      expect(finalizeOpenQuizResponsesMock).toHaveBeenCalledWith(ASSIGNMENT_ID);
+      // A failed turn-in is logged, never thrown at the already-ended End.
+      expect(errSpy).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+      errSpy.mockRestore();
+    }
   });
 
   it('lets Resume repair an assignment left paused while its session runs', async () => {
