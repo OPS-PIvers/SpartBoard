@@ -12,7 +12,7 @@ const script = resolve(repoRoot, '.github/scripts/plan-deploy.sh');
 function plan(
   branch: string,
   files: string[],
-  { containsDevPaul = true, full = false } = {}
+  { containsDevPaul = true, full = false, otherDeployedLast = false } = {}
 ): Record<string, string> {
   const dir = mkdtempSync(join(tmpdir(), 'plan-deploy-'));
   const out = join(dir, 'out');
@@ -23,6 +23,7 @@ function plan(
         GITHUB_OUTPUT: out,
         CHANGED_FILES: files.join('\n'),
         CONTAINS_DEV_PAUL: String(containsDevPaul),
+        OTHER_BRANCH_DEPLOYED_LAST: String(otherDeployedLast),
       },
     });
     expect(result.status).toBe(0);
@@ -67,6 +68,21 @@ describe('plan-deploy.sh', () => {
       backend: 'true',
       release_rules: 'true',
     });
+  });
+
+  it('redeploys rules, indexes and Storage on dev-paul after another branch deployed last', () => {
+    expect(
+      plan('dev-paul', ['components/a.tsx'], { otherDeployedLast: true })
+    ).toMatchObject({
+      backend: 'true',
+      deploy_only: 'firestore:indexes,storage',
+      release_rules: 'true',
+      indexes: 'true',
+    });
+    expect(
+      plan('dev-bailey', ['components/a.tsx'], { otherDeployedLast: true })
+        .backend
+    ).toBe('false');
   });
 
   it('never deploys the backend from a branch behind dev-paul', () => {
