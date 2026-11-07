@@ -1645,6 +1645,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       unconfirmedIfMissing: boolean
     ) => {
       if (cancelled || auth.currentUser?.uid !== startUid) return;
+      // Decided once on the first snapshot; a cached miss (slow or offline load) keeps the old free-tier fallback.
+      let flagDecided = false;
       unsub = onSnapshot(
         doc(db, 'organizations', candidateOrgId, 'members', emailLower),
         (snap) => {
@@ -1678,8 +1680,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             // last-known state (vs. clearing on a never-resolved first load).
             if (resolvedOrgId) everResolvedOrgIdRef.current = true;
             setRoleUnconfirmed(false);
-          } else {
-            setRoleUnconfirmed(unconfirmedIfMissing);
+          } else if (!flagDecided) {
+            setRoleUnconfirmed(
+              unconfirmedIfMissing && snap.metadata?.fromCache !== true
+            );
+          }
+          flagDecided = true;
+          if (!snap.exists()) {
             // Domain resolved to an org but no member doc exists yet (e.g.
             // a registered-domain user who was never invited): no org access,
             // free tier. Also the no-org / unregistered-domain case.
@@ -1718,7 +1725,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setOrgId(null);
             setRoleId(null);
             setBuildingIds([]);
-            setRoleUnconfirmed(unconfirmedIfMissing);
           }
           // Always mark resolved so consumers don't stall indefinitely.
           setMembershipResolved(true);

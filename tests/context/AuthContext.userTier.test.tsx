@@ -572,3 +572,45 @@ describe('AuthContext — role unconfirmed when ClassLink or the resolver is dow
     expect(getCtx().roleUnconfirmed).toBe(false);
   });
 });
+
+describe('AuthContext — role unconfirmed edge cases', () => {
+  it('keeps the old fallback when the only answer is a cached miss', async () => {
+    const email = 'teacher2@orono.k12.mn.us';
+    setupGetDoc({ adminEmail: null });
+    const memberPath = `organizations/orono/members/${email}`;
+    vi.mocked(firestore.onSnapshot).mockImplementation((ref, onNext) => {
+      const path = (ref as unknown as PathRef).__path ?? '';
+      const fire = onNext as unknown as (s: unknown) => void;
+      if (path === memberPath) {
+        fire({ exists: () => false, metadata: { fromCache: true } });
+      } else if (path.endsWith('permissions')) {
+        fire({ forEach: () => undefined });
+      }
+      return () => undefined;
+    });
+    ctxHolder.current = null;
+    const onAuthMock = vi.mocked(firebaseAuth.onAuthStateChanged);
+    onAuthMock.mockImplementation(() => () => undefined);
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>
+    );
+    const listener = onAuthMock.mock.calls[
+      onAuthMock.mock.calls.length - 1
+    ][1] as (u: User | null) => void;
+    const user = buildFakeUser(email);
+    Object.defineProperty(auth, 'currentUser', {
+      configurable: true,
+      writable: true,
+      value: user,
+    });
+    act(() => {
+      listener(user);
+    });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    expect(getCtx().roleUnconfirmed).toBe(false);
+  });
+});
