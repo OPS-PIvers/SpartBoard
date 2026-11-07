@@ -416,7 +416,12 @@ async function syncOneRoster(
     console.warn(
       `[classlinkRosterSync] ${rosterSnap.ref.path} blocked: ${result.blocked}`
     );
-    if (!settings.dryRun) {
+    const prior: unknown = data.classlinkSyncBlocked;
+    const sameReason =
+      !!prior &&
+      typeof prior === 'object' &&
+      (prior as { reason?: unknown }).reason === result.blocked;
+    if (!settings.dryRun && !sameReason) {
       await rosterSnap.ref.update({
         classlinkSyncBlocked: { reason: result.blocked, at: deps.now() },
       });

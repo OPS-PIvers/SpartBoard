@@ -857,6 +857,21 @@ describe('runClassLinkRosterSync resume and blocked state', () => {
     });
   });
 
+  it('does not rewrite a blocked marker that already has the same reason', async () => {
+    const r = classlinkRoster(
+      'users/u1/rosters/r1',
+      'u1',
+      [student('Ada', '01', 's1'), student('Alan', '02', 's2')],
+      []
+    );
+    r.data.classlinkSyncBlocked = { reason: 'empty-upstream', at: 1 };
+    const h = buildHarness([r]);
+
+    await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+
+    expect(h.updated.size).toBe(0);
+  });
+
   it('does not store a blocked marker in dry run', async () => {
     const h = buildHarness([
       classlinkRoster(
