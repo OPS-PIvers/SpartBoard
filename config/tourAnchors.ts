@@ -12084,6 +12084,10 @@ export const TOUR_ANCHORS = {
   },
   // Dashboard shell and classroom-tool anchors.
   'dock.live-session': { label: 'Live session button in the dock' },
+  'dock.live-popover-end': {
+    label: 'End live session button in the live session popover',
+    panel: true,
+  },
   'dock.live-popover-close': {
     label: 'Close button in the live session popover',
     panel: true,

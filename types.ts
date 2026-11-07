@@ -5425,6 +5425,12 @@ export interface PeriodAccessSessionFields {
   pausedAt?: number;
 }
 
+/** One closed pause, epoch ms; the overall time limit does not run through it. */
+export interface PauseSpan {
+  from: number;
+  to: number;
+}
+
 /** Live quiz session document in Firestore (/quiz_sessions/{sessionId}) */
 export interface QuizSession
   extends
@@ -5445,6 +5451,8 @@ export interface QuizSession
   /** ms when the PLC link was written (assign time or a retroactive link). */
   plcLinkedAt?: number;
   status: QuizSessionStatus;
+  /** Closed pauses, newest last; each Resume appends one. */
+  pauseSpans?: PauseSpan[];
   sessionMode: QuizSessionMode;
   /** Owning widget, written on create. */
   widgetKind?: QuizWidgetKind;
@@ -8277,6 +8285,13 @@ export interface NextUpSession {
   createdAt: number;
   lastUpdated: number;
   buildingId?: string; // For default settings
+  /** The teacher tab that moves joins into the queue. */
+  drainLease?: NextUpDrainLease;
+}
+
+export interface NextUpDrainLease {
+  clientId: string;
+  seq: number;
 }
 
 // Music widget types

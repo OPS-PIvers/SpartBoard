@@ -54857,6 +54857,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "dock.live-popover-end",
+    "label": "End live session button in the live session popover",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": [
+          "dock.open-tools"
+        ],
+        "reveal": "dock.open-tools"
+      }
+    ]
+  },
+  {
     "id": "dock.live-popover-close",
     "label": "Close button in the live session popover",
     "scope": "board",

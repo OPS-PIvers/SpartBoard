@@ -1331,6 +1331,7 @@
     "recordingDriveFailed": "Error al guardar en Drive. Descargando localmente...",
     "noGoogleDrive": "Sin Google Drive conectado. Descargando localmente...",
     "viewLiveSession": "Ver información de la sesión en vivo",
+    "endLiveSession": "Finalizar sesión en vivo",
     "liveSession": "Sesión en vivo",
     "noAppsSelected": "Restaurando valores predeterminados…"
   },

@@ -228,6 +228,10 @@ import {
   recordWidgetHistory,
   undoWidgetHistory,
   redoWidgetHistory,
+  setWidgetHistoryAfter,
+  revertWidgetHistoryEntry,
+  replayWidgetHistoryEntry,
+  type WidgetHistoryEntry,
   type WidgetHistoryStack,
 } from '@/utils/widgetHistory';
 
@@ -394,6 +398,8 @@ const stripDerivedPixels = (w: WidgetData) => {
 };
 
 const isSavedWidget = (w: WidgetData) => !w.transient;
+// One widget a history-tracked write touched, and which of its config keys.
+type HistoryWrite = { id: string; configKeys: readonly string[] | 'all' };
 
 // Firestore never stores these, so a server copy missing one says nothing about a local edit.
 const PII_CONFIG_KEYS: ReadonlySet<string> = new Set([
@@ -6992,53 +6998,102 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Board-level undo/redo of widget mutations, keyed by dashboard id.
   const widgetHistoryRef = useRef(new Map<string, WidgetHistoryStack>());
   const [widgetHistoryVersion, setWidgetHistoryVersion] = useState(0);
+  // Boards whose newest undo entry takes its "after" from the next commit: the whole board, or only these widgets.
+  const historyAfterPendingRef = useRef(
+    new Map<string, Map<string, Set<string> | 'all'> | 'all'>()
+  );
+  const markHistoryAfter = useCallback(
+    (boardId: string, writes: HistoryWrite[] | 'all') => {
+      const pending = historyAfterPendingRef.current;
+      const prev = pending.get(boardId);
+      if (writes === 'all' || prev === 'all') {
+        pending.set(boardId, 'all');
+        return;
+      }
+      const next = prev ?? new Map<string, Set<string> | 'all'>();
+      for (const { id, configKeys } of writes) {
+        const had = next.get(id);
+        if (configKeys === 'all' || had === 'all') next.set(id, 'all');
+        else next.set(id, new Set([...(had ?? []), ...configKeys]));
+      }
+      pending.set(boardId, next);
+    },
+    []
+  );
+  // The entry recordWidgetSnapshot opened; joined writes extend only that one.
+  const gestureEntryRef = useRef<WidgetHistoryEntry | null>(null);
 
-  const recordHistory = useCallback((coalesceKey: string | null = null) => {
-    const id = activeIdRef.current;
-    if (!id) return;
-    // Every mutating action already returns before reaching here on a
-    // read-only board; the guard keeps that true for future callers.
-    if (isActiveBoardReadOnlyRef.current) return;
-    const active = dashboardsRef.current.find((d) => d.id === id);
-    if (!active) return;
-    let stack = widgetHistoryRef.current.get(id);
-    if (!stack) {
-      stack = createWidgetHistoryStack();
-      widgetHistoryRef.current.set(id, stack);
+  useLayoutEffect(() => {
+    const pending = historyAfterPendingRef.current;
+    if (pending.size === 0) return;
+    for (const [id, ids] of pending) {
+      const stack = widgetHistoryRef.current.get(id);
+      const board = dashboards.find((d) => d.id === id);
+      if (stack && board)
+        setWidgetHistoryAfter(
+          stack,
+          board.widgets.filter(isSavedWidget),
+          ids === 'all' ? undefined : ids
+        );
     }
-    recordWidgetHistory(
-      stack,
-      active.widgets.filter(isSavedWidget),
-      coalesceKey
-    );
-    setWidgetHistoryVersion((v) => v + 1);
-  }, []);
+    pending.clear();
+  });
 
-  const applyHistoryWidgets = useCallback(
-    (restored: WidgetData[], current: WidgetData[]) => {
+  // A gesture's follow-up writes (group drag) extend the entry its snapshot opened.
+  const joinHistory = useCallback(
+    (writes: HistoryWrite[]) => {
+      const id = activeIdRef.current;
+      const top = id ? widgetHistoryRef.current.get(id)?.undo.at(-1) : null;
+      if (id && top && top === gestureEntryRef.current)
+        markHistoryAfter(id, writes);
+    },
+    [markHistoryAfter]
+  );
+
+  const recordHistory = useCallback(
+    (coalesceKey: string | null = null, writes?: HistoryWrite[]) => {
       const id = activeIdRef.current;
       if (!id) return;
-      const currentById = new Map(current.map((w) => [w.id, w]));
-      // Bump version past the live one so the Firestore merge keeps the restored config.
-      const restoredWidgets = restored.map((w) => {
-        const live = currentById.get(w.id);
-        if (!live || live === w) return w;
-        return {
-          ...w,
-          version: Math.max(w.version ?? 1, live.version ?? 1) + 1,
-        };
-      });
-      // Tour widgets sit outside history, so undo leaves them in place.
-      const widgets = [
-        ...restoredWidgets,
-        ...current.filter((w) => w.transient),
-      ];
+      // Every mutating action already returns before reaching here on a
+      // read-only board; the guard keeps that true for future callers.
+      if (isActiveBoardReadOnlyRef.current) return;
+      const active = dashboardsRef.current.find((d) => d.id === id);
+      if (!active) return;
+      let stack = widgetHistoryRef.current.get(id);
+      if (!stack) {
+        stack = createWidgetHistoryStack();
+        widgetHistoryRef.current.set(id, stack);
+      }
+      const created = recordWidgetHistory(
+        stack,
+        active.widgets.filter(isSavedWidget),
+        coalesceKey
+      );
+      // A write folded into an older entry refreshes only its own widgets, so system writes in between stay out.
+      markHistoryAfter(id, !created && writes ? writes : 'all');
+      setWidgetHistoryVersion((v) => v + 1);
+    },
+    [markHistoryAfter]
+  );
+
+  // Only the entry's own widgets and fields move, so system writes (running timers) and tour widgets stay.
+  const applyHistoryEntry = useCallback(
+    (
+      entry: WidgetHistoryEntry,
+      apply: (e: WidgetHistoryEntry, current: WidgetData[]) => WidgetData[]
+    ) => {
+      const id = activeIdRef.current;
+      if (!id) return;
       // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
       // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, widgets } : d))
+        prev.map((d) => {
+          if (d.id !== id) return d;
+          const widgets = apply(entry, d.widgets);
+          return widgets === d.widgets ? d : { ...d, widgets };
+        })
       );
       setWidgetHistoryVersion((v) => v + 1);
     },
@@ -7064,22 +7119,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!isHistoryTargetActive(boardId, id)) return;
       const stack = widgetHistoryRef.current.get(id);
       const active = dashboardsRef.current.find((d) => d.id === id);
-      if (!stack || !active) return;
-      const restored = undoWidgetHistory(
-        stack,
-        active.widgets.filter(isSavedWidget)
-      );
-      if (restored) applyHistoryWidgets(restored, active.widgets);
+      const entry = stack && active && undoWidgetHistory(stack, active.widgets);
+      if (entry) applyHistoryEntry(entry, revertWidgetHistoryEntry);
     },
-    [applyHistoryWidgets, isHistoryTargetActive]
+    [applyHistoryEntry, isHistoryTargetActive]
   );
 
   // Public entry point for a gesture that mutates through several calls and
   // wants them to collapse into one undo step.
-  const recordWidgetSnapshot = useCallback(
-    () => recordHistory(),
-    [recordHistory]
-  );
+  const recordWidgetSnapshot = useCallback(() => {
+    recordHistory();
+    const id = activeIdRef.current;
+    gestureEntryRef.current = id
+      ? (widgetHistoryRef.current.get(id)?.undo.at(-1) ?? null)
+      : null;
+  }, [recordHistory]);
 
   const redoWidgets = useCallback(
     (boardId?: string) => {
@@ -7088,14 +7142,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!isHistoryTargetActive(boardId, id)) return;
       const stack = widgetHistoryRef.current.get(id);
       const active = dashboardsRef.current.find((d) => d.id === id);
-      if (!stack || !active) return;
-      const restored = redoWidgetHistory(
-        stack,
-        active.widgets.filter(isSavedWidget)
-      );
-      if (restored) applyHistoryWidgets(restored, active.widgets);
+      const entry = stack && active && redoWidgetHistory(stack, active.widgets);
+      if (entry) applyHistoryEntry(entry, replayWidgetHistoryEntry);
     },
-    [applyHistoryWidgets, isHistoryTargetActive]
+    [applyHistoryEntry, isHistoryTargetActive]
   );
 
   // widgetHistoryVersion only exists to re-derive these after a ref mutation.
@@ -7529,6 +7579,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       recordHistory();
+      window.dispatchEvent(
+        new CustomEvent('spart-widget-removed', { detail: { id } })
+      );
       setDashboards((prev) =>
         prev.map((d) => {
           if (d.id !== activeId) return d;
@@ -7612,6 +7665,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastUpdateWasSettingsOnly.current = false;
       recordHistory();
       const idSet = new Set(ids);
+      ids.forEach((id) =>
+        window.dispatchEvent(
+          new CustomEvent('spart-widget-removed', { detail: { id } })
+        )
+      );
       setDashboards((prev) =>
         prev.map((d) => {
           if (d.id !== activeId) return d;
@@ -7697,7 +7755,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (
       id: string,
       updates: Partial<WidgetData>,
-      opts?: { immediate?: boolean; skipHistory?: boolean }
+      opts?: {
+        immediate?: boolean;
+        skipHistory?: boolean;
+        joinHistory?: boolean;
+      }
     ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
@@ -7707,7 +7769,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       if (opts?.immediate) pendingImmediateWrite.current = true;
-      if (!opts?.skipHistory) recordHistory(id);
+      const writes: HistoryWrite[] = [
+        { id, configKeys: Object.keys(updates.config ?? {}) },
+      ];
+      if (opts?.joinHistory) joinHistory(writes);
+      else if (!opts?.skipHistory) recordHistory(id, writes);
 
       // A pixel-size change implies the user resized — refresh aspectRatio.
       // A pure position change keeps the locked aspect ratio.
@@ -7770,7 +7836,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [recordHistory]
+    [joinHistory, recordHistory]
   );
 
   // Mirror the latest updateWidget closure into the forward-declared ref
@@ -7887,7 +7953,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateWidgets = useCallback(
     (
       updates: Array<{ id: string; changes: Partial<WidgetData> }>,
-      opts?: { skipHistory?: boolean }
+      opts?: { skipHistory?: boolean; joinHistory?: boolean }
     ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
@@ -7895,12 +7961,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastLocalUpdateAt.current = Date.now();
       // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
-      if (!opts?.skipHistory)
+      const writes: HistoryWrite[] = updates.map((u) => ({
+        id: u.id,
+        configKeys: 'config' in u.changes ? 'all' : [],
+      }));
+      if (opts?.joinHistory) joinHistory(writes);
+      else if (!opts?.skipHistory)
         recordHistory(
-          updates
-            .map((u) => u.id)
+          writes
+            .map((w) => w.id)
             .sort()
-            .join(',')
+            .join(','),
+          writes
         );
       const updateMap = new Map(updates.map((u) => [u.id, u.changes]));
       setDashboards((prev) =>
@@ -7935,7 +8007,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [recordHistory]
+    [joinHistory, recordHistory]
   );
 
   const groupWidgets = useCallback(

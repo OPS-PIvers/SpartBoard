@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-146**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-153**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -166,7 +166,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 - **AB-143 Re-sharing an Activity Wall can lose a race with the hourly relock** (S). `ShareModal.tsx:218-226` writes `publiclyShared: true` on the session, then creates the share doc in a separate write. If `expireActivityWallShares` runs between them it sees only lapsed shares and relocks, leaving a dead gallery link until the teacher re-shares. Fix: write both atomically from the client, or have the sweep skip a session whose `latestShareId` has no share doc yet (bounded to one run). Found in review of #5362.
 
-- **AB-145 Shape check for `tour_anchor_queue` rules** (S). `firestore.rules` `tour_anchor_queue` is bare `isAdmin()`; add a minimal status-enum and transition check with the shorthands, after the other rules slices have landed, and put the `check:rules-size` before and after in the PR. Skipped from T2 to protect the rules budget.
+- **AB-152 Shape check for `tour_anchor_queue` rules** (S). `firestore.rules` `tour_anchor_queue` is bare `isAdmin()`; add a minimal status-enum and transition check with the shorthands, after the other rules slices have landed, and put the `check:rules-size` before and after in the PR. Skipped from T2 to protect the rules budget.
 - **AB-112 Delete merged branches (local agent)** (S, recurring). Branch deletes are a local agent job, not Paul's; cloud sessions can't delete branches. From a local checkout, list remote branches with no open PR whose work is merged or abandoned (never `main`, `dev-*` or `scheduled-tasks`), then `git push origin --delete` them. Threads that merge a PR add their branch to the list below by PR instead of to PAUL_TODO.md. Done when the list is empty; keep the item for future adds.
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
@@ -177,10 +177,14 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-1wj7jd
   git push origin --delete claude/project-thread-yjiumh claude/project-thread-yjiumh-ab112
   git push origin --delete claude/project-thread-wrsw83 claude/project-thread-gnqh9n
+  git push origin --delete claude/project-thread-3r24g5 claude/b2-ab112
+  git push origin --delete claude/project-thread-ispilm
   git push origin --delete claude/project-thread-6j0hsf
   ```
 
   </details>
+
+- **AB-145 Paused quiz vanishes from My Assignments** (S). `hooks/useStudentAssignments.ts` quiz `activeFilter` is `waiting|active`, so a paused quiz shows in neither the Active nor the Ended list. Add `paused` to the Active filter. It adds one status listener per class chunk, so check `tests/hooks/useStudentAssignments.listenerCount.test.tsx` and the quiz composite index first. Left out of the Q2 state-machine slice to keep prod listener counts unchanged.
 
 ### Plans with a next slice
 
@@ -198,6 +202,7 @@ The plan holds the slices; build the **Next** one and update this line in the sa
 - **AB-54 Import S8 PR2** (M). Extension Send for a single Schoology rubric or discussion. Build it from the two Schoology links (one rubric, one discussion) Paul posted in the "Import S8" thread (PT-8, done 2026-11-04).
 - **AB-138 Timer end triggers on synced shared boards** (S, from #5380). Trigger claims (`utils/boardTriggerClaim.ts`) live on each teacher's own board doc, so on a synced shared board the host's copy and a co-teacher's copy can still both pick, advance or rotate on one timer end. Claim on the share doc (`shared_boards/{id}`) for linked boards, or let only the host's copy act.
 - **AB-139 Hidden-board timer expiry follow-ups** (S, from #5380). The hidden-board expiry write waits a 10 s grace and is dropped if the board unmounts first (then the timer stays running at 0 until shown, as before #5380). Also: legacy timer end triggers compare the run end time (starting device's clock) with Connections bump values (runner device's clock), so large clock skew can skip one. Consider a server timestamp for both.
+- **AB-145 Next Up queue writes from two tabs** (S, from #5397). The drain lease makes one tab take in joins, but Drive writes are not fenced: a holder that stalls mid-write past the 10 s takeover window can land an older queue over the new holder's, and Next or Reset in a tab that does not hold the lease writes that tab's own copy of the queue (last write wins). Fix by reloading the Drive file just before a Next or Reset write, or by routing every queue change through the lease holder. Also: a timed-out claim transaction can still commit a lease the tab never releases (self-heals after 10 s). Files: `components/widgets/NextUp/nextUpDrainLease.ts`, `nextUpQueueStore.ts`, `Widget.tsx`.
 - **AB-130 Drive grant fact while the probe is unknown** (S, from #5352 review). `offlineGrantPresent` stays false for a whole tab session when the grant probe errors or an older tab left the bare `'1'` flag, so the `drive-connected` tour condition and the Getting Started Drive checkmark read false for a teacher who is connected. Report the fact as undefined while the answer is unknown (`components/tours/useTourConditions.ts`, `hooks/useGettingStarted.ts`) and retry the probe after an error (`context/AuthContext.tsx`).
 - **AB-131 Tell a chosen Snowy from the default** (S, from #5352 review). `firstBoardOnDefault` (`utils/boardBackgroundDefaults.ts`) treats a first board on Snowy as untouched, but Snowy is also a pickable preset, so a teacher who chose it can have it replaced by an admin building default when they save a first building. Mark app-set backgrounds explicitly (for example a field set on creation and cleared on any background change).
 - **AB-132 Resume a live tour by step id** (S, from #5352 review). `SavedTour` keeps only a numeric index, and resume re-filters steps with the current `showWhen` facts, so a fact that flipped mid-run shifts the resumed step. Save the step id and resolve it on resume (`components/tours/tourResume.ts`, `LiveTourRunner.tsx` launch).
