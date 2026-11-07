@@ -71,6 +71,9 @@ describe('isAdminPreviewFeature', () => {
     expect(isAdminPreviewFeature('quiz-read-aloud')).toBe(true);
     expect(isAdminPreviewFeature('quiz-media-response')).toBe(false);
     expect(isAdminPreviewFeature('personal-spotify')).toBe(false);
+    expect(isAdminPreviewFeature('video-activity-audio-transcription')).toBe(
+      false
+    );
     expect(isAdminPreviewFeature('live-session')).toBe(false);
     // Guided Learning AI stays admin-only until its switch is saved.
     expect(isAdminPreviewFeature('guided-learning-ai')).toBe(true);
