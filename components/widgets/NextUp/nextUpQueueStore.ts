@@ -21,6 +21,7 @@ export function createNextUpQueueStore(): NextUpQueueStore {
   let pendingWrites = 0;
   let chain: Promise<void> = Promise.resolve();
   let lastWrite: Promise<void> = Promise.resolve();
+  let lastWriteFailed = false;
   // A join already taken in stays out after a Reset, even if its entry doc is still being deleted.
   const joinedIds = new Set<string>();
   const listeners = new Set<() => void>();
@@ -45,13 +46,23 @@ export function createNextUpQueueStore(): NextUpQueueStore {
         action = { type: 'joined', entries };
       }
       const next = nextUpQueueReducer(queue, action);
-      // Nothing changed: wait for the write already queued instead of repeating it.
-      if (next === queue) return lastWrite;
-      version++;
-      set(next);
+      // Nothing changed: wait for the write already queued, unless it failed and Drive is behind.
+      if (next === queue && !lastWriteFailed) return lastWrite;
+      if (next !== queue) {
+        version++;
+        set(next);
+      }
       pendingWrites++;
       const done = chain.then(() => write(next));
       lastWrite = done;
+      done.then(
+        () => {
+          if (lastWrite === done) lastWriteFailed = false;
+        },
+        () => {
+          if (lastWrite === done) lastWriteFailed = true;
+        }
+      );
       chain = done
         .catch(() => undefined)
         .finally(() => {
@@ -63,12 +74,19 @@ export function createNextUpQueueStore(): NextUpQueueStore {
       const startVersion = version;
       const startedIdle = pendingWrites === 0;
       const loaded = await download();
-      if (startedIdle && pendingWrites === 0 && version === startVersion) {
+      // After a failed write this tab is ahead of Drive, so the download is stale.
+      if (
+        startedIdle &&
+        pendingWrites === 0 &&
+        version === startVersion &&
+        !lastWriteFailed
+      ) {
         set(loaded);
       }
     },
     clear: () => {
       joinedIds.clear();
+      lastWriteFailed = false;
       version++;
       set([]);
     },

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { NextUpQueueItem } from '@/types';
 import { createNextUpQueueStore } from './nextUpQueueStore';
 
@@ -159,5 +159,37 @@ describe('Next Up queue store', () => {
     await expect(failed).rejects.toThrow('offline');
     await next;
     expect(names(saved[0])).toEqual(['a:active', 'b:waiting']);
+  });
+});
+
+describe('Next Up queue store after a failed write', () => {
+  it('writes the joins again when the same entries are retried', async () => {
+    const store = createNextUpQueueStore();
+    const write = vi
+      .fn<(queue: NextUpQueueItem[]) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('Drive down'))
+      .mockResolvedValue(undefined);
+
+    await expect(
+      store.dispatch({ type: 'joined', entries: [entry('a')] }, write)
+    ).rejects.toThrow('Drive down');
+    await flush();
+    await store.dispatch({ type: 'joined', entries: [entry('a')] }, write);
+
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(names(write.mock.calls[1][0])).toEqual(['a:active']);
+  });
+
+  it('keeps its unsaved joins over a stale download', async () => {
+    const store = createNextUpQueueStore();
+    await store
+      .dispatch({ type: 'joined', entries: [entry('a')] }, () =>
+        Promise.reject(new Error('Drive down'))
+      )
+      .catch(() => undefined);
+    await flush();
+    await store.load(() => Promise.resolve([]));
+
+    expect(names(store.getQueue())).toEqual(['a:active']);
   });
 });
