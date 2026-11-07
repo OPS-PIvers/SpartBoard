@@ -367,6 +367,28 @@ describe('useQuizSessionStudent — draft autosave vs transactional writes', () 
     expect(updateMock()).toHaveBeenCalledTimes(1);
     expect(txMock()).not.toHaveBeenCalled();
   });
+
+  it('never rewrites an imported paper answer, as a draft or a submit', async () => {
+    const paper = {
+      questionId: 'q3',
+      answer: 'photosynthesis',
+      answeredAt: 50,
+      status: 'submitted',
+      paperScanId: 'scan-1',
+      paperTranscript: 'done',
+    };
+    const result = await joinWith([draftQ1, paper]);
+    updateMock().mockClear();
+    txMock().mockClear();
+    await act(async () => {
+      await result.current.submitAnswer('q3', 'typed over', 0, {
+        isDraft: true,
+      });
+      await result.current.submitAnswer('q3', 'typed over');
+    });
+    expect(updateMock()).not.toHaveBeenCalled();
+    expect(server.answers.find((a) => a.questionId === 'q3')).toEqual(paper);
+  });
 });
 
 describe('isWriteAtAfter', () => {

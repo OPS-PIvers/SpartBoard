@@ -5072,6 +5072,17 @@ service cloud.firestore {
         // Student status moves: answering (to in-progress), turning in with exactly
         // one more attempt, a retake (completed -> joined, answers cleared) under the
         // cap, or resuming a teacher unlock. Never completed -> completed.
+        // Imported paper answers (paperScanId) are server-written: a student write changes one other entry at a time, or clears all for a retake.
+        function paperKept(e, d) {
+          return !e.keys().hasAny(['paperWrittenBatchId', 'paperBatchId']) ||
+                 (oneUnscanned(d.answers.removeAll(e.answers)) &&
+                  (oneUnscanned(e.answers.removeAll(d.answers)) || (e.status == 'completed' && d.status == 'joined')));
+        }
+
+        function oneUnscanned(l) {
+          return l.size() == 0 || (l.size() == 1 && !('paperScanId' in l[0]));
+        }
+
         function statusMoveOk(e, d, limit) {
           let from = e.get('status', '');
           let to = d.get('status', '');
@@ -5259,6 +5270,7 @@ service cloud.firestore {
            // Turned-in answers are final unless the teacher unlocks the attempt or a retake clears them.
            (!changed(['answers']) || existing().get('status', '') != 'completed' ||
             existing().get('unlocked', false) == true || incoming().get('status', '') == 'joined') &&
+           (!changed(['answers']) || paperKept(existing(), incoming())) &&
            // submittedAt is the server-offset clock (within 2 min of the server), or cleared for a retake or teacher unlock.
            (!changed(['submittedAt']) ||
             (incoming().get('submittedAt', null) == null ?

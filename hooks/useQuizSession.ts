@@ -3352,6 +3352,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const priorEntry = existingAnswers.find(
           (a) => a.questionId === questionId
         );
+        // An imported paper answer is server-written; the rules refuse a student rewrite of it.
+        if (priorEntry?.paperScanId) return { skip: true, snapshot: null };
 
         // #1 guard — see `isUnsafeBlankDraft` doc. Refuses a draft autosave
         // that would silently clobber a non-empty saved answer with ''.
