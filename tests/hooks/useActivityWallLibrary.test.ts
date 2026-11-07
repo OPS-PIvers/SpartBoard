@@ -7,6 +7,7 @@ import {
   onSnapshot,
   orderBy,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import type { ActivityWallLibraryEntry } from '@/types';
@@ -21,6 +22,7 @@ vi.mock('firebase/firestore', () => ({
   })),
   query: vi.fn((_ref, ...constraints) => ({ __query: constraints })),
   setDoc: vi.fn(),
+  updateDoc: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -33,6 +35,7 @@ const mockDoc = doc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 const mockSetDoc = setDoc as Mock;
 const mockDeleteDoc = deleteDoc as Mock;
+const mockUpdateDoc = updateDoc as Mock;
 const mockOrderBy = orderBy as Mock;
 
 const USER_UID = 'user-1';
@@ -360,6 +363,39 @@ describe('useActivityWallLibrary — deleteActivity', () => {
     expect(mockDeleteDoc.mock.calls[0]?.[0]).toBe(
       `users/${USER_UID}/activity_wall_activities/act-7`
     );
+  });
+
+  it('closes the live session before deleting the wall', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    mockDoc.mockImplementation((_db: unknown, ...seg: string[]) =>
+      seg.join('/')
+    );
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    await act(async () => {
+      await result.current.deleteActivity('act-7');
+    });
+
+    expect(mockUpdateDoc).toHaveBeenCalledWith(
+      `activity_wall_sessions/${USER_UID}_act-7`,
+      { acceptingResponses: false }
+    );
+    expect(mockUpdateDoc.mock.invocationCallOrder[0]).toBeLessThan(
+      mockDeleteDoc.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('still deletes the wall when the session close fails', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    mockUpdateDoc.mockRejectedValueOnce(new Error('not-found'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    await act(async () => {
+      await result.current.deleteActivity('act-7');
+    });
+
+    expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
   });
 
   it('throws and does not delete when there is no signed-in user', async () => {
