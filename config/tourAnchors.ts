@@ -12442,6 +12442,20 @@ export const TOUR_ANCHORS = {
     label: 'New Board button in the Manage Boards dialog',
     panel: true,
   },
+  'prompt-dialog.input': {
+    label:
+      'Text box in the shared prompt dialog (New Board, New Collection, rename)',
+    panel: true,
+  },
+  'prompt-dialog.confirm': {
+    label: 'Confirm button in the shared prompt dialog (Create, Save, OK)',
+    panel: true,
+  },
+  'prompt-dialog.cancel': {
+    label: 'Cancel button in the shared prompt dialog',
+    panel: true,
+    destructive: true,
+  },
   'boards-modal.clear-selection': {
     label: 'Clear selection button in the Manage Boards bulk bar',
     panel: true,

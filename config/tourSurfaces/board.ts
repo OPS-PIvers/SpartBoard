@@ -600,6 +600,11 @@ export const SURFACES: TourSurfaceMap = {
       'boards-modal.bulk-delete': 'boards-modal.board-select',
     },
   },
+  'board.prompt-dialog': {
+    label: 'Name prompt dialog',
+    kind: 'shared',
+    files: ['components/common/DialogContainer.tsx'],
+  },
   'board.boards-board-menu': {
     label: 'Board edit menu',
     kind: 'menu',
