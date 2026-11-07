@@ -336,11 +336,54 @@ describe('applyAttemptWrite', () => {
     ).toBe(false);
   });
 
+  it('leaves attempts alone when the student has rejoined by the time a removal runs', async () => {
+    const stub = seed();
+    await apply(stub, write(undefined, done()));
+    stub.store.set(RESPONSE, done({ completedAttempts: 1 }));
+    await applyAttemptWrite(stub.db as unknown as Db, write(done(), undefined));
+    expect(stub.has(`${RESPONSE}/attempts/1`)).toBe(true);
+    expect(stub.has(SCORES)).toBe(true);
+  });
+
   it('writes nothing for a late event about a removed response', async () => {
     const stub = seed();
     await applyAttemptWrite(stub.db as unknown as Db, write(undefined, done()));
     expect(stub.has(`${RESPONSE}/attempts/1`)).toBe(false);
     expect(stub.has(SCORES)).toBe(false);
+  });
+
+  it('rethrows a failed write so the trigger retries', async () => {
+    const stub = seed();
+    stub.store.set(RESPONSE, done());
+    const db = stub.db as unknown as { runTransaction: () => Promise<never> };
+    db.runTransaction = () => Promise.reject(new Error('contention'));
+    await expect(
+      applyAttemptWrite(stub.db as unknown as Db, write(undefined, done()))
+    ).rejects.toThrow('contention');
+  });
+
+  it('is idempotent when the same event is delivered again', async () => {
+    const stub = seed();
+    const first = done();
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    const second = done({ completedAttempts: 2, submittedAt: T + 10 });
+    const retake = write(reset(), second, T + 10);
+    await apply(stub, retake);
+    const snapshot = JSON.stringify([
+      stub.get(`${RESPONSE}/attempts/1`),
+      stub.get(`${RESPONSE}/attempts/2`),
+      stub.get(SCORES),
+    ]);
+    await apply(stub, retake);
+    await apply(stub, write(undefined, first));
+    expect(
+      JSON.stringify([
+        stub.get(`${RESPONSE}/attempts/1`),
+        stub.get(`${RESPONSE}/attempts/2`),
+        stub.get(SCORES),
+      ])
+    ).toBe(snapshot);
   });
 
   it('skips Review game sessions', async () => {

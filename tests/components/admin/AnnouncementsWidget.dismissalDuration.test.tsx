@@ -105,3 +105,62 @@ describe('AnnouncementsManager — dismissal duration cap', () => {
     expect(await saveWith('9999999')).toBe(86400);
   });
 });
+
+import {
+  getAnnouncementLiveStatus,
+  isWithinActiveWindow,
+} from '@/utils/announcementWindow';
+import type { Announcement } from '@/types';
+
+describe('announcement status matches the overlay', () => {
+  const base = {
+    ...announcement,
+    activationType: 'scheduled',
+    isActive: true,
+  } as unknown as Announcement;
+  const now = new Date(2026, 10, 7, 12, 0).getTime();
+  const cases: [string, Partial<Announcement>][] = [
+    ['no start', {}],
+    ['date only', { scheduledActivationDate: '2026-11-07' }],
+    ['time only, passed', { scheduledActivationTime: '08:00' }],
+    ['time only, ahead', { scheduledActivationTime: '23:00' }],
+    [
+      'future start',
+      {
+        scheduledActivationDate: '2026-11-09',
+        scheduledActivationTime: '08:00',
+      },
+    ],
+    [
+      'past start',
+      {
+        scheduledActivationDate: '2026-11-01',
+        scheduledActivationTime: '08:00',
+      },
+    ],
+  ];
+  it.each(cases)('%s', (_n, over) => {
+    const a = { ...base, ...over };
+    expect(getAnnouncementLiveStatus(a, now) === 'active').toBe(
+      isWithinActiveWindow(a, now)
+    );
+  });
+
+  it('keeps manual, inactive and expired statuses', () => {
+    const manual = { ...base, activationType: 'manual' } as Announcement;
+    expect(getAnnouncementLiveStatus(manual, now)).toBe('active');
+    expect(getAnnouncementLiveStatus({ ...manual, isActive: false }, now)).toBe(
+      'inactive'
+    );
+    expect(
+      getAnnouncementLiveStatus(
+        {
+          ...manual,
+          scheduledEndDate: '2026-11-01',
+          scheduledEndTime: '08:00',
+        },
+        now
+      )
+    ).toBe('expired');
+  });
+});

@@ -5036,3 +5036,12 @@ rather than "no data") is also still open.
   - Ready: #5120, #5115.
   - Ready with minor notes: #5116 (non-transactional first-grant write, which is harmless; the managed grant's `clientName` is set only when it is created).
 - Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-11-07
+
+- PRs reviewed: #5355 chore(code-structure): delete unused geminiModelDeprecation util
+- Comments processed: 1 total. 0 fixed, 0 needing a reply. The only comment was a claude[bot] "no issues" summary. There were no inline review threads.
+- Fixes pushed: none
+- Reviews posted: 1
+  - Ready with minor notes: #5355. The deleted test also checked that `KNOWN_GEMINI_MODELS` offers nothing the server would reject, and no other test covers that now. The single-consumer utils list in `code-structure.md` still names the deleted file.
+- Notes: GitHub access went through MCP. CI on #5355 was already green. No code fixes were made, so I ran no local type-check, lint or tests.
