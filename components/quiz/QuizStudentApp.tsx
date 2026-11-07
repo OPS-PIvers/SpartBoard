@@ -556,8 +556,11 @@ const QuizJoinFlow: React.FC<{
   } = useQuizSessionStudent();
   useQuizScoreOnSubmit(session, myResponse);
   // A response seen once and then gone means the teacher removed this student.
-  const [hadResponse, setHadResponse] = useState(false);
-  if (myResponse && !hadResponse) setHadResponse(true);
+  const [responseSeenFor, setResponseSeenFor] = useState<string | null>(null);
+  if (myResponse && session && responseSeenFor !== session.id) {
+    setResponseSeenFor(session.id);
+  }
+  const hadResponse = !!session && responseSeenFor === session.id;
 
   const handleJoin = useCallback(
     async (joinCode: string, joinPin: string) => {
