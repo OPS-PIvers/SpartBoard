@@ -49,6 +49,7 @@ export const importedConnections = (
  *   instantiation time — keeping it would be stale data.
  * - `claudeEditedAt` / `claudeAction` / `claudeUnseen`: Claude's marks on
  *   the host's board; a copy would show the host's "Made with Claude" badge.
+ * - `triggerClaims`: which device acted on the host's widget triggers.
  *
  * Preserved:
  * - `viewportWidth` / `viewportHeight` — layout hints for proportional
@@ -76,6 +77,7 @@ export const sanitizeBoardSnapshot = (board: Dashboard): Dashboard => {
     claudeEditedAt: _claudeEditedAt,
     claudeAction: _claudeAction,
     claudeUnseen: _claudeUnseen,
+    triggerClaims: _triggerClaims,
     ...rest
   } = board;
   // A copy keeps its Connections but never a Run in progress.
