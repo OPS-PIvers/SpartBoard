@@ -243,12 +243,11 @@ async function activateInvitedMember(
     .where('email', '==', email)
     .get();
   const now = new Date();
-  const open = tokens.docs.filter((t) => !t.get('claimedAt'));
-  const live = open.filter(
-    (t) => new Date(String(t.get('expiresAt'))).getTime() >= now.getTime()
+  const live = tokens.docs.filter(
+    (t) =>
+      !t.get('claimedAt') &&
+      new Date(String(t.get('expiresAt'))).getTime() >= now.getTime()
   );
-  // An invite whose links have all lapsed waits for a re-invite, as the link flow does.
-  if (open.length > 0 && live.length === 0) return;
   const nowIso = now.toISOString();
   const batch = db.batch();
   batch.update(

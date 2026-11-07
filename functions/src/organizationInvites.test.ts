@@ -904,6 +904,7 @@ describe('evaluateClaim', () => {
     expect(verdict.ok).toBe(true);
     if (verdict.ok) {
       expect(verdict.memberPatch).toEqual({
+        uid: 'firebase-uid-42',
         lastActive: '2026-04-19T12:00:00.000Z',
       });
       expect(verdict.invitationPatch).toEqual({
@@ -913,7 +914,7 @@ describe('evaluateClaim', () => {
     }
   });
 
-  it('links the uid when an active member has none yet', () => {
+  it('links the uid when an active member has none yet, as before', () => {
     const verdict = claimAs(validInvitation, {
       ...validMember,
       status: 'active',

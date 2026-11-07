@@ -532,15 +532,17 @@ describe('resolveOrgForUser auto-enrollment', () => {
     });
   });
 
-  it('leaves an invited member invited when every open invite link has expired', async () => {
+  it('still activates on sign-in when every invite link has expired, as before', async () => {
     scriptDocs({
       memberExists: true,
       member: { status: 'invited', roleId: 'teacher' },
     });
     inviteTokens.value = [{ token: 'old', expiresAt: PAST }];
     await handler({ auth: verifiedAuth, data: {} });
-    expect(batchUpdateMock).not.toHaveBeenCalled();
-    expect(batchCommitMock).not.toHaveBeenCalled();
+    expect(batchUpdateMock.mock.calls.map((c) => c[0] as string)).toEqual([
+      MEMBER_PATH,
+    ]);
+    expect(batchCommitMock).toHaveBeenCalledTimes(1);
   });
 
   it('activates a member an admin marked invited by hand (no invite link)', async () => {

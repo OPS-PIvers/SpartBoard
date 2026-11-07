@@ -643,10 +643,7 @@ export function evaluateClaim({
   if (member.status === 'active') {
     return {
       ok: true,
-      memberPatch: {
-        ...(member.uid ? {} : { uid: signedInUid }),
-        lastActive: nowIso,
-      },
+      memberPatch: { uid: signedInUid, lastActive: nowIso },
       invitationPatch,
     };
   }
