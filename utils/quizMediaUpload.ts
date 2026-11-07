@@ -79,6 +79,8 @@ export interface QuizMediaUploadResult {
   uploadState: ArtifactUploadState;
   driveFileId?: string;
   error?: string;
+  /** True when the bytes never reached Storage; an archive-step failure is the sweep's to retry. */
+  notStored?: boolean;
 }
 
 export interface QuizMediaUploadDeps {
@@ -149,12 +151,18 @@ async function runUpload(
       storagePath,
       uploadState: 'failed',
       error: `Recording exceeds the ${maxBytes / (1024 * 1024)} MB limit.`,
+      notStored: true,
     };
   }
   try {
     await deps.uploadBlob(storagePath, job.blob, job.mimeType);
   } catch (error) {
-    return { storagePath, uploadState: 'failed', error: errorMessage(error) };
+    return {
+      storagePath,
+      uploadState: 'failed',
+      error: errorMessage(error),
+      notStored: true,
+    };
   }
 
   // One automatic archive retry; anything past that is the sweep's problem and
@@ -193,4 +201,36 @@ export function enqueueQuizMediaUpload(
     next.catch(() => undefined)
   );
   return next;
+}
+
+/** Resolves when every upload settles or the cap passes, whichever is first; never rejects. */
+export async function waitForUploads(
+  uploads: Iterable<Promise<unknown>>,
+  capMs: number
+): Promise<void> {
+  const pending = [...uploads];
+  if (pending.length === 0) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.allSettled(pending),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, capMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/** After turn-in the student can't write uploadState; the archive callable settles the take's archive entry instead. */
+export async function handOffLockedUpload(
+  job: QuizMediaUploadJob,
+  deps: QuizMediaUploadDeps = defaultDeps
+): Promise<void> {
+  try {
+    await deps.archiveArtifact(job);
+  } catch {
+    // A missing transit object is recorded as lost server-side; the teacher sees that.
+  }
 }

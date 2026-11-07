@@ -189,6 +189,9 @@ import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
   buildQuizMediaStoragePath,
   enqueueQuizMediaUpload,
+  handOffLockedUpload,
+  waitForUploads,
+  type QuizMediaUploadResult,
 } from '@/utils/quizMediaUpload';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { RubricGuideExamples } from './RubricGuideExamples';
@@ -309,6 +312,9 @@ import {
 // Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
 // pulled into the initial student-app payload. Loaded on first render of a
 // free-response question.
+// How long a turn-in waits for recordings still uploading before it goes ahead.
+const TURN_IN_UPLOAD_WAIT_MS = 8000;
+
 const QuizGamePlay = React.lazy(() =>
   import('./game/QuizGamePlay').then((m) => ({ default: m.QuizGamePlay }))
 );
@@ -975,6 +981,7 @@ const QuizJoinFlow: React.FC<{
   const handleComplete = useCallback(
     async (opts?: { timeUp?: boolean }) => {
       if (isViewOnly) return;
+      await waitForUploads(inFlightUploadsRef.current, TURN_IN_UPLOAD_WAIT_MS);
       await (opts ? completeQuiz(opts) : completeQuiz());
       const sessionId = session?.id;
       const responseKey = myResponse?._responseKey;
@@ -1044,13 +1051,16 @@ const QuizJoinFlow: React.FC<{
   // artifact (same storagePath) instead of pretending something is retrying.
   const retryableTakesRef = useRef(new Map<string, Blob>());
 
+  // Uploads still running, so a turn-in can wait briefly for them to settle.
+  const inFlightUploadsRef = useRef(new Set<Promise<unknown>>());
+
   const runRecordingUpload = useCallback(
     async (questionId: string, artifact: ResponseArtifact, blob: Blob) => {
       const sessionId = session?.id;
       const studentUid = authedUid;
       const responseKey = myResponse?._responseKey;
       if (!sessionId || !studentUid || !responseKey) return;
-      const result = await enqueueQuizMediaUpload({
+      const job = {
         sessionId,
         studentUid,
         responseKey,
@@ -1058,11 +1068,27 @@ const QuizJoinFlow: React.FC<{
         artifactId: artifact.id,
         blob,
         mimeType: artifact.mimeType ?? blob.type,
-      });
-      if (result.uploadState === 'failed')
-        retryableTakesRef.current.set(artifact.id, blob);
-      else retryableTakesRef.current.delete(artifact.id);
-      await setArtifactUploadState(questionId, artifact.id, result.uploadState);
+      };
+      const run = (async () => {
+        const result = await enqueueQuizMediaUpload(job);
+        if (result.uploadState === 'failed')
+          retryableTakesRef.current.set(artifact.id, blob);
+        else retryableTakesRef.current.delete(artifact.id);
+        const locked = await setArtifactUploadState(
+          questionId,
+          artifact.id,
+          result.uploadState
+        );
+        if (locked && result.notStored) await handOffLockedUpload(job);
+        return result;
+      })();
+      inFlightUploadsRef.current.add(run);
+      let result: QuizMediaUploadResult;
+      try {
+        result = await run;
+      } finally {
+        inFlightUploadsRef.current.delete(run);
+      }
       if (result.uploadState === 'failed') {
         throw new Error(result.error ?? 'Archive failed');
       }

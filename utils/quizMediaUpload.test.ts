@@ -13,6 +13,8 @@ import {
   buildQuizMediaStoragePath,
   quizMediaExtensionForMimeType,
   enqueueQuizMediaUpload,
+  handOffLockedUpload,
+  waitForUploads,
   __resetQuizMediaUploadQueue,
   MAX_QUIZ_MEDIA_BYTES,
   MAX_WHITEBOARD_PICTURE_BYTES,
@@ -207,5 +209,70 @@ describe('enqueueQuizMediaUpload', () => {
     );
     expect(first.uploadState).toBe('failed');
     expect(second.uploadState).toBe('uploaded');
+  });
+});
+
+describe('waitForUploads', () => {
+  it('resolves once every upload settles, even a rejected one', async () => {
+    let finish: () => void = () => undefined;
+    const slow = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    let done = false;
+    const wait = waitForUploads(
+      [slow, Promise.reject(new Error('x'))],
+      5000
+    ).then(() => {
+      done = true;
+    });
+    await Promise.resolve();
+    expect(done).toBe(false);
+    finish();
+    await wait;
+    expect(done).toBe(true);
+  });
+
+  it('stops waiting at the cap', async () => {
+    vi.useFakeTimers();
+    try {
+      const wait = waitForUploads([new Promise(() => undefined)], 8000);
+      await vi.advanceTimersByTimeAsync(8000);
+      await expect(wait).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('returns at once with nothing in flight', async () => {
+    await expect(waitForUploads([], 8000)).resolves.toBeUndefined();
+  });
+});
+
+describe('handOffLockedUpload', () => {
+  it('asks the server to settle the take and swallows its refusal', async () => {
+    const deps = makeDeps({
+      archiveArtifact: vi.fn(() => Promise.reject(new Error('not-found'))),
+    });
+    await expect(handOffLockedUpload(job(), deps)).resolves.toBeUndefined();
+    expect(deps.archiveArtifact).toHaveBeenCalledWith(job());
+    expect(deps.uploadBlob).not.toHaveBeenCalled();
+  });
+});
+
+describe('notStored', () => {
+  it('marks a Storage failure but not an archive failure', async () => {
+    const stored = await enqueueQuizMediaUpload(
+      job(),
+      makeDeps({ uploadBlob: vi.fn(() => Promise.reject(new Error('net'))) })
+    );
+    expect(stored).toMatchObject({ uploadState: 'failed', notStored: true });
+    const archived = await enqueueQuizMediaUpload(
+      job({ artifactId: 'art-2' }),
+      makeDeps({
+        archiveArtifact: vi.fn(() => Promise.reject(new Error('drive'))),
+      })
+    );
+    expect(archived.uploadState).toBe('failed');
+    expect(archived.notStored).toBeUndefined();
   });
 });
