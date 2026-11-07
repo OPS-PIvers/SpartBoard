@@ -184,7 +184,7 @@ async function autoEnrollMember(
   const memberRef = db.doc(`organizations/${orgId}/members/${email}`);
   const memberSnap = await memberRef.get();
   if (memberSnap.exists) {
-    await activateInvitedMember(memberRef, memberSnap, uid);
+    await activateInvitedMember(db, orgId, email, memberRef, memberSnap, uid);
     return;
   }
 
@@ -229,17 +229,39 @@ async function autoEnrollMember(
 
 /** Signing in with the invited address claims the invite: only status, uid and lastActive change, and only on an unchanged 'invited' doc. */
 async function activateInvitedMember(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  email: string,
   memberRef: admin.firestore.DocumentReference,
   memberSnap: admin.firestore.DocumentSnapshot,
   uid: string
 ): Promise<void> {
   if (memberSnap.get('status') !== 'invited') return;
   if (memberSnap.get('roleId') === 'student') return;
+  const tokens = await db
+    .collection(`organizations/${orgId}/invitations`)
+    .where('email', '==', email)
+    .get();
+  const now = new Date();
+  const open = tokens.docs.filter((t) => !t.get('claimedAt'));
+  const live = open.filter(
+    (t) => new Date(String(t.get('expiresAt'))).getTime() >= now.getTime()
+  );
+  // An invite whose links have all lapsed waits for a re-invite, as the link flow does.
+  if (open.length > 0 && live.length === 0) return;
+  const nowIso = now.toISOString();
+  const batch = db.batch();
+  batch.update(
+    memberRef,
+    { status: 'active', uid, lastActive: nowIso },
+    { lastUpdateTime: memberSnap.updateTime }
+  );
+  // Claim the open links so a later deactivation can't be undone with one.
+  for (const t of live) {
+    batch.update(t.ref, { claimedAt: nowIso, claimedByUid: uid });
+  }
   try {
-    await memberRef.update(
-      { status: 'active', uid, lastActive: new Date().toISOString() },
-      { lastUpdateTime: memberSnap.updateTime }
-    );
+    await batch.commit();
   } catch (err) {
     // gRPC 9 = FAILED_PRECONDITION: an admin edited the doc mid-call; the next sign-in retries.
     if ((err as { code?: number }).code !== 9) throw err;
