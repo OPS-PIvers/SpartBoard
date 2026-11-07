@@ -8628,6 +8628,17 @@ export const TOUR_ANCHORS = {
     label: 'YouTube URL field in Backgrounds',
     panel: true,
   },
+  'admin.backgrounds.default-district': {
+    label: 'District default background for new boards',
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.default-building': {
+    label: "A building's default background for new boards",
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'admin.previews.district-switch': {
     label: 'District switch on a Previews row',
     perField: true,

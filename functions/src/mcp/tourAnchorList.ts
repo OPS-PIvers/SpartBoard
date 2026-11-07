@@ -38214,6 +38214,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.backgrounds.default-district",
+    "label": "District default background for new boards",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.backgrounds",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#backgrounds"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.backgrounds.default-building",
+    "label": "A building's default background for new boards",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.backgrounds",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#backgrounds"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.previews.district-switch",
     "label": "District switch on a Previews row",
     "scope": "field",
