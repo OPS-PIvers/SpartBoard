@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { tourAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
-import { Copy, ExternalLink, Link2, Loader2 } from 'lucide-react';
+import { Copy, ExternalLink, Link2, Loader2, X } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
 import type { GuidedLearningSaveGuard } from '@/components/widgets/GuidedLearning/utils/saveConflict';
 import { TOOLS } from '@/config/tools';
@@ -14,6 +14,7 @@ import {
   type TourAnchorQueueItem,
 } from '@/components/tours/anchorQueue';
 import {
+  dismissQueueItem,
   rebindQueueItem,
   useTourAnchorQueue,
 } from '@/components/tours/anchorQueueStore';
@@ -70,7 +71,10 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
   const { items, loading, error } = useTourAnchorQueue();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
+  const [failed, setFailed] = useState<{
+    id: string;
+    kind: 'rebind' | 'dismiss';
+  } | null>(null);
 
   const rows = items
     .map((item) => ({ item, state: queueDisplayState(item) }))
@@ -90,7 +94,20 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
       await rebindQueueItem(item, { load: loadSet, save: saveSet });
     } catch (err) {
       console.error('[TourHealth] Rebind failed:', err);
-      setFailed(item.fingerprint);
+      setFailed({ id: item.fingerprint, kind: 'rebind' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const dismiss = async (item: TourAnchorQueueItem) => {
+    setBusy(item.fingerprint);
+    setFailed(null);
+    try {
+      await dismissQueueItem(item);
+    } catch (err) {
+      console.error('[TourHealth] Dismiss failed:', err);
+      setFailed({ id: item.fingerprint, kind: 'dismiss' });
     } finally {
       setBusy(null);
     }
@@ -176,6 +193,18 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
                       <ExternalLink className="w-3 h-3" aria-hidden="true" />
                     </a>
                   )}
+                  {state === 'needs-human' && (
+                    <button
+                      type="button"
+                      onClick={() => void dismiss(item)}
+                      {...tourAttr('admin.help-center.unmapped-dismiss')}
+                      disabled={busy !== null}
+                      className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                    >
+                      <X className="w-3.5 h-3.5" aria-hidden="true" />
+                      {t('tourHealth.unmapped.dismiss')}
+                    </button>
+                  )}
                   {canRebind(item) && (
                     <button
                       type="button"
@@ -204,9 +233,13 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
                 {state === 'needs-human' && item.reason && (
                   <p className="text-red-700">{item.reason}</p>
                 )}
-                {failed === item.fingerprint && (
+                {failed?.id === item.fingerprint && (
                   <p role="alert" className="text-red-700">
-                    {t('tourHealth.unmapped.rebindFailed')}
+                    {t(
+                      failed.kind === 'dismiss'
+                        ? 'tourHealth.unmapped.dismissFailed'
+                        : 'tourHealth.unmapped.rebindFailed'
+                    )}
                   </p>
                 )}
                 {item.occurrences.length > 0 && (
