@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-136**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-138**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -18,6 +18,9 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 ## Ready
 
 ### Security and correctness
+
+- **AB-136 Activity Wall delete: close before clearing** (S). From the B7 review (#5371). `components/widgets/ActivityWall/WallLibraryModal.tsx` `handleDelete` runs `clearWallSubmissions` before `onDelete`, which now closes the session, so a post made between the two leaves an orphan submission. Close the session first, then clear, then delete. Test the order.
+- **AB-137 Activity Wall archive: Drive file for a post deleted mid-archive** (S). From the B7 review (#5371). When `finalizeResumedSubmission` finds the submission deleted, the Drive file it just uploaded is no longer referenced anywhere. Delete that Drive file with the teacher's token, best effort, and test it.
 
 - **AB-127 Scan-first hybrid row blocks a PIN student's device join** (S, rules, before `paper-written-hybrid` opens). From release #5335 review. On a roster without a ClassLink pseudonym, `importPaperResponses.ts` (`hybridResponseFields`) creates a `joined` response whose `studentUid` is the `pin-…` response key, and the response update rule requires `authUid() == existing().studentUid`, so a student who opens the quiz after their sheet is scanned can't join. PINs are off at the org today. Let the device join adopt an unowned `paperWrittenBatchId` row and keep its paper answers. Done with rules tests for the adopt and for a second device being refused; check `check:rules-size`.
 - **AB-128 Teammate print: custom image answer boxes** (S, behind paper sheet flags). From release #5335 review. `toPaperQuestion` (`functions/src/createTeammatePaperBatch.ts`) drops `paperBoxImage`, so a PLC teammate's sheets print lines where the owner's print shows the image, and those boxes go to transcription. Copying the field alone printed an empty box, because `PlcTeammatePrintModal` never passes `writtenImages` to `printPaperSheets`. Resolve each image box's src there (public only, like its sheet stimuli), then copy `paperBoxImage`, keeping `lines` for any box whose image can't load. Done when a teammate sheet prints the image and import grades the crop, with tests.
