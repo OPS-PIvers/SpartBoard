@@ -193,9 +193,7 @@ export default defineSettings<RandomConfig>({
           type: 'toggle',
           label: 'avoidRecentPartners',
           help: 'avoidRecentPartnersHelp',
-          visibleWhen: (ctx) =>
-            isMode('groups')(ctx) &&
-            ctx.canAccessFeature('random-avoid-repeats'),
+          visibleWhen: isMode('groups'),
         },
         // schema-gap: rosterDerivedSlider
         {

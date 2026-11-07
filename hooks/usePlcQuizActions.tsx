@@ -88,7 +88,7 @@ function formatDate(ms: number): string {
 
 export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
   const { t } = useTranslation();
-  const { user, getAssignmentMode, canAccessFeature } = useAuth();
+  const { user, getAssignmentMode } = useAuth();
   // D11: an assign uses this teacher's last-used settings, not the author's.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
@@ -497,7 +497,6 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           uid: user.uid,
           assignmentId: created.id,
           behavior,
-          attemptHistoryEnabled: canAccessFeature('quiz-attempt-history'),
           logScope: 'usePlcQuizActions.assign',
         });
         await applyPlcStepperStudentPicks({
@@ -571,7 +570,6 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
       addToast,
       attachSyncLinkage,
       busyRowId,
-      canAccessFeature,
       createAssignment,
       deleteQuiz,
       getAssignmentMode,

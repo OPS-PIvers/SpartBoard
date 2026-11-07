@@ -36,7 +36,7 @@ const assignment = (over: Partial<FlashcardAssignment>) =>
     ...over,
   }) as FlashcardAssignment;
 
-const setup = (linkChecks: boolean) => {
+const setup = () => {
   const setPlcShare = vi.fn(() => Promise.resolve());
   const linkCheck = vi.fn(() => Promise.resolve());
   const { result } = renderHook(() =>
@@ -44,7 +44,6 @@ const setup = (linkChecks: boolean) => {
       enabled: true,
       addToast: vi.fn(),
       setPlcShare,
-      linkChecks,
       linkCheck,
     })
   );
@@ -55,7 +54,7 @@ describe('useFlashcardPlcSharing', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('links a student check instead of writing a results doc', async () => {
-    const { result, linkCheck, setPlcShare } = setup(true);
+    const { result, linkCheck, setPlcShare } = setup();
     await act(async () => {
       await result.current.shareNewAssignmentResults(assignment({}), plc);
     });
@@ -65,7 +64,7 @@ describe('useFlashcardPlcSharing', () => {
   });
 
   it('unlinks when saving the share fails', async () => {
-    const { result, linkCheck, setPlcShare } = setup(true);
+    const { result, linkCheck, setPlcShare } = setup();
     setPlcShare.mockRejectedValueOnce(new Error('nope'));
     let ok = true;
     await act(async () => {
@@ -75,23 +74,20 @@ describe('useFlashcardPlcSharing', () => {
     expect(linkCheck).toHaveBeenLastCalledWith(expect.anything(), null);
   });
 
-  it('keeps the results doc for staff checks and with the flag off', async () => {
-    for (const [flag, a] of [
-      [true, assignment({ audience: 'staff' })],
-      [false, assignment({})],
-    ] as const) {
-      vi.clearAllMocks();
-      const { result, linkCheck } = setup(flag);
-      await act(async () => {
-        await result.current.shareNewAssignmentResults(a, plc);
-      });
-      expect(linkCheck).not.toHaveBeenCalled();
-      expect(mocks.writeResult).toHaveBeenCalled();
-    }
+  it('keeps the results doc for staff checks', async () => {
+    const { result, linkCheck } = setup();
+    await act(async () => {
+      await result.current.shareNewAssignmentResults(
+        assignment({ audience: 'staff' }),
+        plc
+      );
+    });
+    expect(linkCheck).not.toHaveBeenCalled();
+    expect(mocks.writeResult).toHaveBeenCalled();
   });
 
   it('stopping a check share unlinks and removes any older results doc', async () => {
-    const { result, linkCheck } = setup(false);
+    const { result, linkCheck } = setup();
     await act(async () => {
       await result.current.stopSharingResults(assignment({}));
     });
@@ -100,7 +96,7 @@ describe('useFlashcardPlcSharing', () => {
   });
 
   it('stopping a study share only removes the results doc', async () => {
-    const { result, linkCheck } = setup(true);
+    const { result, linkCheck } = setup();
     await act(async () => {
       await result.current.stopSharingResults(assignment({ kind: 'study' }));
     });

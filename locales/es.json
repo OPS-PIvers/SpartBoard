@@ -2203,6 +2203,9 @@
     "start": "Empezar la Parte {{part}}",
     "startFailed": "No se pudo empezar la Parte {{part}}. Inténtalo de nuevo."
   },
+  "quizPaperWritten": {
+    "writeOnSheet": "Escribe tu respuesta en tu hoja de respuestas de papel."
+  },
   "quizReadAloud": {
     "label": "Leer en voz alta",
     "help": "Solo para estudiantes con sesión iniciada.",
@@ -2499,7 +2502,8 @@
         "paper-pending": "Transcribiendo",
         "paper-failed": "Error",
         "paper-over-quota": "Límite diario",
-        "paper-blank": "En blanco"
+        "paper-blank": "En blanco",
+        "paper-image": "No transcrito"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2664,6 +2668,7 @@
           "failed": "Error",
           "over-quota": "Límite diario",
           "blank": "En blanco",
+          "image": "No transcrito",
           "edited": "Editada"
         },
         "errors": {
@@ -2850,6 +2855,8 @@
     "tourAction_toggle": "Esperar el interruptor",
     "tourAction_select": "Esperar la elección",
     "tourAction_type": "Esperar la escritura",
+    "tourAction_drag": "Esperar el arrastre",
+    "tourAction_resize": "Esperar el cambio de tamaño",
     "tourValueToggle": "Autopilot lo deja",
     "tourValueOn": "Activado",
     "tourValueOff": "Desactivado",
@@ -4065,6 +4072,10 @@
     "showMe": "Muéstramelo",
     "autoPlaying": "Reproduciendo cada paso por usted",
     "yourTurn": "Su turno: haga clic en el punto resaltado",
+    "waitingForResult": "Su turno: la visita continúa cuando esto esté hecho",
+    "stepDone": "Hecho",
+    "stepAlreadyDone": "Ya está hecho",
+    "skipForNow": "Omitir por ahora",
     "autoFallback": "Haga clic aquí para continuar",
     "welcomeTitle": "Bienvenida",
     "notNow": "Ahora no",
@@ -4124,6 +4135,13 @@
     "kept_one": "Se guardó {{count}} elemento en tu biblioteca.",
     "kept_other": "Se guardaron {{count}} elementos en tu biblioteca.",
     "keepFailed": "No se pudieron guardar algunos elementos.",
+    "keepBoardsTitle_one": "¿Conservar el tablero que creó?",
+    "keepBoardsTitle_other": "¿Conservar los tableros que creó?",
+    "keepBoards_one": "Conservarlo",
+    "keepBoards_other": "Conservarlos",
+    "removeBoards_one": "Quitarlo",
+    "removeBoards_other": "Quitarlos",
+    "removeBoardsFailed": "No se pudo quitar todo lo que creó la visita. Elimine el resto desde Tableros.",
     "keepItemsTitle_one": "¿Conservar lo que hiciste?",
     "keepItemsTitle_other": "¿Conservar lo que hiciste?",
     "keepItems_one": "Conservarlo",

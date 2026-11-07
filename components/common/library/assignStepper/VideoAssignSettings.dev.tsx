@@ -12,7 +12,7 @@ const day = (offset: number, hour: number) => {
   return d.getTime();
 };
 
-const ASSIGNMENT = {
+export const ASSIGNMENT = {
   id: 'a1',
   activityId: 'v1',
   activityTitle: 'Cell Division Video',

@@ -84,11 +84,11 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   speakLocked?: boolean;
   /** Study only: Speak is hidden for this assignment and stays hidden on set saves. */
   speakOff?: boolean;
-  /** flashcards-assign-v2: Speak rules picked when assigning, used instead of the set's. */
+  /** Speak rules picked when assigning, used instead of the set's. */
   speakChoice?: FlashcardSpeakChoice;
   /** Check only: how `set.cards` was narrowed (already applied to the cards). */
   cardSelection?: FlashcardCardSelection;
-  /** Check only (flashcards-assign-v2): attempts, time limit, shuffle, integrity, What students see. */
+  /** Check only: attempts, time limit, shuffle, integrity, What students see. */
   rules?: FlashcardCheckRules;
   /** Check only: the PLC its results pool into. */
   plcLink?: { plcId: string; syncGroupId: string };
@@ -148,7 +148,6 @@ export const useFlashcardAssignments = (
   const [error, setError] = useState<string | null>(null);
   const auth = useContext(AuthContext);
   const canSpeak = auth?.canAccessFeature('flashcards-speak') ?? false;
-  const testNavBar = auth?.canAccessFeature('flashcards-test-nav') ?? false;
 
   // Reset during render when the signed-in user changes.
   const [prevUserId, setPrevUserId] = useState(userId);
@@ -293,7 +292,6 @@ export const useFlashcardAssignments = (
         ...(plcLink
           ? { plcId: plcLink.plcId, syncGroupId: plcLink.syncGroupId }
           : {}),
-        ...(testNavBar ? { testNavBar: true as const } : {}),
         classIds,
         classId: classIds[0] ?? '',
         ...(periodNames.length > 0 ? { periodNames } : {}),
@@ -357,7 +355,7 @@ export const useFlashcardAssignments = (
       await batch.commit();
       return id;
     },
-    [canSpeak, testNavBar, userId]
+    [canSpeak, userId]
   );
 
   const endAssignment = useCallback<

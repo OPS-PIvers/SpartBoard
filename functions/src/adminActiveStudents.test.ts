@@ -4,6 +4,8 @@ vi.mock('./functionsInit', () => ({}));
 
 import {
   OPEN_SOURCES,
+  addRosterTeachers,
+  keepTaughtOwners,
   buildActiveStudentRows,
   latestOpensByStudent,
   mapWithConcurrency,
@@ -121,5 +123,77 @@ describe('mapWithConcurrency', () => {
     });
     expect(peak).toBe(3);
     expect(seen.sort()).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+});
+
+describe('orderSectionsForNameLookup cover', () => {
+  it('puts a greedy cover first so redundant sections come last', () => {
+    const order = orderSectionsForNameLookup(
+      [
+        { uid: 'a', sectionIds: ['big', 'x'], lastSignInMs: NOW },
+        { uid: 'b', sectionIds: ['big', 'x'], lastSignInMs: NOW },
+        { uid: 'c', sectionIds: ['big', 'y'], lastSignInMs: NOW },
+        { uid: 'd', sectionIds: ['z'], lastSignInMs: NOW },
+      ],
+      new Set(['big', 'x', 'y', 'z'])
+    );
+    expect(order.slice(0, 2)).toEqual(['big', 'z']);
+    expect(order.slice(2).sort()).toEqual(['x', 'y']);
+  });
+
+  it('skips students who already have a name', () => {
+    const order = orderSectionsForNameLookup(
+      [
+        { uid: 'a', sectionIds: ['s1'], lastSignInMs: NOW },
+        { uid: 'b', sectionIds: ['s2'], lastSignInMs: NOW },
+      ],
+      new Set(['s1', 's2']),
+      new Set(['a'])
+    );
+    expect(order).toEqual(['s2']);
+  });
+});
+
+describe('addRosterTeachers', () => {
+  it('adds the teachers who imported a student class, dated by the later of open and sign-in', () => {
+    const opens = new Map([['a', new Map([['t1', 30]])]]);
+    const result = addRosterTeachers(
+      opens,
+      [
+        { uid: 'a', sectionIds: ['s1'], lastSignInMs: 50 },
+        { uid: 'b', sectionIds: ['s1', 's2'], lastSignInMs: 40 },
+        { uid: 'c', sectionIds: ['lunch'], lastSignInMs: 20 },
+      ],
+      new Map([
+        ['s1', new Set(['t1', 't2'])],
+        ['s2', new Set(['t3'])],
+      ])
+    );
+    expect([...(result.get('a') ?? [])]).toEqual([
+      ['t1', 50],
+      ['t2', 50],
+    ]);
+    expect([...(result.get('b') ?? [])]).toEqual([
+      ['t1', 40],
+      ['t2', 40],
+      ['t3', 40],
+    ]);
+    expect(result.has('c')).toBe(false);
+  });
+});
+
+describe('keepTaughtOwners', () => {
+  it('drops a roster owner ClassLink does not list as teaching the class', () => {
+    const owners = keepTaughtOwners(
+      new Map([
+        ['s1', new Set(['real', 'claimed'])],
+        ['s2', new Set(['claimed'])],
+      ]),
+      new Map([
+        ['real', new Set(['s1'])],
+        ['claimed', new Set(['other'])],
+      ])
+    );
+    expect([...owners]).toEqual([['s1', new Set(['real'])]]);
   });
 });

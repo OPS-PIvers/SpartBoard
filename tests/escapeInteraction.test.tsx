@@ -49,6 +49,9 @@ vi.mock('@/components/widgets/WidgetRenderer', () => ({
 vi.mock('@/components/import/ImportScreenHost', () => ({
   ImportScreenHost: () => null,
 }));
+vi.mock('@/components/tours/useTourConditions', () => ({
+  useTourConditions: () => () => undefined,
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1' },

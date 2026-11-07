@@ -148,12 +148,12 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
   },
 };
 
-/** The admin flag that rolls out each Import type, on top of universal-import. */
+/** The admin flag that rolls out each Import type, on top of universal-import; null means the type has launched. */
 export const IMPORT_TARGET_FEATURES: Partial<
-  Record<ImportTarget, GlobalFeature>
+  Record<ImportTarget, GlobalFeature | null>
 > = {
-  quiz: 'import-quiz',
-  questionBank: 'import-quiz',
+  quiz: null,
+  questionBank: null,
   flashcards: 'import-flashcards',
   activityWall: 'import-activity-wall',
   board: 'import-new-board',
@@ -166,6 +166,15 @@ export const IMPORT_TARGET_FEATURES: Partial<
   embed: 'import-embed',
   links: 'import-link',
 };
+
+/** True when this Import type is offered: launched (null), or its own flag passes. */
+export function importTypeOn(
+  target: ImportTarget,
+  canAccessFeature: (feature: GlobalFeature) => boolean
+): boolean {
+  const flag = IMPORT_TARGET_FEATURES[target];
+  return flag === null || (!!flag && canAccessFeature(flag));
+}
 
 export function importRoute(target: ImportTarget): ImportRoute | null {
   return IMPORT_ROUTES[target] ?? null;

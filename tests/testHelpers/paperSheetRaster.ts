@@ -6,9 +6,10 @@
 
 import type { PaperPageMap } from '@/types';
 import {
+  WRITTEN_OUTLINE_MM,
   mcItemsOf,
+  writtenBoxBandsMm,
   writtenItemsOf,
-  writtenRuleYsMm,
 } from '@/utils/paperPageMap';
 import {
   BUBBLE_DIAMETER_MM,
@@ -77,7 +78,7 @@ export interface SyntheticSheetOptions {
    */
   pageMap?: PaperPageMap;
   writing?: SyntheticWriting[];
-  /** Grey the rule lines print at; defaults to the sheet's (BUBBLE_LETTER_GREY). */
+  /** Grey the outline, rule, grid and axis lines print at; defaults to the sheet's (BUBBLE_LETTER_GREY). */
   ruleGrey?: number;
   marks?: SyntheticMark[];
   /** Pixels per millimetre; 200 dpi is about 7.87. */
@@ -225,20 +226,44 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
         0.55
       );
       // 1 mm pieces, so a skewed feed tilts the line instead of fattening its bounding box.
-      for (const y of writtenRuleYsMm(item)) {
+      const hLine = (y: number, weight: number): void => {
         for (let x = item.boxMm.x; x < item.boxMm.x + item.boxMm.w; x += 1) {
           fillRect(
             {
               x,
-              y: y - 0.3,
+              y,
               w: Math.min(1, item.boxMm.x + item.boxMm.w - x),
-              h: 0.3,
+              h: weight,
             },
             1,
             ruleTone
           );
         }
-      }
+      };
+      const vLine = (x: number, weight: number): void => {
+        for (let y = item.boxMm.y; y < item.boxMm.y + item.boxMm.h; y += 1) {
+          fillRect(
+            {
+              x,
+              y,
+              w: weight,
+              h: Math.min(1, item.boxMm.y + item.boxMm.h - y),
+            },
+            1,
+            ruleTone
+          );
+        }
+      };
+      const o = WRITTEN_OUTLINE_MM;
+      hLine(item.boxMm.y, o);
+      hLine(item.boxMm.y + item.boxMm.h - o, o);
+      vLine(item.boxMm.x, o);
+      vLine(item.boxMm.x + item.boxMm.w - o, o);
+      const bands = writtenBoxBandsMm(item);
+      for (const r of bands.rows)
+        hLine(r.centreMm - r.weightMm / 2, r.weightMm);
+      for (const c of bands.cols)
+        vLine(c.centreMm - c.weightMm / 2, c.weightMm);
       const writing = opts.writing?.find(
         (w) => w.questionId === item.questionId
       );

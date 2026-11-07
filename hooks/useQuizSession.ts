@@ -7,6 +7,7 @@
  * useQuizSessionStudent — Student joins and submits answers.
  */
 
+import { isAnswerKeyboard } from '@/config/studentKeyboards';
 import { alignedOrderingImages } from '@/utils/quizOrderingImages';
 import { imagesForLabels } from '@/utils/quizAnswerImages';
 import { stripRubricExamples } from '@/utils/rubricGuide';
@@ -554,8 +555,7 @@ function rubricForScoredResults(rubric: Rubric): Rubric {
  */
 export function toPublicQuestion(
   q: QuizQuestion,
-  translations?: Record<string, QuestionTranslation>,
-  options?: { hideRubricUnlessShown?: boolean }
+  translations?: Record<string, QuestionTranslation>
 ): QuizPublicQuestion {
   // Every type is translatable now; the guard stays so a future exclusion holds.
   const entries = isTranslatableQuestionType(q.type)
@@ -570,6 +570,11 @@ export function toPublicQuestion(
     timeLimit: q.timeLimit,
   };
   if (q.targets?.length) base.targets = q.targets.map((t) => ({ ...t }));
+  if (
+    (q.type === 'FIB' || isFreeResponseType(q.type)) &&
+    isAnswerKeyboard(q.answerKeyboard)
+  )
+    base.answerKeyboard = q.answerKeyboard;
   if (q.type === 'MC') {
     const english = [q.correctAnswer, ...q.incorrectAnswers.filter(Boolean)];
     const permutation = randomPermutation(english.length);
@@ -679,9 +684,7 @@ export function toPublicQuestion(
     }
     if (q.noSpellCheck === true) base.noSpellCheck = true;
     if (q.points && q.points > 0) base.points = q.points;
-    const hideRubric =
-      options?.hideRubricUnlessShown === true &&
-      q.rubricVisibleToStudents !== true;
+    const hideRubric = q.rubricVisibleToStudents !== true;
     if (q.rubricSnapshot) {
       // Example responses are an answer key; they reach students only through published results.
       base.rubricSnapshot = hideRubric
@@ -835,8 +838,52 @@ export function isWrittenAnswerAwaitingGrade(
 ): boolean {
   // A paper transcript still in flight is owed a grade even though its text is empty.
   if (!grade)
-    return paperTranscript === 'pending' || hasSubmittedContent(studentAnswer);
+    return (
+      paperTranscript === 'pending' ||
+      paperTranscript === 'image' ||
+      hasSubmittedContent(studentAnswer)
+    );
   return question ? isPartialRubricGrade(question, grade) : false;
+}
+
+/**
+ * Hybrid paper quiz (`paper-written-hybrid`): a written question answered on the printed
+ * sheet is owed a grade until its scan lands or the teacher grades it, never a 0.
+ */
+export function isPaperWrittenSlotAwaiting(
+  response: Pick<
+    QuizResponse,
+    'answers' | 'grading' | '_notChosen' | 'servedQuestionIds'
+  >,
+  questionId: string,
+  paperWrittenQuestionIds: readonly string[] | undefined
+): boolean {
+  if (!paperWrittenQuestionIds?.includes(questionId)) return false;
+  if (response._notChosen?.includes(questionId)) return false;
+  const served = response.servedQuestionIds;
+  if (served && served.length > 0 && !served.includes(questionId)) return false;
+  if (response.grading?.[questionId]) return false;
+  // A scanned answer (pending, blank or done) or typed text grades through gradeAnswer.
+  return !(response.answers ?? []).some(
+    (a) =>
+      a?.questionId === questionId &&
+      (a.paperTranscript !== undefined || hasSubmittedContent(a.answer))
+  );
+}
+
+/** Any listed hybrid paper question this response is still owed a grade for. */
+export function hasPaperWrittenAwaiting(
+  response: Pick<
+    QuizResponse,
+    'answers' | 'grading' | '_notChosen' | 'servedQuestionIds'
+  >,
+  questionIds: readonly string[],
+  paperWrittenQuestionIds: readonly string[] | undefined
+): boolean {
+  if (!paperWrittenQuestionIds?.length) return false;
+  return questionIds.some((id) =>
+    isPaperWrittenSlotAwaiting(response, id, paperWrittenQuestionIds)
+  );
 }
 
 /** The `paperTranscript` state of a response's answer to one question, if any. */

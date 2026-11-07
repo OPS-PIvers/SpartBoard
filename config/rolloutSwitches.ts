@@ -69,6 +69,10 @@ import {
   FOCUS_SESSIONS_SETTINGS_DOC,
   normalizeFocusLiveSiteSettings,
 } from '@/config/focusSessions';
+import {
+  GETTING_STARTED_SETTINGS_DOC,
+  normalizeGettingStartedSidebarSwitch,
+} from '@/config/gettingStarted';
 
 export interface RolloutSwitch {
   docId: string;
@@ -216,5 +220,13 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     title: 'AI in Import',
     description: 'Import can use AI to turn a page or file into an activity.',
     normalize: normalizeImportConversionSettings,
+  },
+  {
+    docId: GETTING_STARTED_SETTINGS_DOC,
+    field: 'showInSidebar',
+    feature: 'getting-started',
+    title: 'Getting Started in the sidebar',
+    description: "Shows the item below What's New. On by default.",
+    normalize: normalizeGettingStartedSidebarSwitch,
   },
 ];

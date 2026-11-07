@@ -569,8 +569,19 @@ export const OrganizationPanel: React.FC = () => {
       );
     }
     if (skipped.length > 0) {
+      const count = (status: string) =>
+        skipped.filter((r) => r.status === status).length;
+      const reasons = [
+        { n: count('already_active'), label: 'already active' },
+        { n: count('already_invited'), label: 'already invited' },
+        { n: count('already_inactive'), label: 'deactivated' },
+      ]
+        .filter(({ n }) => n > 0)
+        .map(({ n, label }) => `${n} ${label}`);
       showToast(
-        `${skipped.length} invite(s) skipped (already active or duplicate).`,
+        reasons.length > 0
+          ? `${skipped.length} skipped: ${reasons.join(', ')}.`
+          : `${skipped.length} invite(s) skipped.`,
         'info'
       );
     }

@@ -292,18 +292,10 @@ describe('toPublicQuestion', () => {
       rubricSnapshot: rubric,
     };
 
-    it('projects the full rubric when the gate is off', () => {
-      const projected = toPublicQuestion(fr);
-      expect(projected.rubricSnapshot).toEqual(rubric);
-      expect(projected).not.toHaveProperty('rubricHidden');
-    });
-
-    it('hides the rubric by default when the gate is on, keeping only scored-results fields', () => {
-      const projected = toPublicQuestion(
-        fr,
-        { es: { text: 'Explica.', rubricSnapshot: rubric } },
-        { hideRubricUnlessShown: true }
-      );
+    it('hides the rubric by default, keeping only scored-results fields', () => {
+      const projected = toPublicQuestion(fr, {
+        es: { text: 'Explica.', rubricSnapshot: rubric },
+      });
       expect(projected.rubricHidden).toBe(true);
       const expected = {
         id: 'r1',
@@ -326,11 +318,10 @@ describe('toPublicQuestion', () => {
     });
 
     it('projects the full rubric when the teacher shows it to students', () => {
-      const projected = toPublicQuestion(
-        { ...fr, rubricVisibleToStudents: true },
-        undefined,
-        { hideRubricUnlessShown: true }
-      );
+      const projected = toPublicQuestion({
+        ...fr,
+        rubricVisibleToStudents: true,
+      });
       expect(projected.rubricSnapshot).toEqual(rubric);
       expect(projected).not.toHaveProperty('rubricHidden');
     });

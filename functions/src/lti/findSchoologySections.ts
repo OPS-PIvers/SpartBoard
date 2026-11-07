@@ -25,7 +25,6 @@ import {
   saveSectionLink,
   type OwnedRoster,
 } from './linkSectionByUrl';
-import { isGlobalFeatureGranted } from '../quizMediaArchive';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
 import {
@@ -41,7 +40,6 @@ const SCHOOLOGY_API_CONSUMER_SECRET = defineSecret(
   'SCHOOLOGY_API_CONSUMER_SECRET'
 );
 
-export const SCHOOLOGY_AUTO_LINK_FEATURE = 'schoology-auto-link';
 const MAX_CLASSES = 60;
 const CONCURRENCY = 5;
 /** Find returns the rows finished by then; the callable's own timeout is 120 s. */
@@ -351,19 +349,6 @@ export const ltiFindSchoologySectionsV1 = onCall(
     }
 
     const db = admin.firestore();
-    if (
-      !(await isGlobalFeatureGranted(
-        db,
-        SCHOOLOGY_AUTO_LINK_FEATURE,
-        email,
-        callerUid
-      ))
-    ) {
-      throw new HttpsError(
-        'permission-denied',
-        'Finding Schoology courses is not available for your account.'
-      );
-    }
     const creds = restCreds();
     if (!creds) {
       throw new HttpsError(

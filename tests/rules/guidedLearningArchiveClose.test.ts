@@ -21,6 +21,7 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-gl-archive-close-test';
 const SESSION_ID = 'gl-session-1';
@@ -50,6 +51,7 @@ const asTeacher = (uid = TEACHER_UID) =>
   testEnv
     .authenticatedContext(uid, {
       email: `${uid}@school.edu`,
+      email_verified: true,
       studentRole: false,
       classIds: [],
       firebase: { sign_in_provider: 'google.com' },
@@ -120,6 +122,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [
+      `${TEACHER_UID}@school.edu`,
+      `${OTHER_TEACHER_UID}@school.edu`,
+    ])
+  );
 });
 
 describe('Guided Learning archive — who can close the session', () => {

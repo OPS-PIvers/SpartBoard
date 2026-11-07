@@ -26,7 +26,7 @@ export const WidgetWhatsNewButton: React.FC<WidgetWhatsNewButtonProps> = ({
   const { t } = useTranslation();
   return (
     <div className="inline-flex items-center rounded-lg border border-slate-200/80 bg-white/90 shadow-md backdrop-blur-sm animate-in fade-in duration-200">
-      <button
+      <button // no-tour-anchor: transient per-widget update notice
         type="button"
         onClick={onExpand}
         aria-expanded={expanded}
@@ -89,7 +89,7 @@ export const WidgetWhatsNewCard: React.FC<WidgetWhatsNewCardProps> = ({
       </p>
       <div className="flex justify-center gap-2 border-t border-slate-100 px-3 py-2">
         {onShowMe && (
-          <button
+          <button // no-tour-anchor: transient per-widget update notice
             type="button"
             onClick={onShowMe}
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2"
@@ -98,7 +98,7 @@ export const WidgetWhatsNewCard: React.FC<WidgetWhatsNewCardProps> = ({
             {t('tours.showMe')}
           </button>
         )}
-        <button
+        <button // no-tour-anchor: transient per-widget update notice
           type="button"
           onClick={onDismiss}
           className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"

@@ -24,6 +24,8 @@ export interface AssignStepperProps {
   /** Replaces the whole dialog content (its own header, scrolling body and footer), e.g. Modifications. */
   overlayView?: React.ReactNode;
   zIndex?: string;
+  /** Renders the steps and footer in place, without the dialog or its Cancel. */
+  inline?: boolean;
 }
 
 export const AssignStepper: React.FC<AssignStepperProps> = ({
@@ -40,6 +42,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   disabledReason,
   overlayView,
   zIndex,
+  inline = false,
 }) => {
   const titleId = useId();
   const outward = useViewAsOutward();
@@ -133,25 +136,61 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
     </div>
   );
 
+  const submitButton = (
+    <button
+      {...tourAttr('assign-stepper.submit')}
+      type="button"
+      onClick={() => void handleSubmit()}
+      disabled={blocked}
+      title={outward.lockedTitle ?? (disabled ? disabledReason : undefined)}
+      className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {submitting ? (
+        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+      ) : (
+        <SubmitIcon className="w-4 h-4" aria-hidden="true" />
+      )}
+      {submitLabel}
+    </button>
+  );
+
   const footer = (
     <div className="flex items-center justify-end gap-2 px-6 py-3">
-      <button
-        {...tourAttr('assign-stepper.submit')}
-        type="button"
-        onClick={() => void handleSubmit()}
-        disabled={blocked}
-        title={outward.lockedTitle ?? (disabled ? disabledReason : undefined)}
-        className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {submitting ? (
-          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-        ) : (
-          <SubmitIcon className="w-4 h-4" aria-hidden="true" />
-        )}
-        {submitLabel}
-      </button>
+      {submitButton}
     </div>
   );
+
+  const stepList = (
+    <div className="space-y-1.5">
+      {steps.map((step, i) => (
+        <AssignStep
+          key={step.id}
+          id={step.id}
+          ref={(el) => {
+            stepRefs.current[i] = el;
+          }}
+          number={i + 1}
+          title={step.title}
+          value={step.value}
+          open={i === current}
+          onOpen={() => openStep(i)}
+          onContinue={i < steps.length - 1 ? () => openStep(i + 1) : undefined}
+        >
+          {step.body}
+        </AssignStep>
+      ))}
+    </div>
+  );
+
+  if (inline) {
+    return (
+      <div aria-label={title} role="group">
+        {topSwitch && <div className="mb-4">{topSwitch}</div>}
+        {stepList}
+        <div className="flex justify-end pt-3">{submitButton}</div>
+      </div>
+    );
+  }
 
   return (
     <Modal
@@ -167,27 +206,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
       zIndex={zIndex}
     >
       {topSwitch && <div className="mb-4">{topSwitch}</div>}
-      <div className="space-y-1.5">
-        {steps.map((step, i) => (
-          <AssignStep
-            key={step.id}
-            id={step.id}
-            ref={(el) => {
-              stepRefs.current[i] = el;
-            }}
-            number={i + 1}
-            title={step.title}
-            value={step.value}
-            open={i === current}
-            onOpen={() => openStep(i)}
-            onContinue={
-              i < steps.length - 1 ? () => openStep(i + 1) : undefined
-            }
-          >
-            {step.body}
-          </AssignStep>
-        ))}
-      </div>
+      {stepList}
     </Modal>
   );
 };

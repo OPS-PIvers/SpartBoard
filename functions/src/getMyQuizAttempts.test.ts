@@ -73,10 +73,6 @@ function seed(over: Record<string, StubData | undefined> = {}) {
     [RESPONSE]: { studentUid: 'u1', status: 'completed', completedAttempts: 3 },
     'users/t1/quiz_assignments/qs1': { questionSnapshot: [] },
     'users/t1/quiz_assignments/qs1/key/answers': key,
-    'global_permissions/quiz-attempt-history': {
-      enabled: true,
-      accessLevel: 'public',
-    },
     [`${RESPONSE}/attempts/1`]: copy(1, [
       { questionId: 'q1', answer: 'B' },
       { questionId: 'q2', answer: 'C' },
@@ -103,7 +99,6 @@ function seed(over: Record<string, StubData | undefined> = {}) {
 const deps = (stub: ReturnType<typeof seed>): MyAttemptsDeps => ({
   db: stub.db as unknown as MyAttemptsDeps['db'],
   now: () => T + 1000,
-  teacherEmailOf: () => Promise.resolve('teacher@school.org'),
 });
 
 const call = (stub: ReturnType<typeof seed>, uid: string | null = 'u1') =>
@@ -186,18 +181,6 @@ describe('handleGetMyQuizAttempts', () => {
           studentUid: 'u1',
           status: 'completed',
           resultsOverride: { mode: 'hidden' },
-        },
-      })
-    );
-    expect(attempts).toEqual([]);
-  });
-
-  it("returns nothing when the teacher's flag is off", async () => {
-    const { attempts } = await call(
-      seed({
-        'global_permissions/quiz-attempt-history': {
-          enabled: true,
-          accessLevel: 'admin',
         },
       })
     );

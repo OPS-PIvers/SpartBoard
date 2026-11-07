@@ -41,7 +41,7 @@ interface TestModeProps {
   }) => void;
   /** Check · Test: one attempt, graded by the server instead of reviewed here. */
   check?: TestModeCheck;
-  /** One question at a time under a Question N of M bar (flashcards-test-nav), instead of the number strip. */
+  /** One question at a time under a Question N of M bar, instead of the number strip. */
   questionBar?: boolean;
 }
 

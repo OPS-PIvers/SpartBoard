@@ -319,6 +319,26 @@ describe('parseCreateInvitesPayload', () => {
     ).toThrow();
   });
 
+  it('passes skipExisting through only when true', () => {
+    const invitations = [
+      { email: 'user@ex.com', roleId: 'teacher', buildingIds: [] },
+    ];
+    expect(
+      parseCreateInvitesPayload({
+        orgId: 'orono',
+        invitations,
+        skipExisting: true,
+      }).payload.skipExisting
+    ).toBe(true);
+    expect(
+      parseCreateInvitesPayload({
+        orgId: 'orono',
+        invitations,
+        skipExisting: 'yes',
+      }).payload.skipExisting
+    ).toBeUndefined();
+  });
+
   it('clamps expiresInDays in the returned payload', () => {
     const { payload } = parseCreateInvitesPayload({
       orgId: 'orono',
@@ -667,6 +687,28 @@ describe('planMemberWrite', () => {
     if (plan.action === 'create') {
       expect(plan.patch.name).toBe('New Name');
     }
+  });
+
+  it('skipExisting leaves invited and deactivated members untouched', () => {
+    const member = (status: MemberRecord['status']): MemberRecord => ({
+      email: 'user@ex.com',
+      orgId: 'orono',
+      roleId: 'teacher',
+      buildingIds: ['b1'],
+      status,
+    });
+    const opts = { orgId: 'orono', now, addedBy: 'admin', skipExisting: true };
+    const change = { ...baseInvite, roleId: 'domain_admin' };
+    expect(planMemberWrite(member('invited'), change, opts).action).toBe(
+      'already_invited'
+    );
+    expect(planMemberWrite(member('inactive'), change, opts).action).toBe(
+      'already_inactive'
+    );
+    expect(planMemberWrite(member('active'), change, opts).action).toBe(
+      'already_active'
+    );
+    expect(planMemberWrite(undefined, change, opts).action).toBe('create');
   });
 });
 

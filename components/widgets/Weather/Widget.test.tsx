@@ -50,7 +50,6 @@ const mockFeaturePermissions = [
 
 const mockAuth = {
   detailsFlag: false,
-  gearFlag: false,
   selectedBuildings: ['intermediate'],
 };
 
@@ -58,11 +57,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     featurePermissions: mockFeaturePermissions,
     canAccessFeature: (id: string) =>
-      id === 'weather-details'
-        ? mockAuth.detailsFlag
-        : id === 'weather-gear-layout'
-          ? mockAuth.gearFlag
-          : true,
+      id === 'weather-details' ? mockAuth.detailsFlag : true,
     selectedBuildings: mockAuth.selectedBuildings,
   }),
 }));
@@ -115,28 +110,7 @@ describe('WeatherWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAuth.detailsFlag = false;
-    mockAuth.gearFlag = false;
     mockAuth.selectedBuildings = ['intermediate'];
-  });
-
-  it('displays default clothing message when no range matches', () => {
-    const widget: WidgetData = {
-      ...baseWidget,
-      config: { ...baseWidget.config, temp: 72 },
-    };
-    render(<WeatherWidget widget={widget} />);
-    expect(screen.getByText(/Long Sleeves/i)).toBeInTheDocument();
-  });
-
-  it('displays custom message and image when range matches (Freezing)', () => {
-    const widget: WidgetData = {
-      ...baseWidget,
-      config: { ...baseWidget.config, temp: 20 },
-    };
-    render(<WeatherWidget widget={widget} />);
-    expect(screen.getByText('It is freezing!')).toBeInTheDocument();
-    const img = screen.getByAltText('Weather');
-    expect(img).toHaveAttribute('src', 'ice.png');
   });
 
   it('displays custom message without image when range matches (Hot)', () => {
@@ -171,11 +145,11 @@ describe('WeatherWidget', () => {
       config: { ...baseWidget.config, temp },
     };
     render(<WeatherWidget widget={widget} />);
-    // jsdom rewrites calc(x / n) as (1/n) * x.
-    const factor = /min\(35cqmin, ([\d.]+) \* \(100cqw - 34cqmin\)\)/.exec(
+    // jsdom resolves calc(68cqw / n) to a single cqw value.
+    const size = /min\(75cqh, 40cqw, ([\d.]+)cqw\)/.exec(
       screen.getByText(`${temp}°`).style.fontSize
     )?.[1];
-    expect(Number(factor)).toBeCloseTo(1 / widthEm, 6);
+    expect(Number(size)).toBeCloseTo(68 / widthEm, 6);
   });
 
   it('syncs background when enabled', async () => {
@@ -271,11 +245,7 @@ describe('WeatherWidget', () => {
       expect(screen.getByText('humidity:92')).toBeInTheDocument();
     });
   });
-  describe('recess gear redesign', () => {
-    beforeEach(() => {
-      mockAuth.gearFlag = true;
-    });
-
+  describe('recess gear', () => {
     it('fills the widget with the default message and its picture', () => {
       const widget: WidgetData = {
         ...baseWidget,

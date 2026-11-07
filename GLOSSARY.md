@@ -40,6 +40,38 @@ _Avoid_: attachment
 The Source URL or file name recorded on a Library item made by Conversion.
 _Avoid_: citation, provenance
 
+## Teachers working together
+
+**Team**:
+A group of teachers who work together, listed under My Teams. A PLC is one kind of Team, alongside department, mentoring and building groups.
+_Avoid_: PLC (for Teams in general), Group (that means joined widgets), My PLCs
+
+**Student team**:
+A set of students split up for class work, as in the Randomizer or a roster's saved groups. Always say "student team" when it could be mistaken for a Team.
+_Avoid_: Team (unqualified, when talking about students)
+
+## Getting Started
+
+**Live tour**:
+A walkthrough that runs on the real app, pointing at real controls while the teacher uses them.
+_Avoid_: walkthrough (for the object), guide (Sparty is the guide), Guided Learning (the tour's authoring format, not what a teacher sees)
+
+**Getting Started**:
+The set of Live tours that sets up a new teacher, plus the page in the sidebar that lists them with that teacher's progress. It can always be reopened.
+_Avoid_: onboarding (in anything a teacher reads), setup wizard
+
+**Essentials**:
+The first Getting Started tours, offered one after another on a teacher's first day.
+_Avoid_: required steps, basics
+
+**Next steps**:
+The remaining Getting Started tours, taken in any order whenever the teacher likes.
+_Avoid_: advanced, optional tours
+
+**Sparty**:
+SpartBoard's mascot, who appears on every step of a Live tour as the visible guide. Turning him off removes him and nothing else, so no tour's words depend on him.
+_Avoid_: assistant, helper, avatar
+
 ## Boards and widgets
 
 **Group**:

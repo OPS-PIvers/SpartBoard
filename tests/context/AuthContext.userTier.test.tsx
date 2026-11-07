@@ -483,3 +483,29 @@ describe('AuthContext — isExternalUser / hasOrg', () => {
     expect(getCtx().isExternalUser).toBe(false);
   });
 });
+
+describe('AuthContext — roster students without a member doc', () => {
+  it('marks a ClassLink student as a student so the app sends them to My Assignments', async () => {
+    httpsCallableImpl = () =>
+      Promise.resolve({
+        data: { orgId: 'orono', rosterStudent: true } as {
+          orgId: string | null;
+        },
+      });
+    await mountAs({ email: 'kid@orono.k12.mn.us' });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    expect(getCtx().roleId).toBe('student');
+    expect(getCtx().orgId).toBeNull();
+  });
+
+  it('leaves a resolved staff caller without the student role', async () => {
+    httpsCallableImpl = () => Promise.resolve({ data: { orgId: 'orono' } });
+    await mountAs({ email: INTERNAL_EMAIL, isOrgMember: true });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    expect(getCtx().roleId).not.toBe('student');
+  });
+});

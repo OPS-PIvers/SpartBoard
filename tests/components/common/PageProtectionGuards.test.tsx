@@ -2,6 +2,11 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
+import {
+  getHandOffState,
+  markHandedOff,
+  resetHandOffForTests,
+} from '@/utils/attemptHandOff';
 
 const OFF = { blockClipboard: false, blockPrint: false, fullscreen: false };
 
@@ -34,6 +39,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetHandOffForTests();
+  vi.restoreAllMocks();
   document
     .querySelectorAll('style[data-print-block]')
     .forEach((s) => s.remove());
@@ -141,5 +148,64 @@ describe('FullscreenCover', () => {
       await Promise.resolve();
     });
     expect(screen.getByText("Fullscreen didn't open. Try again.")).toBeTruthy();
+  });
+
+  it('sends a Schoology-framed page to the host pop out and goes inert while waiting', () => {
+    Object.defineProperty(document, 'fullscreenEnabled', {
+      configurable: true,
+      get: () => false,
+    });
+    vi.spyOn(window, 'top', 'get').mockReturnValue({} as Window);
+    vi.spyOn(document, 'referrer', 'get').mockReturnValue(
+      'https://orono.schoology.com/'
+    );
+    const { rerender } = render(
+      <PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />
+    );
+    expect(
+      screen.getByText('Use the pop out button on your class page.')
+    ).toBeTruthy();
+    expect(getHandOffState()).toBe('pop-out-pending');
+    rerender(<PageProtectionGuards protections={OFF} />);
+    expect(getHandOffState()).toBe('active');
+  });
+
+  it('lets a page framed by another host work without fullscreen', () => {
+    Object.defineProperty(document, 'fullscreenEnabled', {
+      configurable: true,
+      get: () => false,
+    });
+    vi.spyOn(window, 'top', 'get').mockReturnValue({} as Window);
+    vi.spyOn(document, 'referrer', 'get').mockReturnValue(
+      'https://classroom.google.com/'
+    );
+    const { container } = render(
+      <PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />
+    );
+    expect(container.innerHTML).toBe('');
+    expect(getHandOffState()).toBe('active');
+  });
+
+  it('covers the page once the attempt moved to another tab', () => {
+    render(<PageProtectionGuards protections={OFF} />);
+    act(() => {
+      markHandedOff();
+    });
+    expect(
+      screen.getByRole('dialog', {
+        name: 'This activity is open in another tab',
+      })
+    ).toBeTruthy();
+  });
+
+  it('shows nothing on a top-level page that cannot go fullscreen', () => {
+    Object.defineProperty(document, 'fullscreenEnabled', {
+      configurable: true,
+      get: () => false,
+    });
+    const { container } = render(
+      <PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />
+    );
+    expect(container.innerHTML).toBe('');
   });
 });

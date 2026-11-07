@@ -20,6 +20,7 @@ import {
   type TokenOptions,
 } from '@firebase/rules-unit-testing';
 import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 import { deleteObject, ref, uploadBytes } from 'firebase/storage';
 
 const PROJECT_ID = 'spartboard-security-batch-1b';
@@ -164,6 +165,9 @@ beforeEach(async () => {
     status: 'inactive',
     roleId: 'teacher',
   });
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [TEACHER_EMAIL])
+  );
 });
 
 describe('wall session writes need a teacher identity', () => {

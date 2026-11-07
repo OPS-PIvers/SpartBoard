@@ -80,7 +80,9 @@ export function buildQuizClassroomGradeEntries(
   questions: QuizQuestion[],
   maxPoints: number,
   /** Translated FIB answer keys + served-locale overrides from the assignment. */
-  fibGrading?: FibGradingContext | null
+  fibGrading?: FibGradingContext | null,
+  /** `QuizSession.paperWrittenQuestionIds`: an unscanned paper answer holds the push. */
+  paperWrittenQuestionIds?: readonly string[]
 ): ClassroomGradeEntry[] {
   // Deduplicate by question id ONCE, up front, before either the numerator or
   // the denominator reads `questions` — Drive-sync duplication and arrayUnion
@@ -111,7 +113,7 @@ export function buildQuizClassroomGradeEntries(
         // question-id drift) so a phantom 0 never reaches the gradebook.
         canScoreResponse(r, dedupedQuestions) &&
         // Skip responses still owed a teacher grade — see the doc above.
-        !isResponseAwaitingGrade(r, dedupedQuestions)
+        !isResponseAwaitingGrade(r, dedupedQuestions, paperWrittenQuestionIds)
     )
     .map((r) => {
       // No session arg → correctness points only (no speed/streak bonus); see

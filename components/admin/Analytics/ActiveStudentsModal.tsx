@@ -43,7 +43,9 @@ export const ActiveStudentsModal: React.FC<{
     let cancelled = false;
     const callable = httpsCallable<{ orgId: string }, ActiveStudentsResponse>(
       functions,
-      'getActiveStudentsV1'
+      'getActiveStudentsV1',
+      // The server stops looking up names at 55s; this only covers a cold start on top.
+      { timeout: 110_000 }
     );
     callable({ orgId })
       .then((res) => {

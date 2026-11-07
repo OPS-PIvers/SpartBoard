@@ -73,6 +73,8 @@ interface QuizAssignmentSettingsModalProps {
   onShareResults?: () => void;
   /** Clears the PLC results link (linked assignments). */
   onStopSharing?: () => void | Promise<void>;
+  /** Renders the stepper in place (the live monitor's Settings screen) instead of a dialog. */
+  inline?: boolean;
 }
 
 /** Options object driven through AssignModal's `options` generic. */
@@ -140,6 +142,7 @@ export const QuizAssignmentSettingsModal: React.FC<
   canShareWithPlc = false,
   onShareResults,
   onStopSharing,
+  inline = false,
 }) => {
   const [options, setOptions] = useState<SettingsOptions>(() =>
     initialOptionsFor(assignment, rosters)
@@ -155,10 +158,8 @@ export const QuizAssignmentSettingsModal: React.FC<
   const { t } = useTranslation();
   const ruleGates = useQuizRuleGates();
   const user = useContext(AuthContext)?.user;
-  const finalScoreOn = ruleGates.finalScoreOn === true;
   const [savedPolicy, setSavedPolicy] = useState<AttemptPolicy | null>(null);
   useEffect(() => {
-    if (!finalScoreOn) return;
     let cancelled = false;
     void loadAttemptPolicy(assignment.id).then((p) => {
       if (!cancelled) setSavedPolicy(p);
@@ -166,7 +167,7 @@ export const QuizAssignmentSettingsModal: React.FC<
     return () => {
       cancelled = true;
     };
-  }, [assignment.id, finalScoreOn]);
+  }, [assignment.id]);
   // Until the teacher picks one, the Final score row shows the Gradebook's saved choice.
   const shownBehavior: QuizBehaviorSettings =
     behavior.finalScore === undefined && savedPolicy
@@ -283,12 +284,7 @@ export const QuizAssignmentSettingsModal: React.FC<
       await onSave(patch);
       const picked = behavior.finalScore;
       // Until the saved choice has loaded, any explicit pick is written.
-      if (
-        finalScoreOn &&
-        user?.uid &&
-        picked !== undefined &&
-        picked !== savedPolicy
-      ) {
+      if (user?.uid && picked !== undefined && picked !== savedPolicy) {
         await saveAttemptPolicy(user.uid, assignment.id, 'quiz', picked);
       }
       onClose();
@@ -399,6 +395,7 @@ export const QuizAssignmentSettingsModal: React.FC<
     return (
       <AssignStepper
         isOpen
+        inline={inline}
         onClose={onClose}
         title={assignment.quizTitle}
         steps={[
@@ -422,6 +419,8 @@ export const QuizAssignmentSettingsModal: React.FC<
       />
     );
   }
+
+  if (inline) return null;
 
   return (
     <AssignModal<SettingsOptions>

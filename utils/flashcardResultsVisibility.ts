@@ -26,10 +26,6 @@ export const flashcardClassVisibility = (
   }
 };
 
-export const isFlashcardPublished = (
-  visibility: FlashcardPublishedVisibility | undefined
-): boolean => flashcardClassVisibility(visibility) !== 'none';
-
 /** What one student may see: an unexpired per-student setting wins, else the class level. */
 export const resolveFlashcardResultsVisibility = (
   session: Pick<
@@ -55,7 +51,7 @@ const QUIZ_LEVELS: readonly string[] = [
   'score-responses-and-answers',
 ];
 
-/** Assigned or published with flashcards-assign-v2: only those fields come from it. */
+/** Assigned or published with Quiz-style rules: only those fields come from it. */
 export const isFlashcardV2Check = (
   session: Pick<FlashcardSession, 'rules' | 'scoreVisibility' | 'protection'>
 ): boolean =>
@@ -63,7 +59,7 @@ export const isFlashcardV2Check = (
   session.protection !== undefined ||
   QUIZ_LEVELS.includes(session.scoreVisibility ?? '');
 
-/** The flag-off form's three choices, nearest to a Quiz level. */
+/** The older three score choices, nearest to a Quiz level. */
 export const legacyFlashcardVisibility = (
   visibility: FlashcardPublishedVisibility | undefined
 ): FlashcardScoreVisibility => {

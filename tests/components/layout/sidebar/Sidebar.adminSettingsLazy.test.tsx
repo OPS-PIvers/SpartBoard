@@ -27,6 +27,9 @@ const emptyDashboard: Dashboard = {
   createdAt: 0,
 };
 
+vi.mock('@/hooks/useFirstRun', () => ({
+  useFirstRun: () => ({ quiet: false, welcomePending: false, firstRun: false }),
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'admin-1', email: 'admin@example.com' },

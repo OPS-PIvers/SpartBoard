@@ -4,6 +4,7 @@ import type { QuizQuestion } from '@/types';
 import { joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { inputClass } from './quizEditorFieldStyles';
+import type { RenderAnswerInput } from './answerInput';
 
 type BlankFields = Pick<QuizQuestion, 'correctAnswer' | 'blankAlternates'>;
 
@@ -19,7 +20,10 @@ const clean = (value: string) => joinBlanks([value]);
 export const FibBlanksEditor: React.FC<{
   question: BlankFields;
   onChange: (updates: Partial<BlankFields>) => void;
-}> = ({ question, onChange }) => {
+  /** Sits right of the Correct Answers label, e.g. the Math and Accents links. */
+  headerExtra?: React.ReactNode;
+  renderInput?: RenderAnswerInput;
+}> = ({ question, onChange, headerExtra, renderInput }) => {
   const answers = splitBlanks(question.correctAnswer);
   const alternates = answers.map(
     (_, i) => question.blankAlternates?.[i]?.answers ?? []
@@ -43,50 +47,90 @@ export const FibBlanksEditor: React.FC<{
 
   return (
     <div className="space-y-3">
-      <label className="block font-bold text-emerald-700 text-xs uppercase tracking-wider">
-        Correct Answers
-      </label>
+      <div className="flex items-center justify-between">
+        <label className="block font-bold text-emerald-700 text-xs uppercase tracking-wider">
+          Correct Answers
+        </label>
+        {headerExtra}
+      </div>
       {answers.map((answer, i) => (
         <div
-          key={i}
+          key={renderInput ? `${i}:${answers.length}` : i}
           className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 space-y-2"
         >
           <div className="flex items-center gap-2">
             <span className="shrink-0 w-6 h-6 inline-flex items-center justify-center rounded-full bg-amber-100 text-amber-800 text-xs font-black">
               {i + 1}
             </span>
-            <input
-              type="text"
-              value={answer}
-              aria-label={`Blank ${i + 1} answer`}
-              placeholder={`Blank ${i + 1}`}
-              onChange={(e) => setAnswer(i, e.target.value)}
-              {...tourFieldAttr('quiz-editor.fib-blank', 'quiz', String(i + 1))}
-              className={answerInputClass}
-            />
-          </div>
-          {alternates[i].map((alt, j) => (
-            <div key={j} className="flex items-center gap-2 pl-8">
+            {renderInput ? (
+              renderInput({
+                value: answer,
+                ariaLabel: `Blank ${i + 1} answer`,
+                anchor: tourFieldAttr(
+                  'quiz-editor.fib-blank',
+                  'quiz',
+                  String(i + 1)
+                ),
+                onChange: (next) => setAnswer(i, next),
+              })
+            ) : (
               <input
                 type="text"
-                value={alt}
-                aria-label={`Blank ${i + 1} also accept ${j + 1}`}
-                placeholder="Also accept"
+                value={answer}
+                aria-label={`Blank ${i + 1} answer`}
+                placeholder={`Blank ${i + 1}`}
+                onChange={(e) => setAnswer(i, e.target.value)}
                 {...tourFieldAttr(
-                  'quiz-editor.fib-alternate',
+                  'quiz-editor.fib-blank',
                   'quiz',
-                  `${i + 1}.${j + 1}`
+                  String(i + 1)
                 )}
-                onChange={(e) =>
-                  setAlternates(
-                    i,
-                    alternates[i].map((v, k) =>
-                      k === j ? clean(e.target.value) : v
-                    )
-                  )
-                }
-                className={inputClass}
+                className={answerInputClass}
               />
+            )}
+          </div>
+          {alternates[i].map((alt, j) => (
+            <div
+              key={renderInput ? `${j}:${alternates[i].length}` : j}
+              className="flex items-center gap-2 pl-8"
+            >
+              {renderInput ? (
+                renderInput({
+                  value: alt,
+                  ariaLabel: `Blank ${i + 1} also accept ${j + 1}`,
+                  anchor: tourFieldAttr(
+                    'quiz-editor.fib-alternate',
+                    'quiz',
+                    `${i + 1}.${j + 1}`
+                  ),
+                  onChange: (next) =>
+                    setAlternates(
+                      i,
+                      alternates[i].map((v, k) => (k === j ? clean(next) : v))
+                    ),
+                })
+              ) : (
+                <input
+                  type="text"
+                  value={alt}
+                  aria-label={`Blank ${i + 1} also accept ${j + 1}`}
+                  placeholder="Also accept"
+                  {...tourFieldAttr(
+                    'quiz-editor.fib-alternate',
+                    'quiz',
+                    `${i + 1}.${j + 1}`
+                  )}
+                  onChange={(e) =>
+                    setAlternates(
+                      i,
+                      alternates[i].map((v, k) =>
+                        k === j ? clean(e.target.value) : v
+                      )
+                    )
+                  }
+                  className={inputClass}
+                />
+              )}
               <button
                 type="button"
                 onClick={() =>

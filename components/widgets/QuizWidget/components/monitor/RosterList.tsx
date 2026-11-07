@@ -31,6 +31,7 @@ import {
   RosterRowMenu,
   RosterScorePill,
   RosterToolbar,
+  ToggleChip,
   type RosterMenuItem,
 } from './RosterParts';
 import {
@@ -69,6 +70,8 @@ interface RosterListProps {
   /** M17 E2 F2: `studentUid` -> `StudentTargetRef` key, for resolving the row
    *  above against `overridesBySourcedId`. */
   targetRefKeyByStudentUid?: Map<string, string> | null;
+  /** Shows the Board view chip here because the settings screen holds the assignment's steps. */
+  boardViewChip?: boolean;
 }
 
 /** Time left on a student's overall quiz time limit; ticks on its own so the list doesn't. */
@@ -213,6 +216,7 @@ export const RosterList: React.FC<RosterListProps> = ({
   onOpenPart,
   overridesBySourcedId = null,
   targetRefKeyByStudentUid = null,
+  boardViewChip = false,
 }) => {
   const now = useServerNow(onLetIn ? 30_000 : null);
   const showToolbar = bucket !== 'notStarted';
@@ -256,6 +260,20 @@ export const RosterList: React.FC<RosterListProps> = ({
           prefs={config}
           onUpdate={onUpdateConfig}
           tabWarningsAllowed={tabWarningsAllowed}
+          leading={
+            boardViewChip && bucket === 'inProgress' ? (
+              <ToggleChip
+                label="Board view"
+                anchor={tourTypeAttr('quiz-monitor.roster-board-view', 'quiz')}
+                on={config.monitorBoardView ?? true}
+                onToggle={() =>
+                  onUpdateConfig({
+                    monitorBoardView: !(config.monitorBoardView ?? true),
+                  })
+                }
+              />
+            ) : undefined
+          }
         />
       )}
 

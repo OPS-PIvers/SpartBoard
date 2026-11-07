@@ -43,7 +43,7 @@ interface LinkSchoologyModalProps {
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>;
   /** Show "Paste a Schoology course link" (the teacher has a ClassLink or test class). */
   pasteLinkEnabled?: boolean;
-  /** Show Find my Schoology courses (schoology-auto-link flag). */
+  /** Show Find my Schoology courses (the sidebar does; the dashboard nudge doesn't). */
   findCoursesEnabled?: boolean;
 }
 

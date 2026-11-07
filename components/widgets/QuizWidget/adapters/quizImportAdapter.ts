@@ -108,8 +108,6 @@ export interface QuizImportAdapterDeps {
   canImportDocuments?: boolean;
   /** Offer "generate with AI" in the wizard (`gemini-functions` && the Quiz AI switch). */
   canUseAi?: boolean;
-  /** Offer the test's learning-target lines as targets in review (R20, R22). */
-  canSuggestTargets?: boolean;
   /** Catalog codes, so printed codes beside a question move to its review row (`standards-from-question-text`). */
   loadStandardCodes?: () => Promise<ReadonlySet<string>>;
   /**
@@ -561,12 +559,8 @@ export function createQuizImportAdapter(
               onChange,
               images: deps.documentImages?.() ?? [],
               keySummary: reviewExtrasFor(data)?.keySummary,
-              ...(deps.canSuggestTargets
-                ? {
-                    suggestedTargets: reviewExtrasFor(data)?.suggestedTargets,
-                    standardCodes: reviewExtrasFor(data)?.standardCodes,
-                  }
-                : {}),
+              suggestedTargets: reviewExtrasFor(data)?.suggestedTargets,
+              standardCodes: reviewExtrasFor(data)?.standardCodes,
             });
           },
         }

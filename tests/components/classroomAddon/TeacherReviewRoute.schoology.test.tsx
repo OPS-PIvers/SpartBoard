@@ -29,6 +29,13 @@ vi.mock('firebase/firestore', () => ({
 }));
 // The route resolves its session id through the join-code lookup; this test is
 // about what happens after that, so the lookup is stubbed to the same session.
+// The quiz final-score overlay reads Firestore; these tests don't cover it.
+vi.mock('@/hooks/gradebook/useFinalScoreOverlay', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/hooks/gradebook/useFinalScoreOverlay')
+  >()),
+  useFinalScoreOverlay: () => null,
+}));
 vi.mock('@/utils/quizJoinCodes', () => ({
   findQuizSessionsByCode: vi.fn(() =>
     Promise.resolve([{ id: 'sess-1', data: {} }])

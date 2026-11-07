@@ -1,4 +1,5 @@
 import React from 'react';
+import { MathText } from '@/components/common/MathText';
 import { useTranslation } from 'react-i18next';
 import { Mic, ArrowRight } from 'lucide-react';
 
@@ -87,7 +88,7 @@ export const SubmitBlockedNotice: React.FC<{
                   light ? 'text-slate-800' : 'text-slate-100'
                 }`}
               >
-                {q.text}
+                <MathText text={q.text} />
               </span>
               <ArrowRight
                 aria-hidden

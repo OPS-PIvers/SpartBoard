@@ -1,6 +1,7 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { FocusSite } from '@/utils/focus/contract';
 import type { ImportAttribution } from '@/utils/import/contract';
+import type { TourConditionRef, TourDoneFact } from '@/config/tourConditions';
 
 export type WidgetType =
   | 'clock'
@@ -2170,7 +2171,7 @@ export interface RandomConfig {
   cardOpacity?: number;
   /** Shuffle mode: name text colour; unset keeps the default slate. */
   fontColor?: string;
-  /** Groups mode: prefer groupings that split up recent partners (`random-avoid-repeats`). */
+  /** Groups mode: prefer groupings that split up recent partners. */
   avoidRecentPartners?: boolean;
   /** Groups mode: the last few rounds per class, newest last; names, so Drive-only PII. */
   recentGroupings?: { scope: string; groups: { names: string[] }[] }[];
@@ -4500,8 +4501,14 @@ export interface QuizQuestion {
   enforceWordLimit?: boolean;
   /** Free Response only. True turns off the browser's spelling and grammar underlines in the answer. */
   noSpellCheck?: boolean;
+  /** FIB and Free Response: the student keyboard (`student-keyboards` flag). Absent = plain typing. */
+  answerKeyboard?: AnswerKeyboard;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
+  /** Free Response only. What prints inside the paper answer box; absent = lines. */
+  paperBoxStyle?: PaperBoxStyle;
+  /** Free Response only. The image an `'image'` box prints lightly for students to label. */
+  paperBoxImage?: PaperSheetStimulus;
   /**
    * Free Response only (M12 rubrics). Id of the rubric in the teacher's
    * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
@@ -4514,7 +4521,7 @@ export interface QuizQuestion {
    * When present, the rubric's criteria max-sum is the question's `points`.
    */
   rubricSnapshot?: Rubric;
-  /** Free Response only. Students see the attached rubric while answering; hidden unless true when `quiz-rubric-visibility` is on. */
+  /** Free Response only. Students see the attached rubric while answering; hidden unless true. */
   rubricVisibleToStudents?: boolean;
   /**
    * Ids of `QuizData.stimuli` entries shown alongside this question.
@@ -5190,6 +5197,12 @@ export interface ReviewLaunchSettings {
  * session docs at create time, so editing these later only affects FUTURE
  * assigns (freeze-live).
  */
+/** Accent key sets offered to students; ids are the language's primary subtag. */
+export type AccentSetId = 'es' | 'fr' | 'de' | 'it' | 'pt';
+
+/** A typed question's student keyboard: equation boxes, or one language's accent keys. */
+export type AnswerKeyboard = 'math' | AccentSetId;
+
 export interface QuizBehaviorSettings {
   sessionMode: QuizSessionMode;
   sessionOptions: QuizSessionOptions;
@@ -5244,6 +5257,8 @@ export interface QuizPublicQuestion {
   enforceWordLimit?: boolean;
   /** Free Response only: turns off the browser's spelling and grammar underlines */
   noSpellCheck?: boolean;
+  /** FIB and Free Response: the student keyboard. */
+  answerKeyboard?: AnswerKeyboard;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
@@ -5474,6 +5489,7 @@ export interface QuizSession
   handRaiseEnabled?: boolean;
   /** Snapshot of `QuizData.language` at assign time; absent = 'en-US'. */
   language?: string;
+
   /** Reviewed stimulus text by id; the only stimulus text the synth function may speak (plan §3). */
   readAloudTextByStimulusId?: Record<string, string>;
   /** Written by `prepareQuizReadAloudV1`; absent on pre-feature sessions (plan §3). */
@@ -5656,6 +5672,8 @@ export interface QuizSession
   scoreVisibility?: QuizScoreVisibility;
   /** Copied from Publish Scores when paper written answers exist; cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
+  /** Written questions students answer on a printed sheet instead of the device (`paper-written-hybrid`). */
+  paperWrittenQuestionIds?: string[];
   /**
    * Mirror of QuizAssignment.protection so the student app — which only reads
    * /quiz_sessions — can decide whether to mount watermark + tab-warning UI.
@@ -5862,12 +5880,16 @@ export interface QuizResponseAnswer {
 /** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page. */
 export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
 
-/** Public transcription state on a paper written answer. */
-export type PaperTranscriptState = 'pending' | 'done' | 'blank';
+/** What prints inside a handwritten answer box: rule lines, nothing, a 5 mm grid, or a grid with x and y axes. */
+export type PaperBoxStyle =
+  'lines' | 'blank' | 'graph' | 'coordinate' | 'image';
+
+/** Public transcription state on a paper written answer; `image` is ink imported with transcription off. */
+export type PaperTranscriptState = 'pending' | 'done' | 'blank' | 'image';
 
 /** Teacher-side transcription state, kept in the private subdoc. */
 export type PaperPrivateStatus =
-  'pending' | 'done' | 'failed' | 'blank' | 'over-quota';
+  'pending' | 'done' | 'failed' | 'blank' | 'over-quota' | 'image';
 
 /** `quiz_sessions/{sid}/responses/{key}/paperPrivate/{questionId}`: teacher-only AI internals. */
 export interface PaperPrivateAnswer {
@@ -5885,6 +5907,8 @@ export interface PaperPrivateAnswer {
   editedAt?: number;
   /** A rescan whose box was not applied because this answer was graded or edited (D28). */
   newerScan?: { scanId: string; page: number; state: 'ink' | 'blank' };
+  /** A custom image box: graded from the scan, archived but never transcribed. */
+  noTranscript?: true;
   updatedAt: number;
 }
 
@@ -6183,6 +6207,10 @@ export interface QuizResponse extends StaffResponseFields {
   paperBatchId?: string;
   /** Seat number printed on that sheet, so a rescan lands on the same doc. */
   paperSeat?: number;
+  /** Written-answers-only stack merged onto a device response; unlike `paperBatchId` the row stays device-sourced. */
+  paperWrittenBatchId?: string;
+  /** Seat on that written-answers stack. */
+  paperWrittenSeat?: number;
   /** Parts submitted at a Stop; those questions are locked. Absent = 0. */
   partsDone?: number;
   /** True while the student waits at a Stop; the idle sweep skips the attempt. */
@@ -6327,6 +6355,8 @@ export type PaperPageItem =
       headerMm: PaperRectMm;
       boxMm: PaperRectMm;
       lines: number;
+      /** Absent = lines, as every map printed before box styles. */
+      style?: PaperBoxStyle;
     };
 
 /** Positions of everything on one physical page; `page` is 1-based and absolute. */
@@ -7072,6 +7102,14 @@ export interface QuizAssignment
   hasPaperResponses?: boolean;
   /** Set by import when any paper sheet carried a written answer box. */
   hasPaperWritten?: boolean;
+  /** A device assignment whose written questions print on paper (`paper-written-hybrid`); `paperBatchId` names the stack. */
+  writtenOnPaper?: true;
+  /** Mirrored on the session: the written questions on that stack. */
+  paperWrittenQuestionIds?: string[];
+  /** Student seats printed on that stack, set at assign. */
+  paperWrittenSeats?: number;
+  /** Responses carrying a scan from that stack, recounted by each import. */
+  paperWrittenScanned?: number;
   /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
   createdAt: number;
@@ -7494,7 +7532,10 @@ export type VideoActivityQuestion = Omit<
   | 'minWords'
   | 'enforceWordLimit'
   | 'noSpellCheck'
+  | 'answerKeyboard'
   | 'paperBoxSize'
+  | 'paperBoxStyle'
+  | 'paperBoxImage'
 > & {
   type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */
@@ -8696,7 +8737,7 @@ export type GuidedLearningPublicNarration = Pick<
 >;
 
 export type GuidedLearningTourAction =
-  'click' | 'observe' | 'toggle' | 'select' | 'type';
+  'click' | 'observe' | 'toggle' | 'select' | 'type' | 'drag' | 'resize';
 
 /** Where a live tour plays; absent = 'spartboard'. */
 export type GuidedLearningTourSurface = 'spartboard' | 'web';
@@ -8798,7 +8839,7 @@ export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
   anchor: string;
   fallback?: { role: string; name: string };
-  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them. */
+  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them; drag and resize move on once the widget moved or changed size. */
   action: GuidedLearningTourAction;
   /** toggle: target state; select: option value; type: text Autopilot enters. */
   value?: boolean | string;
@@ -8816,6 +8857,10 @@ export interface GuidedLearningTourBinding {
   thumbnail?: GuidedLearningTourThumbnail;
   /** The board this step starts from; a jump straight here loads it instead of replaying earlier steps. */
   start?: TourStepStart;
+  /** Played only when every condition holds when the tour starts; absent = always. */
+  showWhen?: TourConditionRef[];
+  /** Waits for this fact instead of moving on at its own click; the teacher can skip it. */
+  doneWhen?: TourDoneFact;
 }
 
 /** A step's starting board: widget places and the material open in an editor. */
@@ -8978,6 +9023,8 @@ export interface GuidedLearningSet {
     autopilot?: true;
     /** Library items the tour works on; absent = a tour from before materials, which runs on real items. */
     materials?: TourMaterial[];
+    /** Listed on Getting Started only when every condition holds; absent = always. */
+    showWhen?: TourConditionRef[];
   };
   /** Stamped on every building-set save: true for tour mode or when any step has a live-tour binding. */
   hasLiveTour?: boolean;
@@ -9479,7 +9526,7 @@ export interface FlashcardSpeakSettings {
   example: boolean;
 }
 
-/** flashcards-assign-v2: Speak rules the teacher picks when assigning; groups belong to the set's language. */
+/** Speak rules the teacher picks when assigning; groups belong to the set's language. */
 export type FlashcardSpeakChoice = Pick<
   FlashcardSpeakSettings,
   'preset' | 'strict' | 'groups' | 'attempts' | 'example'
@@ -9598,11 +9645,11 @@ export type FlashcardCardSelection =
 export type FlashcardMasteryThreshold = 2 | 3 | 4;
 export type FlashcardScoreVisibility = 'none' | 'score' | 'score-and-answers';
 
-/** A published Check level: today's assign-time values, or Quiz's levels from Publish scores (flashcards-assign-v2). */
+/** A published Check level: today's assign-time values, or Quiz's levels from Publish scores. */
 export type FlashcardPublishedVisibility =
   FlashcardScoreVisibility | QuizScoreVisibility;
 
-/** Quiz session options a flashcards-assign-v2 Check stamps, under Quiz's own names. */
+/** Quiz session options a Check stamps, under Quiz's own names. */
 export type FlashcardCheckSessionOptions = Pick<
   QuizSessionOptions,
   | 'timeLimitMinutes'
@@ -9677,13 +9724,11 @@ export interface FlashcardSession
   speakChoice?: FlashcardSpeakChoice;
   /** Check: how the set's cards were narrowed at assign time; absent means all. */
   cardSelection?: FlashcardCardSelection;
-  /** Check: attempts, time limit, shuffle, integrity and What students see (flashcards-assign-v2). */
+  /** Check: attempts, time limit, shuffle, integrity and What students see. */
   rules?: FlashcardCheckRules;
   /** Check shared with a PLC: pools into `plcs/{plcId}/assessments/{syncGroupId}`. */
   plcId?: string;
   syncGroupId?: string;
-  /** Assigned by a teacher with the flashcards-test-nav flag: students get the Test question bar. */
-  testNavBar?: true;
   masteryThreshold?: FlashcardMasteryThreshold;
   termLanguage: string;
   definitionLanguage: string;
@@ -9700,7 +9745,7 @@ export interface FlashcardSession
   closeAt?: number | null;
   scoreVisibility?: FlashcardPublishedVisibility;
   scorePublishedAt?: number;
-  /** Results watermark and tab lockout from Publish scores (flashcards-assign-v2). */
+  /** Results watermark and tab lockout from Publish scores. */
   protection?: ResultsProtection;
   individualTargeting?: boolean;
   createdAt: number;
@@ -10853,8 +10898,6 @@ export type GlobalFeature =
   | 'quiz-document-import'
   /** The AI reader for that import; AND-ed with `quiz-document-import` and `gemini-functions`. */
   | 'quiz-document-ai-reader'
-  /** Learning targets read off an imported test, offered as chips in its review. */
-  | 'quiz-import-suggested-targets'
   /** Multi-version test import: versions, FRQ rubrics, balanced dealing, Stop checkpoints (docs/plans/shipped/QUIZ_IMPORT_VERSIONS.md). */
   | 'quiz-import-versions'
   /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
@@ -10869,12 +10912,18 @@ export type GlobalFeature =
   | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
+  /** Math keyboard and accent keys on student answer boxes, set per quiz. */
+  | 'student-keyboards'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
+  /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
+  | 'paper-written-hybrid'
+  /** AI transcription of scanned handwritten answers; off means teachers grade the crop. */
+  | 'paper-handwriting-ai'
   /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
@@ -10885,11 +10934,6 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
-  | 'quiz-attempt-history'
-  /** Per-question "Spell check" switch on quiz Free Response questions. */
-  | 'quiz-spell-check-toggle'
-  /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
-  | 'quiz-rubric-visibility'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -10911,7 +10955,6 @@ export type GlobalFeature =
   | 'webcam-ai'
   | 'blooms-ai'
   | 'flashcards-ai'
-  | 'blooms-question-starters'
   | 'dashboard-layout'
   | 'instructional-routine'
   | 'ocr'
@@ -10927,8 +10970,6 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Find my Schoology courses: link each class to its Schoology section by SIS id (docs/plans/shipped/SCHOOLOGY_AUTO_LINK.md). */
-  | 'schoology-auto-link'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */
@@ -10937,12 +10978,12 @@ export type GlobalFeature =
   | 'quiz-ordering-images'
   /** Ordering questions: students drag one list into order instead of filling slots from a word bank. */
   | 'quiz-ordering-list'
+  /** Ordering results: each item's spot, with the items students put out of order marked. */
+  | 'quiz-ordering-results'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
-  /** Weather: recess gear redesign that fills the widget and stays readable at small sizes. */
-  | 'weather-gear-layout'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
@@ -10955,28 +10996,23 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
-  /** Flashcards submission assignments: card choice, Speak checks and Quiz-style In progress and Completed tabs. */
-  | 'flashcards-assign-v2'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
-  /** Flashcards Test: Question N of M bar with an All questions grid instead of the number strip. */
-  | 'flashcards-test-nav'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
   | 'widget-connections'
-  /** Randomizer groups setting that splits up students grouped together lately. */
-  | 'random-avoid-repeats'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
+  /** New-teacher onboarding as Live tours with a Getting Started page (docs/plans/GETTING_STARTED.md). */
+  | 'getting-started'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
   | 'import-extension-send'
   | 'import-board-drop'
-  | 'import-quiz'
   | 'import-flashcards'
   | 'import-activity-wall'
   | 'import-new-board'

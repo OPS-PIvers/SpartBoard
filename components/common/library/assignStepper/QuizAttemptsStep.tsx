@@ -10,7 +10,7 @@ import {
 import { AttemptLimitRow } from '../AssignmentSettingsToggleGroup';
 import { useQuizRuleGates } from './QuizRuleStepGates';
 import { patchQuizSessionOptions } from './QuizRuleStepValues';
-import { StepNumberField, StepToggleRow } from './QuizStepRows';
+import { StepNumberField, StepToggleRow, StepSegmented } from './QuizStepRows';
 import { tourFieldAttr } from '@/config/tourAnchors';
 
 export interface QuizRuleStepProps {
@@ -36,9 +36,7 @@ export const QuizAttemptsStep: React.FC<QuizRuleStepProps> = ({
   flashcards = false,
 }) => {
   const { t } = useTranslation();
-  const gates = useQuizRuleGates();
-  const { timeLimitOn } = gates;
-  const finalScoreOn = gates.finalScoreOn && !flashcards;
+  const { timeLimitOn } = useQuizRuleGates();
   const o = value.sessionOptions;
   const minutes = clampQuizTimeLimitMinutes(o.timeLimitMinutes);
   const timeLabel = t('quizTimeLimit.label', 'Time limit');
@@ -52,41 +50,20 @@ export const QuizAttemptsStep: React.FC<QuizRuleStepProps> = ({
           onChange={(attemptLimit) => onChange({ ...value, attemptLimit })}
         />
       </div>
-      {finalScoreOn && value.attemptLimit !== 1 && (
+      {!flashcards && value.attemptLimit !== 1 && (
         <div className="flex min-h-8 items-center justify-between gap-3">
           <span className="text-sm font-bold text-brand-blue-dark">
             Final score
           </span>
-          <div
-            role="group"
-            aria-label="Final score"
-            className="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white"
-          >
-            {FINAL_SCORE_OPTIONS.map((opt) => {
-              const active = (value.finalScore ?? 'latest') === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => onChange({ ...value, finalScore: opt.value })}
-                  {...tourFieldAttr(
-                    'assign-rule.final-score',
-                    'assign',
-                    opt.value
-                  )}
-                  className={
-                    'px-3 py-1.5 text-xs font-bold transition ' +
-                    (active
-                      ? 'bg-brand-blue-primary text-white'
-                      : 'text-slate-600 hover:bg-slate-50')
-                  }
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+          <StepSegmented
+            label="Final score"
+            options={FINAL_SCORE_OPTIONS}
+            value={value.finalScore ?? 'latest'}
+            onSelect={(finalScore) => onChange({ ...value, finalScore })}
+            anchor={(finalScore) =>
+              tourFieldAttr('assign-rule.final-score', 'assign', finalScore)
+            }
+          />
         </div>
       )}
       {timeLimitOn && (

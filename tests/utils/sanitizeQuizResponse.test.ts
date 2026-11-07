@@ -111,4 +111,21 @@ describe('sanitizeQuizResponse passage quotes', () => {
     );
     expect(out).toBe('<p>plain <b>bold</b></p>');
   });
+
+  it('keeps equation markers as one flat run of plain math', () => {
+    const out = sanitizeQuizResponse(
+      '<p>So <span data-math="\\frac{1}{2}" contenteditable="false" class="x"><b>1/2</b></span> works</p>'
+    );
+    expect(out).toBe(
+      '<p>So <span data-math="\\frac{1}{2}">1/2</span> works</p>'
+    );
+  });
+
+  it('drops the equation attribute from anything but a plain span', () => {
+    const out = sanitizeQuizResponse(
+      '<p data-math="x">a</p><span data-quote="s1" data-math="y">q</span>'
+    );
+    expect(out).not.toContain('data-math');
+    expect(out).toContain('data-quote="s1"');
+  });
 });

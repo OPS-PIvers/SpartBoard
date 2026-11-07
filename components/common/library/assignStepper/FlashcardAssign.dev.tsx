@@ -76,7 +76,7 @@ const PERIOD_CTX: AssignPeriodAccessContext = {
   onTagRoster: () => undefined,
 };
 
-/** Every flag on, so the preview shows the flashcards-assign-v2 steps and Speak. */
+/** Every flag on, so the preview shows Speak. */
 const AllFlags: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const auth = useContext(AuthContext);
   const value = useMemo(

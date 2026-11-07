@@ -8,6 +8,9 @@ describe('paperWritten client/server parity', () => {
     expect(server.PAPER_HANDWRITTEN_FEATURE).toBe(
       client.PAPER_HANDWRITTEN_FEATURE
     );
+    expect(server.PAPER_HANDWRITING_AI_FEATURE).toBe(
+      client.PAPER_HANDWRITING_AI_FEATURE
+    );
     expect(server.PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT).toBe(
       client.PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT
     );
@@ -32,6 +35,7 @@ describe('paperWritten client/server parity', () => {
       'failed',
       'blank',
       'over-quota',
+      'image',
     ];
     for (const status of statuses) {
       expect(server.publicTranscriptState(status)).toBe(

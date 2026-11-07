@@ -29,6 +29,8 @@ export type PaperPageItem =
       headerMm: PaperRectMm;
       boxMm: PaperRectMm;
       lines: number;
+      /** Absent = lines; mirrors root `types.ts`. */
+      style?: PaperBoxStyle;
     };
 
 export interface PaperPageMap {
@@ -40,9 +42,11 @@ export interface PaperPageMap {
 }
 
 export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
-export type PaperTranscriptState = 'pending' | 'done' | 'blank';
+export type PaperBoxStyle =
+  'lines' | 'blank' | 'graph' | 'coordinate' | 'image';
+export type PaperTranscriptState = 'pending' | 'done' | 'blank' | 'image';
 export type PaperPrivateStatus =
-  'pending' | 'done' | 'failed' | 'blank' | 'over-quota';
+  'pending' | 'done' | 'failed' | 'blank' | 'over-quota' | 'image';
 export type WrittenReturnMode = 'handwriting' | 'typed' | 'both';
 
 export interface PaperPrivateAnswer {
@@ -60,6 +64,8 @@ export interface PaperPrivateAnswer {
   editedAt?: number;
   /** A rescan whose box was not applied because this answer was graded or edited (D28). */
   newerScan?: { scanId: string; page: number; state: 'ink' | 'blank' };
+  /** A custom image box: graded from the scan, archived but never transcribed. */
+  noTranscript?: true;
   updatedAt: number;
 }
 
@@ -97,6 +103,8 @@ export interface PaperWrittenImportResult {
 }
 
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
+/** Off: inked boxes import as `image` and teachers grade the crop. */
+export const PAPER_HANDWRITING_AI_FEATURE = 'paper-handwriting-ai';
 export const PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT = 300;
 export const PAPER_WRITTEN_CROP_PREFIX = 'paper_written_crops';
 export const PAPER_TRANSCRIPTION_JOBS = 'paper_transcription_jobs';
@@ -125,5 +133,6 @@ export function publicTranscriptState(
 ): PaperTranscriptState {
   if (status === 'done') return 'done';
   if (status === 'blank') return 'blank';
+  if (status === 'image') return 'image';
   return 'pending';
 }

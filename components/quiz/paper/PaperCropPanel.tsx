@@ -289,6 +289,11 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
             {tp('state.blank')}
           </span>
         )}
+        {status === 'image' && (
+          <span className={`${chip} bg-slate-100 text-slate-700`}>
+            {tp('state.image')}
+          </span>
+        )}
         {flagged && (
           <span className={`${chip} bg-amber-100 text-amber-800`}>
             <AlertTriangle aria-hidden className="h-3 w-3" />

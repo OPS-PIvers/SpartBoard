@@ -6,6 +6,16 @@
  * through the controller object the modal hands them.
  */
 
+import { MathText } from '@/components/common/MathText';
+import {
+  STUDENT_KEYBOARDS_FEATURE,
+  accentSetForLanguage,
+  answerAccents,
+} from '@/config/studentKeyboards';
+import {
+  AccentLanguageRow,
+  AnswerKeyboardLinks,
+} from './AnswerKeyboardControls';
 import React, {
   useCallback,
   useLayoutEffect,
@@ -74,6 +84,7 @@ import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
 import { FibBlanksEditor } from './FibBlanksEditor';
+import { AnswerKeyKeyboard } from './AnswerKeyKeyboard';
 import { isMultiBlank } from '@/utils/quizFibBlanks';
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
@@ -700,7 +711,9 @@ const QuestionRow = React.memo(function QuestionRow({
       )}
       <span className="flex-1 min-w-0 flex flex-col gap-0.5">
         <span className="text-sm text-slate-700 truncate">
-          {question.text || (
+          {question.text ? (
+            <MathText text={question.text} />
+          ) : (
             <span className="italic text-slate-400">Untitled question</span>
           )}
         </span>
@@ -818,6 +831,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   });
   const uploadWhiteboardImage = useWhiteboardImageUpload();
   const answerImagesOn = canAccessFeature('quiz-ordering-images');
+  const keyboardsOn = canAccessFeature(STUDENT_KEYBOARDS_FEATURE);
+  const defaultAccents = accentSetForLanguage(state.language) ?? 'es';
   const uploadAnswerImage = useCallback(
     async (file: File): Promise<string | null> => {
       // A neutral name: a timestamp or original file name could give away the order.
@@ -829,8 +844,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     },
     [uploadWhiteboardImage]
   );
-  const rubricVisibilityOn = canAccessFeature('quiz-rubric-visibility');
-  const spellCheckToggleOn = canAccessFeature('quiz-spell-check-toggle');
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
   const readPrompt = useCallback(() => promptRef.current?.value, []);
@@ -952,7 +965,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           {typeMeta?.label ?? q.type}
         </div>
         <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
-          {q.text.trim() || `Question ${selectedIndex + 1}`}
+          {q.text.trim() ? (
+            <MathText text={q.text} />
+          ) : (
+            `Question ${selectedIndex + 1}`
+          )}
         </h4>
       </div>
 
@@ -965,6 +982,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             void promptStandards.onPromptBlur(q.id, q.text, q.targets)
           }
           textareaRef={promptRef}
+          promptAccents={keyboardsOn ? defaultAccents : undefined}
+          promptMath={keyboardsOn}
         />
 
         {/* Learning targets */}
@@ -1181,7 +1200,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   question={q}
                   onChange={(updates) => updateQuestion(q.id, updates)}
                 />
-                {spellCheckToggleOn && (
+                <div className="flex items-center justify-between gap-3">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
@@ -1198,6 +1217,27 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                       Spell check
                     </span>
                   </label>
+                  {keyboardsOn && (
+                    <AnswerKeyboardLinks
+                      value={q.answerKeyboard}
+                      onChange={(answerKeyboard) =>
+                        updateQuestion(q.id, { answerKeyboard })
+                      }
+                      defaultAccents={defaultAccents}
+                    />
+                  )}
+                </div>
+                {keyboardsOn && answerAccents(q.answerKeyboard) && (
+                  <AccentLanguageRow
+                    value={answerAccents(q.answerKeyboard) ?? defaultAccents}
+                    onChange={(answerKeyboard) =>
+                      updateQuestion(q.id, { answerKeyboard })
+                    }
+                    anchor={tourTypeAttr(
+                      'quiz-editor.answer-accent-language',
+                      'quiz'
+                    )}
+                  />
                 )}
               </>
             )}
@@ -1222,29 +1262,27 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   >
                     Detach
                   </button>
-                  {rubricVisibilityOn && (
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={q.rubricVisibleToStudents === true}
-                        onChange={(e) =>
-                          updateQuestion(q.id, {
-                            rubricVisibleToStudents: e.target.checked
-                              ? true
-                              : undefined,
-                          })
-                        }
-                        className="w-4 h-4 accent-brand-blue-primary"
-                        {...tourTypeAttr(
-                          'quiz-editor.rubric-show-students',
-                          'quiz'
-                        )}
-                      />
-                      <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
-                        Show to students
-                      </span>
-                    </label>
-                  )}
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={q.rubricVisibleToStudents === true}
+                      onChange={(e) =>
+                        updateQuestion(q.id, {
+                          rubricVisibleToStudents: e.target.checked
+                            ? true
+                            : undefined,
+                        })
+                      }
+                      className="w-4 h-4 accent-brand-blue-primary"
+                      {...tourTypeAttr(
+                        'quiz-editor.rubric-show-students',
+                        'quiz'
+                      )}
+                    />
+                    <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
+                      Show to students
+                    </span>
+                  </label>
                 </div>
               ) : (
                 <button
@@ -1259,10 +1297,21 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         ) : isMultiBlank(q) ? (
           <div>
-            <FibBlanksEditor
+            <AnswerKeyKeyboard
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
-            />
+              keyboard={keyboardsOn ? { defaultAccents } : undefined}
+            >
+              {({ links, renderInput }) => (
+                <FibBlanksEditor
+                  key={renderInput ? 'math' : 'text'}
+                  question={q}
+                  onChange={(updates) => updateQuestion(q.id, updates)}
+                  headerExtra={links}
+                  renderInput={renderInput}
+                />
+              )}
+            </AnswerKeyKeyboard>
             <NeedsAnswerNotice
               question={q}
               className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
@@ -1272,6 +1321,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <FibAnswerField
             question={q}
             onChange={(updates) => updateQuestion(q.id, updates)}
+            keyboard={keyboardsOn ? { defaultAccents } : undefined}
           />
         )}
 

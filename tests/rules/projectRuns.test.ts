@@ -21,6 +21,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-project-runs';
 const TEACHER_UID = 'projects-teacher';
@@ -41,6 +42,7 @@ const asTeacher = (uid: string) =>
   testEnv
     .authenticatedContext(uid, {
       email: `${uid}@example.com`,
+      email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
@@ -144,6 +146,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(
+      ctx.firestore(),
+      [TEACHER_UID, OTHER_TEACHER_UID].map((uid) => `${uid}@example.com`)
+    )
+  );
 });
 
 describe('project library', () => {

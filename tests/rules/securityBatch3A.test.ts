@@ -19,6 +19,7 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-security-batch-3a';
 const RULES_PATH = fileURLToPath(
@@ -88,6 +89,9 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [TEACHER_EMAIL])
+  );
 });
 
 describe('mini app sessions: student tokens never own one', () => {

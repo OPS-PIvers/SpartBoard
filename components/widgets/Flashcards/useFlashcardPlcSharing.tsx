@@ -24,9 +24,7 @@ interface Options {
     assignmentId: string,
     plcShare: FlashcardAssignment['plcShare']
   ) => Promise<void>;
-  /** flashcards-assign-v2: a student check links its session to the PLC's results instead. */
-  linkChecks: boolean;
-  /** Links a check's session to a PLC (null unlinks). */
+  /** Links a student check's session to the PLC's results (null unlinks). */
   linkCheck: (
     assignment: Pick<FlashcardAssignment, 'sessionId' | 'setId'>,
     plc: Plc | null
@@ -37,7 +35,6 @@ export const useFlashcardPlcSharing = ({
   enabled,
   addToast,
   setPlcShare,
-  linkChecks,
   linkCheck,
 }: Options) => {
   const { user } = useAuth();
@@ -66,10 +63,7 @@ export const useFlashcardPlcSharing = ({
   >;
   const linksCheck = (
     assignment: Pick<FlashcardAssignment, 'kind' | 'audience'>
-  ) =>
-    linkChecks &&
-    assignment.kind === 'check' &&
-    assignment.audience !== 'staff';
+  ) => assignment.kind === 'check' && assignment.audience !== 'staff';
   const writeResultsShare = async (
     assignment: ShareableAssignment,
     plc: Plc

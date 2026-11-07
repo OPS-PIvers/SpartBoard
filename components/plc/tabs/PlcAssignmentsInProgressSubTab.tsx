@@ -97,7 +97,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   PlcAssignmentsInProgressSubTabProps
 > = ({ plc, kindFilter }) => {
   const { t } = useTranslation();
-  const { user, getAssignmentMode, canAccessFeature } = useAuth();
+  const { user, getAssignmentMode } = useAuth();
   const { addToast, rosters } = useDashboard();
   const { entries, loading } = usePlcAssignmentIndex(plc.id);
   // Subscribe to the PLC assignment templates so non-owner rows can match
@@ -336,7 +336,6 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           uid: user.uid,
           assignmentId: created.id,
           behavior: assignBehavior,
-          attemptHistoryEnabled: canAccessFeature('quiz-attempt-history'),
           logScope: 'PlcAssignmentsInProgressSubTab.import',
         });
         await applyPlcStepperStudentPicks({
@@ -411,7 +410,6 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
       addToast,
       attachSyncLinkage,
       busyRowId,
-      canAccessFeature,
       createAssignment,
       deleteQuiz,
       getAssignmentMode,

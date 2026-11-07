@@ -21,6 +21,7 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-fc-period-access-test';
 const TEACHER_UID = 'teacher-uid';
@@ -149,6 +150,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [
+      `${TEACHER_UID}@example.org`,
+      `${OTHER_TEACHER_UID}@example.org`,
+    ])
+  );
 });
 
 describe('creating a per-period flashcard session', () => {

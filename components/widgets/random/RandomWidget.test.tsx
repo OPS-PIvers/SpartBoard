@@ -1433,9 +1433,6 @@ describe('RandomWidget avoid recent partners', () => {
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
       mockDashboardContext
     );
-    canAccessFeatureMock.mockImplementation(
-      (id) => id === 'random-avoid-repeats'
-    );
     renderGroups(true);
     const config = await randomize();
     const made = config.lastResult as RandomGroup[];
@@ -1448,13 +1445,13 @@ describe('RandomWidget avoid recent partners', () => {
     );
   });
 
-  it('changes nothing without the preview flag', async () => {
+  it('changes nothing with the setting off', async () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
       mockDashboardContext
     );
-    renderGroups(true);
+    renderGroups(false);
     const config = await randomize();
     expect(config).not.toHaveProperty('recentGroupings');
   });

@@ -9,6 +9,7 @@
  * - Exporting quiz results to a new Google Sheet
  */
 
+import { plainPromptText } from '@/utils/promptMath';
 import {
   QuizData,
   VideoActivityData,
@@ -938,7 +939,7 @@ export class QuizDriveService {
           : 0;
       const avgPct = stats?.averagePct ?? (isAuto ? correctPct : null);
       statsRows.push([
-        q.text.substring(0, 60),
+        plainPromptText(q.text).substring(0, 60),
         q.type,
         String(q.points ?? 1),
         displayFibAnswer(q.correctAnswer).substring(0, 40),

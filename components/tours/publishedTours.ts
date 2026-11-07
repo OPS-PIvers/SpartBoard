@@ -14,6 +14,10 @@ import {
 } from './tourSnapshot';
 import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { tourStepsOf, tourWidgetTypes } from './tourSession';
+import {
+  tourConditionsHold,
+  type TourConditionCheck,
+} from '@/config/tourConditions';
 
 const tourRef = (id: string) => doc(db, GL_TOURS_COLLECTION, id);
 
@@ -209,6 +213,10 @@ export function isTourRunnable(
   if (meta.exists) return false;
   return legacy.get(id);
 }
+
+/** Whether a watched tour's own show conditions hold; true while loading or when it has none. */
+export const tourShowsFor = (id: string, check: TourConditionCheck): boolean =>
+  tourConditionsHold(entries.get(id)?.tour?.set.tourSetup?.showWhen, check);
 
 export const __resetPublishedToursForTests = (): void => {
   entries.forEach((e) => e.unsub());

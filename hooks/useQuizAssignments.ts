@@ -132,6 +132,7 @@ import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
   gradeAnswer,
+  isPaperWrittenSlotAwaiting,
   toPublicQuestion,
   type ResponseDocKey,
 } from './useQuizSession';
@@ -238,6 +239,8 @@ export interface CreateAssignmentOptions extends AudienceSessionFields {
   initialStatus?: QuizAssignmentStatus;
   /** Assigned on paper: marks the assignment and links the printed stack it imports from. */
   paperBatchId?: string;
+  /** Device assignment whose written questions print on this written-answers-only stack. */
+  paperWritten?: { batchId: string; questionIds: string[]; seats: number };
   /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
   widgetKind?: QuizWidgetKind;
   /** Review game length (plan D22); only written for `sessionMode: 'game'`. */
@@ -969,6 +972,8 @@ export interface ResponseGradingContext {
   localizedFibAnswers: Record<string, Record<string, string[]>>;
   /** The session's sections; a choose-N section leaves unchosen questions out (E14). */
   sections?: QuizSessionSection[];
+  /** Hybrid paper quiz: an unscanned written answer holds the score. */
+  paperWrittenQuestionIds?: string[];
 }
 
 /** The session's frozen sections, for publishing; absent on a quiz without them. */
@@ -998,6 +1003,13 @@ export function buildResponseGradingContext(
       string,
       Record<string, string[]>
     >,
+    paperWrittenQuestionIds: Array.isArray(
+      assignmentData?.paperWrittenQuestionIds
+    )
+      ? (assignmentData.paperWrittenQuestionIds as unknown[]).filter(
+          (id): id is string => typeof id === 'string'
+        )
+      : undefined,
   };
 }
 
@@ -1151,6 +1163,14 @@ export function gradeResponseForPublish(
   // fix in publishAssignmentScores for Video Activity (#1728, #1787).
   const answeredQuestionIds = new Set<string>();
   for (const a of answers) answeredQuestionIds.add(a.questionId);
+  for (const qId of ctx.paperWrittenQuestionIds ?? []) {
+    if (servedIds && !servedIds.has(qId)) continue;
+    if (
+      questionsById.has(qId) &&
+      isPaperWrittenSlotAwaiting(data, qId, ctx.paperWrittenQuestionIds)
+    )
+      awaitingGrade = true;
+  }
   for (const [qId, q] of questionsById) {
     if (servedIds && !servedIds.has(qId)) continue;
     if (!answeredQuestionIds.has(qId)) {
@@ -1280,8 +1300,6 @@ export const useQuizAssignments = (
     authContext?.canAccessFeature?.('tab-away-timer') === true;
   const scoreOnSubmitOn =
     authContext?.canAccessFeature?.('quiz-score-on-submit') === true;
-  const hideRubricUnlessShown =
-    authContext?.canAccessFeature?.('quiz-rubric-visibility') === true;
   const timeLimitOn =
     authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true;
   const stimulusQuotesOn =
@@ -1333,8 +1351,7 @@ export const useQuizAssignments = (
           translations,
           freshQuestionIdsByLocale,
           question
-        ),
-        { hideRubricUnlessShown }
+        )
       );
       const keepRecording =
         mediaResponseGranted &&
@@ -1344,7 +1361,7 @@ export const useQuizAssignments = (
       const { recording: _stripped, ...rest } = projected;
       return rest;
     },
-    [mediaResponseGranted, whiteboardResponseGranted, hideRubricUnlessShown]
+    [mediaResponseGranted, whiteboardResponseGranted]
   );
 
   // Recorded answers are a self-paced (student mode) feature: only there does a
@@ -1449,6 +1466,7 @@ export const useQuizAssignments = (
         widgetKind,
         gameDurationMs,
         paperBatchId,
+        paperWritten,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
@@ -1555,6 +1573,14 @@ export const useQuizAssignments = (
           : {}),
         ...(perPeriod ? { accessMode, periodAccess } : {}),
         ...(paperBatchId ? { paper: true as const, paperBatchId } : {}),
+        ...(paperWritten && !paperBatchId
+          ? {
+              writtenOnPaper: true as const,
+              paperBatchId: paperWritten.batchId,
+              paperWrittenQuestionIds: paperWritten.questionIds,
+              paperWrittenSeats: paperWritten.seats,
+            }
+          : {}),
         ...audienceSessionFields(options?.audience),
       };
 
@@ -1729,6 +1755,9 @@ export const useQuizAssignments = (
         ...(openAt != null && !perPeriod ? { openAt } : {}),
         ...(closeAt != null && !perPeriod ? { closeAt } : {}),
         ...(workKind ? { workKind } : {}),
+        ...(paperWritten && !paperBatchId
+          ? { paperWrittenQuestionIds: paperWritten.questionIds }
+          : {}),
         // /my-assignments reads the due date off the SESSION doc for class-wide
         // students, so mirror it here alongside the window (the archive doc
         // above already carries it).
@@ -2212,9 +2241,11 @@ export const useQuizAssignments = (
           ...assignmentsRef.current.find((a) => a.id === assignmentId)
             ?.sessionOptions,
         };
+        // Tab warnings always mirror: the monitor once wrote it to the session alone, so the two can differ.
         const changed = Object.fromEntries(
           Object.entries(patch.sessionOptions).filter(
-            ([key, value]) => prevOptions[key] !== value
+            ([key, value]) =>
+              prevOptions[key] !== value || key === 'tabWarningsEnabled'
           )
         ) as QuizSessionOptions;
         Object.assign(

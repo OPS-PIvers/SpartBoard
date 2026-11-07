@@ -45,7 +45,6 @@ interface QuizStudentViewProps {
   behavior: QuizBehaviorSettings;
   /** Mirrors Assign: the away limit exists only with the tab-away-timer flag. */
   tabAwayTimerOn: boolean;
-  hideRubricUnlessShown?: boolean;
   /** Teacher has quiz-ordering-list, so Ordering shows the one-list layout like a real assignment. */
   orderingListOn?: boolean;
   onExit: () => void;
@@ -72,7 +71,6 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   quiz,
   behavior,
   tabAwayTimerOn,
-  hideRubricUnlessShown = false,
   orderingListOn = false,
   onExit,
 }) => {
@@ -81,14 +79,8 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   const [run, setRun] = useState(0);
   const base = useMemo(
     () =>
-      buildStudentViewSession(
-        quiz,
-        behavior,
-        tabAwayTimerOn,
-        hideRubricUnlessShown,
-        orderingListOn
-      ),
-    [quiz, behavior, tabAwayTimerOn, hideRubricUnlessShown, orderingListOn]
+      buildStudentViewSession(quiz, behavior, tabAwayTimerOn, orderingListOn),
+    [quiz, behavior, tabAwayTimerOn, orderingListOn]
   );
   const session = useMemo(
     () => withFocusSettings(base, focus, tabAwayTimerOn),
@@ -263,7 +255,8 @@ const StudentViewAttempt: React.FC<{ session: QuizSession }> = ({
         pin=""
         answeredCount={countAnsweredQuestions(
           response.answers,
-          session.publicQuestions.map((q) => q.id)
+          session.publicQuestions.map((q) => q.id),
+          session.paperWrittenQuestionIds
         )}
         hideReturnButton
       />

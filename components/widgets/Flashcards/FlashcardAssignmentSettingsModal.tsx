@@ -248,7 +248,6 @@ export const FlashcardAssignmentSettingsModal: React.FC<
             id: 'sharing',
             title: getAssignStepTitle('sharing', 'flashcards', {
               ...kindCtx,
-              flashcardsV2: true,
               inPlc: true,
             }),
             // A PLC the teacher has left has no name to show.

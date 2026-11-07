@@ -80,11 +80,8 @@ describe('flashcardsRuleValues', () => {
       attemptLimit: 2,
       sessionOptions: { shuffleQuestions: true },
     });
-    expect(
-      formatQuizAttemptsValue(behavior, {
-        flashcards: true,
-        finalScoreOn: true,
-      })
-    ).toBe('2 attempts, Shuffled cards');
+    expect(formatQuizAttemptsValue(behavior, { flashcards: true })).toBe(
+      '2 attempts, Shuffled cards'
+    );
   });
 });

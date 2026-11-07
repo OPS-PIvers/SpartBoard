@@ -50,8 +50,31 @@ export const TOUR_ACTIONS: readonly GuidedLearningTourAction[] = [
   'toggle',
   'select',
   'type',
+  'drag',
+  'resize',
   'observe',
 ];
+
+// The runner measures a drag on the widget window and a resize on its corner handle.
+const MOVE_ANCHORS: Partial<Record<GuidedLearningTourAction, string>> = {
+  drag: 'widget.window',
+  resize: 'widget.resize-handle',
+};
+
+/** The kinds a step on this control can take: drag and resize only on their own widget anchors. */
+export const actionsFor = (anchor: string): GuidedLearningTourAction[] =>
+  TOUR_ACTIONS.filter((action) => {
+    const want = MOVE_ANCHORS[action];
+    return !want || anchor.split(':')[0] === want;
+  });
+
+/** Keeps a binding's kind only while its control can take it. */
+export const fitActionToAnchor = (
+  tour: GuidedLearningTourBinding
+): GuidedLearningTourBinding =>
+  actionsFor(tour.anchor).includes(tour.action)
+    ? tour
+    : withAction(tour, 'click');
 
 /** Switches a binding's kind, keeping a value only where the new kind uses one of that shape. */
 export function withAction(

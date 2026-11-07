@@ -57,14 +57,7 @@ export const reasonFromMicState = (
 ): SpeakBlockReason =>
   framed ? 'framed' : micState === 'denied' ? 'mic-blocked' : 'no-mic';
 
-/** True inside any frame; a cross-origin parent throws, which is still a frame. */
-export function isFramedWindow(): boolean {
-  try {
-    return window.self !== window.top;
-  } catch {
-    return true;
-  }
-}
+export { isFramedWindow } from '@/utils/attemptHandOff';
 
 export const isChromeOs = (): boolean =>
   typeof navigator !== 'undefined' && /\bCrOS\b/.test(navigator.userAgent);

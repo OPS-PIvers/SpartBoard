@@ -17,6 +17,7 @@ import {
   parseMultiAnswer,
 } from '@/utils/quizMultiAnswer';
 import { isQuestionExcused } from '@/utils/mediaGrading';
+import { placeOrderingAnswer } from '@/utils/quizOrderingPlacement';
 import {
   gradeQuestionForResponse,
   type QuestionGradeFn,
@@ -126,6 +127,19 @@ export interface DrilldownPairRow {
   missedBy: DrilldownStudent[];
 }
 
+/** One Ordering key item, in key order (quiz-ordering-results). */
+export interface DrilldownOrderingItemRow {
+  key: string;
+  /** 1-based spot in the key. */
+  position: number;
+  label: string;
+  inOrderCount: number;
+  /** Answered with this item out of order or left out. */
+  outOfOrder: DrilldownStudent[];
+  /** 1-based spot those students put it in most often; null when none placed it or no spot repeats. */
+  usualSpot: number | null;
+}
+
 export type QuestionDistribution =
   | { kind: 'options'; rows: DrilldownAnswerRow[] }
   | { kind: 'orders'; rows: DrilldownAnswerRow[] }
@@ -139,6 +153,10 @@ export interface QuestionDrilldown {
   outcomes: Record<StudentOutcome, DrilldownStudent[]>;
   distribution: QuestionDistribution;
   commonWrongAnswer: { label: string; count: number } | null;
+  /** Ordering only: each key item with who had it out of order. */
+  orderingItems?: DrilldownOrderingItemRow[];
+  /** Ordering only: key items out of order for at least COMMON_WRONG_ANSWER_SHARE of students served. */
+  oftenOutOfOrder?: string[];
 }
 
 const byName = (a: DrilldownStudent, b: DrilldownStudent) =>
@@ -255,6 +273,47 @@ function buildDistribution(
   return { kind: 'options', rows };
 }
 
+function buildOrderingItems(
+  question: QuizQuestion,
+  answered: AnsweredEntry[]
+): DrilldownOrderingItemRow[] {
+  const correct = question.correctAnswer.split('|');
+  const rows: DrilldownOrderingItemRow[] = correct.map((label, i) => ({
+    key: `${i}`,
+    position: i + 1,
+    label: label.trim(),
+    inOrderCount: 0,
+    outOfOrder: [],
+    usualSpot: null,
+  }));
+  const spotCounts = correct.map(() => new Map<number, number>());
+  for (const e of answered) {
+    const { placedAt, misplaced } = placeOrderingAnswer(
+      correct,
+      e.answer.split('|')
+    );
+    misplaced.forEach((out, i) => {
+      if (!out) {
+        rows[i].inOrderCount++;
+        return;
+      }
+      rows[i].outOfOrder.push(e.student);
+      const at = placedAt[i];
+      if (at !== null) spotCounts[i].set(at, (spotCounts[i].get(at) ?? 0) + 1);
+    });
+  }
+  rows.forEach((row, i) => {
+    let top: [number, number] | null = null;
+    for (const [at, n] of spotCounts[i])
+      if (!top || n > top[1] || (n === top[1] && at < top[0])) top = [at, n];
+    // A spot only one of several students used says nothing about the class.
+    row.usualSpot =
+      top && (top[1] > 1 || row.outOfOrder.length === 1) ? top[0] + 1 : null;
+    row.outOfOrder.sort(byName);
+  });
+  return rows.filter((r) => r.label !== '');
+}
+
 function findCommonWrongAnswer(
   distribution: QuestionDistribution,
   servedCount: number
@@ -332,13 +391,27 @@ export function computeQuestionDrilldowns(
       0
     );
     const distribution = buildDistribution(q, answered);
-    result.set(q.id, {
+    const drilldown: QuestionDrilldown = {
       questionId: q.id,
       servedCount,
       outcomes,
       distribution,
       commonWrongAnswer: findCommonWrongAnswer(distribution, servedCount),
-    });
+    };
+    if (q.type === 'Ordering') {
+      const items = buildOrderingItems(q, answered);
+      drilldown.orderingItems = items;
+      drilldown.oftenOutOfOrder =
+        servedCount === 0
+          ? []
+          : items
+              .filter(
+                (r) =>
+                  r.outOfOrder.length / servedCount >= COMMON_WRONG_ANSWER_SHARE
+              )
+              .map((r) => r.label);
+    }
+    result.set(q.id, drilldown);
   }
   return result;
 }

@@ -317,6 +317,8 @@ describe('non-owner admin writes to quiz responses', () => {
       { resultsOverride: { mode: 'shown', publishedAt: 1 } },
       { paperSeat: 3 },
       { paperBatchId: 'batch-1' },
+      { paperWrittenBatchId: 'batch-1' },
+      { paperWrittenSeat: 3 },
       { backTranslations: { q1: 'text' } },
     ];
     for (const patch of patches) {

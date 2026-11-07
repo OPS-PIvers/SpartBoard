@@ -13,7 +13,7 @@ import {
   QuizLeaderboardEntry,
   isFreeResponseType,
 } from '@/types';
-import { gradeAnswer } from '@/hooks/useQuizSession';
+import { gradeAnswer, hasPaperWrittenAwaiting } from '@/hooks/useQuizSession';
 import {
   fibAnswersForResponse,
   type FibGradingContext,
@@ -295,8 +295,19 @@ export function canScoreResponse(
  */
 export function isResponseAwaitingGrade(
   r: QuizResponse,
-  questions: QuizQuestion[]
+  questions: QuizQuestion[],
+  /** `QuizSession.paperWrittenQuestionIds`: unscanned paper answers are owed a grade. */
+  paperWrittenQuestionIds?: readonly string[]
 ): boolean {
+  if (
+    paperWrittenQuestionIds?.length &&
+    hasPaperWrittenAwaiting(
+      r,
+      questions.map((q) => q.id),
+      paperWrittenQuestionIds
+    )
+  )
+    return true;
   const qMap = new Map(questions.map((q) => [q.id, q]));
   // Same shared dedup as getEarnedPoints, so both pick the same representative
   // answer when arrayUnion races (or a genuine retake) duplicate a questionId.
@@ -335,11 +346,13 @@ export function isResponseAwaitingGrade(
  */
 export function selectPushableResponses(
   responses: QuizResponse[],
-  questions: QuizQuestion[]
+  questions: QuizQuestion[],
+  paperWrittenQuestionIds?: readonly string[]
 ): QuizResponse[] {
   return responses.filter(
     (r) =>
-      canScoreResponse(r, questions) && !isResponseAwaitingGrade(r, questions)
+      canScoreResponse(r, questions) &&
+      !isResponseAwaitingGrade(r, questions, paperWrittenQuestionIds)
   );
 }
 

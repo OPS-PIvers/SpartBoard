@@ -20,7 +20,8 @@ const RESERVED = new Set(
   ).split(' ')
 );
 
-const TOKEN = /\/\/[^\n]*|\/\*[\s\S]*?\*\/|'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|[A-Za-z_]\w*/g;
+const TOKEN =
+  /\/\/[^\n]*|\/\*[\s\S]*?\*\/|'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|[A-Za-z_]\w*/g;
 
 function boundNames(source) {
   const names = new Set();
@@ -29,7 +30,8 @@ function boundNames(source) {
     for (const p of m[2].split(',')) if (p.trim()) names.add(p.trim());
   }
   for (const m of source.matchAll(/\blet\s+(\w+)\s*=/g)) names.add(m[1]);
-  for (const m of source.matchAll(/\{\s*(\w+)\s*(?:=\s*\*\*\s*)?\}/g)) names.add(m[1]);
+  for (const m of source.matchAll(/\{\s*(\w+)\s*(?:=\s*\*\*\s*)?\}/g))
+    names.add(m[1]);
   for (const n of names) if (RESERVED.has(n)) names.delete(n);
   return names;
 }
@@ -98,11 +100,17 @@ export function proveRenamed(before, after, map) {
     );
   }
   const dir = mkdtempSync(path.join(tmpdir(), 'rules-minify-'));
-  const files = ['before.rules', 'after.rules', 'names.txt'].map((f) => path.join(dir, f));
+  const files = ['before.rules', 'after.rules', 'names.txt'].map((f) =>
+    path.join(dir, f)
+  );
   writeFileSync(files[0], before);
   writeFileSync(files[1], after);
   writeFileSync(files[2], formatNameMap(map));
-  const tool = path.join(path.dirname(fileURLToPath(import.meta.url)), 'rulesAst', 'RulesAst.java');
+  const tool = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    'rulesAst',
+    'RulesAst.java'
+  );
   try {
     return execFileSync('java', ['-cp', jar, tool, 'renamed', ...files], {
       encoding: 'utf8',
@@ -112,7 +120,9 @@ export function proveRenamed(before, after, map) {
       .split('\n')
       .pop();
   } catch (err) {
-    throw new Error(`minified rules are not equivalent to the source:\n${err.stdout ?? ''}${err.stderr ?? err}`);
+    throw new Error(
+      `minified rules are not equivalent to the source:\n${err.stdout ?? ''}${err.stderr ?? err}`
+    );
   }
 }
 
@@ -129,7 +139,10 @@ function main() {
   const args = process.argv.slice(2);
   const mapAt = args.indexOf('--map');
   const mapFile = mapAt >= 0 ? args[mapAt + 1] : null;
-  const file = args.find((a, i) => !a.startsWith('--') && i !== mapAt + 1) ?? 'firestore.rules';
+  const file =
+    args.find(
+      (a, i) => !a.startsWith('--') && (mapAt < 0 || i !== mapAt + 1)
+    ) ?? 'firestore.rules';
   const target = path.resolve(file);
   const source = readFileSync(target, 'utf8');
   const { text, map, proof } = releaseRulesText(source, {
@@ -139,7 +152,9 @@ function main() {
   if (mapFile) writeFileSync(mapFile, formatNameMap(map));
   if (args.includes('--write')) {
     writeFileSync(target, text);
-    console.log(`${file}: minified in place, ${Buffer.byteLength(source)} -> ${Buffer.byteLength(text)} bytes`);
+    console.log(
+      `${file}: minified in place, ${Buffer.byteLength(source)} -> ${Buffer.byteLength(text)} bytes`
+    );
   }
 }
 

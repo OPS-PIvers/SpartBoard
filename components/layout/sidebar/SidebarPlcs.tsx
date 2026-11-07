@@ -242,7 +242,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
 };
 
 /**
- * "My PLCs" sidebar page.
+ * "My Teams" sidebar page.
  *
  * Mirrors `SidebarClasses` — flat list of the user's PLCs with a kebab
  * action menu and modals for create+edit + pending invites.

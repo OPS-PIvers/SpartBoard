@@ -1,4 +1,4 @@
-// flashcards-assign-v2 slice 5: the submitted screen honors Quiz's three levels and per-student settings.
+// The submitted screen honors Quiz's three levels and per-student settings.
 import '@testing-library/jest-dom';
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';

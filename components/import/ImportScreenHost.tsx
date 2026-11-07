@@ -28,7 +28,7 @@ import {
 } from './importHandoff';
 import {
   conversionInputFor,
-  IMPORT_TARGET_FEATURES,
+  importTypeOn,
   importRoute,
   usesAi,
 } from './importTargets';
@@ -206,8 +206,7 @@ const OpenImportScreen: React.FC<
   const allowed = (target: ImportTarget, source: PendingSource): boolean => {
     const route = importRoute(target);
     if (!route) return false;
-    const typeFlag = IMPORT_TARGET_FEATURES[target];
-    if (!typeFlag || !canAccessFeature(typeFlag)) return false;
+    if (!importTypeOn(target, canAccessFeature)) return false;
     if (route.widgetType && !canAccessWidget(route.widgetType)) return false;
     // A board from a page is Magic Layout's engine, so it follows that flag.
     if (target === 'board') return canAccessFeature('dashboard-layout');

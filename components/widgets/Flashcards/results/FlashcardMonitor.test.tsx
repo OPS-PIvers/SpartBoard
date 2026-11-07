@@ -1,13 +1,7 @@
 // Flashcards results on the Quiz monitor layout: Quiz-style counts, class picker and footer.
 import '@testing-library/jest-dom';
 import React from 'react';
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   FlashcardAssignment,
@@ -115,8 +109,6 @@ const show = (onEnd?: () => Promise<void>, over = {}) =>
     <FlashcardResultsView
       assignment={assignment(over)}
       onBack={vi.fn()}
-      onPublishScores={vi.fn()}
-      onUnpublishScores={vi.fn()}
       onEnd={onEnd}
     />
   );
@@ -175,12 +167,7 @@ describe('FlashcardResultsView monitor layout', () => {
     h.results = h.results.filter((r) => r.classId !== 'cl-3');
     h.results.push({ studentUid: 'other-2', classId: 'cl-2' });
     rerender(
-      <FlashcardResultsView
-        assignment={assignment()}
-        onBack={vi.fn()}
-        onPublishScores={vi.fn()}
-        onUnpublishScores={vi.fn()}
-      />
+      <FlashcardResultsView assignment={assignment()} onBack={vi.fn()} />
     );
     expect(screen.getByRole('combobox', { name: 'Class' })).toHaveValue('');
     expect(bucket('Not started')).toHaveTextContent('2');
@@ -217,36 +204,6 @@ describe('FlashcardResultsView monitor layout', () => {
     show(vi.fn(), { status: 'ended' });
     expect(screen.queryByRole('button', { name: /Close all/ })).toBeNull();
     expect(screen.getAllByText('Ended').length).toBeGreaterThan(0);
-  });
-
-  it('shows Check counts with flagged answers and Publish scores in the footer', async () => {
-    h.session = session({ kind: 'check', checkMode: 'write' });
-    h.results = [
-      { studentUid: 'fresh-1', classId: 'cl-1' },
-      { studentUid: 'midway-1', classId: 'cl-1', studyMs: 5 },
-      {
-        studentUid: 'flagger-3',
-        classId: 'cl-3',
-        submittedAt: 5,
-        score: 1,
-        total: 2,
-        flags: [{ cardId: 'c2', response: 'dose' }],
-      },
-    ];
-    show(undefined, { kind: 'check' });
-    expect(bucket('Not started')).toHaveTextContent('1');
-    expect(bucket('In progress')).toHaveTextContent('1');
-    expect(bucket('Submitted')).toHaveTextContent('1 flagged');
-    expect(
-      screen.getByRole('button', { name: /Publish scores/ })
-    ).toBeInTheDocument();
-    fireEvent.click(bucket('Submitted'));
-    const flagRow = screen.getByText(/Wrote “dose”/).parentElement
-      ?.parentElement as HTMLElement;
-    fireEvent.click(within(flagRow).getByRole('button', { name: 'Accept' }));
-    await waitFor(() =>
-      expect(h.resolveFlag).toHaveBeenCalledWith('flagger-3', 'c2', true)
-    );
   });
 
   it('uses the period bar for per-period classes', () => {

@@ -606,11 +606,6 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'accentColor',
     },
     {
-      anchor: 'settings.field:weather#cardColor',
-      label: 'Clothing card',
-      kind: 'surfaceColor',
-    },
-    {
       anchor: 'settings.field:weather#fontFamily',
       label: 'Font',
       kind: 'fontFamily',
@@ -1302,17 +1297,7 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'textSizePreset',
     },
   ],
-  'blooms-taxonomy': [
-    {
-      anchor: 'settings.group:blooms-taxonomy#content',
-      label: 'Content',
-    },
-    {
-      anchor: 'settings.field:blooms-taxonomy#enabledCategories',
-      label: 'Content categories',
-      kind: 'custom',
-    },
-  ],
+  'blooms-taxonomy': [],
   'need-do-put-then': [
     {
       anchor: 'settings.group:need-do-put-then#content',

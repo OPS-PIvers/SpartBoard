@@ -198,7 +198,12 @@ export function useMonitorData(
             ? getDisplayScore(r, quizData.questions, scoringConfig, fibGrading)
             : null,
           awaitingGrade:
-            scoreable && isResponseAwaitingGrade(r, quizData.questions),
+            scoreable &&
+            isResponseAwaitingGrade(
+              r,
+              quizData.questions,
+              session.paperWrittenQuestionIds
+            ),
           band: bandScore != null ? proficiencyBand(bandScore) : null,
           tabWarnings: r.tabSwitchWarnings ?? 0,
           hand: flags.handMinutes,
@@ -213,6 +218,7 @@ export function useMonitorData(
     [
       filteredResponses,
       quizData.questions,
+      session.paperWrittenQuestionIds,
       pinToName,
       byStudentUid,
       scoringConfig,

@@ -21,6 +21,7 @@ import {
   writeBatch,
   increment,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-va-period-access-test';
 const TEACHER_UID = 'teacher-uid';
@@ -183,6 +184,9 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [`${TEACHER_UID}@example.org`])
+  );
 });
 
 describe('joining a per-period video activity', () => {

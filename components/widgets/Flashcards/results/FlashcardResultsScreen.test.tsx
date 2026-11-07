@@ -1,4 +1,4 @@
-// flashcards-assign-v2: a Check's Results screen built on Quiz's results pieces.
+// A Check's Results screen built on Quiz's results pieces.
 import '@testing-library/jest-dom';
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';

@@ -53,7 +53,11 @@ vi.mock('@/hooks/useFolders', () => ({ useFolders: vi.fn() }));
 vi.mock('@/hooks/useTeacherBellPeriods', () => ({
   useAssignPeriodAccess: () => undefined,
 }));
-vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('@/config/firebase', () => ({
+  db: {},
+  functions: {},
+  isAuthBypass: false,
+}));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => vi.fn() }));
 vi.mock('@/components/widgets/WidgetLayout', () => ({
   WidgetLayout: ({ content }: { content: React.ReactNode }) => (
@@ -393,6 +397,6 @@ describe('FlashcardsWidget — pasted onto the board', () => {
 
     expect(screen.getByDisplayValue('hola')).toBeInTheDocument();
     expect(screen.getByDisplayValue('goodbye')).toBeInTheDocument();
-    expect(screen.queryByText('Cell biology')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });

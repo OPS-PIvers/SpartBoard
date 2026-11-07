@@ -75,14 +75,7 @@ const session = (over: Partial<FlashcardSession> = {}): FlashcardSession => ({
 });
 
 const show = () =>
-  render(
-    <FlashcardResultsView
-      assignment={assignment}
-      onBack={vi.fn()}
-      onPublishScores={vi.fn()}
-      onUnpublishScores={vi.fn()}
-    />
-  );
+  render(<FlashcardResultsView assignment={assignment} onBack={vi.fn()} />);
 
 describe('FlashcardResultsView Speaking view gate', () => {
   beforeEach(() => {

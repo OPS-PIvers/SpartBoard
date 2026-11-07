@@ -459,6 +459,12 @@ describe('gradeAnswer — paper transcripts', () => {
     );
   });
 
+  it('an untranscribed image waits for the teacher, never a scored 0', () => {
+    const r = gradeAnswer(q(), '', undefined, undefined, 'image');
+    expect(r.state).toBe('awaiting-grade');
+    expect(r.pointsEarned).toBe(0);
+  });
+
   it('a blank transcript is a genuine 0', () => {
     const r = gradeAnswer(q(), '', undefined, undefined, 'blank');
     expect(r.state).toBe('not-attempted');

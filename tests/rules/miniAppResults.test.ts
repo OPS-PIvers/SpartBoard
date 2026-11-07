@@ -13,6 +13,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-ma-results-test';
 const TEACHER_UID = 'teacher-uid';
@@ -110,6 +111,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [
+      `${TEACHER_UID}@example.org`,
+      `${OTHER_TEACHER_UID}@example.org`,
+    ])
+  );
 });
 
 describe('v1 sessions keep direct submissions', () => {

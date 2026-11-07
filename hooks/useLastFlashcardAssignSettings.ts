@@ -32,9 +32,9 @@ export type FlashcardAssignRules = Omit<
   FlashcardAssignForm,
   'collectSubmission'
 > & {
-  /** flashcards-assign-v2: the Quiz-style rule steps; absent before that flag. */
+  /** The Quiz-style rule steps; absent on settings saved before them. */
   rules?: FlashcardCheckRules;
-  /** flashcards-assign-v2: last Speak rules picked; groups aren't kept since they depend on the language. */
+  /** Last Speak rules picked; groups aren't kept since they depend on the language. */
   speak?: LastSpeakChoice;
 };
 

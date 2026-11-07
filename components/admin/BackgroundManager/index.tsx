@@ -28,6 +28,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { DriveFile } from '@/utils/googleDriveService';
 import { extractYouTubeId } from '@/utils/youtube';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { BoardBackgroundDefaultsPanel } from './BoardBackgroundDefaultsPanel';
 import { canonicalizeBuildingIds } from '@/config/buildings';
 import {
   Upload,
@@ -776,6 +777,11 @@ export const BackgroundManager: React.FC = () => {
           onClose={() => setMessage(null)}
         />
       )}
+
+      <BoardBackgroundDefaultsPanel
+        presets={presets}
+        onError={(text) => showMessage('error', text)}
+      />
 
       {/* Filters and Actions */}
       <div className="flex flex-col gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-2">

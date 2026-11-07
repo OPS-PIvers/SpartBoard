@@ -14,6 +14,7 @@ import {
   Building2,
   BarChart,
   LayoutTemplate,
+  Footprints,
   LifeBuoy,
   Link2,
   GraduationCap,
@@ -44,6 +45,7 @@ import { PlcResourcesManager } from './PlcResourcesManager/PlcResourcesManager';
 import { BuildingGroupsManager } from './PlcResourcesManager/BuildingGroupsManager';
 import { TeamTypeDefaultsPanel } from '@/components/plc/teams/admin/TeamTypeDefaultsPanel';
 import { HelpCenterManager } from './HelpCenter/HelpCenterManager';
+import { GettingStartedPanel } from './GettingStarted/GettingStartedPanel';
 import { StandardsPanel } from './StandardsPanel';
 import { SubjectsPanel } from './SubjectsPanel';
 import { SchoologyCategoriesPanel } from './SchoologyCategoriesPanel';
@@ -118,6 +120,13 @@ const TAB_GROUPS = [
         label: 'Help Center',
         icon: LifeBuoy,
         component: HelpCenterManager,
+      },
+      {
+        id: 'getting-started',
+        label: 'Getting Started',
+        icon: Footprints,
+        component: GettingStartedPanel,
+        feature: 'getting-started',
       },
       {
         id: 'standards',

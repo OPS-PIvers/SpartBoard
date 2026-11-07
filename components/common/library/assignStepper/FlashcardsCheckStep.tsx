@@ -1,18 +1,10 @@
 import React from 'react';
-import type {
-  FlashcardMasteryThreshold,
-  FlashcardScoreVisibility,
-  FlashcardTestType,
-} from '@/types';
+import type { FlashcardMasteryThreshold, FlashcardTestType } from '@/types';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Toggle } from '@/components/common/Toggle';
-import {
-  flashcardTestCountOptions,
-  isMcAvailable,
-} from '@/components/widgets/Flashcards/utils/flashcardAssign';
+import { isMcAvailable } from '@/components/widgets/Flashcards/utils/flashcardAssign';
 import {
   FLASHCARD_MODE_OPTIONS,
-  FLASHCARD_SCORE_VISIBILITY_OPTIONS,
   FLASHCARD_SIDE_OPTIONS,
   FLASHCARD_TEST_TYPE_OPTIONS,
 } from '@/components/widgets/Flashcards/utils/flashcardAssignOptions';
@@ -21,9 +13,7 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface FlashcardsCheckContext {
   cardCount: number;
-  /** flashcards-assign-v2: Cards and What students see own count and scores; Speak is a mode. */
-  v2?: boolean;
-  /** v2: Speak is available for this set (flag and language). */
+  /** Speak is available for this set (flag and language). */
   speakAvailable?: boolean;
 }
 
@@ -40,8 +30,6 @@ const MASTERY_MAX = 4;
 const ROW_CLASS = 'flex min-h-8 items-center justify-between gap-3';
 const LABEL_CLASS = 'text-sm font-bold text-brand-blue-dark';
 const SUB_LABEL_CLASS = 'text-sm font-medium text-slate-700';
-const SELECT_CLASS =
-  'h-8 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden';
 
 const parseMastery = (raw: string): FlashcardMasteryThreshold | null => {
   const n = Number(raw);
@@ -54,27 +42,21 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
   value,
   onChange,
   cardCount,
-  v2 = false,
   speakAvailable = false,
   speakRules,
 }) => {
   const update = (patch: Partial<FlashcardsCheckValue>): void =>
     onChange({ ...value, ...patch });
   const mcAvailable = isMcAvailable(cardCount);
-  const countOptions = flashcardTestCountOptions(cardCount);
-  const testCount = countOptions.includes(value.testCount)
-    ? value.testCount
-    : 'all';
   const toggleTestType = (type: FlashcardTestType, on: boolean): void =>
     update({
       testTypes: on
         ? [...value.testTypes.filter((t) => t !== type), type]
         : value.testTypes.filter((t) => t !== type),
     });
-  const modeOptions =
-    v2 && speakAvailable
-      ? [...FLASHCARD_MODE_OPTIONS, { value: 'speak' as const, label: 'Speak' }]
-      : FLASHCARD_MODE_OPTIONS;
+  const modeOptions = speakAvailable
+    ? [...FLASHCARD_MODE_OPTIONS, { value: 'speak' as const, label: 'Speak' }]
+    : FLASHCARD_MODE_OPTIONS;
   const speakMode = value.checkMode === 'speak';
   const noTestTypes =
     value.checkMode === 'test' &&
@@ -177,33 +159,6 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
               </p>
             )}
           </div>
-          {!v2 && (
-            <div className={ROW_CLASS}>
-              <label htmlFor="flashcards-check-count" className={LABEL_CLASS}>
-                Questions
-              </label>
-              <select
-                id="flashcards-check-count"
-                {...tourAttr('flashcards-check.questions')}
-                value={String(testCount)}
-                onChange={(event) =>
-                  update({
-                    testCount:
-                      event.target.value === 'all'
-                        ? 'all'
-                        : Number(event.target.value),
-                  })
-                }
-                className={`${SELECT_CLASS} w-28`}
-              >
-                {countOptions.map((count) => (
-                  <option key={String(count)} value={String(count)}>
-                    {count === 'all' ? `All (${cardCount})` : count}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </>
       )}
 
@@ -231,64 +186,6 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
           />
         </div>
       )}
-
-      {!v2 && (
-        <div className={ROW_CLASS}>
-          <label
-            htmlFor="flashcards-check-score-visibility"
-            className={LABEL_CLASS}
-          >
-            Score visibility
-          </label>
-          <select
-            id="flashcards-check-score-visibility"
-            {...tourAttr('flashcards-check.score-visibility')}
-            value={value.scoreVisibility}
-            onChange={(event) =>
-              update({
-                scoreVisibility: event.target.value as FlashcardScoreVisibility,
-              })
-            }
-            className={`${SELECT_CLASS} w-56`}
-          >
-            {FLASHCARD_SCORE_VISIBILITY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
     </div>
   );
 };
-
-/** v2's What students see step: the score visibility choice on its own. */
-export const FlashcardsFeedbackStep: React.FC<{
-  value: FlashcardsCheckValue;
-  onChange: (value: FlashcardsCheckValue) => void;
-}> = ({ value, onChange }) => (
-  <div className={ROW_CLASS}>
-    <label htmlFor="flashcards-check-score-visibility" className={LABEL_CLASS}>
-      Score visibility
-    </label>
-    <select
-      id="flashcards-check-score-visibility"
-      {...tourAttr('flashcards-check.score-visibility')}
-      value={value.scoreVisibility}
-      onChange={(event) =>
-        onChange({
-          ...value,
-          scoreVisibility: event.target.value as FlashcardScoreVisibility,
-        })
-      }
-      className={`${SELECT_CLASS} w-56`}
-    >
-      {FLASHCARD_SCORE_VISIBILITY_OPTIONS.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  </div>
-);

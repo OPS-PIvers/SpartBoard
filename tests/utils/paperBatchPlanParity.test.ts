@@ -343,7 +343,13 @@ describe('client/server page map parity (layoutVersion 2)', () => {
       QUESTIONS[4],
       free('f2', { maxWords: 25 }),
       free('f3', { paperBoxSize: 'full' }),
-      free('f4', { maxWords: 500 }),
+      free('f4', { maxWords: 500, paperBoxStyle: 'graph' }),
+      free('f5', { paperBoxStyle: 'lines' }),
+      free('f6', { paperBoxStyle: 'image' }),
+      free('f7', {
+        paperBoxStyle: 'image',
+        paperBoxImage: { id: 'i', label: 'Map', source: 'image', url: 'u' },
+      }),
       free('rec', { recording: { maxDurationSeconds: 60 } as never }),
       QUESTIONS[1],
     ];
@@ -359,7 +365,15 @@ describe('client/server page map parity (layoutVersion 2)', () => {
         client.writtenRefusals.map((r) => r.label)
       );
     }
-    expect(clientAnalyze(quiz, { written: true }).written).toHaveLength(4);
+    const styled = clientAnalyze(quiz, { written: true });
+    expect(styled.written).toHaveLength(7);
+    expect(
+      styled.entries.flatMap((e) =>
+        e.kind === 'written' && e.questionId.startsWith('f')
+          ? [e.style ?? 'lines']
+          : []
+      )
+    ).toEqual(['lines', 'lines', 'lines', 'graph', 'lines', 'lines', 'image']);
   });
 
   it('refuses the same written questions inside an "answer any" section', () => {
@@ -399,9 +413,11 @@ describe('client/server page map parity (layoutVersion 2)', () => {
   it('lays out an analyzed quiz end to end the same way', () => {
     const questions = [
       ...QUESTIONS.slice(0, 4),
-      free('f1', { paperBoxSize: 'L' }),
+      free('f1', { paperBoxSize: 'L', paperBoxStyle: 'graph' }),
       QUESTIONS[0],
-      free('f2'),
+      free('f2', { paperBoxStyle: 'coordinate' }),
+      free('f3', { paperBoxStyle: 'blank', paperBoxSize: 'S' }),
+      free('f4', { paperBoxStyle: 'lines' }),
     ];
     const client = clientAnalyze(writtenQuiz(questions), { written: true });
     const server = serverAnalyze(questions, { written: true });

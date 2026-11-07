@@ -17,6 +17,7 @@ import {
   promptQuestionIds,
 } from '@/utils/paperSheetVersions';
 import { PAPER_HANDWRITTEN_FEATURE } from '@/utils/paperWritten';
+import { writtenOnlyAnalysis } from '@/utils/paperWrittenHybrid';
 import {
   reprintBlocker,
   reprintClasses,
@@ -29,6 +30,8 @@ export interface PaperReprintModalProps {
   rosters: ClassRoster[];
   onClose: () => void;
   onError: (message: string) => void;
+  /** Written answers on paper: the stack holds only written boxes, with no prompt pages or sheet stimuli. */
+  writtenOnly?: boolean;
   print?: typeof printPaperSheets;
 }
 
@@ -44,13 +47,17 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
   rosters,
   onClose,
   onError,
+  writtenOnly = false,
   print = printPaperSheets,
 }) => {
   const { canAccessFeature } = useAuth();
   const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
   const analysis = useMemo(
-    () => promptAnalysis(quiz, analyzePaperQuiz(quiz, { written: writtenOn })),
-    [quiz, writtenOn]
+    () =>
+      writtenOnly
+        ? writtenOnlyAnalysis(quiz)
+        : promptAnalysis(quiz, analyzePaperQuiz(quiz, { written: writtenOn })),
+    [quiz, writtenOn, writtenOnly]
   );
   const blocker = reprintBlocker(batch, analysis);
   const classes = useMemo(
@@ -65,16 +72,19 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
   );
   const quizStimuli = useMemo(() => quiz.stimuli ?? [], [quiz.stimuli]);
   const promptIds = useMemo(
-    () => promptQuestionIds(analysis, questionsById, quizStimuli),
-    [analysis, questionsById, quizStimuli]
+    () =>
+      writtenOnly
+        ? new Set<string>()
+        : promptQuestionIds(analysis, questionsById, quizStimuli),
+    [writtenOnly, analysis, questionsById, quizStimuli]
   );
   const promptPages = useMemo(
     () => promptPagesFor(promptIds, questionsById, quizStimuli),
     [promptIds, questionsById, quizStimuli]
   );
   const sheetStimuli = useMemo(
-    () => quiz.paperSheetStimuli ?? [],
-    [quiz.paperSheetStimuli]
+    () => (writtenOnly ? [] : (quiz.paperSheetStimuli ?? [])),
+    [writtenOnly, quiz.paperSheetStimuli]
   );
   const imageStimuli = useMemo(() => {
     const seen = new Set(sheetStimuli.map((s) => s.id));
@@ -162,7 +172,9 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
     <Modal
       isOpen
       onClose={onClose}
-      title="Print response sheets"
+      title={
+        writtenOnly ? 'Print written answer sheets' : 'Print response sheets'
+      }
       maxWidth="max-w-md"
       footer={
         <div className="flex justify-center gap-2">

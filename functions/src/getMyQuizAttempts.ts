@@ -6,7 +6,6 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { loadSessionContext } from './gradebook/gradeIndex';
 import { gradeGroupAnswer } from './plcAssessmentMath';
 import { parseCompletedResponse } from './recomputePlcAssessments';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
 import {
   QUIZ_ATTEMPTS_SUBCOLLECTION,
   QUIZ_ATTEMPT_SCORES_COLLECTION,
@@ -20,7 +19,6 @@ import { assertViewAsAllowed } from './viewAsGuard';
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
 
-export const ATTEMPT_HISTORY_FEATURE = 'quiz-attempt-history';
 const MAX_ID_LENGTH = 128;
 
 export interface MyAttemptAnswer {
@@ -52,7 +50,6 @@ export interface MyAttemptsClaims {
 export interface MyAttemptsDeps {
   db: Firestore;
   now: () => number;
-  teacherEmailOf: (uid: string) => Promise<string | null>;
 }
 
 const isId = (v: unknown): v is string =>
@@ -125,9 +122,8 @@ export async function handleGetMyQuizAttempts(
   )
     throw new HttpsError('permission-denied', 'Not your quiz.');
   const none = { attempts: [] };
-  const teacherUid =
-    typeof session.teacherUid === 'string' ? session.teacherUid : '';
-  if (!teacherUid) return none;
+  if (typeof session.teacherUid !== 'string' || !session.teacherUid)
+    return none;
   // Mid-retake the earlier attempts stay hidden, as the client's results screen does.
   if (response.status !== 'completed' || response.resultsLockedOut === true)
     return none;
@@ -145,13 +141,6 @@ export async function handleGetMyQuizAttempts(
       ? 'score-only'
       : resolved;
   if (visibility === 'none') return none;
-  const granted = await isGlobalFeatureGranted(
-    deps.db,
-    ATTEMPT_HISTORY_FEATURE,
-    await deps.teacherEmailOf(teacherUid),
-    teacherUid
-  );
-  if (!granted) return none;
 
   const [copiesSnap, listSnap] = await Promise.all([
     responseRef.collection(QUIZ_ATTEMPTS_SUBCOLLECTION).get(),
@@ -230,13 +219,6 @@ export const getMyQuizAttemptsV1 = onCall(
       {
         db: admin.firestore(),
         now: () => Date.now(),
-        teacherEmailOf: async (uid) => {
-          try {
-            return (await admin.auth().getUser(uid)).email ?? null;
-          } catch {
-            return null;
-          }
-        },
       },
       request.auth?.uid ?? null,
       request.data,

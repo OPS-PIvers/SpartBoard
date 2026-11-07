@@ -212,6 +212,37 @@ describe('computeQuestionDrilldowns', () => {
     expect(keys(d.outcomes.correct)).toEqual(['s1']);
   });
 
+  it('Ordering: lists each key item with who had it out of order and where they usually put it', () => {
+    const ordering = q('q1', 'Ordering', 'a|b|c|d', {
+      allowPartialCredit: true,
+    });
+    const d = drill(
+      [ordering],
+      [
+        response('s1', { q1: 'a|b|c|d' }),
+        response('s2', { q1: 'b|c|d|a' }),
+        response('s3', { q1: 'b|c|d|a' }),
+        response('s4', { q1: 'a|c|b|d' }),
+        response('s5', { q1: 'a|b||' }),
+      ]
+    );
+    expect(
+      d.orderingItems?.map((r) => [
+        r.position,
+        r.label,
+        r.inOrderCount,
+        keys(r.outOfOrder),
+        r.usualSpot,
+      ])
+    ).toEqual([
+      [1, 'a', 3, ['s2', 's3'], 4],
+      [2, 'b', 4, ['s4'], 3],
+      [3, 'c', 4, ['s5'], null],
+      [4, 'd', 4, ['s5'], null],
+    ]);
+    expect(d.oftenOutOfOrder).toEqual(['a']);
+  });
+
   it('written: no distribution; graded, ungraded and blank split into outcomes', () => {
     const frq = q('q1', 'free-response', '', { points: 4 });
     const graded = (points: number) => ({

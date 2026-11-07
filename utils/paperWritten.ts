@@ -1,5 +1,7 @@
 import type {
   PaperBoxSize,
+  PaperBoxStyle,
+  PaperSheetStimulus,
   QuizQuestion,
   PaperPrivateAnswer,
   PaperPrivateStatus,
@@ -11,6 +13,8 @@ import type {
 
 /** Contracts for handwritten paper answers; see docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md §3. */
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
+/** Off: inked boxes import as `image` and teachers grade the crop. */
+export const PAPER_HANDWRITING_AI_FEATURE = 'paper-handwriting-ai';
 
 /** Written lines ruled in each named box size; a line is one 8 mm grid row. L is kept for quizzes saved before custom sizes. */
 export const PAPER_BOX_LINES: Readonly<
@@ -81,6 +85,69 @@ export function withPaperBoxSizes<T extends { questions: QuizQuestion[] }>(
   };
 }
 
+export function isPaperBoxStyle(value: unknown): value is PaperBoxStyle {
+  return (
+    value === 'lines' ||
+    value === 'blank' ||
+    value === 'graph' ||
+    value === 'coordinate' ||
+    value === 'image'
+  );
+}
+
+/** What a free-response box prints inside it; lines unless a valid style is saved. */
+export function paperBoxStyleOf(
+  question: Pick<QuizQuestion, 'paperBoxStyle' | 'paperBoxImage'>
+): PaperBoxStyle {
+  if (!isPaperBoxStyle(question.paperBoxStyle)) return 'lines';
+  // An image box with no image left to print falls back to lines.
+  if (question.paperBoxStyle === 'image' && !hasPaperBoxImage(question))
+    return 'lines';
+  return question.paperBoxStyle;
+}
+
+/** The question carries an image an `'image'` box can print. */
+export function hasPaperBoxImage(
+  question: Pick<QuizQuestion, 'paperBoxImage'>
+): boolean {
+  const img = question.paperBoxImage;
+  return (
+    !!img &&
+    img.source === 'image' &&
+    (!!img.driveFileId || !!img.url) &&
+    !!img.id
+  );
+}
+
+/** A box style picked in the print dialog; an image style carries its image. */
+export interface PaperBoxStylePick {
+  style: PaperBoxStyle;
+  image?: PaperSheetStimulus;
+}
+
+/** Questions with the print dialog's box styles applied; lines drops the key, and only an image box keeps an image. */
+export function withPaperBoxStyles<T extends { questions: QuizQuestion[] }>(
+  holder: T,
+  styles: Readonly<Record<string, PaperBoxStylePick>>
+): T {
+  if (Object.keys(styles).length === 0) return holder;
+  return {
+    ...holder,
+    questions: holder.questions.map((q) => {
+      const pick = styles[q.id];
+      if (!pick) return q;
+      const { paperBoxStyle: _style, paperBoxImage: _image, ...rest } = q;
+      return {
+        ...rest,
+        ...(pick.style !== 'lines' ? { paperBoxStyle: pick.style } : {}),
+        ...(pick.style === 'image' && pick.image
+          ? { paperBoxImage: pick.image }
+          : {}),
+      };
+    }),
+  };
+}
+
 export function isPaperBoxSize(value: unknown): value is PaperBoxSize {
   if (typeof value === 'number') {
     return (
@@ -118,17 +185,19 @@ export function publicTranscriptState(
 ): PaperTranscriptState {
   if (status === 'done') return 'done';
   if (status === 'blank') return 'blank';
+  if (status === 'image') return 'image';
   return 'pending';
 }
 
 const PRIVATE_TRANSITIONS: Readonly<
   Record<PaperPrivateStatus, readonly PaperPrivateStatus[]>
 > = {
-  pending: ['done', 'failed', 'over-quota'],
+  pending: ['done', 'failed', 'over-quota', 'image'],
   failed: ['pending'],
   'over-quota': ['pending'],
   blank: ['pending'],
   done: [],
+  image: [],
 };
 
 /** Allowed status moves within one scan; a new `scanId` replaces the doc outright. */
@@ -148,11 +217,13 @@ export function isPaperWrittenAnswer(
   );
 }
 
-/** A pending transcript is awaiting grade, never a 0. */
+/** A pending transcript, or a crop imported without one, is awaiting grade, never a 0. */
 export function isPaperTranscriptPending(
   answer: Pick<QuizResponseAnswer, 'paperTranscript'>
 ): boolean {
-  return answer.paperTranscript === 'pending';
+  return (
+    answer.paperTranscript === 'pending' || answer.paperTranscript === 'image'
+  );
 }
 
 export function handwritingArtifact(

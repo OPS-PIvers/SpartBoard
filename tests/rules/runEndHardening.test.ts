@@ -12,6 +12,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, increment, setDoc, updateDoc } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-run-end-hardening';
 const TEACHER_UID = 'teacher-run-end';
@@ -88,6 +89,9 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [`${TEACHER_UID}@example.org`])
+  );
 });
 
 // ─── Quiz ─────────────────────────────────────────────────────────────────────

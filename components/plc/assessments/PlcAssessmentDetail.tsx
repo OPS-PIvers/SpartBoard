@@ -349,13 +349,12 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   assessmentId,
 }) => {
   const { t, i18n } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user } = useAuth();
   const { addToast } = useDashboard();
-  const flashcards = canAccessFeature('flashcards-assign-v2');
   const { data: assessments, loading: assessmentsLoading } =
-    usePlcAssessmentsData({ flashcards });
+    usePlcAssessmentsData({ flashcards: true });
   const { data: aggregates, loading: aggregatesLoading } = usePlcAggregatesData(
-    { flashcards }
+    { flashcards: true }
   );
   const members = usePlcMembers();
   const memberUids = useMemo(

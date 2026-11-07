@@ -25,7 +25,12 @@ export interface InviteResult {
   email: string;
   token: string;
   claimUrl: string;
-  status: 'created' | 'already_active' | 'skipped';
+  status:
+    | 'created'
+    | 'already_active'
+    | 'already_invited'
+    | 'already_inactive'
+    | 'skipped';
 }
 export interface InviteError {
   email: string;
@@ -406,10 +411,16 @@ export const useOrgMembers = (orgId: string | null) => {
         orgId: string;
         invitations: BulkInviteIntent[];
         message?: string;
+        skipExisting: boolean;
       },
       InviteResponse
     >(functions, 'createOrganizationInvites');
-    const result = await callable({ orgId, invitations: intents, message });
+    const result = await callable({
+      orgId,
+      invitations: intents,
+      message,
+      skipExisting: true,
+    });
     return rewriteClaimUrls(result.data);
   };
 

@@ -74,24 +74,34 @@ function makeDb(docs: Record<string, Doc>) {
       return Promise.resolve();
     },
   });
-  // Only the `where(field, '>', '')` shape the publish path uses: direct
-  // children of the collection carrying a non-empty string at `field`.
+  // The `where(field, '>', '')` shape the publish path uses and the import's
+  // `where(field, '==', value).count()`, over direct children of the collection.
   const collectionRef = (path: string) => ({
     doc: (id: string) => docRef(`${path}/${id}`),
-    where: (field: string) => ({
-      get: () =>
-        Promise.resolve({
-          docs: Object.entries(docs)
-            .filter(
-              ([p, d]) =>
-                p.startsWith(`${path}/`) &&
-                !p.slice(path.length + 1).includes('/') &&
-                typeof d[field] === 'string' &&
-                d[field] > ''
-            )
-            .map(([p, d]) => ({ id: p.slice(path.length + 1), data: () => d })),
+    where: (field: string, op: string, value: unknown) => {
+      const matches = () =>
+        Object.entries(docs).filter(
+          ([p, d]) =>
+            p.startsWith(`${path}/`) &&
+            !p.slice(path.length + 1).includes('/') &&
+            (op === '=='
+              ? d[field] === value
+              : typeof d[field] === 'string' && d[field] > '')
+        );
+      return {
+        get: () =>
+          Promise.resolve({
+            docs: matches().map(([p, d]) => ({
+              id: p.slice(path.length + 1),
+              data: () => d,
+            })),
+          }),
+        count: () => ({
+          get: () =>
+            Promise.resolve({ data: () => ({ count: matches().length }) }),
         }),
-    }),
+      };
+    },
   });
   const docRef = (
     path: string
@@ -778,6 +788,49 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     );
   });
 
+  it('files a custom image box as graded from the scan: no transcription, no quota', async () => {
+    const docs = v2Docs();
+    const batch = docs[`users/${UID}/paper_batches/${BATCH}`];
+    const maps = batch.pageMaps as Doc[];
+    (maps[0].items as Doc[])[1] = {
+      kind: 'written',
+      questionId: 'q2',
+      label: '2',
+      style: 'image',
+    };
+    const { result } = await callV2(docs, [v2Sheet(1)]);
+    // Page 1 now holds only the image box, so nothing is queued for Gemini.
+    expect(result).toMatchObject({ jobsCreated: 2, pagesQueued: 0 });
+    const q2 = (docs[RESP].answers as Doc[]).find((a) => a.questionId === 'q2');
+    expect(q2).toMatchObject({ paperTranscript: 'image', answer: '' });
+    expect(docs[`${RESP}/paperPrivate/q2`]).toEqual({
+      scanId: SCAN,
+      seat: 1,
+      status: 'image',
+      noTranscript: true,
+      attempts: 0,
+      charged: false,
+      updatedAt: NOW,
+    });
+    // The job still carries the box, so the worker archives its crop.
+    expect(docs[`${JOBS}/${SCAN}_1_1_0`]).toMatchObject({
+      boxes: [{ questionId: 'q2', storagePath: crop(SCAN, 1, 'q2') }],
+    });
+  });
+
+  it('never takes the image-box flag from the payload', async () => {
+    const sheet1 = v2Sheet(1, {
+      written: [
+        { questionId: 'q2', page: 1, state: 'ink', noTranscript: true },
+      ],
+    });
+    const docs = v2Docs();
+    await callV2(docs, [sheet1]);
+    expect(docs[`${RESP}/paperPrivate/q2`]).toMatchObject({
+      status: 'pending',
+    });
+  });
+
   it('keeps the client crop type only from the allowlist', async () => {
     const png = v2Sheet(1, {
       written: [
@@ -1066,6 +1119,192 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     ]);
   });
 
+  describe('written answers on paper (hybrid)', () => {
+    const DEVICE = `quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`;
+    const hybridDocs = (): Record<string, Doc> => {
+      const docs = v2Docs();
+      docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`] = {
+        quizId: 'quiz-1',
+        writtenOnPaper: true,
+        paperBatchId: BATCH,
+        paperWrittenQuestionIds: ['q2', 'q4'],
+      };
+      docs[`users/${UID}/paper_batches/${BATCH}`] = {
+        ...docs[`users/${UID}/paper_batches/${BATCH}`],
+        pageMaps: [
+          {
+            page: 1,
+            grid: 0,
+            items: [{ kind: 'written', questionId: 'q2', label: '2' }],
+          },
+          {
+            page: 2,
+            grid: 0,
+            items: [{ kind: 'written', questionId: 'q4', label: '4' }],
+          },
+        ],
+      };
+      return docs;
+    };
+    const hybridSheet = (seat: number, over: Doc = {}) =>
+      v2Sheet(seat, { answers: [], ...over });
+    const deviceRow = (over: Doc = {}): Doc => ({
+      studentUid: 'pseudo-s2',
+      classId: 'class-1',
+      joinedAt: 100,
+      status: 'completed',
+      submittedAt: 5000,
+      completedAttempts: 1,
+      score: null,
+      preSyncVersion: 0,
+      lastWriteAt: 'DEVICE_TS',
+      tabSwitchWarnings: 2,
+      tabExits: [{ at: 1 }],
+      unlocked: false,
+      autoSubmitted: true,
+      resultsLockedOut: true,
+      servedQuestionIds: ['q1', 'q2', 'q3', 'q4'],
+      answers: [
+        { questionId: 'q1', answer: 'B', answeredAt: 10, status: 'submitted' },
+        { questionId: 'q3', answer: 'A', answeredAt: 11, status: 'submitted' },
+      ],
+      ...over,
+    });
+
+    it('merges onto a submitted device response and keeps every device field', async () => {
+      const docs = hybridDocs();
+      const before = deviceRow();
+      docs[DEVICE] = { ...before };
+      const { result, docs: after } = await callV2(docs, [hybridSheet(2)]);
+      expect(result.collisions).toEqual([]);
+      expect(result.written).toEqual([2]);
+      const doc = after[DEVICE];
+      for (const field of [
+        'studentUid',
+        'classId',
+        'joinedAt',
+        'status',
+        'submittedAt',
+        'completedAttempts',
+        'lastWriteAt',
+        'tabSwitchWarnings',
+        'tabExits',
+        'unlocked',
+        'autoSubmitted',
+        'resultsLockedOut',
+        'servedQuestionIds',
+      ])
+        expect(doc[field]).toEqual(before[field]);
+      expect(doc).not.toHaveProperty('paperBatchId');
+      expect(doc).not.toHaveProperty('paperSeat');
+      expect(doc).not.toHaveProperty('pin');
+      expect(doc.paperWrittenBatchId).toBe(BATCH);
+      expect(doc.paperWrittenSeat).toBe(2);
+      const answers = doc.answers as Doc[];
+      expect(answers.map((a) => a.questionId)).toEqual([
+        'q1',
+        'q3',
+        'q2',
+        'q4',
+      ]);
+      expect(answers[0]).toEqual((before.answers as Doc[])[0]);
+      expect(answers[2]).toMatchObject({
+        paperScanId: SCAN,
+        paperTranscript: 'pending',
+      });
+      expect(after[`${DEVICE}/paperPrivate/q2`]).toMatchObject({
+        status: 'pending',
+        seat: 2,
+      });
+      const assignment = after[`users/${UID}/quiz_assignments/${ASSIGNMENT}`];
+      expect(assignment.hasPaperWritten).toBe(true);
+      expect(assignment).not.toHaveProperty('hasPaperResponses');
+      expect(assignment.paperWrittenScanned).toBe(1);
+    });
+
+    it('scanned mid-attempt, leaves the device attempt open', async () => {
+      const docs = hybridDocs();
+      docs[DEVICE] = deviceRow({
+        status: 'in-progress',
+        submittedAt: null,
+        completedAttempts: 0,
+      });
+      const { docs: after } = await callV2(docs, [hybridSheet(2)]);
+      expect(after[DEVICE]).toMatchObject({
+        status: 'in-progress',
+        submittedAt: null,
+        completedAttempts: 0,
+        lastWriteAt: 'DEVICE_TS',
+        paperWrittenBatchId: BATCH,
+      });
+    });
+
+    it('scanned before the student joins, starts an unsubmitted row the idle sweep skips', async () => {
+      const { docs: after } = await callV2(hybridDocs(), [hybridSheet(2)]);
+      const doc = after[DEVICE];
+      expect(doc).toMatchObject({
+        studentUid: 'pseudo-s2',
+        classId: 'class-1',
+        classPeriod: 'Period 1',
+        joinedAt: NOW,
+        status: 'joined',
+        submittedAt: null,
+        score: null,
+        completedAttempts: 0,
+        preSyncVersion: 0,
+        paperWrittenBatchId: BATCH,
+        paperWrittenSeat: 2,
+      });
+      expect(doc).not.toHaveProperty('lastWriteAt');
+      expect(doc).not.toHaveProperty('paperBatchId');
+      expect((doc.answers as Doc[]).map((a) => a.questionId)).toEqual([
+        'q2',
+        'q4',
+      ]);
+    });
+
+    it('a student who answered on paper only still imports, and a rescan merges again', async () => {
+      const docs = hybridDocs();
+      await callV2(docs, [hybridSheet(1)]);
+      const RESP1 = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`;
+      expect(docs[RESP1]).toMatchObject({ status: 'joined', pin: '0001' });
+      const { result } = await callV2(docs, [hybridSheet(1)], {
+        scanId: 'scan-2',
+      });
+      expect(result.collisions).toEqual([]);
+      expect(docs[RESP1].status).toBe('joined');
+      await callV2(docs, [hybridSheet(2)], { scanId: 'scan-3' });
+      expect(
+        docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`].paperWrittenScanned
+      ).toBe(2);
+      expect(
+        (docs[RESP1].answers as Doc[]).find((a) => a.questionId === 'q2')
+      ).toMatchObject({ paperScanId: 'scan-2' });
+    });
+
+    it('refuses bubble answers, which a written-only stack never printed', async () => {
+      const docs = hybridDocs();
+      await expect(
+        callV2(docs, [
+          hybridSheet(2, { answers: [{ questionId: 'q1', answer: 'B' }] }),
+        ])
+      ).rejects.toThrow(/bubble row/);
+      expect(docs[DEVICE]).toBeUndefined();
+    });
+
+    it('another stack imported onto a hybrid assignment keeps the full-paper path', async () => {
+      const docs = hybridDocs();
+      docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`] = {
+        ...docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`],
+        paperBatchId: 'other-batch',
+      };
+      docs[DEVICE] = deviceRow();
+      const { result } = await callV2(docs, [hybridSheet(2)]);
+      expect(result.collisions).toHaveLength(1);
+      expect(docs[DEVICE]).not.toHaveProperty('paperWrittenBatchId');
+    });
+  });
+
   it('reports pages past the daily page quota, and admins are unlimited', async () => {
     const docs = v2Docs();
     docs[`ai_usage/${UID}_paper-handwritten-responses_2026-09-18`] = {
@@ -1103,6 +1342,40 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
       }
     );
     expect(admin.result).toMatchObject({ pagesQueued: 2, pagesOverQuota: 0 });
+  });
+
+  it('with transcription off, still queues the crops but counts no page as queued or over quota', async () => {
+    const docs = v2Docs();
+    docs[`ai_usage/${UID}_paper-handwritten-responses_2026-09-18`] = {
+      count: 300,
+    };
+    const { db } = makeDb(docs);
+    const result = await handleImportPaperResponses(
+      db,
+      teacher,
+      {
+        batchId: BATCH,
+        assignmentId: ASSIGNMENT,
+        layoutVersion: 2,
+        scanId: SCAN,
+        sheets: [v2Sheet(1)],
+      },
+      NOW,
+      () => Promise.resolve(false)
+    );
+    expect(result).toMatchObject({
+      jobsCreated: 2,
+      pagesQueued: 0,
+      pagesOverQuota: 0,
+    });
+    expect(docs[RESP].answers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          questionId: 'q2',
+          paperTranscript: 'pending',
+        }),
+      ])
+    );
   });
 });
 

@@ -688,6 +688,7 @@ export function buildSystemInstruction(
     'Students read the source materials (articles, passages, videos) in English. Every title of an article, section, book or video, and every phrase the English puts in quotation marks, is something students must find there: write your translation followed by the original English in parentheses.',
     'Preserve every qualifier and hedge exactly (may, might, probably, appear to, some, many, most, all, only, not). They often decide which answer is correct.',
     'Keep the full meaning of every answer choice; never shorten, merge or generalize a choice.',
+    'Copy every equation between ⟦ and ⟧ exactly as written, keeping the ⟦ and ⟧ marks.',
     'When a question asks what an English word or phrase means, keep that word or phrase in English inside quotation marks and translate everything else, including the answer choices.',
     'Write personal names in the target script with standard transliteration, followed by the original spelling in parentheses the first time each appears in a question; in Latin-script languages keep names unchanged. Brand and product names (for example YouTube, Meta) stay as written.',
     'Use the established name for organizations, laws, places and historical events when that language has one, rather than translating the English words.',

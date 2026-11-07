@@ -70,7 +70,13 @@ export function countOpenQuestions(
 /** Student-facing binary count: how many of `questionIds` are answered. */
 export function countAnsweredQuestions(
   answers: CompletenessAnswer[],
-  questionIds: string[]
+  questionIds: string[],
+  /** Written questions answered on the paper sheet; they always count as answered. */
+  paperWrittenQuestionIds?: readonly string[]
 ): number {
-  return questionIds.filter((id) => isQuestionAnswered(answers, id)).length;
+  return questionIds.filter(
+    (id) =>
+      paperWrittenQuestionIds?.includes(id) === true ||
+      isQuestionAnswered(answers, id)
+  ).length;
 }

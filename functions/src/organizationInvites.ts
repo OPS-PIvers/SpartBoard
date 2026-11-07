@@ -8,7 +8,7 @@
  *    Idempotent by email: re-inviting an already-invited user refreshes
  *    role/buildingIds and mints a fresh token; an already-active user is
  *    skipped with status 'already_active' (their existing uid/status are not
- *    disturbed).
+ *    disturbed). With `skipExisting` (CSV bulk import) any existing member is skipped.
  *
  *  - claimOrganizationInvite: links the signed-in user's uid onto the pending
  *    member doc via Admin SDK (which bypasses rules — the firestore rules
@@ -66,13 +66,20 @@ export interface CreateInvitesPayload {
   invitations: NormalizedInvite[];
   message?: string;
   expiresInDays: number;
+  // CSV bulk import: leave anyone with a member record untouched instead of refreshing their invite.
+  skipExisting?: boolean;
 }
 
 export interface CreateInviteResult {
   email: string;
   token: string;
   claimUrl: string;
-  status: 'created' | 'already_active' | 'skipped';
+  status:
+    | 'created'
+    | 'already_active'
+    | 'already_invited'
+    | 'already_inactive'
+    | 'skipped';
 }
 
 export interface CreateInviteError {
@@ -296,6 +303,7 @@ export function parseCreateInvitesPayload(raw: unknown): {
       invitations,
       expiresInDays,
       ...(typeof obj.message === 'string' ? { message: obj.message } : {}),
+      ...(obj.skipExisting === true ? { skipExisting: true } : {}),
     },
     perEntryErrors,
   };
@@ -499,19 +507,27 @@ export function planMemberWrite(
     orgId,
     now,
     addedBy,
+    skipExisting = false,
   }: {
     orgId: string;
     now: Date;
     addedBy: string;
+    skipExisting?: boolean;
   }
 ):
-  | { action: 'already_active' }
+  | { action: 'already_active' | 'already_invited' | 'already_inactive' }
   | {
       action: 'create';
       patch: Partial<MemberRecord> & Pick<MemberRecord, 'email' | 'orgId'>;
     } {
   if (existing?.status === 'active') {
     return { action: 'already_active' };
+  }
+  if (skipExisting && existing) {
+    return {
+      action:
+        existing.status === 'inactive' ? 'already_inactive' : 'already_invited',
+    };
   }
 
   const patch: Partial<MemberRecord> & Pick<MemberRecord, 'email' | 'orgId'> = {
@@ -865,6 +881,7 @@ export const createOrganizationInvites = onCall(
           personalMessage: payload.message,
           emailConfig,
           callerIsSuperAdmin,
+          skipExisting: payload.skipExisting === true,
         });
         results.push(result);
       } catch (err) {
@@ -898,6 +915,7 @@ async function writeInvitation(
     personalMessage?: string;
     emailConfig: InviteEmailConfig;
     callerIsSuperAdmin: () => Promise<boolean>;
+    skipExisting?: boolean;
   }
 ): Promise<CreateInviteResult> {
   const {
@@ -909,6 +927,7 @@ async function writeInvitation(
     personalMessage,
     emailConfig,
     callerIsSuperAdmin,
+    skipExisting,
   } = opts;
   const now = new Date();
 
@@ -929,8 +948,9 @@ async function writeInvitation(
   // output easy to trace back to its source invite.
   const mailRef = db.collection('mail').doc(token);
 
+  type SkipStatus = 'already_active' | 'already_invited' | 'already_inactive';
   const status = await db.runTransaction(
-    async (tx): Promise<'created' | 'already_active'> => {
+    async (tx): Promise<'created' | SkipStatus> => {
       const memberSnap = await tx.get(memberRef);
       const existing = memberSnap.exists
         ? (memberSnap.data() as MemberRecord)
@@ -940,13 +960,11 @@ async function writeInvitation(
         orgId,
         now,
         addedBy: issuedBy,
+        skipExisting,
       });
 
-      if (plan.action === 'already_active') {
-        // Don't mint an invitation or queue mail — the user is already
-        // active and the UI should reflect "already_active".
-        return 'already_active';
-      }
+      // Skipped rows mint no invitation and queue no mail.
+      if (plan.action !== 'create') return plan.action;
       // Re-inviting rewrites roleId, so it would demote a super admin.
       if (existing?.roleId === 'super_admin' && !(await callerIsSuperAdmin())) {
         throw new Error(SUPER_ADMIN_ONLY_REASON);
@@ -992,13 +1010,8 @@ async function writeInvitation(
     }
   );
 
-  if (status === 'already_active') {
-    return {
-      email: invite.email,
-      token: '',
-      claimUrl: '',
-      status: 'already_active',
-    };
+  if (status !== 'created') {
+    return { email: invite.email, token: '', claimUrl: '', status };
   }
 
   return {

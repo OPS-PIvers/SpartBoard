@@ -6,6 +6,8 @@ export interface TourStartRequest {
   fromStep?: number;
   /** Runs the saved set instead of the published snapshot. */
   draft?: boolean;
+  /** Started from Getting Started, so finishing it offers the next tour there. */
+  chain?: 'getting-started';
 }
 
 export const TOUR_START_EVENT = 'spart:start-tour';

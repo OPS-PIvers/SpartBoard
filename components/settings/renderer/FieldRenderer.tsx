@@ -40,6 +40,20 @@ const LABELLEDBY_TYPES = new Set<Field['type']>([
   'partnerWidget',
 ]);
 
+// Structural equality so a deep-equal copy of a default (arrays, objects) doesn't offer Reset.
+const sameValue = (a: unknown, b: unknown): boolean => {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || !a || !b) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ao = a as Record<string, unknown>;
+  const bo = b as Record<string, unknown>;
+  const keys = Object.keys(ao);
+  return (
+    keys.length === Object.keys(bo).length &&
+    keys.every((k) => k in bo && sameValue(ao[k], bo[k]))
+  );
+};
+
 export const FieldRenderer: React.FC<FieldRendererProps> = ({
   field,
   widget,
@@ -82,7 +96,7 @@ export const FieldRenderer: React.FC<FieldRendererProps> = ({
     defaults !== undefined &&
     defaultValue !== undefined &&
     value !== undefined &&
-    value !== defaultValue;
+    !sameValue(value, defaultValue);
 
   const usesLabelledBy = LABELLEDBY_TYPES.has(field.type);
 

@@ -28,6 +28,10 @@ import {
   writeBatch,
   type Firestore,
 } from 'firebase/firestore';
+import {
+  NOT_STAFF_DISTRICT_EMAILS,
+  seedDistrictStaff,
+} from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-live-session-codes-test';
 const TEACHER_UID = 'teacher-live';
@@ -118,6 +122,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [
+      `${TEACHER_UID}@school.edu`,
+      `${OTHER_TEACHER_UID}@school.edu`,
+    ])
+  );
 });
 
 describe('live session — who can broadcast', () => {
@@ -138,6 +148,48 @@ describe('live session — who can broadcast', () => {
     await assertFails(startLive(db, ATTACKER_UID, 'ZZZ999'));
     await assertFails(
       setDoc(doc(db, `sessions/${ATTACKER_UID}`), session(ATTACKER_UID))
+    );
+  });
+
+  it.each(NOT_STAFF_DISTRICT_EMAILS)(
+    'denies %s, a verified district account that is not staff, going live',
+    async (email) => {
+      await assertFails(
+        startLive(teacherDb(ATTACKER_UID, email), ATTACKER_UID, 'ZZZ999')
+      );
+    }
+  );
+
+  it.each(NOT_STAFF_DISTRICT_EMAILS)(
+    'denies %s an edit to a live session it already owns',
+    async (email) => {
+      await testEnv.withSecurityRulesDisabled((ctx) =>
+        setDoc(doc(ctx.firestore(), `sessions/${ATTACKER_UID}`), {
+          ...session(ATTACKER_UID),
+          code: 'ZZZ999',
+        })
+      );
+      await assertFails(
+        updateDoc(
+          doc(teacherDb(ATTACKER_UID, email), `sessions/${ATTACKER_UID}`),
+          {
+            frozen: true,
+          }
+        )
+      );
+    }
+  );
+
+  it('lets an admin with no member doc go live', async () => {
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'admins/admin.only@example.org'), {})
+    );
+    await assertSucceeds(
+      startLive(
+        teacherDb('admin-live', 'admin.only@example.org'),
+        'admin-live',
+        'ADM111'
+      )
     );
   });
 

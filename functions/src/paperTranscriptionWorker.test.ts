@@ -53,7 +53,11 @@ const USAGE = 'ai_usage/t1_paper-handwritten-responses_2026-09-25';
 const crop = (q: string, scan = 'scan1') =>
   `paper_written_crops/t1/${scan}/3/${q}.webp`;
 
-function answer(q: string, transcript: 'pending' | 'blank', scan = 'scan1') {
+function answer(
+  q: string,
+  transcript: 'pending' | 'blank' | 'done' | 'image',
+  scan = 'scan1'
+) {
   return {
     questionId: q,
     answer: '',
@@ -147,6 +151,7 @@ function setup(
     now: () => NOW,
     isAdmin: () => Promise.resolve(false),
     featureGranted: () => Promise.resolve(true),
+    transcriptionGranted: () => Promise.resolve(true),
     transcribe,
     archive,
     cropExists: () => Promise.resolve(true),
@@ -301,6 +306,30 @@ describe('runPaperTranscriptionJob', () => {
     expect(s.transcribe).not.toHaveBeenCalled();
     expect(s.get(USAGE)?.count ?? 0).toBe(0);
     expect(s.get(JOB)).toMatchObject({ charged: false });
+  });
+
+  it('with transcription off, keeps the crop for grading without calling the model or charging', async () => {
+    const s = setup({}, { transcriptionGranted: () => Promise.resolve(false) });
+    expect(await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps)).toBe(
+      'done'
+    );
+    expect(s.transcribe).not.toHaveBeenCalled();
+    expect(answerOf(s, 'q1')).toMatchObject({
+      answer: '',
+      paperTranscript: 'image',
+    });
+    expect(answerOf(s, 'q2')).toMatchObject({ paperTranscript: 'blank' });
+    expect(s.get(PRIV('q1'))).toMatchObject({
+      scanId: 'scan1',
+      status: 'image',
+      charged: false,
+    });
+    expect(s.get(USAGE)?.count ?? 0).toBe(0);
+    expect(s.get(JOB)).toMatchObject({ status: 'done', charged: false });
+    expect(s.archive.mock.calls.map((c) => c[0].questionId)).toEqual([
+      'q1',
+      'q2',
+    ]);
   });
 
   it('marks the page over quota, then a retry succeeds once pages are free', async () => {
@@ -501,6 +530,45 @@ describe('runPaperTranscriptionJob', () => {
       'done'
     );
     expect(s.get(JOB)).toMatchObject({ status: 'done', charged: true });
+  });
+
+  it('archives a custom image box without transcribing it', async () => {
+    const s = setup({
+      [RESPONSE]: {
+        studentUid: 'p1',
+        answers: [answer('q2', 'image')],
+      },
+      [PRIV('q2')]: {
+        scanId: 'scan1',
+        status: 'image',
+        noTranscript: true,
+        attempts: 0,
+        charged: false,
+        updatedAt: 1,
+      },
+      [JOB]: {
+        sessionId: 's1',
+        responseKey: 'r1',
+        scanId: 'scan1',
+        page: 1,
+        boxes: [{ questionId: 'q2', storagePath: crop('q2') }],
+        status: 'queued',
+        attempt: 0,
+        charged: false,
+        createdAt: NOW - 1000,
+        updatedAt: NOW - 1000,
+      },
+    });
+    expect(await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps)).toBe(
+      'done'
+    );
+    expect(s.transcribe).not.toHaveBeenCalled();
+    expect(s.get(USAGE)?.count ?? 0).toBe(0);
+    expect(s.archive).toHaveBeenCalledTimes(1);
+    expect(s.get(PRIV('q2'))).toMatchObject({
+      status: 'image',
+      noTranscript: true,
+    });
   });
 
   it('records a failed call without charging', async () => {

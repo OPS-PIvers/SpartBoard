@@ -60,7 +60,7 @@ describe('wave 9 settings-drawer widget migrations', () => {
     expect(customKeys).toEqual({
       countdown: ['startDate', 'eventDate'],
       'work-symbols': [],
-      'blooms-taxonomy': ['enabledCategories'],
+      'blooms-taxonomy': [],
       'need-do-put-then': ['needItems', 'doItems', 'putItems', 'thenItems'],
       stations: ['stations'],
     });

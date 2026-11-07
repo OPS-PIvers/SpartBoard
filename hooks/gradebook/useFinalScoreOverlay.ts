@@ -114,14 +114,13 @@ function rosterIdsOf(marks: ReadonlyMap<string, GradebookMark>): string[] {
   return [...ids].sort();
 }
 
-/** One-shot read for push paths that run outside a Results view. Null unless the gradebook flag is on and the caller owns the session. */
+/** One-shot read for push paths that run outside a Results view. Null unless the gradebook flag is on or it is a quiz, and the caller owns the session. */
 export async function loadFinalScoreOverlay(
   target: FinalScoreOverlayTarget & { uid: string | null | undefined },
-  gradebookOn: boolean,
-  attemptHistoryOn = false
+  gradebookOn: boolean
 ): Promise<FinalScoreOverlay | null> {
   const { uid, sessionId, teacherUid, kind } = target;
-  const historyOn = attemptHistoryOn && kind === 'quiz';
+  const historyOn = kind === 'quiz';
   if (!(gradebookOn || historyOn) || !uid || !sessionId || teacherUid !== uid)
     return null;
   try {
@@ -158,14 +157,14 @@ export async function loadFinalScoreOverlay(
   }
 }
 
-/** D9 overlay for a Results view; null with no listeners unless the flag is on and the teacher owns the session. */
+/** D9 overlay for a Results view; null with no listeners unless the gradebook flag is on or it is a quiz, and the teacher owns the session. */
 export function useFinalScoreOverlay(
   target: FinalScoreOverlayTarget
 ): FinalScoreOverlay | null {
   const { user, canAccessFeature } = useAuth();
   const uid = user?.uid ?? null;
   const { kind, sessionId, teacherUid } = target;
-  const historyOn = kind === 'quiz' && canAccessFeature('quiz-attempt-history');
+  const historyOn = kind === 'quiz';
   const active =
     (canAccessFeature('gradebook') || historyOn) &&
     !!uid &&

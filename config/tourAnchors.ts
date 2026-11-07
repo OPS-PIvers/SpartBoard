@@ -68,8 +68,27 @@ export const TOUR_ANCHORS = {
     closes: 'board.widget-library',
   },
 
+  'drive.grant-card': {
+    label: '"Stay connected to Drive" card',
+  },
+  'drive.grant-approve': {
+    label: 'Approve button on the "Stay connected to Drive" card',
+    persists: true,
+  },
+  'drive.disconnect-banner': {
+    label: '"Drive Disconnected" banner',
+  },
+  'drive.reconnect': {
+    label: 'Connect button on the "Drive Disconnected" banner',
+    persists: true,
+  },
   'widget.window': {
     label: 'Widget window',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'widget.resize-handle': {
+    label: "Resize handle on a widget's bottom-right corner",
     perWidget: true,
     requires: 'widget-restored',
   },
@@ -214,6 +233,46 @@ export const TOUR_ANCHORS = {
     label: 'Search field in the Backgrounds window',
     panel: true,
   },
+  'backgrounds.tile': {
+    label: 'Background tile in the Backgrounds window, by position',
+    perField: true,
+    keyPattern: 'backgrounds#item-[1-9]\\d*',
+    keyHint: 'backgrounds#item-1 is the first tile in the open section',
+    persists: true,
+    panel: true,
+  },
+  'schoology-link.paste-url': {
+    label: 'Schoology course link field in Link to Schoology',
+    panel: true,
+  },
+  'schoology-link.paste-check': {
+    label: 'Check button for a pasted Schoology course link',
+    panel: true,
+  },
+  'schoology-link.paste-class': {
+    label: 'Class to link a pasted Schoology course to',
+    panel: true,
+  },
+  'schoology-link.paste-link': {
+    label: 'Link button for a pasted Schoology course',
+    persists: true,
+    panel: true,
+  },
+  'quick-access.close': {
+    label: 'Close button in the Quick Access window',
+    panel: true,
+    closes: 'own',
+  },
+  'quick-access.search': {
+    label: 'Search field in the Quick Access window',
+    panel: true,
+  },
+  'quick-access.tool': {
+    label: 'Widget tile in the Quick Access window',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'backgrounds.type-filter': {
     label: 'Type filter button in the Backgrounds window',
     perField: true,
@@ -262,6 +321,28 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'sidebar.whats-new': { label: "What's New item in the menu", panel: true },
+  'sidebar.getting-started': {
+    label: 'Getting Started item in the menu',
+    panel: true,
+  },
+  'getting-started.close': {
+    label: 'Back to board button on the Getting Started page',
+  },
+  'getting-started.resume': {
+    label: 'Start or Resume button on the Getting Started page',
+  },
+  'getting-started.start-tour': {
+    label: 'Start or Replay button on a Getting Started tour',
+    perField: true,
+  },
+  'getting-started.copy-page-link': {
+    label: 'Copy page link button on the Getting Started page',
+  },
+  'getting-started.restart': {
+    label: 'Restart Getting Started button',
+    destructive: true,
+    persists: true,
+  },
   'sidebar.plcs': { label: 'My Teams item in the menu', panel: true },
 
   'board-nav.select-board': { label: 'Board name button that opens boards' },
@@ -480,6 +561,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'behavior.sparty-toggle': {
+    label: 'Show Sparty switch',
+    persists: true,
+    panel: true,
+  },
   'language.options': {
     label: 'Language choices',
     persists: true,
@@ -529,9 +615,9 @@ export const TOUR_ANCHORS = {
     label: 'Try again button in the Link to Google Classroom modal',
     panel: true,
   },
-  'plcs.new-plc': { label: 'New PLC button in My PLCs', panel: true },
-  'plcs.invites': { label: 'Invites button in My PLCs', panel: true },
-  'plcs.plc-list': { label: 'PLC list in My PLCs', panel: true },
+  'plcs.new-plc': { label: 'New team button in My Teams', panel: true },
+  'plcs.invites': { label: 'Invites button in My Teams', panel: true },
+  'plcs.plc-list': { label: 'Team list in My Teams', panel: true },
   'plc-edit.name': {
     label: 'PLC name input in the PLC edit modal',
     panel: true,
@@ -729,15 +815,6 @@ export const TOUR_ANCHORS = {
   'checklist.reset-checks': {
     label: 'Reset checked items button in Checklist',
     perWidget: true,
-    destructive: true,
-  },
-  'blooms-taxonomy.ai-topic': {
-    label: "AI topic box in Bloom's Taxonomy",
-    perWidgetType: true,
-  },
-  'blooms-taxonomy.ai-dismiss': {
-    label: "Dismiss AI result button in Bloom's Taxonomy",
-    perWidgetType: true,
     destructive: true,
   },
   'calendar.start-timer': {
@@ -1016,6 +1093,10 @@ export const TOUR_ANCHORS = {
     label: 'Answer sheets step header in the Assign on paper dialog',
     panel: true,
   },
+  'assign-step.written': {
+    label: 'Written answers step header in the Quiz Assign dialog',
+    panel: true,
+  },
   'assign-step.sharing': {
     label: 'Sharing step header in the Assign dialog',
     panel: true,
@@ -1064,6 +1145,12 @@ export const TOUR_ANCHORS = {
   },
   'assign-rule.final-score': {
     label: 'Final score option in the Assign dialog quiz steps',
+    perField: true,
+    panel: true,
+  },
+  'assign-rule.written-where': {
+    label:
+      'Written answers option (on the device or on paper) in the Quiz Assign dialog',
     perField: true,
     panel: true,
   },
@@ -1171,10 +1258,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'flashcards-check.questions': {
-    label: 'Questions dropdown in the Assign dialog flashcards check step',
-    panel: true,
-  },
   'flashcards-check.mastery': {
     label:
       'Correct in a row to master box in the Assign dialog flashcards check step',
@@ -1243,11 +1326,6 @@ export const TOUR_ANCHORS = {
   },
   'flashcards-cards.list': {
     label: 'Card list in the Flashcards assign Cards step',
-    panel: true,
-  },
-  'flashcards-check.score-visibility': {
-    label:
-      'Score visibility dropdown in the Assign dialog flashcards check step',
     panel: true,
   },
   'assign-mods.open': {
@@ -2152,6 +2230,53 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.spell-check': {
     label: 'Spell check toggle in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-math': {
+    label: 'Math answer switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-accents': {
+    label: 'Accents answer switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.answer-accent-language': {
+    label: 'Accent language row for an answer in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation': {
+    label: 'Equation link on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation-cancel': {
+    label: 'Cancel button in the prompt equation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-equation-save': {
+    label:
+      'Insert or Update button in the prompt equation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-math-preview': {
+    label:
+      'Drawn preview of a question prompt with equations in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-accents': {
+    label: 'Accents switch on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-accent-language': {
+    label: 'Accent language row on the question prompt in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -3121,6 +3246,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-print.written-box-style': {
+    label: 'Written answer style select in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.written-box-image': {
+    label: 'Written answer custom image select in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
   'quiz-print.written-box-lines': {
     label: 'Written box custom line count in the Quiz widget',
     perField: true,
@@ -3328,6 +3463,10 @@ export const TOUR_ANCHORS = {
   },
   'quiz-results.outcome-row': {
     label: 'Distribution row toggle in Quiz results, by position',
+    perField: true,
+  },
+  'quiz-results.ordering-item-row': {
+    label: 'Ordering item out-of-order toggle in Quiz results, by position',
     perField: true,
   },
   'quiz-results.question-sort': {
@@ -4122,6 +4261,10 @@ export const TOUR_ANCHORS = {
     label: 'Tab warnings toggle chip in the Quiz monitor roster',
     perWidgetType: true,
   },
+  'quiz-monitor.roster-board-view': {
+    label: 'Board view toggle chip in the Quiz monitor roster',
+    perWidgetType: true,
+  },
   'quiz-monitor.roster-proficiency': {
     label: 'Proficiency colors toggle chip in the Quiz monitor roster',
     perWidgetType: true,
@@ -4248,11 +4391,6 @@ export const TOUR_ANCHORS = {
   },
   'quiz-settings.manager-view': {
     label: 'Manager view button in Quiz settings',
-    perWidget: true,
-    panel: true,
-  },
-  'widget-settings.blooms.category': {
-    label: 'Category checkboxes in Blooms Taxonomy settings',
     perWidget: true,
     panel: true,
   },
@@ -5711,12 +5849,12 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'plcs.open-plc': {
-    label: 'Open a PLC card in My PLCs',
+    label: 'Open a team card in My Teams',
     perField: true,
     panel: true,
   },
   'plcs.actions-menu': {
-    label: 'PLC actions kebab in My PLCs',
+    label: 'Team actions kebab in My Teams',
     perField: true,
     panel: true,
   },
@@ -5940,7 +6078,7 @@ export const TOUR_ANCHORS = {
     label: 'Group type select in the PLC edit modal',
   },
   'plcs.empty-create': {
-    label: 'Create PLC button in the empty My PLCs list',
+    label: 'Create team button in the empty My Teams list',
     persists: true,
   },
   'plc-import.close': {
@@ -8544,6 +8682,17 @@ export const TOUR_ANCHORS = {
     label: 'YouTube URL field in Backgrounds',
     panel: true,
   },
+  'admin.backgrounds.default-district': {
+    label: 'District default background for new boards',
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.default-building': {
+    label: "A building's default background for new boards",
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'admin.previews.district-switch': {
     label: 'District switch on a Previews row',
     perField: true,
@@ -9115,6 +9264,46 @@ export const TOUR_ANCHORS = {
   },
   'admin.sub-presets.save': {
     label: 'Save button in Preset sub emails',
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.pick-tour': {
+    label: 'Tour to add in Getting Started settings',
+    panel: true,
+  },
+  'admin.getting-started.add': {
+    label: 'Add button in Getting Started settings',
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.tier': {
+    label: 'Tier select on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.done-when': {
+    label: 'Checks off select on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.move-up': {
+    label: 'Move up button on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.move-down': {
+    label: 'Move down button on a Getting Started tour',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.getting-started.remove': {
+    label: 'Remove button on a Getting Started tour',
+    perField: true,
+    destructive: true,
     persists: true,
     panel: true,
   },
@@ -10441,20 +10630,9 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
-  'flashcards.editor-back': {
-    label: 'Back button in the Flashcards editor',
-    perWidgetType: true,
-    panel: true,
-  },
   'flashcards.editor-paste': {
     label: 'Paste button in the Flashcards editor',
     perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.editor-save': {
-    label: 'Save button in the Flashcards editor',
-    perWidgetType: true,
-    persists: true,
     panel: true,
   },
   'flashcards-editor.draft-ai': {
@@ -10510,51 +10688,6 @@ export const TOUR_ANCHORS = {
   'flashcards.editor-description': {
     label: 'Description box in the Flashcards editor',
     perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.panel': {
-    label: 'Speak settings in the Flashcards editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.dialects': {
-    label: 'Accents to accept menu in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.dialect': {
-    label: 'An accent in the Accents to accept menu of the Flashcards editor',
-    perField: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.level': {
-    label: 'Level dropdown in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.attempts': {
-    label: 'Attempts per card box in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.strict': {
-    label: 'Strict switch in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.example': {
-    label: 'Hear it button switch in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.advanced': {
-    label: 'Advanced button in the Flashcards editor Speak settings',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-speak-editor.group': {
-    label: 'Sound row dropdown in the Flashcards editor Speak settings',
-    perField: true,
     panel: true,
   },
   'flashcards-speak-editor.review': {
@@ -10663,28 +10796,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     destructive: true,
     persists: true,
-    panel: true,
-  },
-  'flashcards.publish-scores': {
-    label: 'Publish or Hide scores button in Flashcards results',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
-  'flashcards.scores-cancel': {
-    label: 'Cancel button in the Flashcards publish scores dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.publish-confirm': {
-    label: 'Publish button in the Flashcards publish scores dialog',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
-  'flashcards.scores-visibility': {
-    label: 'Score visibility option in the Flashcards publish scores dialog',
-    perField: true,
     panel: true,
   },
   'flashcards.paste-close': {
@@ -11176,6 +11287,10 @@ export const TOUR_ANCHORS = {
   },
   'video-activity.monitor-question-results': {
     label: 'Question results button in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-settings': {
+    label: 'Settings button in the video activity monitor',
     perWidgetType: true,
   },
   'video-activity.monitor-question-result': {
@@ -12325,6 +12440,37 @@ export const TOUR_ANCHORS = {
   },
   'boards-modal.new-board': {
     label: 'New Board button in the Manage Boards dialog',
+    panel: true,
+  },
+  'prompt-dialog.input': {
+    label:
+      'Text box in the shared prompt dialog (New Board, New Collection, rename)',
+    panel: true,
+  },
+  'prompt-dialog.confirm': {
+    label: 'Confirm button in the shared prompt dialog (Create, Save, OK)',
+    panel: true,
+  },
+  'prompt-dialog.cancel': {
+    label: 'X (cancel) button in the shared prompt dialog',
+    panel: true,
+    destructive: true,
+  },
+  'prompt-dialog.cancel-button': {
+    label: 'Cancel button in the shared prompt dialog',
+    panel: true,
+  },
+  'confirm-dialog.confirm': {
+    label: 'Confirm button in an "Are you sure?" dialog',
+    panel: true,
+    destructive: true,
+  },
+  'confirm-dialog.cancel': {
+    label: 'Cancel button in an "Are you sure?" dialog',
+    panel: true,
+  },
+  'alert-dialog.ok': {
+    label: 'OK button in a message dialog',
     panel: true,
   },
   'boards-modal.clear-selection': {
@@ -14576,6 +14722,10 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.monitor-settings': {
+    label: 'Settings button in the Flashcards monitor footer',
+    perWidgetType: true,
+  },
   'flashcards.card-results': {
     label: 'Card results button in the Flashcards monitor',
     perWidgetType: true,
@@ -16240,6 +16390,18 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.reprint-sheets': {
     label: 'Print response sheets item in a paper assignment menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.import-written-answers': {
+    label:
+      'Import written answers item in a quiz assignment menu, for written answers on paper',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.reprint-written-sheets': {
+    label:
+      'Print written answer sheets item in a quiz assignment menu, for written answers on paper',
     perWidgetType: true,
     panel: true,
   },

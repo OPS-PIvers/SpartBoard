@@ -202,9 +202,29 @@ const UNIT_WORDS: Record<string, string> = {
   '°F': 'degrees Fahrenheit',
 };
 
+/** Plain math between ⟦ and ⟧ as words; mirrored in utils/quizReadAloudApi.ts. */
+function speakPromptMath(math: string): string {
+  const unary = math.trim().replace(/(^|[^\w)\]\s])\s*-/g, '$1 negative ');
+  return ` ${unary} `
+    .replace(/sqrt/g, ' square root of ')
+    .replace(/\^\s*2(?!\d)/g, ' squared ')
+    .replace(/\^\s*3(?!\d)/g, ' cubed ')
+    .replace(/<=/g, ' is less than or equal to ')
+    .replace(/>=/g, ' is greater than or equal to ')
+    .replace(/!=/g, ' is not equal to ')
+    .replace(/=/g, ' equals ')
+    .replace(/</g, ' is less than ')
+    .replace(/>/g, ' is greater than ')
+    .replace(/\*/g, ' times ')
+    .replace(/\+/g, ' plus ')
+    .replace(/([\w)])\s*-\s*/g, '$1 minus ')
+    .replace(/\s*\/\s*/g, ' over ');
+}
+
 /** R11: plain speech text from quiz markup; blanks become the word "blank". */
 export function normalizeReadAloudText(raw: string): string {
   let s = raw;
+  s = s.replace(/⟦([^⟦⟧]*)⟧/g, (_m, math: string) => speakPromptMath(math));
   s = s.replace(/<[^>]+>/g, ' ');
   s = s.replace(/_{3,}/g, ' blank ');
   s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');

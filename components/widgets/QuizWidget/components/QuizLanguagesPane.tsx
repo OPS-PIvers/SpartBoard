@@ -3,6 +3,7 @@
  * question, mark reviewed. Only reviewed + hash-fresh questions ever publish.
  */
 
+import { MathText } from '@/components/common/MathText';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { isMultiBlank, joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
 import React, { useEffect, useMemo, useRef } from 'react';
@@ -254,7 +255,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                       className="min-w-0 flex-1 text-left"
                     >
                       <span className="line-clamp-2 text-xs text-slate-700">
-                        {index + 1}. {question.text}
+                        {index + 1}. <MathText text={question.text} />
                       </span>
                     </button>
                     <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xxs font-bold text-slate-600">

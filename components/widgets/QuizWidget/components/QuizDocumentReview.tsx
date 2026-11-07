@@ -50,9 +50,9 @@ interface Props {
    * is uploaded.
    */
   images?: readonly ExtractedImage[];
-  /** Target lines the reader found, by question id; pass only when the suggested-targets flag is on. */
+  /** Target lines the reader found, by question id. */
   suggestedTargets?: ReadonlyMap<string, SuggestedTarget>;
-  /** Standard codes a test bank key listed, by question id; same flag as `suggestedTargets`. */
+  /** Standard codes a test bank key listed, by question id. */
   standardCodes?: ReadonlyMap<string, readonly string[]>;
   /** How the answer key matched the questions (R19). */
   keySummary?: KeySummaryCounts;

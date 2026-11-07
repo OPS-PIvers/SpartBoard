@@ -382,3 +382,57 @@ describe('paper written answers', () => {
     expect(getEarnedPoints(r, [essay('e1')])).toBe(4);
   });
 });
+
+describe('isResponseAwaitingGrade: written answers on paper', () => {
+  const ids = ['e1'];
+
+  it('is owed a grade before the paper is scanned', () => {
+    const r = response([{ questionId: 'q1', answer: 'A' }]);
+    expect(isResponseAwaitingGrade(r, [mc('q1'), essay('e1')], ids)).toBe(true);
+    expect(isResponseAwaitingGrade(r, [mc('q1'), essay('e1')])).toBe(false);
+    expect(selectPushableResponses([r], [mc('q1'), essay('e1')], ids)).toEqual(
+      []
+    );
+  });
+
+  it('is owed a grade when the device wrote a blank for the paper question', () => {
+    const r = response([
+      { questionId: 'q1', answer: 'A' },
+      { questionId: 'e1', answer: '' },
+    ]);
+    expect(isResponseAwaitingGrade(r, [mc('q1'), essay('e1')], ids)).toBe(true);
+  });
+
+  it('follows the scanned answer once it lands', () => {
+    const blank = response([
+      { questionId: 'q1', answer: 'A' },
+      { questionId: 'e1', answer: '', paperTranscript: 'blank' },
+    ]);
+    expect(isResponseAwaitingGrade(blank, [mc('q1'), essay('e1')], ids)).toBe(
+      false
+    );
+    const pending = response([
+      { questionId: 'e1', answer: '', paperTranscript: 'pending' },
+    ]);
+    expect(isResponseAwaitingGrade(pending, [essay('e1')], ids)).toBe(true);
+  });
+
+  it('is settled once the teacher grades the paper answer', () => {
+    const r = response([{ questionId: 'q1', answer: 'A' }], {
+      e1: { pointsAwarded: 5, gradedBy: 't1', gradedAt: 1 },
+    });
+    expect(isResponseAwaitingGrade(r, [mc('q1'), essay('e1')], ids)).toBe(
+      false
+    );
+  });
+
+  it('ignores a paper question this student was not served', () => {
+    const r = {
+      ...response([{ questionId: 'q1', answer: 'A' }]),
+      servedQuestionIds: ['q1'],
+    } as QuizResponse;
+    expect(isResponseAwaitingGrade(r, [mc('q1'), essay('e1')], ids)).toBe(
+      false
+    );
+  });
+});

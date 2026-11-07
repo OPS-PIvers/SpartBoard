@@ -93,12 +93,11 @@ describe('savePlcStepperFinalScore', () => {
     finalScore: QuizBehaviorSettings['finalScore'],
     attemptLimit: number | null
   ) => ({ finalScore, attemptLimit }) as QuizBehaviorSettings;
-  const save = (b: QuizBehaviorSettings, attemptHistoryEnabled = true) =>
+  const save = (b: QuizBehaviorSettings) =>
     savePlcStepperFinalScore({
       uid: 'u1',
       assignmentId: 'a1',
       behavior: b,
-      attemptHistoryEnabled,
       logScope: 'test',
     });
 
@@ -113,12 +112,11 @@ describe('savePlcStepperFinalScore', () => {
     );
   });
 
-  it('skips latest, single-attempt and flag-off assigns', () => {
+  it('skips latest and single-attempt assigns', () => {
     vi.mocked(saveAttemptPolicy).mockClear();
     save(behavior('latest', 3));
     save(behavior(undefined, 3));
     save(behavior('highest', 1));
-    save(behavior('highest', 3), false);
     expect(saveAttemptPolicy).not.toHaveBeenCalled();
   });
 });

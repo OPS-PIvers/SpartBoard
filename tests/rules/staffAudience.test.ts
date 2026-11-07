@@ -69,7 +69,7 @@ const asStudent = () =>
 const staffFields = { staffEmail: STAFF_EMAIL, staffName: STAFF_NAME };
 
 const seedMembers = (db: Parameters<typeof seedDistrictStaff>[0]) =>
-  seedDistrictStaff(db, [STAFF_EMAIL]);
+  seedDistrictStaff(db, [STAFF_EMAIL, 'teacher@orono.k12.mn.us']);
 const notStaffGoogle = () =>
   NOT_STAFF_DISTRICT_EMAILS.map((email) => ({
     email,

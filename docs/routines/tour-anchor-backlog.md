@@ -34,6 +34,7 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | components/widgets/GuidedLearning/components/recorder/ | Tour recorder panel, frame review and session controls | Authoring tool for recording tours; unclear whether a tour would ever walk a teacher through it. |
 | components/backgroundsModal/BackgroundThumbnail.tsx:21 | Background select and favorite buttons | One per catalog item, generated; needs an index or id prop from every caller to key them. |
 | components/common/ (shared pickers, radiogroups, sliders, dialogs, library importer) | ActiveClassChip, AssignClassPicker, ColorPresetPicker, DialogContainer, PenColorSwatches, RosterModeControl, RosterGroupSelect, StepSlider, SurfaceColorSettings, TextSizePresetSettings, TypographySettings, UniversalStyleSettings, WidgetBuildingToggle, TabExitsPopover, MagicInput, library/* | Each renders on many surfaces; one fixed id would mean different things, so they need a caller-supplied anchor prop. |
+| components/common/ (DriveImagePicker, EditorModalShell, FontSelect, FullscreenToggleButton, ImageLightbox, sessionViews/StatTile) | Add-image, header Close and Save retry, font dropdown, full-screen toggle, lightbox Close, interactive stat tile | Shared by many surfaces; a fixed id would mean different things, so they need a caller-supplied anchor prop. |
 | components/common/library/assignStepper/MiniAppEditor.dev.tsx:19 | Inputs and button inside the sample HTML string | False positives from a template literal; nothing to tag. |
 
 ## Run log
@@ -60,3 +61,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-11-03 | claude/tour-anchors-2026-11-03 | Library and assigning (quiz paper scan viewer, read-aloud, audio recording and playback) | 8 | 18 | 0 | 436 in 164 files |
 | 2026-11-04 | claude/tour-anchors-2026-11-04 | Library and assigning (learning target picker, Push to Schoology dialog) | 14 | 11 | 0 | 411 in 157 files |
 | 2026-11-05 | claude/tour-anchors-2026-11-05 | Library and assigning (Activity Wall student wall, post cards and comments) | 0 | 17 | 0 | 394 in 151 files |
+| 2026-11-06 | claude/tour-anchors-2026-11-06 | Shared pieces (maximized-bar handle, Drive banners, toasts, widget What's New notice) | 0 | 15 | 1 area | 379 in 145 files |

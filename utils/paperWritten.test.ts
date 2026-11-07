@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   PaperPrivateStatus,
+  QuizQuestion,
   QuizResponseAnswer,
   ResponseArtifact,
   WrittenReturnMode,
@@ -10,6 +11,8 @@ import {
   defaultPaperBoxSize,
   isPaperBoxSize,
   paperBoxSizeOf,
+  paperBoxStyleOf,
+  withPaperBoxStyles,
   paperBoxLines,
   paperCropStoragePath,
   paperTranscriptionJobId,
@@ -75,6 +78,37 @@ describe('defaultPaperBoxSize', () => {
   });
 });
 
+describe('box styles', () => {
+  const img = { id: 'i1', label: 'Map', source: 'image' as const, url: 'u' };
+  it('reads an image box with no image as lines', () => {
+    expect(paperBoxStyleOf({ paperBoxStyle: 'image' })).toBe('lines');
+    expect(
+      paperBoxStyleOf({ paperBoxStyle: 'image', paperBoxImage: img })
+    ).toBe('image');
+    expect(paperBoxStyleOf({ paperBoxStyle: 'graph' })).toBe('graph');
+    expect(paperBoxStyleOf({})).toBe('lines');
+  });
+
+  it('keeps an image only on an image box', () => {
+    const quiz = {
+      questions: [
+        { id: 'a', paperBoxStyle: 'image' as const, paperBoxImage: img },
+        { id: 'b' },
+      ] as QuizQuestion[],
+    };
+    const next = withPaperBoxStyles(quiz, {
+      a: { style: 'lines' },
+      b: { style: 'image', image: img },
+    });
+    expect(next.questions[0]).toEqual({ id: 'a' });
+    expect(next.questions[1]).toEqual({
+      id: 'b',
+      paperBoxStyle: 'image',
+      paperBoxImage: img,
+    });
+  });
+});
+
 describe('paths and ids', () => {
   it('builds the crop path and job id', () => {
     expect(paperCropStoragePath('u', 's', 3, 'q1')).toBe(
@@ -90,6 +124,7 @@ describe('status helpers', () => {
     expect(publicTranscriptState('over-quota')).toBe('pending');
     expect(publicTranscriptState('done')).toBe('done');
     expect(publicTranscriptState('blank')).toBe('blank');
+    expect(publicTranscriptState('image')).toBe('image');
   });
 
   it('allows only the planned transitions', () => {

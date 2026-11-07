@@ -1,6 +1,7 @@
 // Generated from config/backgrounds.ts by tests/mcpBoardBackgroundsCopy.test.ts; rerun it with UPDATE_BOARD_BACKGROUNDS_COPY=1.
-// New boards start light so the default dock and window text stay readable.
-export const DEFAULT_BOARD_BACKGROUND = 'bg-brand-gray-lightest';
+// New boards start on the light Snowy gradient so the dock and window text stay readable (GETTING_STARTED.md D23).
+export const DEFAULT_BOARD_BACKGROUND =
+  'bg-gradient-to-br from-blue-100 via-white to-blue-50';
 
 export const BACKGROUND_COLORS = [
   { id: 'bg-brand-gray-darkest' },

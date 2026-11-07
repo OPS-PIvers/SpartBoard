@@ -93,14 +93,12 @@ const renderStepper = ({
   rosterIds = ['r1'],
   periodAccess,
   canSpeak = false,
-  v2 = false,
   set = makeSet(),
   plcs,
 }: {
   rosterIds?: string[];
   periodAccess?: AssignPeriodAccessContext;
   canSpeak?: boolean;
-  v2?: boolean;
   set?: FlashcardSet;
   plcs?: Plc[];
 } = {}) => {
@@ -110,9 +108,7 @@ const renderStepper = ({
   );
   const auth = {
     user: { uid: 'teacher-1' },
-    canAccessFeature: (id: string) =>
-      (canSpeak && id === 'flashcards-speak') ||
-      (v2 && id === 'flashcards-assign-v2'),
+    canAccessFeature: (id: string) => canSpeak && id === 'flashcards-speak',
   } as unknown as React.ContextType<typeof AuthContext>;
   render(
     <AuthContext.Provider value={auth}>
@@ -175,7 +171,7 @@ describe('FlashcardAssignStepper', () => {
       scoreVisibility: 'none',
     };
     const { onAssign } = renderStepper();
-    expect(screen.getByText('Write, hide until I publish')).toBeTruthy();
+    expect(screen.getByText('Write')).toBeTruthy();
     assign();
     await waitFor(() => expect(onAssign).toHaveBeenCalled());
     const { input } = lastSubmission(onAssign);
@@ -262,16 +258,6 @@ describe('FlashcardAssignStepper', () => {
       expect(input.speakOff).toBeUndefined();
     });
 
-    it('keeps Speak rules off the step without flashcards-assign-v2', async () => {
-      const { onAssign } = renderStepper({ canSpeak: true });
-      studyResource();
-      fireEvent.click(screen.getByText('Speak'));
-      expect(screen.queryByLabelText('Level')).toBeNull();
-      assign();
-      await waitFor(() => expect(onAssign).toHaveBeenCalled());
-      expect(lastSubmission(onAssign).input.speakChoice).toBeUndefined();
-    });
-
     it('locks the Speak settings', async () => {
       const { onAssign } = renderStepper({ canSpeak: true });
       studyResource();
@@ -337,9 +323,9 @@ describe('FlashcardAssignStepper', () => {
     );
   });
 
-  describe('with flashcards-assign-v2', () => {
+  describe('Quiz-style steps', () => {
     it('shows the Cards and What students see steps', () => {
-      renderStepper({ v2: true });
+      renderStepper();
       expect(screen.getByText('Cards')).toBeTruthy();
       expect(screen.getByText('All 12 cards')).toBeTruthy();
       expect(screen.getByText('What students see')).toBeTruthy();
@@ -348,7 +334,7 @@ describe('FlashcardAssignStepper', () => {
     });
 
     it('assigns a random draw of the asked-for size', async () => {
-      const { onAssign } = renderStepper({ v2: true });
+      const { onAssign } = renderStepper();
       fireEvent.click(screen.getByText('Cards'));
       fireEvent.click(screen.getByRole('radio', { name: 'Random cards' }));
       fireEvent.change(screen.getByLabelText('Number of cards'), {
@@ -363,7 +349,7 @@ describe('FlashcardAssignStepper', () => {
     });
 
     it('assigns only the chosen cards and blocks an empty pick', async () => {
-      const { onAssign } = renderStepper({ v2: true });
+      const { onAssign } = renderStepper();
       fireEvent.click(screen.getByText('Cards'));
       fireEvent.click(screen.getByRole('radio', { name: 'Choose cards' }));
       fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
@@ -383,7 +369,7 @@ describe('FlashcardAssignStepper', () => {
     });
 
     it('uses the Quiz rule steps and stamps their rules', async () => {
-      const { onAssign } = renderStepper({ v2: true });
+      const { onAssign } = renderStepper();
       expect(screen.getByText('Attempts and order')).toBeTruthy();
       expect(screen.getByText('Integrity')).toBeTruthy();
       fireEvent.click(screen.getByText('Attempts and order'));
@@ -419,7 +405,7 @@ describe('FlashcardAssignStepper', () => {
         ...DEFAULT_FLASHCARD_ASSIGN_FORM,
         scoreVisibility: 'none',
       };
-      const { onAssign } = renderStepper({ v2: true });
+      const { onAssign } = renderStepper();
       expect(screen.getByText('Nothing until I release results')).toBeTruthy();
       assign();
       await waitFor(() => expect(onAssign).toHaveBeenCalled());
@@ -428,7 +414,7 @@ describe('FlashcardAssignStepper', () => {
 
     it('shares results with the PLC picked in the Sharing step', async () => {
       const plc = { id: 'plc-1', name: 'Spanish PLC' } as Plc;
-      const { onAssign } = renderStepper({ v2: true, plcs: [plc] });
+      const { onAssign } = renderStepper({ plcs: [plc] });
       fireEvent.click(screen.getByText('Sharing'));
       fireEvent.click(
         screen.getByRole('switch', { name: 'Share results with Spanish PLC' })
@@ -441,13 +427,13 @@ describe('FlashcardAssignStepper', () => {
     });
 
     it('offers Speak as a check mode only when Speak is available', () => {
-      renderStepper({ v2: true });
+      renderStepper();
       fireEvent.click(screen.getByText('How students are checked'));
       expect(screen.queryByRole('radio', { name: 'Speak' })).toBeNull();
     });
 
     it('assigns a Speak check', async () => {
-      const { onAssign } = renderStepper({ v2: true, canSpeak: true });
+      const { onAssign } = renderStepper({ canSpeak: true });
       fireEvent.click(screen.getByText('How students are checked'));
       fireEvent.click(screen.getByRole('radio', { name: 'Speak' }));
       assign();
@@ -459,7 +445,7 @@ describe('FlashcardAssignStepper', () => {
     });
 
     it('picks Speak rules for a Speak check and remembers them', async () => {
-      const { onAssign } = renderStepper({ v2: true, canSpeak: true });
+      const { onAssign } = renderStepper({ canSpeak: true });
       fireEvent.click(screen.getByText('How students are checked'));
       fireEvent.click(screen.getByRole('radio', { name: 'Speak' }));
       fireEvent.change(await screen.findByLabelText('Level'), {
@@ -499,7 +485,7 @@ describe('FlashcardAssignStepper', () => {
           example: true,
         },
       };
-      const { onAssign } = renderStepper({ v2: true, canSpeak: true });
+      const { onAssign } = renderStepper({ canSpeak: true });
       fireEvent.click(screen.getByRole('radio', { name: /Study resource/ }));
       fireEvent.click(screen.getByText('Speak'));
       expect(
@@ -515,7 +501,7 @@ describe('FlashcardAssignStepper', () => {
     });
 
     it('sends no Speak rules when Speak is off for the study assignment', async () => {
-      const { onAssign } = renderStepper({ v2: true, canSpeak: true });
+      const { onAssign } = renderStepper({ canSpeak: true });
       fireEvent.click(screen.getByRole('radio', { name: /Study resource/ }));
       fireEvent.click(screen.getByText('Speak'));
       await screen.findByLabelText('Level');

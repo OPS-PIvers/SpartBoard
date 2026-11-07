@@ -741,6 +741,12 @@ describe('formatQuizAnswerText', () => {
     expect(
       formatQuizAnswerText(
         { type: 'free-response' },
+        { answer: '', paperTranscript: 'image', artifacts: [crop] }
+      )
+    ).toBe('(handwritten)');
+    expect(
+      formatQuizAnswerText(
+        { type: 'free-response' },
         { answer: '', paperTranscript: 'blank', artifacts: [crop] }
       )
     ).toBe('');

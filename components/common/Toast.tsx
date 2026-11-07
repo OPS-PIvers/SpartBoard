@@ -69,7 +69,7 @@ export const Toast: React.FC<ToastProps> = ({
       <div className="flex flex-col gap-0.5">
         <span className="text-sm font-medium">{message}</span>
         {action && (
-          <button
+          <button // no-tour-anchor: transient toast action
             onClick={(e) => {
               e.stopPropagation();
               action.onClick();
@@ -81,7 +81,7 @@ export const Toast: React.FC<ToastProps> = ({
         )}
       </div>
       {onClose && (
-        <button
+        <button // no-tour-anchor: transient toast close
           onClick={onClose}
           className="ml-1 p-1 hover:bg-white/20 rounded-full transition-colors"
           aria-label="Close"

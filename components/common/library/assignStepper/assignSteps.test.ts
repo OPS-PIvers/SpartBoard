@@ -80,18 +80,15 @@ describe('getAssignSteps (D4)', () => {
     );
   });
 
-  it('never gives Guided Learning or Flashcards a Sharing step', () => {
+  it('never gives Guided Learning a Sharing step', () => {
     expect(getAssignSteps('gl', { kind: 'work', inPlc: true })).toEqual([
       'classes',
       'when',
     ]);
-    expect(getAssignSteps('flashcards', { kind: 'work', inPlc: true })).toEqual(
-      ['classes', 'when', 'check']
-    );
   });
 
-  it('gives a flashcards-assign-v2 Check the Quiz rule steps and Sharing in a PLC', () => {
-    const ctx = { kind: 'work' as const, flashcardsV2: true };
+  it('gives a Flashcards Check the Quiz rule steps and Sharing in a PLC', () => {
+    const ctx = { kind: 'work' as const };
     expect(getAssignSteps('flashcards', { ...ctx, inPlc: true })).toEqual([
       'classes',
       'when',
@@ -106,7 +103,6 @@ describe('getAssignSteps (D4)', () => {
     expect(
       getAssignSteps('flashcards', {
         kind: 'resource',
-        flashcardsV2: true,
         inPlc: true,
       })
     ).toEqual(['classes', 'when']);
@@ -130,7 +126,7 @@ describe('getAssignSteps (D4)', () => {
       getAssignSteps('flashcards', { kind: 'resource', speak: true })
     ).toEqual(['classes', 'when', 'speak']);
     expect(getAssignSteps('flashcards', { kind: 'work', speak: true })).toEqual(
-      ['classes', 'when', 'check']
+      ['classes', 'when', 'cards', 'check', 'attempts', 'integrity', 'feedback']
     );
     expect(getAssignSteps('gl', { kind: 'resource', speak: true })).toEqual([
       'classes',

@@ -136,3 +136,14 @@ describe('AssignStepper', () => {
     expect(screen.getByText('classes body')).toBeInTheDocument();
   });
 });
+
+describe('AssignStepper inline', () => {
+  it('renders the steps and submit in place with no dialog or Cancel', async () => {
+    const { onSubmit } = renderStepper({ inline: true, submitLabel: 'Save' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+    expect(screen.getByText('classes body')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+  });
+});

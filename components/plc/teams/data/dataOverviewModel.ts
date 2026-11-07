@@ -93,7 +93,7 @@ export interface DataOverviewInput {
   heroRef: TeamHeroRef | null;
   /** Fixture override for chart labels. */
   shortTitles?: Record<string, string>;
-  /** flashcards-assign-v2: also flashcard checks, for target and standard mastery across assessments. */
+  /** Also flashcard checks, for target and standard mastery across assessments. */
   masteryAggregates?: readonly PlcAssessmentAggregate[];
   masteryAssessments?: readonly PlcCommonAssessment[];
 }

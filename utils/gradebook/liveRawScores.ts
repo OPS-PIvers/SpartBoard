@@ -31,14 +31,15 @@ const NOT_SCORED: LiveRawScore = {
 export function quizLiveRaw(
   r: QuizResponse,
   questions: QuizQuestion[],
-  fibGrading?: FibGradingContext | null
+  fibGrading?: FibGradingContext | null,
+  paperWrittenQuestionIds?: readonly string[]
 ): LiveRawScore {
   if (r.status !== 'completed') return NOT_SCORED;
   const deduped = dedupeQuestionsById(questions);
   const submittedAt = r.submittedAt ?? null;
   if (!canScoreResponse(r, deduped)) return { ...NOT_SCORED, submittedAt };
   const max = deduped.reduce((s, q) => s + questionPointsFor(q, r), 0);
-  if (isResponseAwaitingGrade(r, deduped)) {
+  if (isResponseAwaitingGrade(r, deduped, paperWrittenQuestionIds)) {
     return { points: null, max, state: 'awaiting-grade', submittedAt };
   }
   const earned = getEarnedPoints(r, deduped, undefined, fibGrading);

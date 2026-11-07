@@ -269,3 +269,50 @@ describe('QuizManager — Add answer key (R31)', () => {
     expect(screen.queryByText('Add answer key')).toBeNull();
   });
 });
+
+const HYBRID: QuizAssignment = {
+  ...PAPER,
+  id: 'qa-hybrid',
+  status: 'active',
+  paper: undefined,
+  writtenOnPaper: true,
+  paperWrittenQuestionIds: ['q3'],
+  paperWrittenSeats: 26,
+  paperWrittenScanned: 18,
+};
+
+describe('QuizManager — written answers on paper card', () => {
+  it('shows the scanned count and offers Import written answers while running', () => {
+    const onImportPaperResponses = vi.fn();
+    renderTab('active', HYBRID, {
+      onImportPaperResponses,
+      onReprintPaperSheets: vi.fn(),
+    });
+    expect(screen.getByText('Paper 18/26 scanned')).toBeTruthy();
+    openRowMenu();
+    expect(screen.getByText('Print written answer sheets')).toBeTruthy();
+    fireEvent.click(screen.getByText('Import written answers'));
+    expect(onImportPaperResponses).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'qa-hybrid' })
+    );
+  });
+
+  it('still imports written answers after the assignment ends', () => {
+    const onImportPaperResponses = vi.fn();
+    renderTab(
+      'archive',
+      { ...HYBRID, status: 'inactive', paperWrittenScanned: undefined },
+      { onImportPaperResponses }
+    );
+    expect(screen.getByText('Paper 0/26 scanned')).toBeTruthy();
+    openRowMenu();
+    fireEvent.click(screen.getByText('Import written answers'));
+    expect(onImportPaperResponses).toHaveBeenCalledOnce();
+  });
+
+  it('offers no import once paper sheets are off', () => {
+    renderTab('active', HYBRID);
+    openRowMenu();
+    expect(screen.queryByText('Import written answers')).toBeNull();
+  });
+});

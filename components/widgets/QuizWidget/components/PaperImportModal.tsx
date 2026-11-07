@@ -276,6 +276,13 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     [quiz, batch]
   );
   const isV2 = batch?.layoutVersion === 2;
+  // Written answers on paper: the stack holds only written boxes and merges onto device responses.
+  const hybrid = assignments.some(
+    (a) =>
+      a.id === assignmentId &&
+      a.writtenOnPaper === true &&
+      a.paperBatchId === batchId
+  );
   const writtenLabels = useMemo(() => {
     const out = new Map<string, string>();
     for (const map of batch?.pageMaps ?? []) {
@@ -644,16 +651,18 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
 
   // A batch records choiceOrder only for an authored quiz; a stub's key comes
   // from the bubbled key sheet and nowhere else.
-  const needsKey = !!batch?.keySheetSeat && !batch?.choiceOrder;
-  const keyMissing = needsKey && !assembled?.keySheet;
+  const needsKey = !hybrid && !!batch?.keySheetSeat && !batch?.choiceOrder;
+  // No bubbles to grade on a written-only stack, so its key sheet carries nothing.
+  const keySheet = hybrid ? null : (assembled?.keySheet ?? null);
+  const keyMissing = needsKey && !keySheet;
   const keyIncomplete =
-    !!assembled?.keySheet &&
+    !!keySheet &&
     rowIds.some((id) => key[id] === null || key[id] === undefined);
   const canImport =
     step === 'review' &&
     !!assembled &&
     !keyMissing &&
-    (!assembled.keySheet || (keyConfirmed && !keyIncomplete));
+    (!keySheet || (keyConfirmed && !keyIncomplete));
 
   const runImport = async (
     sheets: ImportPaperSheetPayload[],
@@ -781,7 +790,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       // any response that will be graded against it. Tags ride the same save.
       const now = Date.now();
       let nextQuiz = quiz;
-      if (assembled.keySheet) nextQuiz = applyKeyToQuiz(quiz, batch, key, now);
+      if (keySheet) nextQuiz = applyKeyToQuiz(quiz, batch, key, now);
       nextQuiz = applyTargetsToQuiz(nextQuiz, targets, now);
       if (nextQuiz !== quiz) await onSaveQuiz(nextQuiz);
       const target =
@@ -842,11 +851,18 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     const writtenKeys = payload.flatMap((s) =>
       (s.written ?? []).map((w) => writtenCropKey(s.seat, w.questionId))
     );
-    // One transcription call per page with ink (D24), so quota counts pages.
+    // One transcription call per page with ink (D24), so quota counts pages; custom image boxes are never transcribed.
+    const imageBoxes = new Set(
+      (batch.pageMaps ?? []).flatMap((m) =>
+        m.items.flatMap((i) =>
+          i.kind === 'written' && i.style === 'image' ? [i.questionId] : []
+        )
+      )
+    );
     const inkPages = new Set(
       payload.flatMap((s) =>
         (s.written ?? [])
-          .filter((w) => w.state === 'ink')
+          .filter((w) => w.state === 'ink' && !imageBoxes.has(w.questionId))
           .map((w) => `${s.seat}:${w.page}`)
       )
     ).size;
@@ -1056,7 +1072,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         </div>
       );
     }
-    if (!assembled.keySheet) return null;
+    if (!keySheet) return null;
     return (
       <section className="rounded-xl border border-slate-200 p-3">
         <p className="text-sm font-bold text-slate-900">Answer key</p>
@@ -1332,9 +1348,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               : `Uploading ${done} of ${keys.length}`}
           </span>
         </div>
-        <p className="mt-0.5 text-xs text-slate-600">
-          {plural(summary.inkPages, 'page')} to transcribe
-        </p>
+        {!quota?.disabled && (
+          <p className="mt-0.5 text-xs text-slate-600">
+            {plural(summary.inkPages, 'page')} to transcribe
+          </p>
+        )}
         {quota?.disabled ? (
           <p className="mt-1 text-xs text-amber-800">
             Transcription is off, so written answers import without typed text.
@@ -1487,7 +1505,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           </label>
         )}
         {renderKey()}
-        {renderTargets()}
+        {rowIds.length > 0 && renderTargets()}
         {importSheets.map(renderSheet)}
         {renderWritten()}
         {problems.length > 0 && (

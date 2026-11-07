@@ -98,10 +98,7 @@ import {
   type ImportTarget,
 } from '@/utils/import/contract';
 import { ImportScreenHost } from '@/components/import/ImportScreenHost';
-import {
-  IMPORT_TARGET_FEATURES,
-  targetChoices,
-} from '@/components/import/importTargets';
+import { importTypeOn, targetChoices } from '@/components/import/importTargets';
 import {
   openImportScreen,
   type ImportDropPoint,
@@ -442,13 +439,19 @@ export const DashboardView: React.FC = () => {
     };
   }, []);
   const onboardingShownRef = React.useRef(false);
+  const seedAuth = useAuth();
+  // Under Getting Started the checklist widget is never seeded (D26); wait until the flag is known.
+  const seedHeld =
+    !seedAuth.globalPermissionsLoaded ||
+    seedAuth.isAdmin === null ||
+    seedAuth.canAccessFeature('getting-started');
 
   // Auto-add onboarding widget for brand-new users on their first empty board.
   // onboardingShownRef guards against duplicate adds within a session;
   // localStorage persists the flag across reloads so the widget is never re-added.
   // Skipped in auth-bypass mode (E2E / local dev) to keep tests deterministic.
   React.useEffect(() => {
-    if (!activeDashboard) return;
+    if (!activeDashboard || seedHeld) return;
     if (onboardingShownRef.current) return;
     if (import.meta.env.VITE_AUTH_BYPASS === 'true') return;
     try {
@@ -469,7 +472,7 @@ export const DashboardView: React.FC = () => {
       }
       addWidget('onboarding', { x: 60, y: 80, w: 380, h: 440 });
     }
-  }, [activeDashboard, dashboards, addWidget]);
+  }, [activeDashboard, dashboards, addWidget, seedHeld]);
 
   // WIDGET POSITION RESCUE
   // Refs keep values fresh inside stable callbacks without re-registering
@@ -535,10 +538,8 @@ export const DashboardView: React.FC = () => {
   const { canAccessFeature, isAdmin } = useAuth();
   const universalImport = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
   const importOnDrop = universalImport && canAccessFeature(IMPORT_DROP_FEATURE);
-  const importTypeOn = (target: ImportTarget): boolean => {
-    const flag = IMPORT_TARGET_FEATURES[target];
-    return !!flag && canAccessFeature(flag);
-  };
+  const importTypeAllowed = (target: ImportTarget): boolean =>
+    importTypeOn(target, canAccessFeature);
   const boxSelectEnabled =
     !annotationActive && !isActiveBoardReadOnly && !groupBuildMode;
   const marqueeRect = useBoardMarqueeSelect({
@@ -1399,7 +1400,7 @@ export const DashboardView: React.FC = () => {
     // Prefer a file Import can read, so a PDF dropped with other files still lands.
     const files = Array.from(dt.files ?? []);
     const offered = (f: File) =>
-      targetChoices({ file: f }, importTypeOn).targets.length > 0 ||
+      targetChoices({ file: f }, importTypeAllowed).targets.length > 0 ||
       (/\.imscc$/i.test(f.name) && canAccessFeature('import-schoology-course'));
     // A file no Import type is open for keeps the old drop (a PDF or notebook lands as before).
     if (
@@ -1758,9 +1759,6 @@ export const DashboardView: React.FC = () => {
             />
           </div>
         )}
-
-        {/* Background Overlay for Depth */}
-        <div className="absolute inset-0 bg-black/10 pointer-events-none" />
       </div>
 
       {/* ZOOMABLE WIDGET SURFACE: widgets get pan/zoom. */}

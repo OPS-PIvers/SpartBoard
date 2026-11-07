@@ -1,3 +1,4 @@
+import { plainPromptText } from './promptMath';
 import {
   escapeHtml,
   printHtmlDocument,
@@ -103,7 +104,7 @@ export function buildStudentReportHtml(job: StudentReportJob): string {
         job.includeCorrectAnswers && showsMissedKey(line)
           ? `<div class="key">Correct answer: ${escapeHtml(line.correctAnswerText ?? '')}</div>`
           : '';
-      return `<li><span class="num">Q${line.number}</span><div><div class="text">${escapeHtml(line.text)}</div>${answer}${key}</div><div class="mark">${MARK_LABEL[line.mark]}${pts}</div></li>`;
+      return `<li><span class="num">Q${line.number}</span><div><div class="text">${escapeHtml(plainPromptText(line.text))}</div>${answer}${key}</div><div class="mark">${MARK_LABEL[line.mark]}${pts}</div></li>`;
     })
     .join('');
 
@@ -584,7 +585,7 @@ function studentReport(
         }
       }
       const text = options.includeQuestions
-        ? `<div class="text">${escapeHtml(line.text)}</div>`
+        ? `<div class="text">${escapeHtml(plainPromptText(line.text))}</div>`
         : '';
       return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode)}</div>${markCell(line, options)}</li>`;
     })
