@@ -192,7 +192,8 @@ describe('Next Up drain controller across two tabs', () => {
     });
     a.onEntries([entry('x')]);
     await flush();
-    expect(drain).toHaveBeenCalledWith([entry('x')], false);
+    // A tab's first drain reloads, even on a lease it already held before a page reload.
+    expect(drain).toHaveBeenCalledWith([entry('x')], true);
     // A fallback is not a lease, so nothing is released on leave.
     expect(a.stop()).toBe(false);
   });

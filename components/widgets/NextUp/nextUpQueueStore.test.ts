@@ -220,4 +220,19 @@ describe('Next Up queue store after a failed write', () => {
       'c:waiting',
     ]);
   });
+
+  it('keeps unsaved joins when a Next queued behind them also fails', async () => {
+    const store = createNextUpQueueStore();
+    const fail = () => Promise.reject(new Error('Drive down'));
+    const join = store.dispatch(
+      { type: 'joined', entries: [entry('a')] },
+      fail
+    );
+    const next = store.dispatch({ type: 'advance' }, fail);
+    await Promise.allSettled([join, next]);
+    await flush();
+    await store.load(() => Promise.resolve([]));
+
+    expect(store.getQueue().map((item) => item.id)).toEqual(['a']);
+  });
 });

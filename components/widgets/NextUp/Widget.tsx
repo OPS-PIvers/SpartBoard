@@ -222,6 +222,8 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
         };
       });
 
+    // Pick the tab id now, so this tab answers a duplicate's check before either claims.
+    void getNextUpTabId();
     const untrack = trackNextUpController(sessionId);
     const controller = createNextUpDrainController<JoinEntry>({
       claim: async (takeoverSeq) =>

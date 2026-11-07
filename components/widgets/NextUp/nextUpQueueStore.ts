@@ -65,9 +65,9 @@ export function createNextUpQueueStore(): NextUpQueueStore {
           unsavedJoins = false;
         },
         () => {
-          if (lastWrite !== done) return;
-          lastWriteFailed = true;
+          // Every write saves the whole queue, so any later success clears this.
           if (isJoin) unsavedJoins = true;
+          if (lastWrite === done) lastWriteFailed = true;
         }
       );
       chain = done
@@ -89,6 +89,7 @@ export function createNextUpQueueStore(): NextUpQueueStore {
         !unsavedJoins
       ) {
         lastWriteFailed = false;
+        lastWrite = Promise.resolve();
         set(loaded);
       }
     },

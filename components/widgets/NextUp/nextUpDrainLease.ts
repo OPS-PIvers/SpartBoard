@@ -210,8 +210,8 @@ export function createNextUpDrainController<T extends EntryLike>(opts: {
   let stopped = false;
   let holder = false;
   let watch: { ids: Set<string>; seq: number; due: boolean } | null = null;
-  // A takeover whose first drain failed still owes the reload.
-  let reloadOwed = false;
+  // The first drain after mount, or a takeover whose first drain failed, reloads before writing.
+  let reloadOwed = true;
   let failures = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
